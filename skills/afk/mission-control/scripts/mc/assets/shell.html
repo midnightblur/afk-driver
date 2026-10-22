@@ -276,6 +276,7 @@ const STATUS_COLOR = {
   blocked:"var(--crit)", red:"var(--crit)", blocking:"var(--crit)", fail:"var(--crit)", failing:"var(--crit)", tainted:"var(--crit)",
   advisory:"var(--warn)", stale:"var(--warn)", "in-progress":"var(--warn)", parked:"var(--warn)", findings:"var(--warn)", "env-limited":"var(--warn)", env_limited:"var(--warn)",
   designing:"var(--s1)", developing:"var(--s1)", verifying:"var(--s1)", reviewing:"var(--s7)",
+  starting:"var(--s1)", working:"var(--s1)", finished:"var(--good)", lost:"var(--crit)", unkillable:"var(--crit)", cleaned:"var(--muted)",
   pending:"var(--muted)", missing:"var(--muted)", absent:"var(--muted)", invalid:"var(--crit)", ok:"var(--good)"
 };
 function statusColor(token){
@@ -894,6 +895,8 @@ RENDER["progress"] = function(sec, root){
   root.append(el("p", {class:"mc-sub"}, "per-subtask status with sub-phase detail; click a card to expand"));
   const d = sec.data;
   const ladder = d.ladder;
+  if (d.feature_rounds) root.append(el("div", {class:"filterrow"},
+    el("span", {class:"chip"}, "feature review: " + d.feature_rounds + " settle round(s)")));
 
   // DAG of Blocked-by edges (only when the plan declares any)
   const edges = [];
@@ -964,6 +967,31 @@ RENDER["progress"] = function(sec, root){
       "last journal entry " + s.latest_event.ts + " — " + trunc(s.latest_event.event, 90)));
     root.append(dd);
   });
+};
+
+/* ---- team ---- */
+RENDER["team"] = function(sec, root){
+  const d = sec.data;
+  root.append(el("h1", null, "Team"));
+  root.append(el("p", {class:"mc-sub"}, "the run's agents, read from its run manifest; times are UTC, as the manifest holds them"));
+  const head = el("div", {class:"filterrow"},
+    el("span", {class:"chip"}, "run " + d.feature),
+    el("span", {class:"chip"}, "contact session " + d.owning_session + " · generation " + d.owner_generation));
+  d.states.forEach(st => { if (d.counts[st]) head.append(el("span", {class:"chip"},
+    el("i", {class:"swatch", style:"background:" + statusColor(st)}), st + " " + d.counts[st])); });
+  root.append(head);
+  if (d.earliest_park_until) root.append(el("div", {class:"banner"},
+    "Parked on purpose, not hung: the first parked agent is due back at " + d.earliest_park_until + " (UTC)."));
+  if (!d.agents.length) root.append(el("div", {class:"empty"}, "no agents recorded in this run yet"));
+  else root.append(genericTable(["agent", "role", "model", "state", "parked until (UTC)", "park reason", "step"],
+    d.agents.map(a => ({agent:a.pane_label || a.agent_id, role:a.role, model:a.model, state:a.state,
+      "parked until (UTC)":a.state === "parked" ? (a.park_until || "not recorded") : "",
+      "park reason":a.state === "parked" ? a.park_reason : "", step:a.pattern_step})), ["state"]));
+  if (d.processes.length){
+    const p = el("details", {class:"mc"}, el("summary", null, "background processes (" + d.processes.length + ")"));
+    p.append(genericTable(["pid", "owner", "label"], d.processes, []));
+    root.append(p);
+  }
 };
 
 /* ---- timeline ---- */
@@ -1149,7 +1177,7 @@ RENDER["legend"] = function(sec, root){
 };
 
 /* ================= router + nav ================= */
-const NAV_KEYS = "123456789abc".split("");
+const NAV_KEYS = "123456789abcd".split("");
 const nav = document.getElementById("mc-nav");
 const main = document.getElementById("mc-main");
 nav.append(el("div", {class:"brand"}, "Mission Control"));
@@ -1157,14 +1185,14 @@ nav.append(el("div", {class:"spec", title:MC.meta.spec_name}, MC.meta.spec_name 
 const FRESH_DOT = {ok:"var(--good)", stale:"var(--warn)", missing:"var(--baseline)", invalid:"var(--crit)", absent:"var(--baseline)"};
 SECTIONS.forEach((s, i) => {
   const b = el("button", {onclick(){ location.hash = s.id; }},
-    el("i", {class:"dot", style:"background:" + (s.kind === "live" ? "var(--good)" : (FRESH_DOT[s.state] || "var(--baseline)"))}),
+    el("i", {class:"dot", style:"background:" + (s.kind === "live" && s.state !== "absent" ? "var(--good)" : (FRESH_DOT[s.state] || "var(--baseline)"))}),
     s.title,
     el("span", {class:"key"}, NAV_KEYS[i] || ""));
   b.dataset.section = s.id;
-  if (s.kind === "digest" && s.state !== "ok") b.dataset.tip = s.reason;
+  if (s.state !== "ok") b.dataset.tip = s.reason;
   nav.append(b);
 });
-nav.append(el("div", {class:"foot"}, "read-only · derived from the plan artifacts · j/k or number keys to navigate"));
+nav.append(el("div", {class:"foot"}, "read-only · derived from the plan artifacts and the team run manifest · j/k or number keys to navigate"));
 
 function show(id){
   const sec = byId[id] || SECTIONS[0];

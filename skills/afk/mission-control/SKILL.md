@@ -10,9 +10,11 @@ description: Read-only dashboard for a feature's spec folder (watch / --once / b
 Fronts the mission-control renderer CLI (`scripts/mission_control.py`, bundled
 in this skill directory). The page has two layers:
 
-- **Live sections** (progress, timeline, gates, insights, diffs) — derived by
-  the renderer from the plan artifacts on every render; always current; no
-  agent ever writes their content.
+- **Live sections** (progress, team, timeline, gates, insights, diffs) —
+  derived by the renderer from the plan artifacts on every render; always
+  current; no agent ever writes their content. The team section reads the
+  feature's team run manifest in the main checkout's
+  `.claude/afk-team/<spec folder name>/` and shows in watch mode only.
 - **Digest sections** (architecture, flows, entities, decisions, critical
   logic, legend) — rendered from the committed, hash-stamped
   `plan/digests/*.json` this skill authors in **build mode**
@@ -30,10 +32,12 @@ before a ticket key is minted). Required.
 
 - **Watch mode (default)** — for a feature with a run in progress. Launches
   the renderer without `--once`; watches the spec/plan artifacts (digests
-  included) and git refs, re-renders on change, serves on `127.0.0.1`.
+  included) and the team run manifest, re-renders on change, serves on
+  `127.0.0.1`.
 - **Retro mode (`--once`)** — for a finished feature, no live run. Renders one
   complete page from the artifacts as they stand and exits — no server, no
-  watching.
+  watching. The team section shows Absent: a snapshot outlives the run it
+  would show.
 - **Build mode (`build`)** — the only mode that spends tokens. Rebuilds
   exactly the digests the freshness report calls `stale`/`missing`/`invalid`,
   by the protocol in [DIGEST-FORMAT.md]. Before fanning out, tell the user

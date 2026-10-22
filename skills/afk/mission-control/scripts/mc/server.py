@@ -47,8 +47,13 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
         pass  # keep CLI/test output quiet; not a correctness concern
 
 
-def _snapshot_mtimes(spec_dir: Path, out_dir: Path) -> dict:
+def _snapshot_mtimes(spec_dir: Path, out_dir: Path, watch_files=()) -> dict:
     snapshot = {}
+    for path in watch_files:
+        try:
+            snapshot[str(path)] = path.stat().st_mtime
+        except OSError:
+            snapshot[str(path)] = None  # absent now; its creation is a change
     try:
         for path in spec_dir.rglob("*"):
             if path == out_dir or out_dir in path.parents:
@@ -70,10 +75,12 @@ def watch_and_serve(
     panel_parsers: list,
     debounce: float = _DEBOUNCE_DEFAULT,
     stop_event: "threading.Event | None" = None,
+    watch_files=(),
 ) -> http.server.HTTPServer:
     """Renders once, starts the debounced mtime watcher in a daemon thread,
     and returns a bound (not yet serving) `HTTPServer`. Call `serve_forever()`
-    on the result to actually serve.
+    on the result to actually serve. The watcher covers every file under
+    `spec_dir` plus `watch_files`, which may sit outside it.
     """
     render_once(spec_dir, out_dir, panel_parsers, live_reload=True)
     token = [0]
@@ -85,17 +92,17 @@ def watch_and_serve(
     httpd.mc_token = token
 
     def _watch_loop():
-        last = _snapshot_mtimes(spec_dir, out_dir)
+        last = _snapshot_mtimes(spec_dir, out_dir, watch_files)
         while not (stop_event and stop_event.is_set()):
             time.sleep(_POLL_INTERVAL)
             try:
-                current = _snapshot_mtimes(spec_dir, out_dir)
+                current = _snapshot_mtimes(spec_dir, out_dir, watch_files)
                 if current != last:
                     # Debounce: wait for the burst to settle, then take one
                     # more snapshot so a slow render coalesces instead of
                     # queuing re-renders (SDD §5 retry/timeout table).
                     time.sleep(debounce)
-                    current = _snapshot_mtimes(spec_dir, out_dir)
+                    current = _snapshot_mtimes(spec_dir, out_dir, watch_files)
                     render_once(spec_dir, out_dir, panel_parsers, live_reload=True)
                     token[0] += 1
                     last = current

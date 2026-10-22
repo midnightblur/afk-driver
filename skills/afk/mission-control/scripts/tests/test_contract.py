@@ -26,7 +26,8 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import mission_control  # noqa: E402
-from mc import server  # noqa: E402
+from mc import compose, server  # noqa: E402
+from mc.sections import team  # noqa: E402
 from mc.vm import Absent  # noqa: E402
 
 _SDD_TEXT = """# SDD - fixture
@@ -532,6 +533,167 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertEqual(reason, "")
         self.assertEqual(card["generated"], _UNDERSTANDING_GENERATED)
         self.assertEqual(card["diff_range"], _UNDERSTANDING_DIFF_RANGE)
+
+    # A11 - the feature review-round count: PF-3 outcomes files, counted once, beside the subtasks
+    def test_feature_round_count(self):
+        spec_dir = _build_fixture(self.base / "feature-rounds")
+        review_dir = spec_dir / "plan" / "review"
+        for name in ("feature-abc1234-r1.outcomes.json", "feature-abc1234-r3.outcomes.json",
+                     "0002-follow-abc123-r2.outcomes.json"):
+            (review_dir / name).write_text(json.dumps({"r-001": "fixed"}), encoding="utf-8")
+        # a rollup row keyed feature feeds no cycle note into the count
+        (review_dir / "INDEX.md").write_text(
+            _REVIEW_INDEX_TEXT + "| feature | feature-abc1234.md | advisory (cycle 9) | 0/0/1/0 | none |\n",
+            encoding="utf-8")
+
+        data = _parse_all(spec_dir)["progress"].data
+        self.assertEqual(data["feature_rounds"], 3)
+        self.assertEqual([s["id"] for s in data["subtasks"]], ["0001-sample", "0002-follow"])
+        self.assertEqual(sum(data["counts"].values()), 2)
+        self.assertEqual({s["id"]: s["rounds"] for s in data["subtasks"]}["0002-follow"], 2)
+
+        bare = _build_fixture(self.base / "no-feature-rounds")
+        self.assertIsNone(_parse_all(bare)["progress"].data["feature_rounds"])
+
+
+def _team_agent(agent_id: str, role: str) -> dict:
+    return {"agent_id": agent_id, "stage": "execute", "pattern_step": "build", "role": role,
+            "model": "opus", "lifespan": "Step", "pane_label": f"TIX-1 {role} opus hi",
+            "agent_name": f"tix-1-{role}-opus-hi"}
+
+
+def _write_team_run(main: Path, run: str, park_until: str = "2026-07-07T18:30:00Z") -> Path:
+    """A real run manifest written by the manifest module: one working agent, one parked."""
+    root = main / ".claude" / "afk-team"
+    team.manifest.adopt_manifest(root, run, "session-1")
+    for agent_id, role in (("a-1", "builder"), ("a-2", "reviewer")):
+        team.manifest.record_entry(root, run, _team_agent(agent_id, role))
+        team.manifest.move_entry(root, run, agent_id, "working")
+    team.manifest.record_entry(root, run, {"agent_id": "a-2", "park_reason": "provider limit",
+                                           "park_until": park_until})
+    team.manifest.move_entry(root, run, "a-2", "parked")
+    return team.manifest.manifest_path(root, run)
+
+
+class TeamSectionTests(unittest.TestCase):
+    """The read-only team section over the run manifest (SDD §8 "Dashboard section", §14)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _worktree(self, main: Path, name: str) -> Path:
+        tree = self.base / name
+        _git(main, ["worktree", "add", "-q", "-b", f"wt-{name}", str(tree)])
+        return tree
+
+    def test_registered_in_every_lockstep_table(self):
+        self.assertIn("team", compose.NAV_ORDER)
+        self.assertEqual(compose.SECTION_META["team"], ("Team", "live"))
+        self.assertIn(team.parse_team_section, mission_control.SECTION_PARSERS)
+        self.assertIn(team.parse_snapshot, mission_control.SNAPSHOT_PARSERS)
+        self.assertNotIn(team.parse_team_section, mission_control.SNAPSHOT_PARSERS)
+        shell = (SCRIPTS_DIR / "mc" / "assets" / "shell.html").read_text(encoding="utf-8")
+        self.assertIn('RENDER["team"]', shell)
+        nav_keys = re.search(r'const NAV_KEYS = "([^"]*)"', shell).group(1)
+        self.assertGreaterEqual(len(nav_keys), len(compose.NAV_ORDER) + 1)
+
+    def test_parked_agent_shows_its_absolute_park_until(self):
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        _write_team_run(spec_dir, "TIX-1")
+
+        vm = team.parse_team_section(spec_dir)
+        self.assertNotIsInstance(vm, Absent)
+        agents = {a["agent_id"]: a for a in vm.data["agents"]}
+        self.assertEqual(agents["a-1"]["state"], "working")
+        self.assertEqual(agents["a-1"]["park_until"], "")
+        self.assertEqual(agents["a-2"]["state"], "parked")
+        self.assertEqual(agents["a-2"]["park_until"], "2026-07-07T18:30:00Z")
+        self.assertEqual(agents["a-2"]["park_reason"], "provider limit")
+        self.assertEqual(vm.data["earliest_park_until"], "2026-07-07T18:30:00Z")
+        self.assertEqual(vm.data["counts"], {"working": 1, "parked": 1})
+
+    def test_rerender_byte_identical_with_a_run(self):
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        _write_team_run(spec_dir, "TIX-1")
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        first = server.render_once(spec_dir, out_dir, mission_control.SECTION_PARSERS, live_reload=False)
+        second = server.render_once(spec_dir, out_dir, mission_control.SECTION_PARSERS, live_reload=False)
+        self.assertEqual(first, second)
+        sections = _sections(first)
+        self.assertEqual(sections["team"]["state"], "ok")
+        self.assertIn("2026-07-07T18:30:00Z", json.dumps(sections["team"]["data"]))
+
+    def test_absent_in_the_one_time_render(self):
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        _write_team_run(spec_dir, "TIX-1")
+
+        mission_control.main(["--once", str(spec_dir)])
+        sections = _sections((spec_dir / "plan" / "mission-control" / "index.html").read_text(encoding="utf-8"))
+        self.assertEqual(sections["team"]["state"], "absent")
+        self.assertEqual(sections["team"]["reason"], team.SNAPSHOT_REASON)
+        self.assertNotIn("a-2", json.dumps(sections["team"]))
+
+    def test_reads_the_main_checkout_from_a_worktree(self):
+        main = _build_fixture(self.base / "main")
+        tree = self._worktree(main, "TIX-7")
+        # a copy of .claude in the worktree is never the run's manifest
+        _write_team_run(tree, "TIX-7", park_until="2026-01-01T00:00:00Z")
+        _write_team_run(main, "TIX-7")
+
+        self.assertEqual(team.manifest_file(tree).resolve(),
+                         (main / ".claude" / "afk-team" / "TIX-7" / "manifest.json").resolve())
+        vm = team.parse_team_section(tree)
+        self.assertEqual(vm.data["earliest_park_until"], "2026-07-07T18:30:00Z")
+
+    def test_never_raises(self):
+        no_git = self.base / "no-git"
+        no_git.mkdir()
+        self.assertIsInstance(team.parse_team_section(no_git), Absent)
+
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        self.assertIn("no team run", team.parse_team_section(spec_dir).reason)
+
+        path = spec_dir / ".claude" / "afk-team" / "TIX-1" / "manifest.json"
+        path.parent.mkdir(parents=True)
+        for text in ("{not json", json.dumps({"format_version": 99}), "[" * 100000 + "]" * 100000):
+            path.write_text(text, encoding="utf-8")
+            vm = team.parse_team_section(spec_dir)
+            self.assertIsInstance(vm, Absent, text[:20])
+            self.assertIn("could not be read", vm.reason)
+
+    def test_watch_rerenders_when_the_main_checkout_manifest_changes(self):
+        main = _build_fixture(self.base / "main")
+        tree = self._worktree(main, "TIX-7")
+        out_dir = tree / "plan" / "mission-control"
+
+        httpd = server.watch_and_serve(tree, out_dir, 0, mission_control.SECTION_PARSERS, debounce=0.1,
+                                       watch_files=mission_control.watch_files(tree))
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = httpd.server_address[1]
+            time.sleep(0.3)
+            _write_team_run(main, "TIX-7")
+
+            deadline = time.monotonic() + 5
+            updated = False
+            while time.monotonic() < deadline and not updated:
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                conn.request("GET", "/index.html")
+                body = conn.getresponse().read()
+                conn.close()
+                updated = b"2026-07-07T18:30:00Z" in body
+                time.sleep(0.2)
+            self.assertTrue(updated, "watch mode never re-rendered after the main checkout's manifest changed")
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
 
 
 if __name__ == "__main__":

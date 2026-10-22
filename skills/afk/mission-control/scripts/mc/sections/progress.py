@@ -5,8 +5,10 @@ Status ladder), the subtask contract's Complexity + Verification tiers, the
 review rollup row (plan/review/INDEX.md), settle-round evidence (per-round
 outcomes files and/or cycle notes in the verdict cell), per-subtask commits
 (subject convention `[NNNN-slug] ...`), and the subtask's latest journal
-line. Formats owned by: skills/afk/to-subtasks/PLAN-TEMPLATE.md,
-SUBTASK-CONTRACT.md, skills/afk/review/SKILL.md, JOURNAL-FORMAT.md.
+line. Once for the feature: the review-round count from the feature outcomes
+files /afk:preflight writes, read with no rollup so no cycle note raises it.
+Formats owned by: skills/afk/to-subtasks/PLAN-TEMPLATE.md, SUBTASK-CONTRACT.md,
+skills/afk/review/SKILL.md, JOURNAL-FORMAT.md.
 """
 from __future__ import annotations
 
@@ -82,7 +84,12 @@ def parse(spec_dir: Path):
     counts = {}
     for sub in subtasks:
         counts[sub["status"]] = counts.get(sub["status"], 0) + 1
-    data = {"subtasks": subtasks, "counts": counts, "ladder": _STATUS_LADDER}
+    data = {
+        "subtasks": subtasks,
+        "counts": counts,
+        "ladder": _STATUS_LADDER,
+        "feature_rounds": _rounds(review_dir, "feature", None),
+    }
     return SectionVM(SECTION_ID, SECTION_TITLE, KIND_LIVE, data)
 
 

@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from mc import digests, server
-from mc.sections import architecture, diffs, digest_sections, gates, insights, progress, timeline
+from mc.sections import architecture, diffs, digest_sections, gates, insights, progress, team, timeline
 
 EXIT_OK = 0
 EXIT_PATH_FENCE = 2
@@ -44,12 +44,21 @@ SECTION_PARSERS = [
     digest_sections.critical_logic,
     digest_sections.legend,
     progress.parse,
+    team.parse_team_section,
     timeline.parse,
     gates.parse,
     insights.parse,
     diffs.parse,
 ]
 PANEL_PARSERS = SECTION_PARSERS  # historical anchor alias (plan `## Produces`)
+# The one-time render (retro, ship snapshot) shows the team section Absent: plan D-129.
+SNAPSHOT_PARSERS = [team.parse_snapshot if p is team.parse_team_section else p for p in SECTION_PARSERS]
+
+
+def watch_files(spec_dir: Path) -> list:
+    """Files outside `spec_dir` that watch mode also watches: the main checkout's run manifest."""
+    path = team.manifest_file(spec_dir)
+    return [] if path is None else [path]
 
 
 def _find_repo_root(start: Path):
@@ -109,10 +118,10 @@ def main(argv=None) -> int:
         return EXIT_OK
 
     if args.once:
-        server.render_once(spec_dir, out_dir, SECTION_PARSERS, live_reload=False)
+        server.render_once(spec_dir, out_dir, SNAPSHOT_PARSERS, live_reload=False)
         return EXIT_OK
 
-    httpd = server.watch_and_serve(spec_dir, out_dir, args.port, SECTION_PARSERS)
+    httpd = server.watch_and_serve(spec_dir, out_dir, args.port, SECTION_PARSERS, watch_files=watch_files(spec_dir))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
