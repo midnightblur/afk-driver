@@ -735,6 +735,78 @@ def test_a_stop_with_no_usable_tool_still_kills_the_tree_and_names_the_pane(monk
     assert wait_for(lambda: not process.alive(int(grand.read_text()))) and not process.alive(child.pid)
 
 
+@pytest.mark.parametrize("own_pane", [True, False], ids=["own-pane", "callers-console"])
+def test_a_pane_stop_reaches_a_descendant_whose_parent_ended_and_spares_an_older_neighbour(
+        monkeypatch, tmp_path, own_pane):
+    import multiplexer
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr",
+                        (lambda env, harnesses, timeout: herdr.Detection("herdr", "broken", "no server"),
+                         herdr.Herdr))
+    script, grand = tmp_path / "orphan.py", tmp_path / "orphan.pid"
+    script.write_text(ORPHAN, encoding="utf-8")
+    pane = ({"creationflags": 0x08000000} if sys.platform == "win32" else {"start_new_session": True}) \
+        if own_pane else {}
+    neighbour = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+    time.sleep(1.1)                     # POSIX creation times count whole seconds
+    root = subprocess.Popen([sys.executable, str(script), str(grand)], stdout=subprocess.DEVNULL, **pane)
+    try:
+        assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+        orphan = int(grand.read_text().strip())
+        assert wait_for(lambda: orphan not in process.tree(root.pid))
+        body = multiplexer.Multiplexer({}).agent_stop(Payload("agent-stop", {"pid": root.pid}),
+                                                      Deadline("agent-stop"))
+        assert body["stopped"] is True, body
+        assert wait_for(lambda: not process.alive(orphan)) and process.alive(neighbour.pid)
+    finally:
+        for pid in (root.pid, neighbour.pid, *([int(grand.read_text())] if grand.exists() else [])):
+            process.kill_tree(pid, force=True, wait_s=2)
+
+
+def test_a_pane_stop_reaches_an_orphan_in_the_console_of_a_shell_the_agent_started(monkeypatch, tmp_path):
+    import multiplexer
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr",
+                        (lambda env, harnesses, timeout: herdr.Detection("herdr", "broken", "no server"),
+                         herdr.Herdr))
+    script, grand = tmp_path / "orphan.py", tmp_path / "orphan.pid"
+    script.write_text(ORPHAN, encoding="utf-8")
+    own = {"creationflags": 0x08000000} if sys.platform == "win32" else {"start_new_session": True}
+    shell = (f"import subprocess,sys,time; subprocess.Popen([sys.executable, r'{script}', r'{grand}'], "
+             f"stdout=subprocess.DEVNULL, **{own!r}); time.sleep(300)")
+    root = subprocess.Popen([sys.executable, "-c", shell], **own)
+    try:
+        assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+        orphan = int(grand.read_text().strip())
+        body = multiplexer.Multiplexer({}).agent_stop(Payload("agent-stop", {"pid": root.pid}),
+                                                      Deadline("agent-stop"))
+        assert body["stopped"] is True, body
+        assert wait_for(lambda: not process.alive(orphan))
+    finally:
+        for pid in (root.pid, *([int(grand.read_text())] if grand.exists() and grand.read_text().strip() else [])):
+            process.kill_tree(pid, force=True, wait_s=2)
+
+
+@pytest.mark.skipif(sys.platform != "win32" or BASH is None,
+                    reason="an MSYS process whose MSYS parent ended moves to MSYS process 1 only under Git for Windows")
+def test_a_pane_stop_reaches_an_msys_descendant_whose_parent_ended(monkeypatch, tmp_path):
+    import multiplexer
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr",
+                        (lambda env, harnesses, timeout: herdr.Detection("herdr", "broken", "no server"),
+                         herdr.Herdr))
+    left = tmp_path / "left.pid"
+    inner = rf"sleep 611 & p=\$!; sleep 1; cat /proc/\$p/winpid > '{left.as_posix()}'"
+    root = subprocess.Popen([BASH, "-c", f'bash -c "{inner}"; exec sleep 612'], creationflags=0x08000000)
+    try:
+        assert wait_for(lambda: left.exists() and left.read_text().strip())
+        orphan = int(left.read_text().strip())
+        body = multiplexer.Multiplexer({}).agent_stop(Payload("agent-stop", {"pid": root.pid}),
+                                                      Deadline("agent-stop"))
+        assert body["stopped"] is True, body
+        assert wait_for(lambda: not process.alive(orphan))
+    finally:
+        for pid in (root.pid, *([int(left.read_text())] if left.exists() and left.read_text().strip() else [])):
+            process.kill_tree(pid, force=True, wait_s=2)
+
+
 def test_a_stop_with_no_tool_and_no_process_id_answers_not_stopped(monkeypatch):
     import multiplexer
     monkeypatch.setitem(multiplexer.TOOLS, "herdr",

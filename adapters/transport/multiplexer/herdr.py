@@ -308,7 +308,7 @@ class Herdr:
     def agent_stop(self, p: Payload, deadline: Deadline) -> dict:
         pid, handle, force = p.integer("pid", False), p.text("handle", False), p.boolean("force")
         answer = process.stop(pid, force=force, wait_s=min(20.0, max(1.0, deadline.left() - 20)),
-                              none="pane close" if handle else "nothing to kill")
+                              none="pane close" if handle else "nothing to kill", with_kin=True)
         if handle:
             closed = self._close(handle, deadline)
             answer.update({"pane_closed": closed, "pane_id": handle})

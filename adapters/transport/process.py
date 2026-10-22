@@ -2,7 +2,8 @@
 
 `kill_tree` lists the whole tree first, then kills every member by its own id, so a child whose parent
 dies first is still reached; it never relies on a signal a shell trap catches. It answers the members it
-could not stop, by id, which a caller reports as survivors.
+could not stop, by id, which a caller reports as survivors. With `kin` it also kills a descendant whose
+parent ended first, which no tree lists: a newer process in the root's console (Windows) or session (POSIX).
 """
 from __future__ import annotations
 
@@ -125,6 +126,36 @@ if WINDOWS:
                 out.setdefault(parent, []).append(int(r[3]))
         return out
 
+    _CONSOLE = r"""
+import ctypes, sys
+from ctypes import wintypes
+k = ctypes.WinDLL("kernel32")
+seen = set()
+for pid in map(int, sys.argv[1:]):
+    if pid in seen:
+        continue
+    k.FreeConsole()
+    if not k.AttachConsole(pid):
+        continue
+    ids = (wintypes.DWORD * 4096)()
+    n = k.GetConsoleProcessList(ids, 4096)
+    seen.update(ids[i] for i in range(min(n, 4096)))
+seen.discard(k.GetCurrentProcessId())
+sys.stdout.write(" ".join(map(str, seen)))
+"""
+
+    def _containers(pids: list[int]) -> list[int]:
+        """Every process attached to a console of one of `pids`, read by a helper started with no console."""
+        try:
+            done = subprocess.run([sys.executable, "-I", "-c", _CONSOLE, *map(str, pids)],
+                                  capture_output=True, text=True, timeout=10, check=False,
+                                  creationflags=0x00000008)
+        except (OSError, subprocess.SubprocessError):
+            return []
+        return [int(x) for x in done.stdout.split() if x.isdigit()] if done.returncode == 0 else []
+
+    _born = _created
+
 else:
     def creation_time(pid: int) -> str | None:
         stat = f"/proc/{pid}/stat"
@@ -194,6 +225,41 @@ else:
                 pass                    # gone, or another user's process
         return out
 
+    def _containers(pids: list[int]) -> list[int]:
+        sids = set()
+        for pid in pids:
+            try:
+                sids.add(os.getsid(pid))
+            except OSError:
+                pass                    # gone
+        return [m for sid in sids for m in session_members(sid)]
+
+    _born = creation_time
+
+
+def kin(pid: int, members: list[int]) -> list[int]:
+    """Processes outside `members` in a console or session of one of them, born no earlier than `pid`,
+    and neither this caller, its ancestor, nor an ancestor of `pid`: a descendant whose parent ended."""
+    mine = _born(pid)
+    if mine is None:
+        return []
+    parents = _parents()
+
+    def line(start: int) -> set[int]:
+        seen: set[int] = set()
+        while start and start not in seen:
+            seen.add(start)
+            start = parents.get(start, 0)
+        return seen
+
+    skip = set(members) | line(os.getpid()) | line(pid)
+    out = []
+    for member in set(_containers(members)):
+        born = None if member in skip else _born(member)
+        if born is not None and born >= mine:
+            out.append(member)
+    return out
+
 
 def tree(pid: int) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
@@ -228,9 +294,11 @@ def tree(pid: int) -> list[int]:
     return out
 
 
-def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0) -> list[int]:
-    """Kill the process and its descendants; answer the members still alive after `wait_s`."""
+def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0, with_kin: bool = False) -> list[int]:
+    """Kill the process, its descendants and, with `with_kin`, its `kin`; answer those alive after wait_s."""
     members = tree(pid)
+    if with_kin:
+        members += kin(pid, members)
     for member in reversed(members):
         _kill_one(member, force)
     end = time.monotonic() + wait_s
@@ -245,14 +313,14 @@ def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0) -> list[in
 
 
 def stop(pid: int | None, *, force: bool, wait_s: float, none: str = "nothing to kill",
-         session: int | None = None) -> dict:
-    """agent-stop's answer for one process tree, and on POSIX what is left of its `session`: stopped with
-    a method, or not with its survivors."""
+         session: int | None = None, with_kin: bool = False) -> dict:
+    """agent-stop's answer for one process tree, with its `kin` when asked, and on POSIX what is left of its
+    `session`: stopped with a method, or not with its survivors."""
     if pid is None:
         return {"stopped": True, "method": none}
     if not alive(pid):
         return {"stopped": True, "method": "not running"}
-    survivors = kill_tree(pid, force=force, wait_s=wait_s)
+    survivors = kill_tree(pid, force=force, wait_s=wait_s, with_kin=with_kin)
     if session is not None:
         survivors += kill_session(session, keep=session, force=force)
     if survivors:

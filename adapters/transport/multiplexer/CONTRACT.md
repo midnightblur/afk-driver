@@ -23,11 +23,12 @@ a new tab; a tab it cannot make answers exit 4 naming the tab. A start a dialog
 blocks is stopped and answers exit 4 with `dialog` true. Each start carries the
 harness's update-off switch on its own launch only (`../launch.py`).
 
-`agent-stop` kills the whole process tree first, by each member's id, then
-closes the pane, then the tab when its last pane is gone. A pane already gone
-counts as closed. With no usable tool it still kills the tree by its process
-id and answers `pane_closed` false. It never relies on a shell trap: a pane
-close sends no signal one catches.
+`agent-stop` kills the whole process tree first, by each member's id, with
+each newer process whose parent ended in a console or session the tree uses,
+then closes the pane, then the tab when its last pane is gone. A pane already
+gone counts as closed. With no usable tool it still kills the tree by its
+process id and answers `pane_closed` false. It never relies on a shell trap: a
+pane close sends no signal one catches.
 
 `agent-send` delivers into the receiver's pane by the tool's delivery way. The
 contact agent's messages never come here: the team entry script writes them to

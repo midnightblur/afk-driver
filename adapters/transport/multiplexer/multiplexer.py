@@ -56,7 +56,7 @@ class Multiplexer:
 def _stop_without_tool(p: Payload, deadline: Deadline, why: str) -> dict:
     """With no usable tool the pane cannot close, but the process tree still dies by its id."""
     pid, handle, force = p.integer("pid", False), p.text("handle", False), p.boolean("force")
-    answer = process.stop(pid, force=force, wait_s=min(20.0, deadline.left()))
+    answer = process.stop(pid, force=force, wait_s=min(20.0, deadline.left()), with_kin=True)
     if pid is None and handle:
         answer = {"stopped": False, "reason": f"no process id was given and no tool can close pane {handle}",
                   "survivors": []}
