@@ -139,7 +139,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 11 | 0011-job-supervisor | Job supervisor: one per agent, sends exited or parked | pending | 0010-team-entry-script | static, unit | — |
 | 12 | 0012-cleanup | Cleanup: five fixed steps, survivors reported by name | pending | 0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr, 0010-team-entry-script | static, unit, integration | impl §4; use §2, §3, §10, §20 |
 | 13 | 0013-provider-layer-codex | Model equivalence sentence and Codex stub names | done | — | static, unit, integration | impl §6 |
-| 14 | 0014-delegation-doctrine | DELEGATION.md states the pane-agent rule once; its BEHAVIORS.md short form | developing | 0008-inbox-wait-script | static, unit, integration | use §1, §16 |
+| 14 | 0014-delegation-doctrine | DELEGATION.md states the pane-agent rule once; its BEHAVIORS.md short form | reviewing | 0008-inbox-wait-script | static, unit, integration | use §1, §16 |
 | 15 | 0015-team-skill-and-manifests | The team skill, in both plugin manifests | pending | 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine | static, integration | use §1, §5 |
 | 16 | 0016-sessionstart-handlers | SessionStart: the charter pointer after a compaction | pending | 0010-team-entry-script | static, unit, integration | impl §12 |
 | 17 | 0017-spawn-steps | Stage-skill spawn points start role agents through the contact agent | pending | 0001-glossary-terms, 0014-delegation-doctrine, 0015-team-skill-and-manifests | static, unit, integration | impl §16; use §6 |

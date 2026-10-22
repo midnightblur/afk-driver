@@ -156,7 +156,7 @@ A model cell is the one home of that tier's model. A cell holds an alias to foll
 
 Each agent file repeats its tier's cell literally, because the harness reads frontmatter and TOML as written. To pin a tier, edit its cell; `hooks/native-contract-gate.sh` check L names every `agents/*.md` and `providers/codex/agents/*.toml` that must follow. Codex users then refresh their installed copies by the steps in the Construct mapping row "Spawn AFK role".
 
-A subagent spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell. Agent-start takes only a tier row's cells, so a pane role on a simple slice runs the Digest row.
+A subagent spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell. Agent-start takes only a tier row's cells, so a pane role on a simple slice runs the Implementation row.
 
 A Fable-class or Astra-class model is never a tier. Name one only where a skill
 requires that model for one specific usage.

@@ -734,3 +734,10 @@
 - Chosen: B — this run's resource rule forbids herdr panes, and providers/CONFORMANCE.md is outside this slice's Scope; 0013 ran the :439 Codex probe the same way
 - Supersedes: 0014 Verification row "environment-gated on both harnesses with herdr" — the herdr part and "record the result rows" in CONFORMANCE.md only
 - To reverse: re-run both probes in herdr panes and record the rows in providers/CONFORMANCE.md under the subtask that owns that file
+
+## D-105 — At the main merge, the pane-agent-rule inventory row survives and the id-set hunk goes
+- 2026-10-22 · decided by /afk:execute (0014-delegation-doctrine, Step 10)
+- Options: A — keep `"pane-agent-rule"` in EXPECTED_INVENTORY_IDS at the merge vs B — take main's scripts/behavior_registry.py, which no longer has EXPECTED_INVENTORY_IDS (origin/main 82c3db8), and keep the hooks/behavior-dispositions.tsv row `pane-agent-rule` and the BEHAVIORS.md entry beside main's appended `ci-parity-before-push` entry
+- Chosen: B — main checks inventory ids against the base revision's dispositions, not that constant (origin/main scripts/behavior_registry.py:390-404), so the TSV row is what keeps the gate green after the merge
+- Supersedes: 0014 Acceptance bullet "EXPECTED_INVENTORY_IDS in scripts/behavior_registry.py gains that id", from the main merge on only
+- To reverse: none needed before the merge; after it, re-add the id only if main restores the constant
