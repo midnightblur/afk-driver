@@ -658,7 +658,7 @@ def test_a_tree_kill_reaches_an_msys_child_whose_windows_parent_is_gone():
 
 def test_a_tree_skips_a_process_older_than_the_one_holding_its_parents_id(monkeypatch):
     monkeypatch.setattr(process, "_parents", lambda: {100: 1, 200: 100, 300: 100, 400: 200})
-    monkeypatch.setattr(process, "_msys_children", lambda: {})
+    monkeypatch.setattr(process, "_msys_parents", lambda: {})
     born = {100: 50, 200: 60, 300: 10, 400: 70}
     monkeypatch.setattr(process, "_created", born.get)
     assert process.tree(100) == [100, 200, 400]
@@ -666,7 +666,7 @@ def test_a_tree_skips_a_process_older_than_the_one_holding_its_parents_id(monkey
 
 def test_a_tree_keeps_an_msys_child_newer_windows_parent_did_not_create(monkeypatch):
     monkeypatch.setattr(process, "_parents", lambda: {100: 1, 200: 100, 300: 5})
-    monkeypatch.setattr(process, "_msys_children", lambda: {100: [300]})
+    monkeypatch.setattr(process, "_msys_parents", lambda: {300: 100})
     born = {100: 50, 200: 60, 300: 10}
     monkeypatch.setattr(process, "_created", born.get)
     assert sorted(process.tree(100)) == [100, 200, 300]
@@ -811,9 +811,49 @@ def test_kin_keeps_only_newer_orphans_and_never_the_caller_or_an_ancestor(monkey
 
 def test_kin_with_no_process_list_finds_nothing_and_names_the_gap(monkeypatch):
     monkeypatch.setattr(process, "_parents", dict)
+    monkeypatch.setattr(process, "_msys_parents", lambda: {})
     monkeypatch.setattr(process, "_console_peers", lambda pids: ([5, 6], None))
     monkeypatch.setattr(process, "_started", lambda pid: 1)
     assert process.kin(5, [5]) == ([], "the process list could not be read")
+
+
+def test_kin_walks_an_orphans_descendants_in_its_own_snapshot_and_spares_the_caller_and_members(monkeypatch):
+    # orphan 400 has MSYS children 420 and 430 (430 is itself an orphan on POSIX), and MSYS edges to the
+    # caller 300 and the member 101; a second Git ps read fails, which the walk must never see
+    parents = {10: 1, 100: 10, 101: 100, 300: 995, 400: 999, 420: 101, 430: 997}
+    started = {10: 1, 100: 50, 101: 60, 300: 20, 400: 80, 420: 70, 430: 85}
+    reads = [{420: 400, 430: 400, 300: 400, 101: 400, 400: None}]
+    monkeypatch.setattr(process, "_parents", lambda: dict(parents))
+    monkeypatch.setattr(process, "_msys_parents", lambda: reads.pop() if reads else None)
+    monkeypatch.setattr(process, "_console_peers", lambda pids: (list(parents), None))
+    monkeypatch.setattr(process, "_started", started.get)
+    monkeypatch.setattr(process, "_created", started.get)
+    monkeypatch.setattr(process, "alive", lambda pid: True)
+    monkeypatch.setattr(process.os, "getpid", lambda: 300)
+    found, gap = process.kin(100, [100, 101])
+    assert sorted(found) == [400, 420, 430] and len(found) == 3 and gap is None
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Git's ps runs only on Windows")
+def test_the_msys_reader_tells_a_missing_ps_from_a_failed_one(monkeypatch):
+    import types
+
+    def answer(ps="ps.exe", stdout="", code=0, error=None):
+        def run(*args, **kwargs):
+            if error:
+                raise error
+            return types.SimpleNamespace(returncode=code, stdout=stdout)
+        monkeypatch.setattr(process, "_msys_ps", lambda: ps)
+        monkeypatch.setattr(process.subprocess, "run", run)
+        return process._msys_parents()
+
+    listing = ("      PID    PPID    PGID     WINPID   TTY         UID    STIME COMMAND\n"
+               "       20       1      20       2000  ?            1 10:00:00 /usr/bin/bash\n"
+               "       21      20      20       2100  ?            1 10:00:01 /usr/bin/sleep\n")
+    assert answer(stdout=listing) == {2000: None, 2100: 2000}
+    assert answer(ps=None) == {}
+    assert answer(code=3) is None
+    assert answer(error=OSError("no ps")) is None
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows reuses ids and has MSYS parents")
@@ -954,6 +994,28 @@ def test_a_pane_stop_reaches_an_msys_descendant_whose_parent_ended(monkeypatch, 
         assert wait_for(lambda: not process.alive(orphan))
     finally:
         for pid in (root.pid, *pid_in(left)):
+            process.kill_tree(pid, force=True, wait_s=2)
+
+
+@pytest.mark.skipif(sys.platform != "win32" or BASH is None,
+                    reason="an MSYS orphan moves to MSYS process 1 only under Git for Windows")
+def test_a_pane_stop_reaches_the_msys_children_of_an_msys_descendant_whose_parent_ended(monkeypatch, tmp_path):
+    stop = no_tool(monkeypatch)
+    left = tmp_path / "left.pid"
+    inner = rf"(sleep 616 | cat > /dev/null) & p=\$!; sleep 1; cat /proc/\$p/winpid > '{left.as_posix()}'"
+    root = subprocess.Popen([BASH, "-c", f'bash -c "{inner}"; exec sleep 617'], **PANE)
+    kids: list[int] = []
+    try:
+        assert wait_for(lambda: left.exists() and left.read_text().strip())
+        orphan = int(left.read_text().strip())
+        assert wait_for(lambda: orphan not in process.tree(root.pid))
+        assert wait_for(lambda: len([c for c, p in (process._msys_parents() or {}).items() if p == orphan]) == 2)
+        kids = [c for c, p in (process._msys_parents() or {}).items() if p == orphan]
+        body = stop(root.pid)
+        assert body["stopped"] is True, body
+        assert wait_for(lambda: not [p for p in (orphan, *kids) if process.alive(p)])
+    finally:
+        for pid in (root.pid, *pid_in(left), *kids):
             process.kill_tree(pid, force=True, wait_s=2)
 
 

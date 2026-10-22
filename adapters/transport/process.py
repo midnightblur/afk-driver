@@ -124,14 +124,6 @@ if WINDOWS:
         winpid = {int(r[0]): int(r[3]) for r in rows}
         return {int(r[3]): winpid.get(int(r[1])) for r in rows}
 
-    def _msys_children() -> dict[int, list[int]]:
-        """Windows id of each MSYS process to the Windows ids of its MSYS children."""
-        out: dict[int, list[int]] = {}
-        for child, parent in (_msys_parents() or {}).items():
-            if parent is not None and parent != child:
-                out.setdefault(parent, []).append(child)
-        return out
-
     _DETACHED_PROCESS = 0x00000008      # the helper starts with no console, so it can attach to one
     _CONSOLE = r"""
 import ctypes, sys
@@ -239,9 +231,6 @@ else:
         except (ProcessLookupError, PermissionError):
             pass
 
-    def _msys_children() -> dict[int, list[int]]:
-        return {}
-
     def _msys_parents() -> dict[int, int | None] | None:
         return {}
 
@@ -317,23 +306,25 @@ def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
             found.append(member)
     if unknown:
         gaps.append(f"the start or parent of processes {', '.join(unknown)} could not be read")
-    found = list(dict.fromkeys(m for orphan in found for m in tree(orphan) if m not in skip))
+    found = list(dict.fromkeys(m for orphan in found for m in tree(orphan, (parents, msys)) if m not in skip))
     return found, "; ".join(gaps) or None
 
-def tree(pid: int) -> list[int]:
+def tree(pid: int, snapshot: tuple[dict[int, int], dict[int, int | None] | None] | None = None) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
     Windows parent is a fork stub that is gone by the time the child runs. Windows reuses a dead
     parent's id, so a child older than the process holding its parent's id is not its child; an MSYS
-    edge is exempt, since an MSYS exec gives the parent a newer Windows process."""
-    parents = _parents()
+    edge is exempt, since an MSYS exec gives the parent a newer Windows process. `snapshot` is a
+    process list and MSYS parent map the caller already read, so both views agree."""
+    parents, msys_parents = snapshot if snapshot else (_parents(), _msys_parents())
     children: dict[int, list[int]] = {}
     for child, parent in parents.items():
         if child != parent:
             children.setdefault(parent, []).append(child)
     msys: set[tuple[int, int]] = set()
-    for parent, kids in _msys_children().items():
-        children.setdefault(parent, []).extend(k for k in kids if k in parents)
-        msys.update((parent, k) for k in kids)
+    for child, parent in (msys_parents or {}).items():
+        if parent is not None and parent != child and child in parents:
+            children.setdefault(parent, []).append(child)
+            msys.add((parent, child))
     born: dict[int, int | None] = {}
 
     def created(member: int) -> int | None:
