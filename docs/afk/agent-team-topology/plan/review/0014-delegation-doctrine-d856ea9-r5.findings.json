@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "scope-and-impact",
+  "criterion": "Confirm every changed path matches a ## Scope glob",
+  "severity": "medium",
+  "class": "scope",
+  "file": ".claude/wiring-ious.md",
+  "line": 36,
+  "side": "new",
+  "finding": "The fix commit edits .claude/wiring-ious.md, which is not in the 0014 Scope list, and no plan decision records the exception.",
+  "why": "The plan's own practice for an out-of-Scope IOU line is a recorded decision that supersedes the Scope rule (D-71 for 0008), and 0014's decisions D-103 to D-105 contain none, so the slice leaves its Scope off the record.",
+  "fix": "Append a plan/DECISIONS.md entry for 0014 (as D-71 did) that names this IOU line and supersedes the 'Stay inside Scope globs' rule for it only.",
+  "evidence": "Diff: '+- [ ] `DELEGATION.md` \"Stall watchdog\" On fire: \"follows `/afk:team` for an agent that dies or stops early\" -> anchor: ...'; contract ## Scope lists DELEGATION.md, CAPABILITIES.md, PROVIDERS.md, AGENTS.md, skills/afk/autopilot/SKILL.md, BEHAVIORS.md, hooks/behavior-dispositions.tsv, scripts/behavior_registry.py, CHANGELOG.md only; skills/afk/execute/SKILL.md:147 '**Stay inside Scope globs.** If work requires going outside, stop with detail on what was needed and why.'; DECISIONS.md D-71 'in `.claude/wiring-ious.md`, outside this slice's Scope ... Supersedes: SKILL.md hard rule \"Stay inside Scope globs\" — for these two IOU lines only'",
+  "id": "r-001"
+ }
+]
