@@ -53,9 +53,12 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     return repo
 
 
-def create(repo: Path, *args: str, session: str = "s1", cwd: Path | None = None):
-    environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
+def create(repo: Path, *args: str, session: str = "s1", cwd: Path | None = None,
+           extra_env: dict[str, str] | None = None):
+    environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude",
+                   AFK_PYTHON=sys.executable)
     environ.pop("CLAUDE_PROJECT_DIR", None)
+    environ.update(extra_env or {})
     return subprocess.run(
         [str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--session", session, *args],
         capture_output=True, text=True, cwd=cwd or repo, env=environ, timeout=600)
@@ -201,6 +204,64 @@ def test_the_copy_walk_never_enters_sibling_worktrees(tmp_path):
     second = path_of(create(repo, "--name", "second"))
     assert (second / ".claude" / "settings.local.json").exists()
     assert not (second / ".claude" / "worktrees").exists()
+
+
+def test_the_copy_walk_prunes_every_provider_worktree_folder_with_an_external_parent(tmp_path):
+    provider_folders = sorted({
+        manifest.get("worktree_folder")
+        for path in (PLUGIN_ROOT / "hooks" / "lib" / "providers").glob("*.json")
+        for manifest in [json.loads(path.read_text(encoding="utf-8"))]
+        if manifest.get("worktree_folder")
+    })
+    copy_roots = sorted({folder.split("/", 1)[0] for folder in provider_folders})
+    config = "worktree:\n  copy:\n" + "".join(f"    - {root}\n" for root in copy_roots)
+    repo = make_repo(tmp_path, config, files={
+        ".gitignore": "".join(f"{folder}/\n" for folder in provider_folders),
+    })
+    assert provider_folders
+    for folder in provider_folders:
+        stale = repo / folder / "stale"
+        stale.mkdir(parents=True)
+        (stale / "large.jsonl").write_text("stale", encoding="utf-8")
+        (repo / folder.split("/", 1)[0] / "settings.json").write_text("{}", encoding="utf-8")
+
+    parent = tmp_path / "external-worktrees"
+    done = create(repo, "--branch", "fix/copy-prune", "--dir", "external",
+                  "--base", "dev", "--parent", str(parent), "--no-open")
+    assert done.returncode == 0, done.stdout + done.stderr
+    wt = path_of(done)
+
+    for folder in provider_folders:
+        assert (wt / folder.split("/", 1)[0] / "settings.json").exists()
+        assert not (wt / folder).exists()
+
+
+def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(tmp_path):
+    source_parent = tmp_path / "source"
+    source_parent.mkdir()
+    repo = make_repo(source_parent)
+    foreign_parent = tmp_path / "foreign"
+    foreign_parent.mkdir()
+    foreign_repo = make_repo(foreign_parent)
+    parent = foreign_repo / "not-created-yet" / "worktrees"
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True)
+    (home / ".afk" / "config.yaml").write_text(
+        "schema: 1\n"
+        "developer:\n"
+        f"  worktreeBasePath: '{parent.as_posix()}'\n",
+        encoding="utf-8",
+    )
+
+    done = create(repo, "--branch", "fix/foreign-base", "--dir", "new",
+                  "--base", "dev", "--no-open",
+                  extra_env={"HOME": str(home), "USERPROFILE": str(home)})
+
+    assert done.returncode != 0
+    assert "different Git repository" in done.stderr
+    assert not parent.exists()
+    assert git(repo, "worktree", "list", "--porcelain").count("worktree ") == 1
+    assert git(repo, "branch", "--list", "fix/foreign-base") == ""
 
 
 def test_the_repository_copy_list_is_carried_over(tmp_path):
