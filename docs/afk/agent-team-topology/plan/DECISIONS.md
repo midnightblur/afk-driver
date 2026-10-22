@@ -776,3 +776,10 @@
 - Chosen: A — the `Settles:` lines for f046 to f058 (747014a), f059 to f066 and f070 (e6f2584), f071 to f075 and f077 (5fb3964), f078 and f079 (8ed2396) are on descendant 9095b30; at aa2c9bf a scratch closure check that skips only that test for only those keys finds no other failure (pull request 112 note 6344610010)
 - Supersedes: SETTLEMENT.md "Closure gate" condition "Its commit message carries `Settles: <key>`", for these 30 keys only
 - To reverse: none needed; no record or commit changed
+
+## D-111 — After the backslash fix, the live rows are not all run again; one live Claude round trip covers the changed hand-in
+- 2026-10-22 · decided by /afk:execute (0006-transport-family-and-herdr, Step 10.5)
+- Options: A — re-run every harness-gated live row at d01ac5a vs B — re-run the static and unit rows on Windows and Linux, plus one live Claude start, send, read and stop through `probe.py run multiplexer` with backslashes in the cwd and the text
+- Chosen: B — d01ac5a changes only how probe.py hands the payload to Git Bash (a variable, not an argument); no payload saved from the earlier live runs (0006-live to 0006-live5) holds a backslash pair, so the old hand-in delivered each one unchanged and those results stand; the new round trip passed (providers/CONFORMANCE.md, "Backslash re-run")
+- Supersedes: nothing; the contract's Verification rows are green at d01ac5a
+- To reverse: re-run the live rows of providers/CONFORMANCE.md at the tip

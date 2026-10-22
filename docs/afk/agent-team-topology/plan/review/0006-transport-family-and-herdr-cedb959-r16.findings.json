@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "spec",
+  "file": "DELEGATION.md",
+  "line": 24,
+  "side": "new",
+  "finding": "The pane-agent rule splits role agents into pane or subagent only, but the probe this slice ships has a third forced kind, headless, that starts role agents with no pane.",
+  "why": "With `transport.kind: headless` forced and no pane tool, `scripts/team/probe.py` resolve_kind returns kind headless (the forced branch returns before the pane search), yet the rule says 'With no pane transport ... role agents are subagents' and the new BEHAVIORS.md line repeats the two-way split, so the doctrine contradicts the resolved transport and names no watchdog or completion signal for a headless role agent (agent-send is unsupported there).",
+  "fix": "State in the rule which way a forced headless kind goes (role agents run headless, or the rule treats headless as the subagent path), or note that the rule covers pane kinds only and headless stays under the transport kind that CONFIG.md names.",
+  "evidence": "DELEGATION.md:24 'With no pane transport, or the switch set to subagent, role agents are subagents'; scripts/team/probe.py:93-96 'if forced: ... return {**result, \"kind\": forced, ...}'; adapters/transport/headless/CONTRACT.md:14 headless agent-start takes harness, prompt, cwd, log, optional model, effort; CONFIG.md:136 'transport.kind ... subagent | headless | multiplexer | desktop ... which transport adapter starts and stops agents'."
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "Propagation gap",
+  "severity": "low",
+  "class": "correctness",
+  "file": "CAPABILITIES.md",
+  "line": 12,
+  "side": "new",
+  "finding": "The new 'a pane role agent loads no agent definition' wording sits beside CONFORMANCE.md:439, a row this slice ships titled 'A pane agent resolves the plugin's named agent definitions' with a pass.",
+  "why": "The row's evidence is a pane agent starting helpers by name through the Agent tool, not a pane agent loading its own definition, so a reader of both sees a contradiction the delta did not reconcile.",
+  "fix": "Reword the CONFORMANCE.md:439 row title to 'A pane agent starts the plugin's named helper agents', or add a clause to the CAPABILITIES.md row saying a pane agent's helpers still resolve named definitions.",
+  "evidence": "CAPABILITIES.md:12 'Definition frontmatter; a pane role agent loads no agent definition'; providers/CONFORMANCE.md:439 'A pane agent resolves the plugin's named agent definitions | pass 2026-09-30 | pass 2026-09-30 ... Claude: the Agent tool accepted `afk:afk-reader` and `afk:afk-implementor`'."
+ }
+]

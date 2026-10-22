@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "providers/CONFORMANCE.md",
+  "line": 495,
+  "side": "new",
+  "finding": "The pid check is cited to pid-after.txt, but that file does not record the pid or the tasklist filter it used; stop.json postdates the stop it names.",
+  "why": "pid-after.txt holds only a timestamp and 'No tasks are running which match the specified criteria', so a reader cannot confirm the query was for pid 33836. stop.json (mtime 12:35:03) was written about 2 minutes after stop.out and paneget.txt (12:32:51), so it is a later copy of the input, not the file the stop ran from.",
+  "fix": "Add the tasklist command line with the pid filter to pid-after.txt, or reword to say the check ran by the agent's id and the file shows only an empty result. Cite stop.out for the stop result, or say stop.json was rewritten after the run.",
+  "evidence": "Paragraph: \"`tasklist` found no process with the agent's id: once right after the stop, not saved, and again 2 minutes later (`pid-after.txt`)\" and \"agent-stop with pid and handle (`stop.json`) answered `stopped` true\". pid-after.txt: \"2026-10-22T16:35:03Z / INFO: No tasks are running which match the specified criteria.\" File mtimes: stop.out 12:32:51.55, stop.json 12:35:03.82, pid-after.txt 12:35:04.43."
+ }
+]

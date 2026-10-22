@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "adapters/transport/process.py",
+  "line": 295,
+  "side": "new",
+  "finding": "Possible: the sweep's skip set follows Windows parents only, so an orphan that is the MSYS parent of the caller is not skipped and gets killed, and the walk returns the caller's own descendants.",
+  "why": "`line()` climbs `parents` (the Windows map) while `tree(orphan, (parents, msys))` now also descends MSYS edges, so when the caller's Windows parent is a gone fork stub its MSYS ancestor is not in `skip`; the new test makes the orphan 400 the caller 300's MSYS parent and still expects 400 to be returned for kill, and any child of a spared caller or member is also returned (only the node itself is filtered). Reachable only if that ancestor shares a console with a member and is newer than the agent, so unlikely. Not verified live.",
+  "fix": "Add each MSYS ancestor of the caller and of `pid` (follow the `msys` map in `line`) to `skip`, and prune the walk at skip nodes so their descendants are not collected.",
+  "evidence": "line 288-295: `def line(start): ... start = parents.get(start, 0)` and `skip = set(members) | line(os.getpid()) | line(pid)`; line 309: `m for orphan in found for m in tree(orphan, (parents, msys)) if m not in skip`; test: `reads = [{420: 400, 430: 400, 300: 400, 101: 400, 400: None}]` ... `assert sorted(found) == [400, 420, 430]` with `os.getpid` patched to 300",
+  "id": "r-001"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_transport.py",
+  "line": 834,
+  "side": "new",
+  "finding": "Possible gap: the snapshot-walk test pins killing the caller's own MSYS parent and never covers the caller's or a member's other descendants.",
+  "why": "The fixture makes the caller (300) an MSYS child of orphan 400 and expects 400 in the result, but kin's skip set (adapters/transport/process.py:295) holds only members plus Windows-parent ancestors, so the caller's MSYS parent is not spared, and tree() walks through the caller's edge into its other children; the fixture gives the caller none, so that path is untested (inferred from reading; not run).",
+  "fix": "Add a child of the caller (e.g. 310 with parent 300) to the fixture and decide the expected result, either by sparing the caller's MSYS ancestors and descendants in kin or by asserting this behaviour on purpose.",
+  "evidence": "test_team_transport.py `assert sorted(found) == [400, 420, 430] and len(found) == 3 and gap is None` with fixture `reads = [{420: 400, 430: 400, 300: 400, 101: 400, 400: None}]`; process.py:295 `pool, skip = set(peers), set(members) | line(os.getpid()) | line(pid)`",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "docs/afk/agent-team-topology/plan/DECISIONS.md",
+  "line": 653,
+  "side": "new",
+  "finding": "D-92's 'To reverse' line names `_msys_children`, which this delta deletes.",
+  "why": "The ledger's reversal instruction now points at a symbol that no longer exists in adapters/transport/process.py (`_msys_ps` and `_msys_parents` remain), so a reader following it finds nothing to drop.",
+  "fix": "Append a ledger entry (the ledger is append-only) that supersedes D-92's reversal line and names `_msys_ps` and `_msys_parents`.",
+  "evidence": "DECISIONS.md:653 `- To reverse: drop `_msys_ps` and `_msys_children` in `adapters/transport/process.py``; delta diff removes `def _msys_children()` on both the Windows and POSIX branches",
+  "id": "r-003"
+ }
+]

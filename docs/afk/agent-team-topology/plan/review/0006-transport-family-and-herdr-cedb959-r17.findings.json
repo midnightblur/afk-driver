@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "Propagation gap",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "BEHAVIORS.md",
+  "line": 16,
+  "side": "new",
+  "finding": "Possible stale short form: the managed pane-agent-rule still says role agents stay subagents unless a pane tool is found, but the doctrine now lets a forced transport.kind (e.g. headless) decide.",
+  "why": "The delta adds a third branch to the rule's doctrine home (DELEGATION.md:24), and the short form, which the plan says must name 'both branches of the rule', is injected into every installed block and now contradicts the doctrine when a repository forces a kind such as headless.",
+  "fix": "Add the forced-kind branch to the short form (bump its revision and re-check the 6,000-byte cap), or record a DECISIONS.md entry that the short form deliberately omits the forced-kind branch because the DELEGATION.md pointer covers it.",
+  "evidence": "BEHAVIORS.md:16 \"Where the plugin is enabled, a pane transport is found and the pane switch does not say subagent, start a role agent ... as a pane agent ...; otherwise role agents stay subagents.\" vs. delta DELEGATION.md:24 \"A `transport.kind` the repository sets (`CONFIG.md`) replaces the pane search: role agents start on the kind it names, so under `headless` each one is a headless run.\" Plan 0014 line 52 requires the short form to name \"the condition and both branches of the rule\"."
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "Propagation gap",
+  "severity": "low",
+  "class": "correctness",
+  "file": "GLOSSARY.md",
+  "line": 76,
+  "side": "new",
+  "finding": "The Role agent definition still gives only two outcomes (pane agent or subagent) and omits the forced-kind case the delta adds to DELEGATION.md.",
+  "why": "The glossary is the plugin's one home for this term, and it now disagrees with the spawn rule: under a forced headless kind a role agent is neither a pane agent found by search nor a subagent.",
+  "fix": "Extend the Role agent entry with one clause: a repository-set transport.kind decides where role agents start.",
+  "evidence": "GLOSSARY.md:76 \"A pane agent when a pane transport is found and the pane switch does not say subagent; otherwise a subagent, and the run report says so.\" vs. DELEGATION.md:24 \"role agents start on the kind it names\"."
+ }
+]

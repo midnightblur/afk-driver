@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "compliance",
+  "file": "providers/CONFORMANCE.md",
+  "line": 495,
+  "side": "new",
+  "finding": "Paragraph claims the agent's process id was gone, but no evidence file shows a process check.",
+  "why": "In the 0006-live6 folder the pid 33836 appears only in start.out; stop.out, paneget.txt and tabs.txt hold no process listing, and the stop command's pid/handle input is not saved either, so 'agent-stop with pid and handle' and 'process id was gone' rest on nothing the caller can check.",
+  "fix": "Save the process check (and the agent-stop input) in 0006-live6, or reword to 'unverified: process id check not recorded' / drop the clause.",
+  "evidence": "\"agent-stop with pid and handle answered `stopped` true and `pane_closed` true. Afterwards, `pane get` answered `pane_not_found`, the step tab was gone, and the agent's process id was gone.\" (grep -l 33836 in 0006-live6 matches only start.out)"
+ }
+]
