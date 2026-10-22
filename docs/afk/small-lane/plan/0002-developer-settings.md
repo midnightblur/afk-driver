@@ -33,7 +33,7 @@ mechanical
 - [ ] Conforms to ADR-0010 design — no silent pattern substitution (design ADR-0010)
 
 ## Produces
-- CONFIG.md#Developer settings (K1–K5) — heading of the section that owns the five keys and their rule
+- CONFIG.md### Developer settings (K1–K5) — heading of the section that owns the five keys and their rule
 
 ## Verification
 | Tier | Check (command or method) | Proves |

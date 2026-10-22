@@ -25,3 +25,6 @@
 2026-10-22 12:10 | execute | 0002-developer-settings | branch rebased onto main 82c3db8 (PR conflicted, so CI never ran) and force-pushed with lease to ea2cdac; tests now run in CI on the human's call
 2026-10-22 12:40 | execute | 0002-developer-settings | review r1 fixes posted and resolved (f001–f004); forge_ledger.py could not summarize a listed concern — fixed outside the slice in cd6cf95; r1 summary posted
 2026-10-22 13:00 | execute | 0002-developer-settings | reviewing — review r2 on the fix delta (delta-sweep, test-veracity)
+2026-10-22 13:19 | execute | 0002-developer-settings | review r2 — 1 low test finding, fixed in 2f68fbd; review r3 clean; review gate settled (closure ok at round 3, 5 findings, all fixed); adversary gate running
+2026-10-22 13:41 | execute | 0002-developer-settings | adversary — findings, high=1 med=5 low=5 (D-3 runtime probe); decision(D-7) — F1, F2, F4, F5 predate the slice and route to new slice 0013-config-contract, the rest advisory; rationale receipt sealed
+2026-10-22 13:41 | execute | 0002-developer-settings | done

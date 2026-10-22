@@ -56,7 +56,7 @@ complex
 - 0001-diagnosis-format skills/utils/diagnose/scripts/outside_writes.py#def append_outside_write( — list each write after it succeeds
 - 0001-diagnosis-format skills/utils/diagnose/scripts/outside_writes.py#def retry_with_read_back( — retry a failed write after a read-back
 - 0001-diagnosis-format skills/utils/diagnose/DIAGNOSIS-FORMAT.md#Evidence marker grammar — marker on each evidence comment
-- 0002-developer-settings CONFIG.md#Developer settings (K1–K5) — the assignee key and its `none` rule
+- 0002-developer-settings CONFIG.md### Developer settings (K1–K5) — the assignee key and its `none` rule
 - 0003-tracker-attach adapters/tracker/jira/api.py#"tracker_attach": — Jira upload with read-back
 - 0003-tracker-attach adapters/tracker/github-issues/api.py#"tracker_attach": — GitHub Issues inline attach
 

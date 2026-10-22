@@ -48,7 +48,7 @@ docs/afk/small-lane/PRD.md
 docs/afk/small-lane/SDD.md
 
 ## Blocked by
-0001-diagnosis-format, 0002-developer-settings, 0003-tracker-attach, 0004-diagnose-rewrite, 0005-bug-mode, 0006-fix-procedure, 0007-ship-script, 0008-standalone-fix, 0009-in-place-callers, 0010-out-of-slice, 0011-bug-removal-release
+0001-diagnosis-format, 0002-developer-settings, 0003-tracker-attach, 0004-diagnose-rewrite, 0005-bug-mode, 0006-fix-procedure, 0007-ship-script, 0008-standalone-fix, 0009-in-place-callers, 0010-out-of-slice, 0011-bug-removal-release, 0013-config-contract
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality

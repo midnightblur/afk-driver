@@ -69,7 +69,7 @@ standard
 ## Consumes
 - 0005-bug-mode skills/afk/to-ticket/scripts/publish_bug_mode.py#def run_bug_mode( — the replacement ticket writer the boundary text names
 - 0008-standalone-fix skills/afk/fix/SHIPPING.md#Standalone write order — the replacement fix path the release notes name
-- 0002-developer-settings CONFIG.md#Developer settings (K1–K5) — the new home of the settings the removed page documented
+- 0002-developer-settings CONFIG.md### Developer settings (K1–K5) — the new home of the settings the removed page documented
 
 ## Verification
 | Tier | Check (command or method) | Proves |
