@@ -167,6 +167,19 @@ def test_the_child_shell_inherits_no_loaded_flag_and_no_config_override(tmp_path
 
 
 @needs_bash
+def test_the_payload_reaches_the_kind_byte_exact_and_leaves_no_variable(tmp_path, echo_plugin):
+    (echo_plugin / "adapters" / "transport" / "subagent" / "transport.sh").write_text(
+        '"$AFK_PYTHON" -c \'import json,os,sys; print(json.dumps({"payload": json.loads(sys.argv[1]), '
+        '"left": sorted(k for k in os.environ if k.startswith("AFK_PROBE"))}))\' "$2"\n', encoding="utf-8")
+    payload = {"log": "C:\\Users\\x\\r1.log", "prompt": "read C:\\new\\task.md", "quote": 'say "hi" \\" end',
+               "pair": "a\\\\b", "tail": "end\\"}
+    code, out, err = probe.dispatch("subagent", "agent-read", payload, root=repo_with(tmp_path, "schema: 1\n"),
+                                    env=child_env(), plugin=echo_plugin)
+    assert code == 0, err
+    assert json.loads(out.strip().splitlines()[-1]) == {"payload": payload, "left": []}
+
+
+@needs_bash
 def test_an_unresolvable_kind_exits_2_naming_the_configuration(tmp_path, echo_plugin):
     shutil.rmtree(echo_plugin / "adapters" / "transport" / "subagent")
     code, out, err = probe.dispatch("subagent", "agent-list", {}, root=repo_with(tmp_path, "schema: 1\n"),

@@ -130,10 +130,12 @@ def dispatch(kind: str, verb: str, payload: Mapping, *, root: Path | str = ".",
         return 2, "", "afk: no POSIX shell found to run the transport dispatcher\n"
     child = {k: v for k, v in (os.environ if env is None else env).items() if k != "AFK_CFG_LOADED"}
     child["AFK_PLUGIN_ROOT"] = str(plugin)
-    script = ('. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh" || exit 2; afk_config_load; AFK_CFG_TRANSPORT=$1; '
-              'afk_adapter transport "$2" "$3"')
+    # Git Bash parses a Windows command line and halves a backslash pair, so the payload travels by variable.
+    child["AFK_PROBE_PAYLOAD"] = json.dumps(payload)
+    script = ('p=$AFK_PROBE_PAYLOAD; unset AFK_PROBE_PAYLOAD; . "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh" || exit 2; '
+              'afk_config_load; AFK_CFG_TRANSPORT=$1; afk_adapter transport "$2" "$p"')
     seconds = contract.BUDGET_MS[verb] / 1000 + 15 if verb in contract.BUDGET_MS else 30
-    shell = subprocess.Popen([str(bash), "-c", script, "probe", kind, verb, json.dumps(payload)], cwd=str(root),
+    shell = subprocess.Popen([str(bash), "-c", script, "probe", kind, verb], cwd=str(root),
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=child,
                              **({"creationflags": 0x00000200} if process.WINDOWS else {"start_new_session": True}))
     try:
