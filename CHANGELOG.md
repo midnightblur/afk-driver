@@ -66,9 +66,23 @@ release page from its section here. Nobody tags by hand.
   contact agent needs to run the team entry script without a permission
   prompt, waits while you add it to your own settings, then confirms it with
   `scripts/team/permission.py check`; setup never writes a settings file.
+- The pane-agent rule, stated once in `DELEGATION.md` "Spawn rules": where
+  the plugin is enabled and a pane transport is found, an agent that writes
+  files, code or a ledger, or returns a gate verdict, starts in its own
+  terminal pane, and a helper that only reads stays a subagent;
+  `transport.pane-switch: subagent` turns this off. Its one-line form is the
+  new managed behavior `pane-agent-rule`, in every repository, including one
+  with no `.afk/config.yaml`. Only a user who took `/afk:setup` row H7 gets
+  it, and every installed behavior block reports drift at session start
+  until `/afk:setup` renders it again.
 
 ### Changed
 
+- The stall watchdog of an agent in a pane belongs to the contact agent: it
+  arms it, a finished message turns it off, a park kills it and a resume arms
+  a fresh one, and a fire on a live agent leaves it working. A team pattern
+  you write may choose any model for a role; agents still never lower a
+  model tier.
 - No plugin gate runs on Stop. The wiring gate runs at `/afk:execute` Step 11
   and in `/afk:verify-seams final`; the skill-registry, native-contract,
   genericity and behavior-registry gates run at commit and in pull-request CI

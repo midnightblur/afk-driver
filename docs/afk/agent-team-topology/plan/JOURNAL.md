@@ -288,3 +288,7 @@
 2026-10-21 22:58 | autopilot | 0007-desktop-tool-transport | parked(waiting on 0006-transport-family-and-herdr) — its prerequisite is parked
 2026-10-21 22:58 | autopilot | 0010-team-entry-script | parked(waiting on 0006-transport-family-and-herdr) — its prerequisite is parked; 0011, 0012, 0015 to 0022, 0024 and 0026 wait behind it
 2026-10-21 22:58 | autopilot | run | heartbeat 8/26 done, starting 0014-delegation-doctrine (independent of the parked subtask)
+2026-10-21 23:00 | execute | 0014-delegation-doctrine | designing — the one prerequisite, the wait job, is done and its anchor is on the branch
+2026-10-21 23:40 | execute | 0014-delegation-doctrine | decision(D-103) — the rules and registry this step changes moved since they were investigated, so one fresh investigation re-takes them before any edit
+2026-10-21 23:40 | execute | 0014-delegation-doctrine | investigated(INV-082) — the fresh check of the delegation rules, the watchdog and the managed behavior registry is closed; only installed copies outside the repository lie beyond it; nothing found blocks the planned change, and the new behavior entry needs its inventory row and id in the same commit
+2026-10-21 23:44 | execute | 0014-delegation-doctrine | developing — writing the pane-agent rule into the delegation rules, its one-line form into the managed behavior list, and the matching lines of the capability, provider and autopilot docs

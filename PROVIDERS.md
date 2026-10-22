@@ -20,7 +20,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
 | Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
-| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names: each `providers/codex/agents/afk-afk-*.toml` stub's `name` field is the skill name, and Codex finds an agent by that field, not by its filename; delete the `afk-afk-*.toml` copies in `~/.codex/agents/`, then run `/afk:setup`, whose register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the stubs again |
+| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer`, for a helper or the subagent fallback; a pane role agent loads no definition, and agent-start passes its tier's model cell | For a helper or the subagent fallback, the same names: each `providers/codex/agents/afk-afk-*.toml` stub's `name` field is the skill name, and Codex finds an agent by that field, not by its filename; delete the `afk-afk-*.toml` copies in `~/.codex/agents/`, then run `/afk:setup`, whose register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the stubs again |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
@@ -156,12 +156,12 @@ A model cell is the one home of that tier's model. A cell holds an alias to foll
 
 Each agent file repeats its tier's cell literally, because the harness reads frontmatter and TOML as written. To pin a tier, edit its cell; `hooks/native-contract-gate.sh` check L names every `agents/*.md` and `providers/codex/agents/*.toml` that must follow. Codex users then refresh their installed copies by the steps in the Construct mapping row "Spawn AFK role".
 
-A spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell.
+A subagent spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell. Agent-start takes only a tier row's cells, so a pane role on a simple slice runs the Digest row.
 
 A Fable-class or Astra-class model is never a tier. Name one only where a skill
 requires that model for one specific usage.
 
-The implementation model travels through the `afk-implementor` definition. Never pass it as a spawn-model argument. Agent definitions load at session start.
+The implementation model travels through the `afk-implementor` definition. Never pass it as a spawn-model argument. Agent definitions load at session start. The one exception is agent-start: a pane role agent loads no definition, so agent-start passes its tier's model cell, and on Codex CLI its effort cell.
 
 ## Agent stubs
 

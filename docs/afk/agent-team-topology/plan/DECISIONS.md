@@ -720,3 +720,17 @@
 - Chosen: A — B changes agent-start for both harnesses and needs live proof that a job outlives the process that made it; A fixes both adversary repros and every live V28 case, and the stated limit keeps a `stopped` true from being read as complete
 - Supersedes: SDD §7 row E2 "Kill an agent's whole process tree", for a Windows descendant alone in a console no live tree member uses
 - To reverse: add job-object tracking at agent-start and drop the "Not reached" clause from `adapters/transport/multiplexer/CONTRACT.md` and the herdr.md trap row
+
+## D-103 — Re-take the ground of both seams with one fresh investigation
+- 2026-10-22 · decided by /afk:execute (0014-delegation-doctrine, Step 4)
+- Options: A — build on INV-055 and INV-069 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-082) at 83372fd over the subjects `DELEGATION`, `stall-watchdog` and `BEHAVIORS` with the cited ledgers' declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — both ground diffs exit 1: AGENTS.md, CAPABILITIES.md, PROVIDERS.md, CHANGELOG.md, hooks/README.md, hook-smoke.sh and the SDD changed since 1210110 and 13bec6d; the run allows one child at a time, so the two tracers run in sequence, as D-96 did
+- Supersedes: none
+- To reverse: drop INV-082 and cite INV-055 and INV-069 again
+
+## D-104 — The pane-agent probes run as headless top-level sessions and their rows go to the journal
+- 2026-10-22 · decided by /afk:execute (0014-delegation-doctrine, Step 8)
+- Options: A — run providers/CONFORMANCE.md:439 and :440 in herdr panes and edit those rows vs B — run them as headless top-level sessions (`claude -p`, `codex exec`), the same process kind a pane agent is, and record the result rows in plan/JOURNAL.md
+- Chosen: B — this run's resource rule forbids herdr panes, and providers/CONFORMANCE.md is outside this slice's Scope; 0013 ran the :439 Codex probe the same way
+- Supersedes: 0014 Verification row "environment-gated on both harnesses with herdr" — the herdr part and "record the result rows" in CONFORMANCE.md only
+- To reverse: re-run both probes in herdr panes and record the rows in providers/CONFORMANCE.md under the subtask that owns that file

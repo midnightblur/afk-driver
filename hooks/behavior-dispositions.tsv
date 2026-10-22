@@ -29,6 +29,7 @@ check-prd-before-contract-fix	team	fold	-
 vue3-bidirectional-watch-guard	team	stack-fact	-
 reply-ste100	team	registry	reply-ste100
 investigation-closure	team	registry	investigation-closure
+pane-agent-rule	team	registry	pane-agent-rule
 lavish-grilling-render	team	registry	lavish-grilling-render
 inference-marking	team	registry	truth-grounding
 wiring-done-is-consumed	team	registry	wiring-done-is-consumed

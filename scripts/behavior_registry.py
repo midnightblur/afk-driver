@@ -94,6 +94,7 @@ EXPECTED_INVENTORY_IDS = frozenset(
         "local-branch-no-pr-split",
         "mcp-tools-self-contained",
         "name-the-reader",
+        "pane-agent-rule",
         "never-alter-db-directly",
         "no-autonomous-commits-on-protected-branches",
         "phase-review-gates",

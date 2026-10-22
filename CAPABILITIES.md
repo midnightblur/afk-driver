@@ -1,6 +1,6 @@
 # Harness capability contract
 
-Use this table for every capability branch. Missing required capability stops the skill. Missing optional capability uses only the listed degradation.
+Use this table for every capability branch. Missing required capability stops the skill. Missing optional capability uses only the listed degradation. The agent rows describe helpers and the subagent fallback; whether a role agent runs in a pane or as a subagent is `DELEGATION.md` "Spawn rules".
 
 | Capability | Claude Code | Codex CLI | Required degradation |
 |---|---|---|---|
@@ -9,10 +9,10 @@ Use this table for every capability branch. Missing required capability stops th
 | `hook_shell_match` | `Bash` and `PowerShell` | `Bash` covers shell and unified execution | Match the semantic tool class |
 | `hook_project_dir` | Optional injected root | No injected project-root contract | Resolve the Git root from `$PWD` |
 | `custom_agents` | Plugin Markdown definitions | User TOML stubs | Use a built-in role plus the canonical role prompt |
-| `agent_tool_allowlist` | Definition frontmatter | No documented equivalent | Use sandbox plus role prohibitions |
+| `agent_tool_allowlist` | Definition frontmatter; a pane role agent loads no agent definition | No documented equivalent | Use sandbox plus role prohibitions |
 | `parallel_agents` | Native | Native | Serialize when unavailable |
 | `continuation` | Native | Use only after conformance proves same-child context | Use disk handoff |
-| `nesting` | Native within AFK cap | No depth contract | Root spawns; children run helpers inline |
+| `nesting` | Native within AFK cap | No depth contract | Root spawns; children run helpers inline. A pane agent is the root of its own session, so it starts its helpers; a helper's helper work runs inline |
 | `background_job_wake` | A background shell job's exit re-invokes the idle top-level agent, in an interactive and a headless session; a contact agent that is a subagent is untried. The run's wait job (`hooks/inbox-wait.sh`) relies on it; per-version probes: `providers/CONFORMANCE.md` "Background job wake probes" | No: in an interactive session the exit is logged and starts no turn; a headless `exec` session ends at its turn's end and the job with it | Without background job wake, the contact agent says at run start that results wait for the human's next message, and checks its inbox and the run manifest at its next turn |
 | `model_tiers` | Provider mapping | Provider mapping | Use nearest capability-compatible model |
 | `plugin_mcp` | Native | Native | Use a documented CLI or API fallback; otherwise stop |

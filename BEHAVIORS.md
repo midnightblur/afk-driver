@@ -11,6 +11,11 @@ Read `${AFK_PLUGIN_ROOT}/LANGUAGE.md` §1–2 before any human-facing reply; fol
 state: active | scope: all-repos | revision: 1 | doctrine: INVESTIGATION.md §Closure
 For code questions, follow `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; close every applicable boundary and counter-search before answering.
 
+## pane-agent-rule
+state: active | scope: all-repos | revision: 1 | doctrine: DELEGATION.md §Spawn rules
+Where the plugin is enabled and a pane transport is found, start a role agent (it writes files, code or a ledger, or returns a gate verdict) as a pane agent and keep a helper a subagent; otherwise role agents stay subagents.
+Read `${AFK_PLUGIN_ROOT}/DELEGATION.md` before you start an agent.
+
 ## lavish-grilling-render
 state: active | scope: configured-repos | revision: 1 | doctrine: LAVISH.md §Managed-session runtime
 For an interactive grilling session, read `${AFK_PLUGIN_ROOT}/LAVISH.md` and use its session-default render rules.
