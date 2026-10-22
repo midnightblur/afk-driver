@@ -464,6 +464,52 @@ def test_summary_is_new_note_and_history_reconstructs(tmp_path):
     assert unit["history"] == [entry]
 
 
+def test_a_posted_concern_list_is_stored_as_one_string(tmp_path):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps([finding(concern=["logic-correctness", "resilience"])]),
+                        encoding="utf-8")
+    diff = tmp_path / "change.diff"
+    diff.write_text("", encoding="utf-8")
+    ledger.command_post(args(change="1", unit="slice", findings=str(findings), diff=str(diff),
+                             head="abc", hints=None, map=None, state=None), adapter)
+    key = ledger.reconstruct_state(adapter, "1")["units"]["slice"]["keys"]["slice/f001"]
+    assert key["finding"]["concern"] == "logic-correctness,resilience"
+    assert key["routing"]["concern"] == "logic-correctness,resilience"
+
+
+@pytest.mark.parametrize("concern", [[], [""], ["a", 3], "", None])
+def test_a_concern_that_names_nothing_is_refused(concern):
+    ledger = load_module()
+    with pytest.raises(ledger.UsageError, match="concern"):
+        ledger.validate_finding(finding(concern=concern))
+
+
+def test_a_stored_concern_list_still_summarizes(tmp_path):
+    ledger = load_module()
+    ledger.changed_paths = lambda cwd, start, end: []
+    adapter = FakeAdapter()
+    listed = finding(concern=["test-veracity"], line=99)
+    adapter.notes.append(adapter._note(ledger.make_finding_marker(
+        "slice/f001", "slice", "abc", listed, ledger.normalize_locator(listed)), "n1"))
+    text = tmp_path / "summary.txt"
+    text.write_text("Round accounting.", encoding="utf-8")
+    history = tmp_path / "history.json"
+    observed = [{"key": "slice/f001", "concern": "test-veracity", "severity": "high",
+                 "class": "correctness"}]
+    history.write_text(json.dumps({
+        "round": 1, "reviewed_head": "abc", "start_head": "base", "observed": observed,
+        "scope_shape_keys": [], "agents_md_chain_new": [], "scope_escalated": False,
+        "ledger_only": False, "code_changed": False, "keys_new": ["slice/f001"],
+        "keys_remediated": []}), encoding="utf-8")
+    result = ledger.command_summary(args(change="1", unit="slice", round=1, head="abc",
+                                         clean=False, ledger_only=False, text_file=str(text),
+                                         history_file=str(history)), adapter)
+    assert result["ok"]
+    assert ledger.reconstruct_state(adapter, "1")["units"]["slice"]["history"][0]["observed"] == observed
+
+
 def test_summary_rejects_caller_truncation_and_wrong_start_head(tmp_path):
     ledger = load_module()
     ledger.changed_paths = lambda cwd, start, end: []

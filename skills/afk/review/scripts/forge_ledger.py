@@ -139,6 +139,14 @@ def validate_finding(item):
         raise UsageError("invalid finding class")
     if not isinstance(item["line"], int) or item["line"] < 1:
         raise UsageError("finding line must be a positive integer")
+    names = item["concern"] if isinstance(item["concern"], list) else [item["concern"]]
+    if not names or not all(isinstance(name, str) and name for name in names):
+        raise UsageError("finding concern must be a name or a list of names")
+
+
+def concern_text(value):
+    """A merged finding's concern list, as the one string a round's history carries."""
+    return ",".join(value) if isinstance(value, list) else value
 
 
 def fingerprints(unit, head, finding, locator):
@@ -946,7 +954,7 @@ def reconstruct_state(adapter, change, trust=(), reject=()):
             "fix": fix, "verdict": verdict, "disposition": disposition,
             "deferred_gate": outcome_attrs.get("gate") if outcome_rec and outcome_rec.get("kind") == "deferred" else None,
             "ever_deferred_to": list(dict.fromkeys(r.get("gate") for r in recs if r.get("kind") == "deferred")),
-            "routing": {"concern": routing_data.get("concern"), "severity": severity,
+            "routing": {"concern": concern_text(routing_data.get("concern")), "severity": severity,
                         "class": routing_data.get("class"), "blocks_ship": severity in {"critical", "high"}},
             "finding": finding, "locator_current": locator_current,
             "threads": list(threads_seen.values()), "records": recs,
@@ -1300,6 +1308,7 @@ def command_post(args, adapter):
         raise UsageError("findings file must contain a JSON list")
     for finding in findings:
         validate_finding(finding)
+        finding["concern"] = concern_text(finding["concern"])
     diff = parse_diff(Path(args.diff).read_text(encoding="utf-8"))
     hints = _load_json(args.hints) if args.hints else {}
     mapping = _load_json(args.map) if args.map else {}

@@ -48,6 +48,13 @@ release page from its section here. Nobody tags by hand.
   hands-off run leaves it unset and names it in its report. `/afk:bug` keeps
   its own stricter stop rules on its page.
 
+### Fixed
+
+- A review round whose merged finding names its concerns as a list can be
+  summarized again. `forge_ledger.py post` stores the list as one
+  comma-joined string, reads a list already on the change the same way, and
+  refuses a concern that names nothing.
+
 ## [1.16.0] - 2026-10-20
 
 ### Added
