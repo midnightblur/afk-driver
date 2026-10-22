@@ -23,16 +23,17 @@ a new tab; a tab it cannot make answers exit 4 naming the tab. A start a dialog
 blocks is stopped and answers exit 4 with `dialog` true. Each start carries the
 harness's update-off switch on its own launch only (`../launch.py`).
 
-`agent-stop` kills the whole process tree first, by each member's id, with
-each process whose parent ended, in a console or session the tree uses, that
-started no earlier than the agent. Then it closes the pane, then the tab when
-its last pane is gone. A pane already gone counts as closed. With no usable
-tool it still kills the tree by its process id and answers `pane_closed` false.
-It never relies on a shell trap: a pane close sends no signal one catches. It
-answers `stopped` false, naming the gap, when that search could not read a
-console, a session or a start time. On Windows it cannot reach such a process
-alone in a console no live tree member uses, as when a command's whole shell
-has ended: nothing left ties it to the agent.
+`agent-stop` kills the whole process tree first, by each member's id, with each
+process whose parent ended, in a console or session the tree uses, that started
+no earlier than the agent, and with that process's own descendants. Then it
+closes the pane, then the tab when its last pane is gone. A pane already gone
+counts as closed. With no usable tool it still kills the tree by its process id
+and answers `pane_closed` false. It never relies on a shell trap: a pane close
+sends no signal one catches. It answers `stopped` false, naming the gap, when
+that search could not read a console, a session, the process list, or a start
+time or parent. On Windows it cannot reach such a process alone in a console no
+live tree member uses, as when a command's whole shell has ended: nothing left
+ties it to the agent.
 
 `agent-send` delivers into the receiver's pane by the tool's delivery way. The
 contact agent's messages never come here: the team entry script writes them to

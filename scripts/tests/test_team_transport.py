@@ -790,20 +790,105 @@ def test_a_pane_stop_spares_a_process_of_the_shared_console_whose_parent_lives(m
 
 
 def test_kin_keeps_only_newer_orphans_and_never_the_caller_or_an_ancestor(monkeypatch):
-    # root 100 (child 101) runs under 10; the caller 300 is newer and its own parent is gone;
-    # 400 is a newer orphan, 500 the caller's child, 600 an older orphan, 700 an orphan of unknown age
-    parents = {10: 1, 100: 10, 101: 100, 300: 996, 400: 999, 500: 300, 600: 998, 700: 997}
-    started = {10: 1, 100: 50, 101: 60, 300: 70, 400: 80, 500: 90, 600: 40, 700: None}
+    # root 100 (child 101) runs under 10, which claims a later start as a reused id can; the caller 300
+    # runs under 350, newer and orphaned; 400 is a newer orphan with child 410, 500 the caller's child,
+    # 600 an older orphan, 700 a live and 800 a dead orphan of unknown age, 900 gone from the listing
+    parents = {10: 1, 100: 10, 101: 100, 300: 350, 350: 995, 400: 999, 410: 400, 500: 300, 600: 998,
+               700: 997, 800: 994}
+    started = {10: 55, 100: 50, 101: 60, 300: 70, 350: 65, 400: 80, 410: 85, 500: 90, 600: 40, 700: None,
+               800: None, 900: 95}
     monkeypatch.setattr(process, "_parents", lambda: dict(parents))
-    monkeypatch.setattr(process, "_console_peers", lambda pids: (list(parents), None))
+    monkeypatch.setattr(process, "_console_peers", lambda pids: ([*parents, 900], None))
     monkeypatch.setattr(process, "_msys_parents", lambda: {})
     monkeypatch.setattr(process, "_started", started.get)
     monkeypatch.setattr(process, "_created", started.get)
-    monkeypatch.setattr(process, "alive", lambda pid: True)
+    monkeypatch.setattr(process, "alive", lambda pid: pid != 800)
     monkeypatch.setattr(process.os, "getpid", lambda: 300)
     found, gap = process.kin(100, [100, 101])
-    assert found == [400]
-    assert "700" in gap and "could not be read" in gap
+    assert found == [400, 410]
+    assert "700" in gap and "could not be read" in gap and "800" not in gap
+
+
+def test_kin_with_no_process_list_finds_nothing_and_names_the_gap(monkeypatch):
+    monkeypatch.setattr(process, "_parents", dict)
+    monkeypatch.setattr(process, "_console_peers", lambda pids: ([5, 6], None))
+    monkeypatch.setattr(process, "_started", lambda pid: 1)
+    assert process.kin(5, [5]) == ([], "the process list could not be read")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows reuses ids and has MSYS parents")
+def test_kin_on_windows_reads_a_reused_parent_id_and_a_live_msys_parent(monkeypatch):
+    # 450's parent id is held by the newer 360; 460 has a live MSYS parent; 470's parent 361 and 361
+    # itself have no readable creation time; 480 is a plain orphan
+    parents = {10: 1, 100: 10, 360: 10, 361: 10, 450: 360, 460: 992, 470: 361, 480: 993}
+    created = {10: 1, 100: 50, 360: 88, 361: None, 450: 84, 460: 70, 470: 75, 480: 76}
+    msys: dict | None = {460: 10}
+    monkeypatch.setattr(process, "_parents", lambda: dict(parents))
+    monkeypatch.setattr(process, "_console_peers", lambda pids: (list(parents), None))
+    monkeypatch.setattr(process, "_msys_parents", lambda: msys)
+    monkeypatch.setattr(process, "_started", created.get)
+    monkeypatch.setattr(process, "_created", created.get)
+    monkeypatch.setattr(process, "alive", lambda pid: True)
+    monkeypatch.setattr(process.os, "getpid", lambda: 10)
+    found, gap = process.kin(100, [100])
+    assert found == [450, 480]
+    assert "361, 470" in gap
+    msys = None
+    found, gap = process.kin(100, [100])
+    assert found == [] and "450" in gap and "480" in gap and "460" in gap
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="POSIX reads sessions, not consoles")
+def test_the_console_reader_names_what_it_could_not_read(monkeypatch):
+    import types
+
+    def answer(stdout="", code=0, error=None):
+        def run(*args, **kwargs):
+            if error:
+                raise error
+            return types.SimpleNamespace(returncode=code, stdout=stdout)
+        monkeypatch.setattr(process.subprocess, "run", run)
+        return process._console_peers([5])
+
+    assert answer("11 12\n\n") == ([11, 12], None)
+    assert answer("11 12\n7 8\n") == ([11, 12], "the consoles of processes 7, 8 could not be read")
+    assert answer(code=3) == ([], "the console lists could not be read (exit 3)")
+    peers, gap = answer(error=OSError("no python"))
+    assert peers == [] and gap.startswith("the console lists could not be read (") and "no python" in gap
+
+
+NESTED = r'''
+import subprocess, sys, time
+if sys.argv[1] == "orphan":
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+    open(sys.argv[2], "w").write(str(child.pid))
+    time.sleep(300)
+elif sys.argv[1] == "middle":
+    orphan = subprocess.Popen([sys.executable, __file__, "orphan", sys.argv[3]])
+    open(sys.argv[2], "w").write(str(orphan.pid))
+else:
+    subprocess.Popen([sys.executable, __file__, "middle", sys.argv[1], sys.argv[2]]).wait()
+    time.sleep(300)
+'''
+
+
+@pytest.mark.parametrize("own_pane", [True, False], ids=["own-pane", "callers-console"])
+def test_a_pane_stop_reaches_the_child_of_a_descendant_whose_parent_ended(monkeypatch, tmp_path, own_pane):
+    stop = no_tool(monkeypatch)
+    script, left, child = tmp_path / "nested.py", tmp_path / "orphan.pid", tmp_path / "child.pid"
+    script.write_text(NESTED, encoding="utf-8")
+    root = subprocess.Popen([sys.executable, str(script), str(left), str(child)], stdout=subprocess.DEVNULL,
+                            **(PANE if own_pane else {}))
+    try:
+        assert wait_for(lambda: pid_in(left) and pid_in(child))
+        orphan, kid = pid_in(left)[0], pid_in(child)[0]
+        assert wait_for(lambda: orphan not in process.tree(root.pid))
+        body = stop(root.pid)
+        assert body["stopped"] is True, body
+        assert wait_for(lambda: not process.alive(orphan) and not process.alive(kid))
+    finally:
+        for pid in (root.pid, *pid_in(left), *pid_in(child)):
+            process.kill_tree(pid, force=True, wait_s=2)
 
 
 def test_a_stop_whose_orphan_search_is_incomplete_answers_not_stopped(monkeypatch, tmp_path):

@@ -107,16 +107,18 @@ if WINDOWS:
                   for k in ("ProgramFiles", "ProgramW6432", "LOCALAPPDATA") if os.environ.get(k)]
         return next((path for path in found if os.path.isfile(path)), None)
 
-    def _msys_parents() -> dict[int, int | None]:
+    def _msys_parents() -> dict[int, int | None] | None:
         """Windows id of each MSYS process to the Windows id of its live MSYS parent, None for MSYS
-        process 1 or a parent that is gone; empty without Git's ps."""
+        process 1 or a parent that is gone; empty without Git's ps, None when its ps failed."""
         ps = _msys_ps()
         if ps is None:
             return {}
         try:
             done = subprocess.run([ps, "-e"], capture_output=True, text=True, timeout=10, check=False)
         except (OSError, subprocess.SubprocessError):
-            return {}
+            return None
+        if done.returncode != 0:
+            return None
         rows = [line.split() for line in done.stdout.splitlines()[1:]]
         rows = [r for r in rows if len(r) >= 4 and r[0].isdigit() and r[1].isdigit() and r[3].isdigit()]
         winpid = {int(r[0]): int(r[3]) for r in rows}
@@ -125,7 +127,7 @@ if WINDOWS:
     def _msys_children() -> dict[int, list[int]]:
         """Windows id of each MSYS process to the Windows ids of its MSYS children."""
         out: dict[int, list[int]] = {}
-        for child, parent in _msys_parents().items():
+        for child, parent in (_msys_parents() or {}).items():
             if parent is not None and parent != child:
                 out.setdefault(parent, []).append(child)
         return out
@@ -171,14 +173,17 @@ print(" ".join(map(str, unread)))
         return [int(x) for x in found.split() if x.isdigit()], gap
 
     def _parent_ended(pid: int, parents: dict[int, int], peers: set[int],
-                      msys: dict[int, int | None]) -> bool:
-        """Its Windows parent is gone or holds a reused id, and for an MSYS process its MSYS parent is too."""
+                      msys: dict[int, int | None] | None) -> bool | None:
+        """Its Windows parent is gone or holds a reused id, and for an MSYS process its MSYS parent is too;
+        None when a creation time or Git's ps could not be read."""
         parent = parents.get(pid)
         if parent in parents and parent != pid:
             mine, theirs = _created(pid), _created(parent)
-            if mine is None or theirs is None or theirs <= mine:
+            if mine is None or theirs is None:
+                return None
+            if theirs <= mine:
                 return False
-        return msys.get(pid) is None
+        return None if msys is None else msys.get(pid) is None
 
     _started = _created
 
@@ -237,7 +242,7 @@ else:
     def _msys_children() -> dict[int, list[int]]:
         return {}
 
-    def _msys_parents() -> dict[int, int | None]:
+    def _msys_parents() -> dict[int, int | None] | None:
         return {}
 
     def _created(pid: int) -> int | None:
@@ -265,7 +270,7 @@ else:
         return [m for sid in sids for m in session_members(sid)], None
 
     def _parent_ended(pid: int, parents: dict[int, int], peers: set[int],
-                      msys: dict[int, int | None]) -> bool:
+                      msys: dict[int, int | None] | None) -> bool | None:
         """Its parent is outside the sessions read: init or a subreaper took it when its parent ended."""
         return parents.get(pid) not in peers
 
@@ -280,12 +285,16 @@ else:
 
 def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
     """Processes outside `members` whose parent ended, in a console or session a member uses, started no
-    earlier than `pid`, and neither this caller nor an ancestor of it or of `pid`; with what kept the
-    search incomplete, or None."""
+    earlier than `pid`, and neither this caller nor an ancestor of it or of `pid`, each with its own
+    descendants; with what kept the search incomplete, or None."""
     mine = _started(pid)
     if mine is None:
         return [], f"the start time of process {pid} could not be read"
-    parents = _parents()
+    peers, gap = _console_peers(members)
+    parents, msys = _parents(), _msys_parents()     # read after the peers: a peer missing here has ended
+    gaps = [gap] if gap else []
+    if not parents:
+        return [], "; ".join(gaps + ["the process list could not be read"])
 
     def line(start: int) -> set[int]:
         seen: set[int] = set()
@@ -294,22 +303,22 @@ def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
             start = parents.get(start, 0)
         return seen
 
-    peers, gap = _console_peers(members)
-    pool, msys = set(peers), _msys_parents()
+    pool, skip = set(peers), set(members) | line(os.getpid()) | line(pid)
     found, unknown = [], []
-    for member in pool - set(members) - line(os.getpid()) - line(pid):
-        if not _parent_ended(member, parents, pool, msys):
+    for member in sorted(pool - skip):
+        ended = _parent_ended(member, parents, pool, msys) if member in parents else False
+        if ended is False:
             continue
-        born = _started(member)
+        born = _started(member) if ended else None
         if born is None:
             if alive(member):
                 unknown.append(str(member))
         elif born >= mine:
             found.append(member)
     if unknown:
-        gaps = [gap] if gap else []
-        gap = "; ".join(gaps + [f"the start times of processes {', '.join(unknown)} could not be read"])
-    return found, gap
+        gaps.append(f"the start or parent of processes {', '.join(unknown)} could not be read")
+    found = list(dict.fromkeys(m for orphan in found for m in tree(orphan) if m not in skip))
+    return found, "; ".join(gaps) or None
 
 def tree(pid: int) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
