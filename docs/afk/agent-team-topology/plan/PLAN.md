@@ -150,7 +150,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 22 | 0022-bug-pane-legs | /afk:bug publisher, fixer and retester as pane agents | pending | 0020-subagent-fallback-report-writers, 0021-fix-afk-lite | static, unit, integration | impl §13; use §11 |
 | 23 | 0023-lesson-ledger-lock | Lesson ledger id mint under a folder lock | done | — | static, unit, integration | — |
 | 24 | 0024-status-set-and-journal-reasons | The unrecorded_agent status everywhere; the unhomed_product_debt reason | pending | 0017-spawn-steps | static, unit | — |
-| 25 | 0025-dashboard-team-section | Mission control: team section and feature review-round count | reviewing | 0003-manifest-module | static, unit | use §10 |
+| 25 | 0025-dashboard-team-section | Mission control: team section and feature review-round count | done | 0003-manifest-module | static, unit | use §10 |
 | 26 | 0026-sync-harness | Sync the harness for the shipped feature | pending | 0001-glossary-terms, 0002-config-transport-and-pattern-keys, 0003-manifest-module, 0004-knowledge-store, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0007-desktop-tool-transport, 0008-inbox-wait-script, 0009-spawn-permission-check, 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine, 0015-team-skill-and-manifests, 0016-sessionstart-handlers, 0017-spawn-steps, 0018-review-gate-pane-workers, 0019-adversary-pane-agent, 0020-subagent-fallback-report-writers, 0021-fix-afk-lite, 0022-bug-pane-legs, 0023-lesson-ledger-lock, 0024-status-set-and-journal-reasons, 0025-dashboard-team-section | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,

@@ -384,3 +384,8 @@
 2026-10-22 18:22 | execute | 0025-dashboard-team-section | review round 1 — four reviewers found six points (two medium, four low), all posted on pull request 112; two low test-style points wait for the feature review
 2026-10-22 18:22 | execute | 0025-dashboard-team-section | decision(D-131) — the glossary's mission control entry now names the team run list, one clause outside the slice's file list
 2026-10-22 18:22 | execute | 0025-dashboard-team-section | decision(D-132) — every dashboard section that has nothing to show gets a grey dot and a reason, not just the team section
+2026-10-22 18:34 | execute | 0025-dashboard-team-section | review round 2 clean — three reviewers found nothing in the round-1 fixes; the review is settled on pull request 112 at e2a87a0
+2026-10-22 18:45 | execute | 0025-dashboard-team-section | adversary findings (low only) — 38 probes; one low point: an agent parked past its due time is still labelled not hung; noted on pull request 112, not blocking
+2026-10-22 18:46 | execute | 0025-dashboard-team-section | wiring scan clean — the advisory orphan check found nothing unconsumed
+2026-10-22 18:46 | execute | 0025-dashboard-team-section | done — all three posted reasons are receipted on pull request 112 and cleared locally
+2026-10-22 18:46 | execute | 0025-dashboard-team-section | outcome success — the team section and the feature round count are built, reviewed (settled in round 2) and probed (one low point); the human reviews and merges pull request 112
