@@ -748,3 +748,31 @@
 - Chosen: B — the pointer names a skill that does not exist until 0015 lands, and the human's rule is that a reference without a reachable consumer carries an anchored IOU; D-71 took the same exception for 0008
 - Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one IOU line only
 - To reverse: delete the line
+
+## D-107 — One more review round after 8ed2396, and f080 moved onto its line
+- 2026-10-22 · decided by /afk:autopilot (orchestrator, agent-decided; brief C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/0006-resume5.md, resume 4's option A), carried out by /afk:execute (0006-transport-family-and-herdr, Step 10)
+- Options: A — move deferred f080 onto DECISIONS.md:653 by the move transaction and review the commits after 8ed2396, so the latest summary names the tip vs B — park the slice for the human
+- Chosen: A — the two closure failures beyond the human's 30-key override (the round 15 summary named 8ed2396, and f080 had no line comment) close through the normal settle loop; f080 moved at 3aa4bf3 (pull request 112 comment r4350017786), and rounds 16 to 18 ran, round 18 clean at aa2c9bf
+- Supersedes: none
+- To reverse: none needed; the ledger records are append-only
+
+## D-108 — Round 16's roster is the delta-sweep reviewer alone
+- 2026-10-22 · decided by /afk:execute (0006-transport-family-and-herdr, Step 10)
+- Options: A — the delta triggers' roster: delta-sweep plus logic-correctness and code-quality (the delta passes 6 files) and agents-md-compliance (skills/afk/AGENTS.md is new to the chain) vs B — delta-sweep alone
+- Chosen: B — the orchestrator's call names a delta-sweep; the delta 8ed2396..3aa4bf3 changes no file in this slice's Scope, and the files that fire the triggers belong to 0014-delegation-doctrine, whose own review unit settled them at 2982671
+- Supersedes: skills/afk/review/SKILL.md "Delta-round roster" item 3, for round 16 only
+- To reverse: review 8ed2396..3aa4bf3 again with the three trigger reviewers
+
+## D-109 — f081 and f083 are fixed in DELEGATION.md and BEHAVIORS.md, outside this slice's Scope
+- 2026-10-22 · decided by /afk:execute (0006-transport-family-and-herdr, Step 10)
+- Options: A — stop `blocked` under the Scope rule vs B — fix the one sentence in each file inline, with `Settles:` lines, and keep the behavior entry's revision
+- Chosen: B — the orchestrator's call fixes this delta's findings in the normal loop; a forced `transport.kind` deciding where agents start is SDD §1 ("a configuration key forces a kind explicitly") and scripts/team/probe.py's forced branch; the `pane-agent-rule` entry is new in the unreleased version, so no installed release carries the old body; a one-sentence prose fix has no failing test to write, so `/afk:fix` adds nothing
+- Supersedes: execute SKILL.md hard rule "Stay inside Scope globs" and Step 10's `spec` → `/afk:fix` routing, for f081 (89c5eac) and f083 (aa2c9bf) only
+- To reverse: revert 89c5eac and aa2c9bf, and review the pane-agent rule again under 0014
+
+## D-110 — The closure gate's missing-trailer refusal for 30 keys stands as a human override
+- 2026-10-22 · decided by the human (answer "Accept red, override (Recommended)"), recorded by /afk:execute (0006-transport-family-and-herdr, Step 10)
+- Options: A — accept the refusal as a recorded override vs B — rewrite history or change the plugin so the gate reads the trailers
+- Chosen: A — the `Settles:` lines for f046 to f058 (747014a), f059 to f066 and f070 (e6f2584), f071 to f075 and f077 (5fb3964), f078 and f079 (8ed2396) are on descendant 9095b30; at aa2c9bf a scratch closure check that skips only that test for only those keys finds no other failure (pull request 112 note 6344610010)
+- Supersedes: SETTLEMENT.md "Closure gate" condition "Its commit message carries `Settles: <key>`", for these 30 keys only
+- To reverse: none needed; no record or commit changed
