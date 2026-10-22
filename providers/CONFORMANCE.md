@@ -492,6 +492,8 @@ Fourth re-run at the code of `a02ad0b`, after the sweep began to walk each orpha
 
 Fifth re-run at the code of `421c9a9`, after the sweep began to spare MSYS ancestors of the caller and the agent and to stop its walk at a spared process, with the same commands and checks (evidence `0006-live5/run7`): V28 and Q20 passed on both harnesses. On each, the read-only sweep call returned the orphaned `bash.exe` and its two children with no gap, and after `stopped` true all of them and the in-tree process were gone on the first check by id and start time. Each pane and step tab closed; the contact tab kept its one pane.
 
+Backslash re-run at the code of `d01ac5a`, after `probe.py run` began to hand its payload to the shell in a variable, 2026-10-22, Claude Code only (evidence `0006-live6`). The payloads carried Windows paths with backslashes, which the earlier runs did not. agent-start with a backslash `cwd` started the agent in `<claude-probe>`, with no dialog. agent-send of an envelope holding `C:\new\task.md` showed it unchanged on the screen, and the agent repeated it. agent-stop with pid and handle answered `stopped` true and `pane_closed` true. Afterwards, `pane get` answered `pane_not_found`, the step tab was gone, and the agent's process id was gone.
+
 ## Background job wake probes (2026-10-20)
 
 The probes behind `CAPABILITIES.md` `background_job_wake`. Re-run both on every new harness version. Host: Windows 11, Claude Code 2.1.304, Codex CLI 0.163.0, each a headless session started in an empty probe folder (`<probe>`) with the harness's own login.
