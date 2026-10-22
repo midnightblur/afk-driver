@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "delta-sweep+logic-correctness",
+  "criterion": "New defect in the change",
+  "severity": "high",
+  "class": "correctness",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "The new lost-agent sentence sends a dead pane agent straight to the park/fail path, which skips the human-settled resume-first recovery and the requester notice.",
+  "why": "SDD §6 state A5 says that when the watchdog fires and the agent is dead, the contact agent moves it to lost, tells the requester (S-173), and then resumes its harness session first, or starts a fresh agent from the checkpoint when the resume fails (S-213, GRILL-LOG.md:608 human; SDD.md:588); a park parks the subtask and its dependents instead.",
+  "fix": "Reword the sentence so a lost agent follows the recovery the SDD settles: tell the requester, then resume the session or start a fresh agent from the checkpoint; take the park/fail path only when that recovery fails or after exit 5 or a verb timeout.",
+  "evidence": "DELEGATION.md:38 '+Absent and the agent gone, the agent is lost: the contact agent takes the invoking skill's park/fail path.' vs SDD.md:688 (A5 lost) 'when the watchdog fires and classification finds the agent dead ... Except after exit 5 or a verb timeout ..., it then first resumes the agent's harness session; if the resume fails, it starts a fresh agent that reads the checkpoint (S-213)' and SDD.md:588 'An agent that dies or stops early | 1 resume of its harness session in a new pane'",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "compliance",
+  "file": "BEHAVIORS.md",
+  "line": 16,
+  "side": "new",
+  "finding": "The changed short form adds the registered compound 'pane switch' with no gloss. The rendered block reaches every repository, where no glossary defines the term.",
+  "why": "LANGUAGE.md §2 requires a gloss for a registered compound at its first use in every document. The afk:behaviors block is read cold in any repository, and only DELEGATION.md names the key `transport.pane-switch`.",
+  "fix": "Gloss the term at first use, for example 'the pane switch (`transport.pane-switch`) does not say subagent', and keep the block under the byte cap.",
+  "evidence": "BEHAVIORS.md:16 '+Where the plugin is enabled, a pane transport is found and the pane switch does not say subagent, ...'; LANGUAGE.md §2 'Gloss a registered compound at first use in every document — 3-5 words, in brackets'",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "compliance",
+  "file": "BEHAVIORS.md",
+  "line": 16,
+  "side": "new",
+  "finding": "The short form's inline definition of role agent now says 'a plugin artifact', while GLOSSARY.md, which owns the term, says 'a plugin file'. Readers now get two definitions of one term.",
+  "why": "LANGUAGE.md §2 says a workflow term is spelled as GLOSSARY.md defines it and is never redefined inline. The changed line and GLOSSARY.md:76 now disagree on what role work writes.",
+  "fix": "Make the two wordings agree: update GLOSSARY.md 'Role agent' to say 'plugin artifact', the wording of PRD AC-040 and DELEGATION.md, or record the gap for the glossary owner.",
+  "evidence": "BEHAVIORS.md:16 '+... start a role agent (it writes a plugin artifact, code or a ledger, or returns a gate verdict) ...' vs GLOSSARY.md:76 'An agent that does a role's work: it writes a plugin file, code or a ledger, or returns a gate verdict.'; LANGUAGE.md §2 'Never coin a synonym for a term a glossary owns; never redefine one inline — point at its home.'",
+  "id": "r-003"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "PROVIDERS.md",
+  "line": 159,
+  "side": "new",
+  "finding": "The reason given does not lead to the conclusion. 'Agent-start takes only a tier row's cells' does not force the Implementation row, because the Digest row is also a tier row, and autopilot step 2 sends a mechanical slice to the digest tier.",
+  "why": "When skills/afk/autopilot/SKILL.md:35 is changed for pane starts, its author can read 'takes only a tier row's cells' and still pick the Digest row for a mechanical subtask. That is the downward choice this line was reworded to stop (round 1, r-004). The rule that actually stops it is upward-only (DELEGATION.md 'An agent never lowers a tier'), and this sentence does not name that rule.",
+  "fix": "Give the real reason, for example: 'Agent-start takes only a tier row's cells and an agent never lowers a tier (DELEGATION.md \"Model selection\"), so a pane role on a simple slice runs the Implementation row.' Note the autopilot :35 mechanical routing in the pane-start spawn-step change.",
+  "evidence": "PROVIDERS.md:159 '+Agent-start takes only a tier row's cells, so a pane role on a simple slice runs the Implementation row.'; PROVIDERS.md:144 '| Digest | `sonnet` | `gpt-5.6-terra` | `medium` |'; skills/afk/autopilot/SKILL.md:35 '`mechanical` → a general-purpose child at the digest-tier model'; DELEGATION.md:54 'An agent never lowers a tier'",
+  "id": "r-004"
+ }
+]
