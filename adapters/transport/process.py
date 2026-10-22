@@ -287,9 +287,12 @@ def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
 
     def line(start: int) -> set[int]:
         seen: set[int] = set()
-        while start and start not in seen:
-            seen.add(start)
-            start = parents.get(start, 0)
+        todo = [start]
+        while todo:
+            current = todo.pop()
+            if current and current not in seen:
+                seen.add(current)
+                todo += [parents.get(current, 0), (msys or {}).get(current) or 0]
         return seen
 
     pool, skip = set(peers), set(members) | line(os.getpid()) | line(pid)
@@ -306,15 +309,17 @@ def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
             found.append(member)
     if unknown:
         gaps.append(f"the start or parent of processes {', '.join(unknown)} could not be read")
-    found = list(dict.fromkeys(m for orphan in found for m in tree(orphan, (parents, msys)) if m not in skip))
+    found = list(dict.fromkeys(m for orphan in found for m in tree(orphan, (parents, msys), skip)))
     return found, "; ".join(gaps) or None
 
-def tree(pid: int, snapshot: tuple[dict[int, int], dict[int, int | None] | None] | None = None) -> list[int]:
+def tree(pid: int, snapshot: tuple[dict[int, int], dict[int, int | None] | None] | None = None,
+         prune: set[int] | frozenset[int] = frozenset()) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
     Windows parent is a fork stub that is gone by the time the child runs. Windows reuses a dead
     parent's id, so a child older than the process holding its parent's id is not its child; an MSYS
     edge is exempt, since an MSYS exec gives the parent a newer Windows process. `snapshot` is a
-    process list and MSYS parent map the caller already read, so both views agree."""
+    process list and MSYS parent map the caller already read, so both views agree; the walk never
+    enters a process in `prune` nor goes below it."""
     parents, msys_parents = snapshot if snapshot else (_parents(), _msys_parents())
     children: dict[int, list[int]] = {}
     for child, parent in parents.items():
@@ -335,7 +340,7 @@ def tree(pid: int, snapshot: tuple[dict[int, int], dict[int, int | None] | None]
     out, queue = [], [pid]
     while queue:
         current = queue.pop(0)
-        if current in out:
+        if current in out or current in prune:
             continue
         out.append(current)
         mine = created(current)

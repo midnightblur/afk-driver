@@ -818,11 +818,12 @@ def test_kin_with_no_process_list_finds_nothing_and_names_the_gap(monkeypatch):
 
 
 def test_kin_walks_an_orphans_descendants_in_its_own_snapshot_and_spares_the_caller_and_members(monkeypatch):
-    # orphan 400 has MSYS children 420 and 430 (430 is itself an orphan on POSIX), and MSYS edges to the
-    # caller 300 and the member 101; a second Git ps read fails, which the walk must never see
-    parents = {10: 1, 100: 10, 101: 100, 300: 995, 400: 999, 420: 101, 430: 997}
-    started = {10: 1, 100: 50, 101: 60, 300: 20, 400: 80, 420: 70, 430: 85}
-    reads = [{420: 400, 430: 400, 300: 400, 101: 400, 400: None}]
+    # orphan 400 has MSYS children 420 and 430 (430 is itself an orphan on POSIX) and an MSYS edge to the
+    # member 101, whose child 102 the walk must not reach; the caller 300 (child 310) is an MSYS child of
+    # the newer orphan 450; a second Git ps read fails, which the walk must never see
+    parents = {10: 1, 100: 10, 101: 100, 102: 101, 300: 995, 310: 300, 400: 999, 420: 101, 430: 997, 450: 994}
+    started = {10: 1, 100: 50, 101: 60, 102: 65, 300: 20, 310: 75, 400: 80, 420: 70, 430: 85, 450: 88}
+    reads = [{420: 400, 430: 400, 101: 400, 300: 450, 400: None, 450: None}]
     monkeypatch.setattr(process, "_parents", lambda: dict(parents))
     monkeypatch.setattr(process, "_msys_parents", lambda: reads.pop() if reads else None)
     monkeypatch.setattr(process, "_console_peers", lambda pids: (list(parents), None))
