@@ -63,9 +63,11 @@ Already-current dependencies are adopted, not reinstalled: npm writes
 the lockfile is npm's own statement that the tree matches.
 
 Answers `{"kind":"npm","status":…,"fingerprint":…,"done":[…],"skipped":[…],"warnings":[…]}`.
-`status` is `provisioned`, `adopted`, or `skipped`. Exit 0 for all of those, 2 for
-an invalid payload, 4 when the install command failed — the worktree is still a
-usable checkout, so that is a warning with the command to re-run, not a failure.
+`status` is `provisioned`, `adopted`, `skipped`, or `degraded`. Exit 0 for the first three, 2 for
+an invalid payload, 4 when the install command failed — answered as `degraded`, and the
+worktree is still a usable checkout, so that is a warning with the command to re-run, not a
+failure. A degraded answer is not recorded as finished provisioning: the next run retries
+the install.
 
 `gates.sh` is both the CLI entry above and the library the commit runner sources.
 
