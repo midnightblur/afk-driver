@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "hooks/lesson-append.sh",
+  "line": 181,
+  "side": "new",
+  "finding": "No test asserts the ts field is stamped under the lock.",
+  "why": "The delta moves ts from build_line to a post-lock fill-in; if the fill-in broke, every record would carry \"ts\":\"\" and no test would fail.",
+  "fix": "Assert in the lost-lock or parallel test that each appended line's ts is non-empty and matches an ISO-8601 UTC pattern (and the minted record is not the rival line).",
+  "evidence": "hooks/lesson-append.sh:181 line=${line/\\\"ts\\\":\\\"\\\"/\\\"ts\\\":\\\"$stamp\\\"}; grep of test_lesson_filing.py finds \"ts\" only in the rival fixture at line 296, never in an assertion",
+  "id": "r2-1"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Erratic test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_lesson_filing.py",
+  "line": 320,
+  "side": "new",
+  "finding": "Hand-back test relies on a fixed sleep(1) before a negative-state assertion.",
+  "why": "If the waiter's mv has not run within 1 s on a loaded machine, the owner check sees the rival lock still in place and passes without proving the hand-back.",
+  "fix": "Wait on an observable signal after the mv (for example a shadowed mv that touches a marker) instead of a fixed sleep.",
+  "evidence": "time.sleep(1)\n    assert (lock / \"owner\").read_text().strip() == \"rival\"",
+  "id": "r2-2"
+ }
+]

@@ -783,3 +783,10 @@
 - Chosen: B — d01ac5a changes only how probe.py hands the payload to Git Bash (a variable, not an argument); no payload saved from the earlier live runs (0006-live to 0006-live5) holds a backslash pair, so the old hand-in delivered each one unchanged and those results stand; the new round trip passed (providers/CONFORMANCE.md, "Backslash re-run")
 - Supersedes: nothing; the contract's Verification rows are green at d01ac5a
 - To reverse: re-run the live rows of providers/CONFORMANCE.md at the tip
+
+## D-112 — The "before 3.12" walk case loads CPython 3.11's scan rule into the running interpreter
+- 2026-10-22 · decided by /afk:execute (0023-lesson-ledger-lock, Step 5)
+- Options: A — install a CPython 3.11 to run the V18 walk case vs B — run the case under the machine's interpreter with Path.rglob replaced by a copy of CPython 3.8-3.11's scan rule (only PermissionError is caught), as INV-034 c-bb3f8660 measured with the 3.11 module
+- Chosen: B — `py -0p` lists 3.12, 3.13 and 3.14 only and WSL has 3.12.3; the test forces the lock folder to vanish between the listing and the scan, the old gate fails that case and the new one passes, and the 3.12-on case runs the interpreter's own rglob
+- Supersedes: plan/0023-lesson-ledger-lock.md ## Verification row V18 "on Python before and after 3.12" — for the before-3.12 half, an emulated scan rule, not a 3.11 interpreter
+- To reverse: run scripts/tests/test_lesson_filing.py under a CPython 3.11 interpreter with RGLOB_BEFORE_312 unset
