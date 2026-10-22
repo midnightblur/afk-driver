@@ -325,3 +325,5 @@
 2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | adversary cycle 3 — 127 probes, no critical or high finding: gate passed; 3 medium and 4 low points are advisory, noted on pull request 112 (comment 6346715766)
 2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | wiring scan clean (exit 0); every recorded reason is posted and receipted
 2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | done — success: transport family, herdr recipe and machine probe built, reviewed and attack-tested; review settled under the human's override (D-110)
+2026-10-22 13:18 | autopilot | 0006-transport-family-and-herdr | done — the transport family and the herdr recipe are in, reviewed clean under the human's override for 30 missing key tags; the last attack test found nothing serious
+2026-10-22 13:18 | autopilot | run | heartbeat 10/26 done, starting 0023-lesson-ledger-lock (agent-decided order: 0007 and 0010 need live terminal trials, which wait for the human's pane decision)
