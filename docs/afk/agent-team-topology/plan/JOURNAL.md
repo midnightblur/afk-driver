@@ -367,3 +367,6 @@
 2026-10-22 18:10 | execute | 0010-team-entry-script | pushed 61d7d34..7a0a070 (1 commit) — the live-probe fixes and the probe rows in providers/CONFORMANCE.md
 2026-10-22 18:12 | execute | 0010-team-entry-script | design_conflict — on Claude Code 2.1.308 the one allow rule on the script never matches, because no rule matches a command that holds a variable; auto mode's classifier allowed every call instead. Parked for /afk:grill-solution
 2026-10-22 18:14 | execute | 0010-team-entry-script | checklist — the change's checklist no longer marks 0010 done while it is parked
+2026-10-22 17:15 | autopilot | 0010-team-entry-script | parked(design_conflict) — the team script works live, but the one permission line meant to let the main agent run it never takes effect in the current Claude Code; choosing a new form changes a human-signed design point, so it goes back to the design interview
+2026-10-22 17:15 | autopilot | 0011-job-supervisor | parked(waiting on 0010-team-entry-script) — with 0012, 0015 to 0022, 0024 and 0026 behind it
+2026-10-22 17:15 | autopilot | run | heartbeat 11/26 done, starting 0025-dashboard-team-section (the last subtask not waiting on a parked one)
