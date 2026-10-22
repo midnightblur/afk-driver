@@ -64,6 +64,7 @@ closes. A tab that cannot be made refuses the start, naming the tab.
 
 | Trap | Seen | Handling |
 |---|---|---|
+| `herdr agent start` answered success for a `codex` agent whose folder-trust dialog drew a moment later; `agent get` then showed it `blocked` | `providers/CONFORMANCE.md` "Team entry script probes (2026-10-22)", 1 of 3 trust dialogs | after a start, `agent-start` watches `agent get` for `SETTLE_S` (3 s), until `working`; `blocked` in that window is a dialog: the pane closes and the answer is exit 4 with `dialog` true |
 | A `codex` resume through `herdr agent start` left no pane; typed into a new pane with `herdr pane run`, it worked | `providers/CONFORMANCE.md` probe row "A blocked pane agent stays live…" (2026-09-30) | `codex` resumes by `pane run`, then `agent rename` |
 | A pane close sends no signal a shell trap catches; a plain pane's process is killed within 10 s | probe row "A capture command's run-time limit…" (2026-09-30) | `agent-stop` kills the process tree by id before the close |
 | A `codex` pane agent's shell child outlived a pane close with no live parent, owned by the sandbox user, and the operator's `Stop-Process` got Access is denied | the same row, re-probe 2026-10-06 | the tree is listed before the kill, so an orphaned member is still killed by id; a member that survives is named in `survivors` and `stopped` is false |

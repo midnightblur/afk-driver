@@ -352,6 +352,23 @@ def test_the_launch_environment_holds_afk_provider_equal_to_the_launched_kind(te
     assert entry.AFK_PROVIDER not in os.environ or os.environ[entry.AFK_PROVIDER] != "set-by-test"
 
 
+def test_a_codex_agent_launches_with_full_access_and_a_claude_agent_with_no_flag(team):
+    team.agent("a1", "builder", state="starting")
+    team.agent("a2", "builder", state="starting")
+    start(team, model="implementation@claude")
+    start(team, agent_id="a2", model="implementation@codex")
+    claude, codex = [p for _, v, p in team.transport.calls if v == "agent-start"]
+    assert "args" not in claude and codex["args"] == ["--dangerously-bypass-approvals-and-sandbox"]
+
+
+def test_the_launch_prompt_tells_a_powershell_agent_how_to_name_the_plugin_root(team):
+    team.agent("a1", "builder", state="starting")
+    start(team, model="implementation@codex")
+    prompt = team.transport.calls[-1][2]["prompt"]
+    assert 'afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" agent-send' in prompt
+    assert "In PowerShell, write $env:AFK_PLUGIN_ROOT in place of ${AFK_PLUGIN_ROOT}." in prompt
+
+
 def test_the_spawn_permission_check_runs_once_before_the_first_transport_command(team):
     team.agent("a1", "builder", state="starting")
     team.agent("a2", "builder", state="starting")

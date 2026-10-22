@@ -32,6 +32,7 @@ HASH_HEX = 8
 GONE = ("pane_not_found", "agent_not_found", "tab_not_found")
 DIALOG_LINES = 6                          # a dialog's question sits a few lines above its last line
 START_RESERVE_S = 40                     # left in the start budget after herdr's wait, for the checks and a cleanup
+SETTLE_S = 3                              # after a start, a blocked status this soon is a dialog drawn late
 
 
 @dataclass
@@ -145,6 +146,7 @@ class Herdr:
                 except HerdrError as error:
                     if error.code != "timeout" or not self._started(pane, run.binary, deadline):
                         raise
+            self._settle(pane, deadline)
         except HerdrError as error:
             screen = self._screen_line(pane, deadline) if error.code == "agent_not_ready" else ""
             self._discard(pane, deadline)
@@ -219,6 +221,21 @@ class Herdr:
         if agent.get("agent") == binary and agent.get("agent_status") == "blocked":
             raise HerdrError("agent_not_ready", "blocked at start")
         return agent.get("agent") == binary and agent.get("agent_status") in ("working", "idle", "done")
+
+    def _settle(self, pane: str, deadline: Deadline) -> None:
+        """herdr can call an agent ready just before a start dialog draws (herdr.md known traps): a blocked
+        status within SETTLE_S is that dialog; a working agent has taken its prompt, so no dialog is up."""
+        end = time.monotonic() + SETTLE_S
+        while True:
+            try:
+                status = self.call(["agent", "get", pane], deadline).get("agent", {}).get("agent_status")
+            except HerdrError:
+                return
+            if status == "blocked":
+                raise HerdrError("agent_not_ready", "blocked after start")
+            if status == "working" or time.monotonic() >= end:
+                return
+            time.sleep(0.5)
 
     def _shell_name(self, pane: str, deadline: Deadline) -> str:
         try:

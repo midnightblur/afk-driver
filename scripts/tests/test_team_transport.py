@@ -511,6 +511,7 @@ def fake(monkeypatch):
         return session.handle(args)
 
     monkeypatch.setattr(herdr.Herdr, "call", call)
+    monkeypatch.setattr(herdr, "SETTLE_S", 0)
     return session
 
 
@@ -607,6 +608,14 @@ def test_a_start_that_times_out_at_a_dialog_answers_dialog(fake):
     with pytest.raises(Answer) as caught:
         start("a1")
     assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
+
+
+def test_a_start_herdr_calls_ready_but_a_dialog_then_blocks_answers_dialog(fake):
+    fake.status = "blocked"
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
+    assert "w1:t2" not in fake.tabs
 
 
 def test_a_message_goes_into_the_receivers_pane_by_agent_prompt(fake):

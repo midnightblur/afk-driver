@@ -43,6 +43,8 @@ ISO = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 # Effort as the start names it -> (Claude Code value, Codex value); plan D-117
 EFFORTS = {"lo": ("low", "low"), "med": ("medium", "medium"), "hi": ("high", "high"), "max": ("max", "xhigh")}
 TIER_EFFORTS = {"low": "lo", "medium": "med", "high": "hi", "xhigh": "max"}
+# Launch flags per harness: a Codex agent runs with full access, a Claude agent reads the user's settings; plan D-124
+LAUNCH_ARGS = {"claude": (), "codex": ("--dangerously-bypass-approvals-and-sandbox",)}
 ABILITIES = {"multiplexer": resolver.ABILITIES, "headless": ("worker-to-contact", "exit-signal", "limit-signal")}
 # The launch-only values a started agent's environment carries (SDD §13 V39, Q54)
 AFK_PROVIDER = "AFK_PROVIDER"
@@ -233,7 +235,8 @@ def build_launch_prompt(brief_path: str, charter: Path | None, identity: str) ->
 def _identity(run: Run, entry: dict) -> str:
     return (f"You are agent {entry['agent_id']}, role {entry['role']}, owner generation {entry['owner_generation']},"
             f" of team run {run.feature}. Send each message with {permission.INVOCATION} agent-send"
-            " and one JSON object: agent_id, generation, target, kind, message_id, body_path.")
+            " and one JSON object: agent_id, generation, target, kind, message_id, body_path."
+            " In PowerShell, write $env:AFK_PLUGIN_ROOT in place of ${AFK_PLUGIN_ROOT}.")
 
 
 def _model(host: Host, verb: str, model: str) -> tuple[str, str, str]:
@@ -319,6 +322,7 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     payload = {"harness": harness, "name": name, "label": label, "cwd": str(cwd), "model": cell,
                "tab": f"{naming.goal_of(run.feature)} {entry['pattern_step']}",
                "effort": EFFORTS[effort][launch.HARNESSES.index(harness)], "env": env,
+               **({"args": list(LAUNCH_ARGS[harness])} if LAUNCH_ARGS[harness] else {}),
                "prompt": build_launch_prompt(brief, charter, _identity(run, entry)),
                "log": str(run.dir / "logs" / f"{agent_id}.log"), **({"resume": resume} if resume else {})}
     (run.dir / "logs").mkdir(parents=True, exist_ok=True)
