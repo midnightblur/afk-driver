@@ -308,3 +308,4 @@
 2026-10-22 10:57 | autopilot | 0014-delegation-doctrine | done — the pane-agent rule is written once in the delegation guide, with its short form in the managed behaviors; review settled at round 6, the attacker found one low wording point
 2026-10-22 10:57 | autopilot | 0006-transport-family-and-herdr | human decision: accept the closure gate's refusal of the 30 fixed keys that lack their key tag, as a recorded override; the subtask resumes at its second attacker cycle
 2026-10-22 10:57 | autopilot | run | heartbeat 9/26 done, resuming 0006-transport-family-and-herdr
+2026-10-22 11:05 | execute | 0006-transport-family-and-herdr | parked(needs_decision) — the closure check at 1c4f3f6 fails on two things besides the 30 missing key tags the human accepted: the last clean review summary describes 8ed2396, not the current tip, and one deferred low finding (f080) was posted as a plain note with no line comment. Both need a call before the attacker cycle can start

@@ -131,7 +131,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 3 | 0003-manifest-module | Run manifest: record, move, read under one lock | done | — | static, unit | — |
 | 4 | 0004-knowledge-store | Knowledge store: entries, finished stamp, debate release | done | — | static, unit | — |
 | 5 | 0005-pattern-resolver-and-builtin-records | Pattern resolver and built-in patterns BP-1 to BP-5 with their charters | done | 0002-config-transport-and-pattern-keys | static, unit | — |
-| 6 | 0006-transport-family-and-herdr | Transport family, herdr recipe, machine probe, multiplexer setup row | blocked(other: closure gate refuses 30 fixed keys whose fix commits lack Settles trailers; fixed is terminal, rewriting history needs a human) | 0002-config-transport-and-pattern-keys | static, unit, integration | impl §5, §8, §9, §15, §18, §20, §21; use §4 |
+| 6 | 0006-transport-family-and-herdr | Transport family, herdr recipe, machine probe, multiplexer setup row | blocked(needs_decision: closure fails on 2 conditions beyond the accepted trailer override; round-15 summary names 8ed2396, not head 1c4f3f6, and deferred key f080 has no inline thread) | 0002-config-transport-and-pattern-keys | static, unit, integration | impl §5, §8, §9, §15, §18, §20, §21; use §4 |
 | 7 | 0007-desktop-tool-transport | Desktop-tool kind and the 1DevTool recipe, after its trial | pending | 0006-transport-family-and-herdr | static, unit, integration | impl §3, §24 |
 | 8 | 0008-inbox-wait-script | The wait job: one per run, checks the contact inbox every 10 seconds | done | — | static, unit, integration | impl §1, §2 |
 | 9 | 0009-spawn-permission-check | Spawn permission check and the setup offer of the allow rule | done | — | static, unit | impl §7; use §23 |
