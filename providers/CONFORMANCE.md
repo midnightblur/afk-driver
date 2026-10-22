@@ -477,6 +477,13 @@ Other observations:
 - Claude Code 2.1.305 refused a foreground `sleep 90; echo …` (`Blocked: sleep 90 followed by: …`), and its auto mode classifier denied a script outside the project (`Denied by auto mode classifier ∙ [Code from External]`). The V38 Claude panes therefore launched with `--permission-mode default --add-dir <scratch folders> --allowedTools Bash Read`; flags on the launch only, no settings file changed.
 - Every Codex 0.163.0 session start printed `Hook failed / hook returned invalid session start JSON output` from the installed plugin 1.15.0; the start itself worked (unverified: which SessionStart handler printed it).
 
+Re-run of V28 and Q20 after the adversary fix, 2026-10-21 night, at the code of `52798ba`, with the same launches. Each command left a process whose parent had ended, which no process tree lists. Evidence folder: `0006-live5`.
+
+| Probe | Claude Code | Codex CLI (full-access launch) |
+|---|---|---|
+| V28 | command `(tail -f -n 0 /dev/null &); tail -f -n 0 /dev/null; echo ended`. The tree listed 11 processes; the orphaned `tail.exe` (MSYS parent 1) was not in it, and the console sweep found it. `stopped` true, `method` `killed the process tree`; all 12 were gone | command `& 'C:/Program Files/Git/bin/bash.exe' -c "bash -c 'sleep 611 &'; exec sleep 612"`. The tree listed 19 processes; the orphaned `sleep.exe` 611 (Windows parent gone, MSYS parent 1) was not in it, and the console sweep found it. `stopped` true; all 20 were gone. A first run, which listed only the agent's own console, left `sleep 611` running with `stopped` true: Codex runs a command in a console of its own, so the sweep now reads the console of each tree member |
+| Q20 | `pane_not_found` after the stop; the step tab closed; the contact tab kept its one pane | the same, after each of 2 stops |
+
 ## Background job wake probes (2026-10-20)
 
 The probes behind `CAPABILITIES.md` `background_job_wake`. Re-run both on every new harness version. Host: Windows 11, Claude Code 2.1.304, Codex CLI 0.163.0, each a headless session started in an empty probe folder (`<probe>`) with the harness's own login.
