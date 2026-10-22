@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -243,6 +244,8 @@ def test_parallel_appends_get_distinct_ids(ledger: Path):
     ids = finish([opened(f"s{n}") for n in range(8)])
     assert sorted(ids) == [f"L-{n:04d}" for n in range(1, 9)], ids
     assert ledger_ids(ledger) == sorted(ids)
+    stamps = [json.loads(line)["ts"] for line in ledger.read_text().splitlines()]
+    assert all(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", ts) for ts in stamps), stamps
     assert not list(ledger.parent.glob(LOCK + "*"))
 
 
@@ -296,6 +299,7 @@ def test_a_holder_that_lost_its_lock_takes_it_again_and_mints_again(ledger: Path
                      "RIVAL": '{"ts":"","id":"L-0005","event":"opened"}'})
     assert finish([proc]) == ["L-0006"]
     assert lost.exists() and ledger_ids(ledger) == ["L-0005", "L-0006"]
+    assert json.loads(ledger.read_text().splitlines()[-1])["ts"].endswith("Z")
     assert not list(ledger.parent.glob(LOCK + "*"))
 
 
