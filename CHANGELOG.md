@@ -85,6 +85,10 @@ release page from its section here. Nobody tags by hand.
   and a `find` value after another predicate's value are now refused.
 - Inline rationale comments now resolve before their batch receipt is recorded.
   A failed resolution stays pending and retries without another comment.
+- A review round whose merged finding names its concerns as a list can be
+  summarized again. `forge_ledger.py post` stores the list as one
+  comma-joined string, reads a list already on the change the same way, and
+  refuses a concern that names nothing.
 
 ## [1.16.0] - 2026-10-20
 
