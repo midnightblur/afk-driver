@@ -5,7 +5,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -215,3 +218,170 @@ def test_filed_without_an_issue_writes_nothing(ledger: Path):
     result = sh(APPEND, "filed", "--id", "L-0001")
     assert result.returncode == 0 and "filed requires --issue" in result.stderr
     assert ledger.read_text() == before
+
+
+LOCK = "lesson-append.lock"
+
+
+def opened(summary: str, env: dict[str, str] | None = None) -> subprocess.Popen:
+    return subprocess.Popen([str(BASH), str(APPEND), "opened", "--class", "missing-instruction",
+                             "--target", "t", "--summary", summary], env=env,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def finish(procs: list[subprocess.Popen]) -> list[str]:
+    outs = [proc.communicate(timeout=120) for proc in procs]
+    assert all(proc.returncode == 0 for proc in procs), outs
+    return [out.strip() for out, _ in outs]
+
+
+def ledger_ids(ledger: Path) -> list[str]:
+    return sorted(json.loads(line)["id"] for line in ledger.read_text().splitlines())
+
+
+def test_parallel_appends_get_distinct_ids(ledger: Path):
+    ids = finish([opened(f"s{n}") for n in range(8)])
+    assert sorted(ids) == [f"L-{n:04d}" for n in range(1, 9)], ids
+    assert ledger_ids(ledger) == sorted(ids)
+    assert not list(ledger.parent.glob(LOCK + "*"))
+
+
+@pytest.mark.parametrize("owner", [True, False])
+def test_a_lock_left_by_a_closed_pane_is_taken_over_once_stale(ledger: Path, owner: bool):
+    """A pane closed with no trap leaves its lock; once older than 10 s the next mint takes it."""
+    assert finish([opened("first")]) == ["L-0001"]
+    lock = ledger.parent / LOCK
+    lock.mkdir()
+    if owner:
+        (lock / "owner").write_text("4242.1.2\n")
+    stale = time.time() - 11
+    os.utime(lock, (stale, stale))
+    assert finish([opened("second")]) == ["L-0002"]
+    assert ledger_ids(ledger) == ["L-0001", "L-0002"]
+    assert not list(ledger.parent.glob(LOCK + "*"))
+
+
+def test_a_lock_of_unreadable_age_is_never_taken_and_the_wait_ends_at_30_s(ledger: Path):
+    """No stat reads the age, so even a 2 h old lock stays; the mint gives up with exit 0."""
+    lock = ledger.parent / LOCK
+    lock.mkdir(parents=True)
+    (lock / "owner").write_text("4242.1.2\n")
+    stale = time.time() - 7200
+    os.utime(lock, (stale, stale))
+    began = time.monotonic()
+    # An exported function shadows every stat on PATH, GNU and BSD alike.
+    proc = subprocess.Popen([str(BASH), "-c", 'stat() { return 1; }; export -f stat; exec "$BASH" "$@"', "sh",
+                             str(APPEND), "opened", "--class", "missing-instruction", "--target", "t",
+                             "--summary", "blocked"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    out, err = proc.communicate(timeout=120)
+    assert proc.returncode == 0 and out == "" and "gave up after 30 s" in err, (out, err)
+    assert 28 <= time.monotonic() - began < 60
+    assert lock.is_dir() and not ledger.exists()
+
+
+SITE = '''
+import fnmatch, os, pathlib, shutil
+_scandir = os.scandir
+def scandir(path="."):
+    """A lesson append frees its lock between the walk's listing of a folder and its scan."""
+    marker = os.environ.get("VANISH_MARKER")
+    name = os.path.basename(os.path.normpath(os.fspath(path)))
+    if marker and name == "lesson-append.lock" and not os.path.exists(marker):
+        open(marker, "w").close()
+        shutil.rmtree(path)
+    return _scandir(path)
+os.scandir = scandir
+if os.environ.get("RGLOB_BEFORE_312") == "1":
+    def rglob(self, pattern):
+        """CPython 3.8 to 3.11: a scan catches only PermissionError."""
+        def folders(path):
+            yield path
+            try:
+                with os.scandir(path) as it:
+                    entries = list(it)
+            except PermissionError:
+                return
+            for entry in entries:
+                if entry.is_dir() and not entry.is_symlink():
+                    yield from folders(path / entry.name)
+        for folder in folders(self):
+            try:
+                with os.scandir(folder) as it:
+                    entries = list(it)
+            except PermissionError:
+                continue
+            for entry in entries:
+                if fnmatch.fnmatchcase(entry.name, pattern):
+                    yield folder / entry.name
+    pathlib.Path.rglob = rglob
+'''
+
+GATE = (". hooks/lib/provider.sh; . hooks/lib/config.sh; . hooks/gate-context.sh; . hooks/gate-cache.sh; "
+        ". hooks/gate-metrics.sh; . hooks/native-contract-gate.sh; "
+        "afk_plugin_dir() { echo .; }; afk_plugin_scope() { echo; }; "
+        "GATE_CACHE_DISABLE=1 gate_native_contract")
+
+
+@pytest.mark.parametrize("before_312", [True, False], ids=["python-before-3.12", "python-3.12-on"])
+def test_lesson_appends_run_in_parallel_with_the_native_contract_walk(tmp_path: Path, before_312: bool):
+    """V18: the gate's walk meets a lock freed mid-walk while appends run, and finishes."""
+    tree = tmp_path / "tree"
+    for rel in ("hooks/lib/provider.sh", "hooks/lib/config.sh", "hooks/gate-context.sh",
+                "hooks/gate-cache.sh", "hooks/gate-metrics.sh", "hooks/native-contract-gate.sh",
+                "hooks/lib/lavish_direct.py", "hooks/lib/shell_mutations.py", ".claude-plugin/plugin.json"):
+        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tree / rel).write_bytes((WORKFLOW / rel).read_bytes())
+    repo(tree)
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(SITE, encoding="utf-8")
+    ledger = tree / ".claude" / "lessons" / "LEDGER.jsonl"
+    lock = ledger.parent / LOCK
+    lock.mkdir(parents=True)
+    (lock / "owner").write_text("4242.1.2\n")
+    marker = tmp_path / "vanished"
+    env = {**os.environ, "LESSON_LEDGER_FILE": str(ledger)}
+    env.pop("LESSON_LEDGER_DISABLE", None)
+    appends = [opened(f"s{n}", env) for n in range(4)]
+    gate_env = {**env, "AFK_PYTHON": sys.executable, "PYTHONPATH": str(site),
+                "VANISH_MARKER": str(marker), "RGLOB_BEFORE_312": "1" if before_312 else "0"}
+    done = subprocess.run([str(BASH), "-c", GATE], cwd=tree, env=gate_env,
+                          capture_output=True, text=True, timeout=300)
+    ids = finish(appends)
+    output = done.stdout + done.stderr
+    assert marker.exists(), output
+    assert "Traceback" not in output and "FileNotFoundError" not in output, output
+    assert "missing the `## Supported harnesses` registry" in output, output
+    assert sorted(ids) == ledger_ids(ledger) == [f"L-{n:04d}" for n in range(1, 5)]
+
+
+def test_lesson_appends_run_in_parallel_with_create_worktree(tmp_path: Path):
+    """V18: create-worktree copies .claude while appends wait on the lock, and skips the lock folder."""
+    main = repo(tmp_path / "main")
+    (main / ".gitignore").write_text(".claude/\n")
+    (main / "README.md").write_text("seed\n")
+    commit(main)
+    ledger = main / ".claude" / "lessons" / "LEDGER.jsonl"
+    env = {**os.environ, "LESSON_LEDGER_FILE": str(ledger), "AFK_PLUGIN_ROOT": str(WORKFLOW)}
+    env.pop("LESSON_LEDGER_DISABLE", None)
+    assert finish([opened("seed", env)]) == ["L-0001"]
+    lock = ledger.parent / LOCK
+    lock.mkdir()
+    (lock / "owner").write_text("4242.1.2\n")
+    grave = ledger.parent / f"{LOCK}.4243.1.2"
+    grave.mkdir()
+    (grave / "owner").write_text("4243.1.2\n")
+    appends = [opened(f"s{n}", env) for n in range(4)]
+    base = subprocess.run(["git", "-C", str(main), "rev-parse", "--abbrev-ref", "HEAD"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+    made = subprocess.run([str(BASH), str(WORKFLOW / "scripts" / "create-worktree"), "--branch", "feat/x",
+                           "--base", base, "--dir", "wt", "--repo", str(main), "--parent",
+                           str(tmp_path / "wts"), "--no-open"], env=env, capture_output=True, text=True,
+                          timeout=300)
+    shutil.rmtree(lock)
+    ids = finish(appends)
+    assert made.returncode == 0, made.stdout + made.stderr
+    copied = tmp_path / "wts" / "wt" / ".claude" / "lessons"
+    assert (copied / "LEDGER.jsonl").is_file(), made.stdout + made.stderr
+    assert not list(copied.glob(LOCK + "*")), list(copied.iterdir())
+    assert sorted(ids) == ledger_ids(ledger)[1:] == [f"L-{n:04d}" for n in range(2, 6)]

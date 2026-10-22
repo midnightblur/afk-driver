@@ -75,6 +75,19 @@ def rel(path: Path) -> str:
     return path.relative_to(plugin).as_posix()
 
 
+def walk(pattern: str) -> list[Path]:
+    """The plugin tree's sorted matches. Before Python 3.12 rglob raises when a folder vanishes
+    mid-walk, as a released lesson lock does; the walk then runs again without it."""
+    tries = 5
+    while True:
+        try:
+            return sorted(plugin.rglob(pattern))
+        except FileNotFoundError:
+            tries -= 1
+            if not tries:
+                raise
+
+
 def read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -95,7 +108,7 @@ def spec_record(path_rel: str) -> bool:
 
 
 scan_files = [
-    path for path in sorted(plugin.rglob("*.md"))
+    path for path in walk("*.md")
     if rel(path) not in excluded_prose and not spec_record(rel(path))
 ]
 
@@ -445,7 +458,7 @@ def python_problem(line: str) -> bool:
     return bool(argv_name.search(line) or shell_string.search(line) or afk_py.search(line))
 
 
-for path in sorted(plugin.rglob("*")):
+for path in walk("*"):
     path_rel = rel(path)
     if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
             or any(fnmatch.fnmatchcase(path_rel, glob) for glob in history)
@@ -533,7 +546,7 @@ else:
 # I. A CR byte in a shell handler is fatal wherever a POSIX shell runs it, and
 # the failure is silent: the harness reports a failed hook, never a gate verdict.
 # Judge the working tree, which is what a harness copies, not the index.
-for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.py"))):
+for script in sorted(walk("*.sh") + list(plugin.glob("hooks/**/*.py"))):
     try:
         if b"\r" in script.read_bytes():
             problems.append(
@@ -555,7 +568,7 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
         problems.append(
             f"{rel(helper)}: no hooks/lib/providers/{name}.sh references it by name"
         )
-    for candidate in plugin.rglob("*"):
+    for candidate in walk("*"):
         if not candidate.is_file() or candidate in (helper, adapter):
             continue
         if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
@@ -676,7 +689,7 @@ def python_runs(text: str) -> list[int]:
     return found
 
 
-for path in sorted(plugin.rglob("*")):
+for path in walk("*"):
     path_rel = rel(path)
     if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
             or path_rel.startswith(".git/") or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):

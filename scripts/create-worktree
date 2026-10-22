@@ -326,17 +326,16 @@ copy_dir_with_substitution() {
   local src_dir="$1" dest_dir="$2" skip_name="${3:-}"
   [[ -d "$src_dir" ]] || return 0
   mkdir -p "$dest_dir"
-  local prune=() p
+  # The lesson ledger's lock folder (hooks/lesson-append.sh) comes and goes mid-walk.
+  local prune=(-name 'lesson-append.lock*') p
   for p in ${PRUNE_PATHS+"${PRUNE_PATHS[@]}"}; do
-    [[ ${#prune[@]} -gt 0 ]] && prune+=(-o)
-    prune+=(-path "$p")
+    prune+=(-o -path "$p")
   done
-  local walk=()
-  [[ ${#prune[@]} -gt 0 ]] && walk=(-type d '(' "${prune[@]}" ')' -prune -o)
+  local walk=(-type d '(' "${prune[@]}" ')' -prune -o)
   while IFS= read -r -d '' f; do
     rel="${f#"$src_dir"/}"
     copy_file_with_substitution "$f" "$dest_dir/$rel"
-  done < <(find "$src_dir" ${walk+"${walk[@]}"} -type f ${skip_name:+-not -name "$skip_name"} -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
+  done < <(find "$src_dir" "${walk[@]}" -type f ${skip_name:+-not -name "$skip_name"} -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
 }
 
 COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"

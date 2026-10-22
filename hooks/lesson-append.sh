@@ -60,11 +60,6 @@ if [ "$EVENT" = "opened" ]; then
     missed-instruction|missing-instruction|wrong-term|weak-checklist|test-dodge|wrong-design) ;;
     *) bail "unknown class '$CLASS' (enum: skills/afk/lessons/LEDGER-FORMAT.md)" ;;
   esac
-  if [ -z "$ID" ]; then
-    max=$(grep -oE '"id":"L-[0-9]+"' "$LESSON_LEDGER_FILE" 2>/dev/null \
-            | grep -oE '[0-9]+' | sort -n | tail -1)
-    ID=$(printf 'L-%04d' $(( 10#${max:-0} + 1 )))
-  fi
 else
   [ -n "$ID" ] || bail "$EVENT requires --id"
   [ "$EVENT" != "filed" ] || [ -n "$ISSUE" ] || bail "filed requires --issue"
@@ -72,7 +67,8 @@ fi
 
 mkdir -p "$(dirname "$LESSON_LEDGER_FILE")" 2>/dev/null || bail "cannot create ledger dir"
 
-line=$(EV_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" EV_ID="$ID" EV_EVENT="$EVENT" \
+build_line() {
+  EV_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" EV_ID="$ID" EV_EVENT="$EVENT" \
   EV_WRITER="$WRITER" EV_CLASS="$CLASS" EV_MISS="$MISS" EV_TARGET="$TARGET" \
   EV_SUMMARY="$SUMMARY" EV_DRAFT="$DRAFT" EV_SOURCE="$SOURCE" \
   EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" EV_ISSUE="$ISSUE" "${AFK_PYTHON:-afk-python}" -c '
@@ -93,7 +89,87 @@ else:
 # ensure_ascii stays ON: afk-python -c stdout uses the console codepage on Windows,
 # so raw non-ASCII here would land as non-UTF-8 bytes in the ledger
 print(json.dumps(e, separators=(",", ":")))
-' 2>/dev/null) || bail "json build failed (afk-python not found; run /afk:setup)"
+' 2>/dev/null
+}
 
-printf '%s\n' "$line" >> "$LESSON_LEDGER_FILE" 2>/dev/null || bail "append failed"
+# One writer at a time mints and appends, under a folder lock beside the ledger.
+# Stale after 10 s and taken over by an atomic mv; a waiter gives up after 30 s.
+lock_dir="$(dirname "$LESSON_LEDGER_FILE")/lesson-append.lock"
+token="$$.$RANDOM.$RANDOM" held=0 lock_note='' given_id="$ID"
+
+lock_age() {
+  local m
+  m=$(stat -c %Y "$1" 2>/dev/null) || m=$(stat -f %m "$1" 2>/dev/null) || return 1
+  case "$m" in ''|*[!0-9]*) return 1 ;; esac
+  echo $(( $(date +%s) - m ))
+}
+
+holds_lock() {
+  local owner=''
+  { read -r owner < "$lock_dir/owner"; } 2>/dev/null
+  [ "$owner" = "$token" ]
+}
+
+release_lock() {
+  [ "$held" = 1 ] || return 0
+  held=0
+  holds_lock && rm -rf "$lock_dir" 2>/dev/null
+  return 0
+}
+
+take_stale_lock() {
+  local age grave="$lock_dir.$token"
+  age=$(lock_age "$lock_dir") || return 1
+  [ "$age" -ge 10 ] || return 1
+  mv "$lock_dir" "$grave" 2>/dev/null || return 1
+  rm -rf "$grave" 2>/dev/null
+  return 0
+}
+
+acquire_lock() {
+  local missing=0 polls=0
+  while :; do
+    if [ ! -d "$lock_dir" ] && mkdir "$lock_dir" 2>/dev/null; then
+      printf '%s\n' "$token" > "$lock_dir/owner" 2>/dev/null && { held=1; return 0; }
+      rm -rf "$lock_dir" 2>/dev/null
+      lock_note="cannot write $lock_dir/owner; nothing written"; return 1
+    fi
+    if [ -d "$lock_dir" ]; then
+      missing=0 polls=$((polls + 1))
+      if [ $((polls % 5)) -eq 1 ] && take_stale_lock; then continue; fi
+    else
+      missing=$((missing + 1))
+      [ "$missing" -lt 3 ] || { lock_note="cannot create $lock_dir; nothing written"; return 1; }
+      continue
+    fi
+    [ $((SECONDS - start)) -lt 30 ] \
+      || { lock_note="gave up after 30 s waiting for $lock_dir; nothing written"; return 1; }
+    sleep 0.2
+  done
+}
+
+trap release_lock EXIT
+trap 'release_lock; exit 129' HUP
+trap 'release_lock; exit 130' INT
+trap 'release_lock; exit 143' TERM
+# A line to mint carries "id":"" until the lock is held; the append fills the id in.
+line=$(build_line) || bail "json build failed (afk-python not found; run /afk:setup)"
+start=$SECONDS
+while :; do
+  acquire_lock || bail "$lock_note"
+  if [ -z "$given_id" ]; then
+    max=$(awk '{ s = $0; while (match(s, /"id":"L-[0-9]+"/)) {
+                   n = substr(s, RSTART + 8, RLENGTH - 9) + 0; if (n > m) m = n
+                   s = substr(s, RSTART + RLENGTH) } } END { print m + 0 }' \
+            "$LESSON_LEDGER_FILE" 2>/dev/null)
+    printf -v ID 'L-%04d' $(( 10#${max:-0} + 1 ))
+  fi
+  # A holder slower than the stale test lost its lock: take it again, mint again.
+  holds_lock && break
+  held=0
+done
+
+printf '%s\n' "${line/\"id\":\"\"/\"id\":\"$ID\"}" >> "$LESSON_LEDGER_FILE" 2>/dev/null \
+  || bail "append failed"
+release_lock
 echo "$ID"
