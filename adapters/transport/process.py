@@ -2,8 +2,8 @@
 
 `kill_tree` lists the whole tree first, then kills every member by its own id, so a child whose parent
 dies first is still reached; it never relies on a signal a shell trap catches. It answers the members it
-could not stop, by id, which a caller reports as survivors. With `kin` it also kills a descendant whose
-parent ended first, which no tree lists: a newer process in the root's console (Windows) or session (POSIX).
+could not stop, by id, which a caller reports as survivors. `kin` finds what no tree lists: a process whose
+parent ended, in a console (Windows) or session (POSIX) that a tree member uses.
 """
 from __future__ import annotations
 
@@ -107,8 +107,9 @@ if WINDOWS:
                   for k in ("ProgramFiles", "ProgramW6432", "LOCALAPPDATA") if os.environ.get(k)]
         return next((path for path in found if os.path.isfile(path)), None)
 
-    def _msys_children() -> dict[int, list[int]]:
-        """Windows id of each MSYS process to the Windows ids of its MSYS children; empty without Git's ps."""
+    def _msys_parents() -> dict[int, int | None]:
+        """Windows id of each MSYS process to the Windows id of its live MSYS parent, None for MSYS
+        process 1 or a parent that is gone; empty without Git's ps."""
         ps = _msys_ps()
         if ps is None:
             return {}
@@ -119,42 +120,67 @@ if WINDOWS:
         rows = [line.split() for line in done.stdout.splitlines()[1:]]
         rows = [r for r in rows if len(r) >= 4 and r[0].isdigit() and r[1].isdigit() and r[3].isdigit()]
         winpid = {int(r[0]): int(r[3]) for r in rows}
+        return {int(r[3]): winpid.get(int(r[1])) for r in rows}
+
+    def _msys_children() -> dict[int, list[int]]:
+        """Windows id of each MSYS process to the Windows ids of its MSYS children."""
         out: dict[int, list[int]] = {}
-        for r in rows:
-            parent = winpid.get(int(r[1]))
-            if parent is not None and parent != int(r[3]):
-                out.setdefault(parent, []).append(int(r[3]))
+        for child, parent in _msys_parents().items():
+            if parent is not None and parent != child:
+                out.setdefault(parent, []).append(child)
         return out
 
+    _DETACHED_PROCESS = 0x00000008      # the helper starts with no console, so it can attach to one
     _CONSOLE = r"""
 import ctypes, sys
 from ctypes import wintypes
-k = ctypes.WinDLL("kernel32")
-seen = set()
+k = ctypes.WinDLL("kernel32", use_last_error=True)
+seen, unread = set(), []
 for pid in map(int, sys.argv[1:]):
     if pid in seen:
         continue
     k.FreeConsole()
     if not k.AttachConsole(pid):
+        if ctypes.get_last_error() == 5:
+            unread.append(pid)
         continue
-    ids = (wintypes.DWORD * 4096)()
-    n = k.GetConsoleProcessList(ids, 4096)
-    seen.update(ids[i] for i in range(min(n, 4096)))
+    size = n = 4096
+    while n >= size:
+        size = n + 64
+        ids = (wintypes.DWORD * size)()
+        n = k.GetConsoleProcessList(ids, size)
+    seen.update(ids[i] for i in range(n))
 seen.discard(k.GetCurrentProcessId())
-sys.stdout.write(" ".join(map(str, seen)))
+print(" ".join(map(str, seen)))
+print(" ".join(map(str, unread)))
 """
 
-    def _containers(pids: list[int]) -> list[int]:
-        """Every process attached to a console of one of `pids`, read by a helper started with no console."""
+    def _console_peers(pids: list[int]) -> tuple[list[int], str | None]:
+        """Every process attached to a console one of `pids` uses, and what kept the list incomplete."""
         try:
             done = subprocess.run([sys.executable, "-I", "-c", _CONSOLE, *map(str, pids)],
                                   capture_output=True, text=True, timeout=10, check=False,
-                                  creationflags=0x00000008)
-        except (OSError, subprocess.SubprocessError):
-            return []
-        return [int(x) for x in done.stdout.split() if x.isdigit()] if done.returncode == 0 else []
+                                  creationflags=_DETACHED_PROCESS)
+        except (OSError, subprocess.SubprocessError) as error:
+            return [], f"the console lists could not be read ({error})"
+        if done.returncode != 0:
+            return [], f"the console lists could not be read (exit {done.returncode})"
+        found, unread = (done.stdout.splitlines() + ["", ""])[:2]
+        ids = ", ".join(unread.split())
+        gap = f"the consoles of processes {ids} could not be read" if ids else None
+        return [int(x) for x in found.split() if x.isdigit()], gap
 
-    _born = _created
+    def _parent_ended(pid: int, parents: dict[int, int], peers: set[int],
+                      msys: dict[int, int | None]) -> bool:
+        """Its Windows parent is gone or holds a reused id, and for an MSYS process its MSYS parent is too."""
+        parent = parents.get(pid)
+        if parent in parents and parent != pid:
+            mine, theirs = _created(pid), _created(parent)
+            if mine is None or theirs is None or theirs <= mine:
+                return False
+        return msys.get(pid) is None
+
+    _started = _created
 
 else:
     def creation_time(pid: int) -> str | None:
@@ -211,6 +237,9 @@ else:
     def _msys_children() -> dict[int, list[int]]:
         return {}
 
+    def _msys_parents() -> dict[int, int | None]:
+        return {}
+
     def _created(pid: int) -> int | None:
         return None                     # a POSIX orphan moves to init, so a parent id is never stale
 
@@ -225,24 +254,37 @@ else:
                 pass                    # gone, or another user's process
         return out
 
-    def _containers(pids: list[int]) -> list[int]:
+    def _console_peers(pids: list[int]) -> tuple[list[int], str | None]:
+        """Every process of a session one of `pids` belongs to; POSIX has no console to read."""
         sids = set()
         for pid in pids:
             try:
                 sids.add(os.getsid(pid))
             except OSError:
                 pass                    # gone
-        return [m for sid in sids for m in session_members(sid)]
+        return [m for sid in sids for m in session_members(sid)], None
 
-    _born = creation_time
+    def _parent_ended(pid: int, parents: dict[int, int], peers: set[int],
+                      msys: dict[int, int | None]) -> bool:
+        """Its parent is outside the sessions read: init or a subreaper took it when its parent ended."""
+        return parents.get(pid) not in peers
 
+    def _started(pid: int):
+        """Start time in clock ticks from /proc where it exists, else whole seconds from ps."""
+        if os.path.exists("/proc/self/stat"):
+            try:
+                return int(open(f"/proc/{pid}/stat", encoding="utf-8").read().rsplit(")", 1)[1].split()[19])
+            except (OSError, ValueError, IndexError):
+                return None
+        return creation_time(pid)
 
-def kin(pid: int, members: list[int]) -> list[int]:
-    """Processes outside `members` in a console or session of one of them, born no earlier than `pid`,
-    and neither this caller, its ancestor, nor an ancestor of `pid`: a descendant whose parent ended."""
-    mine = _born(pid)
+def kin(pid: int, members: list[int]) -> tuple[list[int], str | None]:
+    """Processes outside `members` whose parent ended, in a console or session a member uses, started no
+    earlier than `pid`, and neither this caller nor an ancestor of it or of `pid`; with what kept the
+    search incomplete, or None."""
+    mine = _started(pid)
     if mine is None:
-        return []
+        return [], f"the start time of process {pid} could not be read"
     parents = _parents()
 
     def line(start: int) -> set[int]:
@@ -252,14 +294,22 @@ def kin(pid: int, members: list[int]) -> list[int]:
             start = parents.get(start, 0)
         return seen
 
-    skip = set(members) | line(os.getpid()) | line(pid)
-    out = []
-    for member in set(_containers(members)):
-        born = None if member in skip else _born(member)
-        if born is not None and born >= mine:
-            out.append(member)
-    return out
-
+    peers, gap = _console_peers(members)
+    pool, msys = set(peers), _msys_parents()
+    found, unknown = [], []
+    for member in pool - set(members) - line(os.getpid()) - line(pid):
+        if not _parent_ended(member, parents, pool, msys):
+            continue
+        born = _started(member)
+        if born is None:
+            if alive(member):
+                unknown.append(str(member))
+        elif born >= mine:
+            found.append(member)
+    if unknown:
+        gaps = [gap] if gap else []
+        gap = "; ".join(gaps + [f"the start times of processes {', '.join(unknown)} could not be read"])
+    return found, gap
 
 def tree(pid: int) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
@@ -294,11 +344,10 @@ def tree(pid: int) -> list[int]:
     return out
 
 
-def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0, with_kin: bool = False) -> list[int]:
-    """Kill the process, its descendants and, with `with_kin`, its `kin`; answer those alive after wait_s."""
+def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0, extra: list[int] = ()) -> list[int]:
+    """Kill the process, its descendants and `extra`; answer those still alive after `wait_s`."""
     members = tree(pid)
-    if with_kin:
-        members += kin(pid, members)
+    members += [m for m in extra if m not in members]
     for member in reversed(members):
         _kill_one(member, force)
     end = time.monotonic() + wait_s
@@ -320,11 +369,15 @@ def stop(pid: int | None, *, force: bool, wait_s: float, none: str = "nothing to
         return {"stopped": True, "method": none}
     if not alive(pid):
         return {"stopped": True, "method": "not running"}
-    survivors = kill_tree(pid, force=force, wait_s=wait_s, with_kin=with_kin)
+    extra, gap = kin(pid, tree(pid)) if with_kin else ([], None)
+    survivors = kill_tree(pid, force=force, wait_s=wait_s, extra=extra)
     if session is not None:
         survivors += kill_session(session, keep=session, force=force)
     if survivors:
         return {"stopped": False, "reason": f"{len(survivors)} processes survived the kill", "survivors": survivors}
+    if gap:
+        return {"stopped": False, "survivors": [],
+                "reason": f"the tree was killed, but {gap}, so a process whose parent ended may still run"}
     return {"stopped": True, "method": "killed the process tree"}
 
 

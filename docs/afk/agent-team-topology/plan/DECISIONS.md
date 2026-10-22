@@ -713,3 +713,10 @@
 - Chosen: B — with no process id nothing was killed, so the agent still runs in its open pane; the contact agent marks the line unkillable on `stopped` false or `pane_closed` false alike (SDD §11 lifecycle row A7), and the no-tool path already answers the same way
 - Supersedes: GRILL-LOG.md S-234 — "When the close fails, 'stopped' stays true", for a stop given no process id
 - To reverse: drop the `pid is None and not closed` branch in `adapters/transport/multiplexer/herdr.py` agent_stop and its contract-row clause
+
+## D-102 — agent-stop reaches an orphan through the consoles or sessions its tree uses, and states what it cannot reach
+- 2026-10-21 · decided by /afk:execute (0006-transport-family-and-herdr, Step 10.5 adversary finding A-1, review round 11 keys f048, f058)
+- Options: A — sweep the consoles (Windows) or sessions (POSIX) that tree members use for processes whose parent ended, answer `stopped` false when the search is incomplete, and state that on Windows a process alone in a console no live member uses is out of reach vs B — also make agent-start put each pane agent in a named job object so every descendant stays traceable
+- Chosen: A — B changes agent-start for both harnesses and needs live proof that a job outlives the process that made it; A fixes both adversary repros and every live V28 case, and the stated limit keeps a `stopped` true from being read as complete
+- Supersedes: SDD §7 row E2 "Kill an agent's whole process tree", for a Windows descendant alone in a console no live tree member uses
+- To reverse: add job-object tracking at agent-start and drop the "Not reached" clause from `adapters/transport/multiplexer/CONTRACT.md` and the herdr.md trap row
