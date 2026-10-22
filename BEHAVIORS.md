@@ -13,7 +13,7 @@ For code questions, follow `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; close every ap
 
 ## pane-agent-rule
 state: active | scope: all-repos | revision: 1 | doctrine: DELEGATION.md §Spawn rules
-Where the plugin is enabled, a pane transport is found and the pane switch does not say subagent, start a role agent (it writes a plugin artifact, code or a ledger, or returns a gate verdict) as a pane agent and keep a helper a subagent; otherwise role agents stay subagents.
+Where the plugin is enabled, a pane transport is found and the pane switch does not say subagent, start a role agent (it writes a plugin artifact, code or a ledger, or returns a gate verdict) as a pane agent and keep a helper a subagent; a `transport.kind` the repository sets replaces that search, and role agents start on that kind; otherwise role agents stay subagents.
 Read `${AFK_PLUGIN_ROOT}/DELEGATION.md` before you start an agent.
 
 ## lavish-grilling-render
