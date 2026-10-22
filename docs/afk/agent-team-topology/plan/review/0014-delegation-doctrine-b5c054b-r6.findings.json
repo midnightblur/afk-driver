@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "docs/afk/agent-team-topology/plan/DECISIONS.md",
+  "line": 748,
+  "side": "new",
+  "finding": "D-106 says the pointer lacks a reachable consumer, but the gap is a missing target: the pointer is the referrer, and /afk:team does not exist yet.",
+  "why": "The IOU file holds 'One line per artifact whose consumer does not exist yet' and closes a line 'when a referrer appears' (.claude/wiring-ious.md:3-4). This line is the reverse case, which is why it closes by hand, so the recorded reason misstates which rule applies.",
+  "fix": "Reword the Chosen reason to 'the pointer names a skill that does not exist until 0015 lands, so the reference carries an anchored IOU until its target lands'.",
+  "evidence": "+- Chosen: B — the pointer names a skill that does not exist until 0015 lands, and the human's rule is that a reference without a reachable consumer carries an anchored IOU; D-71 took the same exception for 0008",
+  "id": "r-001"
+ }
+]
