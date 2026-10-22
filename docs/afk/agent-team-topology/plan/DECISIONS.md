@@ -741,3 +741,10 @@
 - Chosen: B — main checks inventory ids against the base revision's dispositions, not that constant (origin/main scripts/behavior_registry.py:390-404), so the TSV row is what keeps the gate green after the merge
 - Supersedes: 0014 Acceptance bullet "EXPECTED_INVENTORY_IDS in scripts/behavior_registry.py gains that id", from the main merge on only
 - To reverse: none needed before the merge; after it, re-add the id only if main restores the constant
+
+## D-106 — A wiring IOU for the /afk:team pointer in DELEGATION.md
+- 2026-10-22 · decided by /afk:execute (0014-delegation-doctrine, Step 10)
+- Options: A — no IOU, since 0015's contract already produces skills/afk/team/SKILL.md vs B — one IOU line in `.claude/wiring-ious.md`, outside this slice's Scope, for DELEGATION.md "Stall watchdog" On fire's pointer "follows `/afk:team` for an agent that dies or stops early", anchored to 0015 ## Produces and its Acceptance
+- Chosen: B — the pointer names a skill that does not exist until 0015 lands, and the human's rule is that a reference without a reachable consumer carries an anchored IOU; D-71 took the same exception for 0008
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one IOU line only
+- To reverse: delete the line

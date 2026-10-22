@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "Possible conflict: the new fallback sends a lost pane agent to the park/fail path whenever the recovery starts no agent, but the SDD makes a lost debater's debate wait first.",
+  "why": "The SDD failure matrix says that when no replacement debater can start, the debate waits and parks only past the provider's wait limit (S-193). A contact agent that reads this line parks at once. The clause also gives the no-start outcome a second home, beside the recovery that owns it.",
+  "fix": "Drop the outcome from the clause and point only at the recovery, which owns its own no-start exits (debate wait, then park; a failed stop marks the entry unkillable and tells the human). Or limit the clause to the case the recovery does not cover.",
+  "evidence": "DELEGATION.md:38 '+... takes the lost-agent recovery of its run procedure (the team skill); when that recovery starts no agent, the invoking skill's park/fail path applies.' vs SDD.md:826 'When no replacement can start, the debate waits, and past the provider's wait limit it parks with a dated report (S-193, S-213)'",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "medium",
+  "class": "compliance",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "The changed line names a workflow skill as 'the team skill' and does not use the literal /afk:<x> form.",
+  "why": "LANGUAGE.md §2 requires every workflow skill reference to be written as literal /afk:<x>. The skill goes in skills/afk/team (plan D-3), so it is a workflow skill.",
+  "fix": "Write the reference as `/afk:team`, the skill's directory name under skills/afk/ (plan D-3).",
+  "evidence": "LANGUAGE.md:32 'Write every workflow skill reference as literal `/afk:<x>`.' vs DELEGATION.md:38 '+... the lost-agent recovery of its run procedure (the team skill); ...'",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "compliance",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "The new pointer targets a 'lost-agent recovery' part that no contract tells the unbuilt team skill to have under that name, and the compound has no glossary entry.",
+  "why": "The 0015 contract (Acceptance lines 45-46) describes resume-then-fresh-agent behavior but has no 'lost-agent recovery' section. A reader who follows the pointer finds no matching name. LANGUAGE.md §2 also treats a new multi-word compound as an unregistered term.",
+  "fix": "Write the concept out and cite where it is bound, for example 'the resume-or-replace step of /afk:team (PRD AC-055, AC-056)'. Or add a wiring IOU anchored to 0015 Acceptance line 45.",
+  "evidence": "DELEGATION.md:38 '+takes the lost-agent recovery of its run procedure (the team skill)'; plan/0015-team-skill-and-manifests.md:45 'When an agent dies or stops early, the skill first resumes its harness session in a new pane ...' (no 'lost-agent recovery' name); LANGUAGE.md:36 'A multi-word compound naming a concept is a term. Register it in a glossary before use, or write the concept out as a phrase.'",
+  "id": "r-003"
+ }
+]
