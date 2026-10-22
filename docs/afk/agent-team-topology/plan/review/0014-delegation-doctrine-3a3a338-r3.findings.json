@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep+logic-correctness",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "The new lost-agent sentence states only part of the recovery procedure: it leaves out the stop of the old agent before a resume and the case with no stored session id.",
+  "why": "A contact agent that follows this line resumes without first stopping the old agent and closing its pane, which SDD §7 'Resume a dead or stopped agent' (S-242) and PRD AC-056 forbid; it also has no path when the session id is empty (S-219, AC-055); and the line becomes a second, partial home for a procedure that subtask 0015-team-skill-and-manifests owns (Acceptance lines 45-46), against the AGENTS.md rule 'DRY — one fact, one home'.",
+  "fix": "Shorten the clause to 'tells the requester, then takes the recovery path of the contact agent's run procedure' with no steps, or state the full order: stop the old agent (failed stop: unkillable, no resume, tell the human), then resume the session, then a fresh agent from the checkpoint when no id is stored or the resume fails.",
+  "evidence": "DELEGATION.md:38 '+Absent and the agent gone, the agent is lost: the contact agent tells the requester, then resumes the agent's harness session, or starts a fresh agent that reads its checkpoint when the resume fails.' vs SDD.md:809 'First agent-stop on the old agent, which closes its pane, then cleaned on the old line; a failed stop sets unkillable, and nothing resumes (S-242). ... a fresh agent reads the checkpoint when the resume fails or no id is stored (S-213, S-219, S-233)'",
+  "id": "r-001"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "partial-failure handling",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "DELEGATION.md",
+  "line": 38,
+  "side": "new",
+  "finding": "The fix removed the park/fail exit for a lost pane agent, so the sentence gives no next step when the fresh agent also cannot start.",
+  "why": "For example, an agent is gone with no stored session id and the fresh agent's agent-start exits 4 for a missing tool; the sentence ends there, and the requester and the invoking skill wait with no watchdog armed and no park, while the SDD gives 0 automatic retries and a park or a human decision for that case.",
+  "fix": "End the sentence with the exit: when the fresh agent cannot start, take the invoking skill's park/fail path (the round-2 fix text asked for this); also say that a missing session id goes straight to the fresh agent.",
+  "evidence": "DELEGATION.md:38 '+... or starts a fresh agent that reads its checkpoint when the resume fails.' (no further step) vs SDD.md:588 'A failed role | 0 automatic retries (S-46); substitution or park per AC-022 / AC-023' and SDD.md:826 'When no replacement can start, the debate waits, and past the provider's wait limit it parks with a dated report'; SDD.md:589 'when the resume fails or no session id is stored, a fresh agent that reads the checkpoint'",
+  "id": "r-002"
+ }
+]
