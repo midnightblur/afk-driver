@@ -370,3 +370,17 @@
 2026-10-22 17:15 | autopilot | 0010-team-entry-script | parked(design_conflict) — the team script works live, but the one permission line meant to let the main agent run it never takes effect in the current Claude Code; choosing a new form changes a human-signed design point, so it goes back to the design interview
 2026-10-22 17:15 | autopilot | 0011-job-supervisor | parked(waiting on 0010-team-entry-script) — with 0012, 0015 to 0022, 0024 and 0026 behind it
 2026-10-22 17:15 | autopilot | run | heartbeat 11/26 done, starting 0025-dashboard-team-section (the last subtask not waiting on a parked one)
+2026-10-22 17:16 | execute | 0025-dashboard-team-section | designing — started planning the dashboard's team section and the feature review-round count
+2026-10-22 17:18 | execute | 0025-dashboard-team-section | decision(D-127) — the dashboard code this step stands on changed since it was investigated, so one fresh investigation re-takes it before any code
+2026-10-22 17:50 | execute | 0025-dashboard-team-section | investigated(INV-083) closed-with-frontier — the fresh check of the dashboard's section list, its watch loop and the review-round count is closed; only open browser pages and other repositories lie outside it; nothing found blocks the planned section, and the section must read the main checkout's run folder and catch every read error
+2026-10-22 17:50 | execute | 0025-dashboard-team-section | decision(D-128) — the team section reads the run list in the main checkout's own folder, named after the spec folder, and reads no environment setting
+2026-10-22 17:50 | execute | 0025-dashboard-team-section | decision(D-129) — the one-time page uses a second parser list in which the team section says why it is not shown
+2026-10-22 17:50 | execute | 0025-dashboard-team-section | developing — writing the team section, the feature round count and their tests, tests first
+2026-10-22 17:54 | execute | 0025-dashboard-team-section | decision(D-130) — the dashboard's count of feature review rounds can be one behind the review record after a round with nothing to fix; the gates page still shows the record's number
+2026-10-22 17:57 | execute | 0025-dashboard-team-section | pushed 3bccf52..70fef27 (1 commits) — the team section, the feature round count, their tests and the fresh investigation are on the shared branch, ticked on pull request 112, with two reasons posted on their lines
+2026-10-22 17:57 | execute | 0025-dashboard-team-section | verifying — running every check the contract lists on the pushed code
+2026-10-22 17:58 | execute | 0025-dashboard-team-section | verified — the compile check, both promised names, the 19 dashboard tests (Windows and Linux) and the round-count check pass on the pushed code
+2026-10-22 17:59 | execute | 0025-dashboard-team-section | reviewing — fresh reviewers check the change one concern at a time, round 1
+2026-10-22 18:22 | execute | 0025-dashboard-team-section | review round 1 — four reviewers found six points (two medium, four low), all posted on pull request 112; two low test-style points wait for the feature review
+2026-10-22 18:22 | execute | 0025-dashboard-team-section | decision(D-131) — the glossary's mission control entry now names the team run list, one clause outside the slice's file list
+2026-10-22 18:22 | execute | 0025-dashboard-team-section | decision(D-132) — every dashboard section that has nothing to show gets a grey dot and a reason, not just the team section

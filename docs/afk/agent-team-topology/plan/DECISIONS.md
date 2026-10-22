@@ -888,3 +888,45 @@
 - Chosen: B — live, a Codex agent on Windows ran the POSIX form in PowerShell, where it named `C:\scripts\afk-team.py`, and failed. The POSIX form stays because the Claude allow rule is written in it
 - Supersedes: none
 - To reverse: drop the sentence from `_identity` in scripts/team/entry.py
+
+## D-127 — Re-take the ground of the dashboard seams with one fresh investigation
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 4)
+- Options: A — build on INV-008 and INV-063 as cited vs B — one fresh Q1+Q3 investigation (INV-083) at 3bccf52 over the subjects `SECTION_PARSERS`, `NAV_ORDER`, `SECTION_META` and `_rounds` with the cited ledgers' declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — both ground diffs exit 1: compose.py, server.py, template.py, vm.py, insights.py, mission_control.py, the skill's SKILL.md and the SDD changed since 7e9c87a and 1210110; the run allows one child at a time, so the two tracers run in sequence, as D-103 did
+- Supersedes: none
+- To reverse: drop INV-083 and cite INV-008 and INV-063 again
+
+## D-128 — Which run manifest the team section reads
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 4)
+- Options: A — read AFK_TEAM_ROOT and AFK_TEAM_RUN like the team script vs B — read `<main checkout>/.claude/afk-team/<spec folder name>/manifest.json`, the main checkout found from the `.git` file's `gitdir` and `commondir`, with no environment read and no git call
+- Chosen: B — the renderer is a pure function of its inputs with no environment lookups (compose.py:2-3), the skill's `spec_dir` is the ticket's directory (mission-control SKILL.md "Argument"), the run root default is `<main checkout>/.claude/afk-team` (plan D-113), and no code maps a spec folder to a run name (INV-083); a worktree's copy of `.claude/` is never read (INV-083 c-898c279c)
+- Supersedes: none
+- To reverse: change `team_root` and `manifest_file` in skills/afk/mission-control/scripts/mc/sections/team.py
+
+## D-129 — How the one-time render shows the team section Absent
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 4)
+- Options: A — a live/once flag argument on the team parser vs B — `SECTION_PARSERS` holds the live parser `parse_team_section`; `--once` passes `SNAPSHOT_PARSERS`, the same list with the team entry swapped for `parse_snapshot`, which answers Absent with one line saying why
+- Chosen: B — S-97 shows the section in live mode only and Absent in the one-time render with one line saying why; a parser takes only `spec_dir` (compose.py:47), and the design bar refuses flag arguments (review checklist design-quality)
+- Supersedes: none
+- To reverse: pass SECTION_PARSERS at mission_control.py's `--once` call and drop SNAPSHOT_PARSERS
+
+## D-130 — The feature round count lags the forge round after a clean round
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 8)
+- Options: A — make the dashboard read the forge round vs B — keep S-206's count from the feature outcomes files, and record that it lags the forge round when a round writes only a summary
+- Chosen: B — the build check ran three feature rounds through forge_ledger.py's reconstruct on a test change: with an outcomes file every round both give 3; when the last, clean round writes only a summary the outcomes count is 2 and the forge round 3. SDD §14 calls this not load-bearing (outcomes files are optional telemetry, SETTLEMENT.md:44); the PF-3 Cycle cell on the gates page keeps showing the forge round
+- Supersedes: none
+- To reverse: have progress.py read the PF-3 Cycle cell instead of the outcomes files
+
+## D-131 — The glossary's mission control entry names the team run manifest
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 10 round 1, review key f004)
+- Options: A — leave GLOSSARY.md:273 to a later slice vs B — add "and, in watch mode, the feature's team run manifest" to the live-source list in GLOSSARY.md:273 now
+- Chosen: B — INV-083 marks GLOSSARY.md:273 as a site this slice breaks, FRESHNESS.md's same-commit rule asks for the fix with the change, no contract or IOU tracks it, and one clause is easy to undo (precedent D-82)
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one clause only
+- To reverse: delete the clause
+
+## D-132 — The nav dot and tip change applies to every section
+- 2026-10-22 · decided by /afk:execute (0025-dashboard-team-section, Step 10 round 1, review key f003)
+- Options: A — limit the grey dot and the tip to the team section vs B — every live section that answers Absent shows a grey dot and its reason as a tip, as digest sections already did
+- Chosen: B — INV-083 found a live section's dot green whatever its state (shell.html:1160 at 3bccf52), which told the reader an Absent section was fine; the team section is the first live section that is Absent in normal use, and a per-section exception would keep the wrong signal for the rest. No Python test pins the shell's nav code; the shell has no script test harness
+- Supersedes: none
+- To reverse: restore `s.kind === "live" ? "var(--good)"` and the `s.kind === "digest"` guard on the tip in shell.html's nav loop

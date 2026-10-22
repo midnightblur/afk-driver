@@ -575,6 +575,13 @@ def _write_team_run(main: Path, run: str, park_until: str = "2026-07-07T18:30:00
     return team.manifest.manifest_path(root, run)
 
 
+def _renderer_reads(shell: str, section_id: str, var: str) -> set:
+    """The keys the shell's renderer for `section_id` reads off `var` (`d` the data, `a` an agent row)."""
+    start = shell.index(f'RENDER["{section_id}"] = function')
+    body = shell[start:shell.index("\n};", start)]
+    return set(re.findall(rf"\b{var}\.([a-z_]+)", body))
+
+
 class TeamSectionTests(unittest.TestCase):
     """The read-only team section over the run manifest (SDD §8 "Dashboard section", §14)."""
 
@@ -615,6 +622,39 @@ class TeamSectionTests(unittest.TestCase):
         self.assertEqual(agents["a-2"]["park_reason"], "provider limit")
         self.assertEqual(vm.data["earliest_park_until"], "2026-07-07T18:30:00Z")
         self.assertEqual(vm.data["counts"], {"working": 1, "parked": 1})
+
+    def test_earliest_park_until_is_the_soonest_parked_agent(self):
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        root = spec_dir / ".claude" / "afk-team"
+        team.manifest.adopt_manifest(root, "TIX-1", "session-1")
+        parks = (("a-1", "2026-03-01T00:00:00Z", "working"), ("a-2", "2026-09-09T09:00:00Z", "parked"),
+                 ("a-3", "2026-07-07T18:30:00Z", "parked"), ("a-4", "", "parked"))
+        for agent_id, park_until, final in parks:
+            team.manifest.record_entry(root, "TIX-1", _team_agent(agent_id, "builder"))
+            team.manifest.move_entry(root, "TIX-1", agent_id, "working")
+            if park_until:
+                team.manifest.record_entry(root, "TIX-1", {"agent_id": agent_id, "park_until": park_until})
+            team.manifest.move_entry(root, "TIX-1", agent_id, "parked")
+            if final == "working":
+                team.manifest.move_entry(root, "TIX-1", agent_id, "working")
+
+        vm = team.parse_team_section(spec_dir)
+        # a-1 resumed with its old park time; a-4 is parked with none recorded
+        self.assertEqual(vm.data["earliest_park_until"], "2026-07-07T18:30:00Z")
+        self.assertEqual(vm.data["counts"], {"working": 1, "parked": 3})
+
+    def test_renderer_reads_only_keys_the_sections_hold(self):
+        spec_dir = _build_fixture(self.base / "TIX-1")
+        _write_team_run(spec_dir, "TIX-1")
+        shell = (SCRIPTS_DIR / "mc" / "assets" / "shell.html").read_text(encoding="utf-8")
+        sections = _sections(server.render_once(spec_dir, spec_dir / "plan" / "mission-control",
+                                                mission_control.SECTION_PARSERS, live_reload=False))
+
+        team_data = sections["team"]["data"]
+        self.assertLessEqual(_renderer_reads(shell, "team", "d"), set(team_data))
+        self.assertLessEqual(_renderer_reads(shell, "team", "a"), set(team_data["agents"][0]))
+        self.assertIn("feature_rounds", _renderer_reads(shell, "progress", "d"))
+        self.assertLessEqual(_renderer_reads(shell, "progress", "d"), set(sections["progress"]["data"]))
 
     def test_rerender_byte_identical_with_a_run(self):
         spec_dir = _build_fixture(self.base / "TIX-1")

@@ -270,7 +270,7 @@ The session-level hand-back a human writes when steering has stopped working: fo
 _Avoid_: switch (implies something saved), mode (implies a place to sit)
 
 **Mission control**:
-The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
+The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git) and, in watch mode, the feature's team run manifest, and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
 _Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
 
 **Design digest**:
