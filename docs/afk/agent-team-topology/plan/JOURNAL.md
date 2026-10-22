@@ -348,3 +348,22 @@
 2026-10-22 16:04 | autopilot | 0023-lesson-ledger-lock | done — two agents writing lessons at once can no longer get the same lesson number; review settled at round 3, the attacker found nothing
 2026-10-22 16:04 | autopilot | 0007-desktop-tool-transport | parked(other) — human decision: it needs a live trial of the desktop tool, which waits for the post-run grill on choosing the right terminal tool; only 0026-sync-harness waits behind it
 2026-10-22 16:04 | autopilot | run | heartbeat 11/26 done, starting 0010-team-entry-script (the human extended the live pane rule to every remaining subtask)
+2026-10-22 16:06 | execute | 0010-team-entry-script | designing — started planning the one script agents call to start, message and stop each other
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-113) — a team run lives in the main checkout's ignored folder and is named by its feature
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-114) — a name's goal is the ticket key, else the feature cut to 16 characters
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-115) — named the run folder's files and their temporary names
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-116) — added a run-open command and a wait command beside the six verbs
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-117) — with no effort named, an agent runs its tier's effort, passed explicitly
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-118) — a solo step accepts the five plugin agent types
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-119) — a message may name its receiver by agent id
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-120) — agent-stop marks the manifest line cleaned or unkillable
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-121) — a refused permission check answers exit 4
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-122) — a job supervisor starts as its own detached process
+2026-10-22 16:40 | execute | 0010-team-entry-script | decision(D-123) — a failed owner record write warns but does not fail the start
+2026-10-22 16:41 | execute | 0010-team-entry-script | developing — writing the tests first, then the entry script
+2026-10-22 17:05 | execute | 0010-team-entry-script | pushed 0420e54..61d7d34 (1 commit) — the entry script, its tests and the owner append are on the branch; the change's checklist marks 0010
+2026-10-22 17:05 | execute | 0010-team-entry-script | verifying — running the build check, the unit tests and the live pane probes
+2026-10-22 18:05 | execute | 0010-team-entry-script | decision(D-124..D-126) — Codex team agents launch with full access, a dialog that herdr misses is still caught, and the launch prompt names the PowerShell form
+2026-10-22 18:10 | execute | 0010-team-entry-script | pushed 61d7d34..7a0a070 (1 commit) — the live-probe fixes and the probe rows in providers/CONFORMANCE.md
+2026-10-22 18:12 | execute | 0010-team-entry-script | design_conflict — on Claude Code 2.1.308 the one allow rule on the script never matches, because no rule matches a command that holds a variable; auto mode's classifier allowed every call instead. Parked for /afk:grill-solution
+2026-10-22 18:14 | execute | 0010-team-entry-script | checklist — the change's checklist no longer marks 0010 done while it is parked

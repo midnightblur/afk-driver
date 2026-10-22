@@ -790,3 +790,101 @@
 - Chosen: B — `py -0p` lists 3.12, 3.13 and 3.14 only and WSL has 3.12.3; the test forces the lock folder to vanish between the listing and the scan, the old gate fails that case and the new one passes, and the 3.12-on case runs the interpreter's own rglob
 - Supersedes: plan/0023-lesson-ledger-lock.md ## Verification row V18 "on Python before and after 3.12" — for the before-3.12 half, an emulated scan rule, not a 3.11 interpreter
 - To reverse: run scripts/tests/test_lesson_filing.py under a CPython 3.11 interpreter with RGLOB_BEFORE_312 unset
+
+## D-113 — Where a team run lives and how a call names it
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — each call carries the run directory path vs B — each call names the run by its feature identifier in a `run` field, else the AFK_TEAM_RUN value agent-start puts in every started agent's launch environment; the run directory is `<main checkout>/.claude/afk-team/<feature>` (AFK_TEAM_ROOT overrides the root), the main checkout being the parent of the git common directory
+- Chosen: B — SDD §4 puts the manifest in the main checkout's ignored agent directory (S-9) and the envelope's run field is the feature identifier (S-178); the lesson ledger already lives under the main checkout's `.claude/`; a pane agent then sends with its own fields only
+- Supersedes: none
+- To reverse: change `Host.discover` and the AFK_TEAM_RUN launch value in scripts/team/entry.py
+
+## D-114 — The goal part of a name
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — the contact agent passes the goal vs B — the script takes the leading ticket key of the feature identifier (`^[A-Z][A-Z0-9]*-[0-9]+`), else the feature identifier cut to 16 characters
+- Chosen: B — AC-051 says "the ticket key, else the feature name cut to 16 characters" and no agent types the name (S-210)
+- Supersedes: none
+- To reverse: add a goal field to run-open and store it in the run directory
+
+## D-115 — The run directory's file names
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — one flat folder vs B — `charters/<role>.md`, `inbox/<message id>.json`, `processed/`, `bodies/<message id>`, `signals/<agent-id>.json`, `logs/<agent-id>.log` (headless kind), `permission.json` (the run's passed spawn permission check); every write goes to `.<name>.<random>.tmp` in the same folder, then is renamed
+- Chosen: B — SDD §4 lets the executor name the run directory's files (S-182); the temporary shape is one D-72 lets the wait job skip, which closes D-72's surfaced gap
+- Supersedes: none
+- To reverse: rename the constants in scripts/team/entry.py and the cleanup subtask's paths in one commit
+
+## D-116 — Two run commands beside the six verbs
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — the team skill resolves the pattern, writes charters and runs the wait script itself vs B — the script adds `run-open` (adopt the manifest, resolve the pick, write one charter file per role, make the inbox, run the spawn permission check) and `wait` (the run's one wait job: refuses a second live one, records its process entry, waits on the inbox until the earliest park-until, then removes its entry); a kind's messaging abilities for the resolver are: multiplexer all four, headless worker-to-contact, exit-signal and limit-signal, subagent none
+- Chosen: B — the §8 row gives the script the charter write at resolve time and one wait job per run, and the one allow rule covers every `INVOCATION <word> …` command (PROVIDERS.md "Spawn allow rule"); the abilities follow each kind's verbs: headless answers agent-send unsupported, subagent every verb
+- Supersedes: none
+- To reverse: drop the two commands from COMMANDS in scripts/team/entry.py and give their steps to the team skill
+
+## D-117 — The effort an agent runs with when none is named
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — pass no effort on Claude Code and label its default vs B — pass the tier row's Codex effort cell on both harnesses; lo, med, hi map to low, medium, high, and max to max on Claude Code and xhigh on Codex
+- Chosen: B — Claude Code's default effort depends on the model and the user's settings (code.claude.com/docs/en/model-config, read 2026-10-22), so only an explicit value lets the label show the effort the agent runs with (AC-052); Claude Code 2.1.308 `--effort` takes low to max; Codex's top value xhigh is unverified on 0.163.0, which does not check the value at load
+- Supersedes: none
+- To reverse: change EFFORTS in scripts/team/entry.py
+
+## D-118 — The known role agent types of a solo: step
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — afk-implementor and afk-tracer only vs B — every agent in PROVIDERS.md's agent-to-tier table, read from that table
+- Chosen: B — SDD §14 S-208's spawn-step list includes steps that name afk-reader (fix :23) and afk-runner (smoke-test :43), so a narrower list refuses role spawns the design places; reading the table keeps one home; this stays the inferred reading Q36 owes a human audit
+- Supersedes: none
+- To reverse: narrow `role_agent_types` in scripts/team/entry.py once the V19 spawn-site check classes each step
+
+## D-119 — agent-send's target names a role, the contact agent or an agent-id
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — a role or `contact` only vs B — also an agent-id; a role held by more than one live agent answers exit 2 asking for the agent-id; a sender agent-id of `contact` is the contact agent
+- Chosen: B — a report target may be "the agent that asked" (S-212), which the manifest names by agent-id, and a role of count 2 or more has no single receiver
+- Supersedes: SDD §3 agent-send input "target (a role, or contact)" — widened by agent-id
+- To reverse: drop the agent-id lookup in `_receiver` in scripts/team/entry.py
+
+## D-120 — The manifest moves agent-stop makes
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — agent-stop moves nothing and the contact agent writes cleaned vs B — agent-stop moves an agent entry to cleaned on stopped true without pane closed false, else to unkillable; a move the lifecycle table refuses (a starting entry) changes nothing and the answer adds `move_refused`; exit 5's own stop moves nothing, since the contact agent moves that entry to lost
+- Chosen: B — the contract's agent-stop bullets move the entry ('already gone' → cleaned, 'identity unknown' → unkillable), and A5 needs the exit-5 entry still movable to lost
+- Supersedes: none
+- To reverse: drop `_settle` in scripts/team/entry.py and have the team skill write both moves
+
+## D-121 — A refused spawn permission check answers exit 4
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — exit 2 vs B — exit 4, unavailable true, with the check's provider, rule, problem and says; a pass is kept in the run directory so the check runs once per run
+- Chosen: B — the payload is sound and the cause is the environment, which /afk:setup fixes; exit 4 is the house shape for that (ADAPTERS.md)
+- Supersedes: none
+- To reverse: change `_permitted` in scripts/team/entry.py
+
+## D-122 — How agent-start starts a job supervisor
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — through the transport kind vs B — a detached `afk-python scripts/team/supervisor.py '<json>'` process whose object holds run and watched_agent_id; an absent supervisor file answers exit 4 naming it
+- Chosen: B — a supervisor is the plugin's own process, not a harness agent (S-240), so no kind starts it; 0011 builds the file, owed as a wiring IOU
+- Supersedes: none
+- To reverse: change `_start_supervisor` in scripts/team/entry.py and its IOU line
+
+## D-123 — A failed owner append does not fail a start
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 4)
+- Options: A — exit 5, stopping the agent vs B — answer the start and warn on stderr, naming the record
+- Chosen: B — the agent runs and is recorded in the manifest; the worst case is a prune of a clean worktree that keeps uncommitted work anyway, while A would end a working agent over a convenience record
+- Supersedes: none
+- To reverse: route the append's failure into the exit-5 path in scripts/team/entry.py
+
+## D-124 — agent-start launches a Codex agent with full access
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 8)
+- Options: A — pass no launch flags, so a Codex team agent runs in the default sandbox vs B — agent-start adds `--dangerously-bypass-approvals-and-sandbox` for Codex and nothing for Claude
+- Chosen: B — S-136 (GRILL-LOG.md:422) settles that a Codex worker runs under the authorised full-auto launch flags, and GRILL-LOG.md:35 names `yolo` for Codex. agent-start is the only builder of a team agent's launch payload, and providers/CONFORMANCE.md "The full-access Codex pane-agent launch" proved this flag. Under A, the probe's Codex agent could not commit (the default sandbox cannot write the git common directory)
+- Supersedes: none
+- To reverse: empty the codex entry of LAUNCH_ARGS in scripts/team/entry.py
+
+## D-125 — The herdr start watches the agent's status for 3 s after herdr calls it ready
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 8)
+- Options: A — trust herdr's ready answer vs B — after a start, poll `agent get` for 3 s; `blocked` is a dialog, `working` ends the watch
+- Chosen: B — live, herdr answered success for a Codex agent whose folder-trust dialog drew a moment later, and agent-start answered exit 0 for a blocked agent (providers/CONFORMANCE.md "Team entry script probes (2026-10-22)"). The contract row asks for exit 4 naming the dialog. The fix touches 0006's herdr.py, the only place the start's answer is made
+- Supersedes: none
+- To reverse: remove `_settle` from adapters/transport/multiplexer/herdr.py and its known-traps row
+
+## D-126 — The launch prompt says how to write the plugin root in PowerShell
+- 2026-10-22 · decided by /afk:execute (0010-team-entry-script, Step 8)
+- Options: A — keep the one POSIX form vs B — keep it, and add one sentence: in PowerShell, write `$env:AFK_PLUGIN_ROOT` in place of `${AFK_PLUGIN_ROOT}`
+- Chosen: B — live, a Codex agent on Windows ran the POSIX form in PowerShell, where it named `C:\scripts\afk-team.py`, and failed. The POSIX form stays because the Claude allow rule is written in it
+- Supersedes: none
+- To reverse: drop the sentence from `_identity` in scripts/team/entry.py
