@@ -254,6 +254,33 @@ fi
 DEST="$WORKTREE_PARENT/$DIR_NAME"
 [[ ! -d "$DEST" ]] || error_exit "worktree ${NAME:+name '$NAME' is already taken: }already exists at $DEST"
 
+# A configured base can name a directory under another checkout, including a
+# child that does not exist yet. Inspect its nearest existing ancestor before
+# Git or mkdir can create anything there.
+own_common_dir="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+[[ -n "$own_common_dir" ]] || error_exit "could not determine the repository's git common directory"
+probe="$WORKTREE_PARENT"
+while [[ ! -d "$probe" ]]; do
+  parent_probe="$(dirname "$probe")"
+  [[ "$parent_probe" != "$probe" ]] || break
+  probe="$parent_probe"
+done
+if [[ -d "$probe" ]]; then
+  containing_root="$(git -C "$probe" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$containing_root" ]]; then
+    containing_common_dir="$(git -C "$containing_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    [[ -n "$containing_common_dir" ]] || error_exit "could not determine the containing repository's git common directory"
+    own_common_identity="$(cd "$own_common_dir" 2>/dev/null && pwd -P)" || \
+      error_exit "could not normalize the repository's git common directory"
+    containing_common_identity="$(cd "$containing_common_dir" 2>/dev/null && pwd -P)" || \
+      error_exit "could not normalize the containing repository's git common directory"
+    own_common_identity="$(printf '%s' "$own_common_identity" | tr '[:upper:]' '[:lower:]')"
+    containing_common_identity="$(printf '%s' "$containing_common_identity" | tr '[:upper:]' '[:lower:]')"
+    [[ "$containing_common_identity" == "$own_common_identity" ]] || \
+      error_exit "worktree parent '$WORKTREE_PARENT' is inside a different Git repository at '$containing_root'"
+  fi
+fi
+
 # Paths a copy walk never enters: the worktrees already cut from this checkout,
 # and the folder new ones go in, whether or not it lies under a copied directory.
 PRUNE_PATHS=()
@@ -261,6 +288,14 @@ while IFS= read -r wt; do
   [[ -n "$wt" && "$wt" != "$REPO_DIR" ]] && PRUNE_PATHS+=("$wt")
 done < <(git -C "$REPO_DIR" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
 [[ "$WORKTREE_PARENT" == "$REPO_DIR"/* ]] && PRUNE_PATHS+=("${WORKTREE_PARENT%/}")
+while IFS= read -r manifest; do
+  provider_folder="$("$PY_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("worktree_folder", ""))' "$manifest")" || \
+    error_exit "could not read provider worktree folder from $manifest"
+  [[ -n "$provider_folder" ]] || continue
+  [[ "$provider_folder" != /* && "$provider_folder" != *..* ]] || \
+    error_exit "provider worktree folder '$provider_folder' must stay inside the repository"
+  PRUNE_PATHS+=("$REPO_DIR/${provider_folder%/}")
+done < <(find "$AFK_ROOT_DIR/hooks/lib/providers" -maxdepth 1 -type f -name '*.json' -print | sort)
 
 # --- what to carry over. One list, read from configuration, so a repository whose personal
 # files live elsewhere changes a config key instead of this script.
@@ -339,7 +374,7 @@ copy_dir_with_substitution() {
   done < <(find "$src_dir" ${walk+"${walk[@]}"} -type f ${skip_name:+-not -name "$skip_name"} -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
 }
 
-COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"
+COMMON_DIR="$own_common_dir"
 
 # The lock holder as `pid:creation-time`, in the process table's own terms.
 holder_id() {
