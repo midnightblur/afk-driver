@@ -799,3 +799,21 @@ def test_a_large_flat_folder_past_the_budget_keeps_the_worktree_and_says_why(rep
     module.remove_one(path, False)
     assert path.is_dir() and "worktree-flat" in branches(repo)
     assert "ran out of time listing ignored files" in capsys.readouterr().err
+
+
+def test_v37_the_contact_ends_with_a_pane_agent_alive_and_the_run_worktree_is_kept(repo):
+    contact, contact_owner = harness()
+    agent, _ = harness()
+    path = made(repo, "team-run", owner=spec_of(contact_owner))
+    try:
+        assert OWNER.add_owner(str(path), agent.pid, OWNER.creation_time(agent.pid))
+        contact.kill()
+        contact.wait()
+        done = run_env("--path", str(path), cwd=repo, AFK_WORKTREE_OWNER=contact_owner)
+        assert done.returncode == 0 and path.is_dir(), done.stderr
+        assert "another session still uses it" in done.stderr
+        assert run("--prune", cwd=repo).returncode == 0 and path.is_dir(), "a live pane agent keeps the worktree"
+    finally:
+        agent.kill()
+        agent.wait()
+    assert run("--prune", cwd=repo).returncode == 0 and not path.exists(), "once every owner is dead it goes"

@@ -208,6 +208,44 @@ def all_dead(record: dict) -> bool:
                                and state(int(item["pid"]), str(item["ctime"])) == "dead" for item in found)
 
 
+def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
+    """Append process `pid`, pinned by `ctime`, to the owners of the plugin-made `worktree`; earlier owners stay.
+
+    Answers the owner record file it wrote, or None when no record names the worktree. Raises OSError when git
+    or the record cannot be read or written."""
+    def ask(*args: str) -> str:
+        done = subprocess.run(["git", "-C", worktree, "rev-parse", "--path-format=absolute", *args],
+                              capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+        if done.returncode != 0 or not done.stdout.strip():
+            raise OSError(f"git rev-parse {' '.join(args)} failed in {worktree}: {done.stderr.strip()}")
+        return done.stdout.strip()
+
+    def same(path: str) -> str:
+        return os.path.normcase(os.path.realpath(path))
+
+    top = same(ask("--show-toplevel"))
+    folder = os.path.join(ask("--git-common-dir"), "afk-worktrees")
+    names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+    for name in (n for n in names if n.endswith(".json")):
+        path = os.path.join(folder, name)
+        try:
+            with open(path, encoding="utf-8") as handle:
+                document = json.load(handle)
+        except ValueError:
+            continue
+        if not isinstance(document, dict) or not document.get("path") or same(document["path"]) != top:
+            continue
+        known = owners_of(document)
+        mine = {"pid": pid, "ctime": str(ctime)}
+        document["owners"] = known + ([] if mine in known else [mine])
+        scratch = os.path.join(folder, f".{name}.{os.getpid()}.tmp")
+        with open(scratch, "w", encoding="utf-8") as out:
+            json.dump(document, out)
+        os.replace(scratch, path)
+        return path
+    return None
+
+
 def record(argv: list[str]) -> int:
     fields = {"dir": "", "name": "", "path": "", "branch": "", "harness": "", "session": ""}
     args = iter(argv)

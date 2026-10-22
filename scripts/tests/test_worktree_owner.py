@@ -100,3 +100,34 @@ def test_cli_state_and_find_answer(tmp_path):
                           capture_output=True, text=True)
     assert done.stdout.strip() == "alive"
     assert subprocess.run([sys.executable, str(SCRIPT), "bogus"], capture_output=True).returncode == 2
+
+
+def _repo_with_record(tmp_path, owners: list[dict]) -> tuple[Path, Path]:
+    repo, linked = tmp_path / "repo", tmp_path / "linked"
+    repo.mkdir()
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-C", str(repo)]
+    subprocess.run([*git, "init", "-q", "-b", "dev"], check=True)
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "seed"], check=True)
+    subprocess.run([*git, "worktree", "add", "-q", "-b", "w", str(linked)], check=True)
+    folder = repo / ".git" / "afk-worktrees"
+    folder.mkdir()
+    record = folder / "linked.json"
+    record.write_text(json.dumps({"name": "linked", "path": linked.as_posix(), "branch": "w",
+                                  "owner": owners[0], "owners": owners}), encoding="utf-8")
+    return linked, record
+
+
+def test_add_owner_keeps_every_earlier_owner_and_adds_the_pane_agent(tmp_path):
+    earlier = [{"pid": 11, "ctime": "1"}, {"pid": 12, "ctime": "2"}]
+    linked, record = _repo_with_record(tmp_path, earlier)
+    assert Path(owner.add_owner(str(linked), 4242, "999")) == record
+    written = json.loads(record.read_text(encoding="utf-8"))
+    assert written["owners"] == [*earlier, {"pid": 4242, "ctime": "999"}] and written["owner"] == earlier[0]
+    owner.add_owner(str(linked / "."), 4242, "999")
+    assert json.loads(record.read_text(encoding="utf-8"))["owners"].count({"pid": 4242, "ctime": "999"}) == 1
+
+
+def test_add_owner_answers_none_for_a_worktree_no_record_names(tmp_path):
+    linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
+    record.unlink()
+    assert owner.add_owner(str(linked), 4242, "999") is None
