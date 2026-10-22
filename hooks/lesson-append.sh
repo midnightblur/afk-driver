@@ -68,7 +68,7 @@ fi
 mkdir -p "$(dirname "$LESSON_LEDGER_FILE")" 2>/dev/null || bail "cannot create ledger dir"
 
 build_line() {
-  EV_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" EV_ID="$ID" EV_EVENT="$EVENT" \
+  EV_TS='' EV_ID="$ID" EV_EVENT="$EVENT" \
   EV_WRITER="$WRITER" EV_CLASS="$CLASS" EV_MISS="$MISS" EV_TARGET="$TARGET" \
   EV_SUMMARY="$SUMMARY" EV_DRAFT="$DRAFT" EV_SOURCE="$SOURCE" \
   EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" EV_ISSUE="$ISSUE" "${AFK_PYTHON:-afk-python}" -c '
@@ -118,10 +118,18 @@ release_lock() {
 }
 
 take_stale_lock() {
-  local age grave="$lock_dir.$token"
+  local age seen='' moved='' grave="$lock_dir.$token"
+  { read -r seen < "$lock_dir/owner"; } 2>/dev/null
   age=$(lock_age "$lock_dir") || return 1
   [ "$age" -ge 10 ] || return 1
   mv "$lock_dir" "$grave" 2>/dev/null || return 1
+  { read -r moved < "$grave/owner"; } 2>/dev/null
+  # Another waiter took the stale lock first and this mv moved its fresh one: hand it back.
+  if [ "$moved" != "$seen" ]; then
+    [ -e "$lock_dir" ] || mv "$grave" "$lock_dir" 2>/dev/null
+    rm -rf "$grave" 2>/dev/null
+    return 1
+  fi
   rm -rf "$grave" 2>/dev/null
   return 0
 }
@@ -131,7 +139,7 @@ acquire_lock() {
   while :; do
     if [ ! -d "$lock_dir" ] && mkdir "$lock_dir" 2>/dev/null; then
       printf '%s\n' "$token" > "$lock_dir/owner" 2>/dev/null && { held=1; return 0; }
-      rm -rf "$lock_dir" 2>/dev/null
+      rmdir "$lock_dir" 2>/dev/null
       lock_note="cannot write $lock_dir/owner; nothing written"; return 1
     fi
     if [ -d "$lock_dir" ]; then
@@ -152,7 +160,7 @@ trap release_lock EXIT
 trap 'release_lock; exit 129' HUP
 trap 'release_lock; exit 130' INT
 trap 'release_lock; exit 143' TERM
-# A line to mint carries "id":"" until the lock is held; the append fills the id in.
+# The line carries "ts":"" and, to mint, "id":"" until the lock is held; the append fills both in.
 line=$(build_line) || bail "json build failed (afk-python not found; run /afk:setup)"
 start=$SECONDS
 while :; do
@@ -164,11 +172,13 @@ while :; do
             "$LESSON_LEDGER_FILE" 2>/dev/null)
     printf -v ID 'L-%04d' $(( 10#${max:-0} + 1 ))
   fi
+  stamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   # A holder slower than the stale test lost its lock: take it again, mint again.
   holds_lock && break
   held=0
 done
 
+line=${line/\"ts\":\"\"/\"ts\":\"$stamp\"}
 printf '%s\n' "${line/\"id\":\"\"/\"id\":\"$ID\"}" >> "$LESSON_LEDGER_FILE" 2>/dev/null \
   || bail "append failed"
 release_lock

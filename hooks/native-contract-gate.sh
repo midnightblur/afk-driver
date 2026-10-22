@@ -76,16 +76,20 @@ def rel(path: Path) -> str:
 
 
 def walk(pattern: str) -> list[Path]:
-    """The plugin tree's sorted matches. Before Python 3.12 rglob raises when a folder vanishes
-    mid-walk, as a released lesson lock does; the walk then runs again without it."""
-    tries = 5
-    while True:
+    """The plugin tree's sorted matches, as plugin.rglob(pattern) gives them. Before Python 3.12
+    rglob raises when a folder vanishes mid-walk, as a released lesson lock does; this skips it."""
+    found, folders = [], [str(plugin)]
+    while folders:
         try:
-            return sorted(plugin.rglob(pattern))
+            with os.scandir(folders.pop()) as entries:
+                for entry in entries:
+                    if fnmatch.fnmatch(entry.name, pattern):
+                        found.append(Path(entry.path))
+                    if entry.is_dir(follow_symlinks=False):
+                        folders.append(entry.path)
         except FileNotFoundError:
-            tries -= 1
-            if not tries:
-                raise
+            continue
+    return sorted(found)
 
 
 def read(path: Path) -> str:

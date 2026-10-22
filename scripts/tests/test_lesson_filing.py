@@ -279,12 +279,59 @@ def test_a_lock_of_unreadable_age_is_never_taken_and_the_wait_ends_at_30_s(ledge
     assert lock.is_dir() and not ledger.exists()
 
 
+def shadowed(name: str, body: str, env: dict[str, str]) -> subprocess.Popen:
+    """An append that runs the given shell function in place of the command it names."""
+    return subprocess.Popen([str(BASH), "-c", f'{name}() {{ {body} }}; export -f {name}; exec "$BASH" "$@"', "sh",
+                             str(APPEND), "opened", "--class", "missing-instruction", "--target", "t",
+                             "--summary", "s"], env={**os.environ, **env},
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def test_a_holder_that_lost_its_lock_takes_it_again_and_mints_again(ledger: Path, tmp_path: Path):
+    """A rival takes the lock over and appends L-0005 after the first mint; the holder mints L-0006."""
+    lost = tmp_path / "lost"
+    proc = shadowed("awk", 'local n; n=$(command awk "$@"); [ -e "$LOST" ] || { : > "$LOST"; '
+                    'rm -rf "$LOCK_DIR"; echo "$RIVAL" >> "$LESSON_LEDGER_FILE"; }; echo "$n";',
+                    {"LOST": lost.as_posix(), "LOCK_DIR": (ledger.parent / LOCK).as_posix(),
+                     "RIVAL": '{"ts":"","id":"L-0005","event":"opened"}'})
+    assert finish([proc]) == ["L-0006"]
+    assert lost.exists() and ledger_ids(ledger) == ["L-0005", "L-0006"]
+    assert not list(ledger.parent.glob(LOCK + "*"))
+
+
+def test_a_signal_while_the_lock_is_held_frees_it_and_writes_nothing(ledger: Path):
+    proc = shadowed("awk", 'kill -TERM $$; command awk "$@";', {})
+    out, err = proc.communicate(timeout=120)
+    assert proc.returncode == 143 and out == "", (out, err)
+    assert not list(ledger.parent.glob(LOCK + "*")) and not ledger.exists()
+
+
+def test_a_late_waiter_hands_back_a_fresh_lock_it_moved(ledger: Path, tmp_path: Path):
+    """Between this waiter's age read and its mv, a rival takes the stale lock over."""
+    lock, swapped = ledger.parent / LOCK, tmp_path / "swapped"
+    lock.mkdir(parents=True)
+    (lock / "owner").write_text("4242.1.2\n")
+    proc = shadowed("stat", '[ -e "$SWAPPED" ] && { command stat "$@"; return; }; : > "$SWAPPED"; '
+                    'rm -rf "$LOCK_DIR"; mkdir "$LOCK_DIR"; echo rival > "$LOCK_DIR/owner"; echo 1000;',
+                    {"SWAPPED": swapped.as_posix(), "LOCK_DIR": lock.as_posix()})
+    deadline = time.monotonic() + 20
+    while not swapped.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    time.sleep(1)
+    assert (lock / "owner").read_text().strip() == "rival"
+    shutil.rmtree(lock)
+    assert finish([proc]) == ["L-0001"]
+    assert not list(ledger.parent.glob(LOCK + "*"))
+
+
 SITE = '''
 import fnmatch, os, pathlib, shutil
 _scandir = os.scandir
 def scandir(path="."):
     """A lesson append frees its lock between the walk's listing of a folder and its scan."""
     marker = os.environ.get("VANISH_MARKER")
+    if isinstance(path, int):
+        return _scandir(path)
     name = os.path.basename(os.path.normpath(os.fspath(path)))
     if marker and name == "lesson-append.lock" and not os.path.exists(marker):
         open(marker, "w").close()
