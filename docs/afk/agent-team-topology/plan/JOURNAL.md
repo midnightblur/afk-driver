@@ -345,3 +345,6 @@
 2026-10-22 16:03 | execute | 0023-lesson-ledger-lock | wiring scan — exit 0, nothing unconsumed
 2026-10-22 16:03 | execute | 0023-lesson-ledger-lock | rationale receipt confirmed — 11 reasons posted and receipted on pull request 112
 2026-10-22 16:04 | execute | 0023-lesson-ledger-lock | done — success: lesson numbers are handed out under a folder lock, the gate walk and the worktree copy survive the lock coming and going; review settled at round 3, the attacker found nothing; the human handles the change's review and merge
+2026-10-22 16:04 | autopilot | 0023-lesson-ledger-lock | done — two agents writing lessons at once can no longer get the same lesson number; review settled at round 3, the attacker found nothing
+2026-10-22 16:04 | autopilot | 0007-desktop-tool-transport | parked(other) — human decision: it needs a live trial of the desktop tool, which waits for the post-run grill on choosing the right terminal tool; only 0026-sync-harness waits behind it
+2026-10-22 16:04 | autopilot | run | heartbeat 11/26 done, starting 0010-team-entry-script (the human extended the live pane rule to every remaining subtask)
