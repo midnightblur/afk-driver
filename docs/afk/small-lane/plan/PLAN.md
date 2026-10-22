@@ -3,7 +3,7 @@
 > Parent ticket: small-lane (no parent ticket; github-issues tracker)   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/feat-small-lane
-> Last updated: 2026-10-20 (status column maintained by /afk:execute)
+> Last updated: 2026-10-22 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Before /afk:execute: fast-forward the main checkout to origin/main (needs 442cfa6, #113) and run its `skills/afk/to-subtasks/scripts/validate_plan.py` on this folder to a clean exit; older copies reject the INV-022..026 ledgers
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
@@ -84,7 +84,7 @@ Rows 8–9 are §14 change seams a later subtask uses; every other §14 row is l
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-diagnosis-format | diagnosis format file, check script, outside-writes helper | done | — | static, unit, integration | — |
-| 2 | 0002-developer-settings | developer settings K1–K5 move to CONFIG.md | developing | — | static, unit, integration | — |
+| 2 | 0002-developer-settings | developer settings K1–K5 move to CONFIG.md | done | — | static, unit, integration | — |
 | 3 | 0003-tracker-attach | `tracker_attach`, Jira formatted text and refusals, registry check E | pending | — | static, unit, integration | impl §1, §2, §3, §7 |
 | 4 | 0004-diagnose-rewrite | diagnose never fixes; grills take a diagnosis and end with the size call | pending | 0001-diagnosis-format | static, unit, integration | — |
 | 5 | 0005-bug-mode | `/afk:to-ticket` bug and ad-hoc mode | pending | 0001-diagnosis-format, 0002-developer-settings, 0003-tracker-attach | static, unit, integration | impl §8; use §1, §2, §3, §7 |
@@ -95,6 +95,7 @@ Rows 8–9 are §14 change seams a later subtask uses; every other §14 row is l
 | 10 | 0010-out-of-slice | blocking and non-blocking defects outside the slice | pending | 0008-standalone-fix, 0009-in-place-callers | static, unit, integration | impl §5; use §9 |
 | 11 | 0011-bug-removal-release | remove `/afk:bug`, one tracker writer, major release | pending | 0001..0010 (all implementation subtasks) | static, unit, integration | — |
 | 12 | 0012-sync-harness | AGENTS.md harness sync + trace matrix | pending | every other subtask | static | — |
+| 13 | 0013-config-contract | config reader keeps the developer-settings contract (D-7) | pending | 0002-developer-settings | static, unit, integration | use developer settings |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->

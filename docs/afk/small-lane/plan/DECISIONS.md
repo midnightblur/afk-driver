@@ -41,3 +41,10 @@
 - Chosen: add it. `skills/afk/setup/MANIFEST.md` is in Scope and its H6 probe had to change with the `none` rule; that test file runs the probe block verbatim and is the only place its branches can be pinned. A re-slice would move one test file into an identical contract.
 - Supersedes: 0002-developer-settings ## Scope, for this one file
 - To reverse: revert the test additions in that file; the probe change stays covered only through `developer_values.py status`
+
+## D-7 — the 0002 adversary's contract gaps become a new slice, and the developer-settings anchor names its heading line
+- 2026-10-22 · decided by the human (0002-developer-settings, Step 10.5)
+- Options: (a) record the high finding as pre-existing, file an issue and finish 0002 vs fix it in this change outside any slice vs add a slice for it; (b) leave the anchor `Developer settings (K1–K5)`, which also matches the pointer in the `developer` row of `CONFIG.md`, vs anchor on the heading line
+- Chosen: (a) add slice `0013-config-contract` for adversary findings F1, F2, F4 and F5 — each breaks a promise `CONFIG.md` states, and each behaves the same on main 82c3db8, so none was caused by 0002; 0002 is finished with them routed there, and `0012-sync-harness` waits for 0013. F3, F6 and the low findings stay advisory in the adversary report. (b) anchor on `## Developer settings (K1–K5)` in 0002's Produces and in the Consumes of 0005, 0007, 0011 and 0013, so a removed heading cannot pass on the pointer.
+- Supersedes: PLAN.md progress tracker (row 13 added); 0012-sync-harness ## Blocked by; the anchor text in those five contracts
+- To reverse: delete 0013 and its tracker row, restore 0012's Blocked by, and restore the bare anchor

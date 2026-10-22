@@ -47,7 +47,7 @@ complex
 ## Consumes
 - 0001-diagnosis-format skills/utils/diagnose/scripts/outside_writes.py#def append_outside_write( — list the push, the change link
 - 0001-diagnosis-format skills/utils/diagnose/scripts/outside_writes.py#def retry_with_read_back( — retry after change-view or remote read-back
-- 0002-developer-settings CONFIG.md#Developer settings (K1–K5) — the reviewer key and its `none` rule
+- 0002-developer-settings CONFIG.md### Developer settings (K1–K5) — the reviewer key and its `none` rule
 
 ## Verification
 | Tier | Check (command or method) | Proves |
