@@ -1,0 +1,66 @@
+[
+ {
+  "id": "r-001",
+  "concern": [
+   "test-veracity"
+  ],
+  "criterion": "Happy-path-only / missing negative cases",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_setup_developer_values.py",
+  "line": 54,
+  "side": "new",
+  "finding": "Only a recorded `mrReviewer: none` is shown to leave `missing`; a recorded `trackerAssignee: none` and the H6 probe's handling of a person-key `none` are unpinned.",
+  "why": "D-4 and the CHANGELOG promise `none` is an answer for trackerAssignee too; a regression special-casing mrReviewer would pass every new test.",
+  "fix": "Parametrize the status test over (tracker=jira, trackerAssignee) and (forge=github, mrReviewer); add an H6 probe test with both keys recorded `none` expecting `ok`.",
+  "evidence": "grep none scripts/tests/test_setup_h6_probe.py finds only tracker/forge none"
+ },
+ {
+  "id": "r-002",
+  "concern": [
+   "test-veracity"
+  ],
+  "criterion": "Mock echo / does the test prove the behaviour",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_afk_config_init.py",
+  "line": 205,
+  "side": "new",
+  "finding": "The test passes hand-built dicts to `developer_value`, so a narrower layer's `none` overriding a broader layer's person, and `afk-config.py resolve` exiting 1, are never exercised.",
+  "why": "Layer override is the behaviour the comment and CONFIG.md promise; a dict that already holds `none` cannot show it.",
+  "fix": "Write a machine file with the person and a repository file with `none`; assert `afk-config.py resolve <key>` exits 1 with no output, for trackerAssignee and mrReviewer.",
+  "evidence": "ac.developer_value({\"developer\": {key: value}}, key) is None"
+ },
+ {
+  "id": "r-003",
+  "concern": [
+   "refactor-safety"
+  ],
+  "criterion": "behaviour change of a widely-called helper",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/afk/bug/CONFIG.md",
+  "line": 26,
+  "side": "new",
+  "finding": "A recorded `trackerAssignee: none` now satisfies setup but resolves to nothing, so the bug pipeline's publish still fails closed; the K1 row does not say `none` blocks, unlike the K2 row.",
+  "why": "A developer who answers `none` passes setup yet cannot publish a bug, and nothing tells them why.",
+  "fix": "Name `or the literal none` in the K1 row of the bug pipeline's fail-closed matrix.",
+  "evidence": "| Tracker publish | K1 | No tracker call is attempted; bug stays `captured` (S1) ..."
+ },
+ {
+  "id": "r-004",
+  "concern": [
+   "test-veracity"
+  ],
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "test",
+  "file": "skills/afk/setup/MANIFEST.md",
+  "line": 159,
+  "side": "new",
+  "finding": "The rewritten H6 probe's new branches have no test: an underivable worktreeBasePath reported through `missing`, and the `status failed` fallback.",
+  "why": "The probe now depends on the status JSON; a broken status or an unresolved worktree base changes the verdict with no test noticing.",
+  "fix": "Add probe tests for a status that fails (expect the status-failed text and exit 1) and for an unresolved worktreeBasePath (expect it named).",
+  "evidence": "2>/dev/null)\" || m=\" (developer_values.py status failed)\""
+ }
+]

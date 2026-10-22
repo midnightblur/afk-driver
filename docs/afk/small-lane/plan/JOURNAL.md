@@ -22,3 +22,6 @@
 2026-10-20 19:10 | execute | 0002-developer-settings | WSL suite: 3350 passed, 25 failed — the same 25 fail on main, none from this branch; hook smoke not run there (jq missing in WSL)
 2026-10-20 20:35 | execute | 0002-developer-settings | pushed 3efb356..b7409d3 (1 commit); Windows suite green against its baseline, hook smoke green; reviewing — independent reviewers read the change
 2026-10-20 21:05 | execute | 0002-developer-settings | review r1 — 4 findings (2 medium tests, 1 low bug-page gap, 1 low probe test gap); decision(D-6) — the H6 probe's test file joins the slice; developing — fixing them
+2026-10-22 12:10 | execute | 0002-developer-settings | branch rebased onto main 82c3db8 (PR conflicted, so CI never ran) and force-pushed with lease to ea2cdac; tests now run in CI on the human's call
+2026-10-22 12:40 | execute | 0002-developer-settings | review r1 fixes posted and resolved (f001–f004); forge_ledger.py could not summarize a listed concern — fixed outside the slice in cd6cf95; r1 summary posted
+2026-10-22 13:00 | execute | 0002-developer-settings | reviewing — review r2 on the fix delta (delta-sweep, test-veracity)
