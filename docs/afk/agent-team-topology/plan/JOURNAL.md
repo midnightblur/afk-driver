@@ -389,3 +389,5 @@
 2026-10-22 18:46 | execute | 0025-dashboard-team-section | wiring scan clean — the advisory orphan check found nothing unconsumed
 2026-10-22 18:46 | execute | 0025-dashboard-team-section | done — all three posted reasons are receipted on pull request 112 and cleared locally
 2026-10-22 18:46 | execute | 0025-dashboard-team-section | outcome success — the team section and the feature round count are built, reviewed (settled in round 2) and probed (one low point); the human reviews and merges pull request 112
+2026-10-23 15:10 | autopilot | 0025-dashboard-team-section | done — the dashboard shows each agent of a team run and the feature's review-round count; review settled at round 2, the attacker found one low wording point
+2026-10-23 15:10 | autopilot | run | heartbeat 12/26 done; no runnable subtask left — every remaining one waits on 0007 (parked for the grill) or 0010 (parked on the allow-rule design call); run held for the human
