@@ -51,10 +51,10 @@ plugin root rather than searching for it.
 `tracker_attach` takes `ticket_key`, `files` (local paths) and an optional
 Markdown `text`, and posts one comment carrying them. It answers `attached`
 (one object per file, carrying `file`; Jira adds the stored `id`, `filename` and
-`mimeType`), `unsupported_files` (each file the kind could not take, with the
+`mimeType`, the last two null when they were not read back), `unsupported_files` (each file the kind could not take, with the
 reason, also named in the comment) and, on Jira, `mismatches` (each with a
 `reason`: `stored differently`, with the `sent` and `stored` name and type, or
-`not in the upload answer`, with `stored: null`) and `read_back` (false when
+`not in the upload answer` or `not in the read-back`, with `stored: null`) and `read_back` (false when
 the stored names could not be read, so none was checked).
 A missing file is refused before any write. When Jira stores the files but the
 comment fails, the answer carries `error`, `comment_error` and the `attached`

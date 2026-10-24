@@ -156,7 +156,8 @@ def tracker_attach(ticket_key: str, files: list[str], text: str = "") -> Any:
     `unsupported_files` with the reason and named in the comment; on Jira each
     stored name and type is read back, and a difference is listed in
     `mismatches` (each with a `reason`) and named in the comment. `attached`
-    holds one object per file with its `file`. A missing file answers
+    holds one object per file with its `file`; a Jira `filename` or `mimeType`
+    is null when it was not read back. A missing file answers
     `refused: true`; files stored but a failed comment answer `error` with
     `comment_error`."""
     return _call("tracker_attach", ticket_key=ticket_key, files=files, text=text)

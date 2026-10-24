@@ -626,6 +626,21 @@ def test_jira_attach_without_a_read_back_checks_nothing(jira, tmp_path):
     assert "could not be read back" in json.dumps(comment) and "None" not in json.dumps(comment)
 
 
+def test_jira_attach_names_a_file_the_read_back_does_not_list(jira, tmp_path):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue/P-1/attachments", [{"id": "1"}])
+    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"attachment": []}})
+    fake.on("GET", "/rest/api/3/attachment/content/",
+            location=f"https://api.media.atlassian.com/file/{UUID}/binary")
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [proof(tmp_path, "a.png")]})
+    [missing] = answer["mismatches"]
+    assert missing["reason"] == "not in the read-back" and missing["stored"] is None
+    assert answer["attached"][0]["filename"] is None
+    [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
+    assert "attachment list does not show it" in json.dumps(comment)
+
+
 def test_jira_create_writes_with_a_warning_when_versions_cannot_be_read(jira):
     api, fake = jira
     fake.on("POST", "/rest/api/3/issue", {"key": "P-5", "id": "5"})
