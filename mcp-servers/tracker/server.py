@@ -1,6 +1,6 @@
-"""tracker MCP server — the nine tracker operations, routed to the configured kind.
+"""tracker MCP server — the ten tracker operations, routed to the configured kind.
 
-The server registers the same nine tools whatever the repository uses, so a
+The server registers the same ten tools whatever the repository uses, so a
 skill's prose never changes with the tracker. `tracker:` in `.afk/config.yaml`
 picks the adapter under `adapters/tracker/<kind>/`, and each kind's `api.py`
 answers `call(operation, payload)` (ADAPTERS.md).
@@ -135,7 +135,8 @@ def tracker_changelog(ticket_key: str) -> Any:
 
 @mcp.tool()
 def tracker_comment(ticket_key: str, text: str) -> Any:
-    """Add a plain-text comment to a work item."""
+    """Add a comment to a work item. `text` is Markdown; Jira receives it as
+    formatted text."""
     return _call("tracker_comment", ticket_key=ticket_key, text=text)
 
 
@@ -143,6 +144,16 @@ def tracker_comment(ticket_key: str, text: str) -> Any:
 def tracker_attachments(ticket_key: str) -> Any:
     """List the files attached to a work item (id, filename, mimeType, size)."""
     return _call("tracker_attachments", ticket_key=ticket_key)
+
+
+@mcp.tool()
+def tracker_attach(ticket_key: str, files: list[str], text: str = "") -> Any:
+    """Post one comment carrying `text` (Markdown) and the files at the local
+    paths in `files`. A file the tracker cannot take is listed in
+    `unsupported_files` with the reason and named in the comment; on Jira each
+    stored name and type is read back, and a difference is listed in
+    `mismatches` and named in the comment."""
+    return _call("tracker_attach", ticket_key=ticket_key, files=files, text=text)
 
 
 @mcp.tool()

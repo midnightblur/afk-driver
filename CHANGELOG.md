@@ -37,7 +37,33 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- A tenth tracker verb, `tracker_attach`, on every tracker kind and on the
+  `tracker` MCP server. It posts one comment with the given files. Jira
+  uploads each file with its real content type, reads back each stored name
+  and type, and names a difference in the comment. GitHub Issues shows each
+  image or video inline through `gh issue comment --attach`; another file
+  type, GitHub Enterprise Server, gh older than 2.99.0 and a login without
+  write access leave the file named in the comment. `/afk:setup` checks the gh
+  floor (register row C3c). The dependency set changed.
+
 ### Changed
+
+- Jira `tracker_create` and `tracker_comment` send Markdown as formatted text
+  (Atlassian Document Format headings, lists, code blocks and links), not one
+  plain paragraph.
+- A value the tracker does not know is refused before any write.
+  `tracker_transition` takes a transition name, an id, or a key of
+  `jira.transitions` / `github-issues.state-labels`, and refuses one the work
+  item does not offer. Jira refuses an unknown fix version on create and edit.
+  GitHub Issues refuses an unknown `status` on create, which it ignored before.
+- The `afk-config.py init` scaffold names the Jira in-review transition
+  `in-review`, the key GitHub Issues already uses. Migration: a repository
+  that copied `ready-for-review` under `jira.transitions` renames it to
+  `in-review`.
+- The adapter registry check matches verb names whole: `tracker_attach` no
+  longer counts as named by a contract that names only `tracker_attachments`.
 
 - The developer settings K1–K5 (`trackerAssignee`, `mrReviewer`,
   `worktreeBasePath`, `ideBinary`, `mrAssignee`) are documented in `CONFIG.md`

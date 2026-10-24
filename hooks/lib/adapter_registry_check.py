@@ -91,7 +91,9 @@ def main(argv: list[str]) -> int:
             if not contract:
                 findings.append(f"{name}: no CONTRACT.md")
             else:
-                missing = [op for op in manifest.get("operations", []) if op not in contract]
+                # Whole names only: `tracker_attach` is not `tracker_attachments`.
+                missing = [op for op in manifest.get("operations", [])
+                           if not re.search(rf"(?<![\w-]){re.escape(op)}(?![\w-])", contract)]
                 if missing:
                     findings.append(
                         f"{name}: CONTRACT.md never names {', '.join(missing)} "

@@ -1,7 +1,7 @@
 #!/usr/bin/env afk-python
 """tracker/github-issues — the GitHub Issues adapter.
 
-Answers the nine `tracker_*` operations through the `gh` CLI, so authentication
+Answers the ten `tracker_*` operations through the `gh` CLI, so authentication
 is whatever `gh auth login` already established and no token lives in a
 configuration file.
 
@@ -19,7 +19,9 @@ mapped one to one (`CONTRACT.md` states the same):
 lists the asset URLs found in the issue body and its comments. GitHub has no
 attachment API to enumerate, so a file that was never referenced in text cannot
 be reported, and the operation says so instead of pretending the list is
-complete.
+complete. `tracker_attach` posts one comment with each image or video inline
+through `gh issue comment --attach` (gh 2.99.0 or newer, github.com only) and
+names every other file in that comment.
 """
 from __future__ import annotations
 
@@ -35,7 +37,7 @@ from pathlib import Path
 OPERATIONS = (
     "tracker_get", "tracker_search", "tracker_create", "tracker_edit",
     "tracker_comment", "tracker_transition", "tracker_transitions",
-    "tracker_attachments", "tracker_changelog",
+    "tracker_attachments", "tracker_changelog", "tracker_attach",
 )
 
 
@@ -88,7 +90,7 @@ def state_labels():
 # ---------------------------------------------------------------------------
 # gh
 # ---------------------------------------------------------------------------
-def _gh(*args, stdin=None):
+def _gh(*args, stdin=None, timeout=60):
     """Run `gh` and answer parsed JSON, or a described error. Never raises: an
     operation that throws tells the caller nothing about the far side."""
     exe = shutil.which("gh")
@@ -100,7 +102,7 @@ def _gh(*args, stdin=None):
     try:
         # A child inheriting the server's stdin pipe hangs on Windows.
         feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
-        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, **feed)
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, **feed)
     except Exception as e:
         return {"error": True, "reason": f"{type(e).__name__}: {e}"}
     if done.returncode != 0:
@@ -311,11 +313,16 @@ def _op_edit(p):
 
 
 def _op_create(p):
+    status, labels = p.get("status") or "", state_labels()
+    if status and status != "open" and status not in labels:
+        return {"error": True, "refused": True, "operation": "tracker_create", "reason":
+                f"tracker: github-issues — no state `{status}` in `github-issues.state-labels` "
+                f"(have: {', '.join(labels) or 'none'}); nothing was written"}
     args = ["issue", "create", *_repo_args(), "--title", p["summary"]]
     body = p.get("description") or ""
     args += ["--body-file", "-"]
     # The work item type is a label here, as is the opening state.
-    for label in filter(None, [p.get("issue_type"), state_labels().get(p.get("status") or "")]):
+    for label in filter(None, [p.get("issue_type"), labels.get(status)]):
         args += ["--label", str(label)]
     if p.get("assignee"):
         args += ["--assignee", str(p["assignee"])]
@@ -340,6 +347,80 @@ def _op_create(p):
     return result
 
 
+# The types `gh --attach` uploads (docs.github.com "Attaching files with GitHub CLI").
+ATTACHABLE = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".mov", ".webm")
+ATTACH_FLOOR = (2, 99, 0)
+
+
+def _host():
+    """The GitHub host the issue lives on: `HOST/OWNER/REPO` in the repo, else GH_HOST."""
+    parts = repo().split("/")
+    return (parts[0] if len(parts) == 3 else os.environ.get("GH_HOST") or "github.com").lower()
+
+
+def _attach_blocker():
+    """(reason no file can be attached, or None; an `unavailable` answer, or None)."""
+    host = _host()
+    if host != "github.com":
+        return (f"`gh issue comment --attach` uploads to github.com only, and {host} is "
+                f"GitHub Enterprise Server or another host"), None
+    answer = _gh("--version")
+    if isinstance(answer, dict) and answer.get("unavailable"):
+        return None, answer
+    found = re.search(r"gh version (\d+)\.(\d+)\.(\d+)",
+                      answer.get("raw", "") if isinstance(answer, dict) else "")
+    version = tuple(int(n) for n in found.groups()) if found else None
+    if version is None or version < ATTACH_FLOOR:
+        shown = ".".join(map(str, version)) if version else "of unknown version"
+        return f"gh {shown} is older than 2.99.0, the first with `--attach`", None
+    access = _gh("repo", "view", *([repo()] if repo() else []), "--json", "viewerPermission")
+    if isinstance(access, dict) and access.get("viewerPermission") in ("READ", "TRIAGE", "NONE"):
+        return "uploading needs write access to the repository, which this login lacks", None
+    return None, None
+
+
+def _op_attach(p):
+    """One comment: each image or video inline through `--attach`, every other
+    file named with the reason, for the developer to add by hand."""
+    number, files = _number(p["ticket_key"]), p["files"]
+    if not isinstance(files, list) or not files:
+        return {"error": True, "operation": "tracker_attach",
+                "reason": "`files` must be a non-empty list of file paths"}
+    gone = [str(f) for f in files if not os.path.isfile(str(f))]
+    if gone:
+        return {"error": True, "operation": "tracker_attach",
+                "reason": f"no such file: {', '.join(gone)}; nothing was written"}
+    files = list(dict.fromkeys(str(f) for f in files))
+    blocker, unavailable = _attach_blocker()
+    if unavailable:
+        return dict(unavailable, operation="tracker_attach")
+    attach, unsupported = [], []
+    for path in files:
+        if blocker:
+            reason = blocker
+        elif os.path.splitext(path)[1].lower() not in ATTACHABLE:
+            reason = "gh attaches only image and video files (" + ", ".join(ATTACHABLE) + ")"
+        elif "#" in path:
+            reason = "gh reads the text after `#` in a path as alt text"
+        else:
+            attach.append(path)
+            continue
+        unsupported.append({"file": path, "reason": reason})
+    body = p.get("text") or ""
+    if unsupported:
+        body += "\n\n**Not attached — add these files by hand:**\n\n" + "\n".join(
+            f"- `{os.path.basename(u['file'])}`: {u['reason']}" for u in unsupported)
+    args = ["issue", "comment", number, *_repo_args(), "--body-file", "-"]
+    for path in attach:
+        args += ["--attach", path]
+    answer = _gh(*args, stdin=body, timeout=300)
+    if isinstance(answer, dict) and (answer.get("error") or answer.get("unavailable")):
+        return dict(answer, operation="tracker_attach")
+    url = answer.get("raw", "").strip() if isinstance(answer, dict) else ""
+    return {"ok": True, "ticket_key": number, "comment": url,
+            "attached": attach, "unsupported_files": unsupported}
+
+
 _DISPATCH = {
     "tracker_get": _op_get,
     "tracker_search": _op_search,
@@ -350,6 +431,7 @@ _DISPATCH = {
     "tracker_transitions": _op_transitions,
     "tracker_attachments": _op_attachments,
     "tracker_changelog": _op_changelog,
+    "tracker_attach": _op_attach,
 }
 
 

@@ -11,7 +11,8 @@
     "tracker_transition",
     "tracker_transitions",
     "tracker_attachments",
-    "tracker_changelog"
+    "tracker_changelog",
+    "tracker_attach"
   ],
   "runner": {
     "type": "cli",
@@ -23,7 +24,8 @@
     "github-issues.state-labels"
   ],
   "register": [
-    "C3b"
+    "C3b",
+    "C3c"
   ],
   "referencePatterns": [
     "(?<![\\w&#])#[0-9]{1,7}\\b",

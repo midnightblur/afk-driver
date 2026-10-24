@@ -1,7 +1,7 @@
 #!/usr/bin/env afk-python
 """Load the configured tracker adapter's `api.py`.
 
-A publishing script needs more than the nine `tracker_*` operations — it builds
+A publishing script needs more than the ten `tracker_*` operations — it builds
 rich bodies, uploads figures, and merges a managed block into an existing
 description. Those live in the adapter, because their shape IS the tracker's.
 This module is how such a script reaches them without naming a kind: it reads
