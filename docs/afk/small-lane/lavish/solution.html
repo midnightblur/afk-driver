@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution grill — small-lane</title>
+<meta name="afk-spec-dir" content="docs/afk/small-lane">
+<style>
+/* Kit stylesheet — inlined into every rendered page, never fetched.
+ *
+ * Dark-first on purpose. Every render and every poll injects a forced-dark
+ * override that inverts any page it measures as light (scripts/lavish/inject.py),
+ * so a stylesheet that followed `prefers-color-scheme` would hand a
+ * light-preference machine a page the override then inverts. Tokens still
+ * switch: `data-theme="light"` on <html> paints the light set for a human who
+ * asks for it.
+ *
+ * Color is a dimension, not decoration: one fixed semantic set — settled/pass,
+ * open/undecided, blocked/rejected, existing/unchanged, new/proposed — and
+ * never color alone; every state also carries a word.
+ */
+
+:root {
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-2: #23272f;
+  --line: #333944;
+  --fg: #e6e9ef;
+  --fg-dim: #a7b0be;
+  --settled: #4ade80;
+  --open: #fbbf24;
+  --blocked: #f87171;
+  --neutral: #94a3b8;
+  --accent: #7dd3fc;
+  --focus: #7dd3fc;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --line: #d8dde6;
+  --fg: #14161a;
+  --fg-dim: #545c6a;
+  --settled: #15803d;
+  --open: #b45309;
+  --blocked: #b91c1c;
+  --neutral: #52606d;
+  --accent: #0369a1;
+  --focus: #0369a1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem 1.5rem 7rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.afk-page { max-width: 62rem; margin: 0 auto; }
+
+.afk-title { margin: 0 0 .25rem; font-size: 1.35rem; }
+.afk-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+
+h2, h3, h4 { line-height: 1.3; }
+
+/* No bare h4 rule. Card headings are h4 inside a group, and an h4 rule written
+ * for small labels styles a card's decision sentence as a caption — dim,
+ * uppercase, and smaller than the prose under it. Style headings by their
+ * class, never by their level: a card that moves a level must not change
+ * what it looks like. */
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: .88em; background: var(--surface-2); padding: .1em .35em;
+       border-radius: 3px; }
+
+a { color: var(--accent); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.afk-section { margin: 2rem 0; }
+.afk-section > h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+
+.afk-round {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--open);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.afk-round > .afk-h { margin: 0 0 .75rem; font-size: 1.1rem; }
+
+.afk-round-header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
+.afk-where { margin: 0; font-weight: 600; }
+.afk-settled-last, .afk-next p { margin: .25rem 0; color: var(--fg-dim); }
+.afk-next { margin-top: .75rem; }
+
+.afk-cards { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+/* --- cards ------------------------------------------------------------- */
+
+.afk-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neutral);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: .85rem 1rem;
+}
+.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+                     letter-spacing: normal; text-transform: none; color: var(--fg); }
+.afk-card--decided { border-left-color: var(--accent); }
+.afk-card--debate { border-left-color: var(--open); }
+.afk-card--confirm { border-left-color: var(--open); }
+.afk-card--signoff { border-left-color: var(--blocked); }
+.afk-card--settled { border-left-color: var(--settled); }
+.afk-card[data-afk-state="blocked"] { border-left-color: var(--blocked); }
+
+/* The session rail collapses a card by adding this class; only the heading,
+ * which is always the first child, stays visible. */
+.afk-card.afk-collapsed > *:not(.afk-h) { display: none; }
+
+.afk-fields { margin: .5rem 0 0; }
+.afk-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); margin-top: .6rem; }
+.afk-fields dd { margin: .15rem 0 0; }
+.afk-fields ul { margin: .15rem 0; padding-left: 1.1rem; }
+
+.afk-context { margin: 0 0 .6rem; }
+.afk-context + .afk-context { margin-top: -.2rem; }
+.afk-why-beat { margin: 0 0 .35rem; }
+.afk-third { color: var(--accent); }
+.afk-undecided { color: var(--fg-dim); }
+.afk-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
+
+.afk-degraded {
+  margin: 0 0 .5rem;
+  padding: .5rem .65rem;
+  border: 1px dashed var(--open);
+  border-radius: 4px;
+  color: var(--open);
+}
+
+/* --- option grid ------------------------------------------------------- */
+
+.afk-grid-wrap { overflow-x: auto; margin: .5rem 0; }
+.afk-grid { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.afk-grid caption { text-align: left; color: var(--fg-dim); padding-bottom: .3rem; }
+.afk-grid th, .afk-grid td {
+  border: 1px solid var(--line); padding: .4rem .55rem; text-align: left;
+  vertical-align: top;
+}
+.afk-grid thead th { background: var(--surface); }
+.afk-rec { color: var(--accent); font-weight: 600; font-size: .75rem; }
+
+/* --- table-layout groups: one row per item ----------------------------- */
+
+.afk-rows td { vertical-align: top; }
+.afk-row-id { white-space: nowrap; }
+.afk-row-q { margin: 0 0 .35rem; font-weight: 600; }
+.afk-rows .afk-degraded { margin: .35rem 0; }
+.afk-rows .afk-note { margin-top: 0; }
+/* The column header already says Note, so the field's own label is left for
+ * assistive technology only — clipped, never moved, so it adds no scroll
+ * width inside the wrapper's `overflow-x`. */
+.afk-rows .afk-note span {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+/* The jump control highlights whatever it walks to, card or row. */
+.afk-row.afk-seek { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* --- answer surface ---------------------------------------------------- */
+
+.afk-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+
+.afk-choice { border: 0; margin: 0; padding: 0; }
+/* `display: block` takes the legend out of the fieldset's border-anchored slot,
+ * where its box overlaps the first option row and trips the layout audit. */
+.afk-choice { display: flow-root; }
+.afk-choice legend { display: block; width: 100%; float: none;
+                     margin: 0 0 .3rem;
+                     font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                     color: var(--fg-dim); padding: 0; }
+.afk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+.afk-opt input { margin-top: .25rem; }
+
+.afk-note { display: block; margin-top: .55rem; }
+.afk-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); }
+.afk-note textarea {
+  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; font: inherit; resize: vertical;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- send bar ---------------------------------------------------------- */
+
+.afk-send {
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .7rem 1.25rem;
+  /* Not fully opaque, on purpose. A layout audit that hit-tests text reads a
+   * sticky bar as an occluder: the bar is a sibling of the cards' ancestor, so
+   * whatever text scrolls beneath it samples as covered, and the page is held
+   * behind a repair banner the reader cannot dismiss. The audit asks whether the
+   * blocker is opaque, so a hair under opaque answers no. The blur keeps the bar
+   * as legible as a solid fill, and text under it stays readable rather than
+   * vanishing — which is what the audit was looking for in the first place. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur available: a translucent bar over scrolling text is unreadable, so
+   * take the solid fill back and accept the false warning. Legibility first. */
+  .afk-send { background: var(--surface); }
+}
+.afk-send button {
+  font: inherit; padding: .45rem .9rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  cursor: pointer;
+}
+.afk-send button.afk-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.afk-send button[hidden] { display: none; }
+.afk-card.afk-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
+.afk-send-summary {
+  flex: 1 1 100%; color: var(--fg); font: .82rem/1.35 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+.afk-send-status { color: var(--fg-dim); font-size: .88rem; }
+.afk-send-status.afk-warn { color: var(--open); }
+
+/* --- groups, shape, disclosure, chips ---------------------------------- */
+
+/* Rule 1: the shape line reads before any card, so it is set apart from the
+ * header prose that follows it. */
+.afk-shape {
+  margin: 0 0 .6rem; padding: .45rem .6rem;
+  background: var(--surface-2); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.afk-round-header h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+.afk-group { margin: 1.5rem 0; }
+.afk-group-h {
+  margin: 0 0 .5rem; font-size: .95rem;
+  display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap;
+}
+.afk-count {
+  font-size: .75rem; padding: .05rem .4rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--fg-dim); font-weight: 400;
+}
+.afk-empty-group { color: var(--fg-dim); margin: 0; }
+
+/* Rule 3: heading and lede always visible, the rest one click away. The
+ * answer surface is a sibling of the disclosure, never inside it — a card
+ * stays markable while closed, so scanning and answering are one pass. */
+.afk-lede > :first-child { margin-top: 0; }
+.afk-lede > :last-child { margin-bottom: 0; }
+.afk-rec-line, .afk-evidence-line { margin: .1rem 0 .35rem; }
+.afk-prov, .afk-locked { margin: .25rem 0; color: var(--open); }
+
+.afk-detail { margin: .6rem 0 0; }
+.afk-detail > summary {
+  cursor: pointer; color: var(--accent); font-size: .88rem;
+  padding: .15rem 0; list-style-position: outside;
+}
+.afk-detail > summary:hover { text-decoration: underline; }
+.afk-detail-body {
+  margin-top: .5rem; padding-left: .7rem;
+  border-left: 1px solid var(--line);
+}
+/* A closed disclosure hides its content outright. Left merely unpainted, the
+ * children of a closed `details` keep zero-size boxes stacked on one point, and
+ * a layout audit reads that stack as overlapping text — which holds the page
+ * behind a repair banner the reader cannot dismiss. */
+.afk-detail:not([open]) > .afk-detail-body,
+.afk-ledger:not([open]) > .afk-grid-wrap { display: none; }
+
+/* A print or a PDF of the page must not lose what a disclosure holds: paper
+ * has no click. The renderer cannot force `open` from CSS, so it prints the
+ * label as a heading and the browser's own print rule opens the block; where
+ * it does not, the markdown fallback is the record. */
+@media print {
+  .afk-detail > summary { color: inherit; font-weight: 600; }
+}
+
+.afk-deps { margin: .35rem 0 0; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.afk-deps-label {
+  font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
+}
+.afk-chip {
+  font-size: .8rem; padding: .1rem .45rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--fg); text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+.afk-chip:hover { border-color: var(--accent); }
+.afk-chip--settled { border-color: var(--settled); color: var(--settled); }
+.afk-chip--open { border-color: var(--open); color: var(--open); }
+.afk-chip--blocked { border-color: var(--blocked); color: var(--blocked); }
+.afk-chip-note { font-size: .8rem; color: var(--fg-dim); font-weight: 400; }
+.afk-badge {
+  font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+  padding: .1rem .4rem; border-radius: 3px;
+}
+.afk-badge--open { background: var(--open); color: var(--bg); }
+
+/* --- the two strips ---------------------------------------------------- */
+
+/* Where the session sits in the chain. Sticky, because the map answering
+ * "where am I" is worth less once it has scrolled away. */
+.afk-rail {
+  position: sticky; top: 0; z-index: 30;
+  margin: -1.5rem -1.5rem 1rem; padding: .5rem 1.5rem;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.afk-rail ol, .afk-strip ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+}
+.afk-step {
+  font-size: .78rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.afk-step + .afk-step::before { content: "→"; margin-right: .4rem; color: var(--line); }
+.afk-step--done { color: var(--settled); }
+.afk-step--current { color: var(--fg); font-weight: 700; }
+.afk-step--upcoming { color: var(--fg-dim); opacity: .7; }
+
+/* The rounds so far. Notches, not a progress bar: there is no target count
+ * for a round to be a fraction of. */
+.afk-strip { margin: 0 0 1.25rem; }
+.afk-notch a {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .35rem .6rem; min-width: 6.5rem;
+  border: 1px solid var(--line); border-top: 3px solid var(--neutral);
+  border-radius: 0 0 4px 4px;
+  color: var(--fg); text-decoration: none; font-size: .8rem;
+}
+.afk-notch a:hover { border-color: var(--accent); }
+.afk-notch a span { color: var(--fg-dim); }
+.afk-notch--settled a { border-top-color: var(--settled); }
+.afk-notch--current a { border-top-color: var(--accent); background: var(--surface); }
+
+.afk-round-past { margin: 1.25rem 0; }
+.afk-round-past > h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--fg-dim); }
+
+/* --- re-audit strip and the decision ledger ---------------------------- */
+
+/* One trigger, and it opens the round: a decision that came back unmarked is
+ * not applied, and the human has to meet that before the new cards. */
+.afk-reaudit {
+  margin: 0 0 1rem; padding: .6rem .75rem;
+  border: 1px solid var(--open); border-left-width: 3px; border-radius: 0 4px 4px 0;
+}
+.afk-reaudit ul { margin: .4rem 0; padding-left: 1.1rem; }
+.afk-reaudit p { margin: .3rem 0 0; color: var(--fg-dim); font-size: .88rem; }
+.afk-reaudit a { color: var(--open); }
+
+.afk-ledger { margin: 2rem 0 0; }
+.afk-ledger > summary {
+  cursor: pointer; color: var(--fg-dim); font-size: .88rem; padding: .2rem 0;
+}
+.afk-ledger > summary:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="afk-page"><nav class="afk-rail" aria-label="Where this session sits in the chain"><ol><li class="afk-step afk-step--done">requirements</li><li class="afk-step afk-step--current" aria-current="step">design</li><li class="afk-step afk-step--upcoming">verification</li><li class="afk-step afk-step--upcoming">plan</li><li class="afk-step afk-step--upcoming">execution</li><li class="afk-step afk-step--upcoming">smoke</li><li class="afk-step afk-step--upcoming">ship</li></ol></nav><h1 class="afk-title">Solution grill</h1><p class="afk-sub">small-lane</p><nav class="afk-strip" aria-label="The rounds so far"><ol><li class="afk-notch afk-notch--settled"><a href="#afk-r-1"><b>R-1</b><span>10 cards · 10 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-2"><b>R-2</b><span>14 cards · 14 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-3"><b>R-3</b><span>10 cards · 10 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-4"><b>R-4</b><span>6 cards · 6 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-5"><b>R-5</b><span>12 cards · 12 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-6"><b>R-6</b><span>7 cards · 7 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-7"><b>R-7</b><span>12 cards · 12 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-8"><b>R-8</b><span>26 cards · 26 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-9"><b>R-9</b><span>22 cards · 22 settled</span></a></li><li class="afk-notch afk-notch--current"><a href="#afk-r-10"><b>R-10</b><span>0 cards</span></a></li></ol></nav><section class="afk-round" id="afk-r-10" data-afk-item="R-10" data-afk-state="current"><h2 class="afk-h">Round R-10 — 0 to answer</h2><div class="afk-round-header"><p class="afk-shape">0 cards, ungrouped.</p><p class="afk-settled-last">Settled last round: Every seam on a closed investigation; all six sign-offs renewed</p><h3>Before you read</h3><ul><li>the design document to be written — <code>docs/afk/small-lane/SDD.md</code></li></ul><ul><li><a href="../PRD.md">Requirements (PRD)</a></li></ul><h3>The fork</h3><p>The design interview is finished. The agent now writes the design document from what you settled and runs its checks; nothing on this page waits for you.</p><div class="afk-next"><h3>Next</h3><p><b>Unlocks:</b> the design document (SDD) and its decision records</p><p><b>Parked:</b> medium and large lanes (#108)</p></div></div><div class="afk-cards"></div></section><section class="afk-section" id="afk-settled"><h2>Settled</h2><section class="afk-round-past" id="afk-r-9"><h3>Round R-9</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-8" data-afk-item="GAP-8" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Accepted as ground: the five closing investigations; the tickets-and-tracker one re-closes on this round&#x27;s answers.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-7" data-afk-item="Q-7" data-afk-state="settled"><h3 class="afk-h">R-9 · human — A flaky result counts as passed for that run; the caller writes one journal line naming the check and both runs; no new executor status.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose A.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-8" data-afk-item="Q-8" data-afk-state="settled"><h3 class="afk-h">R-9 · human — A ticket the bug mode creates gets the diagnosis summary as its description; on an existing ticket it writes comments only.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose A.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-27" data-afk-item="C-27" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Diagnose&#x27;s one-line description is rewritten; its trace-the-path heading, name and language pointer stay word for word.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-28" data-afk-item="C-28" data-afk-state="settled"><h3 class="afk-h">R-9 · human — A grill that sends a bug back as still small records the call in its own section of the grill log in one new row shape; fix reads it before changing code.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-29" data-afk-item="C-29" data-afk-state="settled"><h3 class="afk-h">R-9 · human — A solution grill without a requirements document ends at the size call: small goes back to fix, too big goes to the requirements grill.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-30" data-afk-item="C-30" data-afk-state="settled"><h3 class="afk-h">R-9 · human — The requirements&#x27; in-place return is served by the shared fix procedure file.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-31" data-afk-item="C-31" data-afk-state="settled"><h3 class="afk-h">R-9 · human — The three new journal events use the existing park form, a subject the dashboard does not join to a slice, and never the word pushed for the separate change.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-32" data-afk-item="C-32" data-afk-state="settled"><h3 class="afk-h">R-9 · human — The journal&#x27;s park reasons gain several possible fixes, requirements gap and cannot reproduce for defects outside a slice.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-33" data-afk-item="C-33" data-afk-state="settled"><h3 class="afk-h">R-9 · human — The only-the-executor-commits rule widens to the fix helpers autopilot and preflight run.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-34" data-afk-item="C-34" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Jira uploads are read back for stored name and type; file names carry the diagnosis id.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-35" data-afk-item="C-35" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Spinoff tickets on Jira become formatted and refuse an unknown fix version.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-36" data-afk-item="C-36" data-afk-state="settled"><h3 class="afk-h">R-9 · human — The GitLab adapter adds a reviewer instead of replacing the list.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-37" data-afk-item="C-37" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Fix looks its change up by number once opened; several GitLab changes on one branch stop the run.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-38" data-afk-item="C-38" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Unavailable, or an empty created key, counts as a failed write.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-39" data-afk-item="C-39" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Fix creates its worktree in the owned mode, retires it from outside, and reads the remove script&#x27;s report.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-40" data-afk-item="C-40" data-afk-state="settled"><h3 class="afk-h">R-9 · human — None means unset for reviewer and assignee; the settings keep their K1 to K5 ids.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-1e" data-afk-item="HL-1e" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Signed again: what the small lane stores, with the round 8 and round 9 changes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-2e" data-afk-item="HL-2e" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Signed again: the surfaces other people call, with the round 8 and round 9 changes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-4c" data-afk-item="HL-4c" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Signed again: what the small lane refuses, with the round 8 and round 9 changes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-5c" data-afk-item="HL-5c" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Signed again: every outside write, with the round 8 and round 9 changes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-6b" data-afk-item="HL-6b" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Signed again: changes to existing behaviour, with the closing investigations&#x27; changes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-8"><h3>Round R-8</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-7" data-afk-item="GAP-7" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Accepted as ground: the five seam investigations, partial; the forge and Jira behaviours they could not check live are checked before release.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-6" data-afk-item="Q-6" data-afk-state="settled"><h3 class="afk-h">R-8 · human — A red smoke gate is fixed by autopilot between two gate runs, one shared-procedure fix per failing scenario; the gate itself only reports; one re-run, and a second red ends the run red.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose A.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-4" data-afk-item="C-4" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Starting a hands-off run is the prior approval for out-of-slice ticket and separate-change writes; merge, force push and ready stay forbidden.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-5" data-afk-item="C-5" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The executor keeps its step numbers and caps; the procedure&#x27;s results map onto existing statuses, and an out-of-slice design conflict is design_conflict when cited, needs_decision when uncited.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-6" data-afk-item="C-6" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The dependency note lives inside the executor&#x27;s existing checklist block, and the description is fetched before every rewrite.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-7" data-afk-item="C-7" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The cherry-picked fix carries the bug&#x27;s work id, not the slice prefix; the second worktree comes from create-worktree; reasons go on the separate change; the slice re-runs from Step 8.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-8" data-afk-item="C-8" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Three new journal events and one autopilot report line for tickets written, separate changes and parked defects.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-9" data-afk-item="C-9" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The procedure re-runs a failure once before diagnosing, and adds a seventh result: flaky.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-10" data-afk-item="C-10" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The procedure records the caller, the input and the failing path from the reproduction.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-11" data-afk-item="C-11" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Diagnose keeps its trace-the-path heading word for word, its investigate and rationale reads, its name, description and language pointer; the dead hand-off is dropped.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-12" data-afk-item="C-12" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Lesson-capture pointers move to the shared procedure file; workflow feedback uses the slice or finding id.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-13" data-afk-item="C-13" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The grills accept a DIAGNOSIS.md as input; grill-solution runs without a PRD; the size call names fix only as a bounce target.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-14" data-afk-item="C-14" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Fix retires the diagnosis worktree through remove-worktree; names are lower-cased and the base fetched; a branch-pattern refusal asks the person, or parks needs_decision in a hands-off run.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-15" data-afk-item="C-15" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The Jira adapter turns markdown into Atlassian Document Format for create, comment and attach; attach embeds media.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-16" data-afk-item="C-16" data-afk-state="settled"><h3 class="afk-h">R-8 · human — One in-review key on both trackers, given as name or id, checked against the ticket&#x27;s transitions, refused when unconfigured; Jira refuses an unknown fix version; the scaffold key is renamed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-17" data-afk-item="C-17" data-afk-state="settled"><h3 class="afk-h">R-8 · human — A missing assignee or reviewer is asked for when a person is present; a hands-off run leaves it unassigned and reports it; the literal none means unset.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-18" data-afk-item="C-18" data-afk-state="settled"><h3 class="afk-h">R-8 · human — With tracker or forge set to none, that is found before the first write; the fix then stays local and stops.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-19" data-afk-item="C-19" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The ship script opens the change before posting reasons, routes the CI wait on exit code and output, refuses an empty id and a protected target; landing fetches, checks fast-forward and sets upstream.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-20" data-afk-item="C-20" data-afk-state="settled"><h3 class="afk-h">R-8 · human — To-ticket bug mode files only from a file on disk, never imports the PRD publisher, writes comments or its own region only, keeps the dry-run and the old bug publisher&#x27;s safeguards, and names the gh 2.99.0 prerequisite.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-21" data-afk-item="C-21" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The bug skill goes in one commit with its manifests, test and every reference; the reviewer setting and change-reviewers land with fix&#x27;s ready step.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-22" data-afk-item="C-22" data-afk-state="settled"><h3 class="afk-h">R-8 · human — adr/0008 supersedes ADR-0001; report-issue stays a separate egress.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-23" data-afk-item="C-23" data-afk-state="settled"><h3 class="afk-h">R-8 · human — A new commit check refuses /afk:bug and /afk-toolkit:bug mentions outside the changelog and spec folders.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-24" data-afk-item="C-24" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The glossary commit goes with the PRD; the eight bug-pipeline terms and One-live-fixer are removed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-25" data-afk-item="C-25" data-afk-state="settled"><h3 class="afk-h">R-8 · human — A major release, the bump being yours; a Migration line; the to-demo-plan and settle-mr aliases are removed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-26" data-afk-item="C-26" data-afk-state="settled"><h3 class="afk-h">R-8 · human — A feature-branch fix lands through the feature&#x27;s Draft change; one SAFETY sentence, no BEHAVIORS change.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-6" data-afk-item="HL-6" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Signed: what existing callers, stored records and flows see differently; compatibility; rollback by pinning the previous plugin version.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &#x27;sign&#x27;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-7"><h3>Round R-7</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-6" data-afk-item="GAP-6" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Accepted as ground: the investigations of a new tracker verb and of the skill files, scripts and checks.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-35" data-afk-item="D-35" data-afk-state="settled"><h3 class="afk-h">R-7 · human — No new skill; each new file lives beside the skill that owns it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-36" data-afk-item="D-36" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The standalone fix&#x27;s outside writes run from one script with three steps: open, ready, land.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-37" data-afk-item="D-37" data-afk-state="settled"><h3 class="afk-h">R-7 · human — One shared helper is the only code that adds to a diagnosis&#x27;s list of outside writes, and it runs the read-back before each retry.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-38" data-afk-item="D-38" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The upload verb is tracker_attach: one comment carrying the files; the registry check matches whole verb names.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-39" data-afk-item="D-39" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The shared fix procedure keeps today&#x27;s results, and every caller handles every result.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-40" data-afk-item="D-40" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The developer settings and their fail-closed rule move to the plugin&#x27;s configuration document.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-2" data-afk-item="C-2" data-afk-state="settled"><h3 class="afk-h">R-7 · human — New tests go in the main test folder, run in CI on Linux and Windows, against stub trackers and forges.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-3" data-afk-item="C-3" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Dependency direction is the plugin&#x27;s own; nothing names what calls it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-41" data-afk-item="D-41" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The check script holds a table of the parts each verdict needs, and works out the bug&#x27;s state from the fields.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-42" data-afk-item="D-42" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Both outside-writing scripts are a list of named steps; a listed step is skipped, a failed one retried through the helper.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-43" data-afk-item="D-43" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Kind differences between trackers, and between forges, stay inside each adapter.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-6"><h3>Round R-6</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-D-32" data-afk-item="D-32" data-afk-state="settled"><h3 class="afk-h">R-6 · human — Diagnose run off the base branch asks once which branch to start from, and records it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-33" data-afk-item="D-33" data-afk-state="settled"><h3 class="afk-h">R-6 · human — A feature-branch fix lands by a fast-forward push, never forced; one rebase and full re-test if the branch moved, else it stops.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-34" data-afk-item="D-34" data-afk-state="settled"><h3 class="afk-h">R-6 · human — A feature-branch fix posts its proof on that branch&#x27;s open change, or in the run&#x27;s report.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-1d" data-afk-item="HL-1d" data-afk-state="settled"><h3 class="afk-h">R-6 · human — Signed: what the small lane stores.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-2d" data-afk-item="HL-2d" data-afk-state="settled"><h3 class="afk-h">R-6 · human — Signed: the surfaces other people call.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-4b" data-afk-item="HL-4b" data-afk-state="settled"><h3 class="afk-h">R-6 · human — Signed: what the small lane refuses.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-5b" data-afk-item="HL-5b" data-afk-state="settled"><h3 class="afk-h">R-6 · human — Signed: every outside write.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-5"><h3>Round R-5</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-5" data-afk-item="GAP-5" data-afk-state="settled"><h3 class="afk-h">R-5 · human — INV-012 to INV-014 stand as the ground for round 5, although each is partial.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-24" data-afk-item="D-24" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A bug&#x27;s state is read from the diagnosis file&#x27;s fields, never stored as its own field.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-25" data-afk-item="D-25" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Each part of the diagnosis file has one writer; the list of outside writes is append-only, written by the bug mode and fix.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-26" data-afk-item="D-26" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A script checks the diagnosis file&#x27;s required parts, the verdict&#x27;s evidence and the certainty marks; fix refuses a file that fails.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-27" data-afk-item="D-27" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Running diagnose again rewrites the verdict, root cause and proposal and empties the approval; a steer re-runs diagnose.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-28" data-afk-item="D-28" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Standalone fix order: ticket, local fix, push and Draft change, proof, ticket in review, CI wait, ready and reviewer.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-29" data-afk-item="D-29" data-afk-state="settled"><h3 class="afk-h">R-5 · human — The fix waits for CI in the background like preflight; anything but green leaves the change Draft with the reason.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-30" data-afk-item="D-30" data-afk-state="settled"><h3 class="afk-h">R-5 · human — An agent&#x27;s verdict on a defect outside its slice decides: fix, ticket and park, park, or ticket and go on.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-31" data-afk-item="D-31" data-afk-state="settled"><h3 class="afk-h">R-5 · human — In a hands-off run, the separate change stays Draft; a person marks it ready.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-5" data-afk-item="Q-5" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A fix for a bug reported on a feature branch commits there and pushes, with no ticket and no new change.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose A.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-4" data-afk-item="HL-4" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Signed, then void: your feature-branch answer in the same send adds a state and a rule. It comes back below.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-5" data-afk-item="HL-5" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Signed, then void: your feature-branch answer in the same send adds a push to a shared branch. It comes back below.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-4"><h3>Round R-4</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-4" data-afk-item="GAP-4" data-afk-state="settled"><h3 class="afk-h">R-4 · human — GitHub&#x27;s own documentation stands as the ground for uploading images to GitHub Issues; the first live run happens when the upload is built.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-21" data-afk-item="D-21" data-afk-state="settled"><h3 class="afk-h">R-4 · human — On GitHub Issues, attach posts the evidence comment with each image or video inline through gh; any other file is named for the developer to add.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-22" data-afk-item="D-22" data-afk-state="settled"><h3 class="afk-h">R-4 · human — A retried GitHub Issues attach first reads the ticket&#x27;s comments for the evidence marker.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-23" data-afk-item="D-23" data-afk-state="settled"><h3 class="afk-h">R-4 · human — The dependency register requires gh 2.99.0 or later with GitHub Issues; an older gh names the files instead of uploading them.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-1c" data-afk-item="HL-1c" data-afk-state="settled"><h3 class="afk-h">R-4 · human — Signed: what the small lane stores.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-2c" data-afk-item="HL-2c" data-afk-state="settled"><h3 class="afk-h">R-4 · human — Signed: the surfaces other people call.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-3"><h3>Round R-3</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-3" data-afk-item="GAP-3" data-afk-state="settled"><h3 class="afk-h">R-3 · human — INV-011 stands as the ground for round 3, although it is partial. Its outside fact, that GitHub has no upload, turned out wrong; see the correction in round 4.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-4" data-afk-item="Q-4" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Images on GitHub Issues go on the ticket, since you asked me to check and GitHub does support it, through its command-line tool. Text only applies only where that upload is not available.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You wrote in: &quot;I do not know but I don&#x27;t think Github does not support images upload to issue (seems like a very basic necessity), so please verify. if it&#x27;s truly not supported, then text only and devs attach files manually&quot;. GitHub CLI 2.99.0 uploads images and videos: docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-16" data-afk-item="D-16" data-afk-state="settled"><h3 class="afk-h">R-3 · human — The tracker adapter family gains one verb, attach; Jira sends the file&#x27;s real type. Its line saying GitHub Issues answers unsupported is replaced in round 4.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-17" data-afk-item="D-17" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Before each retry, the run reads back whether the failed write took effect. At most 2 retries, after 5 and 20 seconds. A write with no read-back is not retried.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-18" data-afk-item="D-18" data-afk-state="settled"><h3 class="afk-h">R-3 · human — The diagnosis file keeps an approval section: who, their words or the prior approval, what it covers, the date. Nothing checks it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-19" data-afk-item="D-19" data-afk-state="settled"><h3 class="afk-h">R-3 · human — A given ticket key gets the write. It is recorded if the diagnosis file has no key yet, else listed with the outside writes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-20" data-afk-item="D-20" data-afk-state="settled"><h3 class="afk-h">R-3 · human — The executor reads the change&#x27;s description before it rewrites the dependency block.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-1b" data-afk-item="HL-1b" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Signed, then void: its GitHub proof row said images need a manual drag, which the check of your Q-4 answer proved wrong. It comes back below.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-2b" data-afk-item="HL-2b" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Signed, then void: its attach row said GitHub Issues answers unsupported, which the same check proved wrong. It comes back below.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-3b" data-afk-item="HL-3b" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Signed: who is let through.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-2"><h3>Round R-2</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-2" data-afk-item="GAP-2" data-afk-state="settled"><h3 class="afk-h">R-2 · human — INV-008 to INV-010 stand as the ground for round 2, although each is partial.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-7" data-afk-item="D-7" data-afk-state="settled"><h3 class="afk-h">R-2 · human — The diagnosis is one file, DIAGNOSIS.md, in the bug&#x27;s own spec folder, committed with the failing test on a local diagnosis branch made from the base branch and never pushed by diagnose; a fix continues on that branch.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-8" data-afk-item="D-8" data-afk-state="settled"><h3 class="afk-h">R-2 · human — A bug with no ticket gets a provisional work id; once the ticket exists, the bug mode asks for the spec folder again with the key and moves the folder if the path differs.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-9" data-afk-item="D-9" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Proof is attached to the ticket only; no proof is committed to git.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You reversed to the attachment option, with the note &quot;no proof to be git committed. only attached to ticket&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-2" data-afk-item="Q-2" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Proof stays on the ticket, text and images and any other file, never in git. The diagnosis file merges with the fix and stays, as recommended; your answer did not mention it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You wrote in: &quot;the proof stays in the ticket (text, images, and whatnot), not git&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-10" data-afk-item="D-10" data-afk-state="settled"><h3 class="afk-h">R-2 · human — The bug mode sets one named state, in review, through jira.transitions and state-labels; the code starts reading jira.transitions and 3 documents are corrected.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-11" data-afk-item="D-11" data-afk-state="settled"><h3 class="afk-h">R-2 · human — The diagnosis file lists every outside write already done, and each evidence comment carries a visible marker.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-3" data-afk-item="Q-3" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Approval is enforced by the skill text alone; no script checks it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose A.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-12" data-afk-item="D-12" data-afk-state="settled"><h3 class="afk-h">R-2 · human — The bug mode takes any ticket key it is given.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You reversed to the option that takes any ticket key.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-13" data-afk-item="D-13" data-afk-state="settled"><h3 class="afk-h">R-2 · human — A failed outside write may be retried, but before each retry the run checks whether the earlier attempt took effect.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You reversed to the retry option, with the note &quot;as long as before retrying, check if the previous supposedly failed attempt actually produce something that we should not do again&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-14" data-afk-item="D-14" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Proof carries no credentials, using the credential rules of the existing redaction script, shared.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-15" data-afk-item="D-15" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Writes run as the developer; no new log and no feature flag.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-1" data-afk-item="HL-1" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Signed, then void: your answers to the proof, retention and approval cards in the same send changed what the packet described. It comes back below with the changes marked.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You marked sign.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-3" data-afk-item="HL-3" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Signed, then void: your approval and ticket-key answers in the same send changed what the packet described. It comes back below with the changes marked.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-1"><h3>Round R-1</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-GAP-1" data-afk-item="GAP-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The 7 investigations stand as the ground for this design, although each is partial for the reasons listed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted, with the note &quot;gap accepted&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-1" data-afk-item="D-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The system shape is inherited: skills run by an agent in the current session, plus scripts and the existing adapters; no new process, and the bug pipeline&#x27;s detached fixer goes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-2" data-afk-item="D-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — No new skill: diagnose stays a utility where it is, fix stays the small-lane skill, and to-ticket gains a bug and ad-hoc mode.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-Q-1" data-afk-item="Q-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The in-place fix is a shared fix procedure file in the fix skill&#x27;s folder, read by the fix skill and the 5 in-place callers; the fix skill runs standalone only.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose B.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-3" data-afk-item="D-3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The diagnosis file is the hand-off: diagnose writes it, fix reads it by path and passes the same path to the to-ticket bug mode.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-4" data-afk-item="D-4" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The to-ticket bug mode reaches the tracker through the tracker adapter verbs, from one new script, on Jira and GitHub Issues alike.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-1" data-afk-item="C-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — A defect outside the slice that blocks it: the executing agent runs the standalone fix itself in a second worktree it owns, made from the base branch, then continues its slice.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-5" data-afk-item="D-5" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The executor carries the fix to its feature branch by cherry-picking the fix commit after the fix&#x27;s own change is open.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D-6" data-afk-item="D-6" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The feature&#x27;s change names the fix&#x27;s change as a dependency in a managed block of its description, and the fix&#x27;s ticket gets a comment linking both.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You accepted the recommendation.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-HL-2" data-afk-item="HL-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The surfaces other people call, as packeted in round 1: the 3 skill invocations, the shared fix procedure file, the removed bug skill, and the adapter verbs used (none added).</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You signed: &quot;I sign&quot;.</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article></div></section></section><details class="afk-ledger" id="afk-ledger"><summary>The decision ledger — 119 settled, by whom, on what evidence</summary><div class="afk-grid-wrap"><table class="afk-grid"><thead><tr><th>Item</th><th>Round</th><th>Decided by</th><th>Audit</th><th>Evidence</th></tr></thead><tbody><tr><td><a href="#afk-i-GAP-8"><code>GAP-8</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-7"><code>Q-7</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-8"><code>Q-8</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-27"><code>C-27</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-28"><code>C-28</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-29"><code>C-29</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-30"><code>C-30</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-31"><code>C-31</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-32"><code>C-32</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-33"><code>C-33</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-34"><code>C-34</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-35"><code>C-35</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-36"><code>C-36</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-37"><code>C-37</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-38"><code>C-38</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-39"><code>C-39</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-40"><code>C-40</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-1e"><code>HL-1e</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-2e"><code>HL-2e</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-4c"><code>HL-4c</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-5c"><code>HL-5c</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-6b"><code>HL-6b</code></a></td><td>R-9</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-7"><code>GAP-7</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-6"><code>Q-6</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-4"><code>C-4</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-5"><code>C-5</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-6"><code>C-6</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-7"><code>C-7</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-8"><code>C-8</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-9"><code>C-9</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-10"><code>C-10</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-11"><code>C-11</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-12"><code>C-12</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-13"><code>C-13</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-14"><code>C-14</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-15"><code>C-15</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-16"><code>C-16</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-17"><code>C-17</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-18"><code>C-18</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-19"><code>C-19</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-20"><code>C-20</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-21"><code>C-21</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-22"><code>C-22</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-23"><code>C-23</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-24"><code>C-24</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-25"><code>C-25</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-26"><code>C-26</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-6"><code>HL-6</code></a></td><td>R-8</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-6"><code>GAP-6</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-35"><code>D-35</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-36"><code>D-36</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-37"><code>D-37</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-38"><code>D-38</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-39"><code>D-39</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-40"><code>D-40</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-2"><code>C-2</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-3"><code>C-3</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-41"><code>D-41</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-42"><code>D-42</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-43"><code>D-43</code></a></td><td>R-7</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-32"><code>D-32</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-33"><code>D-33</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-34"><code>D-34</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-1d"><code>HL-1d</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-2d"><code>HL-2d</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-4b"><code>HL-4b</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-5b"><code>HL-5b</code></a></td><td>R-6</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-5"><code>GAP-5</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-24"><code>D-24</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-25"><code>D-25</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-26"><code>D-26</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-27"><code>D-27</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-28"><code>D-28</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-29"><code>D-29</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-30"><code>D-30</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-31"><code>D-31</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-5"><code>Q-5</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-4"><code>HL-4</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-5"><code>HL-5</code></a></td><td>R-5</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-4"><code>GAP-4</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-21"><code>D-21</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-22"><code>D-22</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-23"><code>D-23</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-1c"><code>HL-1c</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-2c"><code>HL-2c</code></a></td><td>R-4</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-3"><code>GAP-3</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-4"><code>Q-4</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-16"><code>D-16</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-17"><code>D-17</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-18"><code>D-18</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-19"><code>D-19</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-20"><code>D-20</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-1b"><code>HL-1b</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-2b"><code>HL-2b</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-3b"><code>HL-3b</code></a></td><td>R-3</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-2"><code>GAP-2</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-7"><code>D-7</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-8"><code>D-8</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-9"><code>D-9</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-2"><code>Q-2</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-10"><code>D-10</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-11"><code>D-11</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-3"><code>Q-3</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-12"><code>D-12</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-13"><code>D-13</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-14"><code>D-14</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-15"><code>D-15</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-1"><code>HL-1</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-3"><code>HL-3</code></a></td><td>R-2</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-GAP-1"><code>GAP-1</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-1"><code>D-1</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-2"><code>D-2</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-Q-1"><code>Q-1</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-3"><code>D-3</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-4"><code>D-4</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-1"><code>C-1</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-5"><code>D-5</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-D-6"><code>D-6</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-HL-2"><code>HL-2</code></a></td><td>R-1</td><td>human</td><td>explicit</td><td>—</td></tr></tbody></table></div></details></div>
+<script>
+/* Send runtime — inlined into every rendered page, never fetched.
+ *
+ * The page-writer never authors send logic; this file is that logic, and the
+ * renderer emitting it is what makes the attribute contract true by
+ * construction. It reads only the attribute contract, so a hand-authored card
+ * carrying the same attributes composes identically to a rendered one.
+ *
+ * What it guarantees (LAVISH-KIT.md "Runtime contract"):
+ *   R-1  one `data-afk-input="choice"` and one `data-afk-input="note"` per
+ *        `data-afk-item` card inside the current section; native controls only.
+ *   R-2  one form submit per round — a single tagged queuePrompt plus
+ *        sendQueuedPrompts, never one per item.
+ *   R-3  marks and notes persist by session path and item id in localStorage.
+ *   R-4  the response grammar, emitted verbatim.
+ *
+ * Every window.lavish call is guarded: opening the file with no server running
+ * must behave identically, minus the send.
+ */
+(function () {
+  var bar = document.getElementById('afk-send');
+  if (!bar) return;
+  var form = document.getElementById('afk-answer-form');
+  if (!form) return;
+  var round = bar.getAttribute('data-afk-round') || '?';
+  /* The namespace contains no page-revision token. A render revision must not
+   * silently discard marks made against the same session and item ids. */
+  var KEY = 'afk-answers:' + location.pathname;
+  var LEGACY_KEY = 'afk-round:' + location.pathname;
+  var NO_CHOICE = '—';
+
+  /* Two stores, because the first one is not always there. A host may load this
+   * page in a sandboxed frame with an opaque origin, where every `localStorage`
+   * call throws — and a guarded call that throws loses the draft in silence,
+   * which is the one failure mode nobody is told about. `window.name` survives a
+   * navigation of the same browsing context, an `src` reset included, and an
+   * opaque origin can still read and write it. So marks go to both: whichever
+   * one the host allows is the one that answers on the way back.
+   *
+   * A reload costs the human nothing only if this holds. It is the reason the
+   * page can be re-rendered at all. */
+  function frameRead() {
+    try {
+      var envelope = JSON.parse(window.name || '{}') || {};
+      var drafts = envelope.afkAnswers;
+      return (drafts && drafts[KEY]) || null;
+    } catch (e) { return null; }
+  }
+
+  function frameWrite(value) {
+    try {
+      var envelope = {};
+      try { envelope = JSON.parse(window.name || '{}') || {}; } catch (e) {}
+      /* Another page's name payload is not ours to drop. */
+      if (!envelope.afkAnswers) envelope.afkAnswers = {};
+      envelope.afkAnswers[KEY] = value;
+      window.name = JSON.stringify(envelope);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function localRead() {
+    try {
+      var stored = localStorage.getItem(KEY);
+      if (!stored) {
+        stored = localStorage.getItem(LEGACY_KEY);
+        if (stored) migrateLegacy = true;
+      }
+      return JSON.parse(stored || '{}') || {};
+    } catch (e) { return null; }
+  }
+
+  var migrateLegacy = false;
+  /* The frame store wins a tie: it is written last and cannot go stale behind a
+   * `localStorage` copy the host silently refused to update. */
+  var store = frameRead() || localRead() || {};
+
+  function save() {
+    var text;
+    try { text = JSON.stringify(store); } catch (e) { return false; }
+    var kept = frameWrite(store);
+    try {
+      localStorage.setItem(KEY, text);
+      kept = true;
+    } catch (e) {}
+    return kept;
+  }
+  if (migrateLegacy && save()) {
+    try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+  }
+
+  /* Page order = DOM order, and only cards inside the current section are the
+   * round's questions; settled and carried-over cards answer nothing. */
+  function cards() {
+    var current = document.querySelector('[data-afk-state="current"]');
+    if (!current) return [];
+    return [].slice.call(current.querySelectorAll('[data-afk-item]')).filter(function (el) {
+      return el.querySelector('[data-afk-input="choice"], [data-afk-input="note"]');
+    });
+  }
+
+  function choiceOf(el) {
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (!host) return '';
+    var picked = host.querySelector('input[type="radio"]:checked');
+    return picked ? picked.value : '';
+  }
+
+  function noteOf(el) {
+    var field = el.querySelector('[data-afk-input="note"]');
+    return field ? field.value.trim() : '';
+  }
+
+  function restore(el) {
+    var id = el.getAttribute('data-afk-item');
+    var saved = store[id];
+    if (!saved) return;
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (host && saved.c) {
+      var radios = host.querySelectorAll('input[type="radio"]');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].value === saved.c) { radios[i].checked = true; break; }
+      }
+    }
+    var field = el.querySelector('[data-afk-input="note"]');
+    if (field && saved.n) field.value = saved.n;
+  }
+
+  function remember(el) {
+    var id = el.getAttribute('data-afk-item');
+    var c = choiceOf(el), n = noteOf(el);
+    if (!c && !n) { delete store[id]; } else { store[id] = { c: c, n: n }; }
+    save();
+  }
+
+  /* R-4. One line per card, page order; an em dash stands for no choice, and
+   * the note follows a pipe only when there is one. */
+  function compose() {
+    var lines = ['[round R-' + round + ']'];
+    cards().forEach(function (el) {
+      var id = el.getAttribute('data-afk-item');
+      var c = choiceOf(el) || NO_CHOICE;
+      var n = noteOf(el);
+      lines.push(n ? id + ' ' + c + ' | ' + n : id + ' ' + c);
+    });
+    return lines.join('\n');
+  }
+
+  function answerData() {
+    return cards().map(function (el) {
+      return {
+        id: el.getAttribute('data-afk-item'),
+        choice: choiceOf(el) || '',
+        note: noteOf(el)
+      };
+    });
+  }
+
+  var summary = bar.querySelector('#afk-send-summary');
+  function refreshSummary() {
+    if (!summary) return;
+    summary.textContent = answerData().map(function (answer) {
+      return answer.id + '=' + (answer.choice || NO_CHOICE);
+    }).join(' · ');
+  }
+
+  /* Silence is not agreement. Every answerable card carries the required flag,
+   * so a card with no mark is unanswered rather than accepted. The human is
+   * told which ones before the send, and can still send. */
+  function unmarkedCards() {
+    return cards().filter(function (el) {
+      return el.getAttribute('data-afk-required') === '1' && !choiceOf(el);
+    });
+  }
+
+  function unmarked() {
+    return unmarkedCards().map(function (el) { return el.getAttribute('data-afk-item'); });
+  }
+
+  /* Round size follows what is being decided, so nothing caps the card count.
+   * Navigation is what keeps a long round readable: the bar names every
+   * unmarked card and this control walks to them, first one first. */
+  var jumpBtn = bar.querySelector('#afk-send-jump');
+  function refreshJump() {
+    if (!jumpBtn) return;
+    var pending = unmarkedCards();
+    jumpBtn.hidden = pending.length === 0;
+    jumpBtn.textContent = pending.length === 1
+      ? 'Go to the unmarked card'
+      : 'Go to first of ' + pending.length + ' unmarked';
+  }
+
+  function jumpToFirstUnmarked() {
+    var pending = unmarkedCards();
+    if (!pending.length) return;
+    var target = pending[0];
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('afk-seek');
+    setTimeout(function () { target.classList.remove('afk-seek'); }, 1600);
+    var radio = target.querySelector('[data-afk-input="choice"] input[type="radio"]');
+    if (radio && radio.focus) radio.focus({ preventScroll: true });
+  }
+
+  var status = bar.querySelector('.afk-send-status');
+  function say(text, warn) {
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('afk-warn', !!warn);
+  }
+
+  var armed = false;
+  var sent = false;
+  function send() {
+    if (sent) {
+      say('Already sent. Change an answer, or use Copy the response.');
+      return;
+    }
+    var missing = unmarked();
+    if (missing.length && !armed) {
+      armed = true;
+      say('No mark on ' + missing.join(', ') + ' — those stay unanswered. '
+          + 'Send again to send anyway.', true);
+      return;
+    }
+    armed = false;
+    var bridge = window.lavish;
+    if (!bridge || typeof bridge.queuePrompt !== 'function' ||
+        typeof bridge.sendQueuedPrompts !== 'function') {
+      copy('No session. Copied the answers. Paste them to the agent.');
+      return;
+    }
+    /* afk:send-bridge */
+    bridge.queuePrompt(compose(), {
+      tag: 'choice',
+      text: 'Round R-' + round + ' answers',
+      element: form
+    });
+    bridge.sendQueuedPrompts();
+    sent = true;
+    say('Round R-' + round + ' sent.');
+  }
+
+  function copy(message) {
+    var text = compose();
+    var done = function () {
+      say(message || 'Copied. Paste it to the agent.');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      if (document.execCommand('copy')) {
+        done();
+      } else {
+        say('Copy failed.', true);
+      }
+    } catch (e) { say('Copy failed.', true); }
+    document.body.removeChild(ta);
+  }
+
+  cards().forEach(function (el) {
+    restore(el);
+    el.addEventListener('change', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+    el.addEventListener('input', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+  });
+
+  var copyBtn = bar.querySelector('#afk-send-copy');
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    send();
+  });
+  if (copyBtn) copyBtn.addEventListener('click', function () { copy(); });
+  if (jumpBtn) jumpBtn.addEventListener('click', jumpToFirstUnmarked);
+  refreshJump();
+  refreshSummary();
+
+  var n = cards().length;
+  say(n + (n === 1 ? ' card' : ' cards') + ' in this round — one send answers them all.');
+})();
+</script>
+</body>
+</html>

@@ -20,3 +20,73 @@ git:
   branch-template: 'feat/{ticket_lower}'
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+# Boundary instances for /afk:investigate (CONFIG.md "Investigation boundaries").
+# No build or UI client: `generated` and `reactor` omitted; B6, B7, B10 take local forms.
+investigation:
+  boundaries:
+    - name: computed-path-join
+      class: B3
+      paths:
+        - '*.py'
+      pattern: '"[A-Za-z0-9_.-]+" / [A-Za-z_][A-Za-z0-9_]*'
+      note: 'a path joined from a runtime name, such as an adapter kind or a hook handler'
+    - name: directory-scan
+      class: B3
+      paths:
+        - '*.py'
+      pattern: '\.r?glob\(|os\.walk\(|\.iterdir\(|listdir\(|scandir\('
+    - name: computed-dispatch
+      class: B3
+      paths:
+        - '*.sh'
+      pattern: '(adapters|hooks|skills|agents|providers)/\$\{?[A-Za-z_]|(^|[^[:alnum:]_])(\.|source|bash|exec|"\$py"|"\$PY")[[:space:]]+"[^"]*/\$\{?[A-Za-z_]|compgen -G|for [A-Za-z_]+ in "?\$[^ ;]*/\*|(^|[^[:alnum:]_-])find [^|]*-name'
+      note: 'a file sourced, run or listed through a runtime name or a glob'
+    - name: serialized-key
+      class: B5
+      pattern: '["'']{simple}["''][[:space:]]*:|\[["'']{simple}["'']\]|get\(["'']{simple}["'']|jq[^|]*\.{simple}'
+      note: 'JSON answer shapes and records are read and written by key'
+    - name: positional-codec
+      class: B5
+      paths:
+        - '*.py'
+        - '*.sh'
+      pattern: 'split\(["'']\|["'']\)|split\(["'']\\t["'']\)|csv\.(reader|writer|DictReader|DictWriter)|read -r [A-Za-z_]+ [A-Za-z_]+|cut -[df]|awk -F'
+      note: 'a table or TSV row read by position: an inserted column breaks it with no textual match'
+    - name: generated-marker
+      class: B6
+      paths:
+        - '*.py'
+        - '*.sh'
+        - '*.json'
+        - '*.toml'
+        - '*.yaml'
+        - '*.yml'
+        - '*.html'
+        - '*.js'
+        - '*.css'
+      pattern: '[Cc]ode [Gg]enerated|D[O] NOT EDIT|[Dd]o not edit|@g[e]nerated|[Aa]uto-?[Gg]enerated|[Gg]enerated [Bb]y'
+      note: 'no generated file is committed (AGENTS.md); this finds a file that declares itself generated. The bracketed letters keep the pattern from matching this file'
+    - name: plugin-manifest-entry
+      class: B7
+      paths:
+        - '.claude-plugin/plugin.json'
+        - '.claude-plugin/marketplace.json'
+        - '.codex-plugin/plugin.json'
+        - 'hooks/hooks.json'
+        - 'hooks/hooks.codex.json'
+        - '.mcp.json'
+        - '.mcp.codex.json'
+      pattern: '"\./|"command"[[:space:]]*:'
+      note: 'the harness loads only the skills, agents, hooks and servers these files declare'
+    - name: page-source
+      class: B10
+      paths:
+        - '*.html'
+        - '*.js'
+        - '*.css'
+        - 'scripts/lavish'
+        - 'scripts/lavish_render.py'
+        - 'scripts/lavish_show.py'
+        - 'skills/afk/mission-control/scripts/mc'
+      pattern: '{simple}'
+      note: 'the rendered pages and their renderers are the only interface sources'

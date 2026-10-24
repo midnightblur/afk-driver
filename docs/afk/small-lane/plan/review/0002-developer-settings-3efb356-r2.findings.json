@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_setup_h6_probe.py",
+  "line": 155,
+  "side": "new",
+  "finding": "test_a_status_that_fails_is_reported_not_ok writes an unrelated tracker/forge none config; the failure comes only from the stub root lacking developer_values.py, so the fixture line is noise that hides the cause.",
+  "why": "A reader cannot tell which setup produces the failure, and the config write has no effect on the asserted 'status failed' line.",
+  "fix": "Drop the config write (or comment that the missing developer_values.py in the stub root is the sole failure cause).",
+  "evidence": "+    write(repo / \".git\" / \"afk\" / \"config.yaml\", NONE.replace(\"schema: 1\\n\", \"\"))"
+ }
+]

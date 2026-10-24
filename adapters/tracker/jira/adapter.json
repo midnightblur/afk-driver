@@ -11,7 +11,8 @@
     "tracker_transition",
     "tracker_transitions",
     "tracker_attachments",
-    "tracker_changelog"
+    "tracker_changelog",
+    "tracker_attach"
   ],
   "runner": {
     "type": "cli",

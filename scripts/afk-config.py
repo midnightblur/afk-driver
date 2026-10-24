@@ -66,11 +66,11 @@ TOP_LEVEL = {
 # `trackerAssignee`, `mrReviewer` and `mrAssignee` NAME A PERSON, so they have no
 # default at any layer: a committed file may not name one, and no toolkit may
 # pick one for a team. Setup asks each developer, and a value nobody supplied
-# resolves to nothing (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix;
-# `mrAssignee` never gates — an unset or `none` one means no assignee). `worktreeBasePath`
+# resolves to nothing, as does `none` (rule: `CONFIG.md` "Developer settings"). `worktreeBasePath`
 # has a default because it is DERIVED (`worktree_base`) and names no person;
 # `ideBinary` has none because no default could be right.
-DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary"}
+PERSON_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee"}
+DEVELOPER_KEYS = PERSON_KEYS | {"worktreeBasePath", "ideBinary"}
 
 # What a new worktree carries over from the checkout it was cut from. These are
 # personal, untracked files a fresh `git worktree add` would leave behind — the
@@ -827,8 +827,8 @@ def developer_value(config: dict, key: str, root: Path | None = None) -> str | N
     say which developer value is missing, never invent one.
     """
     value = get(config, f"developer.{key}")
-    if key == "mrAssignee" and isinstance(value, str) and value.strip().lower() == "none":
-        return None      # a recorded "no assignee" lets a narrower layer override a broader one
+    if key in PERSON_KEYS and isinstance(value, str) and value.strip().lower() == "none":
+        return None      # a recorded "nobody" lets a narrower layer override a broader one
     if isinstance(value, str) and value.strip():
         return value
     if key == "worktreeBasePath":
@@ -1028,8 +1028,8 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
             "#   issue-types:",
             "#     task: Task",
             "#     bug: Bug",
-            "#   transitions:",
-            "#     ready-for-review: Ready for Review",
+            "#   transitions:              # state key -> transition name or id",
+            "#     in-review: Ready for Review",
             "#   credentials-env:          # variable NAMES; never a secret",
             "#     - JIRA_BASE_URL",
             "#     - JIRA_EMAIL",

@@ -213,6 +213,23 @@ def test_every_worktree_reads_the_same_shared_overlay(tmp_path, monkeypatch):
     assert cfg.developer_value(cfg.load(linked), "mrReviewer") == "someone"
 
 
+@pytest.mark.parametrize("key", ["trackerAssignee", "mrReviewer", "mrAssignee"])
+def test_a_repository_none_overrides_a_machine_person(tmp_path, key):
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True)
+    (home / ".afk" / "config.yaml").write_text(f"developer:\n  {key}: someone\n", encoding="utf-8")
+    root = repo(tmp_path)
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True, exist_ok=True)
+    shared.write_text(f"developer:\n  {key}: none\n", encoding="utf-8")
+    env = {"HOME": str(home), "USERPROFILE": str(home)}
+
+    out = run(["resolve", key], root, env)
+    assert (out.returncode, out.stdout) == (1, ""), out.stderr
+    shared.unlink()
+    assert run(["resolve", key], root, env).stdout.strip() == "someone"
+
+
 def test_shared_overlay_may_not_change_schema(tmp_path, monkeypatch):
     monkeypatch.delenv("AFK_CONFIG", raising=False)
     root = repo(tmp_path)

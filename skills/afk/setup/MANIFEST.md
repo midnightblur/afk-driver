@@ -123,15 +123,16 @@ a token value — not even partially.
   non-AFK hook of the same name.
 
 ### H6 · per-developer values (`developer:`)
-- **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
-  and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
-- **Probe:** ask `afk-config.py
-  resolve`, never `get` and never a file: `resolve` applies the whole chain —
-  the developer's own value from any layer, then the derived worktree base — so
-  the probe cannot disagree with the pipeline it gates. `trackerAssignee` and
-  `mrReviewer` name a person, so nothing resolves them but the developer's own
-  answer: unresolved is a FAILURE, not an n/a. Each is asked for only where its
-  adapter has the concept, so the selected kind decides which keys are probed.
+- **Needed by:** every skill that assigns a person or opens a worktree — key
+  set and missing-value rule owned by `CONFIG.md` "Developer settings (K1–K5)".
+- **Probe:** ask `developer_values.py status`, never `get` and never a file:
+  it resolves through `afk-config.py resolve`'s chain — the developer's own
+  value from any layer, then the derived worktree base — so the probe cannot
+  disagree with the pipeline it gates. `trackerAssignee` and `mrReviewer` name
+  a person, so nothing resolves them but the developer's own answer: missing is
+  a FAILURE, not an n/a, and a recorded `none` is an answer. Each is asked for
+  only where its adapter has the concept, so the selected kind decides which
+  keys are probed.
   ```
   git rev-parse --git-dir >/dev/null 2>&1 \
     || { echo "skipped (no repository)"; exit 0; }
@@ -146,23 +147,17 @@ a token value — not even partially.
     grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
   done; return 1; }
-  keys="worktreeBasePath"; h=""
-  if [ "$("$PY" "$AC" get tracker)" != none ]; then
-    keys="trackerAssignee $keys"
-  elif ! says_none tracker; then
-    h="$h trackerAssignee"
-  fi
-  if [ "$("$PY" "$AC" get forge)" != none ]; then
-    keys="$keys mrReviewer"
-  elif ! says_none forge; then
-    h="$h mrReviewer"
-  fi
-  m=""
-  for k in $keys; do
-    "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
-  done
+  h=""
+  [ "$("$PY" "$AC" get tracker)" != none ] || says_none tracker \
+    || h="$h trackerAssignee"
+  [ "$("$PY" "$AC" get forge)" != none ] || says_none forge \
+    || h="$h mrReviewer"
   DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"
-  i="$("$PY" "$DV" status 2>/dev/null | "$PY" -c \
+  s="$("$PY" "$DV" status 2>/dev/null)"
+  m="$(printf '%s' "$s" | "$PY" -c \
+      'import json,sys; print("".join(" " + k for k in json.load(sys.stdin)["missing"]))' \
+      2>/dev/null)" || m=" (developer_values.py status failed)"
+  i="$(printf '%s' "$s" | "$PY" -c \
       'import json,sys; d=json.load(sys.stdin); print(" ".join(k for k in d["inherited"] if d["keys"][k]["need"] == "required"))' \
       2>/dev/null)"
   [ -z "$h$m$i" ] && { echo ok; exit 0; }
@@ -205,10 +200,9 @@ a token value — not even partially.
   `set` changes only the keys it names, so another repository's values
   survive. `KEY=` removes a key. `--machine` refuses a `worktreeBasePath`
   value and accepts only its removal.
-- **Notes:** a developer with no reviewer answers the literal `none`, which
-  resolves and so satisfies this row; every consumer reads it as an absent key
-  and fails closed. A recorded `mrAssignee=none` resolves to no assignee and
-  overrides a broader layer's assignee. The repository's committed config answers none of these — a
+- **Notes:** a developer with no reviewer or assignee answers the literal
+  `none`, which satisfies this row and resolves as unset, overriding a broader
+  layer's value (rule: `CONFIG.md` "Developer settings (K1–K5)"). The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
   probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
@@ -441,6 +435,18 @@ a token value — not even partially.
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
   drives that login when `forge: github` is configured (it shells out to `gh`;
   the token still never touches this plugin).
+
+### C3c · gh ≥ 2.99.0 floor *(optional; only when `tracker: github-issues`)*
+- **Needed by:** `adapters/tracker/github-issues/api.py` `tracker_attach` —
+  `gh issue comment --attach` (first in gh 2.99.0) puts each image or video
+  file inline in the comment.
+- **Probe:** `v=$(gh --version | awk 'NR==1{print $3}'); test "$(printf '%s\n' 2.99.0 "$v" | sort -V | head -1)" = 2.99.0`.
+  Another tracker selected: n/a.
+- **Fix:** `human:` upgrade gh (https://cli.github.com, or the package manager
+  that installed it).
+- **Notes:** Below the floor, `tracker_attach` attaches no file and names each
+  one in the comment for the developer to add by hand; every other tracker verb
+  works. The adapter reads `gh --version` itself on each call.
 
 ### C4 · Maven wrapper + JDK *(only when `maven` is in `build-gates:`)*
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
@@ -735,8 +741,8 @@ a token value — not even partially.
 
 ### S1 · Jira REST credentials — **secret** *(only when `tracker: jira`)*
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
-  (attachment upload has no MCP tool, and both engines PUT the description via
-  REST directly rather than inline a large ADF through an MCP tool call),
+  (both engines upload figures and PUT the description via REST directly
+  rather than inline a large ADF through an MCP tool call),
   the shared Jira lib `adapters/tracker/jira/api.py` and
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001),
   and `scripts/afk-config.py init` (presence-only: the `JIRA_BASE_URL` hint).
@@ -911,7 +917,7 @@ miss is `missing/broken` there, never on a default run. Any fix marked
 
 ### W2 · IntelliJ IDEA
 - **Needed by:** the human; optionally referenced by `/afk:bug`'s `ideBinary`
-  key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
+  key (K4, `CONFIG.md` "Developer settings (K1–K5)") to open fixer worktrees.
 - **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/Programs/IntelliJ IDEA"* >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/JetBrains/Toolbox/apps/intellij-idea"* >/dev/null 2>&1 || ls -d "$ProgramFiles/JetBrains/IntelliJ IDEA"* >/dev/null 2>&1`
   A probe that enumerates install locations is wrong until the next one is found:
   this row has now missed a Toolbox install and a system-wide install in turn, on

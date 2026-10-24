@@ -337,7 +337,7 @@ suggests your own account for both assignees — the tracker account email, the
 forge user the CLI is logged in as — so you confirm or name someone else;
 leaving one unset means no assignee. An agent that needs a missing value asks
 you the same way. The worktree base is derived
-from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
+from git when you set none. `CONFIG.md` "Developer settings (K1–K5)" is the full contract.
 
 ### Shared setup and development
 

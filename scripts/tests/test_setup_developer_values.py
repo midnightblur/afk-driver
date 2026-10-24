@@ -51,6 +51,23 @@ def cli(cwd, *args):
                           capture_output=True, text=True, timeout=120)
 
 
+@pytest.mark.parametrize("key, kinds", [("mrReviewer", {"forge": "github"}),
+                                         ("trackerAssignee", {"tracker": "jira"})])
+def test_a_recorded_none_person_is_answered_not_missing(tmp_path, key, kinds):
+    repo = make_repo(tmp_path, "a", **kinds)
+    assert cli(repo, "set", f"{key}=none").returncode == 0
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["keys"][key]["value"] is None
+    assert report["keys"][key]["source"] == "repository"
+    assert key not in report["missing"]
+
+
+def test_a_blank_reviewer_is_still_missing(tmp_path):
+    repo = make_repo(tmp_path, "a", forge="github")
+    dv.write_block(repo / ".git" / "afk" / "config.yaml", {"mrReviewer": "  "})
+    assert "mrReviewer" in json.loads(cli(repo, "status").stdout)["missing"]
+
+
 def test_a_repository_without_a_forge_keeps_the_machine_reviewer(tmp_path, home):
     a = make_repo(tmp_path, "a", forge="github")
     assert cli(a, "set", "mrReviewer=rev", "mrAssignee=me", "--machine").returncode == 0

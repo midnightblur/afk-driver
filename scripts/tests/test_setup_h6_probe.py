@@ -5,6 +5,7 @@ text a human or agent executes, not a copy of it.
 """
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -136,6 +137,28 @@ def test_a_machine_only_person_is_confirmed_per_repository(repo, home):
     write(repo / ".git" / "afk" / "config.yaml", "developer:\n  trackerAssignee: me\n")
     out = run(repo, home)
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_a_recorded_none_person_is_an_answer(repo, home):
+    write(repo / ".afk" / "config.yaml", "schema: 1\ntracker: jira\nforge: github\n")
+    write(repo / ".git" / "afk" / "config.yaml",
+          "developer:\n  trackerAssignee: none\n  mrReviewer: none\n  mrAssignee: none\n")
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "ok"
+
+
+def test_a_status_that_fails_is_reported_not_ok(tmp_path, repo, home):
+    """Tracker and forge say none, so only the missing developer_values.py keeps the probe from ok."""
+    stub = tmp_path / "stub"
+    (stub / "scripts").mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "afk-config.py", stub / "scripts")
+    write(repo / ".git" / "afk" / "config.yaml", NONE.replace("schema: 1\n", ""))
+    out = run(repo, home, AFK_PLUGIN_ROOT=str(stub).replace("\\", "/"))
+    assert out.returncode == 1
+    assert out.stdout.splitlines() == [
+        "resolved: tracker=none forge=none",
+        "unresolved: (developer_values.py status failed)"]
 
 
 def test_no_repository_is_skipped_not_failed(tmp_path, home):
