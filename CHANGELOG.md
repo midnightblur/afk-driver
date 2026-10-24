@@ -57,7 +57,7 @@ release page from its section here. Nobody tags by hand.
   `tracker_transition` takes a transition name, an id, or a key of
   `jira.transitions` / `github-issues.state-labels`, and refuses one the work
   item does not offer. Jira refuses an unknown fix version on create and edit;
-  when the project's versions cannot be read it writes and answers
+  when the project or its versions cannot be read it writes and answers
   `fix_version_warning`.
   GitHub Issues refuses an unknown `status` on create, which it ignored before.
 - The `afk-config.py init` scaffold names the Jira in-review transition

@@ -730,7 +730,8 @@ def _op_create(p):
                   body={"transition": {"id": match}})
             result["transitioned_to"] = status
         else:
-            reason = why.get("reason") or why.get("status") if isinstance(why, dict) else why
+            reason = (why.get("reason") or f"HTTP {why.get('status')}: {str(why.get('body') or '')[:300]}"
+                      if isinstance(why, dict) else why)
             result["status_warning"] = f"{key} was created; not moved to `{status}`: {reason}"
     return result
 
@@ -774,14 +775,17 @@ def _op_attach(p):
                 "reason": f"{type(e).__name__}: {e}"}
 
     stored = _json("GET", f"/rest/api/3/issue/{key}", params={"fields": "attachment"})
-    listed = ((stored.get("fields") or {}).get("attachment") or []) if isinstance(stored, dict) else []
+    read_back = isinstance(stored, dict) and isinstance(stored.get("fields"), dict)
+    listed = (stored["fields"].get("attachment") or []) if read_back else []
     by_id = {str(a.get("id")): a for a in listed}
     attached, mismatches, inline, cards, notes = [], [], [], [], []
+    if not read_back:
+        notes.append("- the stored names and types could not be read back, so they are not checked")
     answers = uploaded if isinstance(uploaded, list) else []
     for path in files[len(answers):]:
         name = os.path.basename(path)
-        mismatches.append({"file": path, "id": None, "sent": {"filename": name, "mimeType": content_type(path)},
-                           "stored": None})
+        mismatches.append({"file": path, "id": None, "reason": "not in the upload answer",
+                           "sent": {"filename": name, "mimeType": content_type(path)}, "stored": None})
         notes.append(f"- `{name}` was sent but Jira's upload answer does not list it")
     # Jira answers one attachment per part, in part order (unverified; live check before release).
     for path, answer in zip(files, answers):
@@ -790,8 +794,9 @@ def _op_attach(p):
         found = by_id.get(att_id) or {}
         got = {"filename": found.get("filename"), "mimeType": found.get("mimeType")}
         attached.append({"file": path, "id": att_id, **got})
-        if got != sent:
-            mismatches.append({"file": path, "id": att_id, "sent": sent, "stored": got})
+        if read_back and got != sent:
+            mismatches.append({"file": path, "id": att_id, "reason": "stored differently",
+                               "sent": sent, "stored": got})
             notes.append(f"- `{sent['filename']}` was sent as {sent['mimeType']} and is "
                          f"stored as `{got['filename']}` ({got['mimeType']})")
         try:
@@ -808,7 +813,7 @@ def _op_attach(p):
     comment = _json("POST", f"/rest/api/3/issue/{key}/comment",
                     body={"body": _adf_doc(text, extra)})
     result = {"ticket_key": key, "attached": attached, "mismatches": mismatches,
-              "unsupported_files": []}
+              "unsupported_files": [], "read_back": read_back}
     if isinstance(comment, dict) and comment.get("error"):
         return {"error": True, "operation": "tracker_attach",
                 "reason": "the files are attached; the comment failed", "comment_error": comment,
