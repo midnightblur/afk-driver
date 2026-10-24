@@ -56,7 +56,9 @@ release page from its section here. Nobody tags by hand.
 - A value the tracker does not know is refused before any write.
   `tracker_transition` takes a transition name, an id, or a key of
   `jira.transitions` / `github-issues.state-labels`, and refuses one the work
-  item does not offer. Jira refuses an unknown fix version on create and edit.
+  item does not offer. Jira refuses an unknown fix version on create and edit;
+  when the project's versions cannot be read it writes and answers
+  `fix_version_warning`.
   GitHub Issues refuses an unknown `status` on create, which it ignored before.
 - The `afk-config.py init` scaffold names the Jira in-review transition
   `in-review`, the key GitHub Issues already uses. Migration: a repository

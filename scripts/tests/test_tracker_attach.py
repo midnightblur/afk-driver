@@ -106,7 +106,7 @@ def test_github_attach_passes_one_attach_per_image_or_video_and_none_for_others(
     assert attach_values(comment["argv"]) == [png, mp4]
     assert comment["argv"][:6] == ["gh", "issue", "comment", "7", "--repo", "o/r"]
     assert "Proof" in comment["input"] and "c.log" in comment["input"]
-    assert answer["ok"] is True and answer["attached"] == [png, mp4]
+    assert answer["ok"] is True and answer["attached"] == [{"file": png}, {"file": mp4}]
     assert [u["file"] for u in answer["unsupported_files"]] == [log]
 
 
@@ -144,31 +144,31 @@ def test_github_attach_without_write_access_attaches_nothing(github, tmp_path):
 def test_github_attach_refuses_a_missing_file_before_any_write(github, tmp_path):
     api, gh = github
     answer = api.call("tracker_attach", {"ticket_key": "7", "files": [str(tmp_path / "gone.png")]})
-    assert answer["error"] is True and "gone.png" in answer["reason"]
+    assert answer["refused"] is True and "gone.png" in answer["reason"]
     assert gh.comments() == []
 
 
 # ---------------------------------------------------------------------------
 # GitHub Issues: field truth
-def test_github_transition_to_an_unknown_state_makes_no_gh_call(github):
+def test_github_transition_to_an_unknown_state_makes_no_gh_call(github, monkeypatch):
     api, gh = github
-    api.state_labels = lambda: {"in-review": "status:in-review"}
+    monkeypatch.setattr(api, "state_labels", lambda: {"in-review": "status:in-review"})
     answer = api.call("tracker_transition", {"ticket_key": "7", "transition_id": "in-reveiw"})
-    assert answer["error"] is True and "in-reveiw" in answer["reason"]
+    assert answer["refused"] is True and "in-reveiw" in answer["reason"]
     assert gh.calls == []
 
 
-def test_github_create_with_an_unknown_state_makes_no_gh_call(github):
+def test_github_create_with_an_unknown_state_makes_no_gh_call(github, monkeypatch):
     api, gh = github
-    api.state_labels = lambda: {"in-review": "status:in-review"}
+    monkeypatch.setattr(api, "state_labels", lambda: {"in-review": "status:in-review"})
     answer = api.call("tracker_create", {"summary": "s", "issue_type": "bug", "status": "nonesuch"})
-    assert answer["error"] is True and "nonesuch" in answer["reason"]
+    assert answer["refused"] is True and "nonesuch" in answer["reason"]
     assert gh.calls == []
 
 
-def test_github_create_with_a_known_state_labels_it(github):
+def test_github_create_with_a_known_state_labels_it(github, monkeypatch):
     api, gh = github
-    api.state_labels = lambda: {"in-review": "status:in-review"}
+    monkeypatch.setattr(api, "state_labels", lambda: {"in-review": "status:in-review"})
     api.call("tracker_create", {"summary": "s", "issue_type": "bug", "status": "in-review"})
     [create] = [c for c in gh.calls if c["argv"][1:3] == ["issue", "create"]]
     assert "status:in-review" in create["argv"]
@@ -234,6 +234,9 @@ def jira(monkeypatch):
     return api, fake
 
 
+UUID = "0123abcd-4567-89ab-cdef-0123456789ab"
+
+
 def multipart_parts(data: bytes):
     """(filename, content type) per part of a multipart body."""
     return re.findall(rb'filename="([^"]+)"\r\nContent-Type: ([^\r]+)\r\n', data)
@@ -257,9 +260,15 @@ def test_jira_attach_uploads_each_file_with_its_real_type_in_one_request(jira, t
     assert multipart_parts(upload["data"]) == [
         (b"a.png", b"image/png"), (b"b.txt", b"text/plain"), (b"c.mp4", b"video/mp4")]
     [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
-    kinds = [n["type"] for n in comment["body"]["content"]]
-    assert kinds[0] == "paragraph" and "mediaSingle" in kinds and "mediaGroup" in kinds
+    para, image, video, group = comment["body"]["content"]
+    media = {"type": "file", "id": UUID, "collection": ""}
+    assert para["type"] == "paragraph"
+    assert image["type"] == video["type"] == "mediaSingle"
+    assert image["content"] == [{"type": "media", "attrs": media}]
+    assert video["content"] == [{"type": "media", "attrs": media}]
+    assert group == {"type": "mediaGroup", "content": [{"type": "media", "attrs": media}]}
     assert answer["ok"] is True and answer["mismatches"] == [] and answer["comment"] == "c9"
+    assert [a["file"] for a in answer["attached"]] == [png, txt, mp4]
 
 
 def test_jira_attach_reads_back_each_file_and_names_a_mismatch(jira, tmp_path):
@@ -283,7 +292,7 @@ def test_jira_attach_reads_back_each_file_and_names_a_mismatch(jira, tmp_path):
 def test_jira_attach_refuses_a_missing_file_before_any_write(jira, tmp_path):
     api, fake = jira
     answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [str(tmp_path / "gone.png")]})
-    assert answer["error"] is True and "gone.png" in answer["reason"]
+    assert answer["refused"] is True and "gone.png" in answer["reason"]
     assert fake.requests == []
 
 
@@ -351,12 +360,12 @@ def test_jira_transition_matches_by_id_or_name(jira, given):
     assert fake.json_of("POST", "/rest/api/3/issue/P-1/transitions") == [{"transition": {"id": "31"}}]
 
 
-def test_jira_transition_to_an_unknown_key_is_refused_with_no_write(jira):
+def test_jira_transition_to_an_unknown_key_is_refused_with_no_write(jira, monkeypatch):
     api, fake = jira
-    api.transitions_config = lambda: {"in-review": "Code Review"}
+    monkeypatch.setattr(api, "transitions_config", lambda: {"in-review": "Code Review"})
     fake.on("GET", "/rest/api/3/issue/P-1/transitions", TRANSITIONS)
     answer = api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "in-review"})
-    assert answer["error"] is True and "Code Review" in answer["reason"]
+    assert answer["refused"] is True and "Code Review" in answer["reason"]
     assert fake.writes() == []
 
 
@@ -365,7 +374,7 @@ def test_jira_create_with_an_unknown_fix_version_is_refused_with_no_write(jira):
     fake.on("GET", "/rest/api/3/project/P/versions", [{"id": "10", "name": "1.0"}])
     answer = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
                                          "fix_version": "9.9"})
-    assert answer["error"] is True and "9.9" in answer["reason"] and "1.0" in answer["reason"]
+    assert answer["refused"] is True and "9.9" in answer["reason"] and "1.0" in answer["reason"]
     assert fake.writes() == []
 
 
@@ -383,7 +392,7 @@ def test_jira_edit_with_an_unknown_fix_version_is_refused_with_no_write(jira):
     fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"project": {"key": "P"}}})
     fake.on("GET", "/rest/api/3/project/P/versions", [{"id": "10", "name": "1.0"}])
     answer = api.call("tracker_edit", {"ticket_key": "P-1", "fields": {"fixVersions": [{"name": "2.0"}]}})
-    assert answer["error"] is True and "2.0" in answer["reason"]
+    assert answer["refused"] is True and "2.0" in answer["reason"]
     assert fake.writes() == []
 
 
@@ -415,3 +424,159 @@ def test_the_scaffold_uses_one_in_review_key_on_both_trackers(tmp_path, monkeypa
     jira_block, github_block = texts
     assert re.search(r"^#\s+in-review: ", jira_block, re.M) and "ready-for-review" not in jira_block
     assert re.search(r"^\s+in-review: ", github_block, re.M)
+
+
+# ---------------------------------------------------------------------------
+# GitHub Issues: attach boundaries
+@pytest.mark.parametrize("version, attached", [("2.98.9", False), ("2.99.0", True), ("2.100.0", True)])
+def test_github_attach_floor_is_2_99_0(github, tmp_path, version, attached):
+    api, gh = github
+    gh.version = version
+    png = proof(tmp_path, "a.png")
+    api.call("tracker_attach", {"ticket_key": "7", "files": [png]})
+    [comment] = gh.comments()
+    assert attach_values(comment["argv"]) == ([png] if attached else [])
+
+
+@pytest.mark.parametrize("permission", ["READ", "TRIAGE", "NONE"])
+def test_github_attach_needs_write_access(github, tmp_path, permission):
+    api, gh = github
+    gh.permission = permission
+    answer = api.call("tracker_attach", {"ticket_key": "7", "files": [proof(tmp_path, "a.png")]})
+    assert answer["attached"] == [] and "write access" in answer["unsupported_files"][0]["reason"]
+
+
+def test_github_attach_names_a_hash_path_takes_an_upper_case_type_and_drops_repeats(github, tmp_path):
+    api, gh = github
+    hashed, upper = proof(tmp_path, "x#1.png"), proof(tmp_path, "A.PNG")
+    answer = api.call("tracker_attach", {"ticket_key": "7", "files": [hashed, upper, upper]})
+    [comment] = gh.comments()
+    assert attach_values(comment["argv"]) == [upper]
+    assert [u["file"] for u in answer["unsupported_files"]] == [hashed]
+    assert "alt text" in answer["unsupported_files"][0]["reason"] and "x#1.png" in comment["input"]
+
+
+def test_github_attach_reports_a_failed_comment(github, monkeypatch, tmp_path):
+    api, gh = github
+
+    def failing(argv, **kwargs):
+        if argv[1:3] == ["issue", "comment"]:
+            gh.calls.append({"argv": list(argv), "input": kwargs.get("input")})
+            return subprocess.CompletedProcess(argv, 1, stdout="", stderr="HTTP 422")
+        return gh(argv, **kwargs)
+    monkeypatch.setattr(api.subprocess, "run", failing)
+    answer = api.call("tracker_attach", {"ticket_key": "7", "files": [proof(tmp_path, "a.png")]})
+    assert answer["error"] is True and answer["operation"] == "tracker_attach"
+    assert len(gh.comments()) == 1
+
+
+# ---------------------------------------------------------------------------
+# Jira: attach failure paths
+def attach_routes(fake, uploaded, stored):
+    fake.on("POST", "/rest/api/3/issue/P-1/attachments", uploaded)
+    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"attachment": stored}})
+    fake.on("GET", "/rest/api/3/attachment/content/",
+            location=f"https://api.media.atlassian.com/file/{UUID}/binary")
+
+
+def test_jira_attach_upload_error_posts_no_comment(jira, tmp_path):
+    api, fake = jira
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [proof(tmp_path, "a.png")]})
+    assert answer["error"] is True and answer["status"] == 404
+    assert fake.json_of("POST", "/rest/api/3/issue/P-1/comment") == []
+
+
+def test_jira_attach_reports_files_stored_when_the_comment_fails(jira, tmp_path):
+    api, fake = jira
+    png = proof(tmp_path, "a.png")
+    attach_routes(fake, [{"id": "1"}], [{"id": "1", "filename": "a.png", "mimeType": "image/png"}])
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [png]})
+    assert answer["error"] is True and answer["comment_error"]["error"] is True
+    assert [a["file"] for a in answer["attached"]] == [png]
+
+
+def test_jira_attach_names_a_file_it_could_not_embed(jira, tmp_path, monkeypatch):
+    api, fake = jira
+    attach_routes(fake, [{"id": "1"}], [{"id": "1", "filename": "a.png", "mimeType": "image/png"}])
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+
+    def no_uuid(self, att_id):
+        raise RuntimeError("no redirect")
+    monkeypatch.setattr(api.Jira, "resolve_media_uuid", no_uuid)
+    api.call("tracker_attach", {"ticket_key": "P-1", "files": [proof(tmp_path, "a.png")]})
+    [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
+    assert "attached but not embedded" in json.dumps(comment)
+    assert not [n for n in comment["body"]["content"] if n["type"] in ("mediaSingle", "mediaGroup")]
+
+
+def test_jira_attach_names_a_file_the_upload_answer_leaves_out(jira, tmp_path):
+    api, fake = jira
+    png, txt = proof(tmp_path, "a.png"), proof(tmp_path, "b.txt")
+    attach_routes(fake, [{"id": "1"}], [{"id": "1", "filename": "a.png", "mimeType": "image/png"}])
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [png, txt]})
+    assert [m["file"] for m in answer["mismatches"]] == [txt] and answer["mismatches"][0]["stored"] is None
+    [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
+    assert "b.txt" in json.dumps(comment)
+
+
+# ---------------------------------------------------------------------------
+# Jira: the opening state, the real config read, unreadable versions
+def test_jira_create_moves_to_a_known_status_and_warns_on_an_unknown_one(jira):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue", {"key": "P-4", "id": "4"})
+    fake.on("GET", "/rest/api/3/issue/P-4/transitions", TRANSITIONS)
+    fake.on("POST", "/rest/api/3/issue/P-4/transitions", b"")
+    moved = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
+                                        "status": "in-review"})
+    assert moved["transitioned_to"] == "in-review"
+    assert fake.json_of("POST", "/rest/api/3/issue/P-4/transitions") == [{"transition": {"id": "31"}}]
+    kept = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
+                                       "status": "Nope"})
+    assert kept["key"] == "P-4" and "was created" in kept["status_warning"]
+    assert "nothing was written" not in kept["status_warning"]
+
+
+def config_repo(tmp_path, monkeypatch, text):
+    repo = tmp_path / "repo"
+    (repo / ".afk").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(tmp_path))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo))
+
+
+def test_jira_transition_reads_the_in_review_key_from_the_config_file(jira, tmp_path, monkeypatch):
+    api, fake = jira
+    config_repo(tmp_path, monkeypatch, "tracker: jira\njira:\n  transitions:\n    in-review: Ready for Review\n")
+    monkeypatch.setattr(api, "transitions_config", load("jira").transitions_config)
+    fake.on("GET", "/rest/api/3/issue/P-1/transitions", TRANSITIONS)
+    fake.on("POST", "/rest/api/3/issue/P-1/transitions", b"")
+    api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "in-review"})
+    assert fake.json_of("POST", "/rest/api/3/issue/P-1/transitions") == [{"transition": {"id": "31"}}]
+
+
+def test_jira_transition_with_an_unreadable_config_still_matches_by_id(jira, monkeypatch):
+    api, fake = jira
+
+    def unreadable():
+        raise ValueError("bad config")
+    monkeypatch.setattr(api, "transitions_config", unreadable)
+    fake.on("GET", "/rest/api/3/issue/P-1/transitions", TRANSITIONS)
+    fake.on("POST", "/rest/api/3/issue/P-1/transitions", b"")
+    api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "41"})
+    assert fake.json_of("POST", "/rest/api/3/issue/P-1/transitions") == [{"transition": {"id": "41"}}]
+    refused = api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "in-review"})
+    assert refused["refused"] is True and "unreadable" in refused["reason"]
+
+
+def test_jira_create_writes_with_a_warning_when_versions_cannot_be_read(jira):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue", {"key": "P-5", "id": "5"})
+    answer = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
+                                         "fix_version": "1.0"})
+    assert answer["key"] == "P-5" and "not checked" in answer["fix_version_warning"]
+    [body] = fake.json_of("POST", "/rest/api/3/issue")
+    assert body["fields"]["fixVersions"] == [{"name": "1.0"}]
