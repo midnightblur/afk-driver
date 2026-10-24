@@ -41,10 +41,10 @@ adapter split; that name counts only for afk's own entry (`is_afk_entry` in
 | Operation | Behaviour here |
 |---|---|
 | `tracker_create`, `tracker_comment` | the description or comment text is Markdown, sent as Atlassian Document Format (ADF) nodes: headings, lists, code blocks, links, tables |
-| `tracker_create`, `tracker_edit` | a fix version that is not a version of the project is refused before any write; when the project's versions cannot be read the write goes ahead with `fix_version_warning` |
+| `tracker_create`, `tracker_edit` | a fix version that is not a version of the project is refused before any write; when the project or its versions cannot be read the write goes ahead with `fix_version_warning` |
 | `tracker_transition` | `transition_id` is a `jira.transitions` key (the in-review key is `in-review`), a transition name or an id; one the issue does not offer is refused before any write |
 | `tracker_create` with `status` | the same match, made after the create: Jira lists transitions per issue, so a miss is a `status_warning` on the created issue |
-| `tracker_attach` | one upload request; each file carries its real content type. Each stored name and type is read back, and a difference is listed in `mismatches` and named in the comment. Images and videos are embedded inline, other files as attachment cards |
+| `tracker_attach` | one upload request; each file carries its real content type. Each stored name and type is read back, and a difference is listed in `mismatches` (`reason` `stored differently`, or `not in the upload answer` with `stored: null`) and named in the comment; a failed read-back answers `read_back: false` and checks nothing. Images and videos are embedded inline, other files as attachment cards |
 
 A refusal answers `error` and `refused: true`.
 

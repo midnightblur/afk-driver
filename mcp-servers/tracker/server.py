@@ -155,7 +155,10 @@ def tracker_attach(ticket_key: str, files: list[str], text: str = "") -> Any:
     paths in `files`. A file the tracker cannot take is listed in
     `unsupported_files` with the reason and named in the comment; on Jira each
     stored name and type is read back, and a difference is listed in
-    `mismatches` and named in the comment."""
+    `mismatches` (each with a `reason`) and named in the comment. `attached`
+    holds one object per file with its `file`. A missing file answers
+    `refused: true`; files stored but a failed comment answer `error` with
+    `comment_error`."""
     return _call("tracker_attach", ticket_key=ticket_key, files=files, text=text)
 
 
@@ -175,7 +178,11 @@ def tracker_create(
     `issue_type` and `status` are the tracker's own names — take them from the
     tracker kind's own block in `.afk/config.yaml` (`jira.issue-types` and
     `jira.transitions`, `github-issues.state-labels`) rather than inventing
-    them. `parent` is the parent work item's key.
+    them. `parent` is the parent work item's key. `description` is Markdown.
+    An unknown `fix_version` (Jira) or `status` (GitHub Issues) answers
+    `refused: true` and nothing is created. A success can carry
+    `fix_version_warning` (versions unreadable, not checked) or, on Jira,
+    `status_warning` (created but not moved to `status`).
     """
     return _call("tracker_create", summary=summary, issue_type=issue_type,
                  project=project, description=description, parent=parent,
@@ -185,7 +192,9 @@ def tracker_create(
 @mcp.tool()
 def tracker_edit(ticket_key: str, fields: dict[str, Any]) -> Any:
     """Update fields on a work item. `fields` is in the tracker's native shape,
-    e.g. {"priority": {"name": "High"}, "labels": ["a","b"]} for Jira."""
+    e.g. {"priority": {"name": "High"}, "labels": ["a","b"]} for Jira. An
+    unknown Jira fix version answers `refused: true`; when the project or its
+    versions cannot be read the write goes ahead with `fix_version_warning`."""
     return _call("tracker_edit", ticket_key=ticket_key, fields=fields)
 
 

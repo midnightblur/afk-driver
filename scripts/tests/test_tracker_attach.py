@@ -285,6 +285,7 @@ def test_jira_attach_reads_back_each_file_and_names_a_mismatch(jira, tmp_path):
     assert mismatch["file"] == txt and mismatch["stored"] == {
         "filename": "b (1).txt", "mimeType": "application/octet-stream"}
     assert mismatch["sent"] == {"filename": "b.txt", "mimeType": "text/plain"}
+    assert mismatch["reason"] == "stored differently" and answer["read_back"] is True
     [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
     assert "b (1).txt" in json.dumps(comment) and "application/octet-stream" in json.dumps(comment)
 
@@ -515,14 +516,16 @@ def test_jira_attach_names_a_file_the_upload_answer_leaves_out(jira, tmp_path):
     attach_routes(fake, [{"id": "1"}], [{"id": "1", "filename": "a.png", "mimeType": "image/png"}])
     fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
     answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [png, txt]})
-    assert [m["file"] for m in answer["mismatches"]] == [txt] and answer["mismatches"][0]["stored"] is None
+    [missing] = answer["mismatches"]
+    assert missing["file"] == txt and missing["stored"] is None
+    assert missing["reason"] == "not in the upload answer"
     [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
     assert "b.txt" in json.dumps(comment)
 
 
 # ---------------------------------------------------------------------------
 # Jira: the opening state, the real config read, unreadable versions
-def test_jira_create_moves_to_a_known_status_and_warns_on_an_unknown_one(jira):
+def test_jira_create_moves_to_a_known_status(jira):
     api, fake = jira
     fake.on("POST", "/rest/api/3/issue", {"key": "P-4", "id": "4"})
     fake.on("GET", "/rest/api/3/issue/P-4/transitions", TRANSITIONS)
@@ -531,10 +534,32 @@ def test_jira_create_moves_to_a_known_status_and_warns_on_an_unknown_one(jira):
                                         "status": "in-review"})
     assert moved["transitioned_to"] == "in-review"
     assert fake.json_of("POST", "/rest/api/3/issue/P-4/transitions") == [{"transition": {"id": "31"}}]
+
+
+def test_jira_create_with_an_unknown_status_says_the_issue_was_created(jira):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue", {"key": "P-4", "id": "4"})
+    fake.on("GET", "/rest/api/3/issue/P-4/transitions", TRANSITIONS)
     kept = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
                                        "status": "Nope"})
     assert kept["key"] == "P-4" and "was created" in kept["status_warning"]
     assert "nothing was written" not in kept["status_warning"]
+    assert fake.json_of("POST", "/rest/api/3/issue/P-4/transitions") == []
+
+
+def test_jira_create_names_the_cause_when_transitions_cannot_be_read(jira):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue", {"key": "P-4", "id": "4"})
+    kept = api.call("tracker_create", {"project": "P", "issue_type": "Bug", "summary": "s",
+                                       "status": "in-review"})
+    assert "was created" in kept["status_warning"] and "HTTP 404" in kept["status_warning"]
+
+
+def test_jira_transition_reports_a_failed_transitions_read_and_writes_nothing(jira):
+    api, fake = jira
+    answer = api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "in-review"})
+    assert answer["error"] is True and answer["operation"] == "tracker_transition"
+    assert "refused" not in answer and fake.writes() == []
 
 
 def config_repo(tmp_path, monkeypatch, text):
@@ -570,6 +595,35 @@ def test_jira_transition_with_an_unreadable_config_still_matches_by_id(jira, mon
     assert fake.json_of("POST", "/rest/api/3/issue/P-1/transitions") == [{"transition": {"id": "41"}}]
     refused = api.call("tracker_transition", {"ticket_key": "P-1", "transition_id": "in-review"})
     assert refused["refused"] is True and "unreadable" in refused["reason"]
+
+
+def test_jira_edit_writes_with_a_warning_when_versions_cannot_be_read(jira):
+    api, fake = jira
+    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"project": {"key": "P"}}})
+    fake.on("PUT", "/rest/api/3/issue/P-1", b"")
+    answer = api.call("tracker_edit", {"ticket_key": "P-1", "fields": {"fixVersions": [{"name": "1.0"}]}})
+    assert "versions of project P unreadable" in answer["fix_version_warning"]
+    assert fake.json_of("PUT", "/rest/api/3/issue/P-1") == [{"fields": {"fixVersions": [{"name": "1.0"}]}}]
+
+
+def test_jira_edit_writes_with_a_warning_when_the_project_cannot_be_read(jira):
+    api, fake = jira
+    fake.on("PUT", "/rest/api/3/issue/P-1", b"")
+    answer = api.call("tracker_edit", {"ticket_key": "P-1", "fields": {"fixVersions": [{"name": "1.0"}]}})
+    assert "project of P-1 unreadable" in answer["fix_version_warning"]
+    assert fake.json_of("PUT", "/rest/api/3/issue/P-1") == [{"fields": {"fixVersions": [{"name": "1.0"}]}}]
+
+
+def test_jira_attach_without_a_read_back_checks_nothing(jira, tmp_path):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue/P-1/attachments", [{"id": "1"}])
+    fake.on("GET", "/rest/api/3/attachment/content/",
+            location=f"https://api.media.atlassian.com/file/{UUID}/binary")
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [proof(tmp_path, "a.png")]})
+    assert answer["ok"] is True and answer["read_back"] is False and answer["mismatches"] == []
+    [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
+    assert "could not be read back" in json.dumps(comment) and "None" not in json.dumps(comment)
 
 
 def test_jira_create_writes_with_a_warning_when_versions_cannot_be_read(jira):

@@ -52,8 +52,10 @@ plugin root rather than searching for it.
 Markdown `text`, and posts one comment carrying them. It answers `attached`
 (one object per file, carrying `file`; Jira adds the stored `id`, `filename` and
 `mimeType`), `unsupported_files` (each file the kind could not take, with the
-reason, also named in the comment) and, on Jira, `mismatches` (a stored name or
-type that differs from the one sent, or a file the upload answer does not list).
+reason, also named in the comment) and, on Jira, `mismatches` (each with a
+`reason`: `stored differently`, with the `sent` and `stored` name and type, or
+`not in the upload answer`, with `stored: null`) and `read_back` (false when
+the stored names could not be read, so none was checked).
 A missing file is refused before any write. When Jira stores the files but the
 comment fails, the answer carries `error`, `comment_error` and the `attached`
 list, so the caller knows the files are on the ticket.
@@ -63,7 +65,7 @@ carries `error` and `refused: true`. `tracker_transition` takes a transition nam
 kind's state map (`jira.transitions`, `github-issues.state-labels`; the
 in-review key is `in-review` on both) and refuses one the work item does not
 offer. Jira refuses an unknown fix version on `tracker_create` and
-`tracker_edit`; when the project's versions cannot be read it writes anyway and
+`tracker_edit`; when the project or its versions cannot be read it writes and
 adds `fix_version_warning`. GitHub Issues refuses an unknown `status` on
 `tracker_create`. Jira lists transitions per issue, so its `tracker_create`
 `status` is checked after the create: an unknown one leaves the issue in its
