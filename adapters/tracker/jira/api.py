@@ -794,7 +794,11 @@ def _op_attach(p):
         found = by_id.get(att_id) or {}
         got = {"filename": found.get("filename"), "mimeType": found.get("mimeType")}
         attached.append({"file": path, "id": att_id, **got})
-        if read_back and got != sent:
+        if read_back and not found:
+            mismatches.append({"file": path, "id": att_id, "reason": "not in the read-back",
+                               "sent": sent, "stored": None})
+            notes.append(f"- `{sent['filename']}` was uploaded but the ticket's attachment list does not show it")
+        elif read_back and got != sent:
             mismatches.append({"file": path, "id": att_id, "reason": "stored differently",
                                "sent": sent, "stored": got})
             notes.append(f"- `{sent['filename']}` was sent as {sent['mimeType']} and is "
