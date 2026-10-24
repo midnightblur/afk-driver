@@ -552,35 +552,38 @@ def _refused(operation, reason):
             "reason": f"{reason}; nothing was written"}
 
 
-def _resolve_transition(key, given, operation):
+def _resolve_transition(key, given):
     """(transition id, None) for `given` — a `jira.transitions` key, a
-    transition name or an id — or (None, the answer) when the issue offers none."""
+    transition name or an id — else (None, why): the reason as text, or the
+    error answer of the transitions read."""
+    note = ""
     try:
         configured = transitions_config()
-    except Exception as e:  # an unreadable config is named, never guessed past
-        return None, {"error": True, "operation": operation,
-                      "reason": f"jira.transitions unreadable: {type(e).__name__}: {e}"}
+    except Exception as e:  # matched by name or id alone; the reason says so
+        configured = {}
+        note = f" (jira.transitions unreadable: {type(e).__name__}: {e})"
     wanted = str(configured.get(given, given))
     listed = _json("GET", f"/rest/api/3/issue/{key}/transitions")
     if not isinstance(listed, dict) or listed.get("error"):
-        return None, listed
+        return None, listed if isinstance(listed, dict) else {
+            "error": True, "reason": f"unreadable transitions of {key}"}
     transitions = listed.get("transitions") or []
     for t in transitions:
         if str(t.get("id")) == wanted or str(t.get("name", "")).lower() == wanted.lower():
             return str(t["id"]), None
     offered = ", ".join(f"{t.get('name')} ({t.get('id')})" for t in transitions) or "none"
     via = f" (`jira.transitions.{given}`)" if given in configured else ""
-    return None, _refused(operation, f"{key} has no transition `{wanted}`{via}; "
-                                     f"it offers: {offered}")
+    return None, f"{key} has no transition `{wanted}`{via}; it offers: {offered}{note}"
 
 
 def _check_fix_versions(project, wanted, operation):
-    """None when every entry of `wanted` (a name, or a {"name"} or {"id"}
-    object) is a version of the project; else the refusal or the read error."""
+    """(refusal, warning): a refusal when the project's versions lack an entry
+    of `wanted` (a name, or a {"name"} or {"id"} object); a warning, and no
+    refusal, when the versions cannot be read — Jira then judges the write."""
     versions = _json("GET", f"/rest/api/3/project/{project}/versions")
     if not isinstance(versions, list):
-        return versions if isinstance(versions, dict) else {
-            "error": True, "operation": operation, "reason": "unreadable project versions"}
+        why = versions.get("reason") or versions.get("status") if isinstance(versions, dict) else None
+        return None, f"fix versions of project {project} unreadable ({why or 'no list'}); not checked"
     names = {str(v.get("name")) for v in versions}
     ids = {str(v.get("id")) for v in versions}
     unknown = []
@@ -591,8 +594,8 @@ def _check_fix_versions(project, wanted, operation):
     if unknown:
         known = ", ".join(sorted(names)) or "none"
         return _refused(operation, f"fix version {', '.join(unknown)} does not exist in "
-                                   f"project {project} (known: {known})")
-    return None
+                                   f"project {project} (known: {known})"), None
+    return None, None
 
 
 def _op_get(p):
@@ -621,9 +624,11 @@ def _op_transitions(p):
 
 def _op_transition(p):
     key = p["ticket_key"]
-    transition_id, refusal = _resolve_transition(key, p["transition_id"], "tracker_transition")
-    if refusal is not None:
-        return refusal
+    transition_id, why = _resolve_transition(key, p["transition_id"])
+    if isinstance(why, dict):
+        return dict(why, operation="tracker_transition")
+    if why:
+        return _refused("tracker_transition", why)
     return _json("POST", f"/rest/api/3/issue/{key}/transitions",
                  body={"transition": {"id": transition_id}})
 
@@ -654,19 +659,21 @@ def _op_attachments(p):
 def _op_edit(p):
     key, fields = p["ticket_key"], p["fields"]
     wanted = fields.get("fixVersions") if isinstance(fields, dict) else None
+    warning = None
     if wanted:
         issue = _json("GET", f"/rest/api/3/issue/{key}", params={"fields": "project"})
-        if isinstance(issue, dict) and issue.get("error"):
-            return issue
         project = (((issue or {}).get("fields") or {}).get("project") or {}).get("key") \
             if isinstance(issue, dict) else None
-        if not project:
-            return _refused("tracker_edit", f"could not read the project of {key} "
-                                            f"to check its fix versions")
-        refusal = _check_fix_versions(project, wanted, "tracker_edit")
-        if refusal is not None:
-            return refusal
-    return _json("PUT", f"/rest/api/3/issue/{key}", body={"fields": fields})
+        if project:
+            refusal, warning = _check_fix_versions(project, wanted, "tracker_edit")
+            if refusal is not None:
+                return refusal
+        else:
+            warning = f"project of {key} unreadable; fix versions not checked"
+    answer = _json("PUT", f"/rest/api/3/issue/{key}", body={"fields": fields})
+    if warning and isinstance(answer, dict):
+        answer["fix_version_warning"] = warning
+    return answer
 
 
 def _op_create(p):
@@ -683,8 +690,9 @@ def _op_create(p):
         fields["description"] = _adf_doc(p["description"])
     if p.get("parent"):
         fields["parent"] = {"key": p["parent"]}
+    version_warning = None
     if p.get("fix_version"):
-        refusal = _check_fix_versions(project, [p["fix_version"]], "tracker_create")
+        refusal, version_warning = _check_fix_versions(project, [p["fix_version"]], "tracker_create")
         if refusal is not None:
             return refusal
         fields["fixVersions"] = [{"name": p["fix_version"]}]
@@ -694,6 +702,8 @@ def _op_create(p):
     if not key:
         return created
     result = {"key": key, "id": created.get("id")}
+    if version_warning:
+        result["fix_version_warning"] = version_warning
 
     # Assignment and the opening transition are separate calls, and a failure in
     # either must not lose the issue that was already created — each reports as
@@ -714,13 +724,14 @@ def _op_create(p):
     # create; tracker_transition checks before its write.
     status = p.get("status")
     if status:
-        match, refusal = _resolve_transition(key, status, "tracker_create")
+        match, why = _resolve_transition(key, status)
         if match:
             _json("POST", f"/rest/api/3/issue/{key}/transitions",
                   body={"transition": {"id": match}})
             result["transitioned_to"] = status
         else:
-            result["status_warning"] = (refusal or {}).get("reason") or f"no transition '{status}'"
+            reason = why.get("reason") or why.get("status") if isinstance(why, dict) else why
+            result["status_warning"] = f"{key} was created; not moved to `{status}`: {reason}"
     return result
 
 
@@ -741,17 +752,17 @@ def _missing_files(files):
     if not isinstance(files, list) or not files:
         return "`files` must be a non-empty list of file paths"
     gone = [str(f) for f in files if not os.path.isfile(str(f))]
-    return f"no such file: {', '.join(gone)}; nothing was written" if gone else None
+    return f"no such file: {', '.join(gone)}" if gone else None
 
 
 def _op_attach(p):
     """Upload every file in one request with its real content type, read back
     each stored name and type, then post one comment that embeds the files and
     names each mismatch."""
-    key, files = p["ticket_key"], p["files"]
+    key, files = p["ticket_key"], p.get("files")
     problem = _missing_files(files)
     if problem:
-        return {"error": True, "operation": "tracker_attach", "reason": problem}
+        return _refused("tracker_attach", problem)
     files = list(dict.fromkeys(str(f) for f in files))
     try:
         uploaded = client().upload_attachments(key, files)
@@ -766,8 +777,14 @@ def _op_attach(p):
     listed = ((stored.get("fields") or {}).get("attachment") or []) if isinstance(stored, dict) else []
     by_id = {str(a.get("id")): a for a in listed}
     attached, mismatches, inline, cards, notes = [], [], [], [], []
+    answers = uploaded if isinstance(uploaded, list) else []
+    for path in files[len(answers):]:
+        name = os.path.basename(path)
+        mismatches.append({"file": path, "id": None, "sent": {"filename": name, "mimeType": content_type(path)},
+                           "stored": None})
+        notes.append(f"- `{name}` was sent but Jira's upload answer does not list it")
     # Jira answers one attachment per part, in part order (unverified; live check before release).
-    for path, answer in zip(files, uploaded if isinstance(uploaded, list) else []):
+    for path, answer in zip(files, answers):
         att_id = str(answer.get("id"))
         sent = {"filename": os.path.basename(path), "mimeType": content_type(path)}
         found = by_id.get(att_id) or {}

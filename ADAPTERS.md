@@ -49,17 +49,25 @@ selected kind's `api.py` `call(operation, payload)`. The registration lives in
 plugin root rather than searching for it.
 
 `tracker_attach` takes `ticket_key`, `files` (local paths) and an optional
-Markdown `text`, and posts one comment carrying them. It answers `attached`,
-`unsupported_files` (each file the kind could not take, with the reason, also
-named in the comment) and, on Jira, `mismatches` (a stored name or type that
-differs from the one sent). A missing file is refused before any write.
+Markdown `text`, and posts one comment carrying them. It answers `attached`
+(one object per file, carrying `file`; Jira adds the stored `id`, `filename` and
+`mimeType`), `unsupported_files` (each file the kind could not take, with the
+reason, also named in the comment) and, on Jira, `mismatches` (a stored name or
+type that differs from the one sent, or a file the upload answer does not list).
+A missing file is refused before any write. When Jira stores the files but the
+comment fails, the answer carries `error`, `comment_error` and the `attached`
+list, so the caller knows the files are on the ticket.
 
 A value the tracker does not know is refused before any write: the answer
 carries `error` and `refused: true`. `tracker_transition` takes a transition name, an id or a key of the
 kind's state map (`jira.transitions`, `github-issues.state-labels`; the
 in-review key is `in-review` on both) and refuses one the work item does not
 offer. Jira refuses an unknown fix version on `tracker_create` and
-`tracker_edit`; GitHub Issues refuses an unknown `status` on `tracker_create`.
+`tracker_edit`; when the project's versions cannot be read it writes anyway and
+adds `fix_version_warning`. GitHub Issues refuses an unknown `status` on
+`tracker_create`. Jira lists transitions per issue, so its `tracker_create`
+`status` is checked after the create: an unknown one leaves the issue in its
+first state and answers `status_warning`.
 
 A publishing script that needs more than the ten — the ADF body machinery, the
 attachment upload — reaches the selected kind through `scripts/tracker_api.py`,

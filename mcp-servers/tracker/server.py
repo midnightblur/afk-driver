@@ -123,7 +123,10 @@ def tracker_transitions(ticket_key: str) -> Any:
 
 @mcp.tool()
 def tracker_transition(ticket_key: str, transition_id: str) -> Any:
-    """Move a work item to a new state by transition id (from tracker_transitions)."""
+    """Move a work item to a new state. `transition_id` is a transition id or
+    name (from tracker_transitions) or a key of the configured state map, such
+    as `in-review`; one the work item does not offer answers `refused: true`
+    and nothing is written."""
     return _call("tracker_transition", ticket_key=ticket_key, transition_id=transition_id)
 
 

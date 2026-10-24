@@ -31,3 +31,5 @@
 2026-10-24 03:55 | execute | 0003-tracker-attach | designing — ground for INV-024 held (D-5, and main's 22 commits since touch none of its cited lines)
 2026-10-24 03:56 | execute | 0003-tracker-attach | developing — implementor working the contract test-first; focused tests local, full suites in CI
 2026-10-24 05:40 | execute | 0003-tracker-attach | decision(D-8) — scripts/tracker_api.py joins Scope for its verb count; decision(D-9) — four cases the contract left open
+2026-10-24 07:05 | execute | 0003-tracker-attach | verifying — static gates + Produces greps green; CI green on 2fe97a9 (ubuntu, windows); rationale batch 83e48e8efa8f3a25 posted
+2026-10-24 07:05 | execute | 0003-tracker-attach | reviewing — round 1: spec-fidelity, scope-and-impact, test-veracity, logic-correctness, refactor-safety, api-contract

@@ -221,10 +221,10 @@ def _op_transition(p):
         return {"ok": True, "ticket_key": _number(p["ticket_key"]),
                 "state": "closed" if verb == "close" else "open"}
     if target not in labels:
-        return {"error": True, "reason":
+        return {"error": True, "refused": True, "operation": "tracker_transition", "reason":
                 f"tracker: github-issues — no state `{target}` in "
                 f"`github-issues.state-labels` (have: {', '.join(labels) or 'none'}); "
-                f"`open` and `closed` always work"}
+                f"`open` and `closed` always work; nothing was written"}
     number = _number(p["ticket_key"])
     args = ["issue", "edit", number, *_repo_args(), "--add-label", labels[target]]
     # Exactly one state label at a time: leaving the previous one on makes the
@@ -382,13 +382,13 @@ def _attach_blocker():
 def _op_attach(p):
     """One comment: each image or video inline through `--attach`, every other
     file named with the reason, for the developer to add by hand."""
-    number, files = _number(p["ticket_key"]), p["files"]
+    number, files = _number(p["ticket_key"]), p.get("files")
     if not isinstance(files, list) or not files:
-        return {"error": True, "operation": "tracker_attach",
-                "reason": "`files` must be a non-empty list of file paths"}
+        return {"error": True, "refused": True, "operation": "tracker_attach",
+                "reason": "`files` must be a non-empty list of file paths; nothing was written"}
     gone = [str(f) for f in files if not os.path.isfile(str(f))]
     if gone:
-        return {"error": True, "operation": "tracker_attach",
+        return {"error": True, "refused": True, "operation": "tracker_attach",
                 "reason": f"no such file: {', '.join(gone)}; nothing was written"}
     files = list(dict.fromkeys(str(f) for f in files))
     blocker, unavailable = _attach_blocker()
@@ -418,7 +418,7 @@ def _op_attach(p):
         return dict(answer, operation="tracker_attach")
     url = answer.get("raw", "").strip() if isinstance(answer, dict) else ""
     return {"ok": True, "ticket_key": number, "comment": url,
-            "attached": attach, "unsupported_files": unsupported}
+            "attached": [{"file": path} for path in attach], "unsupported_files": unsupported}
 
 
 _DISPATCH = {
