@@ -436,6 +436,18 @@ a token value — not even partially.
   drives that login when `forge: github` is configured (it shells out to `gh`;
   the token still never touches this plugin).
 
+### C3c · gh ≥ 2.99.0 floor *(optional; only when `tracker: github-issues`)*
+- **Needed by:** `adapters/tracker/github-issues/api.py` `tracker_attach` —
+  `gh issue comment --attach` (first in gh 2.99.0) puts each image or video
+  file inline in the comment.
+- **Probe:** `v=$(gh --version | awk 'NR==1{print $3}'); test "$(printf '%s\n' 2.99.0 "$v" | sort -V | head -1)" = 2.99.0`.
+  Another tracker selected: n/a.
+- **Fix:** `human:` upgrade gh (https://cli.github.com, or the package manager
+  that installed it).
+- **Notes:** Below the floor, `tracker_attach` attaches no file and names each
+  one in the comment for the developer to add by hand; every other tracker verb
+  works. The adapter reads `gh --version` itself on each call.
+
 ### C4 · Maven wrapper + JDK *(only when `maven` is in `build-gates:`)*
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
   compile row (`skills/afk/to-subtasks/SMOKE-GATE.md`), the liquibase pickup
@@ -729,8 +741,8 @@ a token value — not even partially.
 
 ### S1 · Jira REST credentials — **secret** *(only when `tracker: jira`)*
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
-  (attachment upload has no MCP tool, and both engines PUT the description via
-  REST directly rather than inline a large ADF through an MCP tool call),
+  (both engines upload figures and PUT the description via REST directly
+  rather than inline a large ADF through an MCP tool call),
   the shared Jira lib `adapters/tracker/jira/api.py` and
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001),
   and `scripts/afk-config.py init` (presence-only: the `JIRA_BASE_URL` hint).

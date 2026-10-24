@@ -13,6 +13,7 @@ No tracker. Every verb returns `{"unsupported": true}` with the reason.
 - `tracker_transitions`
 - `tracker_attachments`
 - `tracker_changelog`
+- `tracker_attach`
 
 Every verb takes its arguments as JSON on the command line or on stdin, and
 answers with one JSON object on stdout. A verb this adapter does not implement
@@ -30,4 +31,5 @@ credential store.
 ## Documented degradation
 
 Everything. A skill that needs a tracker writes the same payload through the
-`notes` adapter and says so.
+`notes` adapter and says so. `tracker_attach` also lists each given file in
+`unsupported_files` with the reason.

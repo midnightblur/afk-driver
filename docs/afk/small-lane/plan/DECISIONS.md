@@ -48,3 +48,17 @@
 - Chosen: (a) add slice `0013-config-contract` for adversary findings F1, F2, F4 and F5 — each breaks a promise `CONFIG.md` states, and each behaves the same on main 82c3db8, so none was caused by 0002; 0002 is finished with them routed there, and `0012-sync-harness` waits for 0013. F3, F6 and the low findings stay advisory in the adversary report. (b) anchor on `## Developer settings (K1–K5)` in 0002's Produces and in the Consumes of 0005, 0007, 0011 and 0013, so a removed heading cannot pass on the pointer.
 - Supersedes: PLAN.md progress tracker (row 13 added); 0012-sync-harness ## Blocked by; the anchor text in those five contracts
 - To reverse: delete 0013 and its tracker row, restore 0012's Blocked by, and restore the bare anchor
+
+## D-8 — the tracker loader's verb count joins the tracker slice's scope
+- 2026-10-24 · decided by execute (0003-tracker-attach, Step 8)
+- Options: stop `blocked` for a re-slice vs add `scripts/tracker_api.py` to this slice's Scope
+- Chosen: add it. Acceptance bullet 1 requires every home that counts the tracker verbs to name ten, and line 4 of that file's docstring says nine; the edit is that one word. `providers/PARITY.md:148`, `providers/CONFORMANCE.md:24` and the 1.x CHANGELOG entry stay: they record what a dated run saw.
+- Supersedes: 0003-tracker-attach ## Scope, for this one file
+- To reverse: restore "nine" on line 4 of `scripts/tracker_api.py`
+
+## D-9 — how the tracker adapters settle the cases the contract left open
+- 2026-10-24 · decided by execute (0003-tracker-attach, Step 5)
+- Options: (a) Jira create with an opening state: check the state before create vs after; (b) GitHub write access: probe once per call vs per file; (c) a listed file missing on disk: refuse the call vs attach the rest; (d) the GitHub attachable types: the image and video types the gh docs list vs any file
+- Chosen: (a) after create, answered as `status_warning` — Jira lists transitions per issue, so none exist to check before the issue does; `tracker_transition`, the in-review move, checks before its write. (b) one `gh repo view --json viewerPermission`; READ, TRIAGE or NONE marks every file unsupported. (c) refuse the whole call before any write, so a proof comment is never posted half-filled. (d) the image and video types only; every other file is named in the comment.
+- Supersedes: none
+- To reverse: (a) read the project's workflow statuses before create; (c) attach the files that exist and name the missing ones

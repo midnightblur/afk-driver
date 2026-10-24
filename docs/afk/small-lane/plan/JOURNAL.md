@@ -28,3 +28,6 @@
 2026-10-22 13:19 | execute | 0002-developer-settings | review r2 — 1 low test finding, fixed in 2f68fbd; review r3 clean; review gate settled (closure ok at round 3, 5 findings, all fixed); adversary gate running
 2026-10-22 13:41 | execute | 0002-developer-settings | adversary — findings, high=1 med=5 low=5 (D-3 runtime probe); decision(D-7) — F1, F2, F4, F5 predate the slice and route to new slice 0013-config-contract, the rest advisory; rationale receipt sealed
 2026-10-22 13:41 | execute | 0002-developer-settings | done
+2026-10-24 03:55 | execute | 0003-tracker-attach | designing — ground for INV-024 held (D-5, and main's 22 commits since touch none of its cited lines)
+2026-10-24 03:56 | execute | 0003-tracker-attach | developing — implementor working the contract test-first; focused tests local, full suites in CI
+2026-10-24 05:40 | execute | 0003-tracker-attach | decision(D-8) — scripts/tracker_api.py joins Scope for its verb count; decision(D-9) — four cases the contract left open

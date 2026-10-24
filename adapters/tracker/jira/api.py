@@ -3,7 +3,7 @@
 
 Two audiences, one module:
 
-- `call(operation, payload)` answers the nine `tracker_*` operations for the
+- `call(operation, payload)` answers the ten `tracker_*` operations for the
   `tracker` MCP server (ADAPTERS.md). This is the interface every tracker kind
   implements; a skill never sees Jira.
 - The publishing machinery several skills import directly: credential
@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import importlib.util
 import json
+import mimetypes
 import os
 import re
 import struct
@@ -178,23 +179,29 @@ class Jira:
                 raise
 
     def upload_attachment(self, key, filepath):
-        """Multipart upload. Returns the attachment id (str)."""
+        """Multipart upload of one file. Returns the attachment id (str)."""
+        return self.upload_attachments(key, [filepath])[0]["id"]
+
+    def upload_attachments(self, key, filepaths):
+        """One multipart upload; each part carries its file's real content type.
+        Returns Jira's answer: one attachment object per file."""
         boundary = "----afkPrdBoundary7MA4YWxkTrZu0gW"
-        fname = os.path.basename(filepath)
-        with open(filepath, "rb") as f:
-            payload = f.read()
-        body = b"".join([
-            f"--{boundary}\r\n".encode(),
-            f'Content-Disposition: form-data; name="file"; filename="{fname}"\r\n'.encode(),
-            b"Content-Type: image/png\r\n\r\n",
-            payload, b"\r\n",
-            f"--{boundary}--\r\n".encode(),
-        ])
-        r = self._req("POST", f"/rest/api/3/issue/{key}/attachments", data=body,
+        parts = []
+        for filepath in filepaths:
+            fname = os.path.basename(filepath).replace('"', "%22")
+            with open(filepath, "rb") as f:
+                payload = f.read()
+            parts += [
+                f"--{boundary}\r\n".encode(),
+                f'Content-Disposition: form-data; name="file"; filename="{fname}"\r\n'.encode(),
+                f"Content-Type: {content_type(filepath)}\r\n\r\n".encode(),
+                payload, b"\r\n",
+            ]
+        parts.append(f"--{boundary}--\r\n".encode())
+        r = self._req("POST", f"/rest/api/3/issue/{key}/attachments", data=b"".join(parts),
                       headers={"X-Atlassian-Token": "no-check",
                                "Content-Type": f"multipart/form-data; boundary={boundary}"})
-        arr = json.loads(r.read())
-        return arr[0]["id"]
+        return json.loads(r.read())
 
     def resolve_media_uuid(self, att_id):
         """GET attachment content, do NOT follow the 303; pull the UUID out of
@@ -214,6 +221,25 @@ class Jira:
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *a, **k):
         return None
+
+
+# ============================================================================
+# Content types — sent with each upload, so Jira stores the file as what it is
+CONTENT_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+    ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm",
+    ".txt": "text/plain", ".log": "text/plain", ".md": "text/markdown",
+    ".json": "application/json", ".html": "text/html", ".xml": "application/xml",
+    ".zip": "application/zip",
+}
+
+
+def content_type(path):
+    """The file's media type: the table above, then the platform's guess."""
+    suffix = os.path.splitext(path)[1].lower()
+    return (CONTENT_TYPES.get(suffix) or mimetypes.guess_type(path)[0]
+            or "application/octet-stream")
 
 
 # ============================================================================
@@ -440,12 +466,12 @@ def _build_table(tokens, i, fig_nodes):
 
 
 # ============================================================================
-# The tracker contract — the nine operations every tracker kind answers
+# The tracker contract — the ten operations every tracker kind answers
 # ============================================================================
 OPERATIONS = (
     "tracker_get", "tracker_search", "tracker_create", "tracker_edit",
     "tracker_comment", "tracker_transition", "tracker_transitions",
-    "tracker_attachments", "tracker_changelog",
+    "tracker_attachments", "tracker_changelog", "tracker_attach",
 )
 
 DEFAULT_FIELDS = ("summary,status,issuetype,assignee,reporter,priority,"
@@ -492,15 +518,81 @@ def _json(method, path, body=None, params=None):
         return {"raw": raw.decode("utf-8", "replace")[:2000]}
 
 
-def _adf_text(text):
-    """Wrap plain text in Atlassian Document Format."""
+def _adf_doc(text, extra=()):
+    """Markdown text as an Atlassian Document Format document, then the
+    `extra` block nodes."""
+    content = md_to_adf_content(text or "", {}) + list(extra)
     return {"type": "doc", "version": 1,
-            "content": [{"type": "paragraph",
-                         "content": [{"type": "text", "text": text}]}]}
+            "content": content or [{"type": "paragraph", "content": []}]}
 
 
 def _default_project():
     return os.environ.get("JIRA_DEFAULT_PROJECT", "")
+
+
+_READER = None
+
+
+def transitions_config():
+    """`jira.transitions` (key -> transition name or id), read from the project
+    root on every call. Empty when the repository declared none."""
+    global _READER
+    if _READER is None:
+        spec = importlib.util.spec_from_file_location(
+            "afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py")
+        _READER = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_READER)
+    block = _READER.get(_READER.load(_READER.project_root()), "jira") or {}
+    value = block.get("transitions") if isinstance(block, dict) else None
+    return value if isinstance(value, dict) else {}
+
+
+def _refused(operation, reason):
+    return {"error": True, "refused": True, "operation": operation,
+            "reason": f"{reason}; nothing was written"}
+
+
+def _resolve_transition(key, given, operation):
+    """(transition id, None) for `given` — a `jira.transitions` key, a
+    transition name or an id — or (None, the answer) when the issue offers none."""
+    try:
+        configured = transitions_config()
+    except Exception as e:  # an unreadable config is named, never guessed past
+        return None, {"error": True, "operation": operation,
+                      "reason": f"jira.transitions unreadable: {type(e).__name__}: {e}"}
+    wanted = str(configured.get(given, given))
+    listed = _json("GET", f"/rest/api/3/issue/{key}/transitions")
+    if not isinstance(listed, dict) or listed.get("error"):
+        return None, listed
+    transitions = listed.get("transitions") or []
+    for t in transitions:
+        if str(t.get("id")) == wanted or str(t.get("name", "")).lower() == wanted.lower():
+            return str(t["id"]), None
+    offered = ", ".join(f"{t.get('name')} ({t.get('id')})" for t in transitions) or "none"
+    via = f" (`jira.transitions.{given}`)" if given in configured else ""
+    return None, _refused(operation, f"{key} has no transition `{wanted}`{via}; "
+                                     f"it offers: {offered}")
+
+
+def _check_fix_versions(project, wanted, operation):
+    """None when every entry of `wanted` (a name, or a {"name"} or {"id"}
+    object) is a version of the project; else the refusal or the read error."""
+    versions = _json("GET", f"/rest/api/3/project/{project}/versions")
+    if not isinstance(versions, list):
+        return versions if isinstance(versions, dict) else {
+            "error": True, "operation": operation, "reason": "unreadable project versions"}
+    names = {str(v.get("name")) for v in versions}
+    ids = {str(v.get("id")) for v in versions}
+    unknown = []
+    for entry in wanted:
+        entry = entry if isinstance(entry, dict) else {"name": entry}
+        if str(entry.get("name")) not in names and str(entry.get("id")) not in ids:
+            unknown.append(str(entry.get("name") or entry.get("id")))
+    if unknown:
+        known = ", ".join(sorted(names)) or "none"
+        return _refused(operation, f"fix version {', '.join(unknown)} does not exist in "
+                                   f"project {project} (known: {known})")
+    return None
 
 
 def _op_get(p):
@@ -528,8 +620,12 @@ def _op_transitions(p):
 
 
 def _op_transition(p):
-    return _json("POST", f"/rest/api/3/issue/{p['ticket_key']}/transitions",
-                 body={"transition": {"id": p["transition_id"]}})
+    key = p["ticket_key"]
+    transition_id, refusal = _resolve_transition(key, p["transition_id"], "tracker_transition")
+    if refusal is not None:
+        return refusal
+    return _json("POST", f"/rest/api/3/issue/{key}/transitions",
+                 body={"transition": {"id": transition_id}})
 
 
 def _op_changelog(p):
@@ -539,7 +635,7 @@ def _op_changelog(p):
 
 def _op_comment(p):
     return _json("POST", f"/rest/api/3/issue/{p['ticket_key']}/comment",
-                 body={"body": _adf_text(p["text"])})
+                 body={"body": _adf_doc(p["text"])})
 
 
 def _op_attachments(p):
@@ -556,8 +652,21 @@ def _op_attachments(p):
 
 
 def _op_edit(p):
-    return _json("PUT", f"/rest/api/3/issue/{p['ticket_key']}",
-                 body={"fields": p["fields"]})
+    key, fields = p["ticket_key"], p["fields"]
+    wanted = fields.get("fixVersions") if isinstance(fields, dict) else None
+    if wanted:
+        issue = _json("GET", f"/rest/api/3/issue/{key}", params={"fields": "project"})
+        if isinstance(issue, dict) and issue.get("error"):
+            return issue
+        project = (((issue or {}).get("fields") or {}).get("project") or {}).get("key") \
+            if isinstance(issue, dict) else None
+        if not project:
+            return _refused("tracker_edit", f"could not read the project of {key} "
+                                            f"to check its fix versions")
+        refusal = _check_fix_versions(project, wanted, "tracker_edit")
+        if refusal is not None:
+            return refusal
+    return _json("PUT", f"/rest/api/3/issue/{key}", body={"fields": fields})
 
 
 def _op_create(p):
@@ -571,10 +680,13 @@ def _op_create(p):
               "issuetype": {"name": p["issue_type"]},
               "summary": p["summary"]}
     if p.get("description"):
-        fields["description"] = _adf_text(p["description"])
+        fields["description"] = _adf_doc(p["description"])
     if p.get("parent"):
         fields["parent"] = {"key": p["parent"]}
     if p.get("fix_version"):
+        refusal = _check_fix_versions(project, [p["fix_version"]], "tracker_create")
+        if refusal is not None:
+            return refusal
         fields["fixVersions"] = [{"name": p["fix_version"]}]
 
     created = _json("POST", "/rest/api/3/issue", body={"fields": fields})
@@ -598,18 +710,94 @@ def _op_create(p):
         else:
             result["assignee_warning"] = f"could not resolve '{assignee}'"
 
+    # Jira lists transitions per issue, so the opening state is checked after
+    # create; tracker_transition checks before its write.
     status = p.get("status")
     if status:
-        trs = _json("GET", f"/rest/api/3/issue/{key}/transitions")
-        match = next((t["id"] for t in (trs.get("transitions") or [])
-                      if isinstance(trs, dict) and t.get("name", "").lower() == status.lower()), None)
+        match, refusal = _resolve_transition(key, status, "tracker_create")
         if match:
             _json("POST", f"/rest/api/3/issue/{key}/transitions",
                   body={"transition": {"id": match}})
             result["transitioned_to"] = status
         else:
-            result["status_warning"] = f"no transition named '{status}'"
+            result["status_warning"] = (refusal or {}).get("reason") or f"no transition '{status}'"
     return result
+
+
+def _media_node(uuid, path, mime):
+    """One embedded file: an image or a video inline, any other file as a card."""
+    attrs = {"type": "file", "id": uuid, "collection": ""}
+    if mime.startswith(("image/", "video/")):
+        size = png_size(path) if mime == "image/png" else None
+        if size:
+            attrs.update(width=size[0], height=size[1])
+        return {"type": "mediaSingle", "attrs": {"layout": "center"},
+                "content": [{"type": "media", "attrs": attrs}]}
+    return {"type": "media", "attrs": attrs}
+
+
+def _missing_files(files):
+    """Why `files` cannot be attached, or None: it must list files on disk."""
+    if not isinstance(files, list) or not files:
+        return "`files` must be a non-empty list of file paths"
+    gone = [str(f) for f in files if not os.path.isfile(str(f))]
+    return f"no such file: {', '.join(gone)}; nothing was written" if gone else None
+
+
+def _op_attach(p):
+    """Upload every file in one request with its real content type, read back
+    each stored name and type, then post one comment that embeds the files and
+    names each mismatch."""
+    key, files = p["ticket_key"], p["files"]
+    problem = _missing_files(files)
+    if problem:
+        return {"error": True, "operation": "tracker_attach", "reason": problem}
+    files = list(dict.fromkeys(str(f) for f in files))
+    try:
+        uploaded = client().upload_attachments(key, files)
+    except urllib.error.HTTPError as e:
+        return {"error": True, "operation": "tracker_attach", "status": e.code,
+                "body": e.read().decode("utf-8", "replace")[:2000]}
+    except Exception as e:  # network, DNS, timeout
+        return {"error": True, "operation": "tracker_attach",
+                "reason": f"{type(e).__name__}: {e}"}
+
+    stored = _json("GET", f"/rest/api/3/issue/{key}", params={"fields": "attachment"})
+    listed = ((stored.get("fields") or {}).get("attachment") or []) if isinstance(stored, dict) else []
+    by_id = {str(a.get("id")): a for a in listed}
+    attached, mismatches, inline, cards, notes = [], [], [], [], []
+    # Jira answers one attachment per part, in part order (unverified; live check before release).
+    for path, answer in zip(files, uploaded if isinstance(uploaded, list) else []):
+        att_id = str(answer.get("id"))
+        sent = {"filename": os.path.basename(path), "mimeType": content_type(path)}
+        found = by_id.get(att_id) or {}
+        got = {"filename": found.get("filename"), "mimeType": found.get("mimeType")}
+        attached.append({"file": path, "id": att_id, **got})
+        if got != sent:
+            mismatches.append({"file": path, "id": att_id, "sent": sent, "stored": got})
+            notes.append(f"- `{sent['filename']}` was sent as {sent['mimeType']} and is "
+                         f"stored as `{got['filename']}` ({got['mimeType']})")
+        try:
+            node = _media_node(client().resolve_media_uuid(att_id), path, sent["mimeType"])
+        except Exception as e:  # attached but not embeddable: the comment says so
+            notes.append(f"- `{sent['filename']}` is attached but not embedded ({type(e).__name__})")
+            continue
+        (inline if node["type"] == "mediaSingle" else cards).append(node)
+
+    text = p.get("text") or ""
+    if notes:
+        text += "\n\n**Check these files:**\n\n" + "\n".join(notes)
+    extra = inline + ([{"type": "mediaGroup", "content": cards}] if cards else [])
+    comment = _json("POST", f"/rest/api/3/issue/{key}/comment",
+                    body={"body": _adf_doc(text, extra)})
+    result = {"ticket_key": key, "attached": attached, "mismatches": mismatches,
+              "unsupported_files": []}
+    if isinstance(comment, dict) and comment.get("error"):
+        return {"error": True, "operation": "tracker_attach",
+                "reason": "the files are attached; the comment failed", "comment_error": comment,
+                **result}
+    return {"ok": True, "comment": comment.get("id") if isinstance(comment, dict) else None,
+            **result}
 
 
 _DISPATCH = {
@@ -622,6 +810,7 @@ _DISPATCH = {
     "tracker_transitions": _op_transitions,
     "tracker_attachments": _op_attachments,
     "tracker_changelog": _op_changelog,
+    "tracker_attach": _op_attach,
 }
 
 
