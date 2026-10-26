@@ -930,3 +930,24 @@
 - Chosen: B — INV-083 found a live section's dot green whatever its state (shell.html:1160 at 3bccf52), which told the reader an Absent section was fine; the team section is the first live section that is Absent in normal use, and a per-section exception would keep the wrong signal for the rest. No Python test pins the shell's nav code; the shell has no script test harness
 - Supersedes: none
 - To reverse: restore `s.kind === "live" ? "var(--good)"` and the `s.kind === "digest"` guard on the tip in shell.html's nav loop
+
+## D-133 — Re-slice for round 47: a new launcher subtask ahead of the team entry script
+- 2026-10-26 · decided by the orchestrator, agent-decided under the grant of 2026-09-30 (brief: operator scratchpad spec-update-r47.md)
+- Options: A — fold the launcher, the rule Bash(afk-team *) and the 3-part check into 0010-team-entry-script vs B — a new subtask 0027-afk-team-launcher, blocked by 0009-spawn-permission-check, that 0010 and 0026 wait on
+- Chosen: B — round 47 (R-47, packets HL3-4, HL5-7 and HL6-10, signed 2026-10-26; S-247, S-248) moves the rule, the setup write into afk-bin and the check into setup and provider files that 0010 does not own; 0009 is done and stays unedited. 0010's invocations become `afk-team <verb> '<json>'`, and 0015's quotes follow the new rule. 0027 sorts above 0010 in the tracker, but the validator ranks by file number, so 0010's Consumes line on 0027 reads as A-FORWARD
+- Supersedes: none
+- To reverse: delete plan/0027-afk-team-launcher.md and its PLAN.md rows; restore 0010's and 0015's invocation text, Consumes and Blocked by
+
+## D-134 — No Consumes line on 0027; Blocked by alone holds the order
+- 2026-10-26 · decided by the orchestrator, agent-decided under the grant of 2026-09-30
+- Options: A — keep 0010's Consumes line on 0027's launcher anchor and accept the A-FORWARD finding vs B — drop the Consumes lines on 0027 from 0010 and 0015; the tracker row order and 0010's Blocked by 0027 hold the order
+- Chosen: B — validate_plan ranks by file number, so any Consumes line on 0027 from a lower-numbered file reads as A-FORWARD; the Blocked by line gives the same runtime order without a finding. 0015 keeps §25 as a use seam in the register
+- Supersedes: D-133 (its sentence on 0010's Consumes line only)
+- To reverse: add `0027-afk-team-launcher hooks/lib/providers/claude.sh#Bash(afk-team *)` back to 0010's Consumes and accept A-FORWARD
+
+## D-135 — D-75's rule text gives way to the signed afk-team rule
+- 2026-10-26 · decided by the orchestrator, agent-decided under the grant of 2026-09-30, recording the human's R-47 signatures (HL3-4, HL6-10)
+- Options: A — leave D-75 standing beside ADR-0017 vs B — mark D-75 superseded so a reader of the ledger does not build on the full-path rule
+- Chosen: B — R-47 replaced the rule `Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)` with `Bash(afk-team *)` (ADR-0017). The rule text still survives plugin updates; the launcher does not, and /afk:setup rewrites it (INV-086). 0027 updates the MANIFEST H15 notes that repeat D-75's claim
+- Supersedes: D-75
+- To reverse: none on the branch; ADR-0017 is human-signed, so only a new grill round reverses it

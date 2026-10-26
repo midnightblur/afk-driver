@@ -1,6 +1,6 @@
 # ADR-0005 — Spawns under Claude Code auto mode rest on an allow rule the human grants
 
-> Status: Accepted
+> Status: Superseded by ADR-0017 (2026-10-26)
 > Date: 2026-09-28
 > Audited: 2026-09-28
 > Layer: L4

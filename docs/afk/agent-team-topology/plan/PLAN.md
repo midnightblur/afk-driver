@@ -7,7 +7,7 @@
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
-Agent decisions taken while slicing are in [DECISIONS.md](DECISIONS.md) (D-1 to D-39). The plan was re-sliced in place against 1210110, which holds the main merge (D-13). Five seams rest on investigations left partial under the human's exception of 2026-10-02 (GRILL-LOG.md:711): Step 10.5 (INV-035), the report-file writers (INV-036), the lesson id mint (INV-034) and both /afk:bug rows (INV-038); each is an Acceptance row on its owning subtask, and its §13 checks must pass before that subtask merges (D-5, D-17). A §14 row whose citation the plan validator cannot read is an Acceptance seam bullet on its owner (D-9, D-14).
+Agent decisions taken while slicing are in [DECISIONS.md](DECISIONS.md) (D-1 to D-39); D-133 adds 0027-afk-team-launcher for round 47. The plan was re-sliced in place against 1210110, which holds the main merge (D-13). Five seams rest on investigations left partial under the human's exception of 2026-10-02 (GRILL-LOG.md:711): Step 10.5 (INV-035), the report-file writers (INV-036), the lesson id mint (INV-034) and both /afk:bug rows (INV-038); each is an Acceptance row on its owning subtask, and its §13 checks must pass before that subtask merges (D-5, D-17). A §14 row whose citation the plan validator cannot read is an Acceptance seam bullet on its owner (D-9, D-14).
 
 ## Solution map
 
@@ -25,6 +25,7 @@ flowchart LR
     C7[desktop tool + 1DevTool]
     C8[wait script]
     C9[spawn permission]
+    C26[afk-team launcher]
   end
   subgraph Team
     C10[team entry script]
@@ -59,6 +60,7 @@ flowchart LR
   T7([0007 desktop tool]) --> C7
   T8([0008 wait script]) --> C8
   T9([0009 spawn permission]) --> C9
+  T27([0027 afk-team launcher]) --> C26
   T10([0010 entry script]) --> C10
   T11([0011 supervisor]) --> C11
   T12([0012 cleanup]) --> C12
@@ -89,6 +91,7 @@ flowchart LR
   T18 -. seam .-> S17{{§9b 17 file reads}}
   T20 -. seam .-> S19{{§9b 19 report-file write}}
   T7 -. seam .-> S24{{§9b 24 1DevTool}}
+  T27 -. seam .-> S25{{§9b 25 plugin bin/ on the Bash PATH}}
 ```
 
 ## Seam register
@@ -103,7 +106,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 4 | "Operating-system job owning a process tree" | 0012-cleanup | 0006-transport-family-and-herdr |
 | 5 | "Terminal multiplexer install" | 0006-transport-family-and-herdr | 0015-team-skill-and-manifests |
 | 6 | "Codex agent lookup" | 0013-provider-layer-codex | 0017-spawn-steps |
-| 7 | "Claude Code auto-mode classifier" | 0009-spawn-permission-check | 0010-team-entry-script |
+| 7 | "Claude Code auto-mode classifier" | 0009-spawn-permission-check | 0010-team-entry-script, 0027-afk-team-launcher |
 | 8 | "Harness update check at an agent's start" | 0006-transport-family-and-herdr | 0010-team-entry-script |
 | 9 | "herdr message delivery" | 0006-transport-family-and-herdr | 0010-team-entry-script |
 | 10 | "herdr agent name and pane label" | 0010-team-entry-script | 0012-cleanup, 0025-dashboard-team-section |
@@ -121,6 +124,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 22 | "First-run dialogs at an agent's start" | 0010-team-entry-script | — |
 | 23 | "Claude Code auto-mode classifier, pane creation" | 0010-team-entry-script | 0009-spawn-permission-check |
 | 24 | "1DevTool delivery and tabs" | 0007-desktop-tool-transport | — |
+| 25 | "Claude Code plugin bin/ folder on the Bash PATH" | 0027-afk-team-launcher | 0015-team-skill-and-manifests |
 
 ## Progress tracker
 
@@ -135,23 +139,24 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 7 | 0007-desktop-tool-transport | Desktop-tool kind and the 1DevTool recipe, after its trial | pending | 0006-transport-family-and-herdr | static, unit, integration | impl §3, §24 |
 | 8 | 0008-inbox-wait-script | The wait job: one per run, checks the contact inbox every 10 seconds | done | — | static, unit, integration | impl §1, §2 |
 | 9 | 0009-spawn-permission-check | Spawn permission check and the setup offer of the allow rule | done | — | static, unit | impl §7; use §23 |
-| 10 | 0010-team-entry-script | The team entry script: six verbs, checks, names, charter files, launch prompts | blocked(design_conflict: the spawn allow rule matches no command on Claude Code 2.1.308) | 0003-manifest-module, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0008-inbox-wait-script, 0009-spawn-permission-check | static, unit, integration | impl §10, §11, §14, §22, §23; use §1, §7, §8, §9, §16, §18 |
-| 11 | 0011-job-supervisor | Job supervisor: one per agent, sends exited or parked | pending | 0010-team-entry-script | static, unit | — |
-| 12 | 0012-cleanup | Cleanup: five fixed steps, survivors reported by name | pending | 0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr, 0010-team-entry-script | static, unit, integration | impl §4; use §2, §3, §10, §20 |
-| 13 | 0013-provider-layer-codex | Model equivalence sentence and Codex stub names | done | — | static, unit, integration | impl §6 |
-| 14 | 0014-delegation-doctrine | DELEGATION.md states the pane-agent rule once; its BEHAVIORS.md short form | done | 0008-inbox-wait-script | static, unit, integration | use §1, §16 |
-| 15 | 0015-team-skill-and-manifests | The team skill, in both plugin manifests | pending | 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine | static, integration | use §1, §5 |
-| 16 | 0016-sessionstart-handlers | SessionStart: the charter pointer after a compaction | pending | 0010-team-entry-script | static, unit, integration | impl §12 |
-| 17 | 0017-spawn-steps | Stage-skill spawn points start role agents through the contact agent | pending | 0001-glossary-terms, 0014-delegation-doctrine, 0015-team-skill-and-manifests | static, unit, integration | impl §16; use §6 |
-| 18 | 0018-review-gate-pane-workers | Review gate workers as pane agents, in Step 10 and PF-3 | pending | 0001-glossary-terms, 0015-team-skill-and-manifests | static, unit, integration | impl §17; use §19 |
-| 19 | 0019-adversary-pane-agent | The adversary as a pane agent, blind diet kept | pending | 0015-team-skill-and-manifests, 0018-review-gate-pane-workers | static, integration | use §15, §17, §19 |
-| 20 | 0020-subagent-fallback-report-writers | Under the subagent fallback, the starter writes the report file | pending | 0017-spawn-steps, 0018-review-gate-pane-workers, 0019-adversary-pane-agent | static, integration | impl §19 |
-| 21 | 0021-fix-afk-lite | /afk:fix runs the afk-lite team | pending | 0005-pattern-resolver-and-builtin-records, 0015-team-skill-and-manifests | static, unit, integration | use §13, §17, §21 |
-| 22 | 0022-bug-pane-legs | /afk:bug publisher, fixer and retester as pane agents | pending | 0020-subagent-fallback-report-writers, 0021-fix-afk-lite | static, unit, integration | impl §13; use §11 |
-| 23 | 0023-lesson-ledger-lock | Lesson ledger id mint under a folder lock | done | — | static, unit, integration | — |
-| 24 | 0024-status-set-and-journal-reasons | The unrecorded_agent status everywhere; the unhomed_product_debt reason | pending | 0017-spawn-steps | static, unit | — |
-| 25 | 0025-dashboard-team-section | Mission control: team section and feature review-round count | done | 0003-manifest-module | static, unit | use §10 |
-| 26 | 0026-sync-harness | Sync the harness for the shipped feature | pending | 0001-glossary-terms, 0002-config-transport-and-pattern-keys, 0003-manifest-module, 0004-knowledge-store, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0007-desktop-tool-transport, 0008-inbox-wait-script, 0009-spawn-permission-check, 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine, 0015-team-skill-and-manifests, 0016-sessionstart-handlers, 0017-spawn-steps, 0018-review-gate-pane-workers, 0019-adversary-pane-agent, 0020-subagent-fallback-report-writers, 0021-fix-afk-lite, 0022-bug-pane-legs, 0023-lesson-ledger-lock, 0024-status-set-and-journal-reasons, 0025-dashboard-team-section | static | — |
+| 10 | 0027-afk-team-launcher | The afk-team launcher in afk-bin, the rule Bash(afk-team *) and the 3-part spawn check | pending | 0009-spawn-permission-check | static, unit, integration | impl §25; use §7 |
+| 11 | 0010-team-entry-script | The team entry script: six verbs, checks, names, charter files, launch prompts | blocked(design_conflict: the spawn allow rule matches no command on Claude Code 2.1.308) | 0003-manifest-module, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0008-inbox-wait-script, 0009-spawn-permission-check, 0027-afk-team-launcher | static, unit, integration | impl §10, §11, §14, §22, §23; use §1, §7, §8, §9, §16, §18 |
+| 12 | 0011-job-supervisor | Job supervisor: one per agent, sends exited or parked | pending | 0010-team-entry-script | static, unit | — |
+| 13 | 0012-cleanup | Cleanup: five fixed steps, survivors reported by name | pending | 0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr, 0010-team-entry-script | static, unit, integration | impl §4; use §2, §3, §10, §20 |
+| 14 | 0013-provider-layer-codex | Model equivalence sentence and Codex stub names | done | — | static, unit, integration | impl §6 |
+| 15 | 0014-delegation-doctrine | DELEGATION.md states the pane-agent rule once; its BEHAVIORS.md short form | done | 0008-inbox-wait-script | static, unit, integration | use §1, §16 |
+| 16 | 0015-team-skill-and-manifests | The team skill, in both plugin manifests | pending | 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine | static, integration | use §1, §5, §25 |
+| 17 | 0016-sessionstart-handlers | SessionStart: the charter pointer after a compaction | pending | 0010-team-entry-script | static, unit, integration | impl §12 |
+| 18 | 0017-spawn-steps | Stage-skill spawn points start role agents through the contact agent | pending | 0001-glossary-terms, 0014-delegation-doctrine, 0015-team-skill-and-manifests | static, unit, integration | impl §16; use §6 |
+| 19 | 0018-review-gate-pane-workers | Review gate workers as pane agents, in Step 10 and PF-3 | pending | 0001-glossary-terms, 0015-team-skill-and-manifests | static, unit, integration | impl §17; use §19 |
+| 20 | 0019-adversary-pane-agent | The adversary as a pane agent, blind diet kept | pending | 0015-team-skill-and-manifests, 0018-review-gate-pane-workers | static, integration | use §15, §17, §19 |
+| 21 | 0020-subagent-fallback-report-writers | Under the subagent fallback, the starter writes the report file | pending | 0017-spawn-steps, 0018-review-gate-pane-workers, 0019-adversary-pane-agent | static, integration | impl §19 |
+| 22 | 0021-fix-afk-lite | /afk:fix runs the afk-lite team | pending | 0005-pattern-resolver-and-builtin-records, 0015-team-skill-and-manifests | static, unit, integration | use §13, §17, §21 |
+| 23 | 0022-bug-pane-legs | /afk:bug publisher, fixer and retester as pane agents | pending | 0020-subagent-fallback-report-writers, 0021-fix-afk-lite | static, unit, integration | impl §13; use §11 |
+| 24 | 0023-lesson-ledger-lock | Lesson ledger id mint under a folder lock | done | — | static, unit, integration | — |
+| 25 | 0024-status-set-and-journal-reasons | The unrecorded_agent status everywhere; the unhomed_product_debt reason | pending | 0017-spawn-steps | static, unit | — |
+| 26 | 0025-dashboard-team-section | Mission control: team section and feature review-round count | done | 0003-manifest-module | static, unit | use §10 |
+| 27 | 0026-sync-harness | Sync the harness for the shipped feature | pending | 0001-glossary-terms, 0002-config-transport-and-pattern-keys, 0003-manifest-module, 0004-knowledge-store, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0007-desktop-tool-transport, 0008-inbox-wait-script, 0009-spawn-permission-check, 0010-team-entry-script, 0011-job-supervisor, 0012-cleanup, 0013-provider-layer-codex, 0014-delegation-doctrine, 0015-team-skill-and-manifests, 0016-sessionstart-handlers, 0017-spawn-steps, 0018-review-gate-pane-workers, 0019-adversary-pane-agent, 0020-subagent-fallback-report-writers, 0021-fix-afk-lite, 0022-bug-pane-legs, 0023-lesson-ledger-lock, 0024-status-set-and-journal-reasons, 0025-dashboard-team-section, 0027-afk-team-launcher | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->

@@ -10,7 +10,7 @@ A run today is one agent on one model, so work that needs independent thinking g
 | Requirement ADRs | adr/requirements/ | 20 records (0002 superseded by 0018, 0003 by 0010; 0010, 0012 and 0014 in part by 0020) |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | draft |
-| Design ADRs | adr/design/ | 16 records |
+| Design ADRs | adr/design/ | 17 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | 26 subtasks, cited — live status in the plan's progress tracker |

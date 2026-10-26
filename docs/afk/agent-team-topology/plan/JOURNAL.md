@@ -392,3 +392,6 @@
 2026-10-23 15:10 | autopilot | 0025-dashboard-team-section | done — the dashboard shows each agent of a team run and the feature's review-round count; review settled at round 2, the attacker found one low wording point
 2026-10-23 15:10 | autopilot | run | heartbeat 12/26 done; no runnable subtask left — every remaining one waits on 0007 (parked for the grill) or 0010 (parked on the allow-rule design call); run held for the human
 2026-10-23 15:15 | autopilot | 0010-team-entry-script | human direction: the plugin's own hook, not a user allow rule, lets the main agent run the team script; a live trial checks it before the human signs the changed permission design
+2026-10-26 18:46 | autopilot | 0027-afk-team-launcher | decision(D-133) — a new build step writes the afk-team command and its permission line; the team script step now waits on it
+2026-10-26 19:40 | autopilot | 0027-afk-team-launcher | decision(D-134) — the team script step waits on the launcher step through its Blocked by line only
+2026-10-26 19:40 | autopilot | 0027-afk-team-launcher | decision(D-135) — the old full-path permission line is recorded as replaced by the signed afk-team line
