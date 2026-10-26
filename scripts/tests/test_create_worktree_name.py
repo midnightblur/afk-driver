@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -351,6 +352,41 @@ def test_a_repository_without_a_manifest_runs_nothing_and_says_nothing(tmp_path)
     repo = make_repo(tmp_path)
     done = create(repo, "--name", "plain")
     assert done.returncode == 0 and "run-hook.py" not in done.stderr
+
+
+HELD_CONFIG = """build-gates:
+  - npm
+npm:
+  worktree-command:
+    - sh
+    - ./held-install.sh
+"""
+HELD_FILES = {
+    "package.json": '{"name":"fixture"}\n',
+    "package-lock.json": '{"name":"fixture","lockfileVersion":3}\n',
+    # The install waits for the test to release it, so "not built yet" is a fact, not a race.
+    "held-install.sh": 'i=0; while [ ! -f "$RELEASE" ] && [ $i -lt 600 ]; do sleep 0.2; i=$((i+1)); done\n'
+                       "mkdir -p node_modules && echo done > node_modules/installed\n",
+    ".afk/hooks.json": json.dumps([{"event": "WorktreeCreated", "matcher": "*", "timeout": 30,
+                                    "script": "setup/after.sh"}]),
+    "setup/after.sh": 'if [ -f node_modules/installed ]; then echo built; else echo bare; fi > "$PWD/after.log"\n',
+}
+
+
+def test_a_detached_setup_prints_the_path_before_the_build_then_runs_the_scripts_after_it(tmp_path):
+    release = tmp_path / "release"
+    repo = make_repo(tmp_path, HELD_CONFIG, HELD_FILES)
+    done = create(repo, "--name", "bg", "--provision-detached", extra_env={"RELEASE": release.as_posix()})
+    wt = path_of(done)
+    assert done.returncode == 0 and not (wt / "node_modules").exists() and not (wt / "after.log").exists()
+    log = Path(git(wt, "rev-parse", "--path-format=absolute", "--git-path", "afk/setup.log"))
+    assert log.name in done.stderr
+    release.write_text("go", encoding="utf-8")
+    end = time.monotonic() + 120
+    while time.monotonic() < end and not (log.is_file() and "worktree setup finished" in log.read_text("utf-8")):
+        time.sleep(0.2)
+    assert "worktree setup finished" in log.read_text("utf-8")
+    assert (wt / "after.log").read_text(encoding="utf-8").strip() == "built"
 
 
 HANDLER = PLUGIN_ROOT / "hooks" / "worktree-create.sh"

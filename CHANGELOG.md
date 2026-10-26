@@ -37,6 +37,15 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- The harness's worktree tool no longer fails on a large build. The creation
+  hook returns the path once the checkout and copies are done; build
+  provisioning and the repository's `WorktreeCreated` scripts then run in the
+  background, logging to the worktree's `afk/setup.log` git path. A creation
+  hook that times out or prints no path now fails with its cause, instead of
+  reporting success with no path.
+
 ## [1.16.0] - 2026-10-20
 
 ### Added

@@ -248,6 +248,20 @@ def test_r5_3_the_helper_starts_without_a_console_window(monkeypatch):
         assert seen["start_new_session"] is True
 
 
+def test_a_helper_with_a_log_appends_both_streams_to_it(tmp_path):
+    spec = importlib.util.spec_from_file_location("afk_h2_move", PLUGIN_ROOT / "hooks" / "lib" / "h2_move.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    log = tmp_path / "setup.log"
+    log.write_text("before\n", encoding="utf-8")
+    module.spawn([sys.executable, "-c", "import sys; print('out', flush=True); print('err', file=sys.stderr)"],
+                 log=str(log))
+    end = time.monotonic() + 30
+    while time.monotonic() < end and "err" not in log.read_text(encoding="utf-8"):
+        time.sleep(0.1)
+    assert log.read_text(encoding="utf-8").split() == ["before", "out", "err"]
+
+
 def load_move():
     spec = importlib.util.spec_from_file_location("afk_move", PLUGIN_ROOT / "scripts" / "afk-move.py")
     module = importlib.util.module_from_spec(spec)

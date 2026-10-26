@@ -20,7 +20,8 @@ Usage:
     --deadline one aggregate budget for the whole invocation, below the harness
                timeout. Past it the handler's whole process tree is killed: a
                plugin handler exits 0 with a one-line notice (verdict unknown,
-               never a block); a repository handler fails closed as before.
+               never a block), or 1 on an event whose answer is its stdout;
+               a repository handler fails closed as before.
                Handlers read the kill time as `AFK_HOOK_DEADLINE` (Unix epoch
                seconds), so each can fit its own waits inside the budget.
 
@@ -93,6 +94,9 @@ EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "W
 # a missing verdict on these, so the launcher answers for it. PostToolUse and
 # PostCompact carry context injections, never a block, so they only warn.
 BLOCKING_EVENTS = {"Stop", "PreToolUse"}
+# The events whose answer is the handler's stdout. An empty answer is a failure there,
+# so the launcher exits non-zero with the cause on stderr rather than pass it on.
+VALUE_EVENTS = {"WorktreeCreate"}
 
 
 # ---- the process-tree primitive: every handler this launcher starts runs through
@@ -111,7 +115,7 @@ _DEADLINE_S = 0.0
 _ACTIVE: list[subprocess.Popen] = []
 _JOBS: dict = {}
 _KILL_ON_CLOSE = 0x2000
-DETACHES_HELPERS = {"worktree-remove.sh"}
+DETACHES_HELPERS = {"worktree-remove.sh", "worktree-create.sh"}
 _CREATE_SUSPENDED = 0x00000004
 
 
@@ -611,11 +615,20 @@ def plugin_verdict(handler: str, code: int | None, out: bytes, err: bytes, soft:
     and a failure or a timeout also names itself."""
     write_raw(sys.stderr, err)
     event = envelope_field("hook_event_name") or None
+    valued = event in VALUE_EVENTS and not soft
     if code is None:  # partial stdout is dropped: a verdict cut off midway is no verdict
         text = failed(handler, event, f"timed out after {_DEADLINE_S:g}s, stopped, verdict unknown", err)
+        if valued:
+            return 1
         if not soft:
             answer([text], [])
         return 0
+    if valued:
+        if code == 0 and out.strip():
+            write_raw(sys.stdout, out)
+            return 0
+        failed(handler, event, f"exit {code}" if code else "exit 0 with no answer on stdout", err)
+        return code or 1
     blocking = event in BLOCKING_EVENTS and not soft
     reason = denial(event, out) if blocking else None
     if reason is None and blocking and code == 2:
