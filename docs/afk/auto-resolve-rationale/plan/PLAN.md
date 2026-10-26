@@ -20,7 +20,7 @@ flowchart LR
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-resolve-rationale-threads | Resolve rationale threads | developing | — | static, unit | — |
+| 1 | 0001-resolve-rationale-threads | Resolve rationale threads | blocked(test_fail: Windows CI browser helper produced no result) | — | static, unit | — |
 | 2 | 0002-sync-harness | Sync harness | pending | 0001-resolve-rationale-threads | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
