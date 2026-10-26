@@ -25,6 +25,16 @@ PUSH = {"pushd", "push-location"}
 POP = {"popd", "pop-location"}
 TOPLEVEL = re.compile(r"^(?:\$\(git rev-parse --show-toplevel\)|`git rev-parse --show-toplevel`)([\\/][\w.\\/-]*)?$")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+PARAMETER = re.compile(r"\$(?:([A-Za-z_][A-Za-z0-9_]*)|\{([A-Za-z_][A-Za-z0-9_]*)\})")
+QUOTED_RUN = re.compile(r'"\$\(([A-Za-z0-9 _./:=,@%+-]*)\)"')  # no quote, escape, expansion or operator inside
+# Forms that set a variable the value tracker cannot follow: functions, arithmetic, `${…=}`, `{fd}>`, IFS.
+UNTRACKABLE = re.compile(r"\w\s*\(\s*\)|(?<![\w-])function(?![\w-])|\(\(|\$\[|\$\{(?![A-Za-z_]\w*\})"
+                         r"|\{[A-Za-z_]\w*\}[<>]|(?<!\w)IFS(?!\w)")
+UNSPLIT = re.compile(r"^[^\s*?\[\]]+$")  # survives word splitting and pathname expansion unchanged
+CONTROL = {"if", "then", "elif", "else", "fi", "while", "until", "do", "done", "for", "case", "esac", "select",
+           "!", "coproc", "function"}
+SETTERS = {"read", "readarray", "mapfile", "declare", "typeset", "local", "readonly", "let", "getopts", "eval",
+           "source", ".", "trap", "alias", "shopt", "enable", "for", "select", "case", "coproc", "wait", "set"}
 CONTINUATION = {False: re.compile(r"\\\r?\n"), True: re.compile(r"`\r?\n")}  # by `powershell`
 QUOTES = {False: ('"', "'"), True: ('"“”„', "'‘’‚‛")}  # PowerShell takes typographic quotes
 BASH_ESCAPED = " \t\"'$;&|<>()`\\"
@@ -57,13 +67,16 @@ VALUE_OPTS = {"touch": {"t", "d", "r", "date", "reference"}, "mkdir": {"m", "mod
 
 
 class Word:
-    __slots__ = ("text", "opaque", "split", "runs", "sink")
+    __slots__ = ("text", "opaque", "split", "runs", "sink", "refs", "lead", "inner")
 
     def __init__(self, text: str, opaque: bool, split: bool | None = None, runs: bool = False):
         self.text, self.opaque = text, opaque
         self.split = opaque if split is None else split  # an unquoted expansion can become several words
         self.runs = runs  # a command substitution held in the word, or a quote form the parser does not model
         self.sink = False  # a redirect target that reaches no file
+        self.refs: list[tuple[int, int, str, bool]] | None = None  # (start, end, name, quoted) when only `$NAME` expands
+        self.lead = len(text)  # leading characters written plainly: an assignment's name and `=` must be
+        self.inner: str | None = None
 
 
 class Segment:
@@ -74,6 +87,9 @@ class Segment:
         self.mark = ""  # "open" / "close" for a `(` / `)` boundary
         self.expands = False  # a heredoc body or input redirect runs a substitution, or a block comment hides a quote
         self.git_env: list[tuple[str, Word | None]] = []  # set by steps(); None is an opaque value
+        self.joined = False  # runs only on the status of an earlier part (`&&`, `||`)
+        self.background = False  # ends with `&`: runs in a subshell
+        self.brace = False
 
 
 def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None, int]:
@@ -83,10 +99,26 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
     An unquoted `$(` ends the word, and its `(` opens a group judged on its own.
     """
     chars: list[str] = []
-    opaque = quoted = split = runs = False
-    n = len(text)
+    opaque = quoted = split = runs = other = False
+    refs: list[tuple[int, int, str, bool]] = []
+    lead: int | None = None
+    n, start = len(text), i
     join, escape = CONTINUATION[powershell], "`" if powershell else "\\"
     double, single = QUOTES[powershell]
+
+    def size() -> int:
+        return sum(len(part) for part in chars)
+
+    def reference(at: int, quoted_ref: bool) -> None:
+        """Record the plain `$NAME` or `${NAME}` at `at`; anything else expanding there is `other`."""
+        nonlocal other
+        found = None if powershell else PARAMETER.match(text, at)
+        if found:
+            here = size()
+            refs.append((here, here + len(found.group(0)), found.group(1) or found.group(2), quoted_ref))
+        else:
+            other = True
+
     while i < n:
         c = text[i]
         joined = join.match(text, i)
@@ -95,6 +127,8 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
             continue
         if c in " \t\r\n;&|()<>":
             break
+        if c in single or c in double or c == escape or c in "$`*?[%":
+            lead = size() if lead is None else lead
         if c in single or (not powershell and c == "$" and text[i + 1:i + 2] == "'"):
             quoted = True
             ansi = c == "$"  # Bash `$'…'` honours backslash escapes, `\'` among them
@@ -102,7 +136,8 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
             while end < n and text[end] not in single:
                 end += 2 if ansi and text[end] == "\\" else 1
             body = text[i + 1 + ansi:end]
-            opaque = opaque or (ansi and "\\" in body)  # an escape can spell any character
+            if ansi and "\\" in body:
+                opaque = other = True  # an escape can spell any character
             chars.append(body)
             i = end + 1
         elif c in double:
@@ -119,6 +154,10 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
                 elif text[i] == "$" or (text[i] == "`" and not powershell):
                     opaque = True
                     runs = runs or text[i] == "`" or text[i + 1:i + 2] == "("
+                    if text[i] == "$":
+                        reference(i, True)
+                    else:
+                        other = True
                 chars.append(text[i])
                 i += 1
             i += 1
@@ -126,20 +165,29 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
             chars.append(text[i + 1])
             i += 2
         elif not powershell and c == "$" and text[i + 1:i + 2] in BASH_SPECIAL:
-            opaque = split = True
+            opaque = split = other = True
             chars.append(text[i:i + 2])
             i += 2
         else:
             if c in "$`*?[%":
                 opaque = split = True
                 runs = runs or c == "`"
+                if c == "$":
+                    reference(i, False)
+                else:
+                    other = True
             if powershell and c == "@" and text[i + 1:i + 2] in double + single and PS_HERE.match(text, i + 2):
                 runs = True
             chars.append("-" if powershell and not chars and c in PS_DASHES else c)
             i += 1
     if not chars and not quoted:
         return None, i
-    return Word("".join(chars), opaque, split, runs), i
+    word = Word("".join(chars), opaque, split, runs)
+    word.lead = size() if lead is None else lead
+    word.refs = refs if opaque and not other else None
+    held = None if powershell else QUOTED_RUN.fullmatch(text, start, i)
+    word.inner = held.group(1) if held else None
+    return word, i
 
 
 def segments(text: str, powershell: bool = False) -> list[Segment]:
@@ -149,10 +197,11 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
     i, n = 0, len(text)
 
     def close() -> None:
+        """End the current segment; an empty one keeps the operator flags for the next words."""
         nonlocal current
         if current.words or current.redirects:
             found.append(current)
-        current = Segment()
+            current = Segment()
 
     def skip_blank() -> None:
         nonlocal i
@@ -198,6 +247,7 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
             current.piped = current.piped or piped
             close()
             current.piped = piped
+            current.joined = double
             i += 2 if double else 1
         elif c == "&" and text[i + 1:i + 2] == ">":
             i += 2 + (text[i + 2:i + 3] == ">")
@@ -206,8 +256,12 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
             if word:
                 current.redirects.append(word)
         elif c == "&":
+            both = text[i + 1:i + 2] == "&"
+            if not both:
+                (current if current.words or current.redirects or not found else found[-1]).background = True
             close()
-            i += 2 if text[i + 1:i + 2] == "&" else 1
+            current.joined = both
+            i += 2 if both else 1
         elif c == ">":
             i += 1 + (text[i + 1:i + 2] == ">")
             dup = text[i:i + 1] == "&"
@@ -237,6 +291,7 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
                 current.expands = True
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
             close()
+            current.brace = True
             i += 1
         elif c == "#":  # a comment runs to the line end; a trailing `\` or backtick does not continue it
             end = text.find("\n", i)
@@ -289,6 +344,8 @@ def strip_prefixes(words: list[Word], effects: dict | None = None, keywords: boo
 
     def assign(word: Word) -> None:
         name, _, value = word.text.partition("=")
+        if ASSIGN.match(word.text):
+            effects.setdefault("assigns", []).append(name)
         if name in GIT_ENV:
             effects.setdefault("git_env", []).append((name, Word(value, word.opaque)))
 
@@ -671,27 +728,110 @@ def unexported(words: list[Word]) -> list[tuple[str, bool]] | None:
     return [] if lead == "-f" else [(w.text, flag == "-n") for w in names if w.text in GIT_ENV]
 
 
+def substitute(word: Word, values: dict[str, str]) -> Word:
+    """`word` with each plain `$NAME` replaced by its known literal value; unchanged when any is unknown,
+    or when an unquoted one would split, glob or vanish."""
+    if not word.opaque or word.refs is None:
+        return word
+    text, last = [], 0
+    for start, end, name, quoted in word.refs:
+        value = values.get(name)
+        if value is None or not (quoted or UNSPLIT.match(value)):
+            return word
+        text += [word.text[last:start], value]
+        last = end
+    found = Word("".join(text) + word.text[last:], False, False, word.runs)
+    found.lead = word.lead  # the plain prefix keeps its place; an expansion never forms a name
+    found.sink = found.text.lower() in NO_TARGET
+    return found
+
+
+def assignment(word: Word) -> bool:
+    """A word the shell reads as `NAME=value`: the name and `=` are written plainly."""
+    return bool(ASSIGN.match(word.text)) and word.text.index("=") < word.lead
+
+
+def settle(segment: Segment, values: dict[str, str], frozen: bool) -> bool:
+    """Apply the segment's variable changes to `values`; True once later assignments must stay unknown.
+
+    Only a bare, literal assignment that always runs in this shell sets a value. Any other assignment
+    forgets its name; a builtin that can set a variable it does not name forgets every value.
+    """
+    first = segment.words[0] if segment.words else None
+    frozen = frozen or segment.brace or (first is not None and not first.opaque and first.text in CONTROL)
+    effects: dict = {}
+    words = strip_prefixes(segment.words, effects, keywords=True)
+    sure = not (frozen or segment.joined or segment.piped or segment.background)
+    if segment.words and all(assignment(w) for w in segment.words):
+        for word in segment.words:
+            name, _, value = word.text.partition("=")
+            if sure and not word.opaque and not word.runs and "~" not in value:
+                values[name] = value
+            else:
+                values.pop(name, None)
+        return frozen
+    for name in effects.get("assigns", []):
+        values.pop(name, None)
+    if effects.get("opaque") or (words and re.match(r"^[A-Za-z_]\w*(\[.*\])?\+?=", words[0].text)):
+        values.clear()
+        return True
+    if not words:
+        return frozen
+    prog, rest = program_of(words[0]), words[1:]
+    if prog in CD | POP:
+        for name in ("PWD", "OLDPWD", "DIRSTACK"):
+            values.pop(name, None)
+        return frozen
+    if prog in ("export", "unset"):
+        flags = {"-n", "-p", "--"} if prog == "export" else {"-v", "--"}
+        for word in rest:
+            if word.opaque or (word.text.startswith("-") and word.text not in flags | {"-f"}):
+                values.clear()
+                return True
+            if prog == "export" and assignment(word):
+                name, _, value = word.text.partition("=")
+                if sure and not word.runs and "~" not in value:
+                    values[name] = value
+                else:
+                    values.pop(name, None)
+            elif prog == "unset" and not any(w.text == "-f" for w in rest):
+                values.pop(word.text, None)
+        return frozen
+    if prog in SETTERS or (prog == "printf" and rest and (rest[0].opaque or rest[0].text.startswith("-v"))):
+        values.clear()
+        return True
+    return frozen
+
+
 def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=None):
     """(segment, words without wrappers, folder it runs in, folder before it) per command segment.
 
     A `cd`, `pushd` or `popd` outside a pipeline moves later segments; a folder change inside `( )`
     ends at the `)` unless `powershell`. A folder is None when it is not literal. `toplevel` is
-    passed to `cd_target`.
+    passed to `cd_target`. In Bash, a `$NAME` whose literal value `settle` knows is written into the
+    segment's words and redirects before they are read.
     """
     here: Path | None = cwd
-    saved: list[tuple[Path | None, dict, dict]] = []
+    saved: list[tuple[Path | None, dict, dict, dict, bool]] = []
     pushed: list[Path | None] = []
     git_env: dict[str, Word | None] = {}
     assigned: dict[str, Word | None] = {}  # shell variables a later bare `export` exports
+    tracks = not powershell and not UNTRACKABLE.search(command)
+    values: dict[str, str] = {}
+    frozen = False
     for segment in segments(command, powershell):
         if segment.mark:
             if segment.mark == "open":
-                saved.append((here, dict(git_env), dict(assigned)))
+                saved.append((here, dict(git_env), dict(assigned), dict(values), frozen))
             elif saved:
-                kept, kept_env, kept_vars = saved.pop()
+                kept, kept_env, kept_vars, kept_values, kept_frozen = saved.pop()
                 if not powershell:
-                    here, git_env, assigned = kept, kept_env, kept_vars
+                    here, git_env, assigned, values, frozen = kept, kept_env, kept_vars, kept_values, kept_frozen
             continue
+        if tracks:
+            segment.words = [substitute(w, values) for w in segment.words]
+            segment.redirects = [substitute(w, values) for w in segment.redirects]
+            frozen = settle(segment, values, frozen)
         effects: dict = {}
         words = strip_prefixes(segment.words, effects)
         spot = resolve(effects["chdir"], here) if effects.get("chdir") else here

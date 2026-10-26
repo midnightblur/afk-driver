@@ -361,3 +361,72 @@ def test_f4_005_a_pull_names_itself_for_the_hint():
     pulls.clear()
     sm.resources("git commit -m x", CWD, pulls=pulls)
     assert pulls == []
+
+
+def last_words(command: str) -> str:
+    found = [segment for segment, *_ in sm.steps(command, CWD)]
+    return " ".join(w.text for w in found[-1].words)
+
+
+@pytest.mark.parametrize("command,expected", [
+    ('N=abc; git log "$N"', "git log abc"),
+    ("N=abc && git log $N", "git log abc"),
+    ("N=abc; git log ${N}x", "git log abcx"),
+    ("export N=abc; git log $N", "git log abc"),
+    ("N=x; M=$N; git log $M", "git log x"),
+    ("N='a b'; git log -- \"$N\"", "git log -- a b"),
+    ("N=safe; (N=other); git log $N", "git log safe"),
+    ("N=safe; (N=other; git log $N)", "git log other"),
+    ("N=abc; cd sub && git log $N", "git log abc"),
+    ("N=abc; if true; then echo $N; fi; git log $N", "git log abc"),
+])
+def test_a_literal_assignment_reaches_later_segments(command, expected):
+    assert last_words(command) == expected
+
+
+@pytest.mark.parametrize("command", [
+    'N="a b"; git log $N',
+    "N='a*'; git log $N",
+    "N=; git log $N",
+    "N=$(echo x); git log $N",
+    "N=~/x; git log $N",
+    "N=safe; false && N=other; git log $N",
+    "N=safe; false || N=other; git log $N",
+    "N=safe; false &&\nN=other; git log $N",
+    "N=safe; N=other | cat; git log $N",
+    "N=safe; N=other & git log $N",
+    "N=safe; { N=other; } | cat; git log $N",
+    "N=safe; { N=other; } & git log $N",
+    "N=safe; if true; then N=other; fi; git log $N",
+    "N=safe; read N; git log $N",
+    "N=safe; printf -v N x; git log $N",
+    "N=safe; printf -v $'\x4e' x; git log $N",
+    "N=safe; declare -n M=N; M=other; git log $N",
+    "N=safe; eval x; git log $N",
+    "N=safe; $CMD; git log $N",
+    "N=safe; N+=other; git log $N",
+    "N=safe; N[0]=other; git log $N",
+    "N=safe; command N=other; git log $N",
+    "N=safe; N=other git status; git log $N",
+    "N=safe; f() { N=other; }; f; git log $N",
+    "N=safe; echo $((N=1)); git log $N",
+    "N=safe; echo ${N:=other}; git log $N",
+    "IFS=b; N=b-x; git log $N",
+    "N=safe; exec {N}>/dev/null; git log $N",
+    "N=safe; unset N; git log $N",
+    "N=safe; export -x N; git log $N",
+    "N=safe; for N in a; do :; done; git log $N",
+])
+def test_an_assignment_the_tracker_cannot_follow_leaves_the_word_opaque(command):
+    assert "$N" in last_words(command), command
+
+
+def test_a_powershell_reading_tracks_no_assignment():
+    found = [segment for segment, *_ in sm.steps("N=abc; git log $N", CWD, powershell=True)]
+    assert found[-1].words[-1].text == "$N"
+
+
+def test_a_known_variable_names_a_literal_write_target():
+    assert res("T=a.txt; touch $T") == at("a.txt")
+    assert res("T=a.txt; echo hi > $T") == at("a.txt")
+    assert res("T=a.txt; false && T=b.txt; touch $T") == []
