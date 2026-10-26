@@ -120,6 +120,8 @@ def test_github_attach_sends_the_comment_to_gh_as_utf8(github, tmp_path, monkeyp
     def run(argv, **kwargs):
         if argv[1:3] != ["issue", "comment"]:
             return gh(argv, **kwargs)
+        # A UTF-8 locale hides the bug, so the encoding is pinned too.
+        assert str(kwargs.get("encoding", "")).lower().replace("-", "") == "utf8"
         return REAL_RUN(child, **{**kwargs, "timeout": 30})
 
     monkeypatch.setattr(api.subprocess, "run", run)
@@ -661,10 +663,13 @@ def test_jira_attach_names_a_file_the_read_back_does_not_list(jira, tmp_path):
     assert "attachment list does not show it" in json.dumps(comment)
 
 
-def test_jira_attach_survives_a_malformed_read_back(jira, tmp_path):
+@pytest.mark.parametrize("stored", [{"fields": {"attachment": "oops"}},
+                                    {"fields": {"attachment": ["x", 1]}},
+                                    {"fields": "oops"}])
+def test_jira_attach_survives_a_malformed_read_back(jira, tmp_path, stored):
     api, fake = jira
     fake.on("POST", "/rest/api/3/issue/P-1/attachments", [{"id": "1"}])
-    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"attachment": "oops"}})
+    fake.on("GET", "/rest/api/3/issue/P-1?", stored)
     fake.on("GET", "/rest/api/3/attachment/content/",
             location=f"https://api.media.atlassian.com/file/{UUID}/binary")
     fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
