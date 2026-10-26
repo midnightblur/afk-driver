@@ -422,11 +422,18 @@ def test_r1_3_a_git_fatal_error_is_a_fault_not_a_detached_head(repo, monkeypatch
     assert guard._git_branch(str(repo["topic"])) is None
 
 
+def broken_worktree(repo) -> Path:
+    """A linked worktree outside every other repository whose gitdir pointer names nothing."""
+    linked = repo["tmp"] / "elsewhere"
+    git(repo["main"], "worktree", "add", "-q", "-b", "elsewhere", str(linked))
+    (linked / ".git").unlink()
+    (linked / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
+                                 encoding="utf-8")
+    return linked
+
+
 def test_r1_3_a_broken_gitdir_pointer_fails_closed(repo):
-    (repo["topic"] / ".git").unlink()
-    (repo["topic"] / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
-                                        encoding="utf-8")
-    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
+    done = run("claude", broken_worktree(repo), "Bash", {"command": "touch changed"})
     assert done.returncode == 2 and "could not compute a verdict" in done.stderr
 
 
@@ -469,11 +476,9 @@ def test_an_unreadable_envelope_is_not_an_identified_mutation(repo):
 
 
 def test_a_fault_passes_a_read_and_refuses_a_mutation(repo):
-    (repo["topic"] / ".git").unlink()
-    (repo["topic"] / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
-                                        encoding="utf-8")
-    assert run("claude", repo["topic"], "Bash", {"command": "git status"}).returncode == 0
-    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
+    broken = broken_worktree(repo)
+    assert run("claude", broken, "Bash", {"command": "git status"}).returncode == 0
+    done = run("claude", broken, "Bash", {"command": "touch changed"})
     assert done.returncode == 2 and "could not compute a verdict" in done.stderr
 
 
@@ -1469,3 +1474,60 @@ def test_review8_an_unreadable_target_refuses_only_in_a_guarded_placement(repo, 
     assert guard.main() == 0
     denied = '"permissionDecision": "deny"' in capsys.readouterr().out
     assert denied is (expected == 2)
+
+
+# ---------------------------------------------------------------- read-only forms
+
+def test_a_literal_assignment_proves_a_later_read_in_the_main_checkout(repo):
+    outside = (repo["tmp"] / "elsewhere").as_posix()
+    for command in ('N=HEAD; git log --oneline -1 "$N"', "N=HEAD && git show --stat $N",
+                    f'S={outside}; mkdir -p "$S/x"', 'D=README.md; cat "$D" > /dev/null'):
+        assert bash(repo["main"], command).returncode == 0, command
+    for command in ("N=--output=x; git log $N", "N=HEAD; false && N=--output=x; git log $N",
+                    f'S={repo["main"].as_posix()}; mkdir -p "$S/x"', "N=$(pwd); git log $N"):
+        assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_the_plugin_create_worktree_runs_under_a_literal_interpreter(repo):
+    script = (PLUGIN_ROOT / "scripts" / "create-worktree").as_posix()
+    for command in (f"bash {script} --name x", 'bash "${AFK_PLUGIN_ROOT}/scripts/create-worktree" --name x',
+                    f"sh {script} --name x"):
+        assert bash(repo["main"], command).returncode == 0, command
+    for command in ("bash scripts/create-worktree --name x", f"bash -x {script} --name x",
+                    f"bash {script}.sh --name x", f"python {script} --name x"):
+        assert bash(repo["main"], command).returncode == 2, command
+
+
+@pytest.mark.parametrize("command,twin", [
+    ('cd "$(git rev-parse --show-toplevel)" && git log -1', 'cd "$(git rev-parse --show-toplevel)" && make'),
+    ('git log --end-of-options "$sha"', 'git shortlog --end-of-options "$sha"'),
+    ("git ls-files | xargs grep -l seed", "git ls-files | xargs rm"),
+    ("awk '{print $1}' README.md", """awk '{print > "x"}' README.md"""),
+    ("node --version", "node -e 1"),
+    ("npm ls --depth 0", "npm install"),
+    ("git -c core.quotepath=off status", "git -c core.pager=less status"),
+    ("gh api graphql -f query='{ viewer { login } }'", "gh api graphql -f query='mutation { x }'"),
+])
+def test_an_added_read_form_runs_in_the_main_checkout_and_its_twin_is_refused(repo, command, twin):
+    assert bash(repo["main"], command).returncode == 0, command
+    assert bash(repo["main"], twin).returncode == 2, twin
+
+
+def dangling(folder: Path, gitdir: Path) -> Path:
+    folder.mkdir(parents=True)
+    (folder / ".git").write_text(f"gitdir: {gitdir.as_posix()}\n", encoding="utf-8")
+    return folder
+
+
+def test_a_folder_whose_git_file_points_nowhere_is_judged_by_the_repository_above(repo):
+    inside_topic = dangling(repo["topic"] / ".claude" / "worktrees" / "copy", repo["main"] / ".git" / "worktrees" / "copy")
+    assert bash(repo["topic"], f"rm -rf {inside_topic.as_posix()}").returncode == 0
+    inside_main = dangling(repo["main"] / "copy", repo["main"] / ".git" / "worktrees" / "gone")
+    done = bash(repo["topic"], f"rm -rf {inside_main.as_posix()}")
+    assert done.returncode == 2 and "could not compute" not in done.stderr
+
+
+def test_a_folder_whose_git_file_points_nowhere_fails_closed_outside_every_repository(tmp_path):
+    lone = dangling(tmp_path / "plain" / "copy", tmp_path / "missing")
+    done = bash(tmp_path / "plain", f"rm -rf {lone.as_posix()}")
+    assert done.returncode == 2 and "could not compute a verdict" in done.stderr

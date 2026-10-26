@@ -52,8 +52,10 @@ A shell command is split into segments, each with the folder it runs in.
 In the main checkout or a protected branch's worktree, a segment runs only
 when `hooks/lib/read_only.py` proves it read-only; a file writer whose targets
 are all literal, and a listed plugin script mode, are judged at the paths they
-write (ADR-0014). Git variables and symbolic links are followed to their
-target; an unreadable folder change refuses every later unproven segment. Elsewhere the guard
+write (ADR-0014). A Bash variable assigned a literal earlier in the command reads as that
+literal. Git variables and symbolic links are followed to their
+target; an unreadable folder change refuses every later unproven segment. A `.git` file whose
+`gitdir:` points nowhere is skipped for the next enclosing repository. Elsewhere the guard
 judges the resource a call mutates, not the command's shape (ADR-0010): each
 literal path or repository a mutation names is judged, and an opaque target
 (variable, substitution, glob) and an unknown program pass. A tool with no

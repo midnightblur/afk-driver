@@ -16,7 +16,7 @@ First, in the same process, the lavish rule (`lavish_direct`) refuses a shell ca
 `lavish-axi` itself or sets `LAVISH_AXI_HOST`; `AFK_ALLOW_PROTECTED=1` does not lift it.
 
 Placement is read from the file layout (`.git` directory or `gitdir:` file, then
-HEAD); one `git rev-parse` answers the unusual layouts (submodule, `core.worktree`,
+HEAD; a `gitdir:` file that points nowhere is skipped for the next enclosing one); one `git rev-parse` answers the unusual layouts (submodule, `core.worktree`,
 reftable, GIT_DIR in the environment).
 """
 from __future__ import annotations
@@ -190,6 +190,17 @@ def by_layout(directory: Path) -> dict | None:
             "root": str(directory)}
 
 
+def points_nowhere(entry: Path) -> bool:
+    """A `.git` file whose `gitdir:` names a folder that does not exist."""
+    if not entry.is_file():
+        return False
+    match = re.match(r"gitdir:\s*(.+?)\s*$", _text(entry) or "")
+    if not match:
+        return False
+    gitdir = Path(match.group(1))
+    return not (gitdir if gitdir.is_absolute() else entry.parent / gitdir).is_dir()
+
+
 def by_git(directory: Path, depth: int) -> dict | None:
     done = git(directory, "rev-parse", "--path-format=absolute", "--git-dir",
                "--git-common-dir", "--is-bare-repository", "--show-toplevel",
@@ -237,12 +248,16 @@ def placement(path: Path, depth: int = 0) -> dict | None:
     directory = existing_dir(canonical(path))
     if directory is None:
         return None
-    walk = directory
+    walk, dangling = directory, None
     while True:
-        if (walk / ".git").exists():
+        if (walk / ".git").exists() and not points_nowhere(walk / ".git"):
             place = by_layout(walk)
             break
+        if (walk / ".git").exists():
+            dangling = dangling or walk  # git refuses this folder; its files belong to the repository above
         if walk.parent == walk:
+            if dangling is not None:
+                raise Fault(f"{dangling / '.git'} points to a missing git directory and no repository encloses it")
             return None
         walk = walk.parent
     if place is None:
@@ -623,7 +638,10 @@ def plugin_file(word, folder: Path | None, command: str, powershell: bool) -> st
 
 
 def create_worktree(words: list, folder: Path | None, command: str, powershell: bool) -> bool:
-    """The plugin's own `scripts/create-worktree`, named by its path or under a proven `$AFK_PLUGIN_ROOT`."""
+    """The plugin's own `scripts/create-worktree`, named by its path or under a proven `$AFK_PLUGIN_ROOT`,
+    run directly or as the first operand of a literal `bash` or `sh`."""
+    if len(words) > 1 and not words[0].opaque and words[0].text.lower() in ("bash", "sh"):
+        words = words[1:]
     return bool(words) and plugin_file(words[0], folder, command, powershell) == "scripts/create-worktree"
 
 

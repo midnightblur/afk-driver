@@ -45,6 +45,16 @@ release page from its section here. Nobody tags by hand.
   background, logging to the worktree's `afk/setup.log` git path. A creation
   hook that times out or prints no path now fails with its cause, instead of
   reporting success with no path.
+- **The protected-branch guard accepts more provably read-only commands.** In
+  the main checkout, a variable assigned a literal earlier in the command reads
+  as that literal; `git` reads take operands after `--end-of-options` and
+  display-only `-c` settings; `cd`, `ls` and `cat` take a quoted proven
+  `$(…)`; and `awk`, `xargs`, `file`, `tree`, `xxd`, `npm ls`/`view`/`outdated`,
+  `pip list`/`show`, version flags, `gh search`, read-only `gh api graphql`, more
+  plain readers and PowerShell cmdlets pass. `bash scripts/create-worktree` is
+  accepted, and a nested `.git` file whose `gitdir:` points nowhere no longer
+  fails placement. `git fetch` and `ls-remote` with `--upload-pack` or `--exec`
+  and a `find` value after another predicate's value are now refused.
 
 ## [1.16.0] - 2026-10-20
 
