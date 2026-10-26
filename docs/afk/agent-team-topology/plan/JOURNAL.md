@@ -395,3 +395,5 @@
 2026-10-26 18:46 | autopilot | 0027-afk-team-launcher | decision(D-133) — a new build step writes the afk-team command and its permission line; the team script step now waits on it
 2026-10-26 19:40 | autopilot | 0027-afk-team-launcher | decision(D-134) — the team script step waits on the launcher step through its Blocked by line only
 2026-10-26 19:40 | autopilot | 0027-afk-team-launcher | decision(D-135) — the old full-path permission line is recorded as replaced by the signed afk-team line
+2026-10-26 19:45 | autopilot | 0010-team-entry-script | unparked — the human signed the new permission design (round 47); it now waits on 0027
+2026-10-26 19:45 | autopilot | run | heartbeat 12/27 done, starting 0027-afk-team-launcher
