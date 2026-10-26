@@ -32,7 +32,7 @@ the date in the header; everything else in PLAN.md is yours to edit.
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `python -m py_compile skills/afk/review/scripts/forge_ledger.py` | |
-| 2 | regression | `python -m pytest -q scripts/tests/test_rationale_ledger.py` | |
+| 1 | compile | `afk-python -m py_compile skills/afk/review/scripts/forge_ledger.py` | |
+| 2 | regression | `afk-python -m pytest -q scripts/tests/test_rationale_ledger.py` | |
 
 Last run: —

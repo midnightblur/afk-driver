@@ -36,8 +36,8 @@ standard
 
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `python -m py_compile skills/afk/review/scripts/forge_ledger.py` | rationale ledger parses |
-| unit | `python -m pytest -q scripts/tests/test_rationale_ledger.py` | post, retry, failure, and verification behavior |
+| static | `afk-python -m py_compile skills/afk/review/scripts/forge_ledger.py` | rationale ledger parses |
+| unit | `afk-python -m pytest -q scripts/tests/test_rationale_ledger.py` | post, retry, failure, and verification behavior |
 
 ## Context excerpts
 
