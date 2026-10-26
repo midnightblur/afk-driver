@@ -53,3 +53,4 @@ GAP-8
 SC-6
 SC-10
 JRACLOUD-80252 # upstream Jira issue the small-lane SDD cites as evidence for a tracker limit
+ADV-1 # made-up ticket key the small-lane adversary stand-in tracker uses in its repros

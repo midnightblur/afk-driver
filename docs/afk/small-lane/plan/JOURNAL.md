@@ -33,3 +33,8 @@
 2026-10-24 05:40 | execute | 0003-tracker-attach | decision(D-8) — scripts/tracker_api.py joins Scope for its verb count; decision(D-9) — four cases the contract left open
 2026-10-24 07:05 | execute | 0003-tracker-attach | verifying — static gates + Produces greps green; CI green on 2fe97a9 (ubuntu, windows); rationale batch 83e48e8efa8f3a25 posted
 2026-10-24 07:05 | execute | 0003-tracker-attach | reviewing — round 1: spec-fidelity, scope-and-impact, test-veracity, logic-correctness, refactor-safety, api-contract
+2026-10-26 09:00 | execute | 0003-tracker-attach | review r1 — 14 findings (8 med, 6 low), fixed in 7feb708; r2 — 8 findings (2 med, 6 low), fixed in 20b3e5e; r3 — 1 low, fixed in d08987d; r4 clean
+2026-10-26 09:00 | execute | 0003-tracker-attach | review closure failed — fix commits lacked Settles trailers; 7281545 carries them, dc02009 lets closure read a later trailer (human chose the script fix); review gate settled (closure ok at round 5, 23 findings, all fixed)
+2026-10-26 10:30 | execute | 0003-tracker-attach | adversary — findings, high=1 med=2 low=4 (D-3 runtime probe); F1 (Windows gh body not UTF-8, hang) and F3 fixed in 297ef3c; review r6 — 2 test findings fixed in 396d378; r7 clean; review gate settled (closure ok at round 7, 25 findings, all fixed)
+2026-10-26 10:30 | execute | 0003-tracker-attach | adversary pass 2 — findings, crit=0 high=0 med=4 low=5; gate passes; position pairing waits on the 0011 live check, the rest advisory; rationale receipt sealed
+2026-10-26 10:30 | execute | 0003-tracker-attach | done

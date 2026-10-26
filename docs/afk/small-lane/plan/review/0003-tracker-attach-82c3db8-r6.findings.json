@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Mutation probe (test passes without the fix)",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_tracker_attach.py",
+  "line": 115,
+  "side": "new",
+  "finding": "The UTF-8 regression test passes without the fix on any host whose locale is already UTF-8.",
+  "why": "Deleting encoding=\"utf-8\" from _gh leaves the test green on Linux, macOS and UTF-8 Windows, so CI's Linux job does not guard the bug.",
+  "fix": "Assert the adapter passes encoding utf-8 to subprocess.run, or force a cp1252 default so the unfixed code fails everywhere.",
+  "evidence": "def test_github_attach_sends_the_comment_to_gh_as_utf8(github, tmp_path, monkeypatch):"
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Missing negative case",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_tracker_attach.py",
+  "line": 664,
+  "side": "new",
+  "finding": "No test covers a read-back list holding non-object entries or a non-object fields value.",
+  "why": "The malformed read-back test uses a string, which the isinstance(listed, list) clause already rejects; removing the all(isinstance(a, dict)) clause leaves every test green.",
+  "fix": "Add cases with attachment [\"x\"] and a non-object fields value, expecting read_back false and ok true.",
+  "evidence": "def test_jira_attach_survives_a_malformed_read_back(jira, tmp_path):"
+ }
+]
