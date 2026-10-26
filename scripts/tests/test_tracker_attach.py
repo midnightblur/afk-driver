@@ -10,6 +10,7 @@ import importlib.util
 import json
 import re
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -20,6 +21,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 ADAPTERS = PLUGIN_ROOT / "adapters" / "tracker"
 SERVER = PLUGIN_ROOT / "mcp-servers" / "tracker" / "server.py"
 KINDS = ("jira", "github-issues", "none")
+REAL_RUN = subprocess.run
 
 
 def load(kind: str):
@@ -108,6 +110,24 @@ def test_github_attach_passes_one_attach_per_image_or_video_and_none_for_others(
     assert "Proof" in comment["input"] and "c.log" in comment["input"]
     assert answer["ok"] is True and answer["attached"] == [{"file": png}, {"file": mp4}]
     assert [u["file"] for u in answer["unsupported_files"]] == [log]
+
+
+def test_github_attach_sends_the_comment_to_gh_as_utf8(github, tmp_path, monkeypatch):
+    api, gh = github
+    sink = tmp_path / "stdin.bin"
+    child = [sys.executable, "-c", f"import sys; open({str(sink)!r}, 'wb').write(sys.stdin.buffer.read())"]
+
+    def run(argv, **kwargs):
+        if argv[1:3] != ["issue", "comment"]:
+            return gh(argv, **kwargs)
+        return REAL_RUN(child, **{**kwargs, "timeout": 30})
+
+    monkeypatch.setattr(api.subprocess, "run", run)
+    files = [proof(tmp_path, "a.png"), proof(tmp_path, "日本.txt")]
+    answer = api.call("tracker_attach", {"ticket_key": "7", "files": files, "text": "fix → ✓ 日本"})
+    body = sink.read_bytes().decode("utf-8")
+    assert answer["ok"] is True
+    assert "fix → ✓ 日本" in body and "Not attached — add" in body and "日本.txt" in body
 
 
 def test_github_attach_on_older_gh_attaches_nothing_and_names_every_file(github, tmp_path):
@@ -639,6 +659,28 @@ def test_jira_attach_names_a_file_the_read_back_does_not_list(jira, tmp_path):
     assert answer["attached"][0]["filename"] is None
     [comment] = fake.json_of("POST", "/rest/api/3/issue/P-1/comment")
     assert "attachment list does not show it" in json.dumps(comment)
+
+
+def test_jira_attach_survives_a_malformed_read_back(jira, tmp_path):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue/P-1/attachments", [{"id": "1"}])
+    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"attachment": "oops"}})
+    fake.on("GET", "/rest/api/3/attachment/content/",
+            location=f"https://api.media.atlassian.com/file/{UUID}/binary")
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [proof(tmp_path, "a.png")]})
+    assert answer["ok"] is True and answer["read_back"] is False and answer["mismatches"] == []
+
+
+def test_jira_attach_survives_an_upload_answer_without_objects(jira, tmp_path):
+    api, fake = jira
+    fake.on("POST", "/rest/api/3/issue/P-1/attachments", ["a.png"])
+    fake.on("GET", "/rest/api/3/issue/P-1?", {"fields": {"attachment": []}})
+    fake.on("POST", "/rest/api/3/issue/P-1/comment", {"id": "c9"})
+    png = proof(tmp_path, "a.png")
+    answer = api.call("tracker_attach", {"ticket_key": "P-1", "files": [png]})
+    assert answer["ok"] is True
+    assert [(m["file"], m["reason"]) for m in answer["mismatches"]] == [(png, "not in the upload answer")]
 
 
 def test_jira_create_writes_with_a_warning_when_versions_cannot_be_read(jira):

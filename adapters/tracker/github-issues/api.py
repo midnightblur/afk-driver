@@ -102,7 +102,8 @@ def _gh(*args, stdin=None, timeout=60):
     try:
         # A child inheriting the server's stdin pipe hangs on Windows.
         feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
-        done = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, **feed)
+        done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=timeout, **feed)
     except Exception as e:
         return {"error": True, "reason": f"{type(e).__name__}: {e}"}
     if done.returncode != 0:

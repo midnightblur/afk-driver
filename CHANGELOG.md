@@ -121,6 +121,9 @@ release page from its section here. Nobody tags by hand.
   `forge_ledger.py gate --phase closure` accepts the trailer on the fix commit
   or on a later commit between it and the head, so the missing trailer is
   added by committing it, without rewriting pushed history.
+- On Windows, the GitHub Issues tracker sends issue and comment bodies to `gh`
+  as UTF-8. A character outside the Windows code page no longer hangs
+  `tracker_comment`, `tracker_create` or `tracker_attach`.
 
 ## [1.16.0] - 2026-10-20
 

@@ -775,13 +775,14 @@ def _op_attach(p):
                 "reason": f"{type(e).__name__}: {e}"}
 
     stored = _json("GET", f"/rest/api/3/issue/{key}", params={"fields": "attachment"})
-    read_back = isinstance(stored, dict) and isinstance(stored.get("fields"), dict)
-    listed = (stored["fields"].get("attachment") or []) if read_back else []
-    by_id = {str(a.get("id")): a for a in listed}
+    fields = stored.get("fields") if isinstance(stored, dict) else None
+    listed = (fields.get("attachment") or []) if isinstance(fields, dict) else None
+    read_back = isinstance(listed, list) and all(isinstance(a, dict) for a in listed)
+    by_id = {str(a.get("id")): a for a in listed} if read_back else {}
     attached, mismatches, inline, cards, notes = [], [], [], [], []
     if not read_back:
         notes.append("- the stored names and types could not be read back, so they are not checked")
-    answers = uploaded if isinstance(uploaded, list) else []
+    answers = uploaded if isinstance(uploaded, list) and all(isinstance(a, dict) for a in uploaded) else []
     for path in files[len(answers):]:
         name = os.path.basename(path)
         mismatches.append({"file": path, "id": None, "reason": "not in the upload answer",
