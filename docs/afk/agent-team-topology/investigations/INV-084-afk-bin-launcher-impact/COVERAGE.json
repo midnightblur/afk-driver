@@ -1,0 +1,3732 @@
+{
+  "run": {
+    "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver-agent-teams",
+    "head": "b6de5e1968543666dc2d19573cecc355d9ef5b34",
+    "question": "What breaks or changes if /afk:setup's Python runtime step (skills/afk/setup/scripts/python_runtime.py install and check, place_entry) also writes an afk-team launcher (a POSIX sh script, plus afk-team.cmd on Windows) into the afk-bin folder beside afk-python, after the uv sync? Which code, tests, docs and setup register rows rely on afk-bin holding only afk-python? Does a uv sync or an environment rebuild (uv venv, --clear, a python version change) delete afk-bin contents, and in what order relative to place_entry? What removes afk-bin (uninstall notes)?",
+    "type": [
+      "Q1",
+      "Q3"
+    ],
+    "roots": [
+      "afk-bin",
+      "place_entry"
+    ],
+    "aliases": {
+      "afk-bin": [
+        {
+          "form": "simple",
+          "value": "afk-bin",
+          "enumerated": true
+        },
+        {
+          "form": "string-literal",
+          "value": "\"afk-bin\"",
+          "enumerated": true
+        },
+        {
+          "form": "import-alias",
+          "value": "entry_only",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "wire",
+          "value": "UV_TOOL_BIN_DIR",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "layout-key",
+          "value": "[\"bin\"]",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "launcher-key",
+          "value": "[\"launcher\"]",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "removal",
+          "value": "To remove",
+          "enumerated": true,
+          "source": "declared"
+        }
+      ],
+      "place_entry": [
+        {
+          "form": "simple",
+          "value": "place_entry",
+          "enumerated": true
+        },
+        {
+          "form": "string-literal",
+          "value": "\"place_entry\"",
+          "enumerated": true
+        },
+        {
+          "form": "import-alias",
+          "value": "entry_only",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "wire",
+          "value": "UV_TOOL_BIN_DIR",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "layout-key",
+          "value": "[\"bin\"]",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "launcher-key",
+          "value": "[\"launcher\"]",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "removal",
+          "value": "To remove",
+          "enumerated": true,
+          "source": "declared"
+        }
+      ]
+    },
+    "inventory_hash": "e908259eed052ba6bda4efaf113c4b3ec6bb41b8be6afa428a53061c0bb735fc",
+    "inventory_count": 1040,
+    "config": {
+      "path": ".afk/config.yaml",
+      "sha256": "c66fcafef8ee670595b03b7c5abb515e36f6eb5bc315663a0c21856db1622992"
+    },
+    "design_phase": true,
+    "started": "2026-10-26T21:49:28.553034+00:00",
+    "finished": "2026-10-26T22:20:11.906585+00:00",
+    "merged_from": 2,
+    "verdict": "closed-with-frontier"
+  },
+  "boundaries": [
+    {
+      "class": "B1",
+      "status": "closed",
+      "method": "every name form, whole repository; tracer: environment-rebuild commands, sync builders, directory listings in setup scripts, folders derived from the interpreter, importers of python_runtime.py",
+      "hits": 86,
+      "hit_ids": [
+        "B1:.claude/wiring-ious.md:21",
+        "B1:.github/workflows/release-gate.yml:29",
+        "B1:.github/workflows/release.yml:42",
+        "B1:.github/workflows/tests.yml:39",
+        "B1:.github/workflows/tests.yml:42",
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:748",
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:749",
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:750",
+        "B1:docs/afk/agent-team-topology/grill-solution.html:382",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:4916",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:4917",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:4934",
+        "B1:scripts/tests/test_python_runtime_setup.py:106",
+        "B1:scripts/tests/test_python_runtime_setup.py:110",
+        "B1:scripts/tests/test_python_runtime_setup.py:204",
+        "B1:scripts/tests/test_python_runtime_setup.py:547",
+        "B1:skills/afk/setup/MANIFEST.md:728",
+        "B1:skills/afk/setup/scripts/python_runtime.py:18",
+        "B1:skills/afk/setup/scripts/python_runtime.py:20",
+        "B1:skills/afk/setup/scripts/python_runtime.py:137",
+        "B1:skills/afk/setup/scripts/python_runtime.py:271",
+        "B1:skills/afk/setup/scripts/python_runtime.py:272",
+        "B1:skills/afk/setup/scripts/python_runtime.py:338",
+        "B1:hooks/run-hook.py:184",
+        "B1:hooks/run-hook.py:186",
+        "B1:scripts/tests/test_afk_python_entry.py:24",
+        "B1:scripts/tests/test_afk_python_entry.py:33",
+        "B1:scripts/tests/test_afk_python_entry.py:47",
+        "B1:scripts/tests/test_afk_python_entry.py:57",
+        "B1:scripts/tests/test_afk_python_entry.py:71",
+        "B1:scripts/tests/test_afk_python_entry.py:72",
+        "B1:scripts/tests/test_python_runtime_setup.py:39",
+        "B1:scripts/tests/test_python_runtime_setup.py:114",
+        "B1:scripts/tests/test_python_runtime_setup.py:133",
+        "B1:scripts/tests/test_python_runtime_setup.py:135",
+        "B1:scripts/tests/test_python_runtime_setup.py:141",
+        "B1:scripts/tests/test_python_runtime_setup.py:146",
+        "B1:scripts/tests/test_python_runtime_setup.py:170",
+        "B1:scripts/tests/test_python_runtime_setup.py:186",
+        "B1:scripts/tests/test_python_runtime_setup.py:193",
+        "B1:scripts/tests/test_python_runtime_setup.py:196",
+        "B1:scripts/tests/test_python_runtime_setup.py:200",
+        "B1:scripts/tests/test_python_runtime_setup.py:201",
+        "B1:scripts/tests/test_python_runtime_setup.py:202",
+        "B1:scripts/tests/test_python_runtime_setup.py:279",
+        "B1:scripts/tests/test_python_runtime_setup.py:293",
+        "B1:scripts/tests/test_python_runtime_setup.py:442",
+        "B1:scripts/tests/test_python_runtime_setup.py:443",
+        "B1:scripts/tests/test_python_runtime_setup.py:543",
+        "B1:scripts/tests/test_python_runtime_setup.py:544",
+        "B1:scripts/tests/test_python_runtime_setup.py:545",
+        "B1:scripts/tests/test_python_runtime_setup.py:575",
+        "B1:scripts/tests/test_python_runtime_setup.py:631",
+        "B1:scripts/tests/test_python_runtime_setup.py:650",
+        "B1:scripts/tests/test_python_runtime_setup.py:655",
+        "B1:scripts/tests/test_python_runtime_setup.py:676",
+        "B1:skills/afk/setup/MANIFEST.md:727",
+        "B1:skills/afk/setup/scripts/python_runtime.py:163",
+        "B1:skills/afk/setup/scripts/python_runtime.py:167",
+        "B1:skills/afk/setup/scripts/python_runtime.py:227",
+        "B1:skills/afk/setup/scripts/python_runtime.py:266",
+        "B1:skills/afk/setup/scripts/python_runtime.py:274",
+        "B1:skills/afk/setup/scripts/python_runtime.py:324",
+        "B1:skills/afk/setup/scripts/python_runtime.py:352",
+        "B1:skills/afk/setup/scripts/python_runtime.py:474",
+        "B1:skills/afk/setup/scripts/python_runtime.py:500",
+        "B1:skills/afk/setup/scripts/python_runtime.py:511",
+        "B1:skills/afk/setup/scripts/python_runtime.py:522",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B1:skills/afk/setup/scripts/background_git_hooks.py:74",
+        "B1:skills/afk/setup/scripts/developer_values.py:125",
+        "B1:RATIONALE.md:57",
+        "B1:scripts/tests/test_python_runtime_setup.py:126",
+        "B1:scripts/tests/test_rationale_ledger.py:635",
+        "B1:skills/afk/execute/SKILL.md:106",
+        "B1:skills/afk/review/scripts/forge_ledger.py:2410",
+        "B1:skills/utils/settle-change/SKILL.md:55",
+        "B1:skills/afk/setup/scripts/python_runtime.py:198",
+        "B1:skills/afk/setup/scripts/python_runtime.py:265",
+        "B1:skills/afk/setup/scripts/python_runtime.py:506",
+        "B1:scripts/tests/test_afk_python_entry.py:18",
+        "B1:scripts/tests/test_python_runtime_setup.py:19",
+        "B1:scripts/tests/test_setup_bootstrap.py:17",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:41",
+        "B1:hooks/plugin-source-gates.sh:229",
+        "B1:runtime/pyproject.toml:2"
+      ],
+      "mechanism": "default",
+      "name_forms": {
+        "afk-bin": [
+          {
+            "form": "simple",
+            "value": "afk-bin",
+            "enumerated": true
+          },
+          {
+            "form": "string-literal",
+            "value": "\"afk-bin\"",
+            "enumerated": true
+          },
+          {
+            "form": "import-alias",
+            "value": "entry_only",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "wire",
+            "value": "UV_TOOL_BIN_DIR",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "layout-key",
+            "value": "[\"bin\"]",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "launcher-key",
+            "value": "[\"launcher\"]",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "removal",
+            "value": "To remove",
+            "enumerated": true,
+            "source": "declared"
+          }
+        ],
+        "place_entry": [
+          {
+            "form": "simple",
+            "value": "place_entry",
+            "enumerated": true
+          },
+          {
+            "form": "string-literal",
+            "value": "\"place_entry\"",
+            "enumerated": true
+          },
+          {
+            "form": "import-alias",
+            "value": "entry_only",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "wire",
+            "value": "UV_TOOL_BIN_DIR",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "layout-key",
+            "value": "[\"bin\"]",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "launcher-key",
+            "value": "[\"launcher\"]",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "removal",
+            "value": "To remove",
+            "enumerated": true,
+            "source": "declared"
+          }
+        ]
+      },
+      "query_ids": [
+        "q-503991f2",
+        "q-bdd82bc8",
+        "q-da25d3fd",
+        "q-020e68da",
+        "q-55b90992",
+        "q-1feaecaf",
+        "q-4fffb001",
+        "q-cd2fccf7",
+        "q-d99d9921",
+        "q-ebab3466",
+        "q-420452b0"
+      ],
+      "universe": "tracked text files (binary excluded), and the second universe, every tracked text file; scripts, hooks, skills, adapters, mcp-servers; bin"
+    },
+    {
+      "class": "B2",
+      "status": "closed",
+      "method": "declaration and parameter forms carrying the name",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "default",
+      "universe": "tracked files",
+      "query_ids": [
+        "q-c30b0ebf"
+      ]
+    },
+    {
+      "class": "B3",
+      "status": "closed",
+      "method": "read hooks/lib/adapter.sh and scripts/tracker_api.py: both resolve the interpreter by name and load from the plugin tree, never afk-bin",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "adapter-dispatch, module-loader",
+      "universe": "no method ran, the declared judgment-only sites, read",
+      "query_ids": [],
+      "sites": [
+        "hooks/lib/adapter.sh",
+        "scripts/tracker_api.py"
+      ]
+    },
+    {
+      "class": "B4",
+      "status": "closed",
+      "method": "the name as a string literal; tracer: the launcher key and step name",
+      "hits": 15,
+      "hit_ids": [
+        "B4:.github/workflows/tests.yml:39",
+        "B4:scripts/tests/test_python_runtime_setup.py:106",
+        "B4:scripts/tests/test_python_runtime_setup.py:110",
+        "B4:scripts/tests/test_python_runtime_setup.py:133",
+        "B4:scripts/tests/test_python_runtime_setup.py:204",
+        "B4:scripts/tests/test_python_runtime_setup.py:547",
+        "B4:skills/afk/setup/scripts/python_runtime.py:137",
+        "B4:scripts/tests/test_python_runtime_setup.py:141",
+        "B4:skills/afk/setup/scripts/python_runtime.py:143",
+        "B4:skills/afk/setup/scripts/python_runtime.py:266",
+        "B4:skills/afk/setup/scripts/python_runtime.py:336",
+        "B4:skills/afk/setup/scripts/python_runtime.py:352",
+        "B4:skills/afk/setup/scripts/python_runtime.py:500",
+        "B4:scripts/afk-team.py:4",
+        "B4:scripts/team/entry.py:85"
+      ],
+      "mechanism": "default",
+      "universe": "tracked files, hooks, scripts",
+      "query_ids": [
+        "q-93f35625",
+        "q-7b90be5d",
+        "q-c5c8a136"
+      ]
+    },
+    {
+      "class": "B5",
+      "status": "closed",
+      "method": "read scripts/afk-config.py: no runtime-layout key",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "config-codec",
+      "universe": "no method ran, the declared judgment-only sites, read",
+      "query_ids": [],
+      "sites": [
+        "scripts/afk-config.py"
+      ]
+    },
+    {
+      "class": "B6",
+      "status": "closed",
+      "method": "read CLAUDE.md -> AGENTS.md:11: no package build step, no generated output",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "no-build-step",
+      "universe": "no generated paths declared, the declared judgment-only sites, read",
+      "query_ids": [],
+      "sites": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ]
+    },
+    {
+      "class": "B7",
+      "status": "closed",
+      "method": "read CLAUDE.md and runtime/pyproject.toml: the one manifest, a single project, no aggregator",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "no-aggregator",
+      "universe": "no aggregator manifests declared, the declared judgment-only sites, read",
+      "query_ids": [],
+      "sites": [
+        "CLAUDE.md",
+        "runtime/pyproject.toml"
+      ]
+    },
+    {
+      "class": "B8",
+      "status": "closed",
+      "method": "name forms filtered to configuration files",
+      "hits": 4,
+      "hit_ids": [
+        "B8:.github/workflows/release-gate.yml:29",
+        "B8:.github/workflows/release.yml:42",
+        "B8:.github/workflows/tests.yml:39",
+        "B8:.github/workflows/tests.yml:42"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-503991f2"
+      ]
+    },
+    {
+      "class": "B9",
+      "status": "closed",
+      "method": "name forms filtered to schema and migration sources",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-503991f2"
+      ]
+    },
+    {
+      "class": "B10",
+      "status": "closed",
+      "method": "read mcp-servers/tracker/server.py: plugin root from argv or env, no afk-bin reach",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "tracker-mcp-surface",
+      "universe": "no method ran, the declared judgment-only sites, read",
+      "query_ids": [],
+      "sites": [
+        "mcp-servers/tracker/server.py"
+      ]
+    },
+    {
+      "class": "B11",
+      "status": "closed",
+      "method": "registration forms in files that name the subject",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "default",
+      "universe": "files that name the subject",
+      "query_ids": [
+        "q-247a9c5a",
+        "q-503991f2"
+      ]
+    },
+    {
+      "class": "B12",
+      "status": "closed",
+      "method": "name forms filtered to test sources; tracer: PATH built from interpreter folders or which(path=), the plan line, directory listings in the runtime tests",
+      "hits": 48,
+      "hit_ids": [
+        "B12:.github/workflows/tests.yml:39",
+        "B12:.github/workflows/tests.yml:42",
+        "B12:scripts/tests/test_python_runtime_setup.py:106",
+        "B12:scripts/tests/test_python_runtime_setup.py:110",
+        "B12:scripts/tests/test_python_runtime_setup.py:204",
+        "B12:scripts/tests/test_python_runtime_setup.py:547",
+        "B12:scripts/tests/test_afk_python_entry.py:24",
+        "B12:scripts/tests/test_afk_python_entry.py:33",
+        "B12:scripts/tests/test_afk_python_entry.py:47",
+        "B12:scripts/tests/test_afk_python_entry.py:57",
+        "B12:scripts/tests/test_afk_python_entry.py:71",
+        "B12:scripts/tests/test_afk_python_entry.py:72",
+        "B12:scripts/tests/test_python_runtime_setup.py:39",
+        "B12:scripts/tests/test_python_runtime_setup.py:114",
+        "B12:scripts/tests/test_python_runtime_setup.py:133",
+        "B12:scripts/tests/test_python_runtime_setup.py:135",
+        "B12:scripts/tests/test_python_runtime_setup.py:141",
+        "B12:scripts/tests/test_python_runtime_setup.py:146",
+        "B12:scripts/tests/test_python_runtime_setup.py:170",
+        "B12:scripts/tests/test_python_runtime_setup.py:186",
+        "B12:scripts/tests/test_python_runtime_setup.py:193",
+        "B12:scripts/tests/test_python_runtime_setup.py:196",
+        "B12:scripts/tests/test_python_runtime_setup.py:200",
+        "B12:scripts/tests/test_python_runtime_setup.py:201",
+        "B12:scripts/tests/test_python_runtime_setup.py:202",
+        "B12:scripts/tests/test_python_runtime_setup.py:279",
+        "B12:scripts/tests/test_python_runtime_setup.py:293",
+        "B12:scripts/tests/test_python_runtime_setup.py:442",
+        "B12:scripts/tests/test_python_runtime_setup.py:443",
+        "B12:scripts/tests/test_python_runtime_setup.py:543",
+        "B12:scripts/tests/test_python_runtime_setup.py:544",
+        "B12:scripts/tests/test_python_runtime_setup.py:545",
+        "B12:scripts/tests/test_python_runtime_setup.py:575",
+        "B12:scripts/tests/test_python_runtime_setup.py:631",
+        "B12:scripts/tests/test_python_runtime_setup.py:650",
+        "B12:scripts/tests/test_python_runtime_setup.py:655",
+        "B12:scripts/tests/test_python_runtime_setup.py:676",
+        "B12:scripts/tests/test_git_backstop.py:276",
+        "B12:scripts/tests/test_protected_lookup.py:479",
+        "B12:scripts/tests/test_tracker_server.py:212",
+        "B12:scripts/tests/test_wiring_gate.py:138",
+        "B12:scripts/tests/test_setup_bootstrap.py:334",
+        "B12:scripts/tests/test_python_runtime_setup.py:94",
+        "B12:scripts/tests/test_python_runtime_setup.py:234",
+        "B12:scripts/tests/test_python_runtime_setup.py:389",
+        "B12:scripts/tests/test_setup_bootstrap.py:329",
+        "B12:.github/workflows/tests.yml:64",
+        "B12:scripts/tests/test_team_entry.py:368"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths, .github/workflows; hooks, scripts",
+      "query_ids": [
+        "q-503991f2",
+        "q-1e5ed5ba",
+        "q-c9ce2e5a",
+        "q-47596e04",
+        "q-fa75b950",
+        "q-c5c8a136"
+      ]
+    },
+    {
+      "class": "B13",
+      "status": "closed",
+      "method": "name forms filtered to documents",
+      "hits": 9,
+      "hit_ids": [
+        "B13:.claude/wiring-ious.md:21",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:748",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:749",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:750",
+        "B13:skills/afk/setup/MANIFEST.md:728",
+        "B13:skills/afk/setup/MANIFEST.md:727",
+        "B13:README.md:350",
+        "B13:CHANGELOG.md:331",
+        "B13:skills/afk/setup/AUDIT.md:142"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths, every tracked text file; skills/afk/setup, README.md, CAPABILITIES.md",
+      "query_ids": [
+        "q-503991f2",
+        "q-2f7cc4ba",
+        "q-ec310ffc"
+      ]
+    },
+    {
+      "class": "B14",
+      "status": "frontier",
+      "method": "outside this repository",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "another repository, deployment manifest, or live consumer; machines whose afk-bin already holds files from an older install; uv internals outside the 3 saved source files (sync.rs --check to dry-run mapping, the installer's uninstall); Windows cmd.exe file locking of a running afk-team.cmd",
+      "mechanism": "default",
+      "query_ids": [],
+      "universe": "nothing in this repository"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "B12:.github/workflows/tests.yml:39",
+      "class": "B12",
+      "site": ".github/workflows/tests.yml:39",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"$LOCALAPPDATA\\\\afk\\\\python\\\\afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "7a96484aa470",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B12:.github/workflows/tests.yml:42",
+      "class": "B12",
+      "site": ".github/workflows/tests.yml:42",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "cfb40ad6368e",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:24",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:24",
+      "disposition": "terminal",
+      "reason": "skip guard on afk-python's existence",
+      "evidence": "pytestmark = pytest.mark.skipif(not PATHS[\"launcher\"].exists(), reason=\"afk-python is not installed here\")",
+      "line_hash": "39fcddab7317",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:24"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:33",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:33",
+      "disposition": "terminal",
+      "reason": "runs afk-python",
+      "evidence": "done = subprocess.run([str(PATHS[\"launcher\"]), *args], env=env, capture_output=True, text=True,",
+      "line_hash": "f5dc905735d2",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:33"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:47",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:47",
+      "disposition": "terminal",
+      "reason": "afk-python identity",
+      "evidence": "assert same(seen[\"executable\"], PATHS[\"launcher\"])",
+      "line_hash": "ef4dd0412b1a",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:47"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:57",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:57",
+      "disposition": "terminal",
+      "reason": "afk-python identity in a child",
+      "evidence": "assert same(child[\"executable\"], PATHS[\"launcher\"]) and same(child[\"prefix\"], PATHS[\"env\"])",
+      "line_hash": "6d9ad8c0dbaf",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:57"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:71",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:71",
+      "disposition": "terminal",
+      "reason": "which(afk-python) in afk-bin still resolves the entry",
+      "evidence": "assert same(shutil.which(pr.COMMAND, path=str(PATHS[\"bin\"])), PATHS[\"launcher\"])",
+      "line_hash": "8a3ade443608",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:71"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_python_entry.py:72",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_python_entry.py:72",
+      "disposition": "terminal",
+      "reason": "asserts every entry of afk-bin starts with `afk-python`; afk-team and afk-team.cmd do not, and CI runs it after a real install (tests.yml:37-42, :64)",
+      "evidence": "assert all(entry.name.startswith(pr.COMMAND) for entry in PATHS[\"bin\"].iterdir())",
+      "line_hash": "116bd240ff1e",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:72"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:106",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:106",
+      "disposition": "terminal",
+      "reason": "afk-python path on Windows",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python.exe\"",
+      "line_hash": "528134172052",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:110",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:110",
+      "disposition": "terminal",
+      "reason": "afk-python path on POSIX",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python\"",
+      "line_hash": "fea0aa82aaf1",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:110"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:114",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:114",
+      "disposition": "terminal",
+      "reason": "bin sits in the environment; afk-team in the same bin keeps it",
+      "evidence": "assert paths[\"bin\"].parent == paths[\"env\"] and paths[\"launcher\"].parent == paths[\"bin\"]",
+      "line_hash": "0245d48086a8",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:114"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:133",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:133",
+      "disposition": "terminal",
+      "reason": "uv env names afk-bin as UV_TOOL_BIN_DIR",
+      "evidence": "assert sync_env[\"UV_TOOL_BIN_DIR\"] == str(paths[\"bin\"])",
+      "line_hash": "4188576d14e1",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:133"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:135",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:135",
+      "disposition": "terminal",
+      "reason": "afk-python content after install",
+      "evidence": "assert paths[\"launcher\"].read_text(encoding=\"utf-8\") == \"interpreter\"",
+      "line_hash": "a1117a7f893f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:141",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:141",
+      "disposition": "terminal",
+      "reason": "exact stamp equality; breaks only if the stamp gains an afk-team key, which the signed packet does not name (inference)",
+      "evidence": "\"launcher\": str(paths[\"launcher\"]), \"command\": \"/spelled/afk-python\", \"file\": \"/spelled/afk-python.exe\"}",
+      "line_hash": "3d9bc33fb6ca",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:141"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:146",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:146",
+      "disposition": "terminal",
+      "reason": "hook probe argv",
+      "evidence": "assert hook[0][2].startswith(pr.RESOLVE + \"; afk-python -c \") and hook[0][3:] == [\"afk-hook\", str(paths[\"launcher\"])]",
+      "line_hash": "eefcf6fcbde5",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:146"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:170",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:170",
+      "disposition": "terminal",
+      "reason": "PATH spelling drift",
+      "evidence": "entry = str(paths[\"bin\"]).upper() + \"\\\\\" if windows else str(paths[\"bin\"]) + \"/\"",
+      "line_hash": "80c27ab7e412",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:170"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:186",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:186",
+      "disposition": "terminal",
+      "reason": "PATH entry in process",
+      "evidence": "env[\"PATH\"] = sep.join([str(paths[\"bin\"]), env[\"PATH\"]])",
+      "line_hash": "a32cc22f4f80",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:186"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:193",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:193",
+      "disposition": "terminal",
+      "reason": "update-shell env drops afk-bin",
+      "evidence": "assert not pr.on_path(paths[\"bin\"], shell_env[\"PATH\"], windows)",
+      "line_hash": "acfacf292e14",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:193"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:196",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:196",
+      "disposition": "terminal",
+      "reason": "probe env drops afk-bin",
+      "evidence": "assert probe_envs and all(not pr.on_path(paths[\"bin\"], e[\"PATH\"], windows) for e in probe_envs)",
+      "line_hash": "5884360003ef",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:196"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:200",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:200",
+      "disposition": "terminal",
+      "reason": "stub replaces place_entry with an afk-python-only writer for POSIX install tests (:216, :242, :255); with the afk-team write inside place_entry and check reporting it (HL6-10), install under this stub fails check (inference)",
+      "evidence": "def entry_only(paths, python, windows):",
+      "line_hash": "dadce5dd17ee",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:201",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:201",
+      "disposition": "terminal",
+      "reason": "same stub as :200: creates afk-bin holding only afk-python",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True, exist_ok=True)",
+      "line_hash": "4fd5a0d1d5e0",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:202",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:202",
+      "disposition": "terminal",
+      "reason": "same stub as :200: writes only afk-python",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "6338ce33f55f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:204",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:204",
+      "disposition": "terminal",
+      "reason": "same stub as :200: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:279",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:279",
+      "disposition": "terminal",
+      "reason": "login shell finds the PATH line",
+      "evidence": "assert pr.on_path(paths[\"bin\"], FRESH_PATH(env, False), False)",
+      "line_hash": "2a6122bde99b",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:279"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:293",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:293",
+      "disposition": "terminal",
+      "reason": "interactive shell finds the PATH line",
+      "evidence": "assert pr.on_path(paths[\"bin\"], done.stdout.strip().splitlines()[-1], False), done.stdout + done.stderr",
+      "line_hash": "05a6ce871990",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:293"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:39",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:39",
+      "disposition": "terminal",
+      "reason": "stub interpreter report",
+      "evidence": "self.reported = reported or \"\\t\".join([PINS[\"python\"], str(paths[\"launcher\"]), str(paths[\"env\"])])",
+      "line_hash": "2e2919013356",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:39"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:442",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:442",
+      "disposition": "terminal",
+      "reason": "stamped() fixture builds a healthy runtime whose afk-bin holds only afk-python; check tests expecting exit 0 (:450, :464) fail once check reports afk-team (HL6-10; inference)",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True)",
+      "line_hash": "79ca7c7a27ad",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:450"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:443",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:443",
+      "disposition": "terminal",
+      "reason": "same fixture as :442: writes only afk-python",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "efc070302a19",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:450"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:543",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:543",
+      "disposition": "terminal",
+      "reason": "stub for the fish test (:540-562): afk-python-only place_entry; install expects 0, fails once check reports afk-team (inference)",
+      "evidence": "def entry_only(paths, python, windows):",
+      "line_hash": "dadce5dd17ee",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:544",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:544",
+      "disposition": "terminal",
+      "reason": "same stub as :543",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True, exist_ok=True)",
+      "line_hash": "4fd5a0d1d5e0",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:545",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:545",
+      "disposition": "terminal",
+      "reason": "same stub as :543",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "6338ce33f55f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:547",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:547",
+      "disposition": "terminal",
+      "reason": "same stub as :543: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:575",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:575",
+      "disposition": "terminal",
+      "reason": "removes afk-python to drive `fail launcher`",
+      "evidence": "paths[\"launcher\"].unlink()",
+      "line_hash": "1afb905d2b8d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:582"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:631",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:631",
+      "disposition": "terminal",
+      "reason": "fresh PATH carries afk-bin; real place_entry runs here, so the afk-team write runs too",
+      "evidence": "monkeypatch.setattr(pr, \"fresh_path\", lambda env, windows: sep.join([str(paths[\"bin\"]), env.get(\"PATH\", \"\")]))",
+      "line_hash": "c12c4c7b0ed3",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:641"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:650",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:650",
+      "disposition": "terminal",
+      "reason": "stamp spelling of afk-python",
+      "evidence": "assert stamp[\"command\"] == bash_path(FIND_BASH(), \"-u\", str(paths[\"bin\"])) + \"/afk-python\"",
+      "line_hash": "8b83e11017d5",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:650"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:655",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:655",
+      "disposition": "terminal",
+      "reason": "stamp spelling of afk-python",
+      "evidence": "assert stamp[\"command\"] == stamp[\"file\"] == str(paths[\"launcher\"])",
+      "line_hash": "c7c3c63920f4",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:655"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:676",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:676",
+      "disposition": "terminal",
+      "reason": "fresh PATH carries afk-bin",
+      "evidence": "monkeypatch.setattr(pr, \"fresh_path\", lambda env, windows: \";\".join([str(paths[\"bin\"]), env.get(\"PATH\", \"\")]))",
+      "line_hash": "dcbfacbfd335",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:676"
+    },
+    {
+      "id": "B13:.claude/wiring-ious.md:21",
+      "class": "B13",
+      "site": ".claude/wiring-ious.md:21",
+      "disposition": "terminal",
+      "reason": "closed IOU for the afk-python entry; the afk-team launcher needs its own consumer proof (spawn permission check, Bash(afk-team *) rule)",
+      "evidence": "- [x] `afk-python` entry (`python_runtime.py` `place_entry`: `<env>/afk-bin/afk-python`, `AFK_PYTHON` from `afk_python.pth`) -> anchor: plan \"Python release 2 cutover: every invocation site uses afk-p",
+      "line_hash": "b2645038f17c",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:748",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:748",
+      "disposition": "terminal",
+      "reason": "the settled decision this change implements",
+      "evidence": "- Settled: /afk:setup writes the afk-team launcher into the afk-bin folder beside afk-python, which is on the user PATH at the operating-system level; the plugin's own bin/ folder is rejected (human, ",
+      "line_hash": "37726e29215c",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:749",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:749",
+      "disposition": "terminal",
+      "reason": "HL-3 signoff naming the access row 'Write the afk-team launcher'",
+      "evidence": "- Signoff: HL-3 Authorization & data scoping (SDD §5) -> re-signed 2026-10-26 \"sign\" (R-47, HL3-4) — covers the 3 delta rows of the packet: the team entry script runs as afk-team under Bash(afk-team *",
+      "line_hash": "91d01f72490f",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:750",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:750",
+      "disposition": "terminal",
+      "reason": "HL-5 signoff: effect written after the environment sync and after afk-python, staged then moved, bytes-differ only; removal deletes the afk data folder",
+      "evidence": "- Signoff: HL-5 Irreversible & outward side effects (SDD §7) -> re-signed 2026-10-26 \"sign\" (R-47, HL5-7) — covers the new effect E9: setup's Python runtime step writes afk-team (and afk-team.cmd on W",
+      "line_hash": "6e2c18fa5887",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:skills/afk/setup/MANIFEST.md:727",
+      "class": "B13",
+      "site": "skills/afk/setup/MANIFEST.md:727",
+      "disposition": "terminal",
+      "reason": "removal deletes the afk data folder, which holds python/afk-bin, so afk-team goes with it; matches HL5-7",
+      "evidence": "release host and PyPI. To remove: delete `%LOCALAPPDATA%\\afk` (Windows) or",
+      "line_hash": "7d5d88c1d07d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:skills/afk/setup/MANIFEST.md:728",
+      "class": "B13",
+      "site": "skills/afk/setup/MANIFEST.md:728",
+      "disposition": "terminal",
+      "reason": "removal then drops python/afk-bin from PATH; covers afk-team",
+      "evidence": "`${XDG_DATA_HOME:-~/.local/share}/afk`, then drop its `python/afk-bin`",
+      "line_hash": "bcc67647d10b",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:.claude/wiring-ious.md:21",
+      "class": "B1",
+      "site": ".claude/wiring-ious.md:21",
+      "disposition": "terminal",
+      "reason": "closed IOU for the afk-python entry; the afk-team launcher needs its own consumer proof (spawn permission check, Bash(afk-team *) rule)",
+      "evidence": "- [x] `afk-python` entry (`python_runtime.py` `place_entry`: `<env>/afk-bin/afk-python`, `AFK_PYTHON` from `afk_python.pth`) -> anchor: plan \"Python release 2 cutover: every invocation site uses afk-p",
+      "line_hash": "b2645038f17c",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:.github/workflows/release-gate.yml:29",
+      "class": "B1",
+      "site": ".github/workflows/release-gate.yml:29",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after bootstrap install; afk-team lands on CI PATH with it",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "5f39fe1ed7e0",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:.github/workflows/release.yml:42",
+      "class": "B1",
+      "site": ".github/workflows/release.yml:42",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after bootstrap install; afk-team lands on CI PATH with it",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "5f39fe1ed7e0",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:.github/workflows/tests.yml:39",
+      "class": "B1",
+      "site": ".github/workflows/tests.yml:39",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"$LOCALAPPDATA\\\\afk\\\\python\\\\afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "7a96484aa470",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B1:.github/workflows/tests.yml:42",
+      "class": "B1",
+      "site": ".github/workflows/tests.yml:42",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "cfb40ad6368e",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:748",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:748",
+      "disposition": "terminal",
+      "reason": "the settled decision this change implements",
+      "evidence": "- Settled: /afk:setup writes the afk-team launcher into the afk-bin folder beside afk-python, which is on the user PATH at the operating-system level; the plugin's own bin/ folder is rejected (human, ",
+      "line_hash": "37726e29215c",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:749",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:749",
+      "disposition": "terminal",
+      "reason": "HL-3 signoff naming the access row 'Write the afk-team launcher'",
+      "evidence": "- Signoff: HL-3 Authorization & data scoping (SDD §5) -> re-signed 2026-10-26 \"sign\" (R-47, HL3-4) — covers the 3 delta rows of the packet: the team entry script runs as afk-team under Bash(afk-team *",
+      "line_hash": "91d01f72490f",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:750",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:750",
+      "disposition": "terminal",
+      "reason": "HL-5 signoff: effect written after the environment sync and after afk-python, staged then moved, bytes-differ only; removal deletes the afk data folder",
+      "evidence": "- Signoff: HL-5 Irreversible & outward side effects (SDD §7) -> re-signed 2026-10-26 \"sign\" (R-47, HL5-7) — covers the new effect E9: setup's Python runtime step writes afk-team (and afk-team.cmd on W",
+      "line_hash": "6e2c18fa5887",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.html:382",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.html:382",
+      "disposition": "terminal",
+      "reason": "rendered round page, built from grill-solution.round.json",
+      "evidence": "<div class=\"afk-page\"><nav class=\"afk-rail\" aria-label=\"Where this session sits in the chain\"><ol><li class=\"afk-step afk-step--done\">requirements</li><li class=\"afk-step afk-step--current\" aria-curre",
+      "line_hash": "57374ba0540a",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:4916",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:4916",
+      "disposition": "terminal",
+      "reason": "R47-WHERE decision record",
+      "evidence": "\"decision\": \"Setup writes the afk-team launcher into the afk-bin folder, next to afk-python. That folder is already on your user PATH.\",",
+      "line_hash": "107fc8985b67",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:4917",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:4917",
+      "disposition": "terminal",
+      "reason": "R47-WHERE evidence record",
+      "evidence": "\"evidence\": \"You answered 'Setup puts it in afk-bin (Recommended)', 2026-10-26. The plugin's own bin folder was rejected: on this machine Claude Code adds it to PATH only through a shell snapshot with",
+      "line_hash": "90ec74768364",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:4934",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:4934",
+      "disposition": "terminal",
+      "reason": "HL5-7 decision record",
+      "evidence": "\"decision\": \"HL-5 signed. Side effect E9: setup writes the afk-team launcher into afk-bin after the Python sync; a missing or stale launcher stops the run before anything starts.\",",
+      "line_hash": "88fb59b25d94",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/run-hook.py:184",
+      "class": "B1",
+      "site": "hooks/run-hook.py:184",
+      "disposition": "irrelevant",
+      "reason": "a Windows job-object slot named launcher (run-hook.py:175-187), not the afk-python layout key",
+      "evidence": "_JOBS[\"launcher\"] = job",
+      "line_hash": "65bd7df634b3",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/run-hook.py:186",
+      "class": "B1",
+      "site": "hooks/run-hook.py:186",
+      "disposition": "irrelevant",
+      "reason": "a Windows job-object slot named launcher (run-hook.py:175-187), not the afk-python layout key",
+      "evidence": "_JOBS[\"launcher\"] = None",
+      "line_hash": "f9814136c2ea",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:24",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:24",
+      "disposition": "terminal",
+      "reason": "skip guard on afk-python's existence",
+      "evidence": "pytestmark = pytest.mark.skipif(not PATHS[\"launcher\"].exists(), reason=\"afk-python is not installed here\")",
+      "line_hash": "39fcddab7317",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:24"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:33",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:33",
+      "disposition": "terminal",
+      "reason": "runs afk-python",
+      "evidence": "done = subprocess.run([str(PATHS[\"launcher\"]), *args], env=env, capture_output=True, text=True,",
+      "line_hash": "f5dc905735d2",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:33"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:47",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:47",
+      "disposition": "terminal",
+      "reason": "afk-python identity",
+      "evidence": "assert same(seen[\"executable\"], PATHS[\"launcher\"])",
+      "line_hash": "ef4dd0412b1a",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:47"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:57",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:57",
+      "disposition": "terminal",
+      "reason": "afk-python identity in a child",
+      "evidence": "assert same(child[\"executable\"], PATHS[\"launcher\"]) and same(child[\"prefix\"], PATHS[\"env\"])",
+      "line_hash": "6d9ad8c0dbaf",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:57"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:71",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:71",
+      "disposition": "terminal",
+      "reason": "which(afk-python) in afk-bin still resolves the entry",
+      "evidence": "assert same(shutil.which(pr.COMMAND, path=str(PATHS[\"bin\"])), PATHS[\"launcher\"])",
+      "line_hash": "8a3ade443608",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:71"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:72",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:72",
+      "disposition": "terminal",
+      "reason": "asserts every entry of afk-bin starts with `afk-python`; afk-team and afk-team.cmd do not, and CI runs it after a real install (tests.yml:37-42, :64)",
+      "evidence": "assert all(entry.name.startswith(pr.COMMAND) for entry in PATHS[\"bin\"].iterdir())",
+      "line_hash": "116bd240ff1e",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:72"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:106",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:106",
+      "disposition": "terminal",
+      "reason": "afk-python path on Windows",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python.exe\"",
+      "line_hash": "528134172052",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:110",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:110",
+      "disposition": "terminal",
+      "reason": "afk-python path on POSIX",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python\"",
+      "line_hash": "fea0aa82aaf1",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:110"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:114",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:114",
+      "disposition": "terminal",
+      "reason": "bin sits in the environment; afk-team in the same bin keeps it",
+      "evidence": "assert paths[\"bin\"].parent == paths[\"env\"] and paths[\"launcher\"].parent == paths[\"bin\"]",
+      "line_hash": "0245d48086a8",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:114"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:133",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:133",
+      "disposition": "terminal",
+      "reason": "uv env names afk-bin as UV_TOOL_BIN_DIR",
+      "evidence": "assert sync_env[\"UV_TOOL_BIN_DIR\"] == str(paths[\"bin\"])",
+      "line_hash": "4188576d14e1",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:133"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:135",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:135",
+      "disposition": "terminal",
+      "reason": "afk-python content after install",
+      "evidence": "assert paths[\"launcher\"].read_text(encoding=\"utf-8\") == \"interpreter\"",
+      "line_hash": "a1117a7f893f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:141",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:141",
+      "disposition": "terminal",
+      "reason": "exact stamp equality; breaks only if the stamp gains an afk-team key, which the signed packet does not name (inference)",
+      "evidence": "\"launcher\": str(paths[\"launcher\"]), \"command\": \"/spelled/afk-python\", \"file\": \"/spelled/afk-python.exe\"}",
+      "line_hash": "3d9bc33fb6ca",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:141"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:146",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:146",
+      "disposition": "terminal",
+      "reason": "hook probe argv",
+      "evidence": "assert hook[0][2].startswith(pr.RESOLVE + \"; afk-python -c \") and hook[0][3:] == [\"afk-hook\", str(paths[\"launcher\"])]",
+      "line_hash": "eefcf6fcbde5",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:146"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:170",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:170",
+      "disposition": "terminal",
+      "reason": "PATH spelling drift",
+      "evidence": "entry = str(paths[\"bin\"]).upper() + \"\\\\\" if windows else str(paths[\"bin\"]) + \"/\"",
+      "line_hash": "80c27ab7e412",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:170"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:186",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:186",
+      "disposition": "terminal",
+      "reason": "PATH entry in process",
+      "evidence": "env[\"PATH\"] = sep.join([str(paths[\"bin\"]), env[\"PATH\"]])",
+      "line_hash": "a32cc22f4f80",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:186"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:193",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:193",
+      "disposition": "terminal",
+      "reason": "update-shell env drops afk-bin",
+      "evidence": "assert not pr.on_path(paths[\"bin\"], shell_env[\"PATH\"], windows)",
+      "line_hash": "acfacf292e14",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:193"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:196",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:196",
+      "disposition": "terminal",
+      "reason": "probe env drops afk-bin",
+      "evidence": "assert probe_envs and all(not pr.on_path(paths[\"bin\"], e[\"PATH\"], windows) for e in probe_envs)",
+      "line_hash": "5884360003ef",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:196"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:200",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:200",
+      "disposition": "terminal",
+      "reason": "stub replaces place_entry with an afk-python-only writer for POSIX install tests (:216, :242, :255); with the afk-team write inside place_entry and check reporting it (HL6-10), install under this stub fails check (inference)",
+      "evidence": "def entry_only(paths, python, windows):",
+      "line_hash": "dadce5dd17ee",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:201",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:201",
+      "disposition": "terminal",
+      "reason": "same stub as :200: creates afk-bin holding only afk-python",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True, exist_ok=True)",
+      "line_hash": "4fd5a0d1d5e0",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:202",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:202",
+      "disposition": "terminal",
+      "reason": "same stub as :200: writes only afk-python",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "6338ce33f55f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:204",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:204",
+      "disposition": "terminal",
+      "reason": "same stub as :200: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:279",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:279",
+      "disposition": "terminal",
+      "reason": "login shell finds the PATH line",
+      "evidence": "assert pr.on_path(paths[\"bin\"], FRESH_PATH(env, False), False)",
+      "line_hash": "2a6122bde99b",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:279"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:293",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:293",
+      "disposition": "terminal",
+      "reason": "interactive shell finds the PATH line",
+      "evidence": "assert pr.on_path(paths[\"bin\"], done.stdout.strip().splitlines()[-1], False), done.stdout + done.stderr",
+      "line_hash": "05a6ce871990",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:293"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:39",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:39",
+      "disposition": "terminal",
+      "reason": "stub interpreter report",
+      "evidence": "self.reported = reported or \"\\t\".join([PINS[\"python\"], str(paths[\"launcher\"]), str(paths[\"env\"])])",
+      "line_hash": "2e2919013356",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:39"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:442",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:442",
+      "disposition": "terminal",
+      "reason": "stamped() fixture builds a healthy runtime whose afk-bin holds only afk-python; check tests expecting exit 0 (:450, :464) fail once check reports afk-team (HL6-10; inference)",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True)",
+      "line_hash": "79ca7c7a27ad",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:450"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:443",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:443",
+      "disposition": "terminal",
+      "reason": "same fixture as :442: writes only afk-python",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "efc070302a19",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:450"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:543",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:543",
+      "disposition": "terminal",
+      "reason": "stub for the fish test (:540-562): afk-python-only place_entry; install expects 0, fails once check reports afk-team (inference)",
+      "evidence": "def entry_only(paths, python, windows):",
+      "line_hash": "dadce5dd17ee",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:544",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:544",
+      "disposition": "terminal",
+      "reason": "same stub as :543",
+      "evidence": "paths[\"launcher\"].parent.mkdir(parents=True, exist_ok=True)",
+      "line_hash": "4fd5a0d1d5e0",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:545",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:545",
+      "disposition": "terminal",
+      "reason": "same stub as :543",
+      "evidence": "paths[\"launcher\"].write_text(\"\", encoding=\"utf-8\")",
+      "line_hash": "6338ce33f55f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:547",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:547",
+      "disposition": "terminal",
+      "reason": "same stub as :543: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:575",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:575",
+      "disposition": "terminal",
+      "reason": "removes afk-python to drive `fail launcher`",
+      "evidence": "paths[\"launcher\"].unlink()",
+      "line_hash": "1afb905d2b8d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:582"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:631",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:631",
+      "disposition": "terminal",
+      "reason": "fresh PATH carries afk-bin; real place_entry runs here, so the afk-team write runs too",
+      "evidence": "monkeypatch.setattr(pr, \"fresh_path\", lambda env, windows: sep.join([str(paths[\"bin\"]), env.get(\"PATH\", \"\")]))",
+      "line_hash": "c12c4c7b0ed3",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:641"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:650",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:650",
+      "disposition": "terminal",
+      "reason": "stamp spelling of afk-python",
+      "evidence": "assert stamp[\"command\"] == bash_path(FIND_BASH(), \"-u\", str(paths[\"bin\"])) + \"/afk-python\"",
+      "line_hash": "8b83e11017d5",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:650"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:655",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:655",
+      "disposition": "terminal",
+      "reason": "stamp spelling of afk-python",
+      "evidence": "assert stamp[\"command\"] == stamp[\"file\"] == str(paths[\"launcher\"])",
+      "line_hash": "c7c3c63920f4",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:655"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:676",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:676",
+      "disposition": "terminal",
+      "reason": "fresh PATH carries afk-bin",
+      "evidence": "monkeypatch.setattr(pr, \"fresh_path\", lambda env, windows: \";\".join([str(paths[\"bin\"]), env.get(\"PATH\", \"\")]))",
+      "line_hash": "dcbfacbfd335",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:676"
+    },
+    {
+      "id": "B1:skills/afk/setup/MANIFEST.md:727",
+      "class": "B1",
+      "site": "skills/afk/setup/MANIFEST.md:727",
+      "disposition": "terminal",
+      "reason": "removal deletes the afk data folder, which holds python/afk-bin, so afk-team goes with it; matches HL5-7",
+      "evidence": "release host and PyPI. To remove: delete `%LOCALAPPDATA%\\afk` (Windows) or",
+      "line_hash": "7d5d88c1d07d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/MANIFEST.md:728",
+      "class": "B1",
+      "site": "skills/afk/setup/MANIFEST.md:728",
+      "disposition": "terminal",
+      "reason": "removal then drops python/afk-bin from PATH; covers afk-team",
+      "evidence": "`${XDG_DATA_HOME:-~/.local/share}/afk`, then drop its `python/afk-bin`",
+      "line_hash": "bcc67647d10b",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:137",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:137",
+      "disposition": "terminal",
+      "reason": "layout derives afk-bin from the environment; the new launcher path derives from the same `bin` key",
+      "evidence": "bin_dir = env_dir / \"afk-bin\"",
+      "line_hash": "df4037a858a1",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:163",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:163",
+      "disposition": "terminal",
+      "reason": "uv's environment drops afk-bin from PATH; afk-team is dropped with it, nothing in uv's run needs it",
+      "evidence": "out = {k: v for k, v in without_entry(env, paths[\"bin\"], windows).items()",
+      "line_hash": "4cdb58be7210",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:196"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:167",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:167",
+      "disposition": "terminal",
+      "reason": "UV_PROJECT_ENVIRONMENT is the environment root that holds afk-bin: a uv rebuild of that root deletes afk-bin (claims); UV_TOOL_BIN_DIR only names the PATH entry update-shell adds (inference)",
+      "evidence": "UV_PROJECT_ENVIRONMENT=str(paths[\"env\"]), UV_TOOL_BIN_DIR=str(paths[\"bin\"]),",
+      "line_hash": "ad69bb5ecb4a",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:133"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:18",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:18",
+      "disposition": "terminal",
+      "reason": "describes the afk-python symlink only; stays true with a second file beside it",
+      "evidence": "`python/afk-bin/afk-python` is a symlink to the managed CPython (a copy of the",
+      "line_hash": "55e608b48d16",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:20",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:20",
+      "disposition": "terminal",
+      "reason": "docstring asserts `afk-bin` holds nothing else; an afk-team launcher (and afk-team.cmd on Windows) makes it false",
+      "evidence": "level up, so `sys.prefix` is the environment. `afk-bin` holds nothing else and",
+      "line_hash": "5114fbcb0b37",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:227",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:227",
+      "disposition": "terminal",
+      "reason": "the PATH line names the directory, not its files",
+      "evidence": "return f'export PATH={shlex.quote(str(paths[\"bin\"]))}:\"$PATH\"'",
+      "line_hash": "c49184b2b19d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:195"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:266",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:266",
+      "disposition": "terminal",
+      "reason": "plan prints the launcher step's targets (interpreter, afk-python, afk_python.pth); a write of afk-team inside this step is absent from `plan` unless its argv gains the afk-team targets",
+      "evidence": "(\"launcher\", [\"<entry>\", str(paths[\"interpreter\"]), str(paths[\"launcher\"]), PTH]),",
+      "line_hash": "77a6b95b66d2",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:334"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:271",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:271",
+      "disposition": "traced",
+      "reason": "the change site: the afk-python write paths (POSIX symlink, Windows copy with .new/.old rename) stay; the function gains a second write after them",
+      "evidence": "def place_entry(paths: dict, python: str, windows: bool) -> None:",
+      "line_hash": "3977e52fee70",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:272",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:272",
+      "disposition": "terminal",
+      "reason": "docstring names afk-python and the AFK_PYTHON line as the step's whole effect; the afk-team write makes it incomplete",
+      "evidence": "\"\"\"Put `afk-python` in afk-bin and the AFK_PYTHON line in site-packages; a sync may rebuild both.\"\"\"",
+      "line_hash": "0f3b60dcb1d7",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:274",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:274",
+      "disposition": "terminal",
+      "reason": "the afk-python target stays `paths['launcher']`",
+      "evidence": "target = paths[\"launcher\"]",
+      "line_hash": "25162a2ae331",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:324",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:324",
+      "disposition": "terminal",
+      "reason": "the PATH step checks the directory, so afk-team rides on the existing entry",
+      "evidence": "elif name == \"path\" and on_path(paths[\"bin\"], fresh_path(child_env, windows), windows):",
+      "line_hash": "98ae8bd010bc",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:175"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:338",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:338",
+      "disposition": "terminal",
+      "reason": "place_entry runs in the `launcher` step, after the `environment` step (the uv sync) returned 0; an afk-team write inside it runs after the sync and after afk-python",
+      "evidence": "place_entry(paths, p[\"python\"], windows)",
+      "line_hash": "fe4862bdce8a",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:352",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:352",
+      "disposition": "terminal",
+      "reason": "the stamp's launcher key names afk-python; unchanged unless the stamp gains an afk-team key, which the signed packet does not name",
+      "evidence": "\"launcher\": str(paths[\"launcher\"])}",
+      "line_hash": "6fab808108af",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:141"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:474",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:474",
+      "disposition": "terminal",
+      "reason": "AFK_PYTHON identity check, afk-python only",
+      "evidence": "if not same_file(seen[1], paths[\"launcher\"]):",
+      "line_hash": "9ecd42783f7f",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:488"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:500",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:500",
+      "disposition": "terminal",
+      "reason": "check's only probe of afk-bin contents is afk-python's existence; HL6-10 (GRILL-LOG.md:751) requires check to report the afk-team launcher, so as written a missing or stale afk-team passes check and install publishes the stamp",
+      "evidence": "verdict(\"launcher\", None if paths[\"launcher\"].exists() else f\"{paths['launcher']} missing\")",
+      "line_hash": "c617b83c776d",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:582"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:511",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:511",
+      "disposition": "terminal",
+      "reason": "probe PATH removes the afk-bin entry so only startup files can add it back; afk-team follows the same entry",
+      "evidence": "probe_env = without_entry(env, paths[\"bin\"], windows)",
+      "line_hash": "e066866ba53a",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:196"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:522",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:522",
+      "disposition": "terminal",
+      "reason": "hook bash identity probe of afk-python only",
+      "evidence": "status, said = runner([bash, \"-c\", f\"{RESOLVE}; {COMMAND} -c {quoted}\", \"afk-hook\", str(paths[\"launcher\"])],",
+      "line_hash": "b34f8b3433c2",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:146"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:45",
+      "disposition": "terminal",
+      "reason": "reads layout()['launcher'] as the afk-python path for the MCP registration; breaks only if the new launcher reuses the `launcher` key (searched test_setup_secrets*.py for AFK_PYTHON: none)",
+      "evidence": "AFK_PYTHON = python_runtime.layout(os.environ, os.name == \"nt\")[\"launcher\"]",
+      "line_hash": "5624d9dba0e4",
+      "parent": null,
+      "query_id": "q-6afacd7e",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:.github/workflows/tests.yml:39",
+      "class": "B4",
+      "site": ".github/workflows/tests.yml:39",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"$LOCALAPPDATA\\\\afk\\\\python\\\\afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "7a96484aa470",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:106",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:106",
+      "disposition": "terminal",
+      "reason": "afk-python path on Windows",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python.exe\"",
+      "line_hash": "528134172052",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:110",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:110",
+      "disposition": "terminal",
+      "reason": "afk-python path on POSIX",
+      "evidence": "assert paths[\"launcher\"] == paths[\"env\"] / \"afk-bin\" / \"afk-python\"",
+      "line_hash": "fea0aa82aaf1",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:110"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:133",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:133",
+      "disposition": "terminal",
+      "reason": "uv env names afk-bin as UV_TOOL_BIN_DIR",
+      "evidence": "assert sync_env[\"UV_TOOL_BIN_DIR\"] == str(paths[\"bin\"])",
+      "line_hash": "4188576d14e1",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:133"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:204",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:204",
+      "disposition": "terminal",
+      "reason": "same stub as :200: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:216"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:547",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:547",
+      "disposition": "terminal",
+      "reason": "same stub as :543: monkeypatches place_entry",
+      "evidence": "monkeypatch.setattr(pr, \"place_entry\", entry_only)",
+      "line_hash": "f6578dcac5a9",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:558"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:137",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:137",
+      "disposition": "terminal",
+      "reason": "layout derives afk-bin from the environment; the new launcher path derives from the same `bin` key",
+      "evidence": "bin_dir = env_dir / \"afk-bin\"",
+      "line_hash": "df4037a858a1",
+      "parent": null,
+      "query_id": "q-93f35625",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106"
+    },
+    {
+      "id": "B8:.github/workflows/release-gate.yml:29",
+      "class": "B8",
+      "site": ".github/workflows/release-gate.yml:29",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after bootstrap install; afk-team lands on CI PATH with it",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "5f39fe1ed7e0",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B8:.github/workflows/release.yml:42",
+      "class": "B8",
+      "site": ".github/workflows/release.yml:42",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after bootstrap install; afk-team lands on CI PATH with it",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "5f39fe1ed7e0",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B8:.github/workflows/tests.yml:39",
+      "class": "B8",
+      "site": ".github/workflows/tests.yml:39",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"$LOCALAPPDATA\\\\afk\\\\python\\\\afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "7a96484aa470",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B8:.github/workflows/tests.yml:42",
+      "class": "B8",
+      "site": ".github/workflows/tests.yml:42",
+      "disposition": "terminal",
+      "reason": "CI adds afk-bin to PATH after a real install, then runs scripts/tests, which includes test_afk_python_entry.py:72 against that install",
+      "evidence": "echo \"${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin\" >> \"$GITHUB_PATH\"",
+      "line_hash": "cfb40ad6368e",
+      "parent": null,
+      "query_id": "q-503991f2",
+      "impact_verdict": "unchanged",
+      "pinned_by": ".github/workflows/tests.yml:64"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:285",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:285",
+      "disposition": "terminal",
+      "reason": "Windows place_entry renames a running afk-python.exe to afk-python.exe.old inside afk-bin; test_afk_python_entry.py:72 tolerates it by prefix, and an afk-team writer using the same rename would leave afk-team.*.old that :72 also rejects",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "old = target.with_name(target.name + \".old\")",
+      "parent": "B1:skills/afk/setup/scripts/python_runtime.py:271",
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:312",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:312",
+      "disposition": "terminal",
+      "reason": "install deletes the stamp before any step, so a sync that wipes afk-bin and fails leaves no stamp",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:352",
+      "evidence": "paths[\"stamp\"].unlink(missing_ok=True)",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:343",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:343",
+      "disposition": "terminal",
+      "reason": "the environment step (uv sync) runs here; a non-zero exit returns 1 at :344-349 before the launcher step",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:350",
+      "evidence": "code, said = runner(argv, child_env)",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:73",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:73",
+      "disposition": "terminal",
+      "reason": "UV_KEEP holds no UV_VENV_CLEAR, so uv_env (:163-165) strips a user's clear setting before the sync",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:322",
+      "evidence": "UV_KEEP = (\"UV_NATIVE_TLS\", \"UV_SYSTEM_CERTS\", \"UV_HTTP_TIMEOUT\", \"UV_HTTP_CONNECT_TIMEOUT\",",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/bootstrap.sh:46",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/bootstrap.sh:46",
+      "disposition": "terminal",
+      "reason": "bootstrap runs python_runtime.py under uv's managed CPython (`uv run --no-project`), not afk-bin's afk-python; no afk-bin file runs during setup's own sync",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:97",
+      "evidence": "exec \"$uv\" run --no-project --managed-python --no-python-downloads --python \"$cpython\" \\",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/bootstrap.ps1:55",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/bootstrap.ps1:55",
+      "disposition": "terminal",
+      "reason": "Windows bootstrap runs python_runtime.py under uv's managed CPython, not afk-bin's afk-python.exe",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:334",
+      "evidence": "Invoke-Step 'uv run' { & $uv run --no-project --managed-python --no-python-downloads --python $python $runtime @forward }",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B13:skills/afk/setup/MANIFEST.md:702",
+      "class": "B13",
+      "site": "skills/afk/setup/MANIFEST.md:702",
+      "disposition": "terminal",
+      "reason": "P1 Fix text lists the install effects: places the afk-python entry and the AFK_PYTHON line; omits the afk-team write (FRESHNESS.md:69 requires P1 in the same commit)",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "with bytecode compiled. It then places the `afk-python` entry and the",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B13:skills/afk/setup/MANIFEST.md:684",
+      "class": "B13",
+      "site": "skills/afk/setup/MANIFEST.md:684",
+      "disposition": "terminal",
+      "reason": "P1 Probe text lists what check proves; omits the afk-team launcher report HL6-10 requires",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "- **Probe:** `afk-python \"$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py\" check`",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B13:FRESHNESS.md:69",
+      "class": "B13",
+      "site": "FRESHNESS.md:69",
+      "disposition": "terminal",
+      "reason": "binds the change: a layout or transaction-step change updates MANIFEST.md P1, both bootstraps and four test files in the same commit",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "| `runtime/` (`pyproject.toml`, `uv.lock`) + `skills/afk/setup/scripts/python_runtime.py` + `skills/afk/setup/scripts/bootstrap.sh` + `bootstrap.ps1` | `/afk:setup` | a pin, a dependency, an import name, the `afk-python` entry or its `AFK_PYTHON` line, the layout, the stamp format, or a transaction step changes — re-lock with the pinned uv (`uv lock --project runtime`) and update `MANIFEST.md` P1, both bootstrap scripts (their pin parsing and `UV_*` lists), and `scripts/tests/test_afk_python_entry.py`, `test_runtime_lock.py`, `test_python_runtime_setup.py` and `test_setup_bootstrap.py` in the same commit |",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/SDD.md:860",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/SDD.md:860",
+      "disposition": "terminal",
+      "reason": "SDD §7 already uses E9 for message delivery, while GRILL-LOG.md:750 names the launcher write 'new effect E9'; the SDD has no afk-team launcher text yet (git grep afk-team over SDD.md: no hit)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "| E9 | Deliver a message into another agent's pane, by the tool's delivery way named in its recipe; herdr has one way, agent prompt (S-214) | agent-send to any target other than the contact agent; this includes finished to a report target (S-189, S-212), which the script takes from the manifest and the pattern, not from the sender (S-235) | Every started agent and the job supervisor, along a declared edge; a finished message to its report target needs none (audit L5, agent-decided) | None: a delivered message is not taken back; a later message corrects it (S-196) | The team entry script's edge and kind check; the pane gets only the fixed envelope; nobody types in those panes | The script writes the body file first, under a temporary name, then renames it; then it delivers the envelope. A receiver never gets an envelope whose body is missing (S-196). For finished to a target other than the contact agent: the body, then the completion signal, then this pane, then the contact inbox copy (E10) (S-235) | message id; the receiver ignores a repeated id | When the delivery fails, the body without an envelope stays as an orphan until cleanup. The command answers exit code 4 (receiver gone) or exit code 2 (unknown agent-id) (S-196). For finished: the inbox copy is still written, and exit code 4 names the target (S-235) | The sender sends again with the same message id; the receiver's repeat check makes a double delivery harmless. For a lost state-change message, the stall watchdog and the completion signal are the backup (S-196). For finished: the contact agent sends the result path to a replacement agent or tells the human (S-235) | Convention plus the entry script's check | The receiving agent | S-148, DLV-2, S-131, S-132, S-133, T11, S-235 |",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B4:scripts/team/permission.py:28",
+      "class": "B4",
+      "site": "scripts/team/permission.py:28",
+      "disposition": "terminal",
+      "reason": "spawn invocation names the afk-python path form; the launcher write alone does not change it, the rule switch to Bash(afk-team *) at GRILL-LOG.md:747 does",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_team_permission.py:83",
+      "evidence": "INVOCATION = 'afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\"'",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B4:hooks/lib/providers/claude.sh:78",
+      "class": "B4",
+      "site": "hooks/lib/providers/claude.sh:78",
+      "disposition": "terminal",
+      "reason": "Claude allow rule names the afk-python path form; changed by GRILL-LOG.md:747, not by the afk-bin write",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_team_permission.py:83",
+      "evidence": "local AFK_SPAWN_ALLOW_RULE='Bash(afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\" *)'",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B3:hooks/lib/adapter.sh:56",
+      "class": "B3",
+      "site": "hooks/lib/adapter.sh:56",
+      "disposition": "irrelevant",
+      "reason": "dispatch runs `${AFK_PYTHON:-afk-python}` and loads adapters under the plugin's adapters/ dir (adapter.sh:56-114); never lists or names afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "local family=$1 dir=$2 entry py=\"${AFK_PYTHON:-afk-python}\"",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B3:scripts/tracker_api.py:39",
+      "class": "B3",
+      "site": "scripts/tracker_api.py:39",
+      "disposition": "irrelevant",
+      "reason": "loads adapters/tracker/<kind>/api.py by file location (tracker_api.py:23-44); no afk-bin reach",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "path = PLUGIN_ROOT / \"adapters\" / \"tracker\" / kind / \"api.py\"",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B5:scripts/afk-config.py:87",
+      "class": "B5",
+      "site": "scripts/afk-config.py:87",
+      "disposition": "irrelevant",
+      "reason": "the config codec's key set holds no runtime-layout key; afk-bin, LOCALAPPDATA and python_runtime appear nowhere in afk-config.py (seed name-form search, grep of the file)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "DEVELOPER_KEYS = {\"trackerAssignee\", \"mrReviewer\", \"mrAssignee\", \"worktreeBasePath\", \"ideBinary\"}",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B10:mcp-servers/tracker/server.py:41",
+      "class": "B10",
+      "site": "mcp-servers/tracker/server.py:41",
+      "disposition": "irrelevant",
+      "reason": "server takes the plugin root from argv or env and loads modules from it (server.py:32-58); the interpreter that runs it is the registration's concern (setup_secrets.py:45)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "return Path(sys.argv[1]).resolve()",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B6:CLAUDE.md:1",
+      "class": "B6",
+      "site": "CLAUDE.md:1",
+      "disposition": "traced",
+      "reason": "CLAUDE.md is a pointer to AGENTS.md",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "@AGENTS.md",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B6:AGENTS.md:11",
+      "class": "B6",
+      "site": "AGENTS.md:11",
+      "disposition": "terminal",
+      "reason": "no package build step, so no generated output in the tree; afk-bin files are setup-time outputs outside the repository",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "No package build step. Edit the shared source, run the hook tests and gates, then refresh the enabled plugin per `PROVIDERS.md`.",
+      "parent": "B6:CLAUDE.md:1",
+      "query_id": null
+    },
+    {
+      "id": "B7:CLAUDE.md:1",
+      "class": "B7",
+      "site": "CLAUDE.md:1",
+      "disposition": "terminal",
+      "reason": "CLAUDE.md points at AGENTS.md, which states no package build step (AGENTS.md:11)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "@AGENTS.md",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B7:runtime/pyproject.toml:3",
+      "class": "B7",
+      "site": "runtime/pyproject.toml:3",
+      "disposition": "terminal",
+      "reason": "the one build manifest in the tree (git ls-files over pyproject/package/pom/gradle/Cargo/setup names): a single [project], no workspace; it is the project the uv sync installs",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "[project]",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B12:scripts/tests/test_git_backstop.py:276",
+      "class": "B12",
+      "site": "scripts/tests/test_git_backstop.py:276",
+      "disposition": "terminal",
+      "reason": "drops every PATH dir that holds afk-python; afk-team leaves with afk-bin, the test needs neither",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_git_backstop.py:276",
+      "evidence": "path = sep.join(e for e in os.environ.get(\"PATH\", \"\").split(sep) if e and not shutil.which(\"afk-python\", path=e))",
+      "line_hash": "b0394ff7f757",
+      "parent": null,
+      "query_id": "q-1e5ed5ba"
+    },
+    {
+      "id": "B12:scripts/tests/test_protected_lookup.py:479",
+      "class": "B12",
+      "site": "scripts/tests/test_protected_lookup.py:479",
+      "disposition": "terminal",
+      "reason": "keeps the interpreter's folder (afk-bin under afk-python) on PATH to prove gh is absent; afk-team shadows no gh",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_protected_lookup.py:479",
+      "evidence": "keep = {str(Path(shutil.which(t)).parent) for t in (\"git\", \"bash\")} | {str(Path(sys.executable).parent)}",
+      "line_hash": "2aa812178f42",
+      "parent": null,
+      "query_id": "q-1e5ed5ba"
+    },
+    {
+      "id": "B12:scripts/tests/test_tracker_server.py:212",
+      "class": "B12",
+      "site": "scripts/tests/test_tracker_server.py:212",
+      "disposition": "terminal",
+      "reason": "PATH = git dir + interpreter folder to prove gh is absent; afk-team shadows no gh",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_tracker_server.py:212",
+      "evidence": "env.update(HOME=str(home), USERPROFILE=str(home), PATH=git_dir + os.pathsep + str(Path(sys.executable).parent))",
+      "line_hash": "07991b47d54d",
+      "parent": null,
+      "query_id": "q-1e5ed5ba"
+    },
+    {
+      "id": "B12:scripts/tests/test_wiring_gate.py:138",
+      "class": "B12",
+      "site": "scripts/tests/test_wiring_gate.py:138",
+      "disposition": "terminal",
+      "reason": "skip guard on afk-python in the toolchain dirs",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_wiring_gate.py:138",
+      "evidence": "if shutil.which(\"afk-python\", path=path):",
+      "line_hash": "aeadb620d0d5",
+      "parent": null,
+      "query_id": "q-1e5ed5ba"
+    },
+    {
+      "id": "B12:scripts/tests/test_setup_bootstrap.py:334",
+      "class": "B12",
+      "site": "scripts/tests/test_setup_bootstrap.py:334",
+      "disposition": "terminal",
+      "reason": "asserts the plan prints `launcher: <entry>`; holds while the step keeps its name and `<entry>` marker",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:334",
+      "evidence": "assert \"launcher: <entry>\" in done.stdout and \"stamp:\" in done.stdout",
+      "line_hash": "9ffa498b8dfa",
+      "parent": null,
+      "query_id": "q-c9ce2e5a"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:94",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:94",
+      "disposition": "terminal",
+      "reason": "plan writes nothing; holds if the afk-team write stays in install only",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:94",
+      "evidence": "assert list(tmp_path.iterdir()) == []",
+      "line_hash": "36f89563608d",
+      "parent": null,
+      "query_id": "q-47596e04"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:234",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:234",
+      "disposition": "terminal",
+      "reason": "lists the fake home's startup files, not afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:234",
+      "evidence": "assert sorted(p.name for p in home_dir.iterdir()) == sorted(set(existing) | set(written))",
+      "line_hash": "103af947cb41",
+      "parent": null,
+      "query_id": "q-47596e04"
+    },
+    {
+      "id": "B12:scripts/tests/test_python_runtime_setup.py:389",
+      "class": "B12",
+      "site": "scripts/tests/test_python_runtime_setup.py:389",
+      "disposition": "terminal",
+      "reason": "lists site-packages for pytest, not afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:389",
+      "evidence": "assert not paths[\"stamp\"].exists() and not list(site.glob(\"pytest*\"))",
+      "line_hash": "9908c6f93c24",
+      "parent": null,
+      "query_id": "q-47596e04"
+    },
+    {
+      "id": "B12:scripts/tests/test_setup_bootstrap.py:329",
+      "class": "B12",
+      "site": "scripts/tests/test_setup_bootstrap.py:329",
+      "disposition": "terminal",
+      "reason": "lists the managed pythons folder, not afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:329",
+      "evidence": "if not uv.is_file() or not any(pythons.glob(f\"cpython-{PINS['python']}-*\")):",
+      "line_hash": "959c3ef9282d",
+      "parent": null,
+      "query_id": "q-47596e04"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/background_git_hooks.py:74",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/background_git_hooks.py:74",
+      "disposition": "irrelevant",
+      "reason": "lists a git hooks directory, not afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "for hook in sorted(directory.iterdir()):",
+      "line_hash": "dcbba51b9d5a",
+      "parent": null,
+      "query_id": "q-020e68da"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/developer_values.py:125",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/developer_values.py:125",
+      "disposition": "irrelevant",
+      "reason": "globs JetBrains install folders, not afk-bin",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "found = sorted(Path(pf).glob(\"JetBrains/*/bin/idea64.exe\"), reverse=True)",
+      "line_hash": "9de8eb3ecba9",
+      "parent": null,
+      "query_id": "q-020e68da"
+    },
+    {
+      "id": "B1:RATIONALE.md:57",
+      "class": "B1",
+      "site": "RATIONALE.md:57",
+      "disposition": "irrelevant",
+      "reason": "rationale-verify --clear, a forge ledger flag",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "5. Verify: `… rationale-verify --clear`. It needs one receipt whose batch, count,",
+      "line_hash": "4b9a5539ef9a",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:126",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:126",
+      "disposition": "terminal",
+      "reason": "order markers: installer, python install, sync, update-shell, check, probe; an afk-team write is no runner call and leaves the order list intact",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:126",
+      "evidence": "(\"uv-installer.ps1\", \"python install\", \" sync \", \"tool update-shell\", \"--check\", \"afk-python -c\")]",
+      "line_hash": "1da5770ba33b",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:scripts/tests/test_rationale_ledger.py:635",
+      "class": "B1",
+      "site": "scripts/tests/test_rationale_ledger.py:635",
+      "disposition": "irrelevant",
+      "reason": "rationale-verify --clear",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "done = cli(world, monkeypatch, \"rationale-verify\", \"--change\", \"1\", \"--clear\")",
+      "line_hash": "94f28eec05f9",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:skills/afk/execute/SKILL.md:106",
+      "class": "B1",
+      "site": "skills/afk/execute/SKILL.md:106",
+      "disposition": "irrelevant",
+      "reason": "rationale-verify --clear",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "12. **Confirm the rationale receipt, reconcile the glossary, then update the tracker.** Run `rationale-verify --clear`; it exits 2 unless every pending reason is posted and receipted. On exit 2, stop with `rationale_unposted` naming the missing IDs or the blocker. An entry whose line a later commit rewrote or deleted never posts: withdraw it with `rationale-drop --op <id> --reason <text>` (or `rationale-add` it against the new line), re-run Step 12, and name each dropped entry in the report. Never mark the subtask `done` without the receipt. If implementation revealed a domain term's actual semantics differ from its `GLOSSARY.md` definition (owning glossary located via `GLOSSARY-MAP.md`; format per `/afk:glossary`), update the entry and commit it separately: `[{NNNN-slug}] glossary: <terms>`. Then `plan-status.sh {plan-dir} {NNNN-slug} done`. The subtask file round-trips verbatim — this skill writes no per-run note anywhere; the run's signals live in the PLAN.md `Status`/`blocked(…)` cell, `plan/JOURNAL.md`, `plan/DECISIONS.md`, and `plan/review/*.md`.",
+      "line_hash": "57dcd67bc506",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:skills/afk/review/scripts/forge_ledger.py:2410",
+      "class": "B1",
+      "site": "skills/afk/review/scripts/forge_ledger.py:2410",
+      "disposition": "irrelevant",
+      "reason": "rationale-verify --clear",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "p = sub.add_parser(\"rationale-verify\"); p.add_argument(\"--change\"); p.add_argument(\"--clear\", action=\"store_true\"); trust_flags(p)",
+      "line_hash": "a03bb8780197",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:skills/utils/settle-change/SKILL.md:55",
+      "class": "B1",
+      "site": "skills/utils/settle-change/SKILL.md:55",
+      "disposition": "irrelevant",
+      "reason": "rationale-verify --clear",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "- **Commit/push (settle mode)** — one commit per round in `$WT` (`review r{n}: <what>`), pushed at round close: inline anchors only exist on pushed heads, so posting round n+1's findings requires round n's fixes on the remote. Agent-driven commits run the commit-time code gates (`hooks/precommit-gates.sh`), so a round touching `.java` commits in minutes, not seconds: invoke `git commit` with an explicit **600000 ms tool timeout** — a commit dying on the default timeout is not a signal to retry with `--no-verify`. After the push, post the `Fixed — … (<short-sha>)` replies and resolve those threads. A fixer that adds a comment applies `RATIONALE.md` § Classification test and records each moved reason with `forge_ledger.py rationale-add`. Once the round's push lands, run `rationale-post` and `rationale-verify --clear` (`RATIONALE.md` § Write path). A failed verify blocks `settled`: report the missing IDs.",
+      "line_hash": "efdccf67c783",
+      "parent": null,
+      "query_id": "q-bdd82bc8"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:198",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:198",
+      "disposition": "terminal",
+      "reason": "uv sync --project runtime --frozen --no-build --managed-python --python <pin>; no --clear",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:92",
+      "evidence": "def sync_command(p: dict, paths: dict, test: bool) -> list[str]:",
+      "line_hash": "774a79224541",
+      "parent": null,
+      "query_id": "q-da25d3fd"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:265",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:265",
+      "disposition": "terminal",
+      "reason": "the environment step: the sync that can rebuild the environment root runs before the launcher step",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:126",
+      "evidence": "(\"environment\", sync_command(p, paths, test) + [\"--compile-bytecode\"]),",
+      "line_hash": "002bb84ece65",
+      "parent": null,
+      "query_id": "q-da25d3fd"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:506",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:506",
+      "disposition": "terminal",
+      "reason": "check runs the sync with --check --offline; uv's dry-run branch builds a temporary environment and leaves the root alone (inference)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:460",
+      "evidence": "status, said = runner(sync_command(p, paths, test) + [\"--check\", \"--offline\"], uv_env(env, paths, windows))",
+      "line_hash": "9dee7cd22f58",
+      "parent": null,
+      "query_id": "q-da25d3fd"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_python_entry.py:18",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_python_entry.py:18",
+      "disposition": "terminal",
+      "reason": "imports layout and COMMAND; :72 is the afk-bin listing that breaks",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_python_entry.py:72",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"python_runtime\", SCRIPT)",
+      "line_hash": "320da91e7e73",
+      "parent": null,
+      "query_id": "q-1feaecaf"
+    },
+    {
+      "id": "B1:scripts/tests/test_python_runtime_setup.py:19",
+      "class": "B1",
+      "site": "scripts/tests/test_python_runtime_setup.py:19",
+      "disposition": "terminal",
+      "reason": "imports the module under test",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:83",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"python_runtime\", SCRIPT)",
+      "line_hash": "320da91e7e73",
+      "parent": null,
+      "query_id": "q-1feaecaf"
+    },
+    {
+      "id": "B1:scripts/tests/test_setup_bootstrap.py:17",
+      "class": "B1",
+      "site": "scripts/tests/test_setup_bootstrap.py:17",
+      "disposition": "terminal",
+      "reason": "imports pins and UV lists",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:97",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"python_runtime\", SCRIPTS / \"python_runtime.py\")",
+      "line_hash": "80d2c621451a",
+      "parent": null,
+      "query_id": "q-1feaecaf"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:41",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:41",
+      "disposition": "terminal",
+      "reason": "imports layout for the afk-python path",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "import python_runtime  # noqa: E402  (the afk-python entry a registration names)",
+      "line_hash": "17b985f122c6",
+      "parent": null,
+      "query_id": "q-1feaecaf"
+    },
+    {
+      "id": "B4:scripts/tests/test_python_runtime_setup.py:141",
+      "class": "B4",
+      "site": "scripts/tests/test_python_runtime_setup.py:141",
+      "disposition": "terminal",
+      "reason": "exact stamp dict",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:141",
+      "evidence": "\"launcher\": str(paths[\"launcher\"]), \"command\": \"/spelled/afk-python\", \"file\": \"/spelled/afk-python.exe\"}",
+      "line_hash": "3d9bc33fb6ca",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:143",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:143",
+      "disposition": "terminal",
+      "reason": "layout key `launcher` = afk-bin/afk-python; the afk-team launcher needs a key of its own (inference)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:106",
+      "evidence": "\"bin\": bin_dir, \"launcher\": bin_dir / f\"{COMMAND}{exe}\",",
+      "line_hash": "0127ffa8a08e",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:266",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:266",
+      "disposition": "terminal",
+      "reason": "step name `launcher` printed by plan",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_bootstrap.py:334",
+      "evidence": "(\"launcher\", [\"<entry>\", str(paths[\"interpreter\"]), str(paths[\"launcher\"]), PTH]),",
+      "line_hash": "77a6b95b66d2",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:336",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:336",
+      "disposition": "terminal",
+      "reason": "install dispatches the `launcher` step to place_entry",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:135",
+      "evidence": "elif name == \"launcher\":",
+      "line_hash": "44f3a5d85fc3",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:352",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:352",
+      "disposition": "terminal",
+      "reason": "stamp key `launcher`",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:141",
+      "evidence": "\"launcher\": str(paths[\"launcher\"])}",
+      "line_hash": "6fab808108af",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/python_runtime.py:500",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/python_runtime.py:500",
+      "disposition": "terminal",
+      "reason": "check verdict name `launcher`; the key itself is unchanged, the probe's coverage is the B1 finding",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:582",
+      "evidence": "verdict(\"launcher\", None if paths[\"launcher\"].exists() else f\"{paths['launcher']} missing\")",
+      "line_hash": "c617b83c776d",
+      "parent": null,
+      "query_id": "q-7b90be5d"
+    },
+    {
+      "id": "B13:README.md:350",
+      "class": "B13",
+      "site": "README.md:350",
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "`private environment, exposed only as the `afk-python` command (register entry` — README says the runtime is exposed only as afk-python; an afk-team launcher in afk-bin makes it false; FRESHNESS.md:69's same-commit list does not name README.md",
+      "line_hash": "626695c78d01",
+      "parent": null,
+      "query_id": "q-2f7cc4ba"
+    },
+    {
+      "id": "B13:CHANGELOG.md:331",
+      "class": "B13",
+      "site": "CHANGELOG.md:331",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "`hash lock `runtime/uv.lock`, from wheels only. The runtime is exposed only as` — release history of a past version (Keep a Changelog section); history is not rewritten",
+      "line_hash": "0789dca948f6",
+      "parent": null,
+      "query_id": "q-2f7cc4ba"
+    },
+    {
+      "id": "B13:skills/afk/setup/AUDIT.md:142",
+      "class": "B13",
+      "site": "skills/afk/setup/AUDIT.md:142",
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "`Run the `MANIFEST.md` P1 probe. It is read-only. Each `fail` line is a finding:` — AUDIT.md:142-149 lists the P1 check's fail kinds, all about afk-python; HL6-10/HL5-7 (GRILL-LOG.md:750-751) make check report a missing or stale afk-team launcher, a kind the list lacks",
+      "line_hash": "f0cdc427b1f8",
+      "parent": null,
+      "query_id": "q-ec310ffc"
+    },
+    {
+      "id": "B12:.github/workflows/tests.yml:64",
+      "class": "B12",
+      "site": ".github/workflows/tests.yml:64",
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "`run: afk-python -m pytest scripts/tests -q` — runs scripts/tests after the real bootstrap install (tests.yml:33-43) on ubuntu and windows; test_afk_python_entry.py:72 asserts every afk-bin entry starts with afk-python, so this step goes red",
+      "line_hash": "5bd75e2d3033",
+      "parent": null,
+      "query_id": "q-fa75b950"
+    },
+    {
+      "id": "B12:scripts/tests/test_team_entry.py:368",
+      "class": "B12",
+      "site": "scripts/tests/test_team_entry.py:368",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_team_entry.py:368",
+      "evidence": "`assert 'afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\" agent-send' in prompt` — pins the afk-python invocation in the agent prompt (entry.py:237); a launcher write alone leaves it; it changes with the separate switch to Bash(afk-team *) (GRILL-LOG.md:747)",
+      "line_hash": "e13d58966b3c",
+      "parent": null,
+      "query_id": "q-c5c8a136"
+    },
+    {
+      "id": "B4:scripts/afk-team.py:4",
+      "class": "B4",
+      "site": "scripts/afk-team.py:4",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "`afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\" <command> '<one JSON object>'` — usage docstring names the afk-python invocation, never afk-bin; changes only with the rule switch",
+      "line_hash": "91669eb72dad",
+      "parent": null,
+      "query_id": "q-c5c8a136"
+    },
+    {
+      "id": "B4:scripts/team/entry.py:85",
+      "class": "B4",
+      "site": "scripts/team/entry.py:85",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "`root = Path(env[\"AFK_TEAM_ROOT\"]) if env.get(\"AFK_TEAM_ROOT\") else main / \".claude\" / \"afk-team\"` — the run-root folder <main checkout>/.claude/afk-team, not a PATH command; no name collision with the launcher",
+      "line_hash": "a2c0b7ab1532",
+      "parent": null,
+      "query_id": "q-c5c8a136"
+    },
+    {
+      "id": "B1:hooks/plugin-source-gates.sh:229",
+      "class": "B1",
+      "site": "hooks/plugin-source-gates.sh:229",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_plugin_source_gates.py:405",
+      "evidence": "`judge_py=$(PATH=$safe_path command -v \"${AFK_PYTHON:-afk-python}\" 2>/dev/null) || judge_py=\"\"` — safe_path keeps every PATH dir outside the repository (plugin-source-gates.sh:224-228), afk-bin included, and resolves only afk-python; an afk-team beside it shadows nothing the judge runs",
+      "line_hash": "506d197c4930",
+      "parent": null,
+      "query_id": "q-cd2fccf7"
+    },
+    {
+      "id": "B1:runtime/pyproject.toml:2",
+      "class": "B1",
+      "site": "runtime/pyproject.toml:2",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "`# file's pins and `uv.lock`: skills/afk/setup/scripts/python_runtime.py.` — comment naming the owner of the pins; no layout fact",
+      "line_hash": "b71f37c6ad9b",
+      "parent": null,
+      "query_id": "q-4fffb001"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:135",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:135",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:114",
+      "evidence": "read: `env_dir = base / \"python\"`; env_dir is UV_PROJECT_ENVIRONMENT (:167) and afk-bin is env_dir/afk-bin (:137), so uv's environment replacement (clear_virtualenv on the root) removes afk-bin whole; the site itself needs no change for afk-team",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:200",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:200",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "read: sync_command passes `--managed-python --python <pin>`; uv's compatibility check (project_mod.rs:901-960) fails an environment whose interpreter does not satisfy it, which leads to replacement",
+      "parent": "B1:skills/afk/setup/scripts/python_runtime.py:316",
+      "query_id": null
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/python_runtime.py:316",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/python_runtime.py:316",
+      "disposition": "traced",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_python_runtime_setup.py:127",
+      "evidence": "read: install runs steps() in list order (:262-268: uv, python, environment, launcher, path) and returns at the first non-zero step (:343-349), so a write in the launcher step follows the sync that may wipe afk-bin",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B4:scripts/team/entry.py:237",
+      "class": "B4",
+      "site": "scripts/team/entry.py:237",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_team_entry.py:368",
+      "evidence": "read: the agent prompt says `Send each message with {permission.INVOCATION} agent-send`; INVOCATION is permission.py:28, the afk-python form; independent of afk-bin",
+      "parent": null,
+      "query_id": null
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-503991f2",
+      "command": "git grep -n -I -E -e 'afk\\-bin' -e '\"afk\\-bin\"' -e place_entry -e '\"place_entry\"'",
+      "universe": "tracked text files, binary excluded",
+      "count": 38,
+      "lines": 23,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-7a054984",
+      "command": "git grep -n -I -E -i --untracked -e 'afk\\-bin' -e '\"afk\\-bin\"' -e place_entry -e '\"place_entry\"'",
+      "universe": "case-blind pass over tracked and untracked files, not ignored",
+      "count": 0,
+      "lines": 23,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-6afacd7e",
+      "command": "git grep -n -I -E --untracked -e '(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])' -e '\\[\"bin\"\\]' -e '\\[\"launcher\"\\]' -e '(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])' -e '\\[\"bin\"\\]' -e '\\[\"launcher\"\\]' -e '(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_])'",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 78,
+      "lines": 50,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-c30b0ebf",
+      "command": "git grep -n -I -E -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])afk\\-bin($|[^[:alnum:]_])|(^|[^[:alnum:]_])place_entry($|[^[:alnum:]_])|(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])|(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])|\\[\"bin\"\\]|\\[\"launcher\"\\]|(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_])|(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])|(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])|\\[\"bin\"\\]|\\[\"launcher\"\\]|(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_]))' -e '\\(\\s*(afk\\-bin|place_entry|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove)\\s+\\w'",
+      "universe": "tracked files",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-0ead00f8",
+      "command": "git grep -n -I -E -i -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])afk\\-bin($|[^[:alnum:]_])|(^|[^[:alnum:]_])place_entry($|[^[:alnum:]_])|(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])|(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])|\\[\"bin\"\\]|\\[\"launcher\"\\]|(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_])|(^|[^[:alnum:]_])entry_only($|[^[:alnum:]_])|(^|[^[:alnum:]_])UV_TOOL_BIN_DIR($|[^[:alnum:]_])|\\[\"bin\"\\]|\\[\"launcher\"\\]|(^|[^[:alnum:]_])To\\ remove($|[^[:alnum:]_]))' -e '\\(\\s*(afk\\-bin|place_entry|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove)\\s+\\w'",
+      "universe": "tracked files, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-93f35625",
+      "command": "git grep -n -I -E -e '[\\\"'\"'\"'](afk\\-bin|place_entry|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove)[\\\"'\"'\"']'",
+      "universe": "tracked files",
+      "count": 7,
+      "lines": 7,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-3e1f3b19",
+      "command": "git grep -n -I -E -i -e '[\\\"'\"'\"'](afk\\-bin|place_entry|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove|entry_only|UV_TOOL_BIN_DIR|\\[\"bin\"\\]|\\[\"launcher\"\\]|To\\ remove)[\\\"'\"'\"']'",
+      "universe": "tracked files, case-blind",
+      "count": 0,
+      "lines": 7,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-247a9c5a",
+      "command": "git grep -n -I -E -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- .claude/wiring-ious.md .github/workflows/release-gate.yml .github/workflows/release.yml .github/workflows/tests.yml docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.html docs/afk/agent-team-topology/grill-solution.round.json hooks/run-hook.py scripts/tests/test_afk_python_entry.py scripts/tests/test_python_runtime_setup.py skills/afk/setup/MANIFEST.md skills/afk/setup/scripts/python_runtime.py skills/afk/setup/scripts/setup_secrets.py",
+      "universe": "files that name the subject",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-0a61bfe4",
+      "command": "git grep -n -I -E -i -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- .claude/wiring-ious.md .github/workflows/release-gate.yml .github/workflows/release.yml .github/workflows/tests.yml docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.html docs/afk/agent-team-topology/grill-solution.round.json hooks/run-hook.py scripts/tests/test_afk_python_entry.py scripts/tests/test_python_runtime_setup.py skills/afk/setup/MANIFEST.md skills/afk/setup/scripts/python_runtime.py skills/afk/setup/scripts/setup_secrets.py",
+      "universe": "files that name the subject, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-1e5ed5ba",
+      "command": "git grep -n -I -E -e 'shutil\\.which\\([^)]*path=' -e 'sys\\.executable\\)\\.parent' -- scripts/tests",
+      "universe": "tracked test sources under scripts/tests: PATH built from a directory lookup or the interpreter's folder",
+      "count": 4,
+      "lines": 5,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-c9ce2e5a",
+      "command": "git grep -n -I -E -e 'launcher: <entry>'",
+      "universe": "tracked files: the plan output line of the launcher step",
+      "count": 1,
+      "lines": 1,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-47596e04",
+      "command": "git grep -n -I -E -e '\\.iterdir\\(\\)' -e '\\.glob\\(' -e 'os\\.listdir' -e 'os\\.scandir' -- scripts/tests/test_afk_python_entry.py scripts/tests/test_python_runtime_setup.py scripts/tests/test_setup_bootstrap.py",
+      "universe": "the three setup runtime test files: directory listings",
+      "count": 4,
+      "lines": 5,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-020e68da",
+      "command": "git grep -n -I -E -e '\\.iterdir\\(\\)' -e '\\.glob\\(' -e 'os\\.listdir' -e 'os\\.scandir' -- skills/afk/setup/scripts",
+      "universe": "setup scripts: directory listings",
+      "count": 2,
+      "lines": 2,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-bdd82bc8",
+      "command": "git grep -n -I -E -e 'uv venv' -e '\\-\\-clear' -e 'tool update-shell' -e UV_VENV_CLEAR",
+      "universe": "tracked text files: commands that rebuild or clear an environment, or touch the PATH entry",
+      "count": 6,
+      "lines": 6,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-da25d3fd",
+      "command": "git grep -n -I -E -e 'sync_command\\('",
+      "universe": "tracked text files: every uv sync command setup builds",
+      "count": 3,
+      "lines": 3,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-55b90992",
+      "command": "git grep -n -I -E -e 'dirname[^)]*AFK_PYTHON' -e 'AFK_PYTHON[^ ]*\\)\\.parent' -e 'os\\.path\\.dirname\\(sys\\.executable'",
+      "universe": "tracked text files: code deriving a folder from AFK_PYTHON or sys.executable",
+      "count": 0,
+      "lines": 0,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-1feaecaf",
+      "command": "git grep -n -I -E -e 'spec_from_file_location\\(\"python_runtime\"' -e 'import python_runtime'",
+      "universe": "tracked text files: importers of python_runtime.py",
+      "count": 4,
+      "lines": 4,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-7b90be5d",
+      "command": "git grep -n -I -E -e '\"launcher\":' -e '\\(\"launcher\",' -e 'name == \"launcher\"' -e 'verdict\\(\"launcher\"'",
+      "universe": "tracked text files: the launcher key and step name as string literals",
+      "count": 6,
+      "lines": 6,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-4fffb001",
+      "command": "git grep -n -I -E -e python_runtime",
+      "universe": "every tracked text file",
+      "count": 1,
+      "lines": 31,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-4fffb001.txt"
+    },
+    {
+      "id": "q-2f7cc4ba",
+      "command": "git grep -n -I -E -e 'exposed only as' -e 'entry'\"'\"'s directory' -e 'holds nothing else'",
+      "universe": "every tracked text file",
+      "count": 2,
+      "lines": 5,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-2f7cc4ba.txt"
+    },
+    {
+      "id": "q-d99d9921",
+      "command": "git grep -n -I -E -e 'rmtree\\(' -e 'rm -rf' -e 'Remove-Item.*-Recurse' -- scripts hooks skills adapters mcp-servers",
+      "universe": "scripts, hooks, skills, adapters, mcp-servers",
+      "count": 0,
+      "lines": 80,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-d99d9921.txt"
+    },
+    {
+      "id": "q-ebab3466",
+      "command": "git grep -n -I -E -e LOCALAPPDATA -e XDG_DATA_HOME -e '\\.local/share'",
+      "universe": "every tracked text file",
+      "count": 0,
+      "lines": 36,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-ebab3466.txt"
+    },
+    {
+      "id": "q-c5c8a136",
+      "command": "git grep -n -I -E -e afk-team -- hooks scripts",
+      "universe": "hooks, scripts",
+      "count": 3,
+      "lines": 19,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-c5c8a136.txt"
+    },
+    {
+      "id": "q-cd2fccf7",
+      "command": "git grep -n -I -E -e '(sys\\.executable|AFK_PYTHON).*(parent|dirname|PATH|which|listdir|iterdir|glob)' -e '(parent|dirname|PATH|which|listdir|iterdir|glob).*(sys\\.executable|AFK_PYTHON)' -- scripts hooks skills mcp-servers adapters",
+      "universe": "scripts, hooks, skills, mcp-servers, adapters",
+      "count": 1,
+      "lines": 15,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-cd2fccf7.txt"
+    },
+    {
+      "id": "q-fa75b950",
+      "command": "git grep -n -I -E -e 'pytest scripts/tests' -- .github/workflows",
+      "universe": ".github/workflows",
+      "count": 1,
+      "lines": 1,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-fa75b950.txt"
+    },
+    {
+      "id": "q-ec310ffc",
+      "command": "git grep -n -I -E -e 'P1\\b' -- skills/afk/setup README.md CAPABILITIES.md",
+      "universe": "skills/afk/setup, README.md, CAPABILITIES.md",
+      "count": 1,
+      "lines": 11,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/q-ec310ffc.txt"
+    },
+    {
+      "id": "q-420452b0",
+      "command": "git ls-files -- bin",
+      "universe": "bin",
+      "count": 0,
+      "lines": 0,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/ls-files-bin.txt"
+    }
+  ],
+  "claims": [
+    {
+      "id": "c-7ba11357",
+      "text": "the hit set holds every reference to afk-bin, place_entry over the name forms this pass searched",
+      "kind": "unverified",
+      "load_bearing": false,
+      "supporting_nodes": [],
+      "citations": []
+    },
+    {
+      "id": "c-938ee080",
+      "text": "The install loop runs the steps uv, python, environment (the uv sync), launcher (place_entry), path in that order; place_entry runs only after the sync step exits 0, so a launcher write inside place_entry follows the sync and the afk-python write.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:338",
+        "B1:skills/afk/setup/scripts/python_runtime.py:343",
+        "B1:skills/afk/setup/scripts/python_runtime.py:265",
+        "B4:skills/afk/setup/scripts/python_runtime.py:336"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:262-268",
+        "skills/afk/setup/scripts/python_runtime.py:316-350",
+        "scripts/tests/test_python_runtime_setup.py:117-127"
+      ]
+    },
+    {
+      "id": "c-eff78562",
+      "text": "On a compatible environment uv 0.12.23 sync keeps the existing environment (ProjectEnvironment::Existing) and clears no directory, so afk-bin and its files survive; package changes go through the installer, whose uninstall reads only the distributions' own records (that crate not read).",
+      "kind": "inference",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:167",
+        "B1:skills/afk/setup/scripts/python_runtime.py:198"
+      ],
+      "citations": [
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1772",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1780-1786",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1046-1113"
+      ]
+    },
+    {
+      "id": "c-0370d0e9",
+      "text": "On an incompatible environment (a changed Python pin fails the --python request, a pyvenv.cfg version conflict, a broken interpreter link) uv sync calls clear_virtualenv on UV_PROJECT_ENVIRONMENT, which deletes every entry under it recursively, afk-bin with afk-python, afk-team and afk-team.cmd included, then recreates the venv; this happens inside the environment step, before place_entry rewrites afk-bin.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:135",
+        "B1:skills/afk/setup/scripts/python_runtime.py:137",
+        "B1:skills/afk/setup/scripts/python_runtime.py:167",
+        "B1:skills/afk/setup/scripts/python_runtime.py:200",
+        "B1:skills/afk/setup/scripts/python_runtime.py:265",
+        "B1:skills/afk/setup/scripts/python_runtime.py:316",
+        "B1:skills/afk/setup/scripts/python_runtime.py:338"
+      ],
+      "citations": [
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:909-930",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:980-1040",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1109-1112",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1803-1808",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1878-1887",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1919-1931",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-fs/src/lib.rs:964-1010",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-fs/src/lib.rs:1022-1033",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-virtualenv/src/virtualenv.rs:129-160",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/sync.rs:229-253",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:901-960",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1117-1123",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1761-1776",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1789-1795",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-workspace/src/workspace.rs:50-62",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-workspace/src/workspace.rs:79-81",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-workspace/src/workspace.rs:122-131",
+        "skills/afk/setup/scripts/python_runtime.py:76-77",
+        "skills/afk/setup/scripts/python_runtime.py:163-168",
+        "skills/afk/setup/scripts/python_runtime.py:198-200"
+      ]
+    },
+    {
+      "id": "c-e1ac9520",
+      "text": "No repository code runs uv venv, --clear or UV_VENV_CLEAR against the environment, and uv_env strips every UV_ variable outside UV_KEEP, which holds no clear setting, before the sync runs.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:73",
+        "B1:skills/afk/setup/scripts/python_runtime.py:163",
+        "B1:scripts/tests/test_python_runtime_setup.py:126"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:73-74",
+        "skills/afk/setup/scripts/python_runtime.py:163-168",
+        "query q-bdd82bc8 (exit 0, 6 lines, none a uv rebuild)"
+      ]
+    },
+    {
+      "id": "c-affe0512",
+      "text": "When a rebuild wipes afk-bin and the sync then fails, install prints fail environment and returns 1 before place_entry, with the stamp already deleted: afk-python and afk-team are both gone until setup re-runs, and the bootstrap re-runs it without afk-python. No test simulates the wipe; test_python_runtime_setup.py:344-352 pins only the missing stamp.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:312",
+        "B1:skills/afk/setup/scripts/python_runtime.py:343",
+        "B1:skills/afk/setup/scripts/bootstrap.sh:46",
+        "B1:skills/afk/setup/scripts/bootstrap.ps1:55"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:312",
+        "skills/afk/setup/scripts/python_runtime.py:344-349",
+        "skills/afk/setup/scripts/bootstrap.sh:45-47",
+        "skills/afk/setup/scripts/bootstrap.ps1:53-55",
+        "scripts/tests/test_python_runtime_setup.py:344-352"
+      ]
+    },
+    {
+      "id": "c-f98cf026",
+      "text": "test_afk_python_entry.py:72 asserts every entry of afk-bin starts with afk-python; CI installs the runtime for real and runs scripts/tests with afk-bin on PATH, so it goes red on every CI platform once afk-team is written.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_python_entry.py:72",
+        "B12:.github/workflows/tests.yml:39",
+        "B12:.github/workflows/tests.yml:42",
+        "B12:.github/workflows/tests.yml:64"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_python_entry.py:24",
+        "scripts/tests/test_afk_python_entry.py:70-72",
+        ".github/workflows/tests.yml:33-42",
+        ".github/workflows/tests.yml:64",
+        ".github/workflows/tests.yml:63-64"
+      ]
+    },
+    {
+      "id": "c-7813f163",
+      "text": "Documents that become false or incomplete: python_runtime.py:20-21 says afk-bin holds nothing else; place_entry's docstring (:272), the plan line of the launcher step (:266) and MANIFEST.md P1 Probe and Fix text (:684-694, :699-704) name only afk-python and the AFK_PYTHON line; FRESHNESS.md:69 requires MANIFEST P1 and the four runtime test files in the same commit.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:20",
+        "B1:skills/afk/setup/scripts/python_runtime.py:272",
+        "B1:skills/afk/setup/scripts/python_runtime.py:266",
+        "B13:skills/afk/setup/MANIFEST.md:702",
+        "B13:skills/afk/setup/MANIFEST.md:684",
+        "B13:FRESHNESS.md:69"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:20-21",
+        "skills/afk/setup/scripts/python_runtime.py:272",
+        "skills/afk/setup/scripts/python_runtime.py:266",
+        "skills/afk/setup/MANIFEST.md:684-704",
+        "FRESHNESS.md:69"
+      ]
+    },
+    {
+      "id": "c-1c062bb5",
+      "text": "check probes afk-bin only for afk-python's existence; once check reports the afk-team launcher as the signed HL6-10 packet requires, the stamped() fixture and both entry_only stubs, which build an afk-bin holding only afk-python, turn the healthy-path tests at test_python_runtime_setup.py:216, :242, :255, :450, :464 and :540 red.",
+      "kind": "inference",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:500",
+        "B12:scripts/tests/test_python_runtime_setup.py:442",
+        "B12:scripts/tests/test_python_runtime_setup.py:202",
+        "B12:scripts/tests/test_python_runtime_setup.py:545"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:500",
+        "scripts/tests/test_python_runtime_setup.py:199-204",
+        "scripts/tests/test_python_runtime_setup.py:438-447",
+        "scripts/tests/test_python_runtime_setup.py:540-558",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:751"
+      ]
+    },
+    {
+      "id": "c-c5a27ffc",
+      "text": "Removal: MANIFEST.md P1 says delete %LOCALAPPDATA%\\afk or ${XDG_DATA_HOME:-~/.local/share}/afk, which holds python/afk-bin, then drop python/afk-bin from the user PATH; that removes afk-team too and matches the signed HL5-7 removal. No repository code deletes afk-bin: place_entry unlinks only the afk-python target and its .old copy.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:skills/afk/setup/MANIFEST.md:727",
+        "B13:skills/afk/setup/MANIFEST.md:728",
+        "B1:skills/afk/setup/scripts/python_runtime.py:285",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:750"
+      ],
+      "citations": [
+        "skills/afk/setup/MANIFEST.md:727-730",
+        "skills/afk/setup/scripts/python_runtime.py:284-292",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:750",
+        "seed queries q-503991f2 and q-6afacd7e over every afk-bin name form"
+      ]
+    },
+    {
+      "id": "c-e5bb9ec6",
+      "text": "On Windows a rebuild cannot delete afk-bin while a hook or the MCP server runs afk-python.exe from it: uv's self-delete guard covers only uv's own executable. Setup's own interpreter is uv's managed CPython started by the bootstrap, so setup itself holds no afk-bin file open.",
+      "kind": "inference",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/bootstrap.ps1:55",
+        "B1:skills/afk/setup/scripts/python_runtime.py:285"
+      ],
+      "citations": [
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-fs/src/lib.rs:969-978",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-fs/src/lib.rs:982-993",
+        "skills/afk/setup/scripts/bootstrap.ps1:55",
+        "skills/afk/setup/scripts/python_runtime.py:279-289"
+      ]
+    },
+    {
+      "id": "c-ce883b05",
+      "text": "The layout key launcher names afk-python and is read by setup_secrets.py:45, the stamp, check and the tests; the afk-team launcher needs a layout key of its own, or every reader of launcher changes meaning.",
+      "kind": "inference",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:skills/afk/setup/scripts/python_runtime.py:143",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B4:skills/afk/setup/scripts/python_runtime.py:352"
+      ],
+      "citations": [
+        "skills/afk/setup/scripts/python_runtime.py:143",
+        "skills/afk/setup/scripts/setup_secrets.py:45",
+        "skills/afk/setup/scripts/python_runtime.py:352",
+        "skills/afk/setup/scripts/python_runtime.py:500"
+      ]
+    },
+    {
+      "id": "c-70fa4f8b",
+      "text": "The SDD has no afk-team launcher text yet, and its E9 id already names message delivery, while the signed HL-5 row calls the launcher write new effect E9.",
+      "kind": "fact",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B13:docs/afk/agent-team-topology/SDD.md:860",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:750"
+      ],
+      "citations": [
+        "docs/afk/agent-team-topology/SDD.md:860",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:750"
+      ]
+    },
+    {
+      "id": "c-eefecf43",
+      "text": "Tests that put the interpreter's folder or afk-python's folder on a test PATH (test_git_backstop.py:276, test_protected_lookup.py:479, test_tracker_server.py:212, test_wiring_gate.py:138) stay green: afk-team shadows none of the tools they look for.",
+      "kind": "fact",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_git_backstop.py:276",
+        "B12:scripts/tests/test_protected_lookup.py:479",
+        "B12:scripts/tests/test_tracker_server.py:212",
+        "B12:scripts/tests/test_wiring_gate.py:138"
+      ],
+      "citations": [
+        "scripts/tests/test_git_backstop.py:276",
+        "scripts/tests/test_protected_lookup.py:479",
+        "scripts/tests/test_tracker_server.py:212",
+        "scripts/tests/test_wiring_gate.py:138"
+      ]
+    },
+    {
+      "id": "c-1201e9ba",
+      "text": "Whether cmd.exe keeps a running afk-team.cmd open, which would block its staged replacement or a rebuild on Windows: not probed.",
+      "kind": "unverified",
+      "load_bearing": false,
+      "supporting_nodes": [],
+      "citations": []
+    },
+    {
+      "id": "c-0139d70d",
+      "text": "check's uv sync --check --offline never clears or recreates the environment root: uv 0.12.23 maps --check to DryRun::Check, whose enabled() is true, so get_or_init returns a compatible environment as is and, for an incompatible one, builds a temporary environment in the cache (WouldReplace) instead of calling clear_virtualenv; afk-bin survives every check.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:506",
+        "B1:skills/afk/setup/scripts/python_runtime.py:200"
+      ],
+      "citations": [
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/settings.rs:2029-2033",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv-configuration/src/dry_run.rs:23-26",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/sync.rs:229-253",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1780-1786",
+        "raw.githubusercontent.com/astral-sh/uv/0.12.23/crates/uv/src/commands/project/mod.rs:1855-1874",
+        "skills/afk/setup/scripts/python_runtime.py:506"
+      ]
+    },
+    {
+      "id": "c-1e710d4a",
+      "text": "README.md:350 says the AFK Python runtime is exposed only as the afk-python command; an afk-team launcher in afk-bin makes that false, and FRESHNESS.md:69's same-commit list (MANIFEST P1, both bootstraps, four runtime tests) does not name README.md, so the registry does not prompt the fix.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:README.md:350",
+        "B13:FRESHNESS.md:69"
+      ],
+      "citations": [
+        "README.md:349-351",
+        "FRESHNESS.md:69"
+      ]
+    },
+    {
+      "id": "c-356dc2d7",
+      "text": "/afk:setup audit section 8 (AUDIT.md:142-149) enumerates the P1 check's fail kinds, all about afk-python; once check reports a missing or stale afk-team launcher as the signed HL6-10 and HL5-7 rows require, that list misses the new finding.",
+      "kind": "inference",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B13:skills/afk/setup/AUDIT.md:142"
+      ],
+      "citations": [
+        "skills/afk/setup/AUDIT.md:142-149",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:750-751"
+      ]
+    },
+    {
+      "id": "c-e2ca6cbc",
+      "text": "The team-script invocation sites name afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\", never afk-bin: permission.py:28 (INVOCATION, and the verb commands at :69), claude.sh:78 (the allow rule), entry.py:237 (the agent prompt), afk-team.py:4 (usage) and test_team_entry.py:368. Writing the launcher leaves them unchanged; they change only with the separate switch to the rule Bash(afk-team *).",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/team/entry.py:237",
+        "B4:scripts/afk-team.py:4",
+        "B12:scripts/tests/test_team_entry.py:368",
+        "B4:scripts/team/permission.py:28",
+        "B4:hooks/lib/providers/claude.sh:78"
+      ],
+      "citations": [
+        "scripts/team/permission.py:28",
+        "scripts/team/permission.py:69",
+        "hooks/lib/providers/claude.sh:78",
+        "scripts/team/entry.py:237",
+        "scripts/afk-team.py:4",
+        "scripts/tests/test_team_entry.py:368",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:747"
+      ]
+    },
+    {
+      "id": "c-d557007f",
+      "text": "No shipped command competes with an afk-team in afk-bin: the plugin tracks no bin/ folder (git ls-files -- bin is empty), the other afk-team tokens in hooks/ and scripts/ are the run-root folder .claude/afk-team (entry.py:85) and stderr prefixes (entry.py:351, :353), and the PATH builder that keeps afk-bin (plugin-source-gates.sh:224-235) resolves only afk-python.",
+      "kind": "fact",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B4:scripts/team/entry.py:85",
+        "B1:hooks/plugin-source-gates.sh:229"
+      ],
+      "citations": [
+        "git ls-files -- bin (exit 0, 0 lines)",
+        "query q-c5c8a136 (exit 0, 19 lines)",
+        "hooks/plugin-source-gates.sh:224-235"
+      ]
+    },
+    {
+      "id": "c-c74cd9a9",
+      "text": "Apart from uv's environment replacement, no repository code deletes afk-bin: every recursive delete under scripts, hooks, skills, adapters and mcp-servers targets a temporary, lock, build or fixture folder, and the only code deriving the afk data folder is layout() (python_runtime.py:129-144), the two bootstraps and the CI workflows, none of which deletes it.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:skills/afk/setup/scripts/python_runtime.py:135"
+      ],
+      "citations": [
+        "query q-d99d9921 (exit 0, 80 lines)",
+        "query q-ebab3466 (exit 0, 36 lines)",
+        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv084/tracer2/removal-triage.md",
+        "skills/afk/setup/scripts/python_runtime.py:129-144"
+      ]
+    }
+  ],
+  "counter_checks": [
+    {
+      "method": "name forms carrying no simple name: entry_only, UV_TOOL_BIN_DIR, [\"bin\"], [\"launcher\"], To remove, entry_only, UV_TOOL_BIN_DIR, [\"bin\"], [\"launcher\"], To remove",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-7ba11357"
+      ],
+      "new_nodes": [
+        "B1:hooks/run-hook.py:184",
+        "B1:hooks/run-hook.py:186",
+        "B1:scripts/tests/test_afk_python_entry.py:24",
+        "B1:scripts/tests/test_afk_python_entry.py:33",
+        "B1:scripts/tests/test_afk_python_entry.py:47",
+        "B1:scripts/tests/test_afk_python_entry.py:57",
+        "B1:scripts/tests/test_afk_python_entry.py:71",
+        "B1:scripts/tests/test_afk_python_entry.py:72",
+        "B1:scripts/tests/test_python_runtime_setup.py:39",
+        "B1:scripts/tests/test_python_runtime_setup.py:114",
+        "B1:scripts/tests/test_python_runtime_setup.py:133",
+        "B1:scripts/tests/test_python_runtime_setup.py:135",
+        "B1:scripts/tests/test_python_runtime_setup.py:141",
+        "B1:scripts/tests/test_python_runtime_setup.py:146",
+        "B1:scripts/tests/test_python_runtime_setup.py:170",
+        "B1:scripts/tests/test_python_runtime_setup.py:186",
+        "B1:scripts/tests/test_python_runtime_setup.py:193",
+        "B1:scripts/tests/test_python_runtime_setup.py:196",
+        "B1:scripts/tests/test_python_runtime_setup.py:200",
+        "B1:scripts/tests/test_python_runtime_setup.py:201",
+        "B1:scripts/tests/test_python_runtime_setup.py:202",
+        "B1:scripts/tests/test_python_runtime_setup.py:279",
+        "B1:scripts/tests/test_python_runtime_setup.py:293",
+        "B1:scripts/tests/test_python_runtime_setup.py:442",
+        "B1:scripts/tests/test_python_runtime_setup.py:443",
+        "B1:scripts/tests/test_python_runtime_setup.py:543",
+        "B1:scripts/tests/test_python_runtime_setup.py:544",
+        "B1:scripts/tests/test_python_runtime_setup.py:545",
+        "B1:scripts/tests/test_python_runtime_setup.py:575",
+        "B1:scripts/tests/test_python_runtime_setup.py:631",
+        "B1:scripts/tests/test_python_runtime_setup.py:650",
+        "B1:scripts/tests/test_python_runtime_setup.py:655",
+        "B1:scripts/tests/test_python_runtime_setup.py:676",
+        "B1:skills/afk/setup/MANIFEST.md:727",
+        "B1:skills/afk/setup/scripts/python_runtime.py:163",
+        "B1:skills/afk/setup/scripts/python_runtime.py:167",
+        "B1:skills/afk/setup/scripts/python_runtime.py:227",
+        "B1:skills/afk/setup/scripts/python_runtime.py:266",
+        "B1:skills/afk/setup/scripts/python_runtime.py:274",
+        "B1:skills/afk/setup/scripts/python_runtime.py:324",
+        "B1:skills/afk/setup/scripts/python_runtime.py:352",
+        "B1:skills/afk/setup/scripts/python_runtime.py:474",
+        "B1:skills/afk/setup/scripts/python_runtime.py:500",
+        "B1:skills/afk/setup/scripts/python_runtime.py:511",
+        "B1:skills/afk/setup/scripts/python_runtime.py:522",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45"
+      ],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-6afacd7e"
+      ]
+    },
+    {
+      "method": "case-blind pass over tracked and untracked files, not ignored",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-7ba11357"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-7a054984"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-7ba11357"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B2"
+      ],
+      "query_ids": [
+        "q-0ead00f8"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-7ba11357"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B4"
+      ],
+      "query_ids": [
+        "q-3e1f3b19"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-7ba11357"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B11"
+      ],
+      "query_ids": [
+        "q-0a61bfe4"
+      ]
+    },
+    {
+      "method": "agent: consumer and registration side — importers of python_runtime by file name, PATH builders and folders derived from the interpreter, recursive deletes and afk data-folder base forms, the afk-team command name and its permission rule, CI runners, phrases asserting what the runtime exposes; plus a whole-path read of uv 0.12.23 sync -> get_or_init -> clear_virtualenv and the --check mapping",
+      "kind": "agent",
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B4",
+        "B12",
+        "B13"
+      ],
+      "targeted_claims": [
+        "c-0370d0e9",
+        "c-eff78562",
+        "c-c5a27ffc",
+        "c-f98cf026",
+        "c-7813f163",
+        "c-0139d70d"
+      ],
+      "new_nodes": [
+        "B13:README.md:350",
+        "B13:CHANGELOG.md:331",
+        "B13:skills/afk/setup/AUDIT.md:142",
+        "B12:.github/workflows/tests.yml:64",
+        "B12:scripts/tests/test_team_entry.py:368",
+        "B4:scripts/afk-team.py:4",
+        "B4:scripts/team/entry.py:85",
+        "B1:hooks/plugin-source-gates.sh:229",
+        "B1:runtime/pyproject.toml:2",
+        "B1:skills/afk/setup/scripts/python_runtime.py:135",
+        "B1:skills/afk/setup/scripts/python_runtime.py:200",
+        "B1:skills/afk/setup/scripts/python_runtime.py:316",
+        "B4:scripts/team/entry.py:237"
+      ],
+      "evidence_nodes": [
+        "B13:README.md:350",
+        "B13:CHANGELOG.md:331",
+        "B13:skills/afk/setup/AUDIT.md:142",
+        "B12:.github/workflows/tests.yml:64",
+        "B12:scripts/tests/test_team_entry.py:368",
+        "B4:scripts/afk-team.py:4",
+        "B4:scripts/team/entry.py:85",
+        "B1:hooks/plugin-source-gates.sh:229",
+        "B1:runtime/pyproject.toml:2",
+        "B1:skills/afk/setup/scripts/python_runtime.py:135",
+        "B1:skills/afk/setup/scripts/python_runtime.py:200",
+        "B1:skills/afk/setup/scripts/python_runtime.py:316",
+        "B4:scripts/team/entry.py:237"
+      ]
+    }
+  ]
+}
