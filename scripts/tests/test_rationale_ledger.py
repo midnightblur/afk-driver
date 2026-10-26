@@ -43,6 +43,7 @@ class Forge:
         self.calls = []
         self.offline = False
         self.degraded = False
+        self.resolve_error = None
         self.create_error = None
         self.truncate = False
         self.auth_offline = False
@@ -120,6 +121,15 @@ class Forge:
             change["notes"].append(self.note(self.user, payload["text"], number))
             return {"ok": True, "inline": False, "thread": "", "comment": number,
                     "url": f"https://f/n{number}"}
+        if verb == "thread-resolve":
+            if self.resolve_error:
+                raise ledger.LedgerError(self.resolve_error)
+            change = self.find(payload["id"])
+            thread = next((item for item in change["threads"] if item["id"] == payload["thread"]), None)
+            if thread is None:
+                return {"ok": False, "thread": payload["thread"], "resolved": False}
+            thread["resolved"] = payload.get("resolved") is True
+            return {"ok": True, "thread": thread["id"], "resolved": thread["resolved"]}
         if verb == "commit-changes":
             found = []
             for change in self.changes.values():
@@ -235,6 +245,10 @@ def test_post_opens_a_draft_for_the_pushed_branch_and_writes_receipt(world):
     marker = ledger.parse_rationale_entry(body)[0][0]
     assert marker["op"] == op and marker["line"] == 3 and marker["path"] == "src/App.java"
     assert marker["head"] == git(world.repo, "rev-parse", "HEAD")
+    assert change["threads"][0]["resolved"] is True
+    assert world.forge.verbs("thread-resolve") == [
+        {"id": change["id"], "thread": change["threads"][0]["id"], "resolved": True}
+    ]
     assert result["receipt"]["batch"]
     assert any("afk:rationale-receipt" in n["body"] for n in change["notes"])
     assert verify(world)["durable"] is True
@@ -292,6 +306,36 @@ def test_post_is_idempotent_and_reuses_the_receipt(world):
     assert sum("afk:rationale-receipt" in n["body"] for n in change["notes"]) == 1
 
 
+def test_post_retries_resolution_without_posting_a_duplicate_comment(world):
+    add(world)
+    push(world)
+    change = world.forge.open_change("topic")
+    world.forge.resolve_error = "resolution failed"
+    first = post(world)
+    assert first["ok"] is False and first["receipt"] is None
+    assert len(change["threads"]) == 1 and change["threads"][0]["resolved"] is False
+
+    world.forge.resolve_error = None
+    second = post(world)
+    assert second["ok"] is True, second
+    assert len(change["threads"]) == 1 and change["threads"][0]["resolved"] is True
+    assert len(world.forge.verbs("change-comment")) == 2
+
+
+def test_post_does_not_resolve_an_unrelated_review_thread(world):
+    add(world)
+    push(world)
+    change = world.forge.open_change("topic")
+    change["threads"].append({
+        "id": "review-thread", "resolved": False, "url": "https://f/review-thread",
+        "notes": [world.forge.note("reviewer", "Please change this line.", "review-note")],
+    })
+    result = post(world)
+    assert result["ok"] is True, result
+    assert change["threads"][0]["resolved"] is False
+    assert change["threads"][1]["resolved"] is True
+
+
 def test_post_writes_no_receipt_when_a_comment_degrades(world):
     add(world)
     push(world)
@@ -342,6 +386,19 @@ def test_verify_fails_when_a_comment_has_no_receipt(world):
                                         "line": 3, "file": "src/App.java", "require_inline": True})
     result = verify(world)
     assert result["ok"] is False and result["unreceipted"] == [op] and result["missing"] == []
+
+
+def test_verify_rejects_an_unresolved_thread_with_a_valid_receipt(world):
+    op = add(world)["op"]
+    push(world)
+    result = post(world)
+    change = world.forge.changes[result["change"]]
+    change["threads"][0]["resolved"] = False
+
+    checked = verify(world)
+    assert checked["ok"] is False and checked["durable"] is False
+    assert checked["missing"] == [] and checked["unreceipted"] == []
+    assert checked["unresolved"] == [op]
 
 
 def test_verify_ignores_a_marker_from_an_untrusted_author_and_an_edited_one(world):
@@ -603,6 +660,13 @@ elif verb == "change-comment":
     else:
         change["notes"].append(note)
         out({"ok": True, "inline": False, "thread": "", "comment": number, "url": note["url"]})
+elif verb == "thread-resolve":
+    change = find(payload["id"])
+    thread = next((item for item in change["threads"] if item["id"] == payload["thread"]), None)
+    if thread is None:
+        out({"ok": False, "thread": payload["thread"], "resolved": False})
+    thread["resolved"] = payload.get("resolved") is True
+    out({"ok": True, "thread": thread["id"], "resolved": thread["resolved"]})
 else:
     out({"unsupported": True, "reason": verb})
 '''
