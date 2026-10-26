@@ -4873,10 +4873,9 @@
     "round": 47,
     "settled_last_round": [
      "Round 46: you accepted all 21 cards. The design document (SDD) was then written, and 12 of 26 build steps are done.",
-     "Build step 10 (the transport) stopped: the allow rule names the plugin's folder, which changes with every plugin update, so you would paste a new rule after each update.",
-     "In the terminal you chose: setup puts a small command, afk-team, next to afk-python, and the rule names only that command."
+     "Round 47: you signed all 3 packets for the afk-team launcher."
     ],
-    "fork": "This round changes three aspects you signed before: who may run the team script (security), what setup writes outside the repository (side effects), and what changes for existing setup users. Each packet shows only the rows that change. Sign each one, or ask for changes in its note.",
+    "fork": "Nothing to answer. The SDD and the design record are updated next, then build step 10 resumes.",
     "unlocks": [
      "The SDD and a new design record (it replaces the one for the old rule) are updated to match",
      "Build step 10 resumes, then steps 11, 12 and the rest"
@@ -4896,7 +4895,7 @@
       "href": "SDD.md"
      }
     ],
-    "size_note": "2 records of your terminal answers and 3 packets to sign."
+    "size_note": "5 settled records."
    },
    "items": [
     {
@@ -4918,143 +4917,31 @@
      "evidence": "You answered 'Setup puts it in afk-bin (Recommended)', 2026-10-26. The plugin's own bin folder was rejected: on this machine Claude Code adds it to PATH only through a shell snapshot with a 10-second limit, and 3 of 4 sessions answered 'afk-team: command not found'."
     },
     {
-     "component": "signoff_packet",
+     "component": "settled_card",
      "id": "HL3-4",
-     "hl_id": "HL-3",
-     "aspect": "Authorization: who may run the team script, and under which permission",
-     "tables": [
-      {
-       "caption": "Access rows that change (SDD section 5). Bold words in the old text are what changes.",
-       "columns": [
-        "Action",
-        "Permitted",
-        "Denied",
-        "Enforced by",
-        "Change from the signed row"
-       ],
-       "rows": [
-        [
-         "Run the team entry script (all six commands: agent-start, agent-send, agent-status, agent-read, agent-stop, agent-list)",
-         "The contact agent, by the command afk-team, under your allow rule Bash(afk-team *). A Claude worker under the same user settings. A Codex worker under the full-auto launch flags you authorised.",
-         "Any call the harness refuses. A joined command (afk-team ... && other) whose other part no rule covers: the harness checks each part on its own and asks you.",
-         "The harness permission layer. The rule decides before the auto-mode check (trial of 2026-10-26, Claude Code 2.1.310 and 2.1.311 (scratchpad trial-bin)).",
-         "Rule text was Bash(afk-python \"${AFK_PLUGIN_ROOT}/scripts/afk-team.py\" *). The command was afk-python with the full script path."
-        ],
-        [
-         "Write the afk-team launcher",
-         "/afk:setup, in a setup run you start, in the same step that places afk-python.",
-         "Every agent during a team run. The run only reads the launcher.",
-         "By convention, plus the spawn permission check below, which refuses a launcher that does not match the running plugin.",
-         "New row."
-        ],
-        [
-         "Spawn permission check, before a run's first transport command",
-         "The contact agent, through the provider layer (Claude Code only; other harnesses pass).",
-         "A run whose check fails: nothing starts.",
-         "The check itself. It confirms 3 things: the rule is in your settings; afk-team on PATH is the launcher in afk-bin; the launcher names the plugin folder that is running. On a miss it refuses and names the rule or /afk:setup.",
-         "Was 1 thing: the rule is present. The 2 launcher checks are new."
-        ]
-       ]
-      }
-     ],
-     "alternatives": "Setup writes the rule into your settings: refused. The auto-mode check refused an agent's settings edit 3 times (trial T7, the hook-file trial, and the setup-write trial, which it refused before it started). A plugin hook that answers allow: the hook file write was refused the same way. The plugin's own bin folder: no setup step, but not reliably on PATH on this machine. The old full-path rule: works, but you paste a new rule after every plugin update, which you rejected. Chosen: a launcher in afk-bin, which is on PATH at the operating-system level, with a rule that names no path.",
-     "blast_radius": [
-      "Your settings: one new line, Bash(afk-team *), added by you once. The old full-path rule, if present, stops being used and can be removed.",
-      "Every skill and brief that runs the team script now writes afk-team <command> instead of afk-python with the full path.",
-      "The path convention 'plugin files are named by ${AFK_PLUGIN_ROOT}/...' gains one stated exception: the afk-team command."
-     ],
-     "risks": [
-      "The rule trusts whatever afk-team PATH finds first. Another file named afk-team earlier on PATH would run under your rule. The spawn permission check refuses when afk-team is not the afk-bin launcher.",
-      "The rule matches any arguments to afk-team, as the old rule matched any arguments to the script. Same reach as before.",
-      "Not tried yet: a Codex agent on Windows calling afk-team from PowerShell. A build-time check proves it (see the side-effects packet)."
-     ]
+     "state": "settled",
+     "round": 47,
+     "by": "human",
+     "decision": "HL-3 signed. Authorization: the team script runs as afk-team under Bash(afk-team *); setup alone writes the launcher; the start check proves rule, launcher and plugin folder.",
+     "evidence": "You answered sign, 2026-10-26. The full packet is in this file at commit 3228c42. GRILL-LOG.md solution grill, Signoff rows of R-47."
     },
     {
-     "component": "signoff_packet",
+     "component": "settled_card",
      "id": "HL5-7",
-     "hl_id": "HL-5",
-     "aspect": "Side effects outside the repository: setup writes the afk-team launcher",
-     "tables": [
-      {
-       "caption": "New outward effect E9 (SDD section 7).",
-       "columns": [
-        "Effect",
-        "Trigger",
-        "Order",
-        "Repeat key",
-        "A partial failure leaves",
-        "Recovery"
-       ],
-       "rows": [
-        [
-         "E9 write the afk-team launcher into afk-bin (%LOCALAPPDATA%\\afk\\python\\afk-bin on Windows; ~/.local/share/afk/python/afk-bin elsewhere). Files: afk-team (a shell script for Bash) and, on Windows, afk-team.cmd. Each holds one line that runs the team script of the plugin folder that ran setup.",
-         "A /afk:setup run you start: the Python runtime step, after the environment sync and after afk-python is placed. A sync can rebuild afk-bin, so the launcher is written after it every time.",
-         "Written to a staged file, then moved into place in one step. No manifest line and no repository file depends on it.",
-         "The file content. Setup writes only when the bytes differ; a repeat run changes nothing.",
-         "A missing launcher, or one that names an older plugin folder. The spawn permission check then refuses before the first transport command and names /afk:setup. Nothing starts.",
-         "Run /afk:setup again. To remove: delete the afk folder under %LOCALAPPDATA% (or ~/.local/share), which removes afk-python and the launcher together."
-        ]
-       ]
-      }
-     ],
-     "alternatives": "Bake no folder, and have the launcher find the newest installed plugin at run time: it would read the harness's own install records, which differ per harness and are not a documented interface. Rejected. Read the plugin folder from an environment variable: the variable is not set in an agent's shell. Rejected.",
-     "blast_radius": [
-      "The afk-bin folder held only afk-python. It now holds afk-team too (and afk-team.cmd on Windows).",
-      "After a plugin update, team runs refuse until you run /afk:setup once. Setup is already the step after an update."
-     ],
-     "risks": [
-      "Inferred, not tried: the auto-mode check may also refuse setup's launcher write when setup runs in auto mode. Then you approve it, or run setup in default mode. afk-python is written to the same folder today without a refusal.",
-      "afk-team.cmd and Codex on Windows are not tried. The build step proves them with a live row in the conformance record before it merges."
-     ]
+     "state": "settled",
+     "round": 47,
+     "by": "human",
+     "decision": "HL-5 signed. Side effect E9: setup writes the afk-team launcher into afk-bin after the Python sync; a missing or stale launcher stops the run before anything starts.",
+     "evidence": "You answered sign, 2026-10-26. The full packet is in this file at commit 3228c42. GRILL-LOG.md solution grill, Signoff rows of R-47."
     },
     {
-     "component": "signoff_packet",
+     "component": "settled_card",
      "id": "HL6-10",
-     "hl_id": "HL-6",
-     "aspect": "Change to existing behaviour: setup and the Python runtime",
-     "tables": [
-      {
-       "caption": "Seam rows that change (SDD section 14).",
-       "columns": [
-        "Seam",
-        "What existing callers see differently",
-        "Compatibility",
-        "Rollback",
-        "Verdict"
-       ],
-       "rows": [
-        [
-         "Setup register: the spawn allow-rule offer (change C19)",
-         "The printed rule is Bash(afk-team *) instead of the full-path rule. Setup still prints it, waits for you, then confirms it is present. It still never writes a settings file. Skipped with no human present.",
-         "Only adds for a new user. On this machine the old full-path rule stays in your settings unused until you remove it.",
-         "Revert the commit, or install the previous plugin version. The rule stays in your settings until you remove it.",
-         "extends"
-        ],
-        [
-         "Python runtime install (python_runtime.py: install and check)",
-         "install also writes the launcher (effect E9). check also reports a launcher that is missing or names another plugin folder. afk-python itself, its path and every existing caller are unchanged.",
-         "Only adds. An old runtime with no launcher reads as 'launcher missing', fixed by the next setup run.",
-         "Revert the commit. A leftover launcher is harmless: no rule from an older version names it.",
-         "extends"
-        ],
-        [
-         "Path convention for plugin files (AGENTS.md, GLOSSARY.md 'Main checkout')",
-         "One stated exception: the team script is run as the bare command afk-team. Every other plugin file is still named by ${AFK_PLUGIN_ROOT}/...",
-         "Docs only; no existing command changes.",
-         "Revert the commit.",
-         "extends"
-        ]
-       ]
-      }
-     ],
-     "alternatives": "Keep the full-path rule and print a fresh rule on every setup run: no new file, but a manual paste after every plugin update, which you rejected.",
-     "blast_radius": [
-      "/afk:setup and its register; the Python runtime script and its tests; the provider file for Claude Code (the rule text and the check).",
-      "Design record 0005 is replaced by a new design record that names this choice and the trials behind it."
-     ],
-     "risks": [
-      "None beyond the two packets above."
-     ]
+     "state": "settled",
+     "round": 47,
+     "by": "human",
+     "decision": "HL-6 signed. Existing behaviour: the setup rule offer, the Python runtime install and check, and the plugin path convention each extend.",
+     "evidence": "You answered sign, 2026-10-26. The full packet is in this file at commit 3228c42. GRILL-LOG.md solution grill, Signoff rows of R-47."
     }
    ]
   }
