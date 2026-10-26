@@ -98,16 +98,19 @@ def proven(command: str) -> bool:
     ('find . -name "$x"', "find . -name $x"),
     ('find . -iname "$x" -type f', 'find "$dir" -name x'),
     ('find . -path "$p" -type "$t"', 'find . -newer "$x"'),
-    ('gh pr view -- "$n"', 'gh pr view "$flag"'),
-    ("gh pr view -- $n", "gh pr view $n"),
+    ('find . -name -name -name "$x"', 'find . -name -name "$x"'),
+    ('find . -perm 644 -name "$x"', 'find . -newer -name "$x"'),
+    ('find . -maxdepth 1 -type "$t"', 'find . -newermt -type "$t"'),
+    ('gh pr view -- "$n"', 'gh pr view "$flag" "$n"'),
+    ("gh pr view -- $n", "gh pr view --comments $n"),
     ("gh pr view 12", "gh $GROUP view -- 12"),
-    ('gh run view --log -- "$id"', 'gh run view "$id" --log'),
+    ('gh run view --log -- "$id"', 'gh run view --log "$id"'),
     ("gh issue view --comments -- $n", "gh -R $REPO pr view -- 12"),
     ("gh pr view 12", "gh pr $VERB -- $n"),
-    ('glab mr view -- "$id"', 'glab mr view "$id"'),
+    ('glab mr view -- "$id"', 'glab mr view "$id" "$x"'),
     ("glab issue view -- $n", "glab $GROUP view -- 1"),
-    ("glab mr view 1", 'glab mr view "$x" -- 1'),
-    ("glab mr view 1", 'glab mr view $DASHES 1'),
+    ("glab mr view 1", 'glab mr view 1 "$x"'),
+    ("glab mr view 1", 'glab mr view $DASHES $N'),
 ])
 def test_a_listed_form_is_proven_and_its_mutating_twin_is_not(command, twin):
     assert proven(command), command
@@ -186,3 +189,179 @@ def test_null_redirect_is_shell_and_quote_aware(command, powershell, expected):
 def test_word_reading_follows_each_shell(command, powershell, expected):
     segments = [s for s in sm.segments(command, powershell) if not s.mark]
     assert all(read_only.proven_segment(s) for s in segments) is expected
+
+
+@pytest.mark.parametrize("command,twin", [
+    ('git log --end-of-options "$sha"', 'git log "$sha"'),
+    ('git show --end-of-options "$sha"', 'git show --end-of-options "$sha" --output=x'),
+    ('git diff --end-of-options "$base"...HEAD', 'git blame --end-of-options "$f"'),
+    ('git rev-parse --end-of-options "$ref"', 'git shortlog --end-of-options "$x"'),
+    ('git log --oneline --end-of-options "$sha"', 'git log -n --end-of-options "$sha"'),
+    ("git log -5 --end-of-options $sha", 'git log --grep --end-of-options "$x"'),
+    ("git log '--format=%H' --end-of-options \"$sha\"", 'git branch --end-of-options "$x"'),
+    ('git -C ../other log --end-of-options "$sha"', 'git range-diff --end-of-options "$a" "$b"'),
+])
+def test_an_opaque_git_revision_after_a_literal_end_of_options_is_proven(command, twin):
+    """Probed on git 2.53: blame, shortlog and range-diff still read `--output` after `--end-of-options`."""
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ('cd "$(git rev-parse --show-toplevel)"', 'cd "$(git rev-parse --show-toplevel; touch x)"'),
+    ('ls "$(git rev-parse --show-toplevel)"', 'ls "$(touch x)"'),
+    ('cat "$(git rev-parse --git-path HEAD)"', 'grep x "$(git rev-parse --show-toplevel)"'),
+    ('cd "$(pwd)"', 'cd "$(git -c core.pager=less log)"'),
+    ('cd "$(git rev-parse --show-toplevel)"', r'cd "$(echo \"; touch x; \")"'),
+    ('cd "$(git rev-parse --show-toplevel)"', 'cd x"$(git rev-parse --show-toplevel)"'),
+])
+def test_a_quoted_substitution_of_a_proven_command_is_a_reader_operand(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ('gh pr view "$n"', 'gh pr view "$n" "$m"'),
+    ('gh run view "$id" --log', "gh run view --log $id"),
+    ("glab mr view $n --comments", "glab mr $VERB $n"),
+    ('rg -e "$pat"', "rg -e $pat"),
+    ('rg --regexp "$pat" src', 'rg -g -e "$pat"'),
+    ('rg -n -e "$pat"', 'rg -e -e "$pat"'),
+    ('rg -g "*.py" -e "$pat"', 'rg -A -e "$pat"'),
+    ('rg --type=py -e "$pat"', 'rg "$pat"'),
+])
+def test_an_opaque_word_in_a_value_only_position_is_proven(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("du -sh src", "du -sh src > sizes.txt"),
+    ("df -h", "df -h >> disk.txt"),
+    ("ps -ef", "ps -ef | tee procs.txt"),
+    ("printenv PATH", "printenv PATH > path.txt"),
+    ("id -u", "id -u > me.txt"),
+    ("nl a.txt", "nl a.txt > b.txt"),
+    ("od -c a.bin", "od -c a.bin > a.txt"),
+    ("sha256sum a.txt", "sha256sum a.txt > sums"),
+    ("md5sum -c sums", "md5sum a.txt > sums"),
+    ("cmp a b", "cmp a b > diff.txt"),
+    ("comm -12 a b", "comm -12 a b > c"),
+    ("paste a b", "paste a b > c"),
+    ("seq 3", "seq 3 > n.txt"),
+    ("strings a.bin", "strings a.bin > s.txt"),
+    ("nproc", "nproc > n.txt"),
+    ("tasklist /FI x", "taskkill /IM x"),
+    ("where git", "where {Remove-Item a.txt}"),
+    ("tree -L 2", "tree -o out.txt"),
+    ("tree -a src", "tree -R -H . -L 1"),
+    ("file a.txt", "file -C -m magic"),
+    ("file -b a.txt", "file -p a.txt"),
+    ("xxd a.bin", "xxd a.bin out.hex"),
+    ("xxd -l 64 a.bin", "xxd -r a.hex a.bin"),
+    ("xxd -s 16 -c 8 a.bin", "xxd -s 16 a.bin out.hex"),
+])
+def test_an_added_plain_reader_is_proven_and_its_writing_form_is_not(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("node --version", 'node -e "x"'),
+    ("python -V", "python -v"),
+    ("python3 --version", "python3 -m pip install x"),
+    ("afk-python --version", "afk-python -c x"),
+    ("mvn -v", "mvn -V"),
+    ("java -version", "java -jar x.jar"),
+    ("uv --version", "uv sync"),
+    ("gh --version", "gh --version x"),
+    ("npm -v", "npm -v install"),
+    ("npm ls", "npm install"),
+    ("npm ls --depth 0 --json", "npm ls --cache ./c"),
+    ("npm list --all", "npm ls --logs-dir=."),
+    ("npm view react versions", "npm view react --registry=$R"),
+    ("npm outdated --json", "npm update"),
+    ("pip list --outdated", "pip list --log pip.log"),
+    ("pip show requests", "pip --python /x show requests"),
+    ("pip3 list --format=json", "pip install x"),
+])
+def test_a_version_probe_or_package_listing_is_proven_and_its_twin_is_not(command, twin):
+    """npm runs lifecycle scripts only for the commands its scripts page lists; `ls`, `view` and `outdated`
+    are not among them."""
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("git ls-files | xargs grep -l foo", "git ls-files | xargs rm"),
+    ("git ls-files | xargs -0 wc -l", "git ls-files | xargs git log"),
+    ("xargs -I{} grep x {}", "xargs -I{} {} x"),
+    ("xargs -n 1 cat", "xargs sh -c 'rm $0'"),
+    ("xargs git log --", "xargs -I{} git log {}"),
+    ("xargs", "xargs -Q x"),
+    ("xargs -r --max-args=2 head -1", "xargs -n 1 sed -i s/a/b/"),
+])
+def test_xargs_into_a_proven_reader_is_proven(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("awk '{print $1}' a.txt", """awk '{print $1 > "out"}' a.txt"""),
+    ("awk -F: '{print $2}' a", """awk '{system("rm x")}' a"""),
+    ("awk -v n=1 'NR==n' a", "awk -f prog.awk a"),
+    ("gawk 'END{print NR}' a", "gawk -i inplace '{print}' a"),
+    ("awk 'BEGIN{print 1}'", """awk '{print | "sh"}'"""),
+    ("awk -- '{print}' a", """awk 'BEGIN{while ((getline l < "x") > 0) print l}'"""),
+    ("gawk -e '{print}' a", "awk -o out.awk '{print}'"),
+    ("awk '{print}' a", "awk --profile '{print}' a"),
+    ("awk '{print}' a", "awk -W exec x"),
+    ("awk '{print}' a", "awk --prof '{print}' a"),
+    ("awk '{print}' a", """gawk '@load "x"; {print}' a"""),
+])
+def test_awk_without_a_command_write_or_program_file_is_proven(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("gh api graphql -f query='query { viewer { login } }'", "gh api graphql -f query='mutation { x }'"),
+    ("gh api graphql -F n=1 -f query='{ viewer { login } }'", "gh api graphql -F query=@q.graphql"),
+    ("gh api graphql --raw-field=query='{ viewer { login } }'", "gh api graphql --input q.json"),
+    ("gh api graphql -f query='{ viewer { login } }'", "gh api graphql -X POST -f query='{ viewer { login } }'"),
+    ("gh search prs x --state open", "gh api -f title=x repos/o/r/issues"),
+    ("gh search code foo", "gh $GROUP prs x"),
+])
+def test_a_graphql_query_and_a_search_are_forge_reads(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("git -c core.quotepath=off status", "git -c core.pager=less log"),
+    ("git -c color.ui=always log", "git -c core.hooksPath=x status"),
+    ("git -c core.pager=cat log", "git -c log.showSignature=true log"),
+    ("git -c log.date=iso log -1", "git -c core.fsmonitor=x status"),
+    ("git ls-remote origin", "git ls-remote --upload-pack=x ."),
+    ("git fetch origin", "git fetch --upl=x ."),
+    ("git fetch origin", "git fetch --exec=x ."),
+])
+def test_a_git_display_setting_is_proven_and_a_program_setting_is_not(command, twin):
+    """Probed on git 2.53: `fetch` and `ls-remote` run an `--upload-pack` program, also when abbreviated."""
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("Get-Content a.json | ConvertFrom-Json", "Get-Content a.json | ConvertFrom-Json | Set-Content b.txt"),
+    ("Get-Process | ConvertTo-Json", "Get-Process | ConvertTo-Json | Out-File p.json"),
+    ("Compare-Object $a $b", "Compare-Object $a $b -Property {Remove-Item a.txt}"),
+    ("Get-ChildItem | Group-Object Extension", "Get-ChildItem | Group-Object {Remove-Item a.txt}"),
+    ("Get-CimInstance Win32_Process", "Invoke-CimMethod Win32_Process"),
+    ("Get-ChildItem", "Get-Command git -CommandType Application"),
+])
+def test_a_pure_pipeline_cmdlet_is_proven(command, twin):
+    """`Get-Command` stays out: probed on PowerShell 7.6 and 5.1, `-CommandType Application` still imports a
+    module that exports the name, running its code."""
+    assert proven(command), command
+    assert not proven(twin), twin
