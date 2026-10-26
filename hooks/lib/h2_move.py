@@ -46,21 +46,29 @@ def owner_is_dead(common: Path, name: str) -> bool:
         return False
 
 
-def spawn(argv: list[str], env: dict | None = None, cwd: str | None = None) -> None:
-    """Start `argv` fully detached from this hook: it must outlive the hook's exit."""
-    kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
+def spawn(argv: list[str], env: dict | None = None, cwd: str | None = None, log: str | None = None) -> None:
+    """Start `argv` fully detached from this hook: it must outlive the hook's exit.
+
+    `log` names a file that takes the helper's stdout and stderr, appended; without one both are dropped.
+    """
+    sink = open(log, "ab") if log else subprocess.DEVNULL
+    kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": sink, "stderr": sink,
                     "close_fds": True, "env": dict(os.environ, **(env or {}))}
     if cwd:
         kwargs["cwd"] = cwd
-    if os.name != "nt":
-        subprocess.Popen(argv, start_new_session=True, **kwargs)
-        return
-    # CREATE_NO_WINDOW keeps every console child of the helper hidden; DETACHED_PROCESS would not.
-    flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
     try:
-        subprocess.Popen(argv, creationflags=flags | 0x01000000, **kwargs)  # | CREATE_BREAKAWAY_FROM_JOB
-    except OSError:
-        subprocess.Popen(argv, creationflags=flags, **kwargs)
+        if os.name != "nt":
+            subprocess.Popen(argv, start_new_session=True, **kwargs)
+            return
+        # CREATE_NO_WINDOW keeps every console child of the helper hidden; DETACHED_PROCESS would not.
+        flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+        try:
+            subprocess.Popen(argv, creationflags=flags | 0x01000000, **kwargs)  # | CREATE_BREAKAWAY_FROM_JOB
+        except OSError:
+            subprocess.Popen(argv, creationflags=flags, **kwargs)
+    finally:
+        if log:
+            sink.close()
 
 
 def plan(place: dict, envelope: dict, facts: dict) -> dict:

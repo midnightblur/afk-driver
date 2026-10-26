@@ -235,7 +235,10 @@ neither file; `/afk:setup` installs the launcher. `.claude/hooks/.gate-disabled`
 `WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
 matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
 `AFK_WORKTREE_BRANCH` set and the event JSON on stdin. A script that fails adds a
-warning naming it; the worktree stays.
+warning naming it; the worktree stays. Scripts run after build provisioning. For a
+worktree the harness's worktree tool creates, both run in the background after the
+tool has its path; their output goes to the worktree's `afk/setup.log` git path
+(`git rev-parse --git-path afk/setup.log`).
 
 ### Investigation boundaries
 

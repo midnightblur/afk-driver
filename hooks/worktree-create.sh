@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # worktree-create.sh - the harness's worktree-creation hook: every worktree the
-# harness makes goes through scripts/create-worktree. Stdout is the bare path.
+# harness makes goes through scripts/create-worktree. Stdout is the bare path, printed
+# before the build setup, which runs detached so no build size can outlast the hook budget.
 
 set -u
 
@@ -22,7 +23,7 @@ session=$(field session_id)
 [ -n "$name" ] || name="session-$(date +%s)"
 [ -n "$cwd" ] && cd "$cwd" 2>/dev/null
 
-out=$(AFK_PLUGIN_ROOT="$AFK_ROOT_DIR" bash "$AFK_ROOT_DIR/scripts/create-worktree" --name "$name" --session "$session")
+out=$(AFK_PLUGIN_ROOT="$AFK_ROOT_DIR" bash "$AFK_ROOT_DIR/scripts/create-worktree" --name "$name" --session "$session" --provision-detached)
 rc=$?
 path=$(printf '%s\n' "$out" | sed -n 's/^WORKTREE_PATH=//p' | tail -1)
 if [ "$rc" -ne 0 ] || [ -z "$path" ]; then

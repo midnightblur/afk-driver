@@ -483,6 +483,58 @@ def test_a_detached_waiter_survives_a_normal_launcher_exit(plugin_copy):
             os.kill(waiter, 9)
 
 
+def test_the_creation_handler_may_leave_a_detached_helper_behind(plugin_copy):
+    root, mark, env = plugin_copy
+    shutil.copy(root / "hooks" / "worktree-remove.sh", root / "hooks" / "worktree-create.sh")
+    proc = _launch(root, env, "plugin", "worktree-create.sh")
+    proc.communicate(timeout=60)
+    (waiter,) = _pids(mark, ("waiter",))
+    try:
+        time.sleep(1.0)
+        assert _alive(waiter)
+    finally:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/PID", str(waiter)], capture_output=True)
+        else:
+            os.kill(waiter, 9)
+
+
+def _value_event(root: Path, env, body: str, *args: str):
+    (root / "hooks" / "answer.sh").write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8", newline="\n")
+    env = {k: v for k, v in env.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    return subprocess.run([sys.executable, str(root / "hooks" / "run-hook.py"), *args, "plugin", "answer.sh"],
+                          input=json.dumps({"hook_event_name": "WorktreeCreate"}), capture_output=True,
+                          text=True, env=env, timeout=60)
+
+
+def test_a_value_event_passes_its_answer_through(plugin_copy):
+    root, _mark, env = plugin_copy
+    done = _value_event(root, env, "echo /some/path")
+    assert done.returncode == 0 and done.stdout.strip() == "/some/path"
+
+
+def test_a_value_event_with_an_empty_answer_fails_and_says_why(plugin_copy):
+    root, _mark, env = plugin_copy
+    done = _value_event(root, env, "exit 0")
+    assert done.returncode == 1 and done.stdout == ""
+    assert "answer.sh (WorktreeCreate) failed: exit 0 with no answer on stdout" in done.stderr
+
+
+def test_a_value_event_keeps_the_handlers_failing_exit_code(plugin_copy):
+    root, _mark, env = plugin_copy
+    done = _value_event(root, env, "echo half; echo cause >&2; exit 5")
+    assert done.returncode == 5 and done.stdout == ""
+    assert "cause" in done.stderr and "failed: exit 5" in done.stderr
+
+
+def test_a_value_event_past_its_deadline_fails_and_says_why(plugin_copy, tmp_path):
+    root, mark, env = plugin_copy
+    done = _value_event(root, env, f'"$PY" "{(tmp_path / "child.py").as_posix()}"', "--deadline", "2")
+    assert done.returncode == 1 and done.stdout == ""
+    assert "failed: timed out after 2s, stopped, verdict unknown" in done.stderr
+    assert _gone(_pids(mark, ("child", "grand")))
+
+
 def test_repo_list_timeout_returns_promptly_and_still_blocks(tmp_path, plugin_copy):
     _root, mark, env = plugin_copy
     repo_root_ = repository(
