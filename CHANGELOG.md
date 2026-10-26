@@ -117,6 +117,10 @@ release page from its section here. Nobody tags by hand.
   summarized again. `forge_ledger.py post` stores the list as one
   comma-joined string, reads a list already on the change the same way, and
   refuses a concern that names nothing.
+- A settled review whose fix commit left out its `Settles:` trailer can close.
+  `forge_ledger.py gate --phase closure` accepts the trailer on the fix commit
+  or on a later commit between it and the head, so the missing trailer is
+  added by committing it, without rewriting pushed history.
 
 ## [1.16.0] - 2026-10-20
 

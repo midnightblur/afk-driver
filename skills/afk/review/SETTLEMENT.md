@@ -83,7 +83,7 @@ Closure requires all these conditions:
 - Every unit key is terminal. A feature unit also includes every slice key deferred to `feature`.
 - Every active locator is current and inline. Unanchored keys block closure for every outcome.
 - Every inline thread ever used by each key is resolved. A deferred slice thread stays open until the later gate closes it.
-- Every `fixed` SHA is an ancestor of the supplied head. Its commit message carries `Settles: <key>`. A `verified` record is exempt from the trailer.
+- Every `fixed` SHA is an ancestor of the supplied head. Its commit message carries `Settles: <key>`, or a later commit between it and the head does. A `verified` record is exempt from the trailer.
 - Every product-debt disposition names an existing home whose `## Known debt` entry carries `ledger: <key>`.
 
 An unsupported resolve fails closure.

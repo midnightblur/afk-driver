@@ -1559,8 +1559,13 @@ def command_gate(args, adapter):
                 raise LedgerError(f"fix commit is not reachable: {key}")
             message = subprocess.run(["git", "show", "-s", "--format=%B", sha], cwd=adapter.cwd,
                                      text=True, capture_output=True)
-            if message.returncode or f"Settles: {key}" not in message.stdout:
+            if message.returncode:
                 raise LedgerError(f"fix commit lacks trailer: {key}")
+            if f"Settles: {key}" not in message.stdout:
+                later = subprocess.run(["git", "log", "--format=%B", "--ancestry-path", f"{sha}..{args.head}"],
+                                       cwd=adapter.cwd, text=True, capture_output=True)
+                if later.returncode or f"Settles: {key}" not in later.stdout:
+                    raise LedgerError(f"fix commit lacks trailer: {key}")
     return {"ok": True, "settled": True, "unit": args.unit, "round": args.round}
 
 

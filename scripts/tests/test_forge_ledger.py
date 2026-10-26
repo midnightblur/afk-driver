@@ -1018,11 +1018,33 @@ def test_fixed_closure_requires_reachable_sha_and_trailer(tmp_path, monkeypatch)
         ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
                                  expected=None, round=1), adapter)
     calls = iter([type("Run", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
-                  type("Run", (), {"returncode": 0, "stdout": "No trailer", "stderr": ""})()])
+                  type("Run", (), {"returncode": 0, "stdout": "No trailer", "stderr": ""})(),
+                  type("Run", (), {"returncode": 0, "stdout": "Settles: slice/f002", "stderr": ""})()])
     monkeypatch.setattr(ledger.subprocess, "run", lambda *a, **k: next(calls))
     with pytest.raises(ledger.LedgerError, match="lacks trailer"):
         ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
                                  expected=None, round=1), adapter)
+
+
+def test_fixed_closure_accepts_a_trailer_on_a_later_commit(tmp_path, monkeypatch):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    _post_one(ledger, adapter, tmp_path)
+    ledger.command_reply(args(change="1", key="slice/f001", kind="fixed", attr=[],
+                              sha="fixsha", path="src/new.py", line="2", side="new", text="Fixed."), adapter)
+    ledger.command_resolve(args(change="1", key="slice/f001", reopen=False), adapter)
+    _summarize(ledger, adapter, tmp_path)
+    seen = []
+    answers = iter(["", "No trailer", "Later\n\nSettles: slice/f001\n"])
+
+    def run(cmd, **kwargs):
+        seen.append(cmd)
+        return type("Run", (), {"returncode": 0, "stdout": next(answers), "stderr": ""})()
+
+    monkeypatch.setattr(ledger.subprocess, "run", run)
+    assert ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
+                                    expected=None, round=1), adapter)["settled"]
+    assert seen[-1] == ["git", "log", "--format=%B", "--ancestry-path", "fixsha..abc"]
 
 
 def test_product_debt_home_missing_then_present(tmp_path):
