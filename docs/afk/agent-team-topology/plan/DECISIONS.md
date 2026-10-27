@@ -1042,3 +1042,24 @@
 - Chosen: B — the inbox and body files are named by message id, and Windows and macOS disks ignore case, so `Contact-1` and `contact-1` are one file. adopt()'s copy lacked the retry add_owner has, so a reader holding the record dropped the adoption
 - Supersedes: none
 - To reverse: restore the case-sensitive checks in scripts/team/entry.py `_check_agent_id` and the inline merge in scripts/remove-worktree.py adopt
+
+## D-149 — When the job supervisor sends parked, and when exited
+- 2026-10-27 · decided by /afk:execute (0011-job-supervisor, Step 4)
+- Options: A — exited whenever the watched process ends, and leave every limit to the contact agent's own classification vs B — when the watched process ends, a headless run (the kind whose output the supervisor owns) with a non-zero or unknown exit code and a provider-limit line among the last 20 lines of its log gives parked, with the reset time in the body file when the line states it in a form the supervisor reads (epoch seconds after `|`, ISO 8601, "in <n> days, hours or minutes", or a clock time with an optional date and zone) and an empty body path otherwise; every other end gives exited; one message, then the supervisor ends
+- Chosen: B — SDD §8 row "Job supervisor" binds parked with the reset time where the supervisor owns the output stream (TR-2), and a headless run ends on a provider limit, so its exit code and last log lines hold it; a time the supervisor cannot read, such as a named zone on a machine with no time zone data, gives an empty body path, as SDD §3 allows for an unknown reset time
+- Supersedes: none
+- To reverse: change `_verdict` in scripts/team/supervisor.py
+
+## D-150 — A claim file per watched agent backs the one-supervisor rule
+- 2026-10-27 · decided by /afk:execute (0011-job-supervisor, Step 4)
+- Options: A — rely on agent-start's check of the manifest's process entries alone vs B — the supervisor also claims `<run>/supervisors/<agent-id>/<n>.json`, n one above the highest file there, through a hard link that fails when the file exists; a live holder in any file there, or a lost link, makes it exit 2 naming the agent; claim files are never deleted, so a slot is never claimed twice, and cleanup removes them with the run folder
+- Chosen: B — the contact agent writes the process entry only after agent-start answers (SDD §13 Q42), so two starts inside that window both pass the manifest check; the claim file keeps invariant I20 (0 or 1 supervisors per agent) in that window
+- Supersedes: none
+- To reverse: drop `_claim` from scripts/team/supervisor.py
+
+## D-151 — The supervisor's counter starts above the highest id its agent's supervisors used
+- 2026-10-27 · decided by /afk:execute (0011-job-supervisor, Step 4)
+- Options: A — every supervisor counts from 1 vs B — the counter starts one above the highest `<agent-id>-sup-<n>` in the run's inbox, processed and bodies folders
+- Chosen: B — the inbox file and the duplicate check key on the message id alone (D-142), so under A a later supervisor of the same agent repeats id `<agent-id>-sup-1` and its message is dropped as a duplicate
+- Supersedes: none
+- To reverse: make `_message_id` in scripts/team/supervisor.py return `<agent-id>-sup-1`

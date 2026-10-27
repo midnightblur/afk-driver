@@ -464,3 +464,9 @@
 2026-10-27 18:20 | execute | 0010-team-entry-script | adversary findings crit=0 high=0 med=2 low=3 — a fresh tester ran 171 attacks from the contract alone: agent-stop can call a process gone and leave it running when its start time is stored finer than a second, and a settings copy that cannot be made reads as skipped; all 5 are advisory, none blocks
 2026-10-27 18:20 | execute | 0010-team-entry-script | wiring scan clean; every pending reason is posted on the change; done
 2026-10-27 18:24 | autopilot | run | heartbeat 14/27 done, starting 0011-job-supervisor. 0010 finished with 5 advisory adversary findings (2 medium) left on the change. Side note: the plugin copy this run reads from lost its git registration (its 507 files still match its branch tip 56ef98b), so scripts that ask git about that folder fail
+2026-10-27 18:28 | execute | 0011-job-supervisor | designing — the consumed agent_start anchor holds; the slice adds two new files and has no seam to re-take
+2026-10-27 18:30 | execute | 0011-job-supervisor | decision(D-149) — a headless run that ended on a provider limit gives parked with its reset time; every other end gives exited
+2026-10-27 18:30 | execute | 0011-job-supervisor | decision(D-150) — a claim file per watched agent refuses a second supervisor in the window before the contact writes its process entry
+2026-10-27 18:30 | execute | 0011-job-supervisor | decision(D-151) — the supervisor's message counter starts above the highest id earlier supervisors of the agent used
+2026-10-27 18:30 | execute | 0011-job-supervisor | developing — writing the supervisor tests first
+2026-10-27 18:44 | execute | 0011-job-supervisor | developing — the supervisor and its 38 tests pass; one early run of the test file did not finish in 120 s and was stopped, and 7 later runs finished in under 15 s
