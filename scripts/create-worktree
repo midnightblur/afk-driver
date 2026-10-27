@@ -93,8 +93,8 @@ WORKTREE_PARENT=""
 NAME=""
 SESSION_ID=""
 FOLDER=""
-LOCK_DIR=""
 LOCK_ID=""
+LOCK_TOKEN=""
 ORPHAN=false
 IDEA_BIN=""
 TRACK_FLAG=false
@@ -425,36 +425,20 @@ holder_id() {
 }
 
 release_lock() {
-  # Remove the lock only when this process still holds it: a broken lock is another creator's.
-  if [[ -n "$LOCK_DIR" && "$(cat "$LOCK_DIR/holder" 2>/dev/null)" == "$LOCK_ID" ]]; then
-    rm -rf "$LOCK_DIR"
+  if [[ -n "$LOCK_TOKEN" ]]; then
+    "$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" lock-release --repo "$REPO_DIR" \
+      --ref refs/afk/locks/worktree-create --token "$LOCK_TOKEN" || true
   fi
-  LOCK_DIR=""
+  LOCK_TOKEN=""
 }
 
-# One creator at a time per checkout: an atomic mkdir whose holder is recorded, broken
-# only when that holder is dead (or, with no holder recorded, after 2 minutes).
+# One creator at a time per checkout. The Git ref update makes stale-lock removal conditional,
+# so a waiter cannot delete a replacement lock after the first holder exits.
 acquire_lock() {
-  local dir="$COMMON_DIR/afk-worktrees" tries=0 holder
-  mkdir -p "$dir"
   LOCK_ID="$(holder_id)"
-  until mkdir "$dir/.lock" 2>/dev/null; do
-    holder="$(cat "$dir/.lock/holder" 2>/dev/null || true)"
-    if [[ -n "$holder" ]]; then
-      if [[ "$("$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" state "${holder%%:*}" "${holder#*:}")" == dead ]]; then
-        rm -rf "$dir/.lock"
-        continue
-      fi
-    elif [[ -n "$(find "$dir/.lock" -maxdepth 0 -mmin +2 2>/dev/null)" ]]; then
-      rm -rf "$dir/.lock"
-      continue
-    fi
-    tries=$((tries + 1))
-    [[ $tries -le 600 ]] || error_exit "another worktree creation holds $dir/.lock"
-    sleep 0.2
-  done
-  printf '%s' "$LOCK_ID" > "$dir/.lock/holder"
-  LOCK_DIR="$dir/.lock"
+  LOCK_TOKEN="$("$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" lock-acquire --repo "$REPO_DIR" \
+    --ref refs/afk/locks/worktree-create --pid "${LOCK_ID%%:*}" --ctime "${LOCK_ID#*:}")" \
+    || error_exit "another worktree creation holds the repository lock"
   trap release_lock EXIT
 }
 

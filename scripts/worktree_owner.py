@@ -4,6 +4,10 @@
     afk-python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
     afk-python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
     afk-python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
+    afk-python worktree_owner.py lock-acquire --repo R --ref F --pid P --ctime C
+        atomically acquires F and prints its token; waits for a live holder and replaces a dead one
+    afk-python worktree_owner.py lock-release --repo R --ref F --token T
+        removes F only when T still owns it
     afk-python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
     afk-python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
@@ -25,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -208,6 +213,148 @@ def all_dead(record: dict) -> bool:
                                and state(int(item["pid"]), str(item["ctime"])) == "dead" for item in found)
 
 
+def _options(argv: list[str], names: tuple[str, ...]) -> dict[str, str] | None:
+    found = {name: "" for name in names}
+    args = iter(argv)
+    for flag in args:
+        name = flag.removeprefix("--")
+        if name not in found:
+            return None
+        found[name] = next(args, "")
+    return found if all(found.values()) else None
+
+
+def _git(repo: str, *args: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", repo, *args], input=input_text, capture_output=True,
+                          text=True, encoding="utf-8", errors="replace")
+
+
+def _legacy_lock_path(repo: str) -> str | None:
+    common = _git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common.returncode:
+        return None
+    common_dir = common.stdout.strip()
+    if not os.path.isabs(common_dir):
+        common_dir = os.path.abspath(os.path.join(repo, common_dir))
+    return os.path.join(common_dir, "afk-worktrees", ".lock")
+
+
+def _claim_legacy_lock(repo: str, holder: str, token: str) -> str:
+    lock = _legacy_lock_path(repo)
+    if lock is None:
+        return "error"
+    os.makedirs(os.path.dirname(lock), exist_ok=True)
+    try:
+        os.mkdir(lock)
+        current = ""
+    except FileExistsError:
+        try:
+            with open(os.path.join(lock, "holder"), encoding="utf-8") as handle:
+                current = handle.read().strip()
+        except OSError:
+            current = ""
+        pid, separator, ctime = current.partition(":")
+        status = state(int(pid), ctime) if separator and pid.isdigit() else "unknown"
+        try:
+            stale_unowned = status == "unknown" and time.time() - os.path.getmtime(lock) > 120
+        except OSError:
+            return "busy"
+        if status != "dead" and not stale_unowned:
+            return "busy"
+        quarantine = f"{lock}.stale.{token[:12]}"
+        try:
+            os.rename(lock, quarantine)
+        except OSError:
+            return "busy"
+        try:
+            os.mkdir(lock)
+        except OSError:
+            shutil.rmtree(quarantine, ignore_errors=True)
+            return "busy"
+        shutil.rmtree(quarantine, ignore_errors=True)
+    except OSError:
+        return "error"
+    try:
+        with open(os.path.join(lock, "holder"), "w", encoding="utf-8") as handle:
+            handle.write(holder)
+    except OSError:
+        shutil.rmtree(lock, ignore_errors=True)
+        return "error"
+    return "acquired"
+
+
+def _release_legacy_lock(repo: str, holder: str) -> None:
+    lock = _legacy_lock_path(repo)
+    if lock is None:
+        return
+    try:
+        with open(os.path.join(lock, "holder"), encoding="utf-8") as handle:
+            current = handle.read().strip()
+    except OSError:
+        return
+    if current == holder:
+        quarantine = f"{lock}.release.{os.getpid()}.{time.time_ns()}"
+        try:
+            os.rename(lock, quarantine)
+        except OSError:
+            return
+        shutil.rmtree(quarantine, ignore_errors=True)
+
+
+def lock_acquire(argv: list[str]) -> int:
+    fields = _options(argv, ("repo", "ref", "pid", "ctime"))
+    if fields is None or not fields["pid"].isdigit():
+        sys.stderr.write("lock-acquire needs --repo R --ref F --pid P --ctime C\n")
+        return 2
+    holder = f"{fields['pid']}:{fields['ctime']}"
+    payload = f"{holder}\n{os.getpid()}:{time.time_ns()}\n"
+    made = _git(fields["repo"], "hash-object", "-w", "--stdin", input_text=payload)
+    token = made.stdout.strip()
+    if made.returncode or not token:
+        sys.stderr.write(made.stderr or "lock-acquire could not create its token\n")
+        return 1
+    for _ in range(601):
+        claimed = _git(fields["repo"], "update-ref", fields["ref"], token, "")
+        if claimed.returncode == 0:
+            legacy = _claim_legacy_lock(fields["repo"], holder, token)
+            if legacy == "acquired":
+                print(token)
+                return 0
+            _git(fields["repo"], "update-ref", "-d", fields["ref"], token)
+            if legacy == "error":
+                sys.stderr.write("could not claim the worktree compatibility lock\n")
+                return 1
+            time.sleep(0.2)
+            continue
+        current = _git(fields["repo"], "rev-parse", "--verify", fields["ref"])
+        current_token = current.stdout.strip()
+        body = _git(fields["repo"], "cat-file", "blob", current_token) if current_token else None
+        current_holder = body.stdout.splitlines()[0] if body and body.returncode == 0 and body.stdout else ""
+        pid, separator, ctime = current_holder.partition(":")
+        if separator and pid.isdigit() and state(int(pid), ctime) == "dead":
+            _git(fields["repo"], "update-ref", "-d", fields["ref"], current_token)
+            continue
+        if current_token and (not separator or not pid.isdigit() or body is None or body.returncode):
+            _git(fields["repo"], "update-ref", "-d", fields["ref"], current_token)
+            continue
+        time.sleep(0.2)
+    sys.stderr.write(f"another worktree creation holds {fields['ref']}\n")
+    return 1
+
+
+def lock_release(argv: list[str]) -> int:
+    fields = _options(argv, ("repo", "ref", "token"))
+    if fields is None:
+        sys.stderr.write("lock-release needs --repo R --ref F --token T\n")
+        return 2
+    body = _git(fields["repo"], "cat-file", "blob", fields["token"])
+    holder = body.stdout.splitlines()[0] if body.returncode == 0 and body.stdout else ""
+    if holder:
+        _release_legacy_lock(fields["repo"], holder)
+    _git(fields["repo"], "update-ref", "-d", fields["ref"], fields["token"])
+    return 0
+
+
 def record(argv: list[str]) -> int:
     fields = {"dir": "", "name": "", "path": "", "branch": "", "harness": "", "session": ""}
     args = iter(argv)
@@ -355,6 +502,10 @@ def append(argv: list[str]) -> int:
 
 
 def main(argv: list[str]) -> int:
+    if argv[:1] == ["lock-acquire"]:
+        return lock_acquire(argv[1:])
+    if argv[:1] == ["lock-release"]:
+        return lock_release(argv[1:])
     if argv[:1] == ["record"]:
         return record(argv[1:])
     if argv[:1] == ["copied"]:

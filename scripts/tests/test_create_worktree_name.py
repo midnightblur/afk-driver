@@ -460,34 +460,118 @@ def owner_module():
     return module
 
 
-def test_r2_6_a_lock_held_by_a_dead_process_is_broken(tmp_path):
+def owner_cli(*args: str):
+    return subprocess.run(
+        [sys.executable, str(PLUGIN_ROOT / "scripts" / "worktree_owner.py"), *args],
+        capture_output=True, text=True, timeout=30)
+
+
+def lock_token(repo: Path, holder: str) -> str:
+    made = subprocess.run(["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                          input=f"{holder}\ntest-token\n", capture_output=True, text=True, check=True)
+    return made.stdout.strip()
+
+
+def test_releasing_an_old_lock_token_keeps_its_replacement(tmp_path):
     repo = make_repo(tmp_path)
-    lock = repo / ".git" / "afk-worktrees" / ".lock"
-    lock.mkdir(parents=True)
-    (lock / "holder").write_text("2147483000:1", encoding="utf-8")
-    done = create(repo, "--name", "after-crash")
+    ref = "refs/afk/locks/worktree-create"
+    owner = owner_module()
+    acquired = owner_cli("lock-acquire", "--repo", str(repo), "--ref", ref,
+                         "--pid", str(os.getpid()), "--ctime", owner.creation_time(os.getpid()))
+    assert acquired.returncode == 0, acquired.stderr
+    old_token = acquired.stdout.strip()
+    replacement = lock_token(repo, f"{os.getpid()}:{owner.creation_time(os.getpid())}")
+    git(repo, "update-ref", ref, replacement, old_token)
+
+    released = owner_cli("lock-release", "--repo", str(repo), "--ref", ref, "--token", old_token)
+
+    assert released.returncode == 0, released.stderr
+    assert git(repo, "rev-parse", ref) == replacement
+
+
+def test_a_malformed_lock_token_is_replaced(tmp_path):
+    repo = make_repo(tmp_path)
+    ref = "refs/afk/locks/worktree-create"
+    malformed = lock_token(repo, "not-a-holder")
+    git(repo, "update-ref", ref, malformed)
+
+    done = create(repo, "--name", "after-malformed")
+
     assert done.returncode == 0, done.stderr
-    assert not lock.exists()
 
 
-def test_r2_6_a_lock_held_by_a_live_process_is_kept_and_only_its_holder_releases_it(tmp_path):
-    import time
+def test_a_live_legacy_lock_is_honoured_during_upgrade(tmp_path):
     owner = owner_module()
     repo = make_repo(tmp_path)
     lock = repo / ".git" / "afk-worktrees" / ".lock"
     lock.mkdir(parents=True)
     (lock / "holder").write_text(f"{os.getpid()}:{owner.creation_time(os.getpid())}", encoding="utf-8")
     environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
+    waiting = subprocess.Popen([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--name", "upgrade"],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=repo, env=environ)
+    time.sleep(2)
+    assert waiting.poll() is None
+    assert not (repo / ".claude" / "worktrees" / "upgrade").exists()
+    (lock / "holder").unlink()
+    lock.rmdir()
+    out, err = waiting.communicate(timeout=300)
+    assert waiting.returncode == 0, err
+
+
+def test_a_dead_legacy_lock_is_replaced_during_upgrade(tmp_path):
+    repo = make_repo(tmp_path)
+    lock = repo / ".git" / "afk-worktrees" / ".lock"
+    lock.mkdir(parents=True)
+    (lock / "holder").write_text("2147483000:1", encoding="utf-8")
+
+    done = create(repo, "--name", "after-legacy-crash")
+
+    assert done.returncode == 0, done.stderr
+    assert not lock.exists()
+
+
+def test_a_legacy_lock_that_disappears_during_inspection_is_retried(tmp_path, monkeypatch):
+    owner = owner_module()
+    repo = make_repo(tmp_path)
+    lock = repo / ".git" / "afk-worktrees" / ".lock"
+    lock.mkdir(parents=True)
+    monkeypatch.setattr(owner.os.path, "getmtime", lambda _path: (_ for _ in ()).throw(FileNotFoundError()))
+
+    result = owner._claim_legacy_lock(
+        str(repo), f"{os.getpid()}:{owner.creation_time(os.getpid())}", "a" * 40)
+
+    assert result == "busy"
+
+
+def test_r2_6_a_lock_held_by_a_dead_process_is_broken(tmp_path):
+    repo = make_repo(tmp_path)
+    ref = "refs/afk/locks/worktree-create"
+    token = lock_token(repo, "2147483000:1")
+    git(repo, "update-ref", ref, token)
+    done = create(repo, "--name", "after-crash")
+    assert done.returncode == 0, done.stderr
+    assert subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", ref],
+                          capture_output=True).returncode != 0
+
+
+def test_r2_6_a_lock_held_by_a_live_process_is_kept_and_only_its_holder_releases_it(tmp_path):
+    import time
+    owner = owner_module()
+    repo = make_repo(tmp_path)
+    ref = "refs/afk/locks/worktree-create"
+    token = lock_token(repo, f"{os.getpid()}:{owner.creation_time(os.getpid())}")
+    git(repo, "update-ref", ref, token)
+    environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
     waiting = subprocess.Popen([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--name", "waits"],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=repo, env=environ)
     time.sleep(6)
     assert waiting.poll() is None, "a live holder's lock must not be broken"
     assert not (repo / ".claude" / "worktrees" / "waits").exists()
-    (lock / "holder").unlink()
-    lock.rmdir()
+    git(repo, "update-ref", "-d", ref, token)
     out, err = waiting.communicate(timeout=300)
     assert waiting.returncode == 0, err
-    assert not lock.exists()
+    assert subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", ref],
+                          capture_output=True).returncode != 0
 
 
 def test_r2_1_the_registered_creation_hook_records_the_launching_process_as_owner(tmp_path):

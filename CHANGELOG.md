@@ -39,6 +39,8 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- Concurrent worktree creation now uses a conditional Git-ref lock. A waiter
+  cannot delete a replacement lock or append duplicate local exclude entries.
 - The harness's worktree tool no longer fails on a large build. The creation
   hook returns the path once the checkout and copies are done; build
   provisioning and the repository's `WorktreeCreated` scripts then run in the
