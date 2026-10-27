@@ -972,3 +972,10 @@
 - Chosen: B — the prompt entry.py:237 builds from INVOCATION now names `afk-team agent-send`, which holds no variable, so the sentence tells an agent to replace text that is not there; it is the same string as :237 and test_team_entry.py:368 asserts both
 - Supersedes: none
 - To reverse: restore the sentence in scripts/team/entry.py _identity and its assertion in test_team_entry.py
+
+## D-139 — 0027's live Claude rows take the rule from the session flag, not a settings file
+- 2026-10-26 · decided by the orchestrator, agent-decided under the grant of 2026-09-30 (answers review finding f001 on 0027)
+- Options: A — write Bash(afk-team *) into a probe pane's settings file for the live rows vs B — give the rule to the probe session by `--allowedTools "Bash(afk-team *)"` and record that the flag stands in for the settings entry
+- Chosen: B — the human's standing rule forbids an agent writing any settings file, and the auto-mode classifier refused agent settings writes 3 times (GRILL-LOG.md trial rows of 2026-10-26); the trial showed the session rule decides before the auto-mode check. 0027's Acceptance and Verification rows now say so
+- Supersedes: none
+- To reverse: the human adds the rule to a probe folder's settings and the live rows run again from there

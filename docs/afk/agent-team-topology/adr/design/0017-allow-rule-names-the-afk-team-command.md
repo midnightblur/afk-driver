@@ -29,7 +29,7 @@ sequenceDiagram
   participant B as afk-bin on the PATH
   participant C as Contact agent
   participant P as Spawn permission check
-  S->>B: write afk-team (and afk-team.cmd) after the sync and afk-python
+  S->>B: write afk-team (and afk-team.cmd, afk-team.ps1) after the sync and afk-python
   S->>H: print Bash(afk-team *)
   H->>H: add the rule to own settings, once
   S->>S: confirm the rule is present
@@ -58,4 +58,4 @@ Caption: setup places the command and the human grants the rule once; every run 
 
 - **Positive** — the human adds one rule, once; a plugin update does not change it. The rule decides before the auto-mode check, so a team run works in default and auto mode.
 - **Negative** — after a plugin update, team runs refuse until `/afk:setup` runs once. The rule matches any arguments to afk-team, which is the same reach as before. Another file named afk-team earlier on PATH would run under the rule; the run check refuses when afk-team is not the afk-bin launcher. The old full-path rule, if present, stops being used and can be removed. The path convention "plugin files are named by `${AFK_PLUGIN_ROOT}/...`" gains one stated exception, the afk-team command.
-- **Follow-ups** — not tried: the auto-mode check may refuse setup's launcher write when setup runs in auto mode (SDD §13 Q55); afk-team.cmd under a Codex agent on Windows (SDD §13 Q56). The launcher subtask proves each with a live row in providers/CONFORMANCE.md before it merges.
+- **Follow-ups** — not tried: the auto-mode check may refuse setup's launcher write when setup runs in auto mode (SDD §13 Q55); a Codex agent on Windows (SDD §13 Q56). Round 48 (HL5-8, signed 2026-10-26) adds afk-team.ps1 on Windows: the live row showed PowerShell drops the JSON's double quotes when it calls afk-team.cmd; a Restricted or AllSigned execution policy stops the .ps1 (not tried). The launcher subtask proves each with a live row in providers/CONFORMANCE.md before it merges.

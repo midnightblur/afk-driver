@@ -409,3 +409,5 @@
 2026-10-26 21:47 | execute | 0027-afk-team-launcher | design_conflict — a live Codex pane showed afk-team.cmd loses the quotes of a JSON payload under PowerShell, so the launcher files the design names cannot carry a verb's fields; changing them needs the human (SDD §7 E13, ADR-0017); no fix committed
 2026-10-26 21:55 | autopilot | 0027-afk-team-launcher | parked (design_conflict) — on Windows a Codex agent's JSON loses its quotes through afk-team.cmd; the fix changes launcher files the human signed, so the human decides
 2026-10-26 21:55 | autopilot | 0010-team-entry-script | parked(waiting on 0027-afk-team-launcher) — and with it every subtask that waits on 0010; no runnable subtask left, run held for the human
+2026-10-26 22:30 | autopilot | 0027-afk-team-launcher | human direction: the human signed round 48 — on Windows setup also writes afk-team.ps1, so a Codex agent's JSON keeps its quotes; 0027 resumes
+2026-10-26 22:30 | autopilot | 0027-afk-team-launcher | decision(D-139) — the live Claude checks take the permission line from the session flag, since agents never write a settings file
