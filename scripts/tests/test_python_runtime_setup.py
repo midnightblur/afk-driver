@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import ast
+import base64
 import importlib.util
 import io
+import json
 import os
 import re
 import shutil
@@ -113,7 +115,8 @@ def test_layout_keeps_everything_under_one_private_home(tmp_path, windows):
     # The entry finds pyvenv.cfg one level up, which makes sys.prefix the environment.
     assert paths["bin"].parent == paths["env"] and paths["launcher"].parent == paths["bin"]
     # The afk-team launcher has its own keys; `launcher` keeps meaning afk-python.
-    assert (paths["team"], paths["team_cmd"]) == (paths["bin"] / "afk-team", paths["bin"] / "afk-team.cmd")
+    assert (paths["team"], paths["team_cmd"], paths["team_ps1"]) == (
+        paths["bin"] / "afk-team", paths["bin"] / "afk-team.cmd", paths["bin"] / "afk-team.ps1")
 
 
 def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path, monkeypatch):
@@ -721,7 +724,7 @@ def test_install_writes_the_team_launcher_after_the_sync_and_afk_python(tmp_path
     assert sync < log.index("place_entry") < log.index("place_team_launcher")
     assert "ok afk-team\n" in out.getvalue()
     want = pr.team_launchers(paths, windows)
-    assert sorted(p.name for p in want) == (["afk-team", "afk-team.cmd"] if windows else ["afk-team"])
+    assert sorted(p.name for p in want) == (["afk-team", "afk-team.cmd", "afk-team.ps1"] if windows else ["afk-team"])
     for target, data in want.items():
         assert target.read_bytes() == data and pr.team_launcher_root(target) == PLUGIN_ROOT
         assert data.count(b"afk-team.py") == 1 and b"afk-python" in data
@@ -729,6 +732,9 @@ def test_install_writes_the_team_launcher_after_the_sync_and_afk_python(tmp_path
     if windows:
         script = PLUGIN_ROOT / "scripts" / "afk-team.py"
         assert want[paths["team_cmd"]] == f'@"{paths["launcher"]}" "{script}" %*\r\n'.encode("utf-8")
+        # PowerShell reads a BOM-less script as the ANSI code page, so the .ps1 carries a UTF-8 BOM.
+        assert want[paths["team_ps1"]] == (
+            f"\ufeff{pr.PS1_ARGS}& '{paths['launcher']}' '{script}' @a; exit $LASTEXITCODE\r\n".encode("utf-8"))
     else:
         assert os.access(paths["team"], os.X_OK)
     assert sorted(e.name for e in paths["bin"].iterdir()) == sorted([paths["launcher"].name, *(p.name for p in want)])
@@ -745,10 +751,10 @@ def test_the_launcher_is_staged_then_moved_and_a_repeat_install_leaves_it_untouc
 
     monkeypatch.setattr(pr.os, "replace", spy)
     assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
-    for target in (paths["team"], paths["team_cmd"]):
+    for target in (paths["team"], paths["team_cmd"], paths["team_ps1"]):
         assert (target.with_name(target.name + ".new"), target) in moves
         assert not target.with_name(target.name + ".new").exists()
-    before = {t: t.stat().st_mtime_ns for t in (paths["team"], paths["team_cmd"])}
+    before = {t: t.stat().st_mtime_ns for t in (paths["team"], paths["team_cmd"], paths["team_ps1"])}
     moves.clear()
     out = io.StringIO()
     assert pr.install(env, True, False, Machine(paths), out) == 0, out.getvalue()
@@ -761,9 +767,27 @@ def test_a_launcher_with_other_bytes_is_rewritten(tmp_path):
     paths = pr.layout(machine_env(tmp_path), True)
     paths["bin"].mkdir(parents=True)
     paths["team"].write_bytes(b"#!/bin/sh\necho old\n")
-    assert pr.place_team_launcher(paths, True) == [paths["team"], paths["team_cmd"]]
+    assert pr.place_team_launcher(paths, True) == [paths["team"], paths["team_cmd"], paths["team_ps1"]]
     assert paths["team"].read_bytes() == pr.team_launchers(paths, True)[paths["team"]]
     assert pr.place_team_launcher(paths, True) == []
+
+
+def test_a_launcher_file_in_use_is_renamed_away_then_replaced(tmp_path, monkeypatch):
+    paths = pr.layout(machine_env(tmp_path), True)
+    paths["bin"].mkdir(parents=True)
+    paths["team_cmd"].write_bytes(b"@echo old\r\n")
+    real_replace = os.replace
+
+    def locked(src, dst):
+        # Windows refuses to overwrite a file another process holds open; renaming it away still works.
+        if Path(dst) == paths["team_cmd"] and paths["team_cmd"].exists():
+            raise PermissionError(13, "in use", str(dst))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(pr.os, "replace", locked)
+    assert paths["team_cmd"] in pr.place_team_launcher(paths, True)
+    assert paths["team_cmd"].read_bytes() == pr.team_launchers(paths, True)[paths["team_cmd"]]
+    assert paths["team_cmd"].with_name("afk-team.cmd.old").read_bytes() == b"@echo old\r\n"
 
 
 def test_check_reports_a_missing_launcher(tmp_path):
@@ -784,15 +808,103 @@ def test_check_reports_a_launcher_naming_another_plugin_folder(tmp_path):
     assert f"fail afk-team: {paths['team']} names the plugin folder {old}, want {PLUGIN_ROOT}" in out.getvalue()
 
 
-def test_check_reports_an_afk_team_cmd_missing_on_windows(tmp_path):
+@pytest.mark.parametrize("key", ["team_cmd", "team_ps1"])
+def test_check_reports_a_windows_launcher_file_missing(tmp_path, key):
     env = machine_env(tmp_path)
     paths = pr.layout(env, True)
     assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
-    paths["team_cmd"].unlink()
+    paths[key].unlink()
     out = io.StringIO()
     assert pr.check(env, True, False, Machine(paths), out) == 1
-    assert f"fail afk-team.cmd: launcher missing: {paths['team_cmd']}" in out.getvalue()
+    assert f"fail {paths[key].name}: launcher missing: {paths[key]}" in out.getvalue()
     assert "ok afk-team\n" in out.getvalue()
+
+
+def test_check_reports_an_afk_team_ps1_naming_another_plugin_folder(tmp_path):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
+    old = tmp_path / "plugins" / "it's 0.9.0"
+    paths["team_ps1"].write_bytes(pr.team_launchers(paths, True, old)[paths["team_ps1"]])
+    out = io.StringIO()
+    assert pr.check(env, True, False, Machine(paths), out) == 1
+    assert f"fail afk-team.ps1: {paths['team_ps1']} names the plugin folder {old}, want {PLUGIN_ROOT}" in out.getvalue()
+
+
+def test_the_ps1_quotes_a_plugin_folder_holding_an_apostrophe_and_a_dollar(tmp_path):
+    paths = pr.layout(machine_env(tmp_path), True)
+    root = tmp_path / "it's $HOME `x"
+    data = pr.team_launchers(paths, True, root)[paths["team_ps1"]]
+    script = str(Path(root, "scripts", "afk-team.py"))
+    assert " '" + script.replace("'", "''") + "' @a;" in data.decode("utf-8")
+    paths["bin"].mkdir(parents=True)
+    paths["team_ps1"].write_bytes(data)
+    assert pr.team_launcher_root(paths["team_ps1"]) == root
+
+
+def test_check_reports_a_launcher_that_is_not_executable(tmp_path, monkeypatch):
+    env, paths = stamped(tmp_path)
+    real_access = os.access
+    monkeypatch.setattr(pr.os, "access", lambda p, mode: False if Path(p) == paths["team"] else real_access(p, mode))
+    out = io.StringIO()
+    assert pr.check(env, False, False, Machine(paths), out) == 1
+    assert f"fail afk-team: {paths['team']} is not executable" in out.getvalue()
+
+
+def test_check_reports_a_launcher_naming_this_plugin_with_other_bytes(tmp_path):
+    env, paths = stamped(tmp_path)
+    paths["team"].write_bytes(paths["team"].read_bytes() + b"echo extra\n")
+    out = io.StringIO()
+    assert pr.check(env, False, False, Machine(paths), out) == 1
+    assert f"fail afk-team: {paths['team']} differs from the launcher setup writes" in out.getvalue()
+
+
+@pytest.mark.parametrize("windows", [False, True])
+def test_every_launcher_file_round_trips_a_plugin_folder_holding_a_space_and_an_apostrophe(tmp_path, windows):
+    paths = pr.layout(machine_env(tmp_path), windows)
+    root = tmp_path / "plugins" / "it's a folder"
+    paths["bin"].mkdir(parents=True)
+    for target in pr.place_team_launcher(paths, windows, root):
+        assert pr.team_launcher_root(target) == root, target.name
+
+
+@pytest.mark.skipif(FIND_BASH() is None, reason="runs the shell launcher in bash")
+def test_bash_runs_the_shell_launcher_from_a_plugin_folder_holding_a_space_and_an_apostrophe(tmp_path):
+    root = tmp_path / "plugin it's"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "afk-team.py").write_text(
+        "import json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit(3)\n", encoding="utf-8")
+    paths = dict(pr.layout(machine_env(tmp_path), False), launcher=Path(sys.executable))
+    paths["bin"].mkdir(parents=True)
+    pr.place_team_launcher(paths, False, root)
+    payload = '{"run": "p-x y"}'
+    done = subprocess.run([FIND_BASH(), str(paths["team"]), "agent-list", payload], capture_output=True,
+                          text=True, timeout=60)
+    assert done.returncode == 3, done.stderr
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == ["agent-list", payload]
+
+
+@pytest.mark.parametrize("shell", ["pwsh", "powershell"])
+@pytest.mark.parametrize("payload", ['{"run": "p-x y", "a": "b&c|d^e"}', '{"run":"x"}', r'{"p": "C:\\x\\"}',
+                                     r'{"q": "say \"hi\""}'])
+def test_powershell_runs_the_ps1_and_the_payload_keeps_its_double_quotes(tmp_path, shell, payload):
+    # Through afk-team.cmd PowerShell drops a JSON payload's inner quotes (providers/CONFORMANCE.md, Q56 row).
+    if os.name != "nt" or shutil.which(shell) is None:
+        pytest.skip(f"runs the .ps1 in {shell} on Windows")
+    root = tmp_path / "plugin it's"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "afk-team.py").write_text(
+        "import json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit(3)\n", encoding="utf-8")
+    paths = dict(pr.layout(machine_env(tmp_path), True), launcher=Path(sys.executable))
+    paths["bin"].mkdir(parents=True)
+    pr.place_team_launcher(paths, True, root)
+    command = f"afk-team agent-list '{payload}'; exit $LASTEXITCODE"
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    env = dict(os.environ, PATH=os.pathsep.join([str(paths["bin"]), os.environ.get("PATH", "")]))
+    done = subprocess.run([shutil.which(shell), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                           "-EncodedCommand", encoded], env=env, capture_output=True, text=True, timeout=60)
+    assert done.returncode == 3, done.stderr
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == ["agent-list", payload]
 
 
 def test_a_pin_rebuild_that_wipes_afk_bin_then_fails_the_sync_leaves_both_commands_missing(tmp_path):

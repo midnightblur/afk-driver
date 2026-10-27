@@ -145,7 +145,7 @@ outside the private environment or is not the installed entry, a stamp from
 another `runtime/uv.lock`, installed packages that differ from that lock, a
 hooks' bash that finds no `afk-python`, a file other than the installed entry or
 the stamp's, or an entry that fails there, a
-failed import, no `AFK_PYTHON`, or an `afk-team` launcher (`afk-team.cmd` on
+failed import, no `AFK_PYTHON`, or an `afk-team` launcher (`afk-team.cmd` and `afk-team.ps1` on
 Windows) beside `afk-python` that is missing, names another plugin folder, or
 differs from what setup writes.
 Route: `/afk:setup` (P1 fix).

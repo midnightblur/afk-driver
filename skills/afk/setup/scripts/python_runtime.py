@@ -19,9 +19,10 @@ with its `AFK-RUNTIME` stamp). The command is the interpreter itself:
 environment's `python.exe` on Windows), and it finds `python/pyvenv.cfg` one
 level up, so `sys.prefix` is the environment. Beside it, `afk-bin` holds only
 the `afk-team` launcher: `afk-team` (a shell script) and, on Windows,
-`afk-team.cmd`, each one line that runs `scripts/afk-team.py` of the plugin
-folder that ran setup with that `afk-python`. `afk-bin` is the one directory
-added to the user PATH. `afk_python.pth` in the
+`afk-team.cmd` and `afk-team.ps1`, each one line that runs `scripts/afk-team.py` of the plugin
+folder that ran setup with that `afk-python`. The spawn permission check
+(`scripts/team/permission.py`) reads `layout()["team"]` and
+`team_launcher_root`. `afk-bin` is the one directory added to the user PATH. `afk_python.pth` in the
 environment sets `AFK_PYTHON` to `sys.executable`; `-S` skips it.
 
 Packages install from wheels only (`--no-build`): a platform the lock has no
@@ -69,6 +70,10 @@ INSTALLER = "https://releases.astral.sh/github/uv/releases/download/{version}/uv
 STAMP = "AFK-RUNTIME"
 COMMAND = "afk-python"
 TEAM = "afk-team"
+# Windows PowerShell 5.1 and pwsh before 7.3 pass a native argument's inner double quotes bare: escape them there.
+PS1_ARGS = ("$a = @(if ($PSNativeCommandArgumentPassing -in 'Standard', 'Windows') { $args } else "
+            "{ $args | ForEach-Object { $s = $_ -replace '(\\\\*)\"', '$1$1\\\"'; "
+            "if ($s -match '\\s') { $s -replace '(\\\\+)$', '$1$1' } else { $s } } }); ")
 PTH = "afk_python.pth"
 PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
 NO_WHEEL = "marked as `--no-build` but has no binary distribution"
@@ -145,7 +150,7 @@ def layout(env: Mapping[str, str], windows: bool) -> dict:
         "intent": base / f"{STAMP}.extras",
         "interpreter": env_dir / ("Scripts" if windows else "bin") / f"python{exe}",
         "bin": bin_dir, "launcher": bin_dir / f"{COMMAND}{exe}",
-        "team": bin_dir / TEAM, "team_cmd": bin_dir / f"{TEAM}.cmd",
+        "team": bin_dir / TEAM, "team_cmd": bin_dir / f"{TEAM}.cmd", "team_ps1": bin_dir / f"{TEAM}.ps1",
     }
 
 
@@ -310,13 +315,21 @@ def team_launchers(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) -> dict
     files = {Path(paths["team"]): f"#!/bin/sh\n{line}\n".encode("utf-8")}
     if windows:
         files[Path(paths["team_cmd"])] = f'@"{entry}" "{script}" %*\r\n'.encode("utf-8")
+        # PowerShell runs the .ps1 first and passes a payload's double quotes intact; through the .cmd it drops them.
+        ps1 = f"{PS1_ARGS}& {ps_quote(entry)} {ps_quote(script)} @a; exit $LASTEXITCODE\r\n"
+        files[Path(paths["team_ps1"])] = ps1.encode("utf-8-sig")
     return files
+
+
+def ps_quote(path: Path) -> str:
+    """A PowerShell single-quoted literal of `path`: nothing in it expands."""
+    return "'" + str(path).replace("'", "''") + "'"
 
 
 def team_launcher_root(path: Path) -> Path | None:
     """The plugin folder an `afk-team` launcher file names, or None when it names none."""
     try:
-        text = Path(path).read_text(encoding="utf-8")
+        text = Path(path).read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError):
         return None
     for line in text.splitlines():
@@ -325,6 +338,8 @@ def team_launcher_root(path: Path) -> Path | None:
                 words = shlex.split(line)
             except ValueError:
                 return None
+        elif Path(path).suffix == ".ps1":
+            words = [w.replace("''", "'") for w in re.findall(r"'((?:[^']|'')*)'", line)]
         else:
             words = re.findall(r'"([^"]*)"', line)
         script = next((w for w in words if re.search(r"[\\/]scripts[\\/]afk-team\.py$", w)), None)
@@ -345,7 +360,14 @@ def place_team_launcher(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) ->
         staged.write_bytes(data)
         if not windows:
             staged.chmod(0o755)
-        os.replace(staged, target)
+        try:
+            os.replace(staged, target)
+        except PermissionError:
+            # A file in use cannot be overwritten on Windows, but it can be renamed away, as place_entry does.
+            old = target.with_name(target.name + ".old")
+            old.unlink(missing_ok=True)
+            os.replace(target, old)
+            os.replace(staged, target)
         written.append(target)
     return written
 

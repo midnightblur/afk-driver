@@ -384,11 +384,13 @@ a token value — not even partially.
   `PROVIDERS.md` "Spawn allow rule".
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
   — exit 0 when this session's harness needs no rule, or when the rule is in an
-  allow list and no block-list entry matches a verb command; exit 1 prints one
+  allow list, no block-list entry matches a verb command, and `afk-team` on
+  PATH is the P1 launcher naming the running plugin folder; exit 1 prints one
   JSON refusal. Its
   `problem` is `missing`, `stale` or `blocked` with a `says` that names the
   rule, the settings file and the list; `launcher` with a `says` that names the
-  `afk-team` launcher fault, which the P1 fix repairs; or `provider-layer` with
+  `afk-team` launcher fault, which the P1 fix repairs: skip this row's Fix,
+  print no rule, and run P1; or `provider-layer` with
   a `says` that names the cause and no settings file. A `provider-layer` refusal is not a
   missing entry: do not offer this row in the election, print no rule, wait
   for nothing, and report `needs-human: <cause>`, the cause being the `says`
@@ -402,7 +404,9 @@ a token value — not even partially.
   with `provider-layer`: it stays deselected in `SKILL.md` step 3's election
   and reports `skipped (user choice)`. The probe
   checks this session's harness only; run `/afk:setup` from the other harness
-  to check its rule. The rule names the `afk-team` command, not a path, so one
+  to check its rule. Both harnesses share one launcher: a setup run from one
+  points it at that harness's plugin folder, so the other harness's probe
+  answers `launcher` until setup runs there again (HL5-8, signed risk). The rule names the `afk-team` command, not a path, so one
   rule stays valid across plugin updates (plan D-135 supersedes D-75); the
   launcher names the versioned plugin folder and does not survive an update:
   the probe answers `launcher` until the P1 fix rewrites it. An entry left from
@@ -696,8 +700,8 @@ a token value — not even partially.
   with its `shell_env`) must resolve `afk-python` to the installed entry, pass
   the same interpreter checks, and find the file the stamp names. The
   environment's stamp must name the pinned Python and the current lock hash.
-  The `afk-team` launcher in the same `afk-bin` (and `afk-team.cmd` on
-  Windows) must exist with the bytes setup writes for this plugin folder; an
+  The `afk-team` launcher in the same `afk-bin` (and `afk-team.cmd` and
+  `afk-team.ps1` on Windows) must exist with the bytes setup writes for this plugin folder; an
   older runtime without it fails `afk-team: launcher missing`, and one naming
   another plugin folder fails naming both folders.
 - **Fix:** `auto:` per-user install — ask the human first. The bootstrap needs no

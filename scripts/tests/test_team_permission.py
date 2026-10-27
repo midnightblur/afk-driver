@@ -50,8 +50,18 @@ on_windows = pytest.mark.skipif(not WINDOWS_SHELL, reason="the main-checkout ski
 off_windows = pytest.mark.skipif(WINDOWS_SHELL, reason="a Windows shell never reads the main checkout's local file")
 
 
+def _without_afk_team(path: str) -> str:
+    """`path` less every folder holding an afk-team, so the host's own afk-bin never answers for the test's."""
+    names = ("afk-team", "afk-team.cmd", "afk-team.ps1")
+    return os.pathsep.join(d for d in path.split(os.pathsep) if d and not any(Path(d, n).exists() for n in names))
+
+
 @pytest.fixture
 def home(tmp_path: Path) -> dict:
+    return _make_home(tmp_path)
+
+
+def _make_home(tmp_path: Path) -> dict:
     config, repo = tmp_path / "config", tmp_path / "repo"
     config.mkdir()
     (repo / ".claude").mkdir(parents=True)
@@ -63,7 +73,7 @@ def home(tmp_path: Path) -> dict:
     paths = RUNTIME.layout(env, WINDOWS)
     # The launcher /afk:setup writes for this plugin, first on PATH as afk-bin is after setup.
     RUNTIME.place_team_launcher(paths, WINDOWS, REPO)
-    env["PATH"] = os.pathsep.join([str(paths["bin"]), env.get("PATH", "")])
+    env["PATH"] = os.pathsep.join([str(paths["bin"]), _without_afk_team(env.get("PATH", ""))])
     return {"env": env, "user": config / "settings.json", "repo": repo, "paths": paths,
             "local": repo / ".claude" / "settings.local.json", "project": repo / ".claude" / "settings.json"}
 
@@ -230,6 +240,21 @@ def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
     answer = _check(home)
     _assert_refused(answer, "stale")
     assert start_only in answer["says"]
+
+
+@pytest.mark.parametrize("other", ["Bash(git checkout 0027-afk-team-launcher)", "Bash(afk-teamwork *)",
+                                   "Bash(cat afk-team)"])
+@needs_bash
+def test_an_entry_that_only_contains_the_name_is_not_stale(home: dict, other: str) -> None:
+    _write(home["user"], allow=[other])
+    _assert_refused(_check(home), "missing")
+
+
+@pytest.mark.parametrize("old", ["Bash(afk-team:*)", "Bash(afk-team agent-list *)"])
+@needs_bash
+def test_another_entry_for_the_afk_team_command_is_stale(home: dict, old: str) -> None:
+    _write(home["user"], allow=[old])
+    _assert_refused(_check(home), "stale")
 
 
 @needs_bash
@@ -583,6 +608,21 @@ def test_a_missing_launcher_refuses(home: dict) -> None:
 
 
 @needs_bash
+def test_a_missing_launcher_refuses_with_the_host_afk_bin_on_path(tmp_path: Path, monkeypatch) -> None:
+    # The state /afk:setup leaves on a developer's machine: its own afk-bin, holding afk-team, on PATH.
+    host_bin = tmp_path / "host" / "afk-bin"
+    host_bin.mkdir(parents=True)
+    (host_bin / "afk-team").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
+    (host_bin / "afk-team").chmod(0o755)
+    monkeypatch.setenv("PATH", os.pathsep.join([str(host_bin), os.environ.get("PATH", "")]))
+    (tmp_path / "t").mkdir()
+    home = _make_home(tmp_path / "t")
+    home["paths"]["team"].unlink()
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), f"the afk-team launcher {home['paths']['team'].as_posix()} is missing")
+
+
+@needs_bash
 def test_a_launcher_off_path_refuses(home: dict) -> None:
     home["env"]["PATH"] = home["env"]["PATH"].split(os.pathsep, 1)[1]
     _write(home["user"], allow=[RULE])
@@ -606,6 +646,32 @@ def test_a_launcher_of_this_plugin_refuses_when_the_session_runs_another(home: d
     _write(home["user"], allow=[RULE])
     _assert_launcher_refused(_check(home), f"names the plugin folder {REPO.as_posix()}, not the running one "
                                            f"{newer.as_posix()}")
+
+
+@needs_bash
+def test_a_launcher_naming_no_plugin_folder_refuses(home: dict) -> None:
+    home["paths"]["team"].write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), f"the launcher {home['paths']['team'].as_posix()} names no plugin folder")
+
+
+def test_the_launcher_check_without_a_posix_shell_refuses(home: dict, monkeypatch) -> None:
+    monkeypatch.setattr(permission, "_bash", lambda: None)
+    said = permission.check_afk_team_launcher(home["env"], run=_fake(raises=AssertionError("run must not be called")))
+    assert said == "no POSIX shell found to resolve afk-team"
+
+
+@pytest.mark.skipif(not WINDOWS, reason="afk-bin needs LOCALAPPDATA only on Windows")
+def test_the_launcher_check_without_localappdata_refuses(home: dict) -> None:
+    home["env"].pop("LOCALAPPDATA")
+    said = permission.check_afk_team_launcher(home["env"], run=_fake(raises=AssertionError("run must not be called")))
+    assert said == "afk-bin cannot be located: 'LOCALAPPDATA' is not set"
+
+
+@needs_bash
+def test_a_shell_timeout_resolving_the_launcher_refuses(home: dict) -> None:
+    said = permission.check_afk_team_launcher(home["env"], run=_fake(raises=subprocess.TimeoutExpired("bash", 30)))
+    assert said.startswith("the shell did not resolve afk-team: ") and "timed out" in said
 
 
 @needs_bash

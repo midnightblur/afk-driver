@@ -18,6 +18,7 @@ import functools
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -100,7 +101,7 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
             if kind == "allow":
                 if rule in entries:
                     allowed.append(path)
-                stale += [(path, e) for e in entries if ENTRY_NAME in e and e != rule]
+                stale += [(path, e) for e in entries if _team_entry(e) and e != rule]
             else:
                 blocked += [(path, key, e) for e in entries if "\n" not in e]
     allow_key = next((key for kind, key in adapter["lists"] if kind == "allow"), "allow list")
@@ -127,6 +128,11 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
                        f"spawn rule; replace it with `{rule}`, then run {SETUP}; nothing was started", read)
     return _refuse(provider, rule, "missing", f"the spawn rule `{rule}` is in no allow list of the settings files "
                    f"read; add it to {allow_key} in {target}, then run {SETUP}; nothing was started", read)
+
+
+def _team_entry(entry: str) -> bool:
+    """An allow entry for the team script: its command word is afk-team, or it names afk-team.py."""
+    return re.match(rf"Bash\(\s*{ENTRY_NAME}(?=[\s:)])", entry) is not None or f"{ENTRY_NAME}.py" in entry
 
 
 def check_afk_team_launcher(env: Mapping[str, str] | None = None, *, run: Callable = subprocess.run) -> str | None:

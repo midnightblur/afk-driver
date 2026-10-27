@@ -530,6 +530,22 @@ Other observations:
 - In a Git Bash shell, a `PATH` entry written `C:/…` splits at its colon, so `command -v afk-team` finds nothing. The `/c/…` form works. A PATH that Windows passes to the shell is converted, so this applies only to a hand-set PATH.
 - In the Q55 row the driver ran on the scratch `afk-python.exe`, so setup's `afk-python` step renamed the running file to `afk-python.exe.old`, as `place_entry` does for a locked file. No row depended on it.
 
+Round 48 rows (2026-10-26): on Windows setup also writes `afk-team.ps1`. Same host, set-up and driver, at the working tree after `5f99447`. Evidence folder: `0027/live2`.
+
+| Probe | Steps | Claude Code | Codex CLI |
+|---|---|---|---|
+| setup's launcher write in auto mode, with `afk-team.ps1` (Q55) | the scratch `afk-team` files deleted; a pane in auto mode runs the setup driver with the scratch `LOCALAPPDATA` | pass: no prompt and no refusal. The screen tags the call `Allowed by auto mode classifier`. Every step answered ok, including `ok afk-team.cmd` and `ok afk-team.ps1`, then `ok stamp published`. After plan D-140 changed the `.ps1` line, the orchestrating session, also in auto mode, ran the driver again: no refusal, `ok afk-team.ps1` | n/a |
+| `afk-team.ps1` under a Codex agent on Windows (Q56) | a full-access Codex pane runs `(Get-Command afk-team).Source`, then `afk-team agent-list '{"run": "p0027-ps1"}'` | n/a | **not run**. The auto-mode classifier refused the orchestrating Claude session's own call that starts the pane: `Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Create Unsafe Agents].` Nothing was typed and the pane was closed. Owed: a human, or a session the classifier lets start a full-access Codex pane, runs this row |
+
+PowerShell sessions without an agent, each started as a child process with `-NoProfile -ExecutionPolicy <policy>` and the scratch `afk-bin` first on `PATH`, running `(Get-Command afk-team).Source; afk-team agent-list '{"run": "p0027-ps1"}'`:
+
+| Probe | Result |
+|---|---|
+| A payload holding double quotes reaches the script through `afk-team.ps1` | pass in `pwsh` 7.6.6 (`$PSNativeCommandArgumentPassing` = `Windows`) and in Windows PowerShell 5.1.26100: `Get-Command` names `afk-team.ps1`, and the script answered its own `is not inside a git repository` refusal, which it gives only after the payload parses. Before plan D-140, Windows PowerShell 5.1 dropped the inner quotes through the `.ps1` too (`the payload is not JSON`) |
+| An execution policy that blocks local scripts (Q56) | `pwsh` 7.6.6, `AllSigned`: `File <afk-bin>\afk-team.ps1 cannot be loaded. The file <afk-bin>\afk-team.ps1 is not digitally signed. You cannot run this script on the current system.` `Restricted`: `File <afk-bin>\afk-team.ps1 cannot be loaded because running scripts is disabled on this system.` In both, PowerShell does not fall back to `afk-team.cmd`. `Bypass` and `RemoteSigned` ran the script. Windows PowerShell 5.1 ran it under every value: this host's Group Policy sets `MachinePolicy` to `RemoteSigned`, which overrides the parameter. The host's own policy was not changed |
+
+`Get-ExecutionPolicy -List` on this host: `pwsh` has `LocalMachine` `RemoteSigned` and every other scope `Undefined`; Windows PowerShell has `MachinePolicy` and `LocalMachine` `RemoteSigned`. The `Bypass` noted above for the trial was read in a session whose process scope was not recorded.
+
 ## Background job wake probes (2026-10-20)
 
 The probes behind `CAPABILITIES.md` `background_job_wake`. Re-run both on every new harness version. Host: Windows 11, Claude Code 2.1.304, Codex CLI 0.163.0, each a headless session started in an empty probe folder (`<probe>`) with the harness's own login.
