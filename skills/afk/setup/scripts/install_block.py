@@ -18,15 +18,30 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import importlib.util
 import pathlib
 import re
-import os
-import stat
 import sys
-import tempfile
-import time
 from typing import NamedTuple, Sequence
 
+PLUGIN_ROOT = pathlib.Path(__file__).resolve().parents[4]
+
+
+def _load_safe_writer():
+    name = "afk_safe_write"
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, PLUGIN_ROOT / "scripts" / "safe_write.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            del sys.modules[name]
+            raise
+    return sys.modules[name]
+
+
+safe_write = _load_safe_writer()
 
 LEGACY_SENTINELS = ("plain-language", "lavish-sessions", "investigation")
 MARKER_RE = re.compile(br"<!-- afk:([a-z0-9-]+):(start|end) -->")
@@ -98,129 +113,30 @@ def _matches(target: bytes, names: Sequence[str]) -> list[tuple[int, int, str]]:
     return found
 
 
-_LOCK_POLL_SECONDS = 0.05
-_LOCK_MAX_ATTEMPTS = 40  # ~2s of contention before giving up.
-
-
-def _acquire_os_lock(handle) -> bool:
-    """Try once to take the OS advisory lock. True on success.
-
-    The OS releases the lock when the process exits, crash or not — no PID to
-    record and no stale-lock state to detect or reclaim."""
-    if os.name == "nt":
-        import msvcrt
-
-        try:
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        except OSError:
-            return False
-        return True
-    import fcntl
-
+def _update(target: pathlib.Path, transform) -> bool:
     try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        return False
-    return True
+        return safe_write.update_locked(target, transform)
+    except safe_write.SafeWriteError as exc:
+        raise InstallError(f"target {exc}") from exc
 
 
-def _release_os_lock(handle) -> None:
-    if os.name == "nt":
-        import msvcrt
+def _text(data: bytes) -> str:
+    return data.decode(safe_write.ENCODING, safe_write.ERRORS)
 
-        handle.seek(0)
-        try:
-            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-        except OSError:
-            pass
-        return
-    import fcntl
 
-    try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-    except OSError:
-        pass
+def _bytes(text: str) -> bytes:
+    return text.encode(safe_write.ENCODING, safe_write.ERRORS)
 
 
 @contextlib.contextmanager
 def _target_lock(target: pathlib.Path):
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # Lock the real file a symlink points at, not the symlink path itself —
-    # two different aliases of the same file (a symlink and its referent, or
-    # two symlinks to the same referent) must derive the same lock path, or
-    # each takes its own lock and both critical sections run at once.
-    real = target.resolve() if target.is_symlink() else target
-    real.parent.mkdir(parents=True, exist_ok=True)
-    lock = real.with_name(f".{real.name}.afk.lock")
-    # The lock file itself is never deleted: only its OS lock state matters,
-    # never its content or its existence. An empty or garbage-content lock
-    # file (e.g. left by a crash, or by an older scheme) is never read or
-    # interpreted — acquiring the OS lock on it is all that is checked.
-    handle = open(lock, "a+b")
+    stack = contextlib.ExitStack()
     try:
-        if os.name == "nt" and os.fstat(handle.fileno()).st_size == 0:
-            # msvcrt.locking needs at least 1 byte to lock a region against;
-            # the byte's value is never read back.
-            handle.write(b"\0")
-            handle.flush()
-        acquired = False
-        for _ in range(_LOCK_MAX_ATTEMPTS):
-            if _acquire_os_lock(handle):
-                acquired = True
-                break
-            time.sleep(_LOCK_POLL_SECONDS)
-        if not acquired:
-            raise InstallError(f"target is locked: {target}")
-        try:
-            yield
-        finally:
-            _release_os_lock(handle)
-    finally:
-        handle.close()
-
-
-def _atomic_write_locked(target: pathlib.Path, expected: bytes, updated: bytes) -> None:
-    current = target.read_bytes() if target.exists() else b""
-    if current != expected:
-        raise InstallError(f"target changed during update: {target}")
-    # Write through a symlink to the real file it targets; the symlink entry
-    # itself is never replaced or touched.
-    write_target = target.resolve() if target.is_symlink() else target
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=write_target.parent,
-        prefix=f".{write_target.name}.",
-        suffix=".tmp",
-    )
-    temporary = pathlib.Path(temporary_name)
-    try:
-        if target.exists():
-            mode = stat.S_IMODE(target.stat().st_mode)
-        else:
-            current_umask = os.umask(0)
-            os.umask(current_umask)
-            mode = 0o666 & ~current_umask
-        os.chmod(temporary, mode)
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(updated)
-            handle.flush()
-            os.fsync(handle.fileno())
-        current = target.read_bytes() if target.exists() else b""
-        if current != expected:
-            raise InstallError(f"target changed during update: {target}")
-        os.replace(temporary, write_target)
-        if hasattr(os, "O_DIRECTORY"):
-            directory = os.open(write_target.parent, os.O_RDONLY | os.O_DIRECTORY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
-    finally:
-        try:
-            os.close(descriptor)
-        except OSError:
-            pass
-        temporary.unlink(missing_ok=True)
+        stack.enter_context(safe_write._file_lock(pathlib.Path(target)))
+    except safe_write.SafeWriteError as exc:
+        raise InstallError(f"target {exc}") from exc
+    with stack:
+        yield
 
 
 def write_if_unchanged(
@@ -230,8 +146,13 @@ def write_if_unchanged(
 ) -> None:
     """Atomically replace one target when its bytes still match the snapshot."""
     target = pathlib.Path(target_path)
-    with _target_lock(target):
-        _atomic_write_locked(target, expected, updated)
+
+    def transform(text: str) -> str:
+        if _bytes(text) != expected:
+            raise InstallError(f"target changed during update: {target}")
+        return _text(updated)
+
+    _update(target, transform)
 
 
 def install(
@@ -243,12 +164,15 @@ def install(
 ) -> Result:
     source = pathlib.Path(source_path)
     target_path = pathlib.Path(target_path)
-    with _target_lock(target_path):
-        target = target_path.read_bytes() if target_path.exists() else b""
+    seen: dict[str, object] = {}
+
+    def transform(text: str) -> str:
+        target = _bytes(text)
         eol = _target_eol(target)
         replacement = _source_block(source, sentinel).replace(b"\n", eol)
         matches = _matches(target, (sentinel, *remove_sentinels))
-        had_unified = any(name == sentinel for _, _, name in matches)
+        seen["matches"] = matches
+        seen["had_unified"] = any(name == sentinel for _, _, name in matches)
         if matches:
             chunks: list[bytes] = []
             cursor = 0
@@ -260,20 +184,18 @@ def install(
                     inserted = True
                 cursor = end
             chunks.append(target[cursor:])
-            updated = b"".join(chunks)
-        else:
-            separator = b"" if not target or target.endswith((b"\n", b"\r")) else eol
-            updated = target + separator + replacement + eol
-        changed = updated != target
-        if changed:
-            _atomic_write_locked(target_path, target, updated)
+            return _text(b"".join(chunks))
+        separator = b"" if not target or target.endswith((b"\n", b"\r")) else eol
+        return _text(target + separator + replacement + eol)
+
+    changed = _update(target_path, transform)
     if not changed:
         action = "already-current"
-    elif had_unified:
+    elif seen["had_unified"]:
         action = "refreshed"
     else:
         action = "installed"
-    return Result(action, max(0, len(matches) - 1), changed)
+    return Result(action, max(0, len(seen["matches"]) - 1), changed)
 
 
 def teardown(
@@ -283,20 +205,22 @@ def teardown(
     remove_sentinels: Sequence[str] = LEGACY_SENTINELS,
 ) -> Result:
     target_path = pathlib.Path(target_path)
-    with _target_lock(target_path):
-        target = target_path.read_bytes() if target_path.exists() else b""
+    seen: dict[str, int] = {}
+
+    def transform(text: str) -> str:
+        target = _bytes(text)
         matches = _matches(target, (sentinel, *remove_sentinels))
+        seen["removed"] = len(matches)
         chunks: list[bytes] = []
         cursor = 0
         for start, end, _name in matches:
             chunks.append(target[cursor:start])
             cursor = end
         chunks.append(target[cursor:])
-        updated = b"".join(chunks)
-        changed = updated != target
-        if changed:
-            _atomic_write_locked(target_path, target, updated)
-    return Result("removed" if changed else "absent", len(matches), changed)
+        return _text(b"".join(chunks))
+
+    changed = _update(target_path, transform)
+    return Result("removed" if changed else "absent", seen["removed"], changed)
 
 
 def _legacy(argv: Sequence[str]) -> int:
@@ -305,18 +229,25 @@ def _legacy(argv: Sequence[str]) -> int:
     source, target = pathlib.Path(argv[0]), pathlib.Path(argv[1])
     name = argv[2] if len(argv) == 3 else "plain-language"
     replacement = _source_block(source, name)
-    with _target_lock(target):
-        data = target.read_bytes()
-        pattern = sentinel_pattern(name)
-        if not pattern.search(data):
-            return 1
-        replacement = replacement.replace(b"\n", _target_eol(data))
-        updated = pattern.sub(lambda _match: replacement, data, count=1)
-        if updated != data:
-            _atomic_write_locked(target, data, updated)
-            print(f"refreshed {name} block in {target}")
-        else:
-            print(f"{name} block in {target} is already current")
+    pattern = sentinel_pattern(name)
+    found: list[bool] = []
+
+    def transform(text: str) -> str:
+        target.stat()
+        data = _bytes(text)
+        found.append(bool(pattern.search(data)))
+        if not found[0]:
+            return text
+        block = replacement.replace(b"\n", _target_eol(data))
+        return _text(pattern.sub(lambda _match: block, data, count=1))
+
+    changed = _update(target, transform)
+    if not found[0]:
+        return 1
+    if changed:
+        print(f"refreshed {name} block in {target}")
+    else:
+        print(f"{name} block in {target} is already current")
     return 0
 
 
