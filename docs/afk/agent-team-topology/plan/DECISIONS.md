@@ -1063,3 +1063,17 @@
 - Chosen: B — the inbox file and the duplicate check key on the message id alone (D-142), so under A a later supervisor of the same agent repeats id `<agent-id>-sup-1` and its message is dropped as a duplicate
 - Supersedes: none
 - To reverse: make `_message_id` in scripts/team/supervisor.py return `<agent-id>-sup-1`
+
+## D-152 — Cleanup's step 2 deletes the supervisors folder; corrects D-150
+- 2026-10-27 · decided by /afk:execute (0011-job-supervisor, Step 10, answers round-1 review finding f009)
+- Options: A — keep D-150's claim that cleanup removes the claim files with the run folder vs B — `<run>/supervisors/` (claim files and parked body sources) belongs to the message area 0012's step 2 deletes; a wiring IOU in .claude/wiring-ious.md holds the folder until 0012 lists it
+- Chosen: B — 0012's step 2 lists the message area's parts by name and the supervisors folder is not among them, so D-150's sentence was a claim no contract backs
+- Supersedes: D-150, its clause "cleanup removes them with the run folder" only
+- To reverse: drop the supervisors IOU line from .claude/wiring-ious.md
+
+## D-153 — A supervisor refused in agent-start's window ends silently
+- 2026-10-27 · decided by /afk:execute (0011-job-supervisor, Step 10, answers round-1 review finding f010)
+- Options: A — agent-start waits for its child's claim and answers exit 2 with the child's reason vs B — the refused supervisor exits 2 naming the agent, with no reader, sends nothing, and the first supervisor keeps watching; agent-start answers 0 as it does now
+- Chosen: B — the run still holds one supervisor per agent (I20) and the agent still gets exactly one exited or parked message; A changes agent-start, which 0011's ## Scope does not hold
+- Supersedes: none
+- To reverse: make scripts/team/entry.py `_start_supervisor` wait for the child's claim file and answer its refusal

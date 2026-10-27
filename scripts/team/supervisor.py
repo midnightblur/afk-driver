@@ -25,21 +25,25 @@ from team import entry  # noqa: E402
 POLL_S = 5.0
 SEND_TRIES = 3
 SEND_PAUSE_S = 2.0
+STATUS_TRIES = 10
+STATUS_PAUSE_S = 0.5
 TAIL_BYTES = 64 * 1024
 TAIL_LINES = 20
 OWNS_OUTPUT = ("headless",)
 FIELDS = {"run", "watched_agent_id"}
 UTC_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-LIMIT = re.compile(r"usage limit|limit reached|hit your (?:usage )?limit|rate[ _-]?limit|quota", re.I)
+LIMIT = re.compile(r"usage limit|hit your (?:usage )?limit|\b\d+-hour limit|weekly limit", re.I)
+RETRYING = re.compile(r"\bretrying\b", re.I)
 EPOCH = re.compile(r"\|(\d{10})\b")
-ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})", re.I)
+ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?", re.I)
 SPAN = re.compile(r"\bin\s+((?:\d+\s*(?:days?|d|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b[\s,]*(?:and\s+)?)+)",
                   re.I)
 SPAN_PART = re.compile(r"(\d+)\s*([dhms])", re.I)
 AFTER_RESET = re.compile(r"\b(?:resets?|try again)\b(.*)", re.I)
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-DATE = re.compile(r"\b(" + "|".join(MONTHS) + r")[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b", re.I)
+DATE = re.compile(r"\b(" + "|".join(MONTHS) + r")[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s+(\d{4})\b)?", re.I)
+DAY_WORD = re.compile(r"\b(?:today|tomorrow|tonight|(?:mon|tues|wednes|thurs|fri|satur|sun)day)\b", re.I)
 CLOCK_12 = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b", re.I)
 CLOCK_24 = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 ZONE = re.compile(r"\(([^()]+)\)")
@@ -108,7 +112,7 @@ def _claim(run_dir: Path, agent_id: str) -> Path:
 def limit_line(text: str) -> str | None:
     """The last of the last 20 non-blank lines that names a provider limit."""
     lines = [line.strip() for line in text.splitlines() if line.strip()][-TAIL_LINES:]
-    return next((line for line in reversed(lines) if LIMIT.search(line)), None)
+    return next((line for line in reversed(lines) if LIMIT.search(line) and not RETRYING.search(line)), None)
 
 
 def _zone(text: str) -> object:
@@ -132,6 +136,8 @@ def _clock(text: str, seen_at: datetime) -> datetime | None:
     if not after:
         return None
     rest = after.group(1)
+    if DAY_WORD.search(rest):
+        return None
     date, twelve = DATE.search(rest), CLOCK_12.search(rest)
     clock = twelve or CLOCK_24.search(rest)
     if not date and not clock:
@@ -151,8 +157,10 @@ def _clock(text: str, seen_at: datetime) -> datetime | None:
     base = seen_at.astimezone() if zone == LOCAL else seen_at.astimezone(zone)
     try:
         if date:
-            day = datetime(int(date.group(3)), MONTHS.index(date.group(1)[:3].lower()) + 1, int(date.group(2)),
-                           hour, minute)
+            year = int(date.group(3) or base.year)
+            day = datetime(year, MONTHS.index(date.group(1)[:3].lower()) + 1, int(date.group(2)), hour, minute)
+            if not date.group(3) and day.date() < base.date():
+                day = day.replace(year=year + 1)
         else:
             day = base.replace(tzinfo=None, hour=hour, minute=minute, second=0, microsecond=0)
             if day <= base.replace(tzinfo=None):
@@ -171,9 +179,9 @@ def reset_time(line: str, seen_at: datetime) -> datetime | None:
     found = ISO.search(line)
     if found:
         year, month, day, hour, minute, second, offset = found.groups()
-        zone = "+00:00" if offset.upper() == "Z" else offset
+        zone = "+00:00" if (offset or "").upper() == "Z" else offset or ""
         text = f"{year}-{month}-{day}T{hour}:{minute}:{second or '00'}{zone}"
-        try:
+        try:      # with no offset the naive time is the machine's local time
             return datetime.fromisoformat(text).astimezone(timezone.utc)
         except ValueError:
             return None
@@ -195,12 +203,25 @@ def _tail(path: Path) -> tuple[str, datetime] | None:
         return None
 
 
-def _verdict(host: entry.Host, feature: str, run_dir: Path, agent: dict) -> tuple[str, str | None, datetime | None]:
+def _exit_code(host: entry.Host, feature: str, agent_id: str, sleep: Callable[[float], None]) -> int | None:
+    """The run's exit code from agent-status, asked again while the job owner has not written it yet."""
+    code = None
+    for attempt in range(STATUS_TRIES):
+        if attempt:
+            sleep(STATUS_PAUSE_S)
+        answer, status = entry.run_command("agent-status", {"run": feature, "agent_id": agent_id}, host)
+        code = status.get("exit_code") if answer == 0 else None
+        if code is not None:
+            break
+    return code
+
+
+def _verdict(host: entry.Host, feature: str, run_dir: Path, agent: dict,
+             sleep: Callable[[float], None]) -> tuple[str, str | None, datetime | None]:
     """(kind, provider line, reset time): parked for a headless run that ended on a provider limit (D-149)."""
     if agent.get("transport_kind") not in OWNS_OUTPUT:
         return "exited", None, None
-    code, status = entry.run_command("agent-status", {"run": feature, "agent_id": agent["agent_id"]}, host)
-    if code == 0 and status.get("exit_code") == 0:
+    if _exit_code(host, feature, agent["agent_id"], sleep) == 0:
         return "exited", None, None
     tail = _tail(run_dir / "logs" / f"{agent['agent_id']}.log")
     line = limit_line(tail[0]) if tail else None
@@ -250,7 +271,7 @@ def supervise_agent(host: entry.Host, feature: str, watched_agent_id: str, *, po
         if agent["state"] not in entry.LIVE and agent.get("pid") is None and not agent.get("handle"):
             return 0, {"sent": False, "reason": f"agent {watched_agent_id} is {agent['state']} and never ran"}
         sleep(poll_s)
-    kind, line, reset = _verdict(host, feature, run.dir, agent)
+    kind, line, reset = _verdict(host, feature, run.dir, agent, sleep)
     message_id = _message_id(run.dir, watched_agent_id)
     body_path = ""
     if kind == "parked" and reset is not None:

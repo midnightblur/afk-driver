@@ -470,3 +470,8 @@
 2026-10-27 18:30 | execute | 0011-job-supervisor | decision(D-151) — the supervisor's message counter starts above the highest id earlier supervisors of the agent used
 2026-10-27 18:30 | execute | 0011-job-supervisor | developing — writing the supervisor tests first
 2026-10-27 18:44 | execute | 0011-job-supervisor | developing — the supervisor and its 38 tests pass; one early run of the test file did not finish in 120 s and was stopped, and 7 later runs finished in under 15 s
+2026-10-27 18:47 | execute | 0011-job-supervisor | pushed e5378ad..3040a20 (2 commits, with the autopilot's journal line) — the supervisor, its tests and plan D-149 to D-151; the change's checklist marks 0011
+2026-10-27 18:47 | execute | 0011-job-supervisor | verifying — build check, the Produces anchor and the unit row pass (38 supervisor tests; the 113 entry-script tests still pass)
+2026-10-27 18:48 | execute | 0011-job-supervisor | reviewing — round 1: fresh reviewers check the slice one at a time (what the contract asks, scope, tests, logic)
+2026-10-27 19:33 | execute | 0011-job-supervisor | review round 1 — 13 findings, none critical or high; all 13 fixed; plan D-152 (cleanup deletes the supervisors folder, a wiring IOU holds it) and D-153 (a supervisor refused in agent-start's window ends silently)
+2026-10-27 19:33 | execute | 0011-job-supervisor | verifying — build check, the Produces anchor and the unit row pass (55 supervisor tests; the 113 entry-script tests still pass)

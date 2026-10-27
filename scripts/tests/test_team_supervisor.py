@@ -30,6 +30,7 @@ class Team:
         self.main, self.root = tmp / "main", tmp / "team"
         self.main.mkdir()
         self.exit_code: int | None = 1
+        self.statuses: list[dict] = []
         self.calls: list[tuple[str, dict]] = []
         self.host = entry.Host(root=self.root, main=self.main, cwd=self.main, env={}, dispatch=self.dispatch,
                                resolve_kind=lambda cwd, env=None: {"kind": "headless"},
@@ -42,13 +43,16 @@ class Team:
     def dispatch(self, kind, verb, payload, root=None, env=None):
         self.calls.append((verb, payload))
         body = {"alive": False, "state": "exited", "since": None, "exit_code": self.exit_code}
+        if verb == "agent-status" and self.statuses:
+            body = self.statuses.pop(0)
         return 0, json.dumps(body) + "\n", ""
 
     def agent(self, agent_id: str, kind: str, pid: int | None, **fields) -> None:
         manifest.record_entry(self.root, RUN, {"agent_id": agent_id, "stage": "execute", "pattern_step": "build",
                                                "role": "builder", "model": "implementation@claude",
                                                "lifespan": "Step", "transport_kind": kind,
-                                               **({"pid": pid, "handle": str(pid)} if pid else {}), **fields})
+                                               **({"pid": pid, "handle": str(pid), "started_at": PAST}
+                                                  if pid else {}), **fields})
         manifest.move_entry(self.root, RUN, agent_id, "working")
 
     def log(self, agent_id: str, text: str) -> None:
@@ -70,6 +74,9 @@ class Team:
 @pytest.fixture
 def team(tmp_path):
     return Team(tmp_path)
+
+
+PAST = "2020-01-01T00:00:00Z"     # a start time no live process has, so a reused id still reads as gone
 
 
 def ended() -> int:
@@ -117,12 +124,14 @@ def test_it_sends_only_to_the_contact_inbox_and_never_through_a_pane(team):
     assert team.inbox() == ["a1-sup-1.json"]
 
 
-def test_the_counter_starts_above_every_id_an_earlier_supervisor_of_the_agent_used(team):
+@pytest.mark.parametrize("folder, name", [("inbox", "a1-sup-4.json"), ("processed", "a1-sup-4.json"),
+                                          ("bodies", "a1-sup-4")])
+def test_the_counter_starts_above_every_id_an_earlier_supervisor_of_the_agent_used(team, folder, name):
     team.agent("a1", "multiplexer", ended())
-    for folder, name in (("processed", "a1-sup-4.json"), ("bodies", "a1-sup-2"), ("inbox", "a1-7.json"),
-                         ("processed", "a10-sup-9.json")):
-        (team.dir / folder).mkdir(exist_ok=True)
-        (team.dir / folder / name).write_text("{}", encoding="utf-8")
+    for where, other in ((folder, name), ("inbox", "a1-7.json"), ("processed", "a10-sup-9.json"),
+                         ("bodies", "a1-sup-2")):
+        (team.dir / where).mkdir(exist_ok=True)
+        (team.dir / where / other).write_text("{}", encoding="utf-8")
     assert team.supervise()[1]["message_id"] == "a1-sup-5"
 
 
@@ -165,7 +174,25 @@ def test_an_unknown_exit_code_still_reads_the_limit(team):
     team.exit_code = None
     team.agent("a1", "headless", ended())
     team.log("a1", f"{LIMIT}\n")
-    assert team.supervise()[1]["kind"] == "parked"
+    naps = []
+    assert team.supervise(sleep=naps.append)[1]["kind"] == "parked"
+    assert len(naps) == supervisor.STATUS_TRIES - 1, "the exit code is asked again before it counts as unknown"
+
+
+def test_an_exit_code_the_job_owner_writes_late_is_still_read(team):
+    team.statuses = [{"alive": False, "state": "exited", "since": None, "exit_code": None}] * 2
+    team.exit_code = 0
+    team.agent("a1", "headless", ended())
+    team.log("a1", f"{LIMIT}\n")
+    assert team.supervise(sleep=lambda s: None)[1]["kind"] == "exited"
+
+
+def test_a_relative_reset_time_counts_from_the_log_s_last_write(team):
+    team.agent("a1", "headless", ended())
+    team.log("a1", "You've hit your usage limit. Try again in 2 hours.\n")
+    written = datetime(2026, 9, 29, 8, 0, tzinfo=timezone.utc).timestamp()
+    os.utime(team.dir / "logs" / "a1.log", (written, written))
+    assert team.supervise()[1]["reset"] == "2026-09-29T10:00:00Z"
 
 
 def test_a_kind_whose_output_the_supervisor_does_not_own_gets_exited(team):
@@ -201,6 +228,10 @@ SEEN = datetime(2026, 9, 29, 8, 0, 0, tzinfo=timezone.utc)
     ("5-hour limit reached - resets 7am (UTC)", datetime(2026, 9, 30, 7, 0, tzinfo=timezone.utc)),
     ("usage limit reached, try again at Sep 30th, 2026 3:05 PM (UTC)",
      datetime(2026, 9, 30, 15, 5, tzinfo=timezone.utc)),
+    ("limit reached, resets Oct 2 at 3pm (UTC)", datetime(2026, 10, 2, 15, 0, tzinfo=timezone.utc)),
+    ("limit reached, resets Sep 1 at 3pm (UTC)", datetime(2027, 9, 1, 15, 0, tzinfo=timezone.utc)),
+    ("5-hour limit reached - resets 12am (UTC)", datetime(2026, 9, 30, 0, 0, tzinfo=timezone.utc)),
+    ("5-hour limit reached - resets 12:30pm (UTC)", datetime(2026, 9, 29, 12, 30, tzinfo=timezone.utc)),
 ])
 def test_the_reset_time_forms_the_supervisor_reads(line, expected):
     assert supervisor.reset_time(line, SEEN) == expected
@@ -223,9 +254,26 @@ def test_a_date_with_no_time_is_the_start_of_that_day_in_local_time():
     "You've hit your usage limit. Upgrade to continue.",
     "usage limit reached - resets 3pm (Nowhere/Atlantis)",
     "usage limit reached, see https://example.invalid/limits for 2 options",
+    "usage limit reached, resets at 10:15 tomorrow (UTC)",
+    "usage limit reached, resets Friday at 3pm (UTC)",
 ])
 def test_a_reset_time_the_supervisor_cannot_read_is_none(line):
     assert supervisor.reset_time(line, SEEN) is None
+
+
+def test_an_iso_time_with_no_offset_is_the_machine_local_time():
+    found = supervisor.reset_time("usage limit reached; resets at 2026-10-02 10:15:00", SEEN)
+    assert found == datetime(2026, 10, 2, 10, 15).astimezone(timezone.utc)
+
+
+@pytest.mark.parametrize("text", [
+    "rate limit hit, retrying\nTraceback: boom\nError: ENOENT\n",
+    "Error: context limit reached for this conversation\n",
+    "wrote quota.py\nerror: tests failed\n",
+    "usage limit reached, retrying in 30 s\n",
+])
+def test_a_line_that_is_no_provider_usage_limit_is_not_read_as_one(text):
+    assert supervisor.limit_line(text) is None
 
 
 def test_the_limit_line_is_the_last_one_that_names_a_limit():
@@ -238,7 +286,7 @@ def test_the_limit_line_is_the_last_one_that_names_a_limit():
 
 def test_it_sends_nothing_until_the_watched_process_ends(team, running):
     proc = running(1.5)
-    team.agent("a1", "multiplexer", proc.pid)
+    team.agent("a1", "multiplexer", proc.pid, started_at=entry.process.creation_time(proc.pid))
     seen: list[list[str]] = []
 
     def sleep(seconds):
@@ -290,6 +338,13 @@ def test_a_second_supervisor_for_one_agent_is_refused_with_exit_2_naming_the_age
     code, answer = team.supervise()
     assert code == 2 and answer["error"] and "a1" in answer["reason"] and str(os.getpid()) in answer["reason"]
     assert team.inbox() == [] and sorted(p.name for p in (team.dir / "supervisors" / "a1").iterdir()) == ["1.json"]
+
+
+def test_a_live_claim_holder_whose_start_time_cannot_be_read_still_refuses(team):
+    team.agent("a1", "multiplexer", ended())
+    claim(team, "a1", 1, os.getpid(), None)
+    code, answer = team.supervise()
+    assert code == 2 and "a1" in answer["reason"] and team.inbox() == []
 
 
 def test_a_claim_slot_another_supervisor_took_first_refuses_with_exit_2(team, monkeypatch):
@@ -353,7 +408,7 @@ def test_agent_start_starts_this_supervisor_which_sends_exited_for_its_agent(tmp
     manifest.adopt_manifest(root, RUN, "contact-session")
     manifest.record_entry(root, RUN, {"agent_id": "a1", "stage": "execute", "pattern_step": "build",
                                       "role": "builder", "model": "implementation@claude", "lifespan": "Step",
-                                      "transport_kind": "multiplexer", "pid": ended()})
+                                      "transport_kind": "multiplexer", "pid": ended(), "started_at": PAST})
     code, answer = entry.run_command("agent-start", {"run": RUN, "watched_agent_id": "a1"}, host)
     assert code == 0 and answer["label"] == "a1 supervisor"
     landed = root / RUN / "inbox" / "a1-sup-1.json"
@@ -369,6 +424,14 @@ def test_an_entry_with_a_handle_and_no_process_id_is_watched_through_agent_statu
     code, answer = team.supervise()
     assert code == 0 and answer["kind"] == "exited"
     assert [verb for verb, _ in team.calls] == ["agent-status"]
+
+
+def test_a_handle_only_agent_that_agent_status_answers_alive_is_still_watched(team):
+    team.agent("a1", "desktop", None, handle="t-7")
+    team.statuses = [{"alive": True, "state": "running", "since": ""}] * 3
+    seen = []
+    code, answer = team.supervise(sleep=lambda s: seen.append(team.inbox()))
+    assert code == 0 and answer["kind"] == "exited" and seen == [[], [], []]
 
 
 def test_an_entry_that_left_the_live_states_with_no_process_ends_the_supervisor_quietly(team):
