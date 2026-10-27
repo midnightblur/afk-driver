@@ -405,3 +405,5 @@
 2026-10-26 20:58 | execute | 0027-afk-team-launcher | pushed dbd60ac — the launcher, the new permission line and the three-part check are on pull request 112, with three reasons posted on its lines
 2026-10-26 20:58 | execute | 0027-afk-team-launcher | verifying — the code checks and unit tests pass on Windows and Linux; the live runs in real agent panes come next
 2026-10-26 21:09 | execute | 0027-afk-team-launcher | live runs recorded — Claude Code ran afk-team with no prompt in default and auto mode, setup wrote the launcher in auto mode with no refusal, and Codex ran it through afk-team.cmd (providers/CONFORMANCE.md "afk-team launcher probes")
+2026-10-26 21:47 | execute | 0027-afk-team-launcher | reviewing — round 1 found 12 points (4 medium, 8 low), all posted on pull request 112 and left open
+2026-10-26 21:47 | execute | 0027-afk-team-launcher | design_conflict — a live Codex pane showed afk-team.cmd loses the quotes of a JSON payload under PowerShell, so the launcher files the design names cannot carry a verb's fields; changing them needs the human (SDD §7 E13, ADR-0017); no fix committed
