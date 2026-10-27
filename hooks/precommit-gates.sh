@@ -55,8 +55,9 @@ if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
   fi
 fi
 
-# The code gates below belong to repositories that adopted the plugin.
-[ -d "$(git rev-parse --show-toplevel 2>/dev/null)/.afk" ] || exit 0
+# The code gates below belong to repositories that adopted the plugin: an `.afk` folder or a personal file.
+[ -d "$(git rev-parse --show-toplevel 2>/dev/null)/.afk" ] \
+  || [ -f "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/afk/config.yaml" ] || exit 0
 
 [ "${AFK_SKIP_PRECOMMIT_GATES:-0}" = "1" ] && exit 0
 

@@ -39,7 +39,8 @@ def _module(name: str, path: Path):
 
 
 ac = _module("afk_config_for_developer_values", PLUGIN_ROOT / "scripts" / "afk-config.py")
-ORDER = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary")
+ORDER = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary",
+         "worktreeRoot", "forgeAccount")
 
 
 def machine_file() -> Path:
@@ -149,6 +150,8 @@ def status(root: Path) -> dict:
         "mrAssignee": "optional" if forge != "none" else "n/a",
         "worktreeBasePath": "required",
         "ideBinary": "optional",
+        "worktreeRoot": "n/a",
+        "forgeAccount": "n/a",
     }
     suggest = {
         "trackerAssignee": lambda: (jira_email() if tracker == "jira"
@@ -157,6 +160,8 @@ def status(root: Path) -> dict:
         "mrAssignee": lambda: forge_user(forge),
         "worktreeBasePath": lambda: None,
         "ideBinary": ide_guess,
+        "worktreeRoot": lambda: None,
+        "forgeAccount": lambda: None,
     }
     keys = {}
     for key in ORDER:

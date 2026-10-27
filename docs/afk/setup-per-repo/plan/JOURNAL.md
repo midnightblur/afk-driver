@@ -70,3 +70,6 @@
 2026-10-27 18:26 | execute | 0003-repository-list | done — the repository list is built, reviewed clean, attacked with every finding fixed or refuted, and pushed; the pull request waits for the human
 2026-10-27 18:37 | autopilot | 0003-repository-list | stranded — a cleanup outside this run deleted the worktree's link to the shared repository mid-review; the human recreated it, the index was rebuilt from the branch tip and the worktree locked; the slice resumed with its work intact and finished
 2026-10-27 18:37 | autopilot | run | heartbeat 2/13 done, starting 0002-settings-reader — the repository list is finished; the human widened the settings-reader slice to the five test and key-order files it broke, so it runs again
+2026-10-27 18:42 | execute | 0002-settings-reader | designing — restarted after the human widened the slice to the five test and key-order files the rule broke; the earlier work is kept
+2026-10-27 18:45 | execute | 0002-settings-reader | developing — moving the copy-list settings in five tests to the developer's own settings file and adding the two new keys to the setup key order
+2026-10-27 19:00 | execute | 0002-settings-reader | decision(D-22) — setup now reports the two new developer settings but does not ask for them yet; later steps add the questions

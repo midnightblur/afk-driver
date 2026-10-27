@@ -62,7 +62,8 @@ def test_parse_and_render_exact_scopes_hash_and_root_substitution(tmp_path, regi
     assert block.startswith("<!-- afk:behaviors:start -->\nregistry-revision: 2\n")
     assert "## All repositories\n### Concise replies\nUse short sentences." in block
     assert "## Configured repositories\n" in block
-    assert "Apply this section only when the repository contains `.afk/config.yaml`." in block
+    assert ("Apply this section only when the repository contains `.afk/config.yaml`, "
+            "or its git common directory contains `afk/config.yaml`.") in block
     assert f"{tmp_path.as_posix()}/scripts/check.py" in block
     assert "${AFK_PLUGIN_ROOT}" not in block
     assert "old-rule" not in block

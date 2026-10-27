@@ -2,10 +2,10 @@
 # notes — the file-backed implementation the `repo-files` and `obsidian` kinds
 # share.
 #
-# Both kinds store the same Markdown tree; they differ in exactly two things,
-# so each kind's notes.sh defines those two and sources this file:
+# Both kinds store the same Markdown tree in the checkout's spec folder, whatever app
+# is chosen; each kind's notes.sh defines two things and sources this file:
 #
-#   notes_root        the absolute directory the tree is rooted at
+#   notes_kind        the kind's name
 #   notes_link_form   how a link to a note is written: `md` or `wikilink`
 #
 # Every verb takes one JSON object — on the command line or on stdin — and
@@ -115,11 +115,8 @@ notes_main() {
   local template dir root name target
   template=${AFK_CFG_REPO_FILES_SPEC_DIR:-}
   [ -n "$template" ] || notes_die 2 "no \`repo-files.spec-dir\` in .afk/config.yaml — it is the template every notes kind renders"
-  # A kind that cannot resolve its root answers with the JSON itself, so the
-  # caller sees the reason rather than an empty stdout.
-  local rc=0
-  root=$(notes_root) || rc=$?
-  if [ "$rc" != 0 ]; then printf '%s\n' "$root"; exit "$rc"; fi
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=""
+  [ -n "$root" ] || notes_die 2 "not inside a git checkout - every notes kind stores agent working files in the repository"
   dir="$root/$(notes_expand "$template" "$payload")"
 
   case "$verb" in

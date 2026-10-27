@@ -35,7 +35,8 @@ def git(cwd: Path, *args: str) -> str:
                           text=True).stdout.strip()
 
 
-def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = None) -> Path:
+def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = None,
+              personal: str = "") -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "-q", "-b", "dev")
@@ -45,6 +46,9 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     if config:
         (repo / ".afk").mkdir()
         (repo / ".afk" / "config.yaml").write_text("schema: 1\n" + config, encoding="utf-8")
+    if personal:
+        (repo / ".git" / "afk").mkdir()
+        (repo / ".git" / "afk" / "config.yaml").write_text(personal, encoding="utf-8")
     for name, body in (files or {}).items():
         target = repo / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -216,7 +220,7 @@ def test_the_copy_walk_prunes_every_provider_worktree_folder_with_an_external_pa
     })
     copy_roots = sorted({folder.split("/", 1)[0] for folder in provider_folders})
     config = "worktree:\n  copy:\n" + "".join(f"    - {root}\n" for root in copy_roots)
-    repo = make_repo(tmp_path, config, files={
+    repo = make_repo(tmp_path, personal=config, files={
         ".gitignore": "".join(f"{folder}/\n" for folder in provider_folders),
     })
     assert provider_folders
@@ -267,7 +271,7 @@ def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(
 
 def test_the_repository_copy_list_is_carried_over(tmp_path):
     """AC-016."""
-    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n",
+    repo = make_repo(tmp_path, personal="worktree:\n  copy:\n    - notes.local\n",
                      files={".gitignore": "notes.local\n"})
     (repo / "notes.local").write_text("mine", encoding="utf-8")
     wt = path_of(create(repo, "--name", "cp"))
@@ -276,7 +280,7 @@ def test_the_repository_copy_list_is_carried_over(tmp_path):
 
 def test_the_copied_files_are_recorded_with_their_content_hash(tmp_path):
     import hashlib
-    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n    - tooling\n",
+    repo = make_repo(tmp_path, personal="worktree:\n  copy:\n    - notes.local\n    - tooling\n",
                      files={".gitignore": "notes.local\ntooling/\n"})
     (repo / "notes.local").write_text("mine", encoding="utf-8")
     (repo / "tooling").mkdir()

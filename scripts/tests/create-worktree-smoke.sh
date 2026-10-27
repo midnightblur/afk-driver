@@ -8,8 +8,8 @@
 #                 worktree really exists on disk
 #   2. config   — .claude/.mcp.json path references are cloned into the worktree and the
 #                 main-repo path is rewritten to the worktree path (AC-005 / PRD AC-009)
-#   3. copy     — the copy list comes from configuration: a repository naming its own
-#                 entries gets those, and `copy-personal: false` gets none
+#   3. copy     — the copy list comes from the repository personal file: the entries it
+#                 names are copied, and `copy-personal: false` copies none
 #   4. gates    — the worktree is handed to the build gates, and --skip-build-gate and
 #                 the deprecated aliases reach them
 #   5. bad name — a non-conforming branch prints ERROR=<reason> incl. the gate pattern,
@@ -94,6 +94,10 @@ write_config() {   # write_config <extra yaml>
     echo "$BRANCH_YAML"
     [[ -n "${1:-}" ]] && echo "$1"
   } > "$REPO/.afk/config.yaml"
+}
+write_personal() {   # write_personal <yaml>: the repository personal file every worktree reads
+  mkdir -p "$REPO/.git/afk"
+  echo "$1" > "$REPO/.git/afk/config.yaml"
 }
 write_config "build-gates:
   - npm
@@ -206,7 +210,8 @@ drop_worktree "$WT7"
 # --- Test 3: the copy list comes from configuration -------------------------
 mkdir -p "$REPO/tooling"
 echo "personal" > "$REPO/tooling/notes.txt"
-write_config "worktree:
+write_config
+write_personal "worktree:
   copy:
     - tooling
   copy-ignored-claude-md: false"
@@ -218,7 +223,7 @@ WT8="$(printf '%s\n' "$OUT8" | tail -n1)"; WT8="${WT8#WORKTREE_PATH=}"
 [[ ! -e "$WT8/.mcp.json" ]] && ok "an entry not in the list is not copied" || bad ".mcp.json copied though the list omits it"
 drop_worktree "$WT8"
 
-write_config "worktree:
+write_personal "worktree:
   copy-personal: false"
 GOOD6="team/development/tester/smoke6-$$"
 OUT9="$(run_cwt --branch "$GOOD6" --dir good6 --base "$BASE_BRANCH" \

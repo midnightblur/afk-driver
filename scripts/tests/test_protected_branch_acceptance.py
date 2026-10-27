@@ -237,6 +237,12 @@ def same_path(a: str | Path, b: str | Path) -> bool:
     return norm(a) == norm(b)
 
 
+def personal_config(repo: Path, text: str) -> None:
+    """The repository personal file every worktree of `repo` reads."""
+    (repo / ".git" / "afk").mkdir(exist_ok=True)
+    (repo / ".git" / "afk" / "config.yaml").write_text(text, encoding="utf-8")
+
+
 def commit_config(repo: Path, text: str) -> None:
     (repo / ".afk").mkdir(exist_ok=True)
     (repo / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
@@ -817,7 +823,7 @@ def test_ac015_h1_creation_hook_branch_matches_pattern(repo, stubs):
 
 
 def test_ac016_new_worktree_carries_copy_list(repo, tmp_path, stubs):
-    commit_config(repo, "worktree:\n  copy:\n    - .personal\n")
+    personal_config(repo, "worktree:\n  copy:\n    - .personal\n")
     (repo / ".personal").mkdir()
     (repo / ".personal" / "notes.txt").write_text("mine\n", encoding="utf-8")
     done = create_worktree(repo, "feature-copy", "copy", tmp_path / "wts", stubs)

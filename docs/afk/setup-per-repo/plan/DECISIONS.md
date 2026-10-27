@@ -146,3 +146,10 @@
 - Chosen: B — 255 is the common folder-name limit on Windows, macOS and Linux file systems, and setup then asks for another name with one reason everywhere
 - Supersedes: none — PRD catalog R R-05 sets no length; this adds a limit
 - To reverse: drop the length check in `_check_short_name` of `scripts/repo_list.py`
+
+## D-22 — Report the two new developer keys in the setup status without asking for them
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — add `worktreeRoot` and `forgeAccount` to `ORDER` alone, which makes `status` fail with a missing-key error vs B — add them to `ORDER` and give both the need `n/a` and no suggestion in `status`, so setup reports their value and source but never asks for them
+- Chosen: B — the Acceptance bullet needs `ORDER` to cover both keys, and `status` reads one need and one suggestion per key in `ORDER`; `n/a` keeps the setup walk unchanged until 0004-placement, 0007-forge-account and 0010-setup-walk give each key its question; `set` accepts both keys as for every key in `ORDER`, and 0009-settings-writer makes it refuse a key sent to a file its owner does not read
+- Supersedes: the Scope note "skills/afk/setup/scripts/developer_values.py — key order only" of `plan/0002-settings-reader.md` — widened to the two `status` table rows the key order needs
+- To reverse: drop the `worktreeRoot` and `forgeAccount` rows from `ORDER`, `need` and `suggest` in `skills/afk/setup/scripts/developer_values.py`
