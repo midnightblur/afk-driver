@@ -26,6 +26,11 @@ complex
 - adapters/notes/*/adapter.json
 - adapters/notes/common.sh
 - CONFIG.md
+- scripts/tests/create-worktree-smoke.sh — fixtures only
+- scripts/tests/test_create_worktree_name.py — fixtures only
+- scripts/tests/test_protected_branch_acceptance.py — fixtures only
+- skills/afk/setup/scripts/developer_values.py — key order only
+- scripts/tests/test_setup_developer_values.py
 
 ## Seams
 - implement: `afk-config.py` merge in `afk_config` (`load`, `validate`, `get`, `resolve`) — owner table, ignored values, is-set-up, new keys (INV-013)
@@ -50,6 +55,7 @@ complex
 - [ ] Conforms to ADR-0001 and ADR-0007: no fallback code reads an ignored value (ADR-0001, ADR-0007)
 - [ ] Implements the public interface in SDD §8 row "settings reader (changed)" unmodified (SDD §8)
 - [ ] `CONFIG.md` documents the owner of every setting, the three new keys and the removed key (SDD §14 row "`afk-config.py` merge in `afk_config`")
+- [ ] Tests outside the reader that put personal worktree settings (`worktree.*`) in the committed file write them to the repository personal file instead, and the developer-values key order covers `worktreeRoot` and `forgeAccount`, so every test that passed before this slice still passes (human re-slice 2026-10-27, after the 0002 park)
 
 ## Produces
 - scripts/afk-config.py#OWNER_TABLE = — every setting's owner: team, personal or machine

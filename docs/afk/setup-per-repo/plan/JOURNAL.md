@@ -68,3 +68,5 @@
 2026-10-27 18:26 | execute | 0003-repository-list | pushed 9e64d3c..a10d312 (1 commits) — a marker or folder failure now names that folder, not the list file
 2026-10-27 18:26 | execute | 0003-repository-list | review clean (round 9) — three reviewers found nothing at a10d312; static, unit on Windows and Linux, and smoke are green
 2026-10-27 18:26 | execute | 0003-repository-list | done — the repository list is built, reviewed clean, attacked with every finding fixed or refuted, and pushed; the pull request waits for the human
+2026-10-27 18:37 | autopilot | 0003-repository-list | stranded — a cleanup outside this run deleted the worktree's link to the shared repository mid-review; the human recreated it, the index was rebuilt from the branch tip and the worktree locked; the slice resumed with its work intact and finished
+2026-10-27 18:37 | autopilot | run | heartbeat 2/13 done, starting 0002-settings-reader — the repository list is finished; the human widened the settings-reader slice to the five test and key-order files it broke, so it runs again
