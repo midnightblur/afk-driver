@@ -52,3 +52,4 @@
 2026-10-27 02:57 | execute | 0004-diagnose-rewrite | reviewing — round 6 (delta): 2 high, 1 medium, all fixed; decision(D-22) — a re-run is proved only by its DIAGNOSIS.md; fix takes the deepest listed worktree
 2026-10-27 03:25 | execute | 0004-diagnose-rewrite | reviewing — round 7 (delta): 2 medium, both fixed; decision(D-23) — a worktree for the work id with no diagnosis ends blocked, naming it
 2026-10-27 03:49 | execute | 0004-diagnose-rewrite | reviewing — round 8 (delta): 1 medium, fixed; decision(D-24) — the blocked reason names remove-worktree.py, which also clears the owner record and an empty branch
+2026-10-27 04:08 | execute | 0004-diagnose-rewrite | reviewing — round 9 (delta): 2 medium, 1 low, all fixed; decision(D-25) — the blocked reason says what a retry needs gone, warns it discards work, and names a removal for worktrees with and without an owner record

@@ -167,3 +167,10 @@
 - Chosen: the blocked reason names `remove-worktree.py --path <path> --force`. A plain `git worktree remove` leaves the owner record, which makes `create-worktree --name` refuse the name as taken, and the branch, which ends the next run `blocked` (branch exists). The plugin script drops the worktree, its record, and the branch when that branch holds no commit of its own.
 - Supersedes: D-23 "The person removes it or hands it over"
 - To reverse: drop the command from the blocked reason in diagnose Phase 0 step 3
+
+## D-25 — clearing a worktree with no diagnosis, with or without a record
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 9)
+- Options: name the plugin script alone vs name what must go plus a command per case
+- Chosen: the blocked reason says a retry needs the folder, the owner record and the worktree's branch gone, warns that clearing discards all work on them, and names `afk-python ${AFK_PLUGIN_ROOT}/scripts/remove-worktree.py --path <path> --force` where the record exists, else `git worktree remove --force <path>`, then `git branch -D <branch>` while the branch remains. The plugin script touches only a worktree with an owner record, and with `--force` it skips its own uncommitted-work and other-session checks.
+- Supersedes: D-24 "the blocked reason names `remove-worktree.py --path <path> --force`."
+- To reverse: restore the single script command in diagnose Phase 0 step 3
