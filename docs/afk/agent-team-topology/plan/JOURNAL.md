@@ -407,3 +407,5 @@
 2026-10-26 21:09 | execute | 0027-afk-team-launcher | live runs recorded — Claude Code ran afk-team with no prompt in default and auto mode, setup wrote the launcher in auto mode with no refusal, and Codex ran it through afk-team.cmd (providers/CONFORMANCE.md "afk-team launcher probes")
 2026-10-26 21:47 | execute | 0027-afk-team-launcher | reviewing — round 1 found 12 points (4 medium, 8 low), all posted on pull request 112 and left open
 2026-10-26 21:47 | execute | 0027-afk-team-launcher | design_conflict — a live Codex pane showed afk-team.cmd loses the quotes of a JSON payload under PowerShell, so the launcher files the design names cannot carry a verb's fields; changing them needs the human (SDD §7 E13, ADR-0017); no fix committed
+2026-10-26 21:55 | autopilot | 0027-afk-team-launcher | parked (design_conflict) — on Windows a Codex agent's JSON loses its quotes through afk-team.cmd; the fix changes launcher files the human signed, so the human decides
+2026-10-26 21:55 | autopilot | 0010-team-entry-script | parked(waiting on 0027-afk-team-launcher) — and with it every subtask that waits on 0010; no runnable subtask left, run held for the human
