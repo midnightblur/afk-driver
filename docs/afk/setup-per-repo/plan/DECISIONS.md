@@ -83,3 +83,17 @@
 - Chosen: B — SDD §4 Migration ignores a team value in the machine file; B keeps the developer's hint with no new behavior, and 0009-settings-writer reworks `init` from the personal file
 - Supersedes: none
 - To reverse: restore the old `_inherited_line` text in `scripts/afk-config.py` and the "init" paragraph in `CONFIG.md`
+
+## D-13 — Write a marker under the list's lock with the safe writer's unlocked replace
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — write the marker with `update_locked`, which puts `.afk-repository.afk.lock` in the short name's folder vs B — call `safe_write._replace_if_unchanged` (compare, temp file, one replace, no lock of its own) from inside the list's `update_locked` transform vs C — add a public unlocked write to `scripts/safe_write.py`, outside this slice's Scope
+- Chosen: B — ADR-0005 (design) and SDD §4 require the marker written under the list's lock with no lock file under the root; A breaks that, C needs a re-slice; B keeps the safe writer's change refusal and temp-file cleanup
+- Supersedes: none (SDD §8 row "safe writer": "one call" stays the only public interface)
+- To reverse: add a public unlocked write to `scripts/safe_write.py` and call it from `_claim_folder` in `scripts/repo_list.py`
+
+## D-14 — An empty short-name folder counts as absent
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — refuse any existing folder without a marker vs B — claim an empty folder; refuse a folder that holds anything and has no marker of this path
+- Chosen: B — an empty folder holds nothing setup could damage, and a run stopped between making the folder and writing the marker leaves one; catalog R R-06 guards a folder made for another repository, which holds a marker or content
+- Supersedes: PRD catalog R R-06 "the short name's folder under the root is absent" — narrowed to "absent or empty"
+- To reverse: drop the empty-folder clause in `_claim_folder` of `scripts/repo_list.py`

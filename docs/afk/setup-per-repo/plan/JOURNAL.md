@@ -35,3 +35,7 @@
 2026-10-27 11:06 | execute | 0002-settings-reader | decision(D-12) — the starter-file hint for a tracker set on this machine stays, and now says the value must be pinned in the repository
 2026-10-27 11:06 | execute | 0002-settings-reader | blocked(scope) — the new rule works and its own tests pass, but it breaks tests that belong to three later steps; the plan needs a re-slice before this can be committed
 2026-10-27 11:09 | autopilot | 0002-settings-reader | parked(blocked) — the settings-file rule works, but it breaks tests that three later slices own; moving those tests into this slice changes the plan, so the human decides; code set aside in stash afk-0002-settings-reader-wip-e572a300
+2026-10-27 11:16 | execute | 0003-repository-list | designing — started the machine-wide list of repositories and the marker file each one leaves in its worktree folder
+2026-10-27 11:25 | execute | 0003-repository-list | developing — writing the list module and its tests against real temporary git repositories
+2026-10-27 11:26 | execute | 0003-repository-list | decision(D-13) — the marker file is written while the list file is locked, using the shared writer's no-lock step, so no lock file appears in the worktree folder
+2026-10-27 11:26 | execute | 0003-repository-list | decision(D-14) — an empty worktree folder may be taken for a repository; a folder with anything in it and no matching marker is refused
