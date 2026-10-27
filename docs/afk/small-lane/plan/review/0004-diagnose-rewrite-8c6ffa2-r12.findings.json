@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The r-001 fix points step 3 at `branch_for_name`, but step 4 still says the Diagnosis branch is 'filled from `git.branch-template`', so the two steps now give different rules for the same branch.",
+  "why": "With a template whose only placeholder is `{user}`, or no template, `create-worktree --name` makes `worktree-<work id>`; an agent that fills the template by hand at step 4 records a Diagnosis branch that does not exist, and step 4's later re-run test ('names that branch as its Diagnosis branch') then misses it and stops at `blocked` (branch exists).",
+  "fix": "In step 4, say the Diagnosis branch is the branch of the cut worktree (read from `git worktree list`), or point at the same `branch_for_name` rule.",
+  "evidence": "SKILL.md:34 \"would create (rule: `branch_for_name` in `${AFK_PLUGIN_ROOT}/scripts/create-worktree`)\"; SKILL.md:35 (unchanged) \"The worktree's branch, filled from `git.branch-template`, is the Diagnosis branch.\"; scripts/create-worktree:253-257 `if [[ \"${BRANCH_TEMPLATE//\\{user\\}/}\" == *\"{\"*\"}\"* ]]; ... else printf 'worktree-%s\\n' \"$name\"`; r11 findings r-001 \"step 4's only rule ('filled from git.branch-template') is wrong for some templates\", outcome \"fixed\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "compliance",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The new rule pointer makes the agent work out the branch name by reading a shell function, and no script command prints that name.",
+  "why": "`branch_for_name` slugs the git user name with `tr` and fills every placeholder with `sed`; nothing in `scripts/create-worktree` prints the result before the folder check at :296 or the `already taken` check at :473 refuses, so the agent must repeat this mechanical work by hand on every blocked run.",
+  "fix": "Add a `create-worktree` option that prints the branch for `--name` and exits (or another script command), and have step 3 run it.",
+  "evidence": "AGENTS.md \"Deterministic-first. Mechanical work (validation, grep walks, table edits, format checks) goes in a script the skill invokes — never prose the agent re-derives per run.\"; SKILL.md:34 \"Else it is the branch step 4's `create-worktree --name <work id, lower-cased>` would create (rule: `branch_for_name` in `${AFK_PLUGIN_ROOT}/scripts/create-worktree`)\"; the only stdout line of scripts/create-worktree is :609 `echo \"WORKTREE_PATH=$DEST\"`",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "compliance",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The change narrows the human's D-36 rule (a resumable branch is no longer named) and replaces its branch rule, but `plan/DECISIONS.md` has no new entry for this.",
+  "why": "D-36 is the human's ruling on this sentence; the ledger protocol says a new fork on the same ground gets a new entry, so a reader of D-36 now finds a rule that the SKILL.md text no longer follows.",
+  "fix": "Append a D-37 that supersedes the D-36 passage it quotes, with the resume exception and the `branch_for_name` rule.",
+  "evidence": "DECISIONS.md (plan) D-36: \"With no owner record, it is the branch `create-worktree --name <work id, lower-cased>` would create (`git.branch-template` filled with the work id), and only when that branch exists.\"; SKILL.md:34 \"named only when it exists and step 4 would not resume it as a re-run\"; root DECISIONS.md:52 \"a new fork on the same ground gets a new entry, never an edit.\"",
+  "id": "r-003"
+ }
+]

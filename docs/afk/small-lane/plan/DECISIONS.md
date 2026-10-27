@@ -251,3 +251,10 @@
 - Chosen: the blocked reason names the worktree's path and the branch a retry needs gone, so the person can still delete that branch after the worktree and its owner record are gone. With an owner record, that branch is the worktree's own, read from `git worktree list`. With no owner record, it is the branch `create-worktree --name <work id, lower-cased>` would create (`git.branch-template` filled with the work id), and only when that branch exists. The review cap is lifted for up to 3 more rounds (11-13).
 - Supersedes: D-25 "then `git branch -D <branch>` while the branch remains", for which branch is named and deleted
 - To reverse: restore the D-25 sentence in diagnose Phase 0 step 3
+
+## D-37 — the branch a worktree without a diagnosis leaves, with no owner record
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 rounds 11-12)
+- Options: (a) fill `git.branch-template` with the work id by hand vs take the rule from `branch_for_name` in `scripts/create-worktree`; (b) name that branch whenever it exists vs not when step 4 would resume it as a re-run; (c) step 4 records the Diagnosis branch as the template filled by hand vs as the branch the new worktree is on
+- Chosen: (a) the script's rule: it fills `{user}` with the git user name and makes `worktree-<name>` when the template has no other placeholder, so a hand fill can name a branch that does not exist. (b) not when step 4 would resume it: a branch that holds this Work id's committed `DIAGNOSIS.md` is the diagnosis to keep, and step 4 cuts a worktree onto it. (c) the branch `git worktree list` shows for the new worktree, for the same reason as (a).
+- Supersedes: D-36 "(`git.branch-template` filled with the work id), and only when that branch exists", for how the branch is found and when it is named
+- To reverse: restore the D-36 wording in diagnose Phase 0 steps 3 and 4

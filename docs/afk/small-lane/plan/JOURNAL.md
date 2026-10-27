@@ -85,3 +85,5 @@
 2026-10-27 11:42 | execute | 0004-diagnose-rewrite | developing — f060 and f061 fixed in diagnose Phase 0 step 3
 2026-10-27 12:02 | execute | 0004-diagnose-rewrite | pushed 507d029..8c6ffa2 (1 commits) — the human's fix for the round 10 findings is on the pull request
 2026-10-27 12:02 | execute | 0004-diagnose-rewrite | review advisory crit=0 high=0 med=0 low=3 — round 11 (delta): 2 low on how the no-record branch is found and when it is kept, both fixed; 1 low on the format of 2 earlier journal lines, deferred to the feature gate
+2026-10-27 12:22 | execute | 0004-diagnose-rewrite | review advisory crit=0 high=0 med=0 low=3 — round 12 (delta): step 4 still filled the branch by hand, fixed; the round 11 choices lacked a ledger entry, recorded; reading the script's rule by hand deferred to the feature gate
+2026-10-27 12:22 | execute | 0004-diagnose-rewrite | decision(D-37) — the no-record branch follows the script's rule and is kept when step 4 would resume it; step 4 reads the Diagnosis branch from the new worktree
