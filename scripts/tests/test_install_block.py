@@ -283,8 +283,8 @@ def _run_holder_contender(tmp_path, holder_target, contender_target):
     contender's non-entry is checked while the holder is provably still
     inside the lock, not merely likely to be.
 
-    `_target_lock` itself polls for up to ~2s (`_LOCK_MAX_ATTEMPTS *
-    _LOCK_POLL_SECONDS` in install_block.py) before giving up, so the
+    `_target_lock` itself polls for up to ~2s (`LOCK_WAIT_SECONDS` in
+    scripts/safe_write.py) before giving up, so the
     contender's single `with module._target_lock(...)` call blocks-by-retry
     on its own; the parent's observation window only needs to stay well
     inside that budget.

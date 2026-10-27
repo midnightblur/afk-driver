@@ -27,3 +27,17 @@
 - Chosen: B — the failures come from this branch's own spec commit, not plugin code; masking changes evidence text only, which the coverage validator checks for presence, and all five ledgers keep their verdicts; A changes two scanners' behaviour and belongs in its own reviewed change
 - Supersedes: none
 - To reverse: revert the ledger-masking commit on the branch
+
+## D-5 — Correct the caller list D-1 cites
+- 2026-10-27 · decided by /afk:execute (0001-safe-writer)
+- Options: A — leave D-1's caller list as written vs B — record the real callers and re-check the diff on them
+- Chosen: B — `developer_values.py`, `setup_secrets.py` and `set_instruction_files.py` never load `install_block.py`; its real callers are `hooks/tests/hook-smoke.sh`, `skills/afk/setup/SKILL.md`, `skills/afk/setup/MANIFEST.md` (CLI runs) and `scripts/behavior_registry.py` (`REQUIRED_INSTALL_TESTS`); `git diff 2e93489 288b4b3` on them touches no installer call line or required test name, so D-1's choice holds
+- Supersedes: D-1 "Chosen" caller list `developer_values.py`, `setup_secrets.py`, `set_instruction_files.py`, `hook-smoke.sh`
+- To reverse: none needed; D-1's option B stands on the corrected list
+
+## D-6 — Fix a stale test docstring under the "installer tests unchanged" bullet
+- 2026-10-27 · decided by /afk:execute (0001-safe-writer)
+- Options: A — keep `scripts/tests/test_install_block.py` byte-identical vs B — update one docstring that names the removed `_LOCK_MAX_ATTEMPTS` constant, no assertion touched
+- Chosen: B — the Acceptance bullet guards the installer contract the assertions pin; a docstring that names a constant the slice removed is a stale artifact (`FRESHNESS.md` "no artifact goes stale")
+- Supersedes: none
+- To reverse: revert the docstring lines in `_run_holder_contender`

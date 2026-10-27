@@ -10,3 +10,6 @@
 2026-10-27 03:38 | execute | 0001-safe-writer | test_fail — the full test suite stays red because earlier investigation records quote test secrets and review ids; the same 16 failures exist before this slice, and the fix lies outside its files (INV-023)
 2026-10-27 03:53 | autopilot | 0001-safe-writer | parked(test_fail) — the slice is built, but the full test suite was already red from quoted test secrets in the saved investigation records
 2026-10-27 03:53 | autopilot | run | decision(D-4) — masked the quoted test values in five investigation records so the suite can pass; the slice runs again once the suite is green
+2026-10-27 06:28 | execute | 0001-safe-writer | developing — resumed the slice after the suite fix; correcting two small notes left by the first run
+2026-10-27 06:30 | execute | 0001-safe-writer | decision(D-5) — corrected the list of programs that use the installer; the earlier choice still holds on the right list
+2026-10-27 06:30 | execute | 0001-safe-writer | decision(D-6) — updated one test comment that named a setting the slice removed; no test check changed
