@@ -41,6 +41,7 @@ LIST_NAME = "repositories.json"
 MARKER_NAME = ".afk-repository"
 GIT_TIMEOUT_SECONDS = 20
 _SHORT_NAME = re.compile(r"[A-Za-z0-9._-]+\Z")
+_SHORT_NAME_MAX = 255
 _WINDOWS_DEVICE = re.compile(r"(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(\..*)?\Z", re.IGNORECASE)
 _GIT_REDIRECTS = (
     "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
@@ -262,11 +263,14 @@ def _root(root: str | os.PathLike) -> pathlib.Path:
     raw = os.path.expanduser(os.fspath(root))
     if not os.path.isabs(raw):
         raise RepositoryListError("the worktree root is not an absolute path", raw)
-    return pathlib.Path(normalize(raw))
+    base = pathlib.Path(normalize(raw))
+    if base.exists() and not base.is_dir():
+        raise RepositoryListError("the worktree root is not a folder", base)
+    return base
 
 
 def _check_short_name(name: str) -> None:
-    if not _SHORT_NAME.match(name) or name in {".", ".."}:
+    if not _SHORT_NAME.match(name) or name in {".", ".."} or len(name) > _SHORT_NAME_MAX:
         raise RepositoryListError(
             "is not a valid short name: use one folder name of letters, digits, dot, dash, "
             "underscore; pick another", name)

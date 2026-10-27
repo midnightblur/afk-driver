@@ -140,14 +140,35 @@ def test_an_empty_path_is_refused_not_read_as_the_current_folder(home, root, tmp
         rl.repoint_repository("proj", empty, root)
 
 
-def test_a_folder_that_cannot_be_made_is_refused_and_lists_nothing(home, root, tmp_path):
+def test_a_short_name_over_255_characters_is_refused_and_255_is_kept(home, root, tmp_path):
     repo = make_repo(tmp_path / "src")
-    with pytest.raises(rl.RepositoryListError, match="cannot be made"):
-        rl.add_repository(repo, root, short_name="b" * 300)
+    with pytest.raises(rl.RepositoryListError, match="not a valid short name"):
+        rl.add_repository(repo, root, short_name="b" * 256)
+    assert rl.all_entries() == [] and list(root.iterdir()) == []
+    assert rl.add_repository(repo, root, short_name="b" * 255).short_name == "b" * 255
+
+
+def test_a_root_that_is_a_file_is_refused_and_lists_nothing(home, root, tmp_path):
+    repo = make_repo(tmp_path / "src")
     plain_file = tmp_path / "a-file"
     plain_file.write_text("", encoding="utf-8")
-    with pytest.raises(rl.RepositoryListError, match="cannot be made"):
+    with pytest.raises(rl.RepositoryListError, match="root is not a folder"):
         rl.add_repository(repo, plain_file)
+    assert rl.all_entries() == []
+
+
+def test_a_folder_that_cannot_be_made_is_refused_and_lists_nothing(home, root, tmp_path, monkeypatch):
+    repo = make_repo(tmp_path / "src")
+    real_mkdir = rl.pathlib.Path.mkdir
+
+    def refused(self, *args, **kwargs):
+        if self.parent == root:
+            raise OSError(36, "File name too long", str(self))
+        return real_mkdir(self, *args, **kwargs)
+
+    monkeypatch.setattr(rl.pathlib.Path, "mkdir", refused)
+    with pytest.raises(rl.RepositoryListError, match="cannot be made"):
+        rl.add_repository(repo, root)
     assert rl.all_entries() == [] and list(root.iterdir()) == []
 
 

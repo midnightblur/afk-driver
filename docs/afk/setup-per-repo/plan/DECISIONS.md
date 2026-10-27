@@ -139,3 +139,10 @@
 - Chosen: B — `main_checkout` is in neither the slice's Produces nor 0004's Consumes, and the two narrowings belong on the record
 - Supersedes: D-16 "until the caller passes `main_checkout(path)`" — dropped; the Acceptance bullet of `plan/0003-repository-list.md` "a path to a worktree or a subfolder adds that worktree's main checkout" — narrowed: a linked worktree of a clone with a separate git folder and no `core.worktree` is refused; `GLOSSARY.md` "Main checkout" as the first entry of `git worktree list` — for a submodule or a separate git folder it is that folder's working folder
 - To reverse: restore the `main_checkout(path)` sentence in the module docstring of `scripts/repo_list.py`
+
+## D-21 — A short name longer than 255 characters is refused
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — let the file system refuse the folder, which reads as an unreadable marker on Linux and a raw path error on Windows vs B — refuse a short name longer than 255 characters as not valid, on every system
+- Chosen: B — 255 is the common folder-name limit on Windows, macOS and Linux file systems, and setup then asks for another name with one reason everywhere
+- Supersedes: none — PRD catalog R R-05 sets no length; this adds a limit
+- To reverse: drop the length check in `_check_short_name` of `scripts/repo_list.py`
