@@ -76,7 +76,8 @@ Transition event:
 
 ## Miss-class mapping
 
-`/afk:fix`'s escape analysis names a **miss class** (set owned by
+The escape-analysis step of the shared fix procedure
+(`skills/afk/fix/IN-PLACE-FIX.md` step 6) names a **miss class** (set owned by
 `skills/afk/fix/ESCAPE-ANALYSIS.md` — lockstep with this table). It rides the
 `miss` field verbatim; the lesson `class` derives from it:
 

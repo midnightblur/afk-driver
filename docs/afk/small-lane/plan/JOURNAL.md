@@ -95,3 +95,8 @@
 2026-10-27 16:16 | execute | 0004-diagnose-rewrite | pushed a6d78da..5781d42 (1 commits) — the human's D-39 edits to the format, design and contract text fix the 4 round 14 findings
 2026-10-27 16:16 | execute | 0004-diagnose-rewrite | review advisory crit=0 high=0 med=2 low=3 — round 15 (delta, the last the human allowed): the SDD edit has no Scope entry; the format row says "made from the Base tip", which is wrong for a handed worktree; 3 low on D-39's quote retarget, its undo line and the two homes of the Scope list; all 5 open
 2026-10-27 16:16 | execute | 0004-diagnose-rewrite | parked(review_fail) — round 15 left 5 findings open on D-39 (2 medium, 3 low; scope and correctness); the human allowed no more rounds, so a human must decide; adversary gate not run
+2026-10-27 16:19 | autopilot | 0004-diagnose-rewrite | parked — review_fail: round 15 left 5 open on D-39 (each round now reviews the previous round's decision entry); waits on the human
+2026-10-27 16:19 | autopilot | — | rebased onto origin/main f9208fc (1.16.1) and force-pushed with lease (human approved); starting 0006-fix-procedure
+2026-10-27 16:26 | execute | 0006-fix-procedure | designing — reading the contract, the design record and the fix skill before writing the shared fix procedure
+2026-10-27 16:58 | execute | 0006-fix-procedure | decision(D-40) — the ground for the fix seams held by re-reading the lines it cites; a finding the fix cannot show returns blocked; a stale document is named, not a new result; only three results undo the edits
+2026-10-27 16:58 | execute | 0006-fix-procedure | developing — the shared fix procedure is written; the fix skill, escape analysis, workflow feedback, the lesson format and AGENTS.md now point at it

@@ -1,10 +1,12 @@
-# Phase 3.5 — Workflow feedback (AFK-delivered features only)
+# Workflow feedback (AFK-delivered features only)
 
-Phase 3 fixed *this feature's* artifacts. This step asks the next question:
-**which AFK stage let the bug through, and what should change so the next feature
-doesn't repeat it.** Run **only** when the feature was built with AFK assistance
-(Phase 0 feature-building signals: AFK branch + `plan/PLAN.md`). Ad-hoc/maintenance
-bugs have no AFK workflow to improve → skip.
+Procedure step 7 (a step of the shared fix procedure,
+[IN-PLACE-FIX.md](IN-PLACE-FIX.md)) fixed *this feature's* artifacts. This step
+asks the next question: **which AFK stage let the bug through, and what should
+change so the next feature doesn't repeat it.** Run **only** for an unreleased
+feature built with AFK assistance (signals: [IN-PLACE-FIX.md](IN-PLACE-FIX.md)
+"Unreleased feature"). Ad-hoc/maintenance bugs have no AFK workflow to improve
+→ skip.
 
 The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
@@ -13,10 +15,11 @@ reviewed change applied via `/afk:lessons apply` from the lesson ledger
 itself routes per `skills/afk/lessons/CAPTURE.md` "A plugin defect is an
 issue".
 
-1. **Trace the miss to a stage.** Map the Phase 2.5 miss class (or the Phase 3
-   stale artifact) to the AFK stage that under-specified the guard:
+1. **Trace the miss to a stage.** Map the miss class from procedure step 6 (or
+   the stale artifact from procedure step 7) to the AFK stage that
+   under-specified the guard:
 
-   | Phase 2.5 miss class / Phase 3 gap | Stage that under-specified it | Skill(s) to revisit |
+   | Miss class / stale artifact | Stage that under-specified it | Skill(s) to revisit |
    |------------------------------------|-------------------------------|---------------------|
    | `no-scenario` — gate had no journey/contract for this path | verification design | `/afk:grill-verification` → `/afk:to-verification-plan` |
    | `weak-assertion` — subtask Acceptance/Verification too loose | slicing | `/afk:to-subtasks` |
@@ -28,9 +31,10 @@ issue".
 
 2. **Write the structured lesson** (the ledger payload — facts only, reference
    don't duplicate):
-   - **Bug** — one line + ticket key; point at the diagnosis's `DIAGNOSIS.md`
-     by path, don't restage it.
-   - **Miss class** — from Phase 2.5.
+   - **Bug** — one line + the slice id or finding id (a ticket key when the fix
+     has neither); point at the diagnosis's `DIAGNOSIS.md` by path when there
+     is one, else at the procedure's record — don't restage either.
+   - **Miss class** — from procedure step 6.
    - **Implicated stage + skill** — from the table.
    - **Proposed change** — the concrete edit to that skill (new grill question,
      tighter slice-time check, a seam the SDD must pin, a narrower exclusion rule)
@@ -43,13 +47,13 @@ issue".
 
    ```
    bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh opened \
-     --class <mapped> --miss <phase-2.5 class> --target <implicated skill file> \
+     --class <mapped> --miss <procedure step 6 class> --target <implicated skill file> \
      --summary "<the Bug line>" --draft "<the Proposed change>" \
-     --source <ticket key> --evidence <path:line> --writer fix
+     --source <slice or finding id, else ticket key> --evidence <path:line> --writer fix
    ```
 
    `--class` maps from the miss class per the mapping table in
    `skills/afk/lessons/LEDGER-FORMAT.md`; the `draft` must stand alone. The
    draft is applied later — reviewed against `/afk:writing-for-agents` — via
-   `/afk:lessons apply`, never in this session. Report the minted lesson id in
-   Phase 4.
+   `/afk:lessons apply`, never in this session. Put the minted lesson id into
+   the procedure's record.
