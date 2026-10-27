@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import stat
 import subprocess
 import sys
 import time
@@ -248,36 +249,57 @@ def test_a_change_during_the_temp_file_write_is_refused(tmp_path, monkeypatch):
 
 
 def track_descriptors(monkeypatch):
-    opened, closed = [], []
+    events = []
     real_open, real_close = os.open, os.close
 
-    def open_(*args, **kwargs):
-        descriptor = real_open(*args, **kwargs)
-        opened.append(descriptor)
+    def open_(path, *args, **kwargs):
+        descriptor = real_open(path, *args, **kwargs)
+        events.append(("open", str(path), descriptor))
         return descriptor
 
     def close(descriptor):
-        closed.append(descriptor)
+        events.append(("close", "", descriptor))
         real_close(descriptor)
 
     monkeypatch.setattr(sw.os, "open", open_)
     monkeypatch.setattr(sw.os, "close", close)
-    return opened, closed
+    return events
+
+
+def temp_descriptor_closes(events) -> int:
+    """Count os.close calls on the temp file's descriptor before its number is reused."""
+    start = next(i for i, (kind, path, _) in enumerate(events) if kind == "open" and path.endswith(".tmp"))
+    descriptor, closes = events[start][2], 0
+    for kind, _path, number in events[start + 1:]:
+        if number != descriptor:
+            continue
+        if kind == "open":
+            break
+        closes += 1
+    return closes
 
 
 def test_the_temp_file_descriptor_is_closed_exactly_once(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
-    opened, closed = track_descriptors(monkeypatch)
+    events = track_descriptors(monkeypatch)
+    handles = []
+    real_fdopen = os.fdopen
+
+    def fdopen(*args, **kwargs):
+        handles.append(real_fdopen(*args, **kwargs))
+        return handles[-1]
+
+    monkeypatch.setattr(sw.os, "fdopen", fdopen)
     assert sw.update_locked(target, lambda text: "after") is True
-    temp_descriptor = opened[0]
-    assert closed.count(temp_descriptor) == opened.count(temp_descriptor) - 1
+    assert len(handles) == 1 and handles[0].closed
+    assert temp_descriptor_closes(events) == 0
 
 
 def test_the_temp_file_descriptor_is_closed_when_the_handle_never_opens(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
-    opened, closed = track_descriptors(monkeypatch)
+    events = track_descriptors(monkeypatch)
 
     def fdopen(*_args, **_kwargs):
         raise OSError("no handle")
@@ -285,24 +307,83 @@ def test_the_temp_file_descriptor_is_closed_when_the_handle_never_opens(tmp_path
     monkeypatch.setattr(sw.os, "fdopen", fdopen)
     with pytest.raises(OSError, match="no handle"):
         sw.update_locked(target, lambda text: "after")
-    assert closed == opened
+    assert temp_descriptor_closes(events) == 1
     assert target.read_bytes() == b"before"
     assert temps(tmp_path) == []
 
 
-def test_a_new_file_takes_the_default_mode_without_touching_the_umask(tmp_path, monkeypatch):
-    current_umask = os.umask(0o022)
-    os.umask(current_umask)
-
+def forbid_umask(monkeypatch):
     def umask(_mask):
         raise AssertionError("the process umask must not change")
 
     monkeypatch.setattr(sw.os, "umask", umask)
+
+
+def test_a_new_file_is_created_without_touching_the_umask(tmp_path, monkeypatch):
+    forbid_umask(monkeypatch)
     target = tmp_path / "created.txt"
     assert sw.update_locked(target, lambda text: "new") is True
     assert target.read_bytes() == b"new"
-    if os.name != "nt":
-        assert target.stat().st_mode & 0o777 == 0o666 & ~current_umask
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the umask shapes file modes only on Linux and macOS")
+def test_a_new_file_takes_the_default_mode_under_the_process_umask(tmp_path, monkeypatch):
+    previous = os.umask(0o027)
+    try:
+        forbid_umask(monkeypatch)
+        target = tmp_path / "created.txt"
+        assert sw.update_locked(target, lambda text: "new") is True
+    finally:
+        monkeypatch.undo()
+        os.umask(previous)
+    assert target.stat().st_mode & 0o777 == 0o640
+
+
+def collide(monkeypatch, names):
+    tokens = iter(names)
+    monkeypatch.setattr(sw.secrets, "token_hex", lambda _size: next(tokens))
+
+
+def test_a_taken_temp_file_name_is_skipped_and_left_alone(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    taken = tmp_path / ".file.txt.aaaaaaaaaaaa.tmp"
+    taken.write_bytes(b"someone else's")
+    collide(monkeypatch, ["aaaaaaaaaaaa", "bbbbbbbbbbbb"])
+    assert sw.update_locked(target, lambda text: "after") is True
+    assert target.read_bytes() == b"after"
+    assert taken.read_bytes() == b"someone else's"
+    assert temps(tmp_path) == [taken]
+
+
+def test_no_free_temp_file_name_refuses_naming_the_file(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    taken = tmp_path / ".file.txt.aaaaaaaaaaaa.tmp"
+    taken.write_bytes(b"someone else's")
+    collide(monkeypatch, ["aaaaaaaaaaaa"] * sw._TEMP_NAME_ATTEMPTS)
+    with pytest.raises(sw.SafeWriteError, match="no free temp file name") as caught:
+        sw.update_locked(target, lambda text: "after")
+    assert caught.value.path == target
+    assert target.read_bytes() == b"before"
+    assert temps(tmp_path) == [taken]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a read-only file blocks its own replacement only on Windows")
+def test_a_refused_swap_onto_a_read_only_file_deletes_the_temp_file(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    target.chmod(stat.S_IREAD)
+    monkeypatch.setattr(sw.time, "sleep", lambda _seconds: None)
+    try:
+        with pytest.raises(sw.SafeWriteError, match="file swap stayed busy"):
+            sw.update_locked(target, lambda text: "after")
+        assert target.read_bytes() == b"before"
+        assert temps(tmp_path) == []
+    finally:
+        target.chmod(stat.S_IREAD | stat.S_IWRITE)
+        for leftover in temps(tmp_path):
+            leftover.chmod(stat.S_IREAD | stat.S_IWRITE)
 
 
 def test_the_installer_reports_a_safe_writer_refusal_as_its_own_error(tmp_path):

@@ -7,9 +7,10 @@ The call takes the file's lock (`.<name>.afk.lock` beside the real file), reads
 the file, calls `transform(current_text)`, and writes back the text it returns
 through a temp file and one replace. A missing file reads as "". It refuses
 with `SafeWriteError` naming the file when the lock stays held past
-`LOCK_WAIT_SECONDS`, when the file changed between the read and the write, or
-when a busy replace on Windows outlasts `SWAP_RETRIES` retries. A refusal or
-failure deletes the temp file and leaves the file unchanged. The written file
+`LOCK_WAIT_SECONDS`, when the file changed between the read and the write,
+when a busy replace on Windows outlasts `SWAP_RETRIES` retries, or when no
+free temp file name turns up. A refusal or failure deletes the temp file, also
+a read-only one, and leaves the file unchanged. The written file
 keeps its previous mode; `owner_only=True` sets read and write for its owner
 alone, also on an unchanged file. Returns False and writes nothing when the
 text did not change.
@@ -156,7 +157,9 @@ def _mode(target: pathlib.Path, owner_only: bool) -> int | None:
     return None
 
 
-def _open_temporary(write_target: pathlib.Path, mode: int | None) -> tuple[int, pathlib.Path]:
+def _open_temporary(
+    write_target: pathlib.Path, target: pathlib.Path, mode: int | None
+) -> tuple[int, pathlib.Path]:
     create_mode = DEFAULT_CREATE_MODE if mode is None else OWNER_ONLY_MODE
     for _ in range(_TEMP_NAME_ATTEMPTS):
         temporary = write_target.with_name(f".{write_target.name}.{secrets.token_hex(6)}.tmp")
@@ -164,7 +167,15 @@ def _open_temporary(write_target: pathlib.Path, mode: int | None) -> tuple[int, 
             return os.open(temporary, _TEMP_FLAGS, create_mode), temporary
         except FileExistsError:
             continue
-    raise SafeWriteError("no free temp file name", write_target)
+    raise SafeWriteError("no free temp file name", target)
+
+
+def _discard(temporary: pathlib.Path) -> None:
+    try:
+        temporary.unlink(missing_ok=True)
+    except PermissionError:
+        os.chmod(temporary, stat.S_IREAD | stat.S_IWRITE)
+        temporary.unlink(missing_ok=True)
 
 
 def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.Path, expected: bytes) -> None:
@@ -185,7 +196,7 @@ def _replace_if_unchanged(target: pathlib.Path, expected: bytes, updated: bytes,
     _require_unchanged(target, expected)
     write_target = _real(target)
     mode = _mode(target, owner_only)
-    descriptor, temporary = _open_temporary(write_target, mode)
+    descriptor, temporary = _open_temporary(write_target, target, mode)
     try:
         if mode is not None:
             os.chmod(temporary, mode)
@@ -205,4 +216,4 @@ def _replace_if_unchanged(target: pathlib.Path, expected: bytes, updated: bytes,
     finally:
         if descriptor != -1:
             os.close(descriptor)
-        temporary.unlink(missing_ok=True)
+        _discard(temporary)

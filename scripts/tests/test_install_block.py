@@ -428,7 +428,7 @@ def test_legacy_form_without_a_matching_block_exits_1_and_leaves_the_file(tmp_pa
     assert capsys.readouterr().out == ""
 
 
-def test_legacy_form_with_a_missing_target_exits_2_and_creates_nothing(tmp_path, capsys):
+def test_legacy_form_with_a_missing_target_exits_2_and_creates_no_target(tmp_path, capsys):
     install_block = load_module()
     source = tmp_path / "source.md"
     target = tmp_path / "target.md"
@@ -436,4 +436,6 @@ def test_legacy_form_with_a_missing_target_exits_2_and_creates_nothing(tmp_path,
 
     assert install_block.main([str(source), str(target)]) == 2
     assert not target.exists()
-    assert capsys.readouterr().err.startswith("install_block: ")
+    err = capsys.readouterr().err
+    assert err.startswith("install_block: ")
+    assert repr(str(target)) in err  # the OS error quotes the path
