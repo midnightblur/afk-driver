@@ -112,6 +112,8 @@ def test_layout_keeps_everything_under_one_private_home(tmp_path, windows):
         assert xdg["env"] == tmp_path / "d" / "afk" / "python"
     # The entry finds pyvenv.cfg one level up, which makes sys.prefix the environment.
     assert paths["bin"].parent == paths["env"] and paths["launcher"].parent == paths["bin"]
+    # The afk-team launcher has its own keys; `launcher` keeps meaning afk-python.
+    assert (paths["team"], paths["team_cmd"]) == (paths["bin"] / "afk-team", paths["bin"] / "afk-team.cmd")
 
 
 def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path, monkeypatch):
@@ -441,6 +443,7 @@ def stamped(tmp_path: Path, **override) -> tuple[dict, dict]:
     paths["env"].mkdir(parents=True)
     paths["launcher"].parent.mkdir(parents=True)
     paths["launcher"].write_text("", encoding="utf-8")
+    pr.place_team_launcher(paths, False)
     values = {"python": PINS["python"], "uv": PINS["uv"], "lock": PINS["lock"], "extras": ""}
     values.update(override)
     paths["stamp"].write_text("".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8")
@@ -687,3 +690,128 @@ def test_a_shadow_in_the_toolchain_the_hook_launcher_prepends_fails_install(tmp_
            "not the installed entry" in out.getvalue()
     assert "ok git-bash" in out.getvalue()
     assert not paths["stamp"].exists()
+
+
+# ---- the afk-team launcher -------------------------------------------------
+
+def logged(monkeypatch, machine: Machine) -> tuple[list[str], object]:
+    """One ordered log of runner calls and launcher writes, and a runner that feeds it."""
+    log: list[str] = []
+    for name in ("place_entry", "place_team_launcher"):
+        real = getattr(pr, name)
+        monkeypatch.setattr(pr, name, lambda *a, _real=real, _name=name, **k: (log.append(_name), _real(*a, **k))[1])
+
+    def runner(argv, env):
+        log.append(argv if isinstance(argv, str) else " ".join(map(str, argv)))
+        return machine(argv, env)
+
+    return log, runner
+
+
+@pytest.mark.parametrize("windows", [True, False])
+def test_install_writes_the_team_launcher_after_the_sync_and_afk_python(tmp_path, monkeypatch, windows):
+    if not windows and os.name == "nt":
+        pytest.skip("the POSIX layout symlinks the launcher, which needs privileges here")
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, windows)
+    log, runner = logged(monkeypatch, Machine(paths))
+    out = io.StringIO()
+    assert pr.install(env, windows, False, runner, out) == 0, out.getvalue()
+    sync = next(i for i, line in enumerate(log) if " sync " in line and "--check" not in line)
+    assert sync < log.index("place_entry") < log.index("place_team_launcher")
+    assert "ok afk-team\n" in out.getvalue()
+    want = pr.team_launchers(paths, windows)
+    assert sorted(p.name for p in want) == (["afk-team", "afk-team.cmd"] if windows else ["afk-team"])
+    for target, data in want.items():
+        assert target.read_bytes() == data and pr.team_launcher_root(target) == PLUGIN_ROOT
+        assert data.count(b"afk-team.py") == 1 and b"afk-python" in data
+    assert want[paths["team"]].startswith(b"#!/bin/sh\nexec ") and want[paths["team"]].endswith(b' "$@"\n')
+    if windows:
+        script = PLUGIN_ROOT / "scripts" / "afk-team.py"
+        assert want[paths["team_cmd"]] == f'@"{paths["launcher"]}" "{script}" %*\r\n'.encode("utf-8")
+    else:
+        assert os.access(paths["team"], os.X_OK)
+    assert sorted(e.name for e in paths["bin"].iterdir()) == sorted([paths["launcher"].name, *(p.name for p in want)])
+
+
+def test_the_launcher_is_staged_then_moved_and_a_repeat_install_leaves_it_untouched(tmp_path, monkeypatch):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    moves, real_replace = [], os.replace
+
+    def spy(src, dst):
+        moves.append((Path(src), Path(dst)))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(pr.os, "replace", spy)
+    assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
+    for target in (paths["team"], paths["team_cmd"]):
+        assert (target.with_name(target.name + ".new"), target) in moves
+        assert not target.with_name(target.name + ".new").exists()
+    before = {t: t.stat().st_mtime_ns for t in (paths["team"], paths["team_cmd"])}
+    moves.clear()
+    out = io.StringIO()
+    assert pr.install(env, True, False, Machine(paths), out) == 0, out.getvalue()
+    assert "ok afk-team unchanged" in out.getvalue()
+    assert not [m for m in moves if m[1].name.startswith("afk-team")]
+    assert {t: t.stat().st_mtime_ns for t in before} == before
+
+
+def test_a_launcher_with_other_bytes_is_rewritten(tmp_path):
+    paths = pr.layout(machine_env(tmp_path), True)
+    paths["bin"].mkdir(parents=True)
+    paths["team"].write_bytes(b"#!/bin/sh\necho old\n")
+    assert pr.place_team_launcher(paths, True) == [paths["team"], paths["team_cmd"]]
+    assert paths["team"].read_bytes() == pr.team_launchers(paths, True)[paths["team"]]
+    assert pr.place_team_launcher(paths, True) == []
+
+
+def test_check_reports_a_missing_launcher(tmp_path):
+    env, paths = stamped(tmp_path)
+    paths["team"].unlink()
+    out = io.StringIO()
+    assert pr.check(env, False, False, Machine(paths), out) == 1
+    assert f"fail afk-team: launcher missing: {paths['team']}" in out.getvalue()
+    assert "ok launcher" in out.getvalue()
+
+
+def test_check_reports_a_launcher_naming_another_plugin_folder(tmp_path):
+    env, paths = stamped(tmp_path)
+    old = tmp_path / "plugins" / "afk" / "0.9.0"
+    paths["team"].write_bytes(pr.team_launchers(paths, False, old)[paths["team"]])
+    out = io.StringIO()
+    assert pr.check(env, False, False, Machine(paths), out) == 1
+    assert f"fail afk-team: {paths['team']} names the plugin folder {old}, want {PLUGIN_ROOT}" in out.getvalue()
+
+
+def test_check_reports_an_afk_team_cmd_missing_on_windows(tmp_path):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
+    paths["team_cmd"].unlink()
+    out = io.StringIO()
+    assert pr.check(env, True, False, Machine(paths), out) == 1
+    assert f"fail afk-team.cmd: launcher missing: {paths['team_cmd']}" in out.getvalue()
+    assert "ok afk-team\n" in out.getvalue()
+
+
+def test_a_pin_rebuild_that_wipes_afk_bin_then_fails_the_sync_leaves_both_commands_missing(tmp_path):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    assert pr.install(env, True, False, Machine(paths), io.StringIO()) == 0
+    assert paths["launcher"].exists() and paths["team"].exists()
+    machine = Machine(paths, fail=" sync ")
+
+    def rebuild_then_fail(argv, env):
+        # uv clears an environment it cannot reuse, afk-bin included, before the sync fails.
+        if " sync " in " ".join(map(str, argv)) and "--check" not in argv:
+            shutil.rmtree(paths["env"])
+        return machine(argv, env)
+
+    out = io.StringIO()
+    assert pr.install(env, True, False, rebuild_then_fail, out) == 1
+    assert "fail environment" in out.getvalue() and "afk-team" not in out.getvalue()
+    assert not paths["launcher"].exists() and not paths["team"].exists() and not paths["stamp"].exists()
+    out = io.StringIO()
+    assert pr.check(env, True, False, Machine(paths), out) == 1
+    assert "fail launcher" in out.getvalue() and f"fail afk-team: launcher missing: {paths['team']}" in out.getvalue()

@@ -1,7 +1,8 @@
 """The spawn permission check: confirm, through the provider layer, that the one allow rule covering the team entry
 script for every transport verb is in an allow list, and that no block-list entry matches a verb command, in the
-settings files the adapter names; or refuse naming /afk:setup and the rule when the adapter printed one.
-Organization-managed settings are not read.
+settings files the adapter names; then that `afk-team` on PATH is the launcher /afk:setup wrote into afk-bin and that
+it names the running plugin folder. Otherwise refuse naming /afk:setup and the rule when the adapter printed one.
+Organization-managed settings are not read. A harness whose adapter prints no rule passes all three.
 
 The provider adapter owns the rule text, the settings files the harness reads and the lists in them
 (PROVIDERS.md "Spawn allow rule"); this module reads them in a bash child and holds no harness fact itself.
@@ -13,6 +14,7 @@ The rule matches every command of the form `INVOCATION <verb> ...`, so it covers
 from __future__ import annotations
 
 import argparse
+import functools
 import importlib.util
 import json
 import os
@@ -25,9 +27,10 @@ PLUGIN = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PLUGIN / "adapters" / "transport"))
 import contract  # noqa: E402
 
-INVOCATION = 'afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py"'
-ENTRY_NAME = "afk-team.py"
+INVOCATION = "afk-team"
+ENTRY_NAME = "afk-team"
 SETUP = "/afk:setup"
+RUNTIME = PLUGIN / "skills" / "afk" / "setup" / "scripts" / "python_runtime.py"
 
 _ADAPTER = r'''
 . "$1/hooks/lib/provider.sh" || exit 2
@@ -112,14 +115,69 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
                        f"the harness reads it before {allow_key}, so the spawn rule `{rule}` does not apply; "
                        f"remove it there, then run {SETUP}; nothing was started", read)
     if allowed:
+        launcher = check_afk_team_launcher(env, run=run)
+        if launcher:
+            return _refuse(provider, rule, "launcher", f"{launcher}; run {SETUP}; nothing was started", read)
         return {"ok": True, "provider": provider, "rule": rule, "problem": None, "files": read,
-                "says": f"the spawn rule is in {allowed[0]} {allow_key}"}
+                "says": f"the spawn rule is in {allowed[0]} {allow_key}, and {INVOCATION} on PATH is the afk-bin "
+                        "launcher of the running plugin"}
     if stale:
         holder, entry = stale[0]
         return _refuse(provider, rule, "stale", f"{holder} {allow_key} holds `{entry}`, which is not the current "
                        f"spawn rule; replace it with `{rule}`, then run {SETUP}; nothing was started", read)
     return _refuse(provider, rule, "missing", f"the spawn rule `{rule}` is in no allow list of the settings files "
                    f"read; add it to {allow_key} in {target}, then run {SETUP}; nothing was started", read)
+
+
+def check_afk_team_launcher(env: Mapping[str, str] | None = None, *, run: Callable = subprocess.run) -> str | None:
+    """None when `afk-team` on PATH is the afk-bin launcher naming the running plugin folder, else what is wrong.
+
+    The running folder is AFK_PLUGIN_ROOT, else this plugin's own (plan D-137)."""
+    child = dict(os.environ if env is None else env)
+    runtime = _runtime()
+    try:
+        want = Path(runtime.layout(child, os.name == "nt")["team"])
+    except KeyError as unset:
+        return f"afk-bin cannot be located: {unset} is not set"
+    bash = _bash()
+    if bash is None:
+        return f"no POSIX shell found to resolve {INVOCATION}"
+    try:
+        done = run([str(bash), "-c", _RESOLVE, "permission"], capture_output=True, timeout=30, env=child, check=False)
+    except (OSError, subprocess.TimeoutExpired) as problem:
+        return f"the shell did not resolve {INVOCATION}: {problem}"
+    found = _text(done.stdout) if done.returncode == 0 else ""
+    if not found:
+        if want.is_file():
+            return f"{INVOCATION} is not on PATH; {want.parent} must be on it"
+        return f"the {INVOCATION} launcher {want} is missing"
+    if not _same(found, want):
+        return f"{INVOCATION} on PATH is {found}, not the launcher {want}"
+    named = runtime.team_launcher_root(want)
+    running = Path(child.get("AFK_PLUGIN_ROOT") or PLUGIN)
+    if named is None:
+        return f"the launcher {want} names no plugin folder"
+    if not _same(str(named), running, real=True):
+        return f"the launcher {want} names the plugin folder {named}, not the running one {running}"
+    return None
+
+
+# The file the shell runs for a bare `afk-team`, in the form Python reads.
+_RESOLVE = r'''c=$(command -v afk-team) || exit 1
+if command -v cygpath >/dev/null 2>&1; then cygpath -m -- "$c"; else printf '%s\n' "$c"; fi'''
+
+
+def _same(a: str, b: Path, real: bool = False) -> bool:
+    form = os.path.realpath if real else os.path.abspath
+    return os.path.normcase(form(a)) == os.path.normcase(form(b))
+
+
+@functools.lru_cache(maxsize=None)
+def _runtime():
+    spec = importlib.util.spec_from_file_location("afk_python_runtime_for_permission", RUNTIME)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _refuse(provider: str, rule: str, problem: str, says: str, files: list[str]) -> dict:

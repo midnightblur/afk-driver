@@ -19,6 +19,8 @@ import permission  # noqa: E402
 needs_bash = pytest.mark.skipif(permission._bash() is None, reason="no POSIX shell on this machine")
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="no git on this machine")
 CLAUDE_SH = REPO / "hooks" / "lib" / "providers" / "claude.sh"
+RUNTIME = permission._runtime()
+WINDOWS = os.name == "nt"
 
 
 def _constant() -> str:
@@ -54,10 +56,15 @@ def home(tmp_path: Path) -> dict:
     config.mkdir()
     (repo / ".claude").mkdir(parents=True)
     env = {k: v for k, v in os.environ.items()
-           if k not in ("CLAUDE_CONFIG_DIR", "AFK_PROVIDER") and not k.startswith("GIT_")}
+           if k not in ("CLAUDE_CONFIG_DIR", "AFK_PROVIDER", "AFK_PLUGIN_ROOT") and not k.startswith("GIT_")}
     env.update(AFK_PROVIDER="claude", CLAUDE_CONFIG_DIR=str(config), HOME=str(tmp_path / "nohome"),
-               GIT_CEILING_DIRECTORIES=str(tmp_path))
-    return {"env": env, "user": config / "settings.json", "repo": repo,
+               GIT_CEILING_DIRECTORIES=str(tmp_path), LOCALAPPDATA=str(tmp_path / "data"),
+               XDG_DATA_HOME=str(tmp_path / "data"))
+    paths = RUNTIME.layout(env, WINDOWS)
+    # The launcher /afk:setup writes for this plugin, first on PATH as afk-bin is after setup.
+    RUNTIME.place_team_launcher(paths, WINDOWS, REPO)
+    env["PATH"] = os.pathsep.join([str(paths["bin"]), env.get("PATH", "")])
+    return {"env": env, "user": config / "settings.json", "repo": repo, "paths": paths,
             "local": repo / ".claude" / "settings.local.json", "project": repo / ".claude" / "settings.json"}
 
 
@@ -72,7 +79,7 @@ def _check(home: dict) -> dict:
 
 def test_rule_covers_every_transport_verb() -> None:
     commands = permission.verb_commands()
-    assert [c.split()[2] for c in commands] == ["agent-start", "agent-send", "agent-status", "agent-read",
+    assert [c.split()[1] for c in commands] == ["agent-start", "agent-send", "agent-status", "agent-read",
                                                "agent-stop", "agent-list"]
     assert all(_matches(RULE, command) for command in commands)
 
@@ -81,10 +88,16 @@ def test_rule_matches_only_the_team_entry_script() -> None:
     assert not _matches(RULE, 'afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-config.py" get x')
     assert not _matches(RULE, "afk-python -c 'print(1)'")
     assert not _matches(RULE, 'afk-python "/home/u/.claude/plugins/cache/afk/1.0.0/scripts/afk-team.py" agent-send x')
+    assert not _matches(RULE, "afk-teamwork agent-send x") and not _matches(RULE, "./afk-team agent-send x")
 
 
-def test_rule_names_no_plugin_version() -> None:
-    assert "${AFK_PLUGIN_ROOT}" in RULE and not re.search(r"\d+\.\d+\.\d+", RULE)
+def test_rule_names_the_command_not_a_path() -> None:
+    assert RULE == "Bash(afk-team *)"
+
+
+def test_every_verb_command_is_one_simple_command() -> None:
+    # The harness checks each part of a joined command on its own; the check only ever judges one part.
+    assert all(not re.search(r"&&|\|\||[;|&<>`$]", c) for c in permission.verb_commands())
 
 
 def _assert_refused(answer: dict, problem: str) -> None:
@@ -231,10 +244,14 @@ def test_the_current_rule_beside_an_old_entry_gives_ok(home: dict) -> None:
     assert len(answer["files"]) == 2
 
 
+@pytest.mark.parametrize("old", ['Bash(afk-python "/home/u/.claude/plugins/cache/afk/1.0.0/scripts/afk-team.py" *)',
+                                 'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)'])
 @needs_bash
-def test_a_rule_naming_an_old_plugin_path_is_stale(home: dict) -> None:
-    _write(home["user"], allow=['Bash(afk-python "/home/u/.claude/plugins/cache/afk/1.0.0/scripts/afk-team.py" *)'])
-    _assert_refused(_check(home), "stale")
+def test_a_rule_of_an_earlier_text_is_stale(home: dict, old: str) -> None:
+    _write(home["user"], allow=[old])
+    answer = _check(home)
+    _assert_refused(answer, "stale")
+    assert f"holds `{old}`, which is not the current spawn rule; replace it with `{RULE}`" in answer["says"]
 
 
 @pytest.mark.parametrize("where, suffix", [("project", "repo/.claude/settings.json"),
@@ -261,18 +278,18 @@ def test_the_rule_in_a_block_list_refuses(home: dict, listed: str, allowed: list
     assert f"permissions.{listed}" in answer["says"]
 
 
-_VERB = 'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" VERB *)'
+_VERB = "Bash(afk-team VERB *)"
 
 
 @pytest.mark.parametrize("where, listed, entry, verb", [
     ("project", "deny", "Bash", "agent-start"),
     ("project", "deny", "Bash(*)", "agent-start"),
-    ("project", "deny", "Bash(afk-python:*)", "agent-start"),
-    ("project", "deny", "Bash(afk-python *)", "agent-start"),
+    ("project", "deny", "Bash(afk-team:*)", "agent-start"),
+    ("project", "deny", "Bash(afk-team *)", "agent-start"),
     ("project", "deny", _VERB.replace("VERB", "agent-send"), "agent-send"),
     ("user", "deny", _VERB.replace("VERB", "agent-start"), "agent-start"),
     ("local", "ask", _VERB.replace("VERB", "agent-stop"), "agent-stop"),
-    ("local", "ask", "Bash(*afk-team.py*)", "agent-start"),
+    ("local", "ask", "Bash(*afk-team*)", "agent-start"),
 ])
 @needs_bash
 def test_a_block_entry_matching_a_verb_refuses(home: dict, where: str, listed: str, entry: str, verb: str) -> None:
@@ -282,12 +299,13 @@ def test_a_block_entry_matching_a_verb_refuses(home: dict, where: str, listed: s
     answer = _check(home)
     _assert_refused(answer, "blocked")
     assert f"permissions.{listed} holds `{entry}`, which matches `" in answer["says"]
-    assert f'/scripts/afk-team.py" {verb} ' in answer["says"]
+    assert f"which matches `afk-team {verb} '{{}}'`" in answer["says"]
 
 
 @pytest.mark.parametrize("entry", ["Bash(git status)", "Read(*)", "bash(*)", "Bash(afk-python)", "Bash(*[a]*)",
                                    'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-config.py" *)',
-                                   "Bash(* agent-send ?{}?)", "Bash(afk-pyth:*)", "Bash(afk-pyth *)"])
+                                   "Bash(* agent-send ?{}?)", "Bash(afk-pyth:*)", "Bash(afk-pyth *)",
+                                   "Bash(afk-team)", "Bash(afk-tea:*)", "Bash(afk-teams *)"])
 @needs_bash
 def test_a_block_entry_matching_no_verb_leaves_ok(home: dict, entry: str) -> None:
     _write(home["user"], allow=[RULE], deny=[entry])
@@ -298,10 +316,10 @@ def test_a_block_entry_matching_no_verb_leaves_ok(home: dict, entry: str) -> Non
 @needs_bash
 def test_a_blocked_refusal_names_the_first_matching_entry(home: dict) -> None:
     _write(home["user"], allow=[RULE], deny=["Bash(git status)", "Read(./secrets/日本)"])
-    _write(home["local"], ask=["Bash(npm *)", "Bash(afk-python *)", "Bash(*)"])
+    _write(home["local"], ask=["Bash(npm *)", "Bash(afk-team agent-*)", "Bash(*)"])
     answer = _check(home)
     _assert_refused(answer, "blocked")
-    assert "repo/.claude/settings.local.json permissions.ask holds `Bash(afk-python *)`" in answer["says"].replace(
+    assert "repo/.claude/settings.local.json permissions.ask holds `Bash(afk-team agent-*)`" in answer["says"].replace(
         "\\", "/")
     assert not any(e in answer["says"] for e in ("git status", "npm", "`Bash(*)`"))
 
@@ -516,3 +534,97 @@ def test_setup_offers_the_rule_and_never_writes_it() -> None:
     assert "skip this row unless the probe refused" in row
     tier = text.split("**Opt-in tier.**", 1)[1].split("\n\n", 1)[0]
     assert "names another status for that" in tier and "with or without a human present" in tier
+
+
+# ---- checks 2 and 3: the afk-team launcher ---------------------------------
+
+def _assert_launcher_refused(answer: dict, *says: str) -> None:
+    assert answer["ok"] is False and answer["problem"] == "launcher" and answer["rule"] == RULE
+    assert answer["says"].endswith("; run /afk:setup; nothing was started")
+    for part in says:
+        assert part in answer["says"].replace("\\", "/"), answer["says"]
+
+
+@needs_bash
+def test_the_rule_and_the_afk_bin_launcher_of_this_plugin_give_ok(home: dict) -> None:
+    _write(home["user"], allow=[RULE])
+    answer = _check(home)
+    assert answer["ok"] is True, answer["says"]
+    assert "afk-team on PATH is the afk-bin launcher of the running plugin" in answer["says"]
+    assert RUNTIME.team_launcher_root(home["paths"]["team"]) == REPO
+
+
+@needs_bash
+def test_a_launcher_naming_this_plugin_and_matching_afk_plugin_root_gives_ok(home: dict) -> None:
+    _write(home["user"], allow=[RULE])
+    home["env"]["AFK_PLUGIN_ROOT"] = str(REPO)
+    assert _check(home)["ok"] is True
+
+
+@needs_bash
+def test_an_afk_team_from_a_plugin_bin_folder_earlier_on_path_refuses(home: dict, tmp_path: Path) -> None:
+    # The seam: afk-team must come from afk-bin, never from a plugin's own bin/ folder ahead of it.
+    assert not (REPO / "bin" / "afk-team").exists(), "the plugin ships no bin/afk-team"
+    plugin_bin = tmp_path / "plugin" / "bin"
+    plugin_bin.mkdir(parents=True)
+    (plugin_bin / "afk-team").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
+    (plugin_bin / "afk-team").chmod(0o755)
+    home["env"]["PATH"] = os.pathsep.join([str(plugin_bin), home["env"]["PATH"]])
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), "plugin/bin/afk-team, not the launcher ",
+                             home["paths"]["team"].as_posix())
+
+
+@needs_bash
+def test_a_missing_launcher_refuses(home: dict) -> None:
+    home["paths"]["team"].unlink()
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), f"the afk-team launcher {home['paths']['team'].as_posix()} is missing")
+
+
+@needs_bash
+def test_a_launcher_off_path_refuses(home: dict) -> None:
+    home["env"]["PATH"] = home["env"]["PATH"].split(os.pathsep, 1)[1]
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), "afk-team is not on PATH; ")
+
+
+@needs_bash
+def test_a_launcher_naming_an_older_plugin_folder_refuses(home: dict, tmp_path: Path) -> None:
+    old = tmp_path / "plugins" / "afk" / "0.9.0"
+    RUNTIME.place_team_launcher(home["paths"], WINDOWS, old)
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), f"names the plugin folder {old.as_posix()}, not the running one ")
+
+
+@needs_bash
+def test_a_launcher_of_this_plugin_refuses_when_the_session_runs_another(home: dict, tmp_path: Path) -> None:
+    # Reached through the launcher, the check's own folder is the launcher's: AFK_PLUGIN_ROOT names the running one.
+    newer = tmp_path / "plugins" / "afk" / "2.0.0"
+    newer.mkdir(parents=True)
+    home["env"]["AFK_PLUGIN_ROOT"] = str(newer)
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), f"names the plugin folder {REPO.as_posix()}, not the running one "
+                                           f"{newer.as_posix()}")
+
+
+@needs_bash
+def test_a_wiped_afk_bin_refuses_naming_setup(home: dict) -> None:
+    # A Python-pin rebuild that empties afk-bin, then a failed sync: neither command is back until setup runs.
+    shutil.rmtree(home["paths"]["bin"])
+    _write(home["user"], allow=[RULE])
+    _assert_launcher_refused(_check(home), "launcher", "is missing")
+
+
+@needs_bash
+def test_a_harness_with_no_rule_passes_without_a_launcher(home: dict) -> None:
+    shutil.rmtree(home["paths"]["bin"])
+    home["env"]["AFK_PROVIDER"] = "codex"
+    answer = _check(home)
+    assert answer["ok"] is True and answer["provider"] == "codex" and answer["rule"] == ""
+
+
+@needs_bash
+def test_a_missing_rule_is_named_before_the_launcher(home: dict) -> None:
+    shutil.rmtree(home["paths"]["bin"])
+    _assert_refused(_check(home), "missing")

@@ -1,5 +1,5 @@
 #!/usr/bin/env afk-python
-"""Install or check AFK's private Python runtime and its `afk-python` command.
+"""Install or check AFK's private Python runtime, its `afk-python` command and the `afk-team` launcher.
 
     python_runtime.py plan    [--test]   print the install steps; change nothing
     python_runtime.py install [--test]   run them; idempotent
@@ -17,8 +17,11 @@ Layout, under `%LOCALAPPDATA%\\afk` on Windows or
 with its `AFK-RUNTIME` stamp). The command is the interpreter itself:
 `python/afk-bin/afk-python` is a symlink to the managed CPython (a copy of the
 environment's `python.exe` on Windows), and it finds `python/pyvenv.cfg` one
-level up, so `sys.prefix` is the environment. `afk-bin` holds nothing else and
-is the one directory added to the user PATH. `afk_python.pth` in the
+level up, so `sys.prefix` is the environment. Beside it, `afk-bin` holds only
+the `afk-team` launcher: `afk-team` (a shell script) and, on Windows,
+`afk-team.cmd`, each one line that runs `scripts/afk-team.py` of the plugin
+folder that ran setup with that `afk-python`. `afk-bin` is the one directory
+added to the user PATH. `afk_python.pth` in the
 environment sets `AFK_PYTHON` to `sys.executable`; `-S` skips it.
 
 Packages install from wheels only (`--no-build`): a platform the lock has no
@@ -65,6 +68,7 @@ RUNTIME = PLUGIN_ROOT / "runtime"
 INSTALLER = "https://releases.astral.sh/github/uv/releases/download/{version}/uv-installer.{ext}"
 STAMP = "AFK-RUNTIME"
 COMMAND = "afk-python"
+TEAM = "afk-team"
 PTH = "afk_python.pth"
 PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
 NO_WHEEL = "marked as `--no-build` but has no binary distribution"
@@ -141,6 +145,7 @@ def layout(env: Mapping[str, str], windows: bool) -> dict:
         "intent": base / f"{STAMP}.extras",
         "interpreter": env_dir / ("Scripts" if windows else "bin") / f"python{exe}",
         "bin": bin_dir, "launcher": bin_dir / f"{COMMAND}{exe}",
+        "team": bin_dir / TEAM, "team_cmd": bin_dir / f"{TEAM}.cmd",
     }
 
 
@@ -264,12 +269,15 @@ def steps(p: dict, paths: dict, windows: bool, test: bool,
         ("python", py_install),
         ("environment", sync_command(p, paths, test) + ["--compile-bytecode"]),
         ("launcher", ["<entry>", str(paths["interpreter"]), str(paths["launcher"]), PTH]),
+        (TEAM, ["<team>", *map(str, team_launchers(paths, windows))]),
         ("path", path),
     ]
 
 
 def place_entry(paths: dict, python: str, windows: bool) -> None:
-    """Put `afk-python` in afk-bin and the AFK_PYTHON line in site-packages; a sync may rebuild both."""
+    """Put `afk-python` in afk-bin and the AFK_PYTHON line in site-packages; a sync may rebuild both.
+
+    The `afk-team` launcher beside it is `place_team_launcher`'s."""
     (site_packages(paths, python, windows) / PTH).write_text(PTH_LINE, encoding="utf-8", newline="\n")
     target = paths["launcher"]
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -292,6 +300,54 @@ def place_entry(paths: dict, python: str, windows: bool) -> None:
         target.unlink()
     # The base interpreter itself: CPython finds pyvenv.cfg from the unresolved link's location.
     target.symlink_to(os.path.realpath(paths["interpreter"]))
+
+
+def team_launchers(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) -> dict[Path, bytes]:
+    """The `afk-team` launcher files and their bytes: one line each running `root`'s team script."""
+    script = Path(root, "scripts", "afk-team.py")
+    entry = Path(paths["launcher"])
+    line = f'exec {shlex.quote(entry.as_posix())} {shlex.quote(script.as_posix())} "$@"'
+    files = {Path(paths["team"]): f"#!/bin/sh\n{line}\n".encode("utf-8")}
+    if windows:
+        files[Path(paths["team_cmd"])] = f'@"{entry}" "{script}" %*\r\n'.encode("utf-8")
+    return files
+
+
+def team_launcher_root(path: Path) -> Path | None:
+    """The plugin folder an `afk-team` launcher file names, or None when it names none."""
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    for line in text.splitlines():
+        if line.startswith("exec "):
+            try:
+                words = shlex.split(line)
+            except ValueError:
+                return None
+        else:
+            words = re.findall(r'"([^"]*)"', line)
+        script = next((w for w in words if re.search(r"[\\/]scripts[\\/]afk-team\.py$", w)), None)
+        if script:
+            return Path(script).parents[1]
+    return None
+
+
+def place_team_launcher(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) -> list[Path]:
+    """Write each `afk-team` launcher file whose bytes differ, staged then moved into place; the files written."""
+    written = []
+    for target, data in team_launchers(paths, windows, root).items():
+        executable = windows or os.access(target, os.X_OK)
+        if target.is_file() and target.read_bytes() == data and executable:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        staged = target.with_name(target.name + ".new")
+        staged.write_bytes(data)
+        if not windows:
+            staged.chmod(0o755)
+        os.replace(staged, target)
+        written.append(target)
+    return written
 
 
 def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
@@ -339,6 +395,16 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
                 code, said = 0, ""
             except OSError as exc:
                 code, said = 1, str(exc)
+        elif name == TEAM:
+            # After the sync and afk-python, every run: a sync that rebuilds the environment empties afk-bin.
+            try:
+                written = place_team_launcher(paths, windows)
+                code, said = 0, ""
+            except OSError as exc:
+                code, said = 1, str(exc)
+            if code == 0 and not written:
+                print(f"ok {name} unchanged", file=out)
+                continue
         else:
             code, said = runner(argv, child_env)
         if code != 0:
@@ -476,6 +542,18 @@ def interpreter_problem(p: dict, paths: dict, status: int, said: str) -> str | N
     return None
 
 
+def team_launcher_problem(target: Path, data: bytes, windows: bool) -> str | None:
+    """What is wrong with one `afk-team` launcher file against the bytes setup writes, or None."""
+    if not target.is_file():
+        return f"launcher missing: {target}"
+    if target.read_bytes() == data:
+        return None if windows or os.access(target, os.X_OK) else f"{target} is not executable"
+    named = team_launcher_root(target)
+    if named is not None and not same_dir(str(named), PLUGIN_ROOT):
+        return f"{target} names the plugin folder {named}, want {PLUGIN_ROOT}"
+    return f"{target} differs from the launcher setup writes"
+
+
 def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
           out=sys.stdout, stamp: dict | None = None, spelling: dict | None = None) -> int:
     """Probe the runtime; `stamp` stands in for the stamp file while install has not published it.
@@ -498,6 +576,8 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
         verdict("extras", f"cannot read {paths['intent']}: {exc}")
 
     verdict("launcher", None if paths["launcher"].exists() else f"{paths['launcher']} missing")
+    for target, data in team_launchers(paths, windows).items():
+        verdict(target.name, team_launcher_problem(target, data, windows))
     verdict("stamp", None if stamp.get("python") == p["python"]
             else f"want Python {p['python']}, have {stamp.get('python') or 'none'}")
     verdict("lock", None if stamp.get("lock") == p["lock"]

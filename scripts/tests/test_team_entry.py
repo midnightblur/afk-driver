@@ -361,12 +361,12 @@ def test_a_codex_agent_launches_with_full_access_and_a_claude_agent_with_no_flag
     assert "args" not in claude and codex["args"] == ["--dangerously-bypass-approvals-and-sandbox"]
 
 
-def test_the_launch_prompt_tells_a_powershell_agent_how_to_name_the_plugin_root(team):
+def test_the_launch_prompt_names_the_bare_afk_team_command(team):
     team.agent("a1", "builder", state="starting")
     start(team, model="implementation@codex")
     prompt = team.transport.calls[-1][2]["prompt"]
-    assert 'afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" agent-send' in prompt
-    assert "In PowerShell, write $env:AFK_PLUGIN_ROOT in place of ${AFK_PLUGIN_ROOT}." in prompt
+    assert "Send each message with afk-team agent-send and one JSON object" in prompt
+    assert "AFK_PLUGIN_ROOT" not in prompt and "afk-team.py" not in prompt
 
 
 def test_the_spawn_permission_check_runs_once_before_the_first_transport_command(team):

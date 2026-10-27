@@ -378,16 +378,18 @@ a token value — not even partially.
 - **Needed by:** a team run whose contact agent runs in a harness that asks
   before each shell command no allow rule covers. The run's spawn permission
   check (`scripts/team/permission.py`) refuses the first transport command
-  until the rule is in an allow list and no block-list entry matches a verb
-  command. Which harness, the rule, and the settings files:
+  until the rule is in an allow list, no block-list entry matches a verb
+  command, and `afk-team` on PATH is the P1 launcher naming the running plugin
+  folder. Which harness, the rule, and the settings files:
   `PROVIDERS.md` "Spawn allow rule".
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
   — exit 0 when this session's harness needs no rule, or when the rule is in an
   allow list and no block-list entry matches a verb command; exit 1 prints one
   JSON refusal. Its
   `problem` is `missing`, `stale` or `blocked` with a `says` that names the
-  rule, the settings file and the list, or `provider-layer` with a `says` that
-  names the cause and no settings file. A `provider-layer` refusal is not a
+  rule, the settings file and the list; `launcher` with a `says` that names the
+  `afk-team` launcher fault, which the P1 fix repairs; or `provider-layer` with
+  a `says` that names the cause and no settings file. A `provider-layer` refusal is not a
   missing entry: do not offer this row in the election, print no rule, wait
   for nothing, and report `needs-human: <cause>`, the cause being the `says`
   text before `; run /afk:setup`. This holds with no human present too.
@@ -400,8 +402,10 @@ a token value — not even partially.
   with `provider-layer`: it stays deselected in `SKILL.md` step 3's election
   and reports `skipped (user choice)`. The probe
   checks this session's harness only; run `/afk:setup` from the other harness
-  to check its rule. The rule names the plugin-root variable, not a versioned
-  path, so one rule stays valid across plugin updates; an entry left from
+  to check its rule. The rule names the `afk-team` command, not a path, so one
+  rule stays valid across plugin updates (plan D-135 supersedes D-75); the
+  launcher names the versioned plugin folder and does not survive an update:
+  the probe answers `launcher` until the P1 fix rewrites it. An entry left from
   another rule text makes the probe answer `stale` while the current rule is
   absent, and the current rule beside it answers ok. To withdraw the rule, the
   human removes the entry from the settings file.
@@ -692,6 +696,10 @@ a token value — not even partially.
   with its `shell_env`) must resolve `afk-python` to the installed entry, pass
   the same interpreter checks, and find the file the stamp names. The
   environment's stamp must name the pinned Python and the current lock hash.
+  The `afk-team` launcher in the same `afk-bin` (and `afk-team.cmd` on
+  Windows) must exist with the bytes setup writes for this plugin folder; an
+  older runtime without it fails `afk-team: launcher missing`, and one naming
+  another plugin folder fails naming both folders.
 - **Fix:** `auto:` per-user install — ask the human first. The bootstrap needs no
   Python: `sh "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/bootstrap.sh" install`
   (macOS, Linux) or `powershell -NoProfile -ExecutionPolicy Bypass -File
@@ -700,8 +708,11 @@ a token value — not even partially.
   installs the pinned uv with Astral's versioned installer, then the pinned
   CPython, then syncs the private environment frozen from the lock, wheels only,
   with bytecode compiled. It then places the `afk-python` entry and the
-  `AFK_PYTHON` line in the environment, and adds the entry's directory to the
-  user PATH unless the startup files already add it. The installer and uv run
+  `AFK_PYTHON` line in the environment, then the `afk-team` launcher beside
+  the entry on every run, since a sync that rebuilds the environment empties
+  `afk-bin`: staged and moved into place, only when its bytes differ. It adds
+  the entry's directory to the user PATH unless the startup files already add
+  it. The installer and uv run
   without the user's `UV_*` settings and installer download overrides; proxy,
   TLS and uv's HTTP timeout, retry and concurrency variables pass through. It
   deletes the stamp first and publishes it only after the probe passes, with
@@ -725,8 +736,9 @@ a token value — not even partially.
   is the interpreter itself, so every CPython option works. `-S` skips the
   `AFK_PYTHON` line. Layout: the `python_runtime.py` docstring. Network: the uv
   release host and PyPI. To remove: delete `%LOCALAPPDATA%\afk` (Windows) or
-  `${XDG_DATA_HOME:-~/.local/share}/afk`, then drop its `python/afk-bin`
-  directory from the user PATH.
+  `${XDG_DATA_HOME:-~/.local/share}/afk`, which removes `afk-python` and the
+  `afk-team` launcher together, then drop its `python/afk-bin` directory from
+  the user PATH.
 
 ## N — Node toolchain
 

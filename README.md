@@ -347,8 +347,8 @@ toolchain. Use `/afk:setup audit` before shipping plugin changes. The audit
 also checks the managed behavior revision, hash, targets, and legacy blocks.
 
 `/afk:setup` also installs the AFK Python runtime: a pinned CPython in a
-private environment, exposed only as the `afk-python` command (register entry
-P1). It asks first, adds one directory to your user PATH, and needs a harness
+private environment, exposed only as the `afk-python` command, beside the
+`afk-team` launcher that runs the team entry script (register entry P1). It asks first, adds one directory to your user PATH, and needs a harness
 restart afterwards. Your own `python` stays untouched. Every hook, MCP server,
 skill script and CI job runs under `afk-python`. A machine with no Python at all
 still installs it: setup's bootstrap (`skills/afk/setup/scripts/bootstrap.sh`,

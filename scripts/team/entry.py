@@ -235,8 +235,7 @@ def build_launch_prompt(brief_path: str, charter: Path | None, identity: str) ->
 def _identity(run: Run, entry: dict) -> str:
     return (f"You are agent {entry['agent_id']}, role {entry['role']}, owner generation {entry['owner_generation']},"
             f" of team run {run.feature}. Send each message with {permission.INVOCATION} agent-send"
-            " and one JSON object: agent_id, generation, target, kind, message_id, body_path."
-            " In PowerShell, write $env:AFK_PLUGIN_ROOT in place of ${AFK_PLUGIN_ROOT}.")
+            " and one JSON object: agent_id, generation, target, kind, message_id, body_path.")
 
 
 def _model(host: Host, verb: str, model: str) -> tuple[str, str, str]:

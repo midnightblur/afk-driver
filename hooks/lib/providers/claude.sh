@@ -75,7 +75,7 @@ afk_claude_enablement() {
 
 # The one allow rule a contact agent needs to run the team entry script without asking (PROVIDERS.md "Spawn allow rule").
 afk_claude_spawn_allow_rule() {
-  local AFK_SPAWN_ALLOW_RULE='Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)'
+  local AFK_SPAWN_ALLOW_RULE='Bash(afk-team *)'
   printf '%s\n' "$AFK_SPAWN_ALLOW_RULE"
 }
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env afk-python
 """The team entry script: the one command agents call to start, message and stop each other.
 
-    afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" <command> '<one JSON object>'
+    afk-team <command> '<one JSON object>'
+
+`afk-team` is the launcher /afk:setup writes into afk-bin; it runs this file with afk-python.
 
 Commands: agent-start, agent-send, agent-status, agent-read, agent-stop, agent-list, run-open, wait. It prints one
 JSON object and exits 0 done, 2 bad payload or refused check, 3 unsupported, 4 unavailable, 5 an agent started

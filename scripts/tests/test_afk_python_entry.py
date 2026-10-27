@@ -67,6 +67,6 @@ def test_every_required_module_imports():
     afk_python("-c", "".join(f"import {m}; " for m in modules) + "print('{}')")
 
 
-def test_the_path_directory_resolves_only_afk_python():
+def test_the_path_directory_holds_only_afk_python_and_the_afk_team_launcher():
     assert same(shutil.which(pr.COMMAND, path=str(PATHS["bin"])), PATHS["launcher"])
-    assert all(entry.name.startswith(pr.COMMAND) for entry in PATHS["bin"].iterdir())
+    assert all(entry.name.startswith((pr.COMMAND, pr.TEAM)) for entry in PATHS["bin"].iterdir())
