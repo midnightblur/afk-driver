@@ -33,6 +33,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 from typing import NamedTuple
 
 SCHEMA = 1
@@ -203,6 +204,8 @@ def repoint_repository(short_name: str, path: str | os.PathLike, root: str | os.
 
 def main_checkout(path: str | os.PathLike) -> str:
     """The normalized main checkout of the repository holding `path`; refuses bare and non-git."""
+    if not os.fspath(path).strip():
+        raise RepositoryListError("is empty; give the repository's path", os.fspath(path))
     target = normalize(path)
     if not os.path.isdir(target):
         raise RepositoryListError("is not a folder", target)
@@ -334,7 +337,11 @@ def _claim_folder(base: pathlib.Path, name: str, main: str, previous: str | None
             f"folder is reserved for {held or 'an unreadable marker'}; pick another short name", folder)
     if held is not None and _key(held) == _key(main):
         return
-    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise RepositoryListError(
+            f"folder cannot be made ({error}); pick another short name or root", folder) from error
     before = marker.read_bytes() if held is not None else b""
     text = json.dumps({"path": main}, indent=2) + "\n"
     # The caller holds the list's lock, so the marker write takes no lock of its own.
@@ -360,12 +367,20 @@ def _release_folder(base: pathlib.Path, entry: Entry) -> bool:
 
 
 def _read_list() -> list[Entry]:
-    try:
-        with open(list_file(), encoding=_ENCODING) as handle:
-            text = handle.read()
-    except FileNotFoundError:
-        return []
-    return _parse(text)
+    """Windows refuses a read while a writer swaps the file in; retry as the writer does."""
+    for attempt in range(safe_write.SWAP_RETRIES + 1):
+        try:
+            with open(list_file(), encoding=_ENCODING) as handle:
+                return _parse(handle.read())
+        except FileNotFoundError:
+            return []
+        except PermissionError as error:
+            if os.name != "nt" or attempt == safe_write.SWAP_RETRIES:
+                raise RepositoryListError(f"cannot be read: {error}", list_file()) from error
+        except OSError as error:
+            raise RepositoryListError(f"cannot be read: {error}", list_file()) from error
+        time.sleep(safe_write.SWAP_RETRY_SECONDS)
+    raise AssertionError("unreachable")
 
 
 def _parse(text: str) -> list[Entry]:

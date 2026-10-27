@@ -57,3 +57,5 @@
 2026-10-27 16:05 | execute | 0003-repository-list | review clean (round 4) — the fourth review round found nothing; the review loop settled at 2fe65cc with two design notes left for the whole-feature review
 2026-10-27 16:05 | execute | 0003-repository-list | adversary findings crit=0 high=0 med=2 low=2 — an independent attack kept every race promise; a list read on Windows can fail while another process saves the list, and two bad inputs get through without a clear refusal; one medium finding was wrong, because entries do report a gone folder
 2026-10-27 16:11 | execute | 0003-repository-list | done — the repository list is built, reviewed, attacked and pushed; the pull request waits for the human
+2026-10-27 16:25 | execute | 0003-repository-list | review advisory crit=0 high=0 med=1 low=2 (round 5) — the reviewer of the closing notes found the slice marked done while one attack finding stayed open; the done above is withdrawn
+2026-10-27 16:25 | execute | 0003-repository-list | developing — fixing three attack findings: a list read on Windows during a save, an empty path read as the current folder, and two raw file-system errors

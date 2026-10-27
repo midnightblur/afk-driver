@@ -82,3 +82,11 @@
 
 ADVERSARY: findings — probed=147 crit=0 high=0 med=2 low=2 report: docs/afk/setup-per-repo/plan/review/0003-repository-list-adversary.md
 In plain terms: The repository list keeps its data safe under every race tried, but on Windows a lookup can crash while setup saves the list, a repository whose folder was deleted looks the same as a live one, and two kinds of bad input get through without a clear refusal; fix the first two before shipping.
+
+## Caller dispositions (written by the executor, not the adversary)
+
+- Probed head: 5db975f. The next commit, 2fe65cc, changed only the folder listing in remove's left-marker path and tests.
+- F1: fixed. The list read now retries a refused read on Windows as the safe writer retries its swap, and turns any other read error into `RepositoryListError`. The repro `C:/t/adv3/p7_reader_race.py` re-run: 0 of 80,919 reads raised. The churning writer saw 2 of 32 writes refused with the safe writer's documented `SafeWriteError` "file swap stayed busy".
+- F2: refuted. `Entry.missing` (`scripts/repo_list.py`, property on `Entry`) reports a gone main checkout folder; the probe read only `Entry._fields`.
+- F3: fixed. An empty or blank path is refused with "is empty" for add and repoint.
+- F4: fixed for the short name and the root. A folder that cannot be made is refused with `RepositoryListError`; a list file that is a folder is refused with "cannot be read".

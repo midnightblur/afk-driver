@@ -124,6 +124,33 @@ def test_a_bare_clone_a_plain_folder_and_a_missing_path_are_refused_with_reasons
     assert list(root.iterdir()) == []
 
 
+@pytest.mark.parametrize("empty", ["", "   "])
+def test_an_empty_path_is_refused_not_read_as_the_current_folder(home, root, tmp_path, monkeypatch,
+                                                                 empty):
+    repo = make_repo(tmp_path / "src")
+    monkeypatch.chdir(repo)
+    with pytest.raises(rl.RepositoryListError, match="is empty"):
+        rl.add_repository(empty, root)
+    assert not (home / ".afk" / "repositories.json").exists()
+    rl.add_repository(repo, root)
+    other = make_repo(tmp_path / "other")
+    monkeypatch.chdir(other)
+    remove_tree(repo)
+    with pytest.raises(rl.RepositoryListError, match="is empty"):
+        rl.repoint_repository("proj", empty, root)
+
+
+def test_a_folder_that_cannot_be_made_is_refused_and_lists_nothing(home, root, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    with pytest.raises(rl.RepositoryListError, match="cannot be made"):
+        rl.add_repository(repo, root, short_name="b" * 300)
+    plain_file = tmp_path / "a-file"
+    plain_file.write_text("", encoding="utf-8")
+    with pytest.raises(rl.RepositoryListError, match="cannot be made"):
+        rl.add_repository(repo, plain_file)
+    assert rl.all_entries() == [] and list(root.iterdir()) == []
+
+
 def test_a_worktree_whose_main_checkout_is_gone_is_refused(home, root, tmp_path, monkeypatch):
     worktree = tmp_path / "wt1"
     worktree.mkdir()
@@ -627,6 +654,57 @@ def test_a_damaged_list_is_refused_and_left_alone(home, root, tmp_path, text):
     with pytest.raises(rl.RepositoryListError, match="fix or delete it"):
         rl.add_repository(make_repo(tmp_path / "src"), root)
     assert list_path.read_text(encoding="utf-8") == text
+
+
+def busy_open(monkeypatch, refusals):
+    """Refuse the list file's first `refusals` opens as a writer's swap does on Windows."""
+    calls = []
+
+    def fake(file, *args, **kwargs):
+        if str(file).endswith("repositories.json"):
+            calls.append(file)
+            if len(calls) <= refusals:
+                raise PermissionError(13, "Permission denied", str(file))
+        return builtins.open(file, *args, **kwargs)
+
+    monkeypatch.setattr(rl, "open", fake, raising=False)
+    monkeypatch.setattr(rl.safe_write, "SWAP_RETRY_SECONDS", 0)
+    return calls
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="a swap refuses readers only on Windows")
+def test_a_read_during_a_swap_is_retried_on_windows(home, root, tmp_path, monkeypatch):
+    repo = make_repo(tmp_path / "src")
+    entry = rl.add_repository(repo, root)
+    calls = busy_open(monkeypatch, 2)
+    assert rl.find_entry(repo) == entry
+    assert len(calls) == 3
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="a swap refuses readers only on Windows")
+def test_a_read_still_refused_after_the_retries_is_a_list_error_on_windows(home, root, tmp_path,
+                                                                           monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    calls = busy_open(monkeypatch, rl.safe_write.SWAP_RETRIES + 1)
+    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+        rl.all_entries()
+    assert len(calls) == rl.safe_write.SWAP_RETRIES + 1
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="off Windows a refused read is never a swap")
+def test_a_refused_read_is_a_list_error_at_once_off_windows(home, root, tmp_path, monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    calls = busy_open(monkeypatch, 1)
+    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+        rl.all_entries()
+    assert len(calls) == 1
+
+
+def test_a_list_file_that_is_a_folder_is_a_list_error(home, monkeypatch):
+    (home / ".afk" / "repositories.json").mkdir(parents=True)
+    monkeypatch.setattr(rl.safe_write, "SWAP_RETRY_SECONDS", 0)
+    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+        rl.all_entries()
 
 
 def test_find_entry_matches_checkout_subfolder_and_root_folder_by_text(home, root, tmp_path):
