@@ -513,6 +513,14 @@ Other observations:
 - `afk-team: no owner record names <worktree>` printed on each start: the probe worktrees were not made by `scripts/create-worktree`, so no owner record existed.
 - Each Codex start showed `⚠ 1 warning`; no row depended on it.
 
+### Second start, after rounds 47 and 48 (2026-10-27)
+
+Agents now run the script as `afk-team <verb> '<json>'` under the rule `Bash(afk-team *)` (ADR-0017). Since the rows above, the script changed in 2 places only: the module text names that command, and the launch prompt names `afk-team agent-send` (plan D-138). The rows for V26, the first-run dialog, the session id and V6 stand.
+
+| Probe | Steps | Claude Code | Codex CLI |
+|---|---|---|---|
+| T12 through `afk-team agent-start '<json>'` under the rule `Bash(afk-team *)` in auto mode (§13 V36, Q22) | the operator runs `run-open` with `AFK_PROVIDER=none` (plan D-141) and writes the entry; a Claude contact pane in auto mode, with the rule only through `--allowedTools` (plan D-139), runs agent-start, agent-list and agent-stop | **not run**. The set-up needs a commit in a scratch repository and a linked worktree in `<claude-probe>`. The operator's protected-branch guard refused the commit: `this is the main checkout (…\scratchpad\0010\main), where the guard runs a shell command only when it can prove it read-only, and it cannot prove this part.` The human runs `scratchpad/0010/run-v36-check.sh`, which writes its evidence to `scratchpad/0010/v36/` | n/a |
+
 ## afk-team launcher probes (2026-10-26)
 
 The probes the afk-team launcher owes before its subtask merges (SDD §14 Q55, Q56; plan 0027). Host: Windows 11, herdr 0.9.1, Claude Code 2.1.311, Codex CLI 0.164.0, at the code of `dbd60ac`. Set-up: setup's Python runtime install ran at this code with `LOCALAPPDATA` set to a scratch folder, through a driver that dropped the PATH step and checked the scratch `afk-bin` in its place, so the user PATH in the registry was not changed. It wrote `afk-team` and `afk-team.cmd` beside `afk-python`. Each pane put the scratch `afk-bin` first on `PATH` before it started the agent. Claude panes ran `haiku` in `<claude-probe>` with the real home folder. The rule reached them only through `--allowedTools 'Bash(afk-team *)'`, which stands in for the settings entry: no settings file was written. The Codex pane ran `codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` in an empty scratch folder. Every `agent-list '{}'` answered the script's own refusal (`is not inside a git repository, so the run has no main checkout`, `unavailable` true), which shows the launcher reached `scripts/afk-team.py`. Evidence folder: `0027/live`.

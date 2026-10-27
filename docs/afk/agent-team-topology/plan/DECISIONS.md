@@ -986,3 +986,10 @@
 - Chosen: B — a live child Windows PowerShell 5.1 passed `afk-team agent-list '{"run": "p0027-ps1"}'` through the A form as `the payload is not JSON`, the fault round 48 fixed for pwsh 7; B gives valid JSON in 5.1 and 7.6 for 6 payload shapes (providers/CONFORMANCE.md "Round 48 rows"). The file set and the one line per file stay as R-48 signed
 - Supersedes: none
 - To reverse: in skills/afk/setup/scripts/python_runtime.py drop PS1_ARGS and write `@args` in the .ps1 line
+
+## D-141 — The V36 trial passes the script's own permission check once, with AFK_PROVIDER=none on the operator's run-open
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 8)
+- Options: A — write Bash(afk-team *) into the probe worktree's settings file, so the script's own spawn permission check passes vs B — give the contact pane the rule by `--allowedTools` only (D-139); the operator runs `afk-team run-open` with AFK_PROVIDER=none, so the check reads no provider, passes once and keeps its record for the run; the contact pane keeps its own provider vs C — write the run's permission.json by hand
+- Chosen: B — the human's rule for this run forbids writing any Claude settings file, and the script's check reads settings files only, so under D-139 it refuses with `missing`. V36 tests the harness: whether the session rule decides `afk-team agent-start` and the tab and pane it makes. The check itself has its unit tests (0009, 0027). agent-start still sets AFK_PROVIDER=claude for the agent it starts. C fakes a passed check
+- Supersedes: none
+- To reverse: the human adds the rule to a probe folder's settings, and the row runs again without AFK_PROVIDER
