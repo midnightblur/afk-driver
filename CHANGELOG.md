@@ -47,6 +47,15 @@ release page from its section here. Nobody tags by hand.
   type, GitHub Enterprise Server, gh older than 2.99.0 and a login without
   write access leave the file named in the comment. `/afk:setup` checks the gh
   floor (register row C3c). The dependency set changed.
+- `/afk:to-ticket` bug and ad-hoc mode (`BUG-MODE.md`,
+  `scripts/publish_bug_mode.py`). It creates or updates a bug or ad-hoc ticket
+  on Jira or GitHub Issues from a `DIAGNOSIS.md` or a description file, posts
+  evidence comments and proof files, moves the ticket to the configured
+  in-review state and backfills the Jira fix version. It checks the type, the
+  key, the in-review state and the fix version before any write, runs only
+  with a person present or a prior approval, lists each write in the
+  diagnosis's Outside writes, and finds an earlier write by its evidence
+  marker instead of repeating it.
 
 ### Changed
 

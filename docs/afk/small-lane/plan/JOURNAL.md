@@ -54,3 +54,11 @@
 2026-10-27 03:49 | execute | 0004-diagnose-rewrite | reviewing — round 8 (delta): 1 medium, fixed; decision(D-24) — the blocked reason names remove-worktree.py, which also clears the owner record and an empty branch
 2026-10-27 04:08 | execute | 0004-diagnose-rewrite | reviewing — round 9 (delta): 2 medium, 1 low, all fixed; decision(D-25) — the blocked reason says what a retry needs gone, warns it discards work, and names a removal for worktrees with and without an owner record
 2026-10-27 04:27 | execute | 0004-diagnose-rewrite | blocked(review_fail) — round 10 (delta): 2 medium open (f060 branch name lost before git branch -D; f061 no-record case deletes the wrong branch); settle loop hit its 10-round cap, adversary not run
+2026-10-27 04:30 | autopilot | 0004-diagnose-rewrite | parked — review_fail: 10-round review limit with 2 medium findings open (f060, f061) in one sentence of diagnose step 3; adversary gate not run; a person must settle that sentence
+2026-10-27 04:30 | autopilot | 0008-standalone-fix | parked(waiting on 0004-diagnose-rewrite)
+2026-10-27 04:30 | autopilot | 0010-out-of-slice | parked(waiting on 0008-standalone-fix)
+2026-10-27 04:30 | autopilot | 0011-bug-removal-release | parked(waiting on 0004-diagnose-rewrite)
+2026-10-27 04:30 | autopilot | 0012-sync-harness | parked(waiting on 0004-diagnose-rewrite)
+2026-10-27 04:30 | autopilot | — | 0/10 done this run, starting 0005-bug-mode
+2026-10-27 04:56 | execute | 0005-bug-mode | designing — consumer preflight passed (6 of 6); decision(D-26) — ground re-read by hand, it holds; decision(D-27) — per-kind table over the existing tracker verbs
+2026-10-27 05:24 | execute | 0005-bug-mode | developing — publish_bug_mode.py, BUG-MODE.md and 40 stub-tracker tests (Jira and GitHub Issues) green; SKILL.md, AGENTS.md and CHANGELOG.md point at the mode

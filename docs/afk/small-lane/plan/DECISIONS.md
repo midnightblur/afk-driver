@@ -174,3 +174,17 @@
 - Chosen: the blocked reason says a retry needs the folder, the owner record and the worktree's branch gone, warns that clearing discards all work on them, and names `afk-python ${AFK_PLUGIN_ROOT}/scripts/remove-worktree.py --path <path> --force` where the record exists, else `git worktree remove --force <path>`, then `git branch -D <branch>` while the branch remains. The plugin script touches only a worktree with an owner record, and with `--force` it skips its own uncommitted-work and other-session checks.
 - Supersedes: D-24 "the blocked reason names `remove-worktree.py --path <path> --force`."
 - To reverse: restore the single script command in diagnose Phase 0 step 3
+
+## D-26 — how 0005-bug-mode re-takes its ground
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 4)
+- Options: run the scripted ground check vs re-read the lines the seam investigations cite at the current head
+- Chosen: re-read them, as D-4 and D-5 did. The scripted seed map stops at its 20000-hit class cap. The `/afk:to-ticket` files are unchanged since the head INV-024 closed at; the tracker adapters changed only through 0003-tracker-attach (this slice's producer) and `CONFIG.md` only through 0002-developer-settings. The ground holds.
+- Supersedes: none
+- To reverse: rerun the scripted ground check once the seed map's cap allows it
+
+## D-27 — what the bug and ad-hoc mode decides inside its own script
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 4)
+- Options: add tracker verbs for type lists, label lists and marker search vs keep a per-kind table in `publish_bug_mode.py` over the existing verbs
+- Chosen: a per-kind table (jira, github-issues), because `tracker_search` takes the tracker's own query language, no verb lists issue types or labels, and the adapters are outside this slice's Scope. (a) Jira checks the type and the fix version with a `tracker_search` on the value; a 400 answer refuses. GitHub checks the type label through the adapter's own `gh label list`. (b) The type defaults to bug on a ticket this run creates and is applied only there. The Jira name comes from `jira.issue-types.<type>`, else the capitalised type; the GitHub label is the type itself. (c) The folder moves, and the Work id becomes the key, only for a diagnosis input after a create; a description input keeps its folder and its work id is the folder name. (d) The fix version has no Outside-writes kind, so the step reads the ticket's versions first and adds the new one to them; GitHub refuses `--fix-version`. (e) A refused or 4xx write ends the retries. (f) Consent is declared with `--consent person|prior`; Approval is not checked (design ADR-0008). (g) Proof files upload under `{work id}-{kind}-proof-{file name}` from a temporary folder removed after the run.
+- Supersedes: none
+- To reverse: add the missing verbs to each tracker adapter and drop the table
