@@ -146,3 +146,10 @@
 - Chosen: the failing test. A notes store outside the repository keeps `DIAGNOSIS.md` off every branch, while diagnose commits the failing test on the Diagnosis branch, so the test is the one thing a cut needs. The diagnosis worktree is the listed worktree whose folder holds the `DIAGNOSIS.md` path, so a notes folder that is its own git repository is never taken for it.
 - Supersedes: D-19 "else the worktree on the Diagnosis branch, cut only when that branch holds the diagnosis"
 - To reverse: gate the cut on `DIAGNOSIS.md` again
+
+## D-22 — a re-run is proved by its diagnosis
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 6)
+- Options: mark a re-run by a worktree record, a folder name or an existing branch, giving a Base to one with no diagnosis, vs only by a `DIAGNOSIS.md` for this Work id
+- Chosen: only by the diagnosis. The harness writes an owner record for every session worktree, so a record, a folder name and a branch name can each belong to a person's own work, and a re-run there would commit onto a branch diagnose does not own. A worktree or branch with no diagnosis carries no recorded Base either, so guessing one would put the reproduction on the wrong code. A matching worktree with no diagnosis goes on to a fresh cut, and an existing branch with no diagnosis ends `blocked`. Fix picks the diagnosis worktree by the longest listed folder that holds the `DIAGNOSIS.md` path, because linked worktrees can sit inside the main checkout.
+- Supersedes: D-20 "The owner record still marks a re-run on its own, since only diagnose's `--name` cut writes it." and "(b) HEAD and the answer"; D-21 "The diagnosis worktree is the listed worktree whose folder holds the `DIAGNOSIS.md` path"
+- To reverse: restore record-only re-runs with the HEAD-and-answer Base in diagnose Phase 0 step 3, and the unconditional recut in step 4

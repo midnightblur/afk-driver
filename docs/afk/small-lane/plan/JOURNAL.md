@@ -49,3 +49,4 @@
 2026-10-27 01:36 | execute | 0004-diagnose-rewrite | reviewing — round 3 (delta): 1 high, 3 medium, 4 low, all fixed; round 2 was 5 medium and 5 low (the earlier line miscounted); decision(D-18) — a re-run whose worktree is gone is found after the starting-branch question; handed branch name rows narrowed
 2026-10-27 02:14 | execute | 0004-diagnose-rewrite | reviewing — round 4 (delta): 2 medium, 2 low, all fixed; decision(D-19) — fix works in the worktree that holds the diagnosis
 2026-10-27 02:34 | execute | 0004-diagnose-rewrite | reviewing — round 5 (delta): 3 medium, 1 low, all fixed; decision(D-20) — a re-run needs its record or its diagnosis; decision(D-21) — fix cuts onto the Diagnosis branch when it holds the failing test
+2026-10-27 02:57 | execute | 0004-diagnose-rewrite | reviewing — round 6 (delta): 2 high, 1 medium, all fixed; decision(D-22) — a re-run is proved only by its DIAGNOSIS.md; fix takes the deepest listed worktree
