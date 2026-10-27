@@ -47,3 +47,4 @@
 2026-10-27 12:28 | execute | 0003-repository-list | decision(D-16) — finding a repository by path stays a text match on the list file; a worktree placed far away is found by first asking git for its main checkout
 2026-10-27 12:28 | execute | 0003-repository-list | decision(D-17) — a short name ending in a dot, or a reserved device name, is refused on Windows only
 2026-10-27 12:28 | execute | 0003-repository-list | decision(D-18) — adding a submodule now lists its working folder, not the hidden git folder git names first
+2026-10-27 14:20 | execute | 0003-repository-list | pushed 8891f99..4f50f63 (1 commits) — the first review round's fixes: removing a repository can no longer leave it listed without its folder marker, and the tests now catch the gaps the reviewers found
