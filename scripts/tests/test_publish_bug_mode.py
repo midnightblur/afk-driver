@@ -1017,3 +1017,19 @@ def test_a_stored_name_prefers_its_own_spelling_over_a_hard_link(tmp_path, monke
     monkeypatch.setattr(mode.os, "scandir", lambda folder: _Listing(listed))  # decoys listed first
     monkeypatch.setattr(mode.os.path, "samefile", lambda a, b: True)  # every entry is one file
     assert mode._stored_name(tmp_path / typed) == stored
+
+
+def _samefile_only(target, broken):
+    def samefile(a, b):
+        if Path(a).name == broken:
+            raise OSError("unreadable entry")
+        return Path(a).name == target
+    return samefile
+
+
+@pytest.mark.parametrize("broken", ["", "e\u0301.md"],
+                         ids=["another-file-folds-alike", "an-unreadable-entry-first"])
+def test_a_stored_name_is_the_same_file_not_just_a_name_that_folds_alike(tmp_path, monkeypatch, broken):
+    monkeypatch.setattr(mode.os, "scandir", lambda folder: _Listing(("e\u0301.md", "\u00e9.md")))
+    monkeypatch.setattr(mode.os.path, "samefile", _samefile_only("\u00e9.md", broken))
+    assert mode._stored_name(tmp_path / "\u00c9.md") == "\u00e9.md"
