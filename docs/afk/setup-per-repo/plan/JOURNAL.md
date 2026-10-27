@@ -27,3 +27,11 @@
 2026-10-27 09:20 | execute | 0001-safe-writer | adversary findings crit=0 high=0 med=0 low=2 — an independent attack on the writer kept every promise; two rare edge cases are recorded and do not block
 2026-10-27 09:22 | execute | 0001-safe-writer | done — the shared safe writer is built, reviewed, attacked and pushed; the pull request waits for the human
 2026-10-27 08:29 | autopilot | run | heartbeat 1/13 done, starting 0002-settings-reader — the shared safe writer is finished and pushed; next is the rule for which settings file owns each key
+2026-10-27 08:33 | execute | 0002-settings-reader | designing — started the rule that decides which settings file each setting is read from
+2026-10-27 09:05 | execute | 0002-settings-reader | decision(D-9) — the earlier code study still holds, so it was not redone
+2026-10-27 09:05 | execute | 0002-settings-reader | decision(D-10) — the two settings files the catalog does not name follow the developer's own rules
+2026-10-27 09:05 | execute | 0002-settings-reader | decision(D-11) — every note-taking app now keeps agent files inside the repository
+2026-10-27 09:05 | execute | 0002-settings-reader | developing — writing the tests for which file each setting is read from
+2026-10-27 11:06 | execute | 0002-settings-reader | decision(D-12) — the starter-file hint for a tracker set on this machine stays, and now says the value must be pinned in the repository
+2026-10-27 11:06 | execute | 0002-settings-reader | blocked(scope) — the new rule works and its own tests pass, but it breaks tests that belong to three later steps; the plan needs a re-slice before this can be committed
+2026-10-27 11:09 | autopilot | 0002-settings-reader | parked(blocked) — the settings-file rule works, but it breaks tests that three later slices own; moving those tests into this slice changes the plan, so the human decides; code set aside in stash afk-0002-settings-reader-wip-e572a300

@@ -55,3 +55,31 @@
 - Chosen: B — SDD §7's retry row covers a busy swap; a read-only file is a permanent denial no retry clears, and A gave the user the wrong cause; the error type, the unchanged file and the installer's exit code stay as SDD §7 and ADR-0005 state
 - Supersedes: none (narrows SDD §7 "file swap busy on Windows" to busy files)
 - To reverse: drop the `os.access` check in `_swap` of `scripts/safe_write.py`
+
+## D-9 — Keep INV-013 and INV-004 as the ground for 0002-settings-reader
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — re-run `/afk:investigate` on both seams vs B — keep both ledgers after reading the ground diff
+- Chosen: B — the ground diff since the ledgers touches no line of `scripts/afk-config.py` or `hooks/precommit-gates.sh`; its one new node is a machine-file test fixture, which reads the same `load()` the ledgers trace (D-1 precedent)
+- Supersedes: none
+- To reverse: run `/afk:investigate` on INV-013 and INV-004 and re-check the slice against the new ledgers
+
+## D-10 — Read rules for the two files catalog S does not name
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — filter `.afk/config.local.yaml` and `$AFK_CONFIG` like the committed file vs B — the local overlay follows the repository personal file's rules, `$AFK_CONFIG` is not filtered except that removed keys are dropped; a team value in the machine file is ignored
+- Chosen: B — both are the developer's own files, so a personal value must stay readable there; `$AFK_CONFIG` is an explicit file a person or test names on purpose; catalog S reads a team setting only from the committed file or the repository personal file, so the machine file holds no team value
+- Supersedes: none
+- To reverse: edit `_READS` in `scripts/afk-config.py` and the "Setting owners" section of `CONFIG.md`
+
+## D-11 — Root every file-backed notes kind at the checkout
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — keep each kind's `notes_root` (the vault for obsidian) vs B — `adapters/notes/common.sh` renders `repo-files.spec-dir` under the checkout's top folder for every kind
+- Chosen: B — ADR-0003 (requirements) puts every agent working file in the repository's spec folder whatever app is chosen; the kinds' `notes_root` functions become unused and their headers stale, which the out-of-scope files carry until a later slice edits them
+- Supersedes: none
+- To reverse: restore the `notes_root` call in `notes_main` of `adapters/notes/common.sh`
+
+## D-12 — Keep init's machine-file TODO and say the value is not read
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — filter the machine file in `_machine_layer`, so `init` stops offering the machine file's tracker or forge vs B — keep the commented `TODO` line and change its text and `CONFIG.md` "init" to say a team setting is not read from the machine file, so the developer uncomments it to pin it
+- Chosen: B — SDD §4 Migration ignores a team value in the machine file; B keeps the developer's hint with no new behavior, and 0009-settings-writer reworks `init` from the personal file
+- Supersedes: none
+- To reverse: restore the old `_inherited_line` text in `scripts/afk-config.py` and the "init" paragraph in `CONFIG.md`
