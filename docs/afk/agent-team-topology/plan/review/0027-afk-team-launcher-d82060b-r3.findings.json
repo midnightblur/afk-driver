@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 247,
+  "side": "new",
+  "finding": "The new afk-python branch of _team_entry accepts a backslash before scripts/afk-team.py ([\\\\/]), but no stale-entry case uses a backslash path; every stale case uses forward slashes.",
+  "why": "Inferred: a change narrowing `[\\\\/]scripts[\\\\/]` to `/scripts/` in scripts/team/permission.py:135 would pass every test here, though Windows plugin paths use backslashes.",
+  "fix": "Add a stale case such as 'Bash(afk-python \"C:\\\\Users\\\\u\\\\plugins\\\\afk\\\\scripts\\\\afk-team.py\" *)' to test_a_rule_of_an_earlier_text_is_stale.",
+  "evidence": "\"Bash(cat scripts/afk-team.py)\"])",
+  "id": "r-001"
+ }
+]

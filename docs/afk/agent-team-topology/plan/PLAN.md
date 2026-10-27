@@ -3,7 +3,7 @@
 > Parent ticket: agent-team-topology   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/agent-team-topology
-> Last updated: 2026-10-26 (status column maintained by /afk:execute)
+> Last updated: 2026-10-27 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
@@ -139,7 +139,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 7 | 0007-desktop-tool-transport | Desktop-tool kind and the 1DevTool recipe, after its trial | pending | 0006-transport-family-and-herdr | static, unit, integration | impl §3, §24 |
 | 8 | 0008-inbox-wait-script | The wait job: one per run, checks the contact inbox every 10 seconds | done | — | static, unit, integration | impl §1, §2 |
 | 9 | 0009-spawn-permission-check | Spawn permission check and the setup offer of the allow rule | done | — | static, unit | impl §7; use §23 |
-| 10 | 0027-afk-team-launcher | The afk-team launcher in afk-bin, the rule Bash(afk-team *) and the 3-part spawn check | blocked(test_fail: integration row Q56 not run - the auto-mode classifier refused starting the full-access Codex pane; every other row green at 6d03efe) | 0009-spawn-permission-check | static, unit, integration | impl §25; use §7 |
+| 10 | 0027-afk-team-launcher | The afk-team launcher in afk-bin, the rule Bash(afk-team *) and the 3-part spawn check | done | 0009-spawn-permission-check | static, unit, integration | impl §25; use §7 |
 | 11 | 0010-team-entry-script | The team entry script: six verbs, checks, names, charter files, launch prompts | blocked(design_conflict: the spawn allow rule matches no command on Claude Code 2.1.308) | 0003-manifest-module, 0005-pattern-resolver-and-builtin-records, 0006-transport-family-and-herdr, 0008-inbox-wait-script, 0009-spawn-permission-check, 0027-afk-team-launcher | static, unit, integration | impl §10, §11, §14, §22, §23; use §1, §7, §8, §9, §16, §18 |
 | 12 | 0011-job-supervisor | Job supervisor: one per agent, sends exited or parked | pending | 0010-team-entry-script | static, unit | — |
 | 13 | 0012-cleanup | Cleanup: five fixed steps, survivors reported by name | pending | 0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr, 0010-team-entry-script | static, unit, integration | impl §4; use §2, §3, §10, §20 |
