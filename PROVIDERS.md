@@ -95,6 +95,13 @@ harness has the `instructionFiles` setting), and `hook_failure_notice`
 `CAPABILITIES.md` "Hook failures"). A handler the policy makes a no-op
 starts no shell.
 
+The declarations also expose `lavish_poll` to `scripts/lavish_show.py` through
+`hooks/lib/provider_facts.py`. Polling requires `true`; an absent or false
+value uses `LAVISH.md`'s Markdown fallback. Claude declares `true`; Codex
+declares `false` because the wrapper cannot resume its turn. Python detection
+reads `detect.any_env`; Codex includes `CODEX_THREAD_ID` for sessions without
+`PLUGIN_ROOT`. `AFK_PROVIDER` overrides detection.
+
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
 creates a worktree through the plugin must also remove it through the plugin.
 Every session start prunes worktrees whose owner is gone.
