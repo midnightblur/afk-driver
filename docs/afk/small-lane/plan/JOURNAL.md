@@ -53,3 +53,4 @@
 2026-10-27 03:25 | execute | 0004-diagnose-rewrite | reviewing — round 7 (delta): 2 medium, both fixed; decision(D-23) — a worktree for the work id with no diagnosis ends blocked, naming it
 2026-10-27 03:49 | execute | 0004-diagnose-rewrite | reviewing — round 8 (delta): 1 medium, fixed; decision(D-24) — the blocked reason names remove-worktree.py, which also clears the owner record and an empty branch
 2026-10-27 04:08 | execute | 0004-diagnose-rewrite | reviewing — round 9 (delta): 2 medium, 1 low, all fixed; decision(D-25) — the blocked reason says what a retry needs gone, warns it discards work, and names a removal for worktrees with and without an owner record
+2026-10-27 04:27 | execute | 0004-diagnose-rewrite | blocked(review_fail) — round 10 (delta): 2 medium open (f060 branch name lost before git branch -D; f061 no-record case deletes the wrong branch); settle loop hit its 10-round cap, adversary not run
