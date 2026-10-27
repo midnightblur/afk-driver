@@ -1,6 +1,6 @@
 {
   "run": {
-    "repository": "C:/Users/mvu/core-services-worktrees/glossaries",
+    "repository": "{user}/core-services-worktrees/glossaries",
     "head": "5743b7dcd68f043185cd406cdbd09f385de22383",
     "question": "What are the current contracts, callers, change impacts, and compatibility verdicts for every glossary lifecycle implementation seam?",
     "type": ["Q1", "Q2", "Q3"],

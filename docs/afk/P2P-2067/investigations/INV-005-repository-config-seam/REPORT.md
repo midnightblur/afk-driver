@@ -25,7 +25,7 @@ Inference: a reusable capability adds its keys to `CONFIG.md`, the reader tables
 - Missing configured paths warn without failing schema validation (`CONFIG.md:15`, `scripts/afk-config.py:1282`).
 - `init` writes `TODO` comments instead of guesses and refuses a second contract on the base branch or main worktree (`scripts/afk-config.py:968`, `scripts/afk-config.py:1129`).
 - Export values are shell-quoted; a failed export records `AFK_CFG_LOAD_FAILED` and leaves selected gates off (`scripts/afk-config.py:1204`, `hooks/lib/config.sh:27`).
-- Focused verification passed: `123 passed` (`python -m pytest -q scripts/tests/test_afk_config.py scripts/tests/test_afk_config_init.py -o cache_dir=<scratch>/pytest-cache`, exit 0).
+- Focused verification passed: `123 passed` (`afk-python -m pytest -q scripts/tests/test_afk_config.py scripts/tests/test_afk_config_init.py -o cache_dir=<scratch>/pytest-cache`, exit 0).
 
 ## Unverified
 

@@ -59,7 +59,7 @@ flowchart LR
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---|---|---|---|---|---|
-| 1 | 0001-pure-domain-rules | Pure values, parsing, fingerprints, gates, and replay | pending | — | static, unit | impl §10–12 |
+| 1 | 0001-pure-domain-rules | Pure values, parsing, fingerprints, gates, and replay | done | — | static, unit | impl §10–12 |
 | 2 | 0002-repository-access | Pinned repository controls and bounded selection | pending | 0001-pure-domain-rules | static, unit, integration | impl §1, §14; use §11–13 |
 | 3 | 0003-local-evidence | Atomic common-directory evidence | pending | 0002-repository-access | static, unit, integration | impl §13 |
 | 4 | 0004-forge-anti-corruption-adapter | Generic forge approval and state operations | pending | — | static, unit, integration | impl §6–8 |

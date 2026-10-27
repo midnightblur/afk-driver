@@ -11,7 +11,7 @@ No. Both adapters expose description reads and full-description writes, but neit
 - `change-update-body` replaces the full description on both forges. (`adapters/forge/github/forge.sh:433`, `adapters/forge/gitlab/forge.sh:440`)
 - The write answers contain no description revision, edit timestamp, or editor identity. (`adapters/forge/github/forge.sh:438`, `adapters/forge/gitlab/forge.sh:457`)
 - Note-level `author` and `edited` fields apply to notes, not the change description. (`ADAPTERS.md:103`, `ADAPTERS.md:110`)
-- The adapter test suite passed: `python -m pytest scripts/tests/test_forge_adapters.py -q` returned 113 passed.
+- The adapter test suite passed: `afk-python -m pytest scripts/tests/test_forge_adapters.py -q` returned 113 passed.
 
 ## Inferences
 

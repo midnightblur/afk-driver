@@ -17,7 +17,7 @@ Inference: moving the definition files under `tools/payable` conflicts with the 
 - Repository configuration: `.afk/config.yaml:12`.
 - Accepted placement: `11700-payable/specs/2026r2/payable-harness-setup/PRD.md:111`; `11700-payable/specs/2026r2/payable-harness-setup/PRD.md:137`; `11700-payable/specs/2026r2/payable-harness-setup/adr/requirements/0006-glossary-owned-per-project.md:6`.
 - New configuration requirement: `11700-payable/specs/2026r2/P2P-2067/PRD.md:17`.
-- Installed plugin seam: `C:/Users/mvu/.codex/plugins/cache/afk-toolkit/afk/1.16.0/CONFIG.md:138`; `C:/Users/mvu/.codex/plugins/cache/afk-toolkit/afk/1.16.0/skills/utils/glossary/SKILL.md:38`.
+- Installed plugin seam: `{user}/.codex/plugins/cache/afk-toolkit/afk/1.16.0/CONFIG.md:138`; `{user}/.codex/plugins/cache/afk-toolkit/afk/1.16.0/skills/utils/glossary/SKILL.md:38`.
 
 ## Edge cases
 
