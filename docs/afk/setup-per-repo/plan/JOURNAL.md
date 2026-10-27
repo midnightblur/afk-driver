@@ -8,3 +8,5 @@
 2026-10-27 01:20 | execute | 0001-safe-writer | decision(D-2) — the attack check runs the new code directly, because this repository has no app to start
 2026-10-27 03:12 | execute | 0001-safe-writer | decision(D-3) — moved stray copies of old worktrees out of this worktree, because one repository check read them and failed on their outdated text
 2026-10-27 03:38 | execute | 0001-safe-writer | test_fail — the full test suite stays red because earlier investigation records quote test secrets and review ids; the same 16 failures exist before this slice, and the fix lies outside its files (INV-023)
+2026-10-27 03:53 | autopilot | 0001-safe-writer | parked(test_fail) — the slice is built, but the full test suite was already red from quoted test secrets in the saved investigation records
+2026-10-27 03:53 | autopilot | run | decision(D-4) — masked the quoted test values in five investigation records so the suite can pass; the slice runs again once the suite is green

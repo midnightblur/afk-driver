@@ -8388,7 +8388,7 @@
    "site": "scripts/tests/test_report_issue.py:95",
    "disposition": "irrelevant",
    "reason": "matched line names neither gh nor glab as a separate token nor any listed environment variable or GH_REPO (substring of another word, e.g. github, or a registration form unrelated to the CLI)",
-   "evidence": "(\"token ab12cd34ef56gh\", \"ab12cd34\"),",
+   "evidence": "(\"token <fixture secret>\", \"<fixture secret>\"),",
    "line_hash": "68156aeaccc7",
    "parent": null,
    "query_id": "q-71b8678a"
@@ -35275,7 +35275,7 @@
    "site": "scripts/tests/test_report_issue.py:95",
    "disposition": "irrelevant",
    "reason": "matched line names neither gh nor glab as a separate token nor any listed environment variable or GH_REPO (substring of another word, e.g. github, or a registration form unrelated to the CLI)",
-   "evidence": "(\"token ab12cd34ef56gh\", \"ab12cd34\"),",
+   "evidence": "(\"token <fixture secret>\", \"<fixture secret>\"),",
    "line_hash": "68156aeaccc7",
    "parent": null,
    "query_id": "q-71b8678a"

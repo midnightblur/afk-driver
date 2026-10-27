@@ -43275,7 +43275,7 @@
    "reason": "the word creds in prose, history, or an unrelated fixture",
    "impact_verdict": "unchanged",
    "pinned_by": "unguarded",
-   "evidence": "(\"db:\\n  creds:\\n    password: swordfish99\", \"swordfish99\"),",
+   "evidence": "(\"db:\\n  creds:\\n    password: <fixture secret>\", \"<fixture secret>\"),",
    "line_hash": "a5f668dfd6b1",
    "parent": null,
    "query_id": "q-07f63234"

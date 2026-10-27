@@ -137758,7 +137758,7 @@
    "site": "scripts/tests/test_behavior_registry.py:510",
    "disposition": "irrelevant",
    "reason": "test of another component naming the same key or variable; not a setup step",
-   "evidence": "\"\"\"A2-004: a target installed for one harness renders ${AFK_PLUGIN_ROOT} as",
+   "evidence": "\"\"\"<review id>: a target installed for one harness renders ${AFK_PLUGIN_ROOT} as",
    "line_hash": "fc037c90f7b0",
    "parent": null,
    "query_id": "q-f4136133"

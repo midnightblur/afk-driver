@@ -66277,7 +66277,7 @@
    "class": "B8",
    "site": "scripts/tests/test_report_issue.py:201",
    "disposition": "irrelevant",
-   "evidence": "\"Authorization: <redacted> REALTOKEN123456\", | redaction tests; text only",
+   "evidence": "\"Authorization: <redacted> <fixture secret>\", | redaction tests; text only",
    "line_hash": "7cf0e1c4441e",
    "parent": null,
    "query_id": "q-9f00c962"

@@ -20,3 +20,10 @@
 - Chosen: B — `git worktree list` registers none of them, git ignores them, no tracked file changes, and the gate passes on the tree without them; the failure is not in the slice's code
 - Supersedes: none
 - To reverse: move the 9 folders back into this worktree's `.claude/worktrees/`
+
+## D-4 — How to clear the red unit tier that predates the first slice
+- 2026-10-27 · decided by /afk:autopilot (run orchestrator)
+- Options: A — make the review-id check and the redactor skip `investigations/*/COVERAGE.json` vs B — mask the quoted fixture values (test secrets, one review id) in the five ledgers that quote them vs C — park the whole plan for a human
+- Chosen: B — the failures come from this branch's own spec commit, not plugin code; masking changes evidence text only, which the coverage validator checks for presence, and all five ledgers keep their verdicts; A changes two scanners' behaviour and belongs in its own reviewed change
+- Supersedes: none
+- To reverse: revert the ledger-masking commit on the branch
