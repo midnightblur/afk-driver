@@ -22,12 +22,15 @@ with another creation time is a recycled one and reads `dead`. Never
 """
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 
 # Paths gates of plugin versions before the git-dir move left inside a checkout. `create-worktree`
 # excludes them and `remove-worktree.py` does not count them as work; this is their one home.
@@ -193,6 +196,66 @@ def state(pid: int, ctime: str) -> str:
     return "alive" if now == str(ctime) else "dead"
 
 
+@contextmanager
+def creation_lock_guard(directory: str):
+    """Serialize changes to the creation lock, including stale-holder recovery."""
+    os.makedirs(directory, exist_ok=True)
+    with open(os.path.join(directory, ".lock-guard"), "a+b") as handle:
+        deadline = time.monotonic() + 120
+        if os.name == "nt":
+            import msvcrt
+        else:
+            import fcntl
+        while True:
+            try:
+                if os.name == "nt":
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                    raise
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("worktree creation lock guard timed out") from error
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def creation_lock(directory: str, holder: str, release: bool = False) -> bool:
+    lock = os.path.join(directory, ".lock")
+    holder_path = os.path.join(lock, "holder")
+    with creation_lock_guard(directory):
+        try:
+            with open(holder_path, encoding="utf-8") as source:
+                current = source.read()
+        except FileNotFoundError:
+            current = ""
+        if release:
+            if current == holder:
+                shutil.rmtree(lock)
+            return True
+        if os.path.isdir(lock):
+            pid, _, born = current.partition(":")
+            dead = bool(pid.isdigit() and born and state(int(pid), born) == "dead")
+            abandoned = not current and time.time() - os.stat(lock).st_mtime > 120
+            if not (dead or abandoned):
+                return False
+            shutil.rmtree(lock)
+        os.mkdir(lock)
+        with open(holder_path, "w", encoding="utf-8") as target:
+            target.write(holder)
+        return True
+
+
 def owners_of(record: dict) -> list[dict]:
     """Every owner a record names: its `owners` list, else its single `owner` as a one-item list."""
     listed = record.get("owners")
@@ -355,6 +418,9 @@ def append(argv: list[str]) -> int:
 
 
 def main(argv: list[str]) -> int:
+    if len(argv) == 4 and argv[0] == "creation-lock" and argv[1] in ("acquire", "release"):
+        print("acquired" if creation_lock(argv[2], argv[3], argv[1] == "release") else "busy")
+        return 0
     if argv[:1] == ["record"]:
         return record(argv[1:])
     if argv[:1] == ["copied"]:
