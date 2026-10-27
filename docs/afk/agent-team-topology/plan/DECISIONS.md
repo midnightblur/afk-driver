@@ -951,3 +951,24 @@
 - Chosen: B — R-47 replaced the rule `Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)` with `Bash(afk-team *)` (ADR-0017). The rule text still survives plugin updates; the launcher does not, and /afk:setup rewrites it (INV-086). 0027 updates the MANIFEST H15 notes that repeat D-75's claim
 - Supersedes: D-75
 - To reverse: none on the branch; ADR-0017 is human-signed, so only a new grill round reverses it
+
+## D-136 — The ground under 0027's seams held in code; no fresh investigation
+- 2026-10-26 · decided by /afk:execute (0027-afk-team-launcher, Step 4 ground diff)
+- Options: A — run one fresh /afk:investigate at 7cef9b2 for the drifted seams vs B — work from INV-085 and INV-086, taken at 6b322da after 0009 landed, for every seam this slice touches
+- Chosen: B — the ground diffs for INV-085 and INV-086 exit 1 only on spec files written from them since 6b322da (SDD.draft.md promoted to SDD.md, their own REPORT.md files, this contract) and on the boundary statuses a seed map cannot re-take after a tracer closed them; no code or test line moved (`git log 6b322da..HEAD` touches only docs/). INV-068's and INV-080's ground moved in code, but by 0009's own build, and INV-086 re-took those sites at 6b322da (claude.sh:78, permission.py:28-29/:100, PROVIDERS.md:180-186, MANIFEST.md:403-404 and their tests)
+- Supersedes: CITED-MODE.md § "Ground diff" "It moved → one fresh /afk:investigate run" — for this slice's three seam rows only
+- To reverse: run /afk:investigate Q2+Q3 on AFK_SPAWN_ALLOW_RULE and python_runtime at the slice's head and re-check this slice's diff against its sites
+
+## D-137 — "The running plugin folder" in check 3 is AFK_PLUGIN_ROOT, else the check's own plugin
+- 2026-10-26 · decided by /afk:execute (0027-afk-team-launcher, Step 4)
+- Options: A — compare the launcher's folder with the folder of the permission.py that runs vs B — compare it with AFK_PLUGIN_ROOT from the environment the check receives, and with the check's own folder only when that variable is unset vs C — resolve the harness's installed plugin copy (claude_resolve.py)
+- Chosen: B — a run reaches the check through the launcher itself, so under A a launcher naming an older plugin folder runs that folder's check and always passes (INV-086, "Conditional"); the contact agent exports AFK_PLUGIN_ROOT from its skill folder (GLOSSARY.md "Main checkout", setup SKILL.md) and setup's H15 probe runs with it set. C misses a plugin loaded from a folder (--plugin-dir) and adds a resolver spawn per run. Limit: with AFK_PLUGIN_ROOT unset, a run started through a stale launcher compares the launcher with itself and passes
+- Supersedes: none
+- To reverse: in scripts/team/permission.py check_afk_team_launcher, compare with PLUGIN alone and drop the environment read
+
+## D-138 — The launch prompt drops its PowerShell sentence about the plugin-root variable
+- 2026-10-26 · decided by /afk:execute (0027-afk-team-launcher, Step 4)
+- Options: A — keep "In PowerShell, write $env:AFK_PLUGIN_ROOT in place of ${AFK_PLUGIN_ROOT}." after the prompt's afk-team command vs B — drop it with the variable it explained
+- Chosen: B — the prompt entry.py:237 builds from INVOCATION now names `afk-team agent-send`, which holds no variable, so the sentence tells an agent to replace text that is not there; it is the same string as :237 and test_team_entry.py:368 asserts both
+- Supersedes: none
+- To reverse: restore the sentence in scripts/team/entry.py _identity and its assertion in test_team_entry.py

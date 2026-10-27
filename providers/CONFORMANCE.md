@@ -508,10 +508,26 @@ The probes the team entry script owes before its subtask merges. Host: Windows 1
 
 Other observations:
 - A Claude agent ran `agent-send` kind `finished` to the contact through the script. The answer was `delivered` true, `way` `inbox`; the run held `inbox/f1.json` with the envelope and `signals/cl2.json` with the completion signal. The call showed `Allowed by auto mode classifier`.
-- A Codex agent on Windows runs PowerShell, where `"${AFK_PLUGIN_ROOT}/scripts/afk-team.py"` names `C:\scripts\afk-team.py`. Its send failed until it found the path. The launch prompt now says how to write the variable in PowerShell (plan D-126).
+- A Codex agent on Windows runs PowerShell, where `"${AFK_PLUGIN_ROOT}/scripts/afk-team.py"` names `C:\scripts\afk-team.py`. Its send failed until it found the path. The launch prompt then said how to write the variable in PowerShell (plan D-126). Plan D-138 dropped that sentence: the prompt now names the bare command `afk-team`, which holds no variable.
 - With a pane agent live in the probe worktree, the installed guard refused the operator's own write there: `worktree … is in use by another live session`. Agents of one run share its worktree (inferred impact on a team run; not tested with agent writes).
 - `afk-team: no owner record names <worktree>` printed on each start: the probe worktrees were not made by `scripts/create-worktree`, so no owner record existed.
 - Each Codex start showed `⚠ 1 warning`; no row depended on it.
+
+## afk-team launcher probes (2026-10-26)
+
+The probes the afk-team launcher owes before its subtask merges (SDD §14 Q55, Q56; plan 0027). Host: Windows 11, herdr 0.9.1, Claude Code 2.1.311, Codex CLI 0.164.0, at the code of `dbd60ac`. Set-up: setup's Python runtime install ran at this code with `LOCALAPPDATA` set to a scratch folder, through a driver that dropped the PATH step and checked the scratch `afk-bin` in its place, so the user PATH in the registry was not changed. It wrote `afk-team` and `afk-team.cmd` beside `afk-python`. Each pane put the scratch `afk-bin` first on `PATH` before it started the agent. Claude panes ran `haiku` in `<claude-probe>` with the real home folder. The rule reached them only through `--allowedTools 'Bash(afk-team *)'`, which stands in for the settings entry: no settings file was written. The Codex pane ran `codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` in an empty scratch folder. Every `agent-list` answered the script's own refusal (`is not inside a git repository, so the run has no main checkout`, `unavailable` true), which shows the launcher reached `scripts/afk-team.py`. Evidence folder: `0027/live`.
+
+| Probe | Steps | Claude Code | Codex CLI |
+|---|---|---|---|
+| The rule runs `afk-team` with no prompt in default mode | a pane in default mode runs `afk-team agent-list '{}'` | pass: no prompt; the script answered | n/a |
+| The rule runs `afk-team` with no prompt in auto mode | a pane in auto mode runs `afk-team agent-list '{}'` | pass: no prompt and no classifier tag; the script answered. The debug log shows `permissionDecisionMs=6` for this call, against `483` for the classifier-decided setup call below, so the rule decided (inferred: the log names no deciding layer) | n/a |
+| A joined command is checked part by part | in default mode, `afk-team agent-list '{}' && echo extra`, then `… && mkdir probe-dir` | pass: the `echo` form ran with no prompt, since `echo` is a read-only command. The `mkdir` form prompted `Do you want to proceed?`, with the options `Yes`, `Yes, and always allow access to <claude-probe> from this project`, `Yes, and switch to auto mode` and `No`. The prompt was not answered, and the pane was closed | n/a |
+| setup's launcher write in auto mode (Q55) | the scratch `afk-team` files deleted; a pane in auto mode runs the setup driver with the scratch `LOCALAPPDATA` | pass: no prompt and no refusal. Every step answered ok, including `ok afk-team` and `ok afk-team.cmd`, then `ok stamp published`; both files were back. The real `/afk:setup` adds the PATH step, which this row did not run | n/a |
+| `afk-team.cmd` under a Codex agent on Windows (Q56) | the agent runs `(Get-Command afk-team).Source; afk-team agent-list '{}'` | n/a | pass: Codex ran the command in `pwsh.exe`. `Get-Command` named `<scratch afk-bin>\afk-team.cmd`, and the script answered. In a PowerShell session, the `.cmd` returned the script's exit code (2) to `$LASTEXITCODE` |
+
+Other observations:
+- In a Git Bash shell, a `PATH` entry written `C:/…` splits at its colon, so `command -v afk-team` finds nothing. The `/c/…` form works. A PATH that Windows passes to the shell is converted, so this applies only to a hand-set PATH.
+- In the Q55 row the driver ran on the scratch `afk-python.exe`, so setup's `afk-python` step renamed the running file to `afk-python.exe.old`, as `place_entry` does for a locked file. No row depended on it.
 
 ## Background job wake probes (2026-10-20)
 

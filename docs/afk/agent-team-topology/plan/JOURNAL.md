@@ -397,3 +397,11 @@
 2026-10-26 19:40 | autopilot | 0027-afk-team-launcher | decision(D-135) — the old full-path permission line is recorded as replaced by the signed afk-team line
 2026-10-26 19:45 | autopilot | 0010-team-entry-script | unparked — the human signed the new permission design (round 47); it now waits on 0027
 2026-10-26 19:45 | autopilot | run | heartbeat 12/27 done, starting 0027-afk-team-launcher
+2026-10-26 19:59 | execute | 0027-afk-team-launcher | designing — the launcher step started; the two steps it builds on are in place
+2026-10-26 19:59 | execute | 0027-afk-team-launcher | decision(D-136) — the code under this step has not changed since its last investigation, so no new investigation runs
+2026-10-26 20:06 | execute | 0027-afk-team-launcher | decision(D-137) — the run check compares the launcher's plugin folder with the one the session names, so an old launcher cannot vouch for itself
+2026-10-26 20:06 | execute | 0027-afk-team-launcher | decision(D-138) — the agent launch message no longer tells PowerShell users to rewrite a path variable it no longer contains
+2026-10-26 20:06 | execute | 0027-afk-team-launcher | developing — writing the launcher, the new permission line and the three-part check, tests first
+2026-10-26 20:58 | execute | 0027-afk-team-launcher | pushed dbd60ac — the launcher, the new permission line and the three-part check are on pull request 112, with three reasons posted on its lines
+2026-10-26 20:58 | execute | 0027-afk-team-launcher | verifying — the code checks and unit tests pass on Windows and Linux; the live runs in real agent panes come next
+2026-10-26 21:09 | execute | 0027-afk-team-launcher | live runs recorded — Claude Code ran afk-team with no prompt in default and auto mode, setup wrote the launcher in auto mode with no refusal, and Codex ran it through afk-team.cmd (providers/CONFORMANCE.md "afk-team launcher probes")
