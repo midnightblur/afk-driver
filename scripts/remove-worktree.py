@@ -407,7 +407,7 @@ def remove_one(target: Path, force: bool) -> None:
             return
 
 
-def adopt(owner, record_file: Path, record: dict) -> None:
+def adopt(owner, record_file: Path) -> None:
     """Add the current session to the owners of a worktree it starts in; earlier owners stay."""
     found = owner.env_owner() or owner.find_owner()
     if not found or not found.get("pid"):
@@ -431,7 +431,7 @@ def prune(repo: Path) -> None:
             git(main_of(common), "worktree", "prune")
             continue
         if inside(SESSION_CWD, path):  # a resumed session stands here: it owns the worktree now
-            adopt(owner, record_file, record)
+            adopt(owner, record_file)
             continue
         if not owner.all_dead(record) or move_in_flight(common, path):
             continue

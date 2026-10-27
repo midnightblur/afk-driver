@@ -472,25 +472,23 @@ def test_adopt_replaces_the_record_and_never_truncates_it_in_place(tmp_path, mon
         return real(src, dst)
 
     monkeypatch.setattr(OWNER.os, "replace", busy)
-    load_remove().adopt(OWNER, record_file, json.loads(record_file.read_text(encoding="utf-8")))
+    load_remove().adopt(OWNER, record_file)
     body = json.loads(record_file.read_text(encoding="utf-8"))
     assert [o["pid"] for o in OWNER.owners_of(body)] == [11, 7] and body["owner"] == {"pid": 7, "ctime": "c"}
     assert sorted(q.name for q in tmp_path.iterdir()) == ["w.json"] and len(refusals) == 2
 
 
-def test_adopt_rereads_the_record_under_its_lock_and_waits_for_a_held_one(tmp_path, monkeypatch):
+def test_adopt_reads_the_record_under_its_lock_and_waits_for_a_held_one(tmp_path, monkeypatch):
     record_file = tmp_path / "w.json"
-    record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}]}), encoding="utf-8")
-    stale_read = json.loads(record_file.read_text(encoding="utf-8"))
     record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}, {"pid": 12, "ctime": "2"}]}),
-                           encoding="utf-8")                       # an agent start appended after the prune's read
+                           encoding="utf-8")                       # an agent start appended after the prune's scan
     monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 7, "ctime": "c"})
-    load_remove().adopt(OWNER, record_file, stale_read)
+    load_remove().adopt(OWNER, record_file)
     assert [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))] == [11, 12, 7]
     monkeypatch.setattr(OWNER, "LOCK_WAIT", 0.3)
     monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 8, "ctime": "d"})
     Path(f"{record_file}.lock").write_text("holder", encoding="utf-8")
-    load_remove().adopt(OWNER, record_file, json.loads(record_file.read_text(encoding="utf-8")))
+    load_remove().adopt(OWNER, record_file)
     assert 8 not in [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))]
 
 
