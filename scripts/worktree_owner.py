@@ -233,22 +233,33 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
     for name in (n for n in names if n.endswith(".json")):
         path = os.path.join(folder, name)
         try:
-            document = _patient(_load_json, path)
+            document = patient(_load_json, path)
         except ValueError:
             continue
         if not isinstance(document, dict) or not document.get("path") or same(document["path"]) != top:
             continue
-        with record_lock(path):
-            document = _patient(_load_json, path)
-            known = owners_of(document)
-            mine = {"pid": pid, "ctime": str(ctime)}
-            document["owners"] = known + ([] if mine in known else [mine])
-            scratch = os.path.join(folder, f".{name}.{os.getpid()}.tmp")
-            with open(scratch, "w", encoding="utf-8") as out:
-                json.dump(document, out)
-            _patient(os.replace, scratch, path)
+        append_owner(path, {"pid": pid, "ctime": str(ctime)})
         return path
     return None
+
+
+def append_owner(path: str, mine: dict, primary: bool = False) -> None:
+    """Under the record lock, re-read the owner record at `path`, add `mine` to its owners (and make it the
+    `owner` when `primary`), and replace the file. Raises OSError or ValueError; leaves no scratch file."""
+    with record_lock(path):
+        document = patient(_load_json, path)
+        known = owners_of(document)
+        document["owners"] = known + ([] if mine in known else [mine])
+        if primary:
+            document["owner"] = mine
+        scratch = os.path.join(os.path.dirname(path), f".{os.path.basename(path)}.{os.getpid()}.tmp")
+        try:
+            with open(scratch, "w", encoding="utf-8") as out:
+                json.dump(document, out)
+            patient(os.replace, scratch, path)
+        except OSError:
+            _remove(scratch)
+            raise
 
 
 def _load_json(path: str) -> object:
@@ -256,7 +267,7 @@ def _load_json(path: str) -> object:
         return json.load(handle)
 
 
-def _patient(action, *args):
+def patient(action, *args):
     """Run `action`, retrying for up to 2 s while Windows refuses it because another process has the file open."""
     for _ in range(100):
         try:
@@ -280,7 +291,7 @@ def record_lock(path: str):
                 with out:
                     out.write(token)
             except OSError:
-                os.remove(lock)
+                _remove(lock)
                 raise
             break
         if time.monotonic() > end:

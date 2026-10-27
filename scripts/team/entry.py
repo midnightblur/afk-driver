@@ -240,6 +240,19 @@ def _identity(run: Run, entry: dict) -> str:
             f" each message_id is {entry['agent_id']}-<n>, n a number you count up, the same n on a resend.")
 
 
+def _check_agent_id(verb: str, agent_id: str, data: dict) -> None:
+    """Refuse an id whose message ids `<id>-<n>` could equal another sender's, on a disk that ignores case too."""
+    folded = agent_id.lower()
+    if folded == CONTACT:
+        raise contract.bad(verb, f"field `agent_id`: {agent_id!r} is the contact agent's id")
+    if folded.endswith("-sup"):
+        raise contract.bad(verb, f"field `agent_id`: {agent_id!r} ends in -sup, the job supervisor's message id form")
+    twin = next((a["agent_id"] for a in data["agents"]
+                 if a["agent_id"] != agent_id and a["agent_id"].lower() == folded), None)
+    if twin:
+        raise contract.bad(verb, f"field `agent_id`: {agent_id!r} differs only in case from agent {twin}")
+
+
 def _name(verb: str, run: Run, data: dict, agent_id: str, role: str, cell: str, effort: str) -> tuple[str, str]:
     taken = {v for a in data["agents"] if a["agent_id"] != agent_id for v in (a["pane_label"], a["agent_name"]) if v}
     try:
@@ -295,13 +308,11 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     began = run.host.clock()
     _fields(p, ("agent_id", "role", "model", "brief_path", "cwd", "effort", "resume"))
     agent_id, role, model = _safe(p, "agent_id"), p.text("role"), p.text("model")
-    if agent_id.endswith("-sup") or agent_id == CONTACT:
-        raise contract.bad(p.verb, f"field `agent_id`: {agent_id!r} is the contact agent's id or ends in -sup, "
-                                   "so its message ids could match another sender's")
     brief, cwd = run.host.cwd / p.text("brief_path"), run.host.cwd / p.text("cwd")
     resume = p.text("resume", False)
     effort = p.text("effort", False)
     data = run.manifest()
+    _check_agent_id(p.verb, agent_id, data)
     entry = next((a for a in data["agents"] if a["agent_id"] == agent_id), None)
     if entry is None or entry["state"] != "starting":
         state = "no entry" if entry is None else f"an entry in state {entry['state']}"

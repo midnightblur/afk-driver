@@ -414,14 +414,7 @@ def adopt(owner, record_file: Path, record: dict) -> None:
         return
     mine = {"pid": found["pid"], "ctime": found.get("ctime")}
     try:
-        with owner.record_lock(str(record_file)):
-            record.update(json.loads(record_file.read_text(encoding="utf-8")))
-            known = owner.owners_of(record)
-            record["owners"] = known + ([] if mine in known else [mine])
-            record["owner"] = mine
-            scratch = record_file.with_name(f".{record_file.name}.{os.getpid()}.tmp")
-            scratch.write_text(json.dumps(record), encoding="utf-8")
-            os.replace(scratch, record_file)
+        owner.append_owner(str(record_file), mine, primary=True)
     except (OSError, ValueError):
         pass
 

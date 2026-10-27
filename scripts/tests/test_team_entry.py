@@ -409,8 +409,10 @@ def test_a_name_lost_5_times_answers_exit_4_and_starts_nothing(team, monkeypatch
     assert len(tries) == 5
 
 
-@pytest.mark.parametrize("agent_id, words", [("x-sup", "-sup"), ("contact", "contact")])
+@pytest.mark.parametrize("agent_id, words", [("x-sup", "ends in -sup"), ("contact", "the contact agent's id"),
+                                             ("Contact", "the contact agent's id"), ("A1", "differs only in case")])
 def test_an_agent_id_that_overlaps_another_senders_message_ids_is_refused(team, agent_id, words):
+    team.agent("a1", "builder")
     team.agent(agent_id, "builder", state="starting")
     code, body = start(team, agent_id=agent_id)
     assert code == 2 and words in body["reason"] and team.transport.calls == []

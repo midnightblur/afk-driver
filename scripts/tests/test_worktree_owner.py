@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
-
-import pytest
 import os
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = PLUGIN_ROOT / "scripts" / "worktree_owner.py"
@@ -239,3 +239,60 @@ def test_parallel_add_owner_calls_keep_every_owner(tmp_path):
     assert [c.wait(timeout=120) for c in children] == [0] * 8
     owners = json.loads(record.read_text(encoding="utf-8"))["owners"]
     assert sorted(o["pid"] for o in owners) == [11, *range(100, 108)]
+
+
+def test_patient_retries_a_sharing_refusal_and_gives_up_after_its_tries(monkeypatch):
+    monkeypatch.setattr(owner.time, "sleep", lambda s: None)
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise PermissionError("in use")
+        return "done"
+
+    assert owner.patient(flaky) == "done" and len(calls) == 3
+    calls.clear()
+    with pytest.raises(PermissionError):
+        owner.patient(lambda: calls.append(1) or (_ for _ in ()).throw(PermissionError("in use")))
+    assert len(calls) > 3
+
+
+def test_the_lock_removal_waits_out_a_sharing_refusal(tmp_path, monkeypatch):
+    monkeypatch.setattr(owner.time, "sleep", lambda s: None)
+    lock = tmp_path / "r.json.lock"
+    lock.write_text("t", encoding="utf-8")
+    real, refusals = os.remove, []
+
+    def busy(path):
+        if len(refusals) < 2:
+            refusals.append(path)
+            raise PermissionError("in use")
+        return real(path)
+
+    monkeypatch.setattr(owner.os, "remove", busy)
+    owner._remove(str(lock))
+    assert not lock.exists() and len(refusals) == 2
+
+
+@pytest.mark.parametrize("refusals, added", [(2, True), (10_000, False)])
+def test_append_owner_retries_a_refused_replace_and_leaves_no_scratch_file(tmp_path, monkeypatch, refusals, added):
+    monkeypatch.setattr(owner.time, "sleep", lambda s: None)
+    record = tmp_path / "w.json"
+    record.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}]}), encoding="utf-8")
+    real, seen = os.replace, []
+
+    def busy(src, dst):
+        if len(seen) < refusals:
+            seen.append(src)
+            raise PermissionError("in use")
+        return real(src, dst)
+
+    monkeypatch.setattr(owner.os, "replace", busy)
+    try:
+        owner.append_owner(str(record), {"pid": 7, "ctime": "c"})
+    except PermissionError:
+        assert not added
+    pids = [o["pid"] for o in owner.owners_of(json.loads(record.read_text(encoding="utf-8")))]
+    assert pids == ([11, 7] if added else [11])
+    assert sorted(q.name for q in tmp_path.iterdir()) == ["w.json"]

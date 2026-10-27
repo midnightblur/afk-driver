@@ -462,9 +462,20 @@ def test_adopt_replaces_the_record_and_never_truncates_it_in_place(tmp_path, mon
     monkeypatch.setattr(Path, "write_text", lambda self, *a, **k: (_ for _ in ()).throw(
         AssertionError("a reader can see the record empty")) if self == record_file else real(self, *a, **k))
     monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 7, "ctime": "c"})
+    monkeypatch.setattr(OWNER.time, "sleep", lambda s: None)
+    real, refusals = os.replace, []
+
+    def busy(src, dst):                                     # a reader holds the record open for a moment
+        if len(refusals) < 2:
+            refusals.append(src)
+            raise PermissionError("in use")
+        return real(src, dst)
+
+    monkeypatch.setattr(OWNER.os, "replace", busy)
     load_remove().adopt(OWNER, record_file, json.loads(record_file.read_text(encoding="utf-8")))
-    assert [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))] == [11, 7]
-    assert sorted(q.name for q in tmp_path.iterdir()) == ["w.json"]
+    body = json.loads(record_file.read_text(encoding="utf-8"))
+    assert [o["pid"] for o in OWNER.owners_of(body)] == [11, 7] and body["owner"] == {"pid": 7, "ctime": "c"}
+    assert sorted(q.name for q in tmp_path.iterdir()) == ["w.json"] and len(refusals) == 2
 
 
 def test_adopt_rereads_the_record_under_its_lock_and_waits_for_a_held_one(tmp_path, monkeypatch):

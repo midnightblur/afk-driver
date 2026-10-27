@@ -1035,3 +1035,10 @@
 - Chosen: B — an agent named `contact` would send the contact agent's message ids, and agent-send already reads the sender `contact` as the contact agent
 - Supersedes: none
 - To reverse: drop `or agent_id == CONTACT` from the agent-id check in scripts/team/entry.py agent_start
+
+## D-148 — Agent ids are compared without case, and one owner-record writer serves both callers
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers round-4 review findings f054 and f056)
+- Options: A — keep the case-sensitive id checks of D-146 and D-147, and keep adopt()'s own copy of the locked owner merge vs B — agent-start refuses `contact`, an id ending in -sup, and an id that differs only in case from another entry's, all compared without case; worktree_owner.append_owner holds the lock, re-reads, merges, replaces with the Windows retry, and removes its scratch file on failure; add_owner and remove-worktree's adopt() both call it
+- Chosen: B — the inbox and body files are named by message id, and Windows and macOS disks ignore case, so `Contact-1` and `contact-1` are one file. adopt()'s copy lacked the retry add_owner has, so a reader holding the record dropped the adoption
+- Supersedes: none
+- To reverse: restore the case-sensitive checks in scripts/team/entry.py `_check_agent_id` and the inline merge in scripts/remove-worktree.py adopt
