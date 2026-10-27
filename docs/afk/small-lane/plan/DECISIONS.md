@@ -237,3 +237,10 @@
 - Chosen: the resolved path. On a file system that ignores letter case, `Export/DESCRIPTION.md` and `export/description.md` are one file, so they must give one work id; the resolved path carries the stored spelling. A given `--key` that is empty once put in the tracker's spelling is refused, including `""`.
 - Supersedes: D-33 "a hash of the exact folder and file name", for which spelling is hashed
 - To reverse: hash `source.parent.name` and `source.name` instead of the resolved names in `publish_bug_mode.py`
+
+## D-35 — the description work id hashes the names as their folders list them
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 5)
+- Options: rely on the resolved path for the stored spelling vs read each name from its folder listing
+- Chosen: the folder listing. A resolved path carries the stored letter case on Windows only; on macOS it keeps the typed case. The folder and file names are now taken from their folders' listings, matched by the same file when the typed name is not listed, so every case-blind file system gives one work id.
+- Supersedes: D-34 "the resolved path carries the stored spelling"
+- To reverse: hash the resolved path's names again in `publish_bug_mode.py` and drop `_stored_name`

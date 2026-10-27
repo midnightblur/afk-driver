@@ -379,8 +379,9 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
     """Every check that can refuse, before any write."""
     if description:
         real = source.resolve()
-        digest = hashlib.sha1(f"{real.parent.name}/{real.name}".encode("utf-8")).hexdigest()[:8]
-        work_id = f"{_slug(real.parent.name)}_{_slug(real.stem)}-{digest}"
+        folder, name = _stored_name(real.parent), _stored_name(real)
+        digest = hashlib.sha1(f"{folder}/{name}".encode("utf-8")).hexdigest()[:8]
+        work_id = f"{_slug(folder)}_{_slug(Path(name).stem)}-{digest}"
         recorded, text = "", source.read_text(encoding="utf-8").strip()
         if not text:
             raise Refused(f"the description file {source} is empty")
@@ -573,6 +574,24 @@ def _filed_here(plan: Plan) -> bool:
     """This mode created the ticket: its key is recorded and listed as a ticket write."""
     return (not plan.description and listed(plan.source, f"ticket: {plan.key}")
             and _part_text(plan.source, "Ticket key") == plan.key)
+
+
+def _stored_name(path: Path) -> str:
+    """The name as its folder lists it, so a case-blind file system gives one spelling."""
+    try:
+        with os.scandir(path.parent) as entries:
+            names = [entry.name for entry in entries]
+    except OSError:
+        return path.name
+    if path.name in names:
+        return path.name
+    for name in names:
+        try:
+            if os.path.samefile(path.parent / name, path):
+                return name
+        except OSError:
+            continue
+    return path.name
 
 
 def _slug(text: str) -> str:

@@ -954,9 +954,31 @@ def test_a_re_run_of_one_description_file_keeps_its_work_id(tmp_path):
     again = run(note, stub, GITHUB, tmp_path, description=True)
     assert again.code == 0, again.lines
     assert sorted(stub.issues) == ["1"] and stub.comments("1") == []
+
+
+def test_a_description_file_reached_through_another_case_keeps_its_work_id(tmp_path):
+    note = tmp_path / "docs" / "Export" / "DESCRIPTION.md"
+    note.parent.mkdir(parents=True)
+    note.write_text("Export drops the last row\n", encoding="utf-8")
     other = tmp_path / "docs" / "export" / "description.md"
     if not other.exists():
         pytest.skip("the file system tells letter case apart")
-    third = run(other, stub, GITHUB, tmp_path, description=True)
-    assert third.code == 0, third.lines
+    stub = StubGitHub()
+    assert run(note, stub, GITHUB, tmp_path, description=True).code == 0
+    again = run(other, stub, GITHUB, tmp_path, description=True)
+    assert again.code == 0, again.lines
     assert sorted(stub.issues) == ["1"] and stub.comments("1") == []
+    marker = f"afk-evidence export_description-{_digest('Export', 'DESCRIPTION.md')} ticket"
+    assert marker in stub.issues["1"]["body"]
+
+
+def test_a_stored_name_is_read_from_its_folder_listing(tmp_path, monkeypatch):
+    note = tmp_path / "Export" / "DESCRIPTION.md"
+    note.parent.mkdir()
+    note.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(mode.os.path, "samefile",
+                        lambda a, b: Path(a).name.lower() == Path(b).name.lower())
+    assert mode._stored_name(note.parent / "description.md") == "DESCRIPTION.md"
+    assert mode._stored_name(tmp_path / "export") == "Export"
+    assert mode._stored_name(note) == "DESCRIPTION.md"
+    assert mode._stored_name(tmp_path / "gone" / "x.md") == "x.md"

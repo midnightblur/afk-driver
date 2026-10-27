@@ -14,7 +14,7 @@ Creates or updates one ticket on the configured tracker (Jira or GitHub Issues) 
 
 ## How to run
 
-1. **Input.** A diagnosis path the diagnosis check accepts, or a description file (`--description`; its work id is `{folder}_{file name without extension}-{hash}`: each name lower-cased with other characters as dashes, and the first 8 hex digits of the sha1 of the exact folder and file name). Optional: `--type bug|enhancement` (default `bug`, applied to a created ticket), `--key` for an existing ticket, `--summary` for a created ticket's title, `--proof P-n=PATH` per proof file, `--in-review`.
+1. **Input.** A diagnosis path the diagnosis check accepts, or a description file (`--description`; its work id is `{folder}_{file name without extension}-{hash}`: each name lower-cased with other characters as dashes, and the first 8 hex digits of the sha1 of the folder and file name as their folders list them). Optional: `--type bug|enhancement` (default `bug`, applied to a created ticket), `--key` for an existing ticket, `--summary` for a created ticket's title, `--proof P-n=PATH` per proof file, `--in-review`.
 2. **Fix version (Jira).** With a person present, ask which fix version the ticket takes and pass `--fix-version`; no answer → leave it out. Hands-off → leave it out. GitHub Issues → do not ask.
 3. **Dry run** — every check, no write; prints the payloads:
 
