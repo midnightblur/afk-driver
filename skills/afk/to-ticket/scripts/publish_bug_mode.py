@@ -44,7 +44,8 @@ for _path in (PLUGIN_ROOT / "scripts", DIAGNOSE_SCRIPTS):
 import tracker_api  # noqa: E402
 from check_diagnosis import check_diagnosis  # noqa: E402
 from diagnosis_file import BOM, headings, sections, split_lines  # noqa: E402
-from outside_writes import append_outside_write, listed, retry_with_read_back  # noqa: E402
+from outside_writes import (append_outside_write, listed, replace_text,  # noqa: E402
+                            retry_with_read_back)
 
 TYPES = ("bug", "enhancement")
 PROOF_KINDS = ("P-1", "P-2", "P-3")
@@ -52,6 +53,7 @@ IN_REVIEW = "in-review"
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 STEPS = ("ticket", "fix-version", "evidence", "proof", "in-review")
 EVIDENCE_PARTS = ("Spec comparison", "Reproduction", "Attempts", "Root cause", "Fix proposal")
+WRITTEN_PARTS = ("Work id", "Ticket key", "Outside writes")
 
 
 class Refused(Exception):
@@ -154,23 +156,34 @@ def _bad(answer) -> bool:
         answer.get("error") or answer.get("unavailable") or answer.get("unsupported"))
 
 
+TRANSIENT = re.compile(r"\b5\d\d\b|timed? ?out|timeout|connection|network|temporar|rate limit|EOF",
+                       re.IGNORECASE)
+
+
 def _why(answer) -> str:
     if not isinstance(answer, dict):
         return repr(answer)
     if answer.get("reason"):
         return str(answer["reason"])
-    if answer.get("status") is not None:
-        return f"HTTP {answer['status']}: {str(answer.get('body') or '')[:2000]}"
+    status = answer.get("status")
+    if status is not None:
+        label = f"HTTP {status}" if isinstance(status, int) and status >= 100 else f"exit code {status}"
+        return f"{label}: {str(answer.get('body') or '')[:2000]}"
     return str(answer.get("body") or answer.get("message") or answer)
 
 
 def _permanent(answer) -> bool:
-    """A refusal or a 4xx: the same write would fail again, so it is not retried."""
+    """A refusal, a 4xx, or a command-line client's error that names no network or
+    server fault: the same write would fail again, so it is not retried."""
     if not isinstance(answer, dict):
         return False
     status = answer.get("status")
-    return bool(answer.get("refused") or answer.get("unsupported")) or (
-        isinstance(status, int) and 400 <= status < 500)
+    if answer.get("refused") or answer.get("unsupported"):
+        return True
+    if isinstance(status, int) and 400 <= status < 500:
+        return True
+    return (isinstance(status, int) and 0 < status < 100
+            and not TRANSIENT.search(str(answer.get("body") or "")))
 
 
 def _marker_seen(answer, marker: str) -> bool:
@@ -209,20 +222,9 @@ def _write_part(path: Path, part: str, value: str, only_empty: bool) -> bool:
             lines[at] += eol
         tail = [eol] if end < len(lines) else []
         lines[at + 1:end] = [eol, value + eol, *tail]
-        _replace(path, (BOM if bom else "") + "".join(lines))
+        replace_text(path, (BOM if bom else "") + "".join(lines))
         return True
-    raise Refused(f"the diagnosis has no `## {part}` part")
-
-
-def _replace(path: Path, text: str):
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-            handle.write(text)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
+    raise ValueError(f"the diagnosis has no `## {part}` part")
 
 
 def _listed_change(path: Path) -> str:
@@ -246,13 +248,17 @@ def _config_module():
 
 def _resolve_folder(work_id: str) -> str | None:
     """The spec folder the notes adapter renders for `work_id`, or None."""
-    bash = os.environ.get("AFK_BASH") or shutil.which("bash")
-    if not bash:
+    spec = importlib.util.spec_from_file_location("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py")
+    launcher = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launcher)
+    bash = launcher.find_bash()
+    if bash is None:
         return None
-    env = dict(os.environ, AFK_PLUGIN_ROOT=os.environ.get("AFK_PLUGIN_ROOT") or str(PLUGIN_ROOT))
+    env = launcher.shell_env(bash)
+    env["AFK_PLUGIN_ROOT"] = os.environ.get("AFK_PLUGIN_ROOT") or str(PLUGIN_ROOT)
     try:
         done = subprocess.run(
-            [bash, "-c", '. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh"; afk_adapter notes resolve "$1"',
+            [str(bash), "-c", '. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh"; afk_adapter notes resolve "$1"',
              "--", json.dumps({"workId": work_id, "ticket": work_id})],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
             env=env, stdin=subprocess.DEVNULL)
@@ -295,7 +301,7 @@ def run_bug_mode(source, *, description: bool = False, ticket_type: str | None =
     """Diagnosis path, or description file, plus an optional type and key ->
     the `TICKET: <key> <link>` line of the ticket created or updated."""
     lines: list[str] = []
-    staged = None
+    plan = None
     try:
         source = Path(source)
         if not source.is_file():
@@ -328,8 +334,7 @@ def run_bug_mode(source, *, description: bool = False, ticket_type: str | None =
             return Result(0, lines)
         if not yes and not confirm(f"Run the {len(plan.writes)} write step(s) above? [y/N] "):
             raise Refused("not confirmed")
-        staged = _stage(plan)
-        key_now, link = _execute(run, plan, resolve, staged)
+        key_now, link = _execute(run, plan, resolve)
         ticket = f"TICKET: {key_now} {link}".rstrip()
         lines.append(ticket)
         return Result(0, lines, ticket)
@@ -340,8 +345,8 @@ def run_bug_mode(source, *, description: bool = False, ticket_type: str | None =
         lines.append(f"FAILED: {e}; no write followed it")
         return Result(2, lines)
     finally:
-        if staged:
-            shutil.rmtree(staged, ignore_errors=True)
+        if plan is not None and plan.staged:
+            shutil.rmtree(plan.staged, ignore_errors=True)
 
 
 @dataclass
@@ -360,13 +365,15 @@ class Plan:
     target: tuple | None
     assignee: str | None
     writes: list = field(default_factory=list)
+    mark_id: str = ""
+    staged: str | None = None
 
 
 def _preflight(run, source, description, ticket_type, key, summary, fix_version, proof,
                in_review, assignee) -> Plan:
     """Every check that can refuse, before any write."""
     if description:
-        work_id = source.resolve().parent.name
+        work_id = f"{source.resolve().parent.name}-{source.stem}"
         recorded, text = "", source.read_text(encoding="utf-8").strip()
         if not text:
             raise Refused(f"the description file {source} is empty")
@@ -375,6 +382,12 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
         if not checked.ok:
             raise Refused("the diagnosis check refuses the file: "
                           + "; ".join([f"missing {m}" for m in checked.missing] + checked.problems))
+        present = {name for _, name in headings(split_lines(
+            source.read_text(encoding="utf-8").removeprefix(BOM), keepends=True))}
+        absent = [part for part in WRITTEN_PARTS if part.lower() not in present]
+        if absent:
+            raise Refused("the diagnosis has no " + ", ".join(f"`## {part}`" for part in absent)
+                          + " part, which this mode writes")
         work_id = _part_text(source, "Work id")
         recorded = _part_text(source, "Ticket key")
         text = ""
@@ -414,7 +427,7 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
         if why:
             raise Refused(why)
     target = None
-    if in_review and target_key:
+    if in_review and target_key and (description or not listed(source, f"in-review: {target_key}")):
         target = _in_review_target(run, target_key, str(value))
 
     plan = Plan(source, description, work_id, recorded, given, target_key, create, text,
@@ -507,15 +520,14 @@ def _step_text(plan: Plan, step: str) -> str:
     return f"move to the in-review state `{IN_REVIEW}`"
 
 
-def _stage(plan: Plan) -> str | None:
+def _stage(plan: Plan) -> None:
     """Copy each proof file to a name carrying the work id, the kind and the step."""
-    if not plan.proof:
-        return None
     folder = tempfile.mkdtemp(prefix="afk-proof-")
+    plan.staged = folder
     names = set()
     staged = []
     for kind_name, path in plan.proof:
-        base = f"{plan.work_id}-{kind_name.lower()}-proof-{Path(path).name}"
+        base = f"{plan.mark_id}-{kind_name.lower()}-proof-{Path(path).name}"
         name, n = base, 2
         while name.lower() in names:
             stem, dot, ext = base.rpartition(".")
@@ -525,14 +537,29 @@ def _stage(plan: Plan) -> str | None:
         shutil.copyfile(path, os.path.join(folder, name))
         staged.append((kind_name, os.path.join(folder, name)))
     plan.proof = staged
-    return folder
 
 
-def _execute(run: Run, plan: Plan, resolve, staged) -> tuple[str, str]:
-    marker = lambda step: f"afk-evidence {plan.work_id} {step}"  # noqa: E731
+def _execute(run: Run, plan: Plan, resolve) -> tuple[str, str]:
+    try:
+        return _steps(run, plan, resolve)
+    except (Refused, OSError, ValueError) as e:
+        raise Failed(f"{e}; the writes reported above stay on the tracker") from e
+
+
+def _filed_here(plan: Plan) -> bool:
+    """This mode created the ticket: its key is recorded and listed as a ticket write."""
+    return (not plan.description and listed(plan.source, f"ticket: {plan.key}")
+            and _part_text(plan.source, "Ticket key") == plan.key)
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9-]+", "-", text.lower()).strip("-") or "ticket"
+
+
+def _steps(run: Run, plan: Plan, resolve) -> tuple[str, str]:
     created = False
     if plan.create:
-        plan.key = _create(run, plan, marker("ticket"))
+        plan.key = _create(run, plan, f"afk-evidence {plan.work_id} ticket")
         created = True
         if not plan.description:
             _list(run, plan, f"ticket: {plan.key}")
@@ -544,15 +571,23 @@ def _execute(run: Run, plan: Plan, resolve, staged) -> tuple[str, str]:
         elif plan.given and plan.given != plan.recorded:
             _list(run, plan, f"ticket: {plan.given}")
             run.say(f"STEP: ticket — {plan.given} listed in Outside writes")
-    if (not plan.description and plan.work_id != plan.key
-            and listed(plan.source, f"ticket: {plan.key}")
-            and _part_text(plan.source, "Ticket key") == plan.key):
+    filed = _filed_here(plan)
+    if filed and plan.work_id != plan.key:
         _move(run, plan, resolve)
+    plan.mark_id = plan.key if filed else plan.work_id
+    later = bool(plan.given and plan.recorded and plan.given != plan.recorded)
+    suffix = f"-{_slug(plan.key)}" if later else ""
+    marker = lambda step: f"afk-evidence {plan.mark_id} {step}{suffix}"  # noqa: E731
+    if plan.in_review and plan.target is None and (
+            plan.description or not listed(plan.source, f"in-review: {plan.key}")):
+        value = str(_dotted(run.config, run.kind.in_review_path).get(IN_REVIEW))
+        plan.target = _in_review_target(run, plan.key, value)
     if plan.fix_version and not created:
         _fix_version(run, plan)
     if "evidence" in plan.writes:
         _comment_step(run, plan, marker("evidence"), _evidence_text(plan, marker("evidence")))
     if plan.proof:
+        _stage(plan)
         _proof(run, plan, marker("proof"))
     if plan.in_review:
         _move_to_in_review(run, plan)
@@ -649,7 +684,7 @@ def _comments_show(run: Run, key: str, marker: str):
 
 
 def _comment_step(run: Run, plan: Plan, marker: str, text: str):
-    step = marker.rsplit(" ", 1)[1]
+    step = "evidence"
     entry = f"evidence: {marker}"
     if not plan.description and listed(plan.source, entry):
         run.say(f"STEP: {step} — skipped, listed in Outside writes")
@@ -666,7 +701,7 @@ def _proof(run: Run, plan: Plan, marker: str):
         run.say("STEP: proof — skipped, listed in Outside writes")
         return
     names = {os.path.basename(path) for _, path in plan.proof}
-    lines = [f"**Proof for {plan.work_id}**", ""]
+    lines = [f"**Proof for {plan.mark_id}**", ""]
     lines += [f"- {kind_name}: `{os.path.basename(path)}`" for kind_name, path in plan.proof]
     change = "" if plan.description else _listed_change(plan.source)
     if change:
@@ -738,10 +773,6 @@ def _move_to_in_review(run: Run, plan: Plan):
     if not plan.description and listed(plan.source, entry):
         run.say("STEP: in-review — skipped, listed in Outside writes")
         return
-    if plan.target is None:
-        value = str(_dotted(run.config, run.kind.in_review_path).get(IN_REVIEW))
-        plan.target = _in_review_target(run, plan.key, value)
-
     def back():
         got = run.call("tracker_get", {"ticket_key": plan.key, "fields": run.kind.state_fields})
         if _bad(got):

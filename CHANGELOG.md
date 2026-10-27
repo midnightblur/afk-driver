@@ -52,10 +52,11 @@ release page from its section here. Nobody tags by hand.
   on Jira or GitHub Issues from a `DIAGNOSIS.md` or a description file, posts
   evidence comments and proof files, moves the ticket to the configured
   in-review state and backfills the Jira fix version. It checks the type, the
-  key, the in-review state and the fix version before any write, runs only
-  with a person present or a prior approval, lists each write in the
-  diagnosis's Outside writes, and finds an earlier write by its evidence
-  marker instead of repeating it.
+  key, the fix version and an existing ticket's in-review state before any
+  write, and a created ticket's in-review state right after the create. It
+  runs only with a person present or a prior approval, lists each write but
+  the fix version in the diagnosis's Outside writes, and finds an earlier
+  write by its evidence marker instead of repeating it.
 
 ### Changed
 

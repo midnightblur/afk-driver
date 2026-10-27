@@ -14,7 +14,7 @@ Four independent modes writing to the configured tracker:
 - **Spinoff mode** ([jump](#spinoff-mode--mint-a-stub-for-deferred-work)) — mint a **new** stub Enhancement for work a grill deferred out of scope; no engine — the `tracker_create` MCP tool.
 - **Bug and ad-hoc mode** ([BUG-MODE.md](BUG-MODE.md)) — create or update a ticket from a `DIAGNOSIS.md` or a description file, with evidence comments, proof files, the in-review move and the Jira fix version; engine [`scripts/publish_bug_mode.py`](./scripts/publish_bug_mode.py).
 
-PRD and meeting mode both write **ADF** into an existing issue's description, are **idempotent** (re-run updates in place, never duplicates), and own **disjoint regions** so they never collide; their engines share creds + the Markdown→ADF mapping. Spinoff mode instead **creates** an issue — no description-region ownership, guarded against duplicates by the grill log (below). Bug and ad-hoc mode writes a description only on a ticket it creates and only comments on an existing one; its evidence markers guard against duplicates.
+PRD and meeting mode both write **ADF** into an existing issue's description, are **idempotent** (re-run updates in place, never duplicates), and own **disjoint regions** so they never collide; their engines share creds + the Markdown→ADF mapping. Spinoff mode instead **creates** an issue — no description-region ownership, guarded against duplicates by the grill log (below). Bug and ad-hoc mode writes a description only on a ticket it creates and never edits an existing one's description; its evidence markers guard against duplicates.
 
 ## What it does / does not do (binding)
 
@@ -94,7 +94,7 @@ Creating an issue has a first-class MCP tool, so spinoff mode uses it directly �
 
 1. **Read the candidate** from the grill's `GRILL-LOG.md` spinoff row — kind, summary, pain, why-out, intended links.
 2. **Dedup.** Row already reads `filed {KEY}` → stop; the stub exists (`SPINOFF-TICKET.md`, dedup on resume).
-3. **Create** via `tracker_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, a plain-text `description` carrying the pain + why-deferred/what-unblocks, and `assignee` from `afk-config.py resolve trackerAssignee` when it resolves (unset → no assignee, unchanged). Requirements-level, no repo-artifact references (ticket readers have no repo access).
+3. **Create** via `tracker_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, a Markdown `description` (Jira receives it as formatted text) carrying the pain + why-deferred/what-unblocks, and `assignee` from `afk-config.py resolve trackerAssignee` when it resolves (unset → no assignee, unchanged). Requirements-level, no repo-artifact references (ticket readers have no repo access). An answer with `refused: true` names an unknown fix version and created nothing: ask the human for a known one and retry.
 4. **Record + link-debt.** The instant create returns, write `{KEY}` back onto the candidate row. `tracker_create` (and `tracker_edit`) **cannot set `issuelinks`**, so every intended `blocked-by`/`relates` link is **link-debt**: mark the row `filed {KEY} · link-debt` and tell the human which links to set by hand.
 
 **Done when:** the issue exists, its key is on the candidate row, and any unset links are surfaced as link-debt. **Human-present + user-directed only** (`SPINOFF-TICKET.md`) — never mint in a driven run.

@@ -7,6 +7,8 @@ payloads and what a re-run finds. Nothing here opens a socket or runs `gh`.
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -41,7 +43,8 @@ WRITES = ("tracker_create", "tracker_edit", "tracker_comment", "tracker_transiti
 def diagnosis(tmp_path, folder=WORK, **changes):
     parts = dict(PARTS, **changes)
     text = "# Diagnosis\n\n" + "".join(
-        f"## {name}\n{body}\n\n" if body else f"## {name}\n\n" for name, body in parts.items())
+        f"## {name}\n{body}\n\n" if body else f"## {name}\n\n" for name, body in parts.items()
+        if body is not None)
     path = tmp_path / "docs" / folder / "DIAGNOSIS.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -52,6 +55,16 @@ def part(path, name):
     return mode._part_text(Path(path), name)
 
 
+class Lost:
+    """A scripted failure whose write never reached the tracker."""
+
+    def __init__(self, answer):
+        self.answer = answer
+
+
+PASS = object()  # a scripted slot that keeps the stub's own answer
+
+
 class Stub:
     """Shared bookkeeping: calls, scripted answers, and the tickets written."""
 
@@ -59,10 +72,14 @@ class Stub:
         self.calls, self.script, self.issues, self.attachments = [], {}, {}, {}
 
     def call(self, operation, payload):
+        """A scripted answer replaces the stub's own; `Lost(answer)` also skips the write."""
         self.calls.append((operation, json.loads(json.dumps(payload))))
-        answer = getattr(self, operation)(payload)
         queued = self.script.get(operation)
-        return queued.pop(0) if queued else answer
+        if queued and isinstance(queued[0], Lost):
+            return queued.pop(0).answer
+        answer = getattr(self, operation)(payload)
+        scripted = queued.pop(0) if queued else PASS
+        return answer if scripted is PASS else scripted
 
     def writes(self, operation=None):
         return [c for c in self.calls if c[0] in WRITES and (operation is None or c[0] == operation)]
@@ -205,9 +222,8 @@ def run(source, stub, config, tmp_path, **options):
     sleeps = []
     options.setdefault("consent", "person")
     options.setdefault("yes", True)
-    result = mode.run_bug_mode(
-        source, tracker=stub, config=config, sleep=sleeps.append,
-        resolve=lambda key: str(tmp_path / "docs" / key), **options)
+    options.setdefault("resolve", lambda key: str(tmp_path / "docs" / key))
+    result = mode.run_bug_mode(source, tracker=stub, config=config, sleep=sleeps.append, **options)
     result.sleeps = sleeps
     return result
 
@@ -250,6 +266,18 @@ def test_create_sets_the_key_lists_the_writes_and_moves_the_folder(tmp_path):
     writes = part(moved, "Outside writes").splitlines()
     assert writes == ["- ticket: PROJ-1", "- evidence: afk-evidence PROJ-1 evidence"]
     assert "afk-evidence PROJ-1 evidence" in stub.comments("PROJ-1")[0]
+
+
+def test_a_local_write_failing_after_the_create_says_the_ticket_stays(tmp_path, monkeypatch):
+    stub, path = StubJira(), diagnosis(tmp_path)
+
+    def denied(*_args, **_kwargs):
+        raise PermissionError(13, "Access is denied")
+
+    monkeypatch.setattr(mode, "replace_text", denied)
+    result = run(path, stub, JIRA, tmp_path)
+    assert result.code == 2 and "PROJ-1" in stub.issues
+    assert result.lines[-1].endswith("the writes reported above stay on the tracker; no write followed it")
 
 
 def test_an_existing_ticket_gets_a_comment_only_and_its_key_recorded(tmp_path):
@@ -301,7 +329,7 @@ def test_a_description_file_creates_a_ticket_with_its_text_and_no_comment(tmp_pa
     result = run(note, stub, GITHUB, tmp_path, description=True)
     assert result.code == 0, result.lines
     body = stub.issues["1"]["payload"]["description"]
-    assert "Seen on the grid page." in body and "afk-evidence adhoc-export ticket" in body
+    assert "Seen on the grid page." in body and "afk-evidence adhoc-export-DESCRIPTION ticket" in body
     assert stub.issues["1"]["payload"]["summary"] == "Export drops the last row"
     assert stub.writes("tracker_comment") == [] and note.is_file()
 
@@ -546,3 +574,231 @@ def test_load_goes_through_tracker_api_and_the_stub_gets_the_attach_payload(tmp_
 def test_the_command_line_needs_exactly_one_input(capsys):
     with pytest.raises(SystemExit):
         mode.main(["--type", "bug"])
+
+
+# --- writes that fail part-way, re-runs, markers -----------------------------
+
+def test_a_created_ticket_with_no_matching_in_review_move_fails_before_more_writes(tmp_path):
+    stub = StubJira()
+    config = dict(JIRA, jira=dict(JIRA["jira"], transitions={"in-review": "99"}))
+    result = run(diagnosis(tmp_path), stub, config, tmp_path, in_review=True)
+    assert result.code == 2
+    assert result.lines[-1].startswith("FAILED:") and "offers no transition" in result.lines[-1]
+    assert "stay on the tracker" in result.lines[-1]
+    assert [c[0] for c in stub.writes()] == ["tracker_create"]
+
+
+@pytest.mark.parametrize("dropped", ["Outside writes", "Ticket key"])
+def test_a_diagnosis_without_a_part_this_mode_writes_is_refused(tmp_path, dropped):
+    stub = StubJira()
+    result = run(diagnosis(tmp_path, **{dropped: None}), stub, JIRA, tmp_path)
+    assert result.code == 1 and f"`## {dropped}`" in result.lines[-1]
+    assert stub.writes() == []
+
+
+class StubJiraInReview(StubJira):
+    def tracker_transitions(self, p):
+        if self.issues[p["ticket_key"]]["status"] == "In Review":
+            return {"transitions": [{"id": "21", "name": "Back to dev", "to": {"name": "In Progress"}}]}
+        return super().tracker_transitions(p)
+
+
+def test_a_re_run_after_the_in_review_move_is_not_refused(tmp_path):
+    stub = StubJiraInReview()
+    stub.add("PROJ-9")
+    path = diagnosis(tmp_path, **{"Ticket key": "PROJ-9"})
+    assert run(path, stub, JIRA, tmp_path, in_review=True).code == 0
+    again = run(path, stub, JIRA, tmp_path, in_review=True)
+    assert again.code == 0, again.lines
+    assert len(stub.writes("tracker_transition")) == 1
+
+
+def test_jira_in_review_matches_a_transition_by_name(tmp_path):
+    stub = StubJira()
+    stub.add("PROJ-4")
+    config = dict(JIRA, jira=dict(JIRA["jira"], transitions={"in-review": "start REVIEW"}))
+    path = diagnosis(tmp_path, **{"Ticket key": "PROJ-4"})
+    assert run(path, stub, config, tmp_path, in_review=True).code == 0
+    assert stub.issues["PROJ-4"]["status"] == "In Review"
+
+
+def test_a_ticket_already_in_the_configured_state_needs_no_transition(tmp_path):
+    stub = StubJiraInReview()
+    stub.add("PROJ-4", status="In Review")
+    config = dict(JIRA, jira=dict(JIRA["jira"], transitions={"in-review": "In Review"}))
+    path = diagnosis(tmp_path, **{"Ticket key": "PROJ-4"})
+    result = run(path, stub, config, tmp_path, in_review=True)
+    assert result.code == 0, result.lines
+    assert stub.writes("tracker_transition") == []
+    assert "- in-review: PROJ-4" in part(path, "Outside writes")
+
+
+def test_two_description_files_in_one_folder_file_two_tickets(tmp_path):
+    stub = StubGitHub()
+    folder = tmp_path / "docs" / "adhoc"
+    folder.mkdir(parents=True)
+    (folder / "a.md").write_text("Export drops the last row\n", encoding="utf-8")
+    (folder / "b.md").write_text("Import ignores the header\n", encoding="utf-8")
+    assert run(folder / "a.md", stub, GITHUB, tmp_path, description=True).code == 0
+    assert run(folder / "b.md", stub, GITHUB, tmp_path, description=True).code == 0
+    assert sorted(stub.issues) == ["1", "2"]
+
+
+def test_a_folder_move_done_on_a_later_run_does_not_repeat_the_evidence(tmp_path):
+    stub, path = StubJira(), diagnosis(tmp_path)
+    first = run(path, stub, JIRA, tmp_path, resolve=lambda key: None)
+    assert first.code == 0 and path.is_file()
+    again = run(path, stub, JIRA, tmp_path)
+    assert again.code == 0, again.lines
+    assert len(stub.comments("PROJ-1")) == 1
+    assert (tmp_path / "docs" / "PROJ-1" / "DIAGNOSIS.md").is_file()
+
+
+def test_a_re_run_after_a_failed_proof_comment_does_not_upload_again(tmp_path):
+    stub = StubJira()
+    stub.script["tracker_attach"] = [{"error": True, "reason": "the files are attached; the comment failed"}]
+    real = stub.tracker_attach
+    stub.tracker_attach = lambda p: (real(p), stub.comments(p["ticket_key"]).pop())[0]
+    down = Lost({"error": True, "status": 503, "body": "down"})
+    stub.script["tracker_comment"] = [PASS, down, down, down]
+    shot = tmp_path / "shot.png"
+    shot.write_bytes(b"png")
+    proof = (("P-1", str(shot)),)
+    first = run(diagnosis(tmp_path), stub, JIRA, tmp_path, proof=proof)
+    assert first.code == 2, first.lines
+    again = run(tmp_path / "docs" / "PROJ-1" / "DIAGNOSIS.md", stub, JIRA, tmp_path, proof=proof)
+    assert again.code == 0, again.lines
+    assert stub.attachments["PROJ-1"] == ["PROJ-1-p-1-proof-shot.png"]
+    assert "afk-evidence PROJ-1 proof" in stub.comments("PROJ-1")[-1]
+
+
+def test_a_later_different_ticket_gets_its_own_evidence(tmp_path):
+    stub = StubJira()
+    stub.add("PROJ-2", comments=[f"x\n\nafk-evidence {WORK} evidence"])
+    stub.add("PROJ-3")
+    path = diagnosis(tmp_path, **{"Ticket key": "PROJ-2",
+                                  "Outside writes": f"- evidence: afk-evidence {WORK} evidence"})
+    assert run(path, stub, JIRA, tmp_path, key="PROJ-3").code == 0
+    assert f"afk-evidence {WORK} evidence-proj-3" in stub.comments("PROJ-3")[0]
+    assert f"- evidence: afk-evidence {WORK} evidence-proj-3" in part(path, "Outside writes")
+
+
+def test_a_command_line_client_error_is_shown_and_not_retried(tmp_path):
+    stub = StubGitHub()
+    stub.add("5")
+    stub.script["tracker_comment"] = [Lost({"error": True, "status": 1, "body": "GraphQL: Could not comment"})]
+    result = run(diagnosis(tmp_path, **{"Ticket key": "5"}), stub, GITHUB, tmp_path)
+    assert result.code == 2 and "exit code 1: GraphQL" in result.lines[-1]
+    assert result.sleeps == [] and len(stub.writes("tracker_comment")) == 1
+
+
+def test_a_lost_comment_is_retried_after_a_read_back_finds_nothing(tmp_path):
+    stub = StubGitHub()
+    stub.add("5")
+    stub.script["tracker_comment"] = [Lost({"error": True, "status": 1, "body": "HTTP 502: bad gateway"})]
+    result = run(diagnosis(tmp_path, **{"Ticket key": "5"}), stub, GITHUB, tmp_path)
+    assert result.code == 0, result.lines
+    assert result.sleeps == [5] and len(stub.writes("tracker_comment")) == 2
+    assert len(stub.comments("5")) == 1
+
+
+def test_two_proof_files_with_one_name_upload_under_two_names(tmp_path):
+    stub = StubGitHub()
+    stub.add("3")
+    for sub in ("a", "b"):
+        (tmp_path / sub).mkdir()
+        (tmp_path / sub / "run.png").write_bytes(sub.encode())
+    path = diagnosis(tmp_path, **{"Ticket key": "3"})
+    proof = (("P-1", str(tmp_path / "a" / "run.png")), ("P-1", str(tmp_path / "b" / "run.png")))
+    assert run(path, stub, GITHUB, tmp_path, proof=proof).code == 0
+    attach = [p for op, p in stub.calls if op == "tracker_attach"][0]
+    assert [os.path.basename(f) for f in attach["files"]] == [
+        f"{WORK}-p-1-proof-run.png", f"{WORK}-p-1-proof-run-2.png"]
+
+
+def test_a_jira_file_stored_differently_is_named_in_a_note(tmp_path):
+    stub = StubJira()
+    stub.add("PROJ-8")
+    real = stub.tracker_attach
+    stub.tracker_attach = lambda p: dict(real(p), mismatches=[
+        {"file": p["files"][0], "reason": "stored differently"}])
+    log = tmp_path / "run.log"
+    log.write_text("rows\n", encoding="utf-8")
+    path = diagnosis(tmp_path, **{"Ticket key": "PROJ-8"})
+    result = run(path, stub, JIRA, tmp_path, proof=(("P-1", str(log)),))
+    assert result.code == 0
+    assert any(line.startswith("NOTE: stored differently") and "run.log" in line for line in result.lines)
+
+
+# --- the command line and the real folder resolver ---------------------------
+
+def _github_config(tmp_path, monkeypatch, stub):
+    config = tmp_path / "config.yaml"
+    config.write_text("tracker: github-issues\ngithub-issues:\n  state-labels:\n"
+                      "    in-review: \"status:in-review\"\n", encoding="utf-8")
+    monkeypatch.setenv("AFK_CONFIG", str(config))
+    monkeypatch.setattr(mode.tracker_api, "load", lambda required=(): stub)
+
+
+def test_the_command_line_passes_every_option_through(tmp_path, monkeypatch, capsys):
+    stub = StubGitHub()
+    stub.add("4")
+    _github_config(tmp_path, monkeypatch, stub)
+    shot = tmp_path / "grid.png"
+    shot.write_bytes(b"png")
+    path = diagnosis(tmp_path)
+    code = mode.main(["--diagnosis", str(path), "--key", "4", "--type", "enhancement",
+                      "--proof", f"p-3={shot}", "--in-review", "--consent", "prior", "--yes"])
+    out = capsys.readouterr().out
+    assert code == 0, out
+    assert "TICKET: 4 https://github.com/o/r/issues/4" in out
+    assert ("gh", ["label", "list", "--search", "enhancement", "--json", "name", "--limit", "100"]) in stub.calls
+    attach = [p for op, p in stub.calls if op == "tracker_attach"][0]
+    assert os.path.basename(attach["files"][0]) == f"{WORK}-p-3-proof-grid.png"
+    assert "status:in-review" in stub.issues["4"]["labels"]
+
+
+def test_the_command_line_dry_run_and_its_refusals(tmp_path, monkeypatch, capsys):
+    stub = StubGitHub()
+    _github_config(tmp_path, monkeypatch, stub)
+    path = diagnosis(tmp_path)
+    assert mode.main(["--diagnosis", str(path), "--summary", "Rows go missing", "--dry-run"]) == 0
+    assert '"summary": "Rows go missing"' in capsys.readouterr().out and stub.writes() == []
+    assert mode.main(["--diagnosis", str(path), "--yes"]) == 1
+    assert "--consent" in capsys.readouterr().out
+    for argv in (["--type", "bug"], ["--diagnosis", str(path), "--description", str(path)],
+                 ["--diagnosis", str(path), "--dry-run", "--yes"], ["--diagnosis", str(path), "--proof", "P-1"]):
+        with pytest.raises(SystemExit):
+            mode.main(argv)
+
+
+def _git(cwd, *args):
+    return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.test", *args],
+                          cwd=cwd, capture_output=True, text=True, check=True).stdout
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_the_folder_move_is_a_git_rename(tmp_path):
+    _git(tmp_path, "init", "-q")
+    path = diagnosis(tmp_path)
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "seed")
+    assert run(path, StubJira(), JIRA, tmp_path).code == 0
+    status = _git(tmp_path, "status", "--porcelain")
+    assert any(line.startswith("R") and "docs/PROJ-1/DIAGNOSIS.md" in line
+               for line in status.splitlines()), status
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_the_real_resolver_renders_the_configured_spec_folder(tmp_path, monkeypatch):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / ".afk").mkdir()
+    (tmp_path / ".afk" / "config.yaml").write_text(
+        "notes: repo-files\nrepo-files:\n  spec-dir: 'specs/{workId}'\n", encoding="utf-8")
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    rendered = mode._resolve_folder("PROJ-1")
+    if rendered is None:
+        pytest.skip("no POSIX shell to run the notes adapter")
+    assert Path(rendered).resolve() == (tmp_path / "specs" / "PROJ-1").resolve()

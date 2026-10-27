@@ -17,7 +17,7 @@ SCRIPTS = ROOT / "skills" / "utils" / "diagnose" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from outside_writes import (  # noqa: E402
-    append_outside_write, failed, listed, retry_with_read_back)
+    append_outside_write, failed, listed, replace_text, retry_with_read_back)
 
 DIAGNOSIS = """# Diagnosis
 
@@ -295,3 +295,32 @@ def test_seam_error_answer_is_a_failed_write():
         answer = api.call("tracker_comment", {"ticket_key": "12", "text": "afk-evidence bug-x proof"})
     assert answer.get("error") is True
     assert failed(answer)
+
+
+def test_replace_text_waits_out_a_held_file(tmp_path):
+    target = tmp_path / "DIAGNOSIS.md"
+    target.write_text("old", encoding="utf-8")
+    real, calls = __import__("os").replace, []
+
+    def held_twice(src, dst):
+        calls.append(dst)
+        if len(calls) < 3:
+            raise PermissionError(13, "Access is denied")
+        real(src, dst)
+
+    with mock.patch("outside_writes.os.replace", held_twice), mock.patch("outside_writes.time.sleep"):
+        replace_text(target, "new")
+    assert target.read_text(encoding="utf-8") == "new" and len(calls) == 3
+    assert [f.name for f in tmp_path.iterdir()] == ["DIAGNOSIS.md"]
+
+
+def test_replace_text_gives_up_and_leaves_the_file(tmp_path):
+    target = tmp_path / "DIAGNOSIS.md"
+    target.write_text("old", encoding="utf-8")
+    denied = mock.Mock(side_effect=PermissionError(13, "Access is denied"))
+    with mock.patch("outside_writes.os.replace", denied), mock.patch("outside_writes.time.sleep"), \
+            pytest.raises(PermissionError):
+        replace_text(target, "new", tries=3)
+    assert denied.call_count == 3
+    assert target.read_text(encoding="utf-8") == "old"
+    assert [f.name for f in tmp_path.iterdir()] == ["DIAGNOSIS.md"]

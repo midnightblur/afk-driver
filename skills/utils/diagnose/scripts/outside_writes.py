@@ -126,7 +126,7 @@ def append_outside_write(diagnosis, entry: str, format_path=None) -> bool:
         eol = "\r\n" if any(line.endswith("\r\n") for line in lines) else "\n"
         lines[at - 1] = before + eol
     lines.insert(at, f"- {entry}{eol}")
-    _replace(path, (BOM if bom else "") + "".join(lines))
+    replace_text(path, (BOM if bom else "") + "".join(lines))
     return True
 
 
@@ -150,13 +150,22 @@ def _section(lines):
     raise ValueError("the diagnosis has no `## Outside writes` part")
 
 
-def _replace(path: Path, text: str):
+def replace_text(path: Path, text: str, tries: int = 20, pause: float = 0.05):
+    """Write text to path through a temporary file in the same folder."""
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
         shutil.copymode(path, tmp)
-        os.replace(tmp, path)
+        for left in range(tries - 1, -1, -1):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                # Windows refuses the swap while a scanner holds the file open.
+                if not left:
+                    raise
+                time.sleep(pause)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise

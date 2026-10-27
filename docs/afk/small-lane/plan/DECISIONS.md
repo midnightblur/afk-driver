@@ -188,3 +188,24 @@
 - Chosen: a per-kind table (jira, github-issues), because `tracker_search` takes the tracker's own query language, no verb lists issue types or labels, and the adapters are outside this slice's Scope. (a) Jira checks the type and the fix version with a `tracker_search` on the value; a 400 answer refuses. GitHub checks the type label through the adapter's own `gh label list`. (b) The type defaults to bug on a ticket this run creates and is applied only there. The Jira name comes from `jira.issue-types.<type>`, else the capitalised type; the GitHub label is the type itself. (c) The folder moves, and the Work id becomes the key, only for a diagnosis input after a create; a description input keeps its folder and its work id is the folder name. (d) The fix version has no Outside-writes kind, so the step reads the ticket's versions first and adds the new one to them; GitHub refuses `--fix-version`. (e) A refused or 4xx write ends the retries. (f) Consent is declared with `--consent person|prior`; Approval is not checked (design ADR-0008). (g) Proof files upload under `{work id}-{kind}-proof-{file name}` from a temporary folder removed after the run.
 - Supersedes: none
 - To reverse: add the missing verbs to each tracker adapter and drop the table
+
+## D-28 — two one-line edits outside the bug mode's Scope globs
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 1)
+- Options: stop `blocked` for two out-of-Scope lines vs edit them in the remediation commit
+- Chosen: edit them. `README.md`'s to-ticket summary still said "meeting + spinoff modes" after the AGENTS.md catalog row this slice changed; a review finding on that line cannot close while it has no inline location, and only an edit gives it one. `.claude/wiring-ious.md` names this slice as the owner of the spinoff wording it fixed, so the IOU line is ticked in the same commit. Both are one-line, reversible text edits that change no behaviour.
+- Supersedes: 0005-bug-mode Scope, for `README.md` (the to-ticket summary line) and `.claude/wiring-ious.md` (the jira create IOU line) only
+- To reverse: revert those two lines
+
+## D-29 — when the in-review match runs, and what a marker is keyed on
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 1)
+- Options: (a) refuse `--in-review` on a run that creates the ticket vs match its transition right after the create; (b) key markers on the diagnosis work id vs on the key of a ticket this mode created
+- Chosen: (a) match right after the create and before any other write; no match ends the run with exit 2, and the created ticket stays for a re-run. A ticket that does not exist yet offers no transitions, so SDD §3's "match a transition, else refused with no write" can hold only for an existing ticket. (b) A ticket this mode created keys its markers and proof names on its key from the first run, so a folder move on a later run changes neither; a later different key adds `-{key}` to the step, so its evidence is not mistaken for the first ticket's. A description input's work id is `{folder}-{file stem}`, so two descriptions in one folder file two tickets.
+- Supersedes: SDD §3 bug-mode row "the in-review key must be configured and match a transition (name or id), else refused with no write", for a ticket the run creates only
+- To reverse: refuse `--in-review` without a key; key markers on the work id
+
+## D-30 — the diagnosis file swap waits out a held file, in one shared helper
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 1)
+- Options: retry only in the bug mode's own copy vs make `outside_writes.py`'s swap public, retry there, and drop the copy
+- Chosen: the shared helper. On Windows the temporary-file swap fails with "Access is denied" while a scanner holds the diagnosis open; the focused suite failed about one run in five on this. Both `publish_bug_mode.py` and `append_outside_write` swap the same file, so one `replace_text` retries a refused swap up to 20 times, 50 ms apart, then raises. Removing the copy also keeps the file mode, which the copy did not.
+- Supersedes: 0005-bug-mode Scope, for `skills/utils/diagnose/scripts/outside_writes.py` (`_replace` renamed `replace_text`, retry added) and `scripts/tests/test_outside_writes.py` (two tests) only
+- To reverse: restore `_replace` in both files without the retry
