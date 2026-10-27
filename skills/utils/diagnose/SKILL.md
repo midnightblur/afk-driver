@@ -20,7 +20,9 @@ When exploring the codebase, use the project's domain glossary for a clear menta
 
 ## Input
 
-Exactly one of: a ticket key the tracker returns (`tracker_get`), or a non-empty description. A light diagnosis (one that reuses the caller's reproduction; plugin `GLOSSARY.md`) also names the reproduction it reuses: a check name with its output file, or a finding id.
+A ticket key the tracker returns (`tracker_get`) or, with no key, a non-empty description. A description given with a key is context for the reproduction; the key names the work. A light diagnosis (one that reuses the caller's reproduction; plugin `GLOSSARY.md`) also names the reproduction it reuses: a check name with its output file, or a finding id.
+
+An invoker may also hand over the linked worktree it works in (Phase 0 step 2) and the answer to the starting-branch question, `branch tip` or `base branch` (step 4).
 
 - Neither a key nor a description → ask for one when a person is present; else end `blocked`. Write nothing first.
 - A key the tracker does not return → `blocked` (ticket unreadable).
@@ -28,10 +30,12 @@ Exactly one of: a ticket key the tracker returns (`tracker_get`), or a non-empty
 ## Phase 0 — Set up the diagnosis
 
 1. **Work id** — the ticket key, else `bug-{slug}` from the description (lower case, words joined by `-`).
-2. **Spec folder** — `afk_adapter notes resolve <work id>`. Unresolved → `blocked` (spec folder unresolved).
-3. **Re-run** — a `DIAGNOSIS.md` already in the spec folder makes this a re-run: keep its Work id, Ticket key, Base, Diagnosis branch and Outside writes; rewrite every other diagnose part; empty Approval. Skip steps 4 and 5: work on the recorded Diagnosis branch, in its worktree when one is still there, else in one cut for that branch.
-4. **Base** — on the base branch (`git.base-branch`), Base is that branch. On any other branch, ask once: start from this branch's tip, or from the base branch. An invoker that already gave the answer is not asked again. No person present and no answer → `blocked`. Record the branch and its commit id as Base.
-5. **Worktree** — an invoker may hand over a linked worktree already cut for this bug from the Base tip in owned mode; its branch is the Diagnosis branch. Otherwise fetch the Base and cut one: `${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <work id, lower-cased> --base <Base> --no-open`. Its branch, filled from `git.branch-template`, is the Diagnosis branch. A branch-pattern refusal → ask for a name when a person is present; else `blocked`. Work only inside this worktree. Diagnose never pushes the Diagnosis branch and never removes the worktree.
+2. **Handed worktree** — a worktree the invoker hands over is the diagnosis worktree: its branch is the Diagnosis branch and its tip commit the Base. The invoker owns that branch, so diagnose commits nothing there (Phase 7). Go to step 5.
+3. **Re-run** — a worktree record `<git common dir>/afk-worktrees/<work id, lower-cased>.json`, or the local branch `git.branch-template` makes from the work id, makes this a re-run. Work in that worktree; when only the branch is left, cut one onto it: `${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <branch> --dir <work id, lower-cased> --no-open`. Uncommitted product changes there (a fix applied in it) → `blocked` (worktree not clean). Go to step 5.
+4. **Base and worktree** — on the base branch (`git.base-branch`), Base is that branch. On any other branch, ask once: start from this branch's tip, or from the base branch. An invoker that already gave the answer is not asked again. No person present and no answer → `blocked`. Fetch the Base, then cut the worktree: `${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <work id, lower-cased> --base <Base> --no-open`. Record the Base branch and the commit the worktree starts from. The worktree's branch, filled from `git.branch-template`, is the Diagnosis branch. A branch-pattern refusal → ask the person for a name whose filled branch matches the pattern; no person present, or a template with no placeholder for the name → `blocked` (branch-pattern refusal).
+5. **Spec folder** — run `afk_adapter notes resolve <work id>` from inside the diagnosis worktree. Unresolved → `blocked` (spec folder unresolved). A `DIAGNOSIS.md` already there: keep its Work id, Ticket key, Base, Diagnosis branch and Outside writes; rewrite every other diagnose part; empty Approval.
+
+Work only inside the diagnosis worktree. Diagnose never pushes the Diagnosis branch and never removes the worktree.
 
 ## Phase 1 — Build a feedback loop
 
@@ -39,7 +43,7 @@ Exactly one of: a ticket key the tracker returns (`tracker_get`), or a non-empty
 
 Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**
 
-A light diagnosis reuses the reproduction it was handed: run it once, capture its failing output, and go to Phase 2.5.
+A light diagnosis reuses the reproduction it was handed: run it once, capture its failing output, and go to Phase 2.5. A reproduction with nothing to run (a finding read from code), or one that passes here, gets a full Phase 1 loop that starts from it.
 
 ### Ways to construct one — try them in roughly this order
 
@@ -96,7 +100,7 @@ Confirm:
 - [ ] The loop produces the failure mode the **user** described — not a different failure that happens to be nearby. Wrong bug = wrong diagnosis.
 - [ ] The failure is reproducible across multiple runs (or, for non-deterministic bugs, reproducible at a high enough rate to debug against).
 - [ ] You have captured the exact symptom (error message, wrong output, slow timing) — it becomes the Symptom and the Reproduction's failing output.
-- [ ] A full diagnosis reproduces on a clean copy of the Base: the worktree at the Base commit with only the failing test added. The test fails there before you name any root cause.
+- [ ] A full diagnosis reproduces on a clean copy of the Base: the worktree at the Base commit (a handed-over worktree as it was handed) with only the failing test added. The test fails there before you name any root cause.
 - [ ] For a UI-visible bug, you reproduced it **in the running app** (live build) — not only at a code seam. A green seam over a broken UI means you reproduced the wrong thing.
 
 Do not proceed until you reproduce the bug.
@@ -154,8 +158,8 @@ Write the fix proposal: one option for V-1, labelled options with their trade-of
 
 ## Phase 7 — Write, check and hand off
 
-1. **Clean up.** Remove every `[DEBUG-...]` line (`grep` the prefix), revert every probe and delete throwaway harnesses. `git status` and `git diff <Base commit>` show only the failing test and the spec folder — product code is unchanged.
+1. **Clean up.** Remove every `[DEBUG-...]` line (`grep` the prefix), revert every probe and delete throwaway harnesses. `git status` and `git diff <Base commit>` show only the failing test and the spec folder beyond what the worktree held when the run started — product code is as the run found it.
 2. **Write `DIAGNOSIS.md`** in the spec folder per [DIAGNOSIS-FORMAT.md](DIAGNOSIS-FORMAT.md), every part this run writes, each fact with its certainty mark. The file is on disk before any tracker or forge write; diagnose itself makes none.
 3. **Check it:** `afk-python ${AFK_PLUGIN_ROOT}/skills/utils/diagnose/scripts/check_diagnosis.py <path>`. A refusal names each missing part: fill it and run the check again until it accepts.
-4. **Commit** the failing test and `DIAGNOSIS.md` on the Diagnosis branch. Do not push.
-5. **Report.** The last lines are `DIAGNOSIS: <verdict> <path>` — `<verdict>` is the Verdict part's `V-{n}`, `<path>` the diagnosis file — then one `In plain terms:` sentence per `REPORTING.md` (plugin root), naming the worktree path. Run as a step of another skill, stop here. Run alone, offer the fix: `/afk:fix <path>`. Diagnose writes no ticket.
+4. **Commit** the failing test and `DIAGNOSIS.md` on the Diagnosis branch. Do not push. In a handed-over worktree, leave both uncommitted for the invoker.
+5. **Report.** The status line is `DIAGNOSIS: <verdict> <path>` — `<verdict>` is the Verdict part's `V-{n}`, `<path>` the diagnosis file — or `DIAGNOSIS: blocked — <reason>`, which every `blocked` end above prints. Only this line is the run's result; the check script's own `DIAGNOSIS:` lines are not. Add one `In plain terms:` sentence per `REPORTING.md` (plugin root), naming the worktree path: after the status line when run alone, before it when run as a step of another skill, so the status line is last. Run as a step of another skill, stop here. Run alone, offer the next step: V-1 → the fix, `/afk:fix <path>`; V-2 → `/afk:grill-solution <path>`; V-3 → `/afk:grill-requirements <path>`; V-4 and V-5 → nothing to fix. Diagnose writes no ticket.

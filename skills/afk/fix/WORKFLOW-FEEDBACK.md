@@ -28,8 +28,8 @@ issue".
 
 2. **Write the structured lesson** (the ledger payload — facts only, reference
    don't duplicate):
-   - **Bug** — one line + ticket key; point at `/afk:diagnose`'s post-mortem by
-     path, don't restage it.
+   - **Bug** — one line + ticket key; point at the diagnosis's `DIAGNOSIS.md`
+     by path, don't restage it.
    - **Miss class** — from Phase 2.5.
    - **Implicated stage + skill** — from the table.
    - **Proposed change** — the concrete edit to that skill (new grill question,

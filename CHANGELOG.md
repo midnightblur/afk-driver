@@ -53,8 +53,10 @@ release page from its section here. Nobody tags by hand.
 - `/afk:diagnose` no longer fixes. It reproduces the bug with a failing test,
   compares it with the specs, names the root cause and writes `DIAGNOSIS.md`
   with a verdict and a fix proposal, working in its own worktree on a local
-  branch it never pushes. It ends with `DIAGNOSIS: <verdict> <path>` and, run
-  alone, offers `/afk:fix`. `/afk:fix` now applies the proposal test-first.
+  branch it never pushes, or in the worktree its invoker hands over. It ends
+  with `DIAGNOSIS: <verdict> <path>` and, run alone, offers the next step.
+  `/afk:fix` now applies the proposal test-first and also takes a
+  `DIAGNOSIS.md` path.
   Migration: a caller that relied on diagnose to fix runs `/afk:fix` instead.
 - `/afk:grill-requirements` and `/afk:grill-solution` accept a `DIAGNOSIS.md`
   and end with a size call (`skills/afk/grill-requirements/SIZE-CALL.md`),

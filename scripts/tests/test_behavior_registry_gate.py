@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import shutil
 import subprocess
+
+import pytest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -75,13 +78,18 @@ def diagnose_doctrine_problems(text: str) -> list[str]:
     if "\n## Phase 2.5 — Trace the path\n" not in text:
         problems.append("doctrine heading missing")
     description = next((line for line in text.splitlines() if line.startswith("description:")), "")
-    for promise in ("fix →", "regression-test", "regression test"):
-        if promise in description:
-            problems.append(f"description promises {promise!r}")
+    if re.search(r"→\s*fix\b|\bfix\s*→", description, re.IGNORECASE):
+        problems.append("description promises a fix step")
+    if re.search(r"regression[- ]test", description, re.IGNORECASE):
+        problems.append("description promises a regression test")
     for removed in ("Phase 5 — Fix", "Phase 6 reports"):
         if removed in text:
             problems.append(f"names removed text {removed!r}")
     return problems
+
+
+def diagnose_doc(description: str, body: str = "") -> str:
+    return f'---\nname: diagnose\ndescription: "{description}"\n---\n\n## Phase 2.5 — Trace the path\n\n{body}\n'
 
 
 def test_diagnose_keeps_its_doctrine_home_and_promises_no_fix() -> None:
@@ -89,11 +97,22 @@ def test_diagnose_keeps_its_doctrine_home_and_promises_no_fix() -> None:
     assert diagnose_doctrine_problems(text) == []
 
 
-def test_the_diagnose_pin_catches_a_fixing_description() -> None:
-    fixing = (
-        "---\nname: diagnose\n"
-        'description: "Disciplined diagnosis loop: reproduce → fix → regression-test."\n'
-        "---\n\n## Phase 2.5 — Trace the path\n\nPhase 6 reports it.\n"
-    )
-    assert len(diagnose_doctrine_problems(fixing)) == 3
-    assert diagnose_doctrine_problems(fixing.replace("## Phase 2.5", "## Phase 2.6"))[0] == "doctrine heading missing"
+@pytest.mark.parametrize(
+    ("description", "body", "problem"),
+    [
+        ("Loop: reproduce → fix → done.", "", "description promises a fix step"),
+        ("Loop: reproduce → root cause → Fix.", "", "description promises a fix step"),
+        ("Loop: reproduce → regression-test.", "", "description promises a regression test"),
+        ("Loop: reproduce, then add a Regression Test.", "", "description promises a regression test"),
+        ("Diagnosis without a fix.", "Phase 6 reports it.", "names removed text 'Phase 6 reports'"),
+        ("Diagnosis without a fix.", "See Phase 5 — Fix.", "names removed text 'Phase 5 — Fix'"),
+    ],
+)
+def test_the_diagnose_pin_catches_each_fixing_promise(description: str, body: str, problem: str) -> None:
+    assert diagnose_doctrine_problems(diagnose_doc(description, body)) == [problem]
+
+
+def test_the_diagnose_pin_passes_a_fix_proposal_and_catches_a_renamed_heading() -> None:
+    clean = diagnose_doc("Diagnosis without a fix: root cause → DIAGNOSIS.md with a fix proposal.")
+    assert diagnose_doctrine_problems(clean) == []
+    assert diagnose_doctrine_problems(clean.replace("## Phase 2.5", "## Phase 2.6")) == ["doctrine heading missing"]

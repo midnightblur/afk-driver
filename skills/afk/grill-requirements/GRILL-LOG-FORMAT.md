@@ -100,13 +100,14 @@ The size call of a grill handed a `DIAGNOSIS.md` (procedure:
 the recording grill's own section, written once the call is accepted:
 
 ```
-- Size call: {work id} → still small {YYYY-MM-DD} — settled: {the fix option or spec answer, one clause} — diagnosis: {path to DIAGNOSIS.md}
-- Size call: {work id} → too big {YYYY-MM-DD} — why: {one clause} — diagnosis: {path to DIAGNOSIS.md}
+- Size call: {work id} → still small {YYYY-MM-DD HH:MM} — settled: {the fix option or spec answer, one clause} — diagnosis: {path to DIAGNOSIS.md}
+- Size call: {work id} → too big {YYYY-MM-DD HH:MM} — why: {one clause} — diagnosis: {path to DIAGNOSIS.md}
 ```
 
 `{work id}` is the diagnosis's Work id. A `still small` row is the record that
 returns the bug to a fix; its `settled:` clause is the answer that fix
-applies. A later call on the same diagnosis overwrites the row.
+applies. A later call on the same diagnosis overwrites the row in its
+section; across both grill sections, the row with the latest time wins.
 
 ## Spinoff row
 

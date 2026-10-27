@@ -15,7 +15,7 @@ Run when a bug surfaces — typically a feature's **verification phase** (agent-
 
 ## Argument
 
-A Jira bug key, free-text bug description, or nothing (infer the finding from conversation — e.g. a verification result just came back red).
+A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (infer the finding from conversation — e.g. a verification result just came back red).
 
 ## Phase 0 — Intake & classify
 
@@ -28,17 +28,19 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 
 ## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
-1. Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). A finding already in hand — a red tier, a review or adversary finding — asks for a light diagnosis that reuses it as the reproduction. In a feature-building session (Phase 0), answer diagnose's starting-branch question with this branch's tip.
+1. **Get the diagnosis.** A `DIAGNOSIS.md` path → run `afk-python ${AFK_PLUGIN_ROOT}/skills/utils/diagnose/scripts/check_diagnosis.py <path>`; a refusal → `blocked`; an accepted file is the diagnosis, used without running diagnose again. Otherwise run **`/afk:diagnose`**, handing it the ticket key when there is one, else the description, with everything from intake (repro steps, env, exact captured symptom) as context. A finding already in hand — a red tier, a review or adversary finding — asks for a light diagnosis that reuses it as the reproduction. Running in a linked worktree (`git rev-parse --git-dir` differs from `--git-common-dir`), hand diagnose that worktree and the starting-branch answer `branch tip`.
    - Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
-2. Diagnose ends with `DIAGNOSIS: <verdict> <path>`. Route on the verdict:
+2. **Route** on diagnose's status line (`DIAGNOSIS: <verdict> <path>`, its last line) or on a handed diagnosis's Verdict part:
    - V-1 obvious fix → step 3.
-   - V-2 several fixes, V-3 spec gap, V-4 works as specified → stop with no code change; report `blocked` naming the verdict and the diagnosis path. A V-3 or a wrong binding design decision in a feature session also routes per Phase 3.
+   - V-2 several fixes or V-3 spec gap with a `still small` size-call row for its Work id in the `GRILL-LOG.md` beside it (`${AFK_PLUGIN_ROOT}/skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` "Size-call row") → step 3, applying the row's `settled:` answer as the Fix proposal.
+   - Any other V-2 or V-3, or V-4 works as specified → stop with no code change. A wrong binding SDD/ADR decision in a feature session → report `design_conflict` and route per Phase 3. Otherwise report `blocked` naming the verdict and the diagnosis path.
    - V-5 cannot reproduce → stop; report `cannot_reproduce` with the diagnosis's Attempts.
-3. **Fix test-first** (`/afk:tdd`) in the checkout the bug is fixed in: this worktree in a feature-building session, else the diagnosis worktree. Bring in the diagnosis's failing test first (`git checkout <Diagnosis branch> -- <test path>` when it is not there), watch it fail, apply the Fix proposal, watch it pass. A light diagnosis's reused check plays the failing test's part.
+   - `DIAGNOSIS: blocked — <reason>` → stop; report `blocked` with that reason.
+3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: the worktree fix handed over, else the one on the Diagnosis branch (gone → cut one onto that branch: `${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`). Watch the diagnosis's failing test fail, apply the Fix proposal, watch it pass. A light diagnosis's reused check plays the failing test's part. A worktree fix did not bring stays for the human to commit from; the report names its path.
 
 Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
-Exit gate: verdict V-1, the Fix proposal applied, the diagnosis's failing test green (or the seam absence the diagnosis records in Root cause).
+Exit gate: verdict V-1 (or a V-2/V-3 with a `still small` row), the Fix proposal applied, the diagnosis's failing test green (or the seam absence the diagnosis records in Root cause).
 
 ## Phase 2 — Broaden coverage (proportional)
 
@@ -55,7 +57,7 @@ Tiers are the standard set: `static → unit → integration → api → e2e/bro
 
 **Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). Standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
 
-**Verify:** re-run the diagnosis's reproduction plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
+**Verify:** re-run the diagnosis's reproduction, the original un-minimised scenario, and every tier you added/touched — all green before proceeding. Confirm a UI-visible bug fixed **in the running UI** (re-mint token, re-drive the app), not only at the test seam. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
 ## Phase 2.5 — Escape analysis
 

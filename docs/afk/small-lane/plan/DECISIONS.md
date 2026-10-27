@@ -90,3 +90,24 @@
 - Chosen: fix applies it now, the smallest change that keeps every caller working: run diagnose (a light diagnosis when the caller holds the reproduction), read the verdict, and for V-1 bring the diagnosis's failing test into the checkout the bug is fixed in and apply the proposal test-first. A feature-building session fixes in its own worktree, starting diagnose from the branch tip; any other session fixes in the diagnosis worktree. V-2, V-3 and V-4 stop with no code change as `blocked`, V-5 as `cannot_reproduce`, because the fix's status set and its approval step belong to slice 0008.
 - Supersedes: none
 - To reverse: slice 0008 rewrites the fix skill whole
+
+## D-14 — where diagnose and fix work when fix runs inside a worktree it was given, and what fix reads back from a grill
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 10 round 1, findings r-001 to r-006)
+- Options: (a) a handed-over worktree only when it was cut for the bug from the Base tip (D-11), with ad-hoc fixes landing in a new diagnosis worktree, vs any linked worktree fix runs in, handed to diagnose with the answer `branch tip`; (b) fix re-runs diagnose for any input, vs fix also takes a `DIAGNOSIS.md` path and acts on a `still small` size-call row now
+- Chosen: (a) any linked worktree. Callers run fix inside their own worktree with no person present (an autonomous fixer limited to its worktree, the in-place gates in a feature worktree). A second worktree broke the fixer's write limit, left a worktree behind on every in-place call and blocked on the starting-branch question. In a handed worktree diagnose commits nothing; the invoker owns that branch. (b) take the path now: diagnose offers `/afk:fix <path>` and a still-small grill sends the bug back with that path, so without it both hand-offs dead-end at this commit. A V-2 or V-3 with a `still small` row applies the row's `settled:` answer; the latest row across both grill sections wins.
+- Supersedes: D-11 "an invoker may hand over a linked worktree already cut for this bug from the Base tip in owned mode"; D-13 "A feature-building session fixes in its own worktree, starting diagnose from the branch tip; any other session fixes in the diagnosis worktree"
+- To reverse: restore D-11's narrower hand-over and drop the path input and size-call routing from fix Phase 1; slice 0008 rewrites the fix skill whole
+
+## D-15 — the ticket read before the diagnosis file
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 10 round 1, finding r-017)
+- Options: write a diagnosis skeleton before reading the ticket, vs read the ticket first and write the file before any tracker or forge write
+- Chosen: read first. SDD §3 makes the input "a ticket key the tracker returns", and diagnose writes nothing when its input is missing, so the read must come before any file. AC-008 guards recovery of outside writes, and diagnose makes none. This records D-12 (a) against the passage it narrows.
+- Supersedes: contract 0004 Acceptance "`DIAGNOSIS.md` is written per the diagnosis format file into the bug's spec folder before any tracker or forge call (PRD AC-008)" — read as "before any tracker or forge write"
+- To reverse: write the diagnosis skeleton before `tracker_get`
+
+## D-16 — a stale pointer outside the slice's Scope, and how callers treat fix's `blocked`
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 10 round 1, findings r-005, r-008)
+- Options: (a) leave the workflow-feedback pointer at diagnose's removed post-mortem for slice 0006 vs repoint it now; (b) edit the in-place callers to route fix's `blocked` vs leave caller routing to its owning slice
+- Chosen: (a) repoint `skills/afk/fix/WORKFLOW-FEEDBACK.md` at the diagnosis's `DIAGNOSIS.md` now, one line outside Scope: this slice removed the post-mortem, and 0006 rewrites the file whole later. (b) leave it to slice 0009, which owns execute, preflight and autopilot's fix points. Fix now restores `design_conflict` for a wrong binding SDD or ADR decision, so execute's existing route still fires. A `blocked` from fix reaches a gate as an unfixed finding, which the settle loop can dispute or park.
+- Supersedes: none
+- To reverse: (a) revert the one line; (b) slice 0009
