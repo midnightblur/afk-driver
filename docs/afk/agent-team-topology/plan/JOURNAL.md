@@ -433,3 +433,6 @@
 2026-10-27 05:10 | execute | 0027-afk-team-launcher | adversary gate: findings, none critical or high — 143 probes, 1 medium and 2 low (the PATH check compares the afk-bin folder as raw text, a % in the plugin folder breaks afk-team.cmd, a settings file with a byte order mark reads as rule missing); noted on pull request 112 for the feature review
 2026-10-27 05:10 | execute | 0027-afk-team-launcher | wiring scan passed with no unused new file; the 3 posted reasons are receipted on pull request 112
 2026-10-27 05:10 | execute | 0027-afk-team-launcher | done — success; checklist ticked on pull request 112, which stays a Draft for the human
+2026-10-27 06:20 | autopilot | run | heartbeat 13/26 done (0027-afk-team-launcher success at 9261a89, records 183d880); starting 0010-team-entry-script
+2026-10-27 06:20 | autopilot | 0027-afk-team-launcher | follow-up — a scratch setup install had added the scratch afk-bin to the human's user PATH; removed with the human's consent. The live Codex row ran before the .ps1 change at 2ec37d3; a re-run script is ready for the human
+2026-10-27 06:20 | autopilot | 0010-team-entry-script | unparked — 0027 is done, so the allow rule now matches the afk-team command (rounds 47 and 48)
