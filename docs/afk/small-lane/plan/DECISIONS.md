@@ -153,3 +153,10 @@
 - Chosen: only by the diagnosis. The harness writes an owner record for every session worktree, so a record, a folder name and a branch name can each belong to a person's own work, and a re-run there would commit onto a branch diagnose does not own. A worktree or branch with no diagnosis carries no recorded Base either, so guessing one would put the reproduction on the wrong code. A matching worktree with no diagnosis goes on to a fresh cut, and an existing branch with no diagnosis ends `blocked`. Fix picks the diagnosis worktree by the longest listed folder that holds the `DIAGNOSIS.md` path, because linked worktrees can sit inside the main checkout.
 - Supersedes: D-20 "The owner record still marks a re-run on its own, since only diagnose's `--name` cut writes it." and "(b) HEAD and the answer"; D-21 "The diagnosis worktree is the listed worktree whose folder holds the `DIAGNOSIS.md` path"
 - To reverse: restore record-only re-runs with the HEAD-and-answer Base in diagnose Phase 0 step 3, and the unconditional recut in step 4
+
+## D-23 — a worktree for the work id with no diagnosis
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 7)
+- Options: reuse a worktree named for the work id that holds no `DIAGNOSIS.md` vs cut a fresh one vs end `blocked` naming it
+- Chosen: end `blocked` naming its path. Diagnose writes the file only at its end, so a stopped run leaves exactly such a worktree, but a session worktree named for the ticket looks the same, and `create-worktree` refuses a fresh cut under a taken name. The person removes it or hands it over, and nothing is committed onto a branch diagnose cannot prove is its own.
+- Supersedes: D-22 "A matching worktree with no diagnosis goes on to a fresh cut"
+- To reverse: reuse the worktree when its owner record proves diagnose made it
