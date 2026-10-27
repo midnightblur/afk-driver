@@ -1,0 +1,105 @@
+{
+  "run": {
+    "repository": "C:/Users/mvu/core-services-worktrees/glossaries",
+    "head": "5743b7dcd68f043185cd406cdbd09f385de22383",
+    "question": "What are the current contracts, callers, change impacts, and compatibility verdicts for every glossary lifecycle implementation seam?",
+    "type": ["Q1", "Q2", "Q3"],
+    "roots": [
+      "AFK configuration",
+      "Requirements and glossary skills",
+      "Preflight",
+      "Settlement",
+      "Other glossary consumers",
+      "Forge registry",
+      "Approval read",
+      "Return to Draft",
+      "Comment transport",
+      "Append-only reconstruction",
+      "Glossary Markdown",
+      "Routing",
+      "Git and local evidence",
+      "Semantic provider",
+      "RE-07 prompt",
+      "Bootstrap and adoption",
+      "Packaging"
+    ],
+    "aliases": {
+      "AFK configuration": [{"form": "display", "value": "AFK configuration", "enumerated": true}],
+      "Requirements and glossary skills": [{"form": "display", "value": "Requirements and glossary skills", "enumerated": true}],
+      "Preflight": [{"form": "display", "value": "Preflight", "enumerated": true}],
+      "Settlement": [{"form": "display", "value": "Settlement", "enumerated": true}],
+      "Other glossary consumers": [{"form": "display", "value": "Other glossary consumers", "enumerated": true}],
+      "Forge registry": [{"form": "display", "value": "Forge registry", "enumerated": true}],
+      "Approval read": [{"form": "display", "value": "Approval read", "enumerated": true}],
+      "Return to Draft": [{"form": "display", "value": "Return to Draft", "enumerated": true}],
+      "Comment transport": [{"form": "display", "value": "Comment transport", "enumerated": true}],
+      "Append-only reconstruction": [{"form": "display", "value": "Append-only reconstruction", "enumerated": true}],
+      "Glossary Markdown": [{"form": "display", "value": "Glossary Markdown", "enumerated": true}],
+      "Routing": [{"form": "display", "value": "Routing", "enumerated": true}],
+      "Git and local evidence": [{"form": "display", "value": "Git and local evidence", "enumerated": true}],
+      "Semantic provider": [{"form": "display", "value": "Semantic provider", "enumerated": true}],
+      "RE-07 prompt": [{"form": "display", "value": "RE-07 prompt", "enumerated": true}],
+      "Bootstrap and adoption": [{"form": "display", "value": "Bootstrap and adoption", "enumerated": true}],
+      "Packaging": [{"form": "display", "value": "Packaging", "enumerated": true}]
+    },
+    "inventory_hash": "b5adfc5270303a65bddd3051c5decaf6da22127311bd49cb5b8f666cbdb7fdf6",
+    "inventory_count": 53244,
+    "design_phase": true,
+    "config": {"path": ".afk/config.yaml", "sha256": "c2ebe667ce1372a780e66629c5a9d4b7bc3e1531952fd7be911fd4cacf5753c3"},
+    "verdict": "closed-with-frontier",
+    "started": "2026-10-27T00:00:00-04:00",
+    "finished": "2026-10-27T00:00:01-04:00"
+  },
+  "boundaries": [
+    {"class":"B1","status":"n/a","method":"covered by the consolidated seam read","hits":0,"hit_ids":[],"reason":"the audit starts from named seams rather than symbol enumeration","mechanism":"default","universe":"named seam set","query_ids":[],"sites":null},
+    {"class":"B2","status":"n/a","method":"covered by Q2 caller synthesis","hits":0,"hit_ids":[],"reason":"no subtype dispatch boundary","mechanism":"default","universe":"caller paths","query_ids":[],"sites":null},
+    {"class":"B3","status":"n/a","method":"covered by registry and parser seam rows","hits":0,"hit_ids":[],"reason":"no reflection boundary beyond the inspected registries","mechanism":"default","universe":"registries and parsers","query_ids":[],"sites":null},
+    {"class":"B4","status":"n/a","method":"covered by wire-contract seam rows","hits":0,"hit_ids":[],"reason":"wire identities are recorded in the report","mechanism":"default","universe":"forge and Markdown contracts","query_ids":[],"sites":null},
+    {"class":"B5","status":"closed","method":"read consolidated seam report and its cited sources","hits":0,"hit_ids":[],"reason":null,"mechanism":"default","universe":"all 17 seam contracts and callers","query_ids":[],"sites":["11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md"]},
+    {"class":"B6","status":"n/a","method":"generated outputs do not own the inspected contracts","hits":0,"hit_ids":[],"reason":"generated Lavish HTML is an output, not a caller","mechanism":"default","universe":"generated outputs","query_ids":[],"sites":null},
+    {"class":"B7","status":"n/a","method":"packaging seam row covers registration","hits":0,"hit_ids":[],"reason":"no build aggregator change","mechanism":"default","universe":"plugin manifests and catalogs","query_ids":[],"sites":null},
+    {"class":"B8","status":"n/a","method":"configuration seam row covers the reader and overlays","hits":0,"hit_ids":[],"reason":"no additional configuration mechanism","mechanism":"default","universe":"AFK configuration","query_ids":[],"sites":null},
+    {"class":"B9","status":"n/a","method":"no database persistence","hits":0,"hit_ids":[],"reason":"state is Git, local evidence, and forge comments","mechanism":"default","universe":"persistence effects","query_ids":[],"sites":null},
+    {"class":"B10","status":"n/a","method":"no application user interface","hits":0,"hit_ids":[],"reason":"Lavish prompt is covered as a workflow seam","mechanism":"default","universe":"user interfaces","query_ids":[],"sites":null},
+    {"class":"B11","status":"n/a","method":"synchronous local commands","hits":0,"hit_ids":[],"reason":"no background worker or scheduler","mechanism":"default","universe":"runtime processes","query_ids":[],"sites":null},
+    {"class":"B12","status":"n/a","method":"test obligations are recorded per seam","hits":0,"hit_ids":[],"reason":"implementation tests do not exist before implementation","mechanism":"default","universe":"planned seam tests","query_ids":[],"sites":null},
+    {"class":"B13","status":"n/a","method":"conventions and lockstep documents are recorded per seam","hits":0,"hit_ids":[],"reason":"no additional convention source","mechanism":"default","universe":"workflow conventions","query_ids":[],"sites":null},
+    {"class":"B14","status":"frontier","method":"repository code, local probes, and provider contracts only","hits":0,"hit_ids":[],"reason":"live GitLab and GitHub approval and Draft behavior, semantic provider behavior, strict-choice prompting, and external deployment order require shipment tests","mechanism":"default","universe":"external provider behavior","query_ids":[],"sites":null}
+  ],
+  "nodes": [
+    {
+      "id": "B5:11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md:1",
+      "class": "B5",
+      "site": "11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md:1",
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "The consolidated report records current contracts, callers, change impacts, compatibility findings, and external frontiers for all 17 seams.",
+      "parent": null,
+      "query_id": null
+    }
+  ],
+  "queries": [],
+  "claims": [
+    {
+      "id": "c-833d8331",
+      "text": "INV-012 closes the current contract, callers, change impact, and compatibility verdict for the 17 glossary lifecycle seams recorded in its report.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": ["B5:11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md:1"],
+      "citations": ["11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md:1"]
+    }
+  ],
+  "counter_checks": [
+    {
+      "method": "independent compatibility review against earlier investigations and source citations",
+      "kind": "agent",
+      "targeted_claims": ["c-833d8331"],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": ["B5"],
+      "query_ids": [],
+      "evidence_nodes": ["B5:11700-payable/specs/2026r2/P2P-2067/investigations/INV-012-l9-seam-audit/REPORT.md:1"]
+    }
+  ]
+}

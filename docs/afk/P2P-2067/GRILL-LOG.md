@@ -1,0 +1,83 @@
+# Grill log — P2P-2067
+
+Checkpoint of interactive grill sessions. Working state, updated as decisions lock;
+superseded when the synthesized artifacts land.
+
+## Solution grill
+
+- Ledger: AFK runtime and deployment shape → partial (INV-001)
+- Ledger: repository configuration and durable evidence → verified with external frontier (INV-002)
+- Locked: L1 glossary work runs as a synchronous local plugin module inside the current AFK phase (INV-001, INV-002; gaps acknowledged: repository-specific enumeration gaps and the external frontier) · decided-by agent R-1 · accepted 2026-10-20 · repo: AFK already reads layered repository configuration and writes delivery evidence through local skills and forge adapters · reverse: introduce a process boundary and redesign configuration, state ownership, recovery, and caller contracts
+- Ledger: plugin module boundaries → verified with external frontier (INV-003)
+- Ledger: forge record seam → verified with external frontier (INV-004)
+- Ledger: repository configuration seam → partial (INV-005)
+- Ledger: forge description capability → verified with external frontier (INV-006)
+- Evidence check: `git diff --name-status fe27ed5..ad1bb11` changed none of the files cited by INV-003 through INV-005; L2 conclusions remain current
+- Locked: L2 uses one plugin glossary engine, direct skill calls, one AFK pointer to `tools/payable`, and one provider-independent forge record adapter (INV-003 through INV-006; recorded limits acknowledged) · decided-by agent R-2 · accepted 2026-10-20 · human choice: the merge request description stores the highest published sequence and both forge adapters reject concurrent description edits
+- Ledger: repository glossary state → partial (INV-007)
+- Ledger: run artifact retention → partial (INV-008)
+- Ledger: forge record schema → verified with external frontier (INV-009)
+- Settled: L3 keeps definitions in Git, team configuration under `tools/payable`, pre-Draft evidence under the Git common directory, and published history on the forge; no database or cache is added (INV-007 through INV-009; recorded limits acknowledged) · decided-by agent R-3 · accepted 2026-10-21 · human choice: delete local evidence after publication and expire abandoned evidence after 30 days when no active session or AFK-owned worktree uses it
+- Signoff: HL-1 Persistence / entity design → signed 2026-10-27 by human in R-14 · signature: "HL-1-R3 sign" · scope: Markdown `ID` and `Replaces` fields, derived hashes and owner state, migration constraints, and retention
+- Signoff: HL-2 API surface → n/a (L2-D2 adds no controller, endpoint, or message contract; accepted by human 2026-10-20)
+- Signoff: HL-3 Authorization & data scoping → signed 2026-10-26 by human in R-8 · signature: "HL-3 sign" · scope: actors, denied actors, enforcement points, repository scope, control-plane scope, change scope, local evidence access, credentials, and identity failure
+- Signoff: HL-4 Lifecycle & invariants → signed 2026-10-27 by human in R-14 · signature: "HL-4-R3 sign" · scope: ledger validity, detectable edit and interior-gap failures, and the accepted complete-newest-suffix deletion limit
+- Signoff: HL-5 Irreversible & outward side effects → signed 2026-10-26 by human in R-10 · signature: "HL-5 sign" · scope: glossary file edits, immutable forge publication and recovery records, Ready/Draft transitions, local evidence deletion, and explicit non-effects
+- Signoff: HL-6 Change to existing behaviour → signed 2026-10-27 by human in R-14 · signature: "HL-6 sign" · scope: all 17 L9 seams, behavior changes, rollback contracts, blast radius, and residual risks
+- Locked: L3 storage placement and retention contract; its R-4 HL-1 field signature is void only where R-5 changes the forge record kinds and atomicity flow.
+- Locked: L4 local evidence uses advisory locking, sibling temporary writes, flush, atomic replace, stable operation ids, and digest revalidation · decided-by agent R-5 · accepted 2026-10-21.
+- Locked: L4 remote publication uses immutable claim and checkpoint comments, never merge-request description writes; the winning claim has a five-minute provider-clock lease · decided-by human R-5 · accepted 2026-10-21.
+- Locked: L4 provider consistency remains an external frontier and must pass live GitLab and GitHub concurrency integration tests before ship · decided-by human R-5 · accepted 2026-10-21.
+- Locked: HL-4 lifecycle and invariants in R-6.
+- Locked: corrected HL-1 persistence contract in R-7.
+- Locked: L4 authorization, scope, bounded read retry, write reconciliation, fail-closed parking, console observability, manifest enablement, and synchronous execution in R-8.
+- Locked: L5 uses four aggregate roots: repository glossary, feature vocabulary run, publication stream, and owner decision · decided-by agent R-9 · accepted 2026-10-26.
+- Locked: repository-wide term identifiers are unique; definition text, definition hash, owner state, and replacement links remain separate attributes · decided-by agent R-9 · accepted 2026-10-26.
+- Locked: the feature vocabulary run owns RE-01 through RE-07 and their freshness, finding, override, and audit-independence invariants · decided-by agent R-9 · accepted 2026-10-26.
+- Locked: the forge adapter is an anti-corruption layer for GitLab and GitHub; synchronous commands return typed results and emit no application domain events · decided-by agent R-9 · accepted 2026-10-26.
+- Locked: L6 validates pinned Git and complete forge state before each idempotent write, reads each write back, and advances only after verification · decided-by agent R-10 · accepted 2026-10-26.
+- Locked: Git and atomic local evidence provide snapshot and read-after-write consistency; forge state is treated as eventually consistent with bounded retry and operation-id reconciliation · decided-by agent R-10 · accepted 2026-10-26.
+- Locked: published history is append-only; recovery appends a named compensation record and leaves the merge request Draft when safety is uncertain · decided-by agent R-10 · accepted 2026-10-26.
+- Locked: L7 skills call one synchronous versioned-JSON facade for definition, consult, audit, reconcile, gate, and bootstrap commands · decided-by agent R-11 · accepted 2026-10-26.
+- Locked: L7 uses six deep modules for domain rules, application use cases, repository access, local evidence, publication coordination, and the forge anti-corruption adapter; the command facade is the composition root · decided-by agent R-11 · accepted 2026-10-26.
+- Locked: dependencies point inward and external ports use explicit command-scoped injection; no service container or global singleton is added · decided-by agent R-11 · accepted 2026-10-26.
+- Locked: the forge port adds provider-neutral approval reads and return-to-Draft operations through generic `change-approvals` and `change-draft` verbs · decided-by agent R-11 · accepted 2026-10-26.
+- Acknowledged frontier: live GitLab and GitHub behavior for the two new verbs is unverified until mandatory contract and conformance tests pass · acknowledged-by human R-11 · accepted 2026-10-26 (INV-010 B14).
+- Locked: L8 selection is an ordered pipeline with one Strategy port only for bounded semantic candidates · decided-by agent R-12 · accepted 2026-10-26.
+- Locked: L8 audits and gates use named pure Specifications over immutable snapshots and return all typed blockers in stable order · decided-by agent R-12 · accepted 2026-10-26.
+- Locked: L8 lifecycles use closed transition tables and pure replay reducers; serialized records use a closed codec map and canonical RE-03/RE-04 projectors · decided-by agent R-12 · accepted 2026-10-26.
+- Locked: L8 facade uses a static command map and `ok`/`blocked`/`error` result envelope with exit codes 0/2/3 · decided-by agent R-12 · accepted 2026-10-26.
+- Locked: L8 publication uses immutable idempotent Command values, an injected Adapter, and a Factory only at the command composition root · decided-by agent R-12 · accepted 2026-10-26.
+- Acknowledged frontier: semantic-candidate provider implementation is unverified until contract tests prove the 20-candidate and 3-snippet bounds · acknowledged-by human R-12 · accepted 2026-10-26 (INV-011 B14).
+- Locked: L9 accepts the forge limitation that comment history cannot detect deletion of its complete newest suffix · decided-by human R-13 · accepted 2026-10-27 · signature: "accept all recommended options".
+- Locked: L9 approval evidence binds each effective approval to the current head SHA and provider evidence identifier; stale, dismissed, superseded, or unprovable approvals fail closed · decided-by agent R-13 · accepted 2026-10-27.
+- Locked: L9 uses optional `glossary.manifest`; absence preserves vocabulary-only behavior, and lifecycle gates read only a compatible committed target-branch pointer · decided-by agent R-13 · accepted 2026-10-27.
+- Locked: L9 stores required stable `ID` and optional `Replaces` metadata with each Markdown definition; owner state and hashes remain derived · decided-by human R-13 · accepted 2026-10-27 · signature: "accept all recommended options".
+- Locked: L9 requires a separate prerequisite adoption merge request for partial legacy glossaries · decided-by agent R-13 · accepted 2026-10-27.
+- Locked: L9 reconciles before preflight proof, invalidates proof after a head change, gates immediately before Ready and settlement, and returns Draft only after owner rejection · decided-by agent R-13 · accepted 2026-10-27.
+- Locked: L9 adds a strict Lavish RE-07 control with only `final` or `reject`; driven mode parks and Markdown fallback cannot supply owner evidence · decided-by agent R-13 · accepted 2026-10-27.
+- Locked: L9 keeps glossary ownership in `GLOSSARY-MAP.md` and puts routes, domain areas, and owner chains in `glossary.manifest`; validation cross-checks both authorities · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D6 accept".
+- Locked: L9 routes every lifecycle-aware glossary consumer through the facade; plain readers consume the selected paths returned by the facade · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D7 accept".
+- Locked: L9 adds a tracked-text-only ranked semantic scanner instead of extending the existing bounded path scanner · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D8 accept".
+- Locked: L9 stores required `ID` and optional `Replaces` on the definition metadata line, migrates every parser together, and fixes the parenthetical-alias collision · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D9 accept".
+- Locked: L9 local-evidence expiry fails closed when session or worktree activity cannot be proved · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D10 accept".
+- Locked: L9 adds provider-neutral `change-approvals` and `change-draft` verbs in registry lockstep and publishes glossary records under a separate `afk:glossary` namespace · decided-by human R-14 · accepted 2026-10-27 · response: "L9-D11 accept".
+- Locked: L9 seam and compatibility audit is closed with external frontiers acknowledged (INV-012).
+- Seams (L9): AFK configuration | schema-1 layered configuration with one reader | optional manifest pointer plus committed-at-ref reads | config docs, views, setup, and focused tests | effective branch configuration cannot authorize itself; older AFK rejects unknown keys | reworked
+- Seams (L9): Requirements and glossary skills | immediate verified glossary writes with caller-owned commits | call the facade while preserving verification and commit ownership | requirements, to-PRD, lessons, and execute | consultation follows the glossary commit; engine never commits or pushes | reworked
+- Seams (L9): Preflight | persisted steps end in direct Ready transition | reconcile before proof and gate immediately before Ready | manual preflight, autopilot, PLAN, and mission control | head changes invalidate proof; glossary parking is not a mechanical retry | extends (ADR-0004)
+- Seams (L9): Settlement | review closure owns settlement and never changes Draft state | final glossary gate plus owner-rejection return to Draft | settle-change, settle-mr, review re-entry, and manual settlement | gate the final pushed remote head and preserve review closure | reworked
+- Seams (L9): Other glossary consumers | consumers read root, nearest, or direct glossary paths | lifecycle consumers use the facade; plain readers use selected paths | design through settlement | partial migration creates bypasses and divergent vocabulary scope | reworked
+- Seams (L9): Forge registry | each forge kind declares verbs independently | add generic approval-read and return-to-Draft verbs with parity tests | every forge-family caller | manifests, contracts, scripts, tests, and conformance records move together | extends (ADR-0005)
+- Seams (L9): Approval read | no approval evidence verb exists | return effective approvals bound to current head SHA and evidence ID | finalization, owner validation, preflight, settlement, and bootstrap | stale, dismissed, superseded, or unprovable approvals fail closed | reworked
+- Seams (L9): Return to Draft | Ready has no inverse | add idempotent return-to-Draft with read-back | owner rejection and safety recovery | already Draft succeeds; provider exit alone is insufficient | extends (ADR-0005)
+- Seams (L9): Comment transport | complete oldest-first notes and plain comment writes | separate glossary namespace plus operation-ID reconciliation | glossary publication | use safe Windows JSON transport and preserve UTF-8 | fits
+- Seams (L9): Append-only reconstruction | replay detects edits and interior gaps but accepts an older prefix after newest-suffix deletion | add strict glossary codec and reducer with the stated proof limit | RE-06 through RE-08 | comment history cannot prove deletion of its complete newest suffix | reworked
+- Seams (L9): Glossary Markdown | grammar lacks stable identity and has divergent parsers | add `ID` and optional `Replaces` metadata and migrate parsers together | glossary, requirements, Lavish tooltips, and validation | strip metadata consistently and fix parenthetical alias collision | reworked
+- Seams (L9): Routing | `GLOSSARY-MAP.md` owns glossary ownership | manifest owns changed-path and domain-area routes plus owner chains | LC-01, LC-02, bootstrap, glossary, and requirements | manifest targets must resolve to map ownership | extends (ADR-0003)
+- Seams (L9): Git and local evidence | common-dir and worktree helpers exist without a complete adapter | add pinned-ref reads and atomic common-dir evidence | every LC command and linked worktree | handle linked worktrees, NUL paths, unknown activity, and absolute common-dir paths | extends (ADR-0008)
+- Seams (L9): Semantic provider | bounded scanner includes untracked files and returns paths | add tracked-text-only ranked candidates within accepted bounds | LC-02, LC-03, RE-03, and RE-04 | provider failure is an error, not an empty result | extends (ADR-0007)
+- Seams (L9): RE-07 prompt | existing controls allow invalid tokens or free text | add strict `final` or `reject` control without notes | Lavish schema, renderer, runtime, tests, and owner decision | Markdown fallback is invalid and driven mode parks | extends (ADR-0006)
+- Seams (L9): Bootstrap and adoption | glossary files can be created lazily during normal work | require separate bootstrap and explicit legacy migration | glossary, requirements, LC-01, approvals, and setup | feature-branch controls cannot authorize their own adoption | reworked
+- Seams (L9): Packaging | caller skills already exist in both manifests | add shared scripts and update existing skill prose | native plugin tree and changelog | no new skill is designed | fits
+- Open: none — L1 through L9 are exhausted; ready for `/afk:to-sdd`.
