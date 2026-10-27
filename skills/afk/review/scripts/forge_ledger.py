@@ -1556,7 +1556,13 @@ def command_gate(args, adapter):
             sha = value["fix"].get("sha")
             ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", sha, args.head], cwd=adapter.cwd)
             if ancestor.returncode:
-                raise LedgerError(f"fix commit is not reachable: {key}")
+                rewritten = subprocess.run(["git", "log", "--format=%B", "--fixed-strings",
+                                            f"--grep=Settles: {key}", args.head],
+                                           cwd=adapter.cwd, text=True, capture_output=True)
+                lines = {line.strip() for line in rewritten.stdout.splitlines()}
+                if rewritten.returncode or f"Settles: {key}" not in lines:
+                    raise LedgerError(f"fix commit is not reachable: {key}")
+                continue
             message = subprocess.run(["git", "show", "-s", "--format=%B", sha], cwd=adapter.cwd,
                                      text=True, capture_output=True)
             if message.returncode:

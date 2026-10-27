@@ -1047,6 +1047,37 @@ def test_fixed_closure_accepts_a_trailer_on_a_later_commit(tmp_path, monkeypatch
     assert seen[-1] == ["git", "log", "--format=%B", "--ancestry-path", "fixsha..abc"]
 
 
+@pytest.mark.parametrize("history, settled", [
+    ("Rebased fix\n\nSettles: slice/f001\n", True),
+    ("Rebased fix\n\nSettles: slice/f0010\n", False),
+    ("", False),
+])
+def test_fixed_closure_accepts_a_rebased_fix_by_its_trailer(tmp_path, monkeypatch, history, settled):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    _post_one(ledger, adapter, tmp_path)
+    ledger.command_reply(args(change="1", key="slice/f001", kind="fixed", attr=[],
+                              sha="oldsha", path="src/new.py", line="2", side="new", text="Fixed."), adapter)
+    ledger.command_resolve(args(change="1", key="slice/f001", reopen=False), adapter)
+    _summarize(ledger, adapter, tmp_path)
+    seen = []
+    answers = iter([(1, ""), (0, history)])
+
+    def run(cmd, **kwargs):
+        seen.append(cmd)
+        code, out = next(answers)
+        return type("Run", (), {"returncode": code, "stdout": out, "stderr": ""})()
+
+    monkeypatch.setattr(ledger.subprocess, "run", run)
+    gate = args(change="1", unit="slice", phase="closure", head="abc", expected=None, round=1)
+    if settled:
+        assert ledger.command_gate(gate, adapter)["settled"]
+    else:
+        with pytest.raises(ledger.LedgerError, match="not reachable"):
+            ledger.command_gate(gate, adapter)
+    assert seen[-1] == ["git", "log", "--format=%B", "--fixed-strings", "--grep=Settles: slice/f001", "abc"]
+
+
 def test_product_debt_home_missing_then_present(tmp_path):
     ledger = load_module()
     adapter = FakeAdapter()
