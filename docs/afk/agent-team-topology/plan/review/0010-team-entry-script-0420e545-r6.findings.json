@@ -1,0 +1,17 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_remove_worktree.py",
+  "line": 481,
+  "side": "new",
+  "finding": "Possible overclaiming test name: it says the record is read 'under its lock', but no assertion ties the read to the lock.",
+  "why": "The first half only shows adopt keeps owners [11, 12] already on disk; it passes if append_owner reads the file before taking the lock, and the stale-record input that once framed the race is gone, leaving the comment 'appended after the prune's scan' describing a race the body no longer builds.",
+  "fix": "Rename to say what is proven (adopt keeps owners already on disk; adopt skips the write while a fresh lock is held) and drop the vestigial 'after the prune's scan' comment.",
+  "evidence": "def test_adopt_reads_the_record_under_its_lock_and_waits_for_a_held_one ... # an agent start appended after the prune's scan (scripts/worktree_owner.py:249-250 read happens inside record_lock, but the test asserts only the final owners list)",
+  "id": "r-001",
+  "key": "f065"
+ }
+]
