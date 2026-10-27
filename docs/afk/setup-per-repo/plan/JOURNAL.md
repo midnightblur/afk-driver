@@ -23,3 +23,6 @@
 2026-10-27 08:05 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=0 low=5 (round 3) — reviewers found two error-path gaps and three weak tests; fixing all five
 2026-10-27 08:05 | execute | 0001-safe-writer | decision(D-8) — a read-only file on Windows is now refused at once with its real cause instead of being retried as busy
 2026-10-27 08:40 | execute | 0001-safe-writer | review advisory crit=0 high=1 med=0 low=0 (round 4) — the new read-only check also refused a brand-new file whose swap was briefly busy; fixed so only an existing read-only file is refused at once
+2026-10-27 09:05 | execute | 0001-safe-writer | review clean (round 5) — the fifth review round found nothing; the review loop closed at e497769 with three design notes left for the whole-feature review
+2026-10-27 09:20 | execute | 0001-safe-writer | adversary findings crit=0 high=0 med=0 low=2 — an independent attack on the writer kept every promise; two rare edge cases are recorded and do not block
+2026-10-27 09:22 | execute | 0001-safe-writer | done — the shared safe writer is built, reviewed, attacked and pushed; the pull request waits for the human
