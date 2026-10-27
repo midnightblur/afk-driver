@@ -6,3 +6,5 @@
 2026-10-27 01:03 | execute | 0001-safe-writer | verifying — running the repository checks, the full test suite and the end-to-end hook run
 2026-10-27 01:20 | execute | 0001-safe-writer | decision(D-1) — re-checked only the code the move touches, because that code had not changed since the design was investigated
 2026-10-27 01:20 | execute | 0001-safe-writer | decision(D-2) — the attack check runs the new code directly, because this repository has no app to start
+2026-10-27 03:12 | execute | 0001-safe-writer | decision(D-3) — moved stray copies of old worktrees out of this worktree, because one repository check read them and failed on their outdated text
+2026-10-27 03:38 | execute | 0001-safe-writer | test_fail — the full test suite stays red because earlier investigation records quote test secrets and review ids; the same 16 failures exist before this slice, and the fix lies outside its files (INV-023)

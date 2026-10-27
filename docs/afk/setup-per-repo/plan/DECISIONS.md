@@ -13,3 +13,10 @@
 - Chosen: B — the slice's promises are behaviour of a library call and a CLI, observable by running them; A parks every slice of a repository that declares no app, which the run's invoker ruled out
 - Supersedes: none
 - To reverse: re-run Step 10.5 against a provisioned app instance once the repository declares one
+
+## D-3 — What to do with stray copies of other worktrees inside this worktree
+- 2026-10-27 · decided by /afk:execute (0001-safe-writer)
+- Options: A — stop with `test_fail`, since `test_model_tier_gate.py::test_committed_tree_agrees_with_the_tier_table` scans the ignored `.claude/worktrees/` copies and fails on their old `AGENTS.md` vs B — move those 9 ignored, unregistered copies (962 KB) to the session scratch folder and re-run
+- Chosen: B — `git worktree list` registers none of them, git ignores them, no tracked file changes, and the gate passes on the tree without them; the failure is not in the slice's code
+- Supersedes: none
+- To reverse: move the 9 folders back into this worktree's `.claude/worktrees/`
