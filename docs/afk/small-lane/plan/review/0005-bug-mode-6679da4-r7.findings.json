@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (missing branch case)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_publish_bug_mode.py",
+  "line": 995,
+  "side": "new",
+  "finding": "No test covers normalizing the stored name (a decomposed NFD name on disk with a composed NFC name typed), so `_fold(name)` on the listed side is unproven",
+  "why": "Every fixture name is stored as NFC (`\\u00e9.md`), so only the typed side is ever normalized; a mutant that sorts by `name.casefold()` for listed names passes the whole suite, even though decomposed stored names are the macOS HFS+ case the delta targets.",
+  "fix": "Add a case that stores `e\\u0301.md` beside a decoy and looks up `\\u00c9.md`, expecting `e\\u0301.md` (with a pinned listing order).",
+  "evidence": "Mutant line 590 `for name in sorted(names, key=lambda name: name.casefold() != fold):` -> `13 passed, 73 deselected` under the stored_name / another_case / description_file tests on Windows; fixture `for name in (\"0.md\", \"a.md\", \"\\u00e9.md\"):`"
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Fragile test (ordering assumptions)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_publish_bug_mode.py",
+  "line": 999,
+  "side": "new",
+  "finding": "The accent-folding assertion in the hard-link test catches a broken fold only when the folder lists its files in a lucky order",
+  "why": "With samefile patched to always be true, the test checks the preference only when the folder listing puts a decoy name before the expected one; on Linux ext4 the listing is ['é.md', '0.md', 'a.md'], so the expected name comes first and a mutant that drops NFC normalization still passes this assertion (only the Windows CI leg catches it).",
+  "fix": "Pin the listing order by monkeypatching os.scandir in this test (or mode.os.scandir) so it puts the decoys before the expected entry, giving each assertion a kill that does not depend on the file system.",
+  "evidence": "Mutant `return name.casefold()` (NFC dropped from _fold, publish_bug_mode.py:600): killed on Windows NTFS (test fails at line 999), but replaying this test's exact logic under WSL python3 on ext4 /tmp gives `nonfc assert1 pass assert2 pass => test passes (mutant SURVIVES)`; listing order seen there in 10 out of 10 trials: ['é.md', '0.md', 'a.md']. tests.yml matrix: ubuntu-latest, windows-latest."
+ }
+]

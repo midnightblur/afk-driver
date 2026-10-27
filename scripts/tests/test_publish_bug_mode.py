@@ -991,9 +991,29 @@ def test_a_stored_name_with_no_listed_match_is_kept_as_typed(tmp_path, monkeypat
     assert mode._stored_name(tmp_path / "typed.md") == "typed.md"
 
 
-def test_a_stored_name_prefers_its_own_spelling_over_a_hard_link(tmp_path, monkeypatch):
-    for name in ("0.md", "a.md", "\u00e9.md"):
-        (tmp_path / name).write_text("x", encoding="utf-8")
+class _Entry:
+    def __init__(self, name):
+        self.name = name
+
+
+class _Listing:
+    def __init__(self, names):
+        self.entries = [_Entry(name) for name in names]
+
+    def __enter__(self):
+        return iter(self.entries)
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.mark.parametrize("listed, typed, stored", [
+    (("0.md", "b.md", "a.md"), "A.md", "a.md"),
+    (("0.md", "b.md", "\u00e9.md"), "E\u0301.md", "\u00e9.md"),
+    (("0.md", "b.md", "e\u0301.md"), "\u00c9.md", "e\u0301.md")],
+    ids=["case", "typed-decomposed", "stored-decomposed"])
+def test_a_stored_name_prefers_its_own_spelling_over_a_hard_link(tmp_path, monkeypatch, listed, typed,
+                                                                 stored):
+    monkeypatch.setattr(mode.os, "scandir", lambda folder: _Listing(listed))  # decoys listed first
     monkeypatch.setattr(mode.os.path, "samefile", lambda a, b: True)  # every entry is one file
-    assert mode._stored_name(tmp_path / "A.md") == "a.md"
-    assert mode._stored_name(tmp_path / "E\u0301.md") == "\u00e9.md"
+    assert mode._stored_name(tmp_path / typed) == stored
