@@ -72,7 +72,7 @@ SDD §14 rows each subtask implements: 0001 safe writer; 0002 reader merge, comm
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-safe-writer | shared safe writer + verification tiers | done | — | static, unit, smoke | §14 safe writer |
 | 2 | 0002-settings-reader | owner rule in the settings reader | blocked(scope: owner rule breaks 5 tests + 3 smoke checks owned by 0005, 0006, 0009) | 0001 | static, unit, smoke | §14 reader merge, commit gates |
-| 3 | 0003-repository-list | repository list and short-name markers | developing | 0001 | static, unit | use §14 safe writer |
+| 3 | 0003-repository-list | repository list and short-name markers | verifying | 0001 | static, unit | use §14 safe writer |
 | 4 | 0004-placement | one placement module: root rules, worktree folder | pending | 0002, 0003 | static, unit | use §14 reader merge |
 | 5 | 0005-worktree-creator | creator, worktree-create hook, move helper ask placement | pending | 0004 | static, unit, smoke | impl §5, use §6 |
 | 6 | 0006-worktree-guard | guard refuses an agent's worktree outside the root | pending | 0004 | static, unit, smoke | §14 guard `decide` |

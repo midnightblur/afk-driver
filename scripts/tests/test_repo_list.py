@@ -180,6 +180,14 @@ def test_a_short_name_that_is_not_one_plain_folder_name_is_refused(home, root, t
     assert list(root.iterdir()) == []
 
 
+@pytest.mark.skipif(not IS_WINDOWS, reason="device names are reserved only on Windows")
+@pytest.mark.parametrize("name", ["con", "NUL", "com1", "aux.txt"])
+def test_a_windows_device_name_is_refused(home, root, tmp_path, name):
+    with pytest.raises(rl.RepositoryListError, match="Windows device name"):
+        rl.add_repository(make_repo(tmp_path / "src"), root, short_name=name)
+    assert list(root.iterdir()) == []
+
+
 def test_a_default_short_name_outside_the_set_is_refused_so_setup_asks(home, root, tmp_path):
     repo = make_repo(tmp_path / "src", "my repo")
     with pytest.raises(rl.RepositoryListError, match="not a valid short name"):

@@ -39,3 +39,6 @@
 2026-10-27 11:25 | execute | 0003-repository-list | developing — writing the list module and its tests against real temporary git repositories
 2026-10-27 11:26 | execute | 0003-repository-list | decision(D-13) — the marker file is written while the list file is locked, using the shared writer's no-lock step, so no lock file appears in the worktree folder
 2026-10-27 11:26 | execute | 0003-repository-list | decision(D-14) — an empty worktree folder may be taken for a repository; a folder with anything in it and no matching marker is refused
+2026-10-27 11:30 | execute | 0003-repository-list | pushed f53fef5..aa2d5e7 (1 commits) — the list module, its tests and two decision records are on the shared branch
+2026-10-27 11:30 | execute | 0003-repository-list | verifying — running the repository checks, the list tests on Windows and Linux, and the end-to-end hook run
+2026-10-27 11:43 | execute | 0003-repository-list | decision(D-15) — re-checked the shared writer this slice uses with a fresh code study, because its code changed since the last study; nothing in it conflicts with the design; the study stays outside the repository because a repository check misreads it

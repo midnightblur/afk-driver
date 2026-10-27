@@ -37,6 +37,7 @@ LIST_NAME = "repositories.json"
 MARKER_NAME = ".afk-repository"
 GIT_TIMEOUT_SECONDS = 20
 _SHORT_NAME = re.compile(r"[A-Za-z0-9._-]+\Z")
+_WINDOWS_DEVICE = re.compile(r"(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(\..*)?\Z", re.IGNORECASE)
 _GIT_REDIRECTS = (
     "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
     "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_NAMESPACE", "GIT_PREFIX",
@@ -224,6 +225,8 @@ def _check_short_name(name: str) -> None:
         raise RepositoryListError(
             "is not a valid short name: use one folder name of letters, digits, dot, dash, "
             "underscore, not ending in a dot; pick another", name)
+    if os.name == "nt" and _WINDOWS_DEVICE.match(name):
+        raise RepositoryListError("is a Windows device name, not a folder name; pick another", name)
 
 
 def _refuse_listed(entries: list[Entry], main: str, name: str | None) -> None:

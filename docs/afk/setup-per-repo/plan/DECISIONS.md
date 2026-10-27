@@ -97,3 +97,10 @@
 - Chosen: B — an empty folder holds nothing setup could damage, and a run stopped between making the folder and writing the marker leaves one; catalog R R-06 guards a folder made for another repository, which holds a marker or content
 - Supersedes: PRD catalog R R-06 "the short name's folder under the root is absent" — narrowed to "absent or empty"
 - To reverse: drop the empty-folder clause in `_claim_folder` of `scripts/repo_list.py`
+
+## D-15 — Re-take the safe writer seam's ground with a fresh question on the moved call
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — diff against INV-010, whose subject `_atomic_write_locked` no longer exists in code vs B — diff against INV-023 (the move's ledger, D-1 and D-5), and on drift run one fresh Q1 on `update_locked` and `SafeWriteError` at the branch head
+- Chosen: B — INV-023's ground moved (review fixes in `scripts/safe_write.py`, `scripts/tests/test_safe_write.py`, `scripts/tests/test_install_block.py`); the fresh run at f53fef5 is `closed-with-frontier`, and no claim it makes contradicts SDD §8 row "safe writer" or ADR-0005 (design); its claim that `update_locked` puts a lock file beside every file it writes is the ground of D-13. Its ledger stays in the run's scratch folder (named in the slice's outcome report): the native contract gate's check K matches a provider helper's file name inside the name of that helper's unit test, which the seed map lists as a site, and refuses the ledger
+- Supersedes: the `## Seams` row of `plan/0003-repository-list.md` citing INV-010 — this slice stands on the fresh run
+- To reverse: run `/afk:investigate` on the INV-010 question at the branch head and publish it in the spec folder once check K skips ledger text
