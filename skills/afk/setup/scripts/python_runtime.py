@@ -74,6 +74,8 @@ TEAM = "afk-team"
 PS1_ARGS = ("$a = @(if ($PSNativeCommandArgumentPassing -in 'Standard', 'Windows') { $args } else "
             "{ $args | ForEach-Object { $s = $_ -replace '(\\\\*)\"', '$1$1\\\"'; "
             "if ($s -match '\\s') { $s -replace '(\\\\+)$', '$1$1' } else { $s } } }); ")
+# Every character PowerShell reads as a single quote; each is doubled inside a single-quoted literal.
+PS_QUOTES = "'‘’‚‛"
 PTH = "afk_python.pth"
 PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
 NO_WHEEL = "marked as `--no-build` but has no binary distribution"
@@ -316,14 +318,15 @@ def team_launchers(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) -> dict
     if windows:
         files[Path(paths["team_cmd"])] = f'@"{entry}" "{script}" %*\r\n'.encode("utf-8")
         # PowerShell runs the .ps1 first and passes a payload's double quotes intact; through the .cmd it drops them.
-        ps1 = f"{PS1_ARGS}& {ps_quote(entry)} {ps_quote(script)} @a; exit $LASTEXITCODE\r\n"
+        # A start that fails leaves LASTEXITCODE at 1, not at the session's last native result.
+        ps1 = f"{PS1_ARGS}$global:LASTEXITCODE = 1; & {ps_quote(entry)} {ps_quote(script)} @a; exit $LASTEXITCODE\r\n"
         files[Path(paths["team_ps1"])] = ps1.encode("utf-8-sig")
     return files
 
 
 def ps_quote(path: Path) -> str:
     """A PowerShell single-quoted literal of `path`: nothing in it expands."""
-    return "'" + str(path).replace("'", "''") + "'"
+    return "'" + "".join(c * 2 if c in PS_QUOTES else c for c in str(path)) + "'"
 
 
 def team_launcher_root(path: Path) -> Path | None:
@@ -339,7 +342,8 @@ def team_launcher_root(path: Path) -> Path | None:
             except ValueError:
                 return None
         elif Path(path).suffix == ".ps1":
-            words = [w.replace("''", "'") for w in re.findall(r"'((?:[^']|'')*)'", line)]
+            q = f"[{PS_QUOTES}]"
+            words = [re.sub(f"({q}){q}", r"\1", w) for w in re.findall(f"{q}((?:[^{PS_QUOTES}]|{q}{q})*){q}", line)]
         else:
             words = re.findall(r'"([^"]*)"', line)
         script = next((w for w in words if re.search(r"[\\/]scripts[\\/]afk-team\.py$", w)), None)
@@ -363,6 +367,8 @@ def place_team_launcher(paths: dict, windows: bool, root: Path = PLUGIN_ROOT) ->
         try:
             os.replace(staged, target)
         except PermissionError:
+            if not target.exists():
+                raise
             # A file in use cannot be overwritten on Windows, but it can be renamed away, as place_entry does.
             old = target.with_name(target.name + ".old")
             old.unlink(missing_ok=True)

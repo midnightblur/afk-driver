@@ -131,8 +131,9 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
 
 
 def _team_entry(entry: str) -> bool:
-    """An allow entry for the team script: its command word is afk-team, or it names afk-team.py."""
-    return re.match(rf"Bash\(\s*{ENTRY_NAME}(?=[\s:)])", entry) is not None or f"{ENTRY_NAME}.py" in entry
+    """An allow entry for the team script: its command word is afk-team, or afk-python running scripts/afk-team.py."""
+    return re.match(rf"Bash\(\s*(?:{ENTRY_NAME}(?=[\s:)])|afk-python\s.*[\\/]scripts[\\/]{ENTRY_NAME}\.py\b)",
+                    entry) is not None
 
 
 def check_afk_team_launcher(env: Mapping[str, str] | None = None, *, run: Callable = subprocess.run) -> str | None:

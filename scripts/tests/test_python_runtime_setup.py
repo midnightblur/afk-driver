@@ -734,7 +734,8 @@ def test_install_writes_the_team_launcher_after_the_sync_and_afk_python(tmp_path
         assert want[paths["team_cmd"]] == f'@"{paths["launcher"]}" "{script}" %*\r\n'.encode("utf-8")
         # PowerShell reads a BOM-less script as the ANSI code page, so the .ps1 carries a UTF-8 BOM.
         assert want[paths["team_ps1"]] == (
-            f"\ufeff{pr.PS1_ARGS}& '{paths['launcher']}' '{script}' @a; exit $LASTEXITCODE\r\n".encode("utf-8"))
+            f"\ufeff{pr.PS1_ARGS}$global:LASTEXITCODE = 1; & '{paths['launcher']}' '{script}' @a; "
+            "exit $LASTEXITCODE\r\n".encode("utf-8"))
     else:
         assert os.access(paths["team"], os.X_OK)
     assert sorted(e.name for e in paths["bin"].iterdir()) == sorted([paths["launcher"].name, *(p.name for p in want)])
@@ -790,6 +791,23 @@ def test_a_launcher_file_in_use_is_renamed_away_then_replaced(tmp_path, monkeypa
     assert paths["team_cmd"].with_name("afk-team.cmd.old").read_bytes() == b"@echo old\r\n"
 
 
+def test_a_refused_first_write_raises_its_own_error(tmp_path, monkeypatch):
+    paths = pr.layout(machine_env(tmp_path), True)
+    paths["bin"].mkdir(parents=True)
+
+    real_replace = os.replace
+
+    def refused(src, dst):
+        if Path(src).name.endswith(".new"):
+            raise PermissionError(13, "refused", str(dst))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(pr.os, "replace", refused)
+    with pytest.raises(PermissionError, match="refused"):
+        pr.place_team_launcher(paths, True)
+    assert not paths["team"].with_name("afk-team.old").exists()
+
+
 def test_check_reports_a_missing_launcher(tmp_path):
     env, paths = stamped(tmp_path)
     paths["team"].unlink()
@@ -839,6 +857,17 @@ def test_the_ps1_quotes_a_plugin_folder_holding_an_apostrophe_and_a_dollar(tmp_p
     assert " '" + script.replace("'", "''") + "' @a;" in data.decode("utf-8")
     paths["bin"].mkdir(parents=True)
     paths["team_ps1"].write_bytes(data)
+    assert pr.team_launcher_root(paths["team_ps1"]) == root
+
+
+@pytest.mark.parametrize("quote", ["‘", "’", "‚", "‛"])
+def test_the_ps1_doubles_every_quote_powershell_reads_as_a_single_quote(tmp_path, quote):
+    paths = pr.layout(machine_env(tmp_path), True)
+    root = tmp_path / f"O{quote}Brien it's"
+    data = pr.team_launchers(paths, True, root)[paths["team_ps1"]].decode("utf-8-sig")
+    assert f"O{quote}{quote}Brien it''s" in data
+    paths["bin"].mkdir(parents=True)
+    paths["team_ps1"].write_bytes(data.encode("utf-8-sig"))
     assert pr.team_launcher_root(paths["team_ps1"]) == root
 
 
@@ -927,3 +956,38 @@ def test_a_pin_rebuild_that_wipes_afk_bin_then_fails_the_sync_leaves_both_comman
     out = io.StringIO()
     assert pr.check(env, True, False, Machine(paths), out) == 1
     assert "fail launcher" in out.getvalue() and f"fail afk-team: launcher missing: {paths['team']}" in out.getvalue()
+
+
+@pytest.mark.parametrize("shell", ["pwsh", "powershell"])
+def test_powershell_runs_the_ps1_from_a_plugin_folder_holding_a_typographic_apostrophe(tmp_path, shell):
+    if os.name != "nt" or shutil.which(shell) is None:
+        pytest.skip(f"runs the .ps1 in {shell} on Windows")
+    root = tmp_path / "O\u2019Brien plugin"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "afk-team.py").write_text(
+        "import json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit(3)\n", encoding="utf-8")
+    paths = dict(pr.layout(machine_env(tmp_path), True), launcher=Path(sys.executable))
+    paths["bin"].mkdir(parents=True)
+    pr.place_team_launcher(paths, True, root)
+    encoded = base64.b64encode("afk-team agent-list '{}'; exit $LASTEXITCODE".encode("utf-16-le")).decode("ascii")
+    env = dict(os.environ, PATH=os.pathsep.join([str(paths["bin"]), os.environ.get("PATH", "")]))
+    done = subprocess.run([shutil.which(shell), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                           "-EncodedCommand", encoded], env=env, capture_output=True, text=True, timeout=60)
+    assert done.returncode == 3, done.stderr
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == ["agent-list", "{}"]
+
+
+@pytest.mark.parametrize("shell", ["pwsh", "powershell"])
+def test_the_ps1_exits_non_zero_when_afk_python_cannot_start(tmp_path, shell):
+    # The session's last native command exited 0, so a bare `exit $LASTEXITCODE` would report success.
+    if os.name != "nt" or shutil.which(shell) is None:
+        pytest.skip(f"runs the .ps1 in {shell} on Windows")
+    paths = dict(pr.layout(machine_env(tmp_path), True), launcher=tmp_path / "gone" / "afk-python.exe")
+    paths["bin"].mkdir(parents=True)
+    pr.place_team_launcher(paths, True, tmp_path / "plugin")
+    command = "cmd /c exit 0; afk-team agent-list '{}'; exit $LASTEXITCODE"
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    env = dict(os.environ, PATH=os.pathsep.join([str(paths["bin"]), os.environ.get("PATH", "")]))
+    done = subprocess.run([shutil.which(shell), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                           "-EncodedCommand", encoded], env=env, capture_output=True, text=True, timeout=60)
+    assert done.returncode == 1, (done.stdout, done.stderr)

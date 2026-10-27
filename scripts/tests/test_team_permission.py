@@ -243,7 +243,8 @@ def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
 
 
 @pytest.mark.parametrize("other", ["Bash(git checkout 0027-afk-team-launcher)", "Bash(afk-teamwork *)",
-                                   "Bash(cat afk-team)"])
+                                   "Bash(cat afk-team)", "Bash(git checkout afk-team.py)",
+                                   "Bash(cat scripts/afk-team.py)"])
 @needs_bash
 def test_an_entry_that_only_contains_the_name_is_not_stale(home: dict, other: str) -> None:
     _write(home["user"], allow=[other])
@@ -607,19 +608,36 @@ def test_a_missing_launcher_refuses(home: dict) -> None:
     _assert_launcher_refused(_check(home), f"the afk-team launcher {home['paths']['team'].as_posix()} is missing")
 
 
-@needs_bash
-def test_a_missing_launcher_refuses_with_the_host_afk_bin_on_path(tmp_path: Path, monkeypatch) -> None:
-    # The state /afk:setup leaves on a developer's machine: its own afk-bin, holding afk-team, on PATH.
+def _host_afk_bin(tmp_path: Path) -> Path:
+    """The state /afk:setup leaves on a developer's machine: an afk-bin holding afk-team."""
     host_bin = tmp_path / "host" / "afk-bin"
     host_bin.mkdir(parents=True)
     (host_bin / "afk-team").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
     (host_bin / "afk-team").chmod(0o755)
+    return host_bin
+
+
+@needs_bash
+def test_the_test_home_drops_the_host_afk_bin_from_path(tmp_path: Path, monkeypatch) -> None:
+    host_bin = _host_afk_bin(tmp_path)
     monkeypatch.setenv("PATH", os.pathsep.join([str(host_bin), os.environ.get("PATH", "")]))
     (tmp_path / "t").mkdir()
     home = _make_home(tmp_path / "t")
+    assert str(host_bin) not in home["env"]["PATH"].split(os.pathsep)
     home["paths"]["team"].unlink()
     _write(home["user"], allow=[RULE])
     _assert_launcher_refused(_check(home), f"the afk-team launcher {home['paths']['team'].as_posix()} is missing")
+
+
+@needs_bash
+def test_a_missing_launcher_refuses_when_another_afk_team_is_later_on_path(home: dict, tmp_path: Path) -> None:
+    host_bin = _host_afk_bin(tmp_path)
+    first, rest = home["env"]["PATH"].split(os.pathsep, 1)
+    home["env"]["PATH"] = os.pathsep.join([first, str(host_bin), rest])
+    home["paths"]["team"].unlink()
+    _write(home["user"], allow=[RULE])
+    host = (host_bin / "afk-team").as_posix()
+    _assert_launcher_refused(_check(home), f"afk-team on PATH is {host}, not the launcher")
 
 
 @needs_bash
