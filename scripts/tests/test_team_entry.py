@@ -48,6 +48,7 @@ class Transport:
 
     def __init__(self):
         self.calls: list[tuple[str, str, dict]] = []
+        self.echo = True
         self.answers = {
             "agent-start": (0, {"kind": "multiplexer", "tool": "herdr", "handle": "p9", "pid": None,
                                 "started_at": "2026-10-22T10:00:00Z", "session_id": "s-1", "tab_id": "t1"}),
@@ -61,8 +62,12 @@ class Transport:
     def __call__(self, kind, verb, payload, root=None, env=None):
         self.calls.append((kind, verb, payload))
         code, body = self.answers[verb]
-        if verb == "agent-start" and code == 0:
+        if callable(body):
+            body = body(payload)
+        if verb == "agent-start" and code == 0 and self.echo:
             body = {**body, "pane_label": payload["label"], "agent_name": payload["name"]}
+        if verb == "agent-stop" and "pane_id" in body and payload.get("handle"):
+            body = {**body, "pane_id": payload["handle"]}   # a pane kind names the pane it was given
         return code, json.dumps(body) + "\n", ""
 
     def verbs(self) -> list[str]:
@@ -212,7 +217,15 @@ def test_matching_names_end_in_2_and_3():
 def test_a_name_with_no_room_for_1_goal_character_is_refused_naming_it():
     with pytest.raises(naming.NameRefused, match="agent name"):
         naming.build_agent_name("PROJ-1", "r" * 20, "opus-4-8", "med")
+    with pytest.raises(naming.NameRefused, match="room for the goal part"):
+        naming.build_agent_name("PROJ-1", "r" * 18, "opus-4-8", "med")    # room 0
     naming.build_agent_name("PROJ-1", "r" * 17, "opus-4-8", "med")    # room for exactly 1
+
+
+def test_a_refusal_with_negative_room_names_a_name_the_rule_builds():
+    with pytest.raises(naming.NameRefused) as refused:
+        naming.build_agent_name("0010-live-feature", "r" * 25, "haiku", "lo")
+    assert "'-" + "r" * 25 + "-haiku-lo'" in str(refused.value)
 
 
 def test_a_goal_that_needs_g_needs_room_for_g_and_1_character():
@@ -287,6 +300,7 @@ def test_exit_5_with_its_fields_when_the_write_after_fails(team, monkeypatch, ch
     code, body = start(team)
     assert code == 5 and body["error"] and body["agent_id"] == "a1" and "a1" in body["reason"]
     assert body["stopped"] is True and body["pane_closed"] is True and body["pane_id"] == "p9"
+    assert body["handle"] == "p9"
     assert body["pid"] == child.pid and body["kind"] == "multiplexer" and body["started_at"]
     stop = [p for _, v, p in team.transport.calls if v == "agent-stop"]
     assert stop and stop[0]["pid"] == child.pid and stop[0]["handle"] == "p9"
@@ -305,6 +319,78 @@ def test_exit_5_omits_pane_fields_for_a_kind_with_no_panes(team, monkeypatch, ch
                         lambda r, f, e: (_ for _ in ()).throw(manifest.ManifestBusy("x")) if "pid" in e else real(r, f, e))
     code, body = start(team)
     assert code == 5 and "pane_closed" not in body and "pane_id" not in body and body["kind"] == "headless"
+    assert body["handle"] == str(child.pid)
+
+
+def refuse_the_write_after(monkeypatch):
+    real = manifest.record_entry
+    monkeypatch.setattr(manifest, "record_entry",
+                        lambda r, f, e: (_ for _ in ()).throw(manifest.ManifestBusy("x")) if "pid" in e else real(r, f, e))
+
+
+def test_the_exit_5_stop_ends_5_s_before_the_120_s_budget(team, monkeypatch, child):
+    team.agent("a1", "builder", state="starting")
+    team.transport.answers["agent-start"][1].update(pid=child.pid, started_at=entry.process.creation_time(child.pid))
+    team.transport.answers["agent-stop"] = (0, lambda payload: (time.sleep(2), {"stopped": True, "method": "k"})[1])
+    ticks = iter([0.0])
+    team.host.clock = lambda: next(ticks, 114.5)    # 114.5 s spent: 0.5 s left before the 5 s reserve
+    refuse_the_write_after(monkeypatch)
+    began = time.monotonic()
+    code, body = start(team)
+    assert code == 5 and body["stopped"] is False and "120 s" in body["stop_reason"]
+    assert body["handle"] == "p9" and body["pane_id"] == "p9", "a pane kind names its pane whatever the stop did"
+    assert time.monotonic() - began < 2
+
+
+def test_the_start_answer_names_the_label_and_name_even_when_the_kind_does_not(team, child, monkeypatch):
+    team.agent("a1", "builder", state="starting")
+    team.kind_answer = {"kind": "headless", "harnesses": ["claude"]}
+    team.transport.answers["agent-start"] = (0, {"kind": "headless", "handle": str(child.pid), "pid": child.pid,
+                                                 "started_at": entry.process.creation_time(child.pid)})
+    team.transport.echo = False
+    code, body = start(team)
+    assert code == 0 and body["pane_label"] == "agent-team-topol builder opus med"
+    assert body["agent_name"] == "agent-team-topo-builder-opus-med"
+
+
+def test_a_relative_brief_and_cwd_reach_the_agent_as_absolute_paths(team, monkeypatch):
+    team.agent("a1", "builder", state="starting")
+    monkeypatch.chdir(team.brief.parent)
+    team.host.cwd = team.brief.parent
+    code, body = team.call("agent-start", agent_id="a1", role="builder", model="implementation@claude",
+                           brief_path=team.brief.name, cwd=team.worktree.name)
+    assert code == 0, body
+    payload = team.transport.calls[-1][2]
+    assert f"Read your brief, {team.brief}" in payload["prompt"] and payload["cwd"] == str(team.worktree)
+
+
+def test_the_launch_environment_carries_the_run_root_the_contact_uses(team):
+    team.agent("a1", "builder", state="starting")
+    team.host.env["AFK_TEAM_ROOT"] = str(team.root)
+    assert start(team)[0] == 0
+    assert team.transport.calls[-1][2]["env"]["AFK_TEAM_ROOT"] == str(team.root)
+    team.agent("a2", "builder", state="starting")
+    del team.host.env["AFK_TEAM_ROOT"]
+    assert start(team, agent_id="a2")[0] == 0
+    assert "AFK_TEAM_ROOT" not in team.transport.calls[-1][2]["env"]
+
+
+def test_two_starts_that_pick_the_same_name_end_with_different_names(team, monkeypatch):
+    team.agent("a1", "builder", state="starting")
+    team.agent("a2", "builder", state="starting")
+    real = manifest.record_entry
+
+    def racing(root, feature, entry_):
+        if entry_.get("agent_id") == "a2" and "agent_name" in entry_ and not team.entry("a1")["agent_name"]:
+            real(root, feature, {"agent_id": "a1", "pane_label": entry_["pane_label"],
+                                 "agent_name": entry_["agent_name"]})     # a1's start wrote the same name first
+        return real(root, feature, entry_)
+
+    monkeypatch.setattr(manifest, "record_entry", racing)
+    code, body = start(team, agent_id="a2")
+    assert code == 0, body
+    assert team.entry("a2")["agent_name"] == "agent-team-to-builder-opus-med-2" == body["agent_name"]
+    assert team.entry("a1")["agent_name"] == "agent-team-topo-builder-opus-med"
 
 
 def test_a_first_run_dialog_answers_exit_4_naming_the_dialog(team):
@@ -344,12 +430,13 @@ def test_a_model_that_is_not_tier_at_provider_is_refused(team):
 
 
 @pytest.mark.parametrize("harness", ["claude", "codex"])
-def test_the_launch_environment_holds_afk_provider_equal_to_the_launched_kind(team, harness):
+def test_the_launch_environment_holds_afk_provider_equal_to_the_launched_kind(team, harness, monkeypatch):
+    monkeypatch.delenv(entry.AFK_PROVIDER, raising=False)
     team.agent("a1", "builder", state="starting")
     assert start(team, model=f"implementation@{harness}")[0] == 0
     payload = team.transport.calls[-1][2]
     assert payload["env"][entry.AFK_PROVIDER] == harness and payload["env"][entry.AFK_TEAM_RUN] == RUN
-    assert entry.AFK_PROVIDER not in os.environ or os.environ[entry.AFK_PROVIDER] != "set-by-test"
+    assert entry.AFK_PROVIDER not in os.environ and entry.AFK_PROVIDER not in team.host.env
 
 
 def test_a_codex_agent_launches_with_full_access_and_a_claude_agent_with_no_flag(team):
@@ -404,11 +491,53 @@ def test_a_failed_settings_copy_leaves_no_file_and_starts_nothing(team, monkeypa
     (team.main / ".claude").mkdir()
     (team.main / ".claude" / "settings.local.json").write_text('{"a": 1}', encoding="utf-8")
     team.agent("a1", "builder", state="starting")
-    monkeypatch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(OSError("disk")))
+    real = open
+
+    class Full:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def write(self, data):
+            self.handle.write(data[:1])
+            raise OSError("disk full")
+
+        def close(self):
+            self.handle.close()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.handle.close()
+
+    monkeypatch.setattr("builtins.open", lambda path, mode="r", *a, **k: Full(real(path, mode, *a, **k))
+                        if mode == "xb" else real(path, mode, *a, **k))
     code, body = start(team)
     assert code == 4 and body["copy"].endswith("settings.local.json") and "copy" in body["reason"]
-    assert not (team.worktree / ".claude" / "settings.local.json").exists()
+    assert not (team.worktree / ".claude" / "settings.local.json").exists(), "the half-written file is removed"
     assert "agent-start" not in team.transport.verbs()
+
+
+def test_a_settings_file_made_by_a_parallel_start_skips_the_copy(team, monkeypatch):
+    (team.main / ".claude").mkdir()
+    (team.main / ".claude" / "settings.local.json").write_text('{"a": 1}', encoding="utf-8")
+    target = team.worktree / ".claude" / "settings.local.json"
+    real = Path.exists
+    monkeypatch.setattr(Path, "exists", lambda self: False if self == target else real(self))
+    target.parent.mkdir()
+    target.write_text('{"theirs": 1}', encoding="utf-8")
+    team.agent("a1", "builder", state="starting")
+    code, body = start(team)
+    assert code == 0 and "skipped" in body["settings"] and json.loads(target.read_text()) == {"theirs": 1}
+
+
+def test_agent_start_appends_no_owner_whose_creation_time_cannot_be_read(team, child, monkeypatch):
+    seen = []
+    monkeypatch.setattr(worktree_owner, "add_owner", lambda path, pid, ctime: seen.append((path, pid, ctime)))
+    monkeypatch.setattr(worktree_owner, "creation_time", lambda pid: None)
+    team.agent("a1", "builder", state="starting")
+    team.transport.answers["agent-start"][1]["pid"] = child.pid
+    assert start(team)[0] == 0 and seen == []
 
 
 def test_agent_start_appends_the_pane_agent_to_the_worktree_owners(team, child, monkeypatch):
@@ -509,6 +638,67 @@ def test_a_failed_pane_delivery_still_writes_the_inbox_copy_and_answers_exit_4_n
     assert code == 4 and body["target"] == "b1" and "b1" in body["reason"] and team.inbox() == ["r1-1.json"]
 
 
+def test_a_failed_pane_delivery_of_a_message_claims_no_inbox_copy(team):
+    team.pattern({"builder": role(), "reviewer-a": role("builder")})
+    team.pane("b1", "builder")
+    team.pane("r1", "reviewer-a")
+    team.transport.answers["agent-send"] = (4, {"unavailable": True, "receiver_gone": True, "reason": "gone"})
+    code, body = send(team, "r1", "builder", "message", "r1-1")
+    assert code == 4 and "inbox_copy" not in body and team.inbox() == []
+    code, body = send(team, "r1", "builder", "finished", "r1-2", {"format_version": 1, "result_path": ""})
+    assert code == 4 and body["inbox_copy"] is True and team.inbox() == ["r1-2.json"]
+
+
+@pytest.mark.parametrize("sender, mid", [("b1", "m1"), ("b1", "b2-1"), ("b1", "b1-x"), ("b1", "b10-1"),
+                                         ("contact", "c-1"), ("b1", "b1-sup")])
+def test_a_message_id_not_built_from_the_senders_agent_id_is_refused(team, sender, mid):
+    team.pattern({"builder": role()})
+    team.pane("b1", "builder")
+    team.pane("b2", "builder")
+    code, body = send(team, sender, "contact" if sender != "contact" else "b1", "message", mid)
+    assert code == 2 and "`message_id`" in body["reason"] and team.inbox() == []
+
+
+def test_the_message_id_forms_of_an_agent_its_supervisor_and_the_contact_are_accepted(team):
+    team.pattern({"builder": role()})
+    team.pane("b1", "builder")
+    assert send(team, "b1", "contact", "message", "b1-7")[0] == 0
+    assert send(team, "b1", "contact", "parked", "b1-sup-2")[0] == 0
+    assert send(team, "contact", "b1", "message", "contact-3")[0] == 0
+
+
+def test_the_launch_prompt_states_the_message_id_rule(team):
+    team.agent("a1", "builder", state="starting")
+    start(team)
+    assert "message_id is a1-<n>" in team.transport.calls[-1][2]["prompt"]
+
+
+def test_a_finished_body_whose_result_path_is_not_text_is_refused(team):
+    team.pattern({"builder": role()})
+    team.pane("b1", "builder")
+    for bad in (None, 3, ["x"]):
+        code, body = send(team, "b1", "contact", "finished", "b1-1", {"format_version": 1, "result_path": bad})
+        assert code == 2 and "result_path" in body["reason"]
+    assert team.inbox() == [] and not (team.root / RUN / "signals").exists()
+
+
+def test_finished_goes_to_the_live_holder_of_the_report_target_role_over_a_lost_one(team):
+    team.pattern({"builder": role(), "reviewer-a": role("builder")})
+    team.pane("b0", "builder", state="lost")
+    team.pane("b1", "builder")
+    team.pane("r1", "reviewer-a")
+    code, body = send(team, "r1", "builder", "finished", "r1-1", {"format_version": 1, "result_path": ""})
+    assert code == 0 and body["target"] == "b1" and team.transport.calls[-1][2]["handle"] == "pane-b1"
+
+
+def test_a_role_with_a_report_target_may_not_message_the_contact_agent(team):
+    team.pattern({"builder": role(), "reviewer-a": role("builder")})
+    team.pane("b1", "builder")
+    team.pane("r1", "reviewer-a")
+    code, body = send(team, "r1", "contact", "message", "r1-1")
+    assert code == 2 and "edge reviewer-a -> contact (message)" in body["reason"] and team.inbox() == []
+
+
 def test_a_failed_inbox_copy_answers_exit_4_naming_the_inbox(team, monkeypatch):
     team.pattern({"builder": role()})
     team.pane("b1", "builder")
@@ -600,6 +790,10 @@ def asking(team):
 def test_a_valid_start_request_is_delivered_to_the_contact_inbox(asking):
     assert send(asking, "b1", "contact", "start-request", "b1-1", request())[0] == 0
     assert asking.inbox() == ["b1-1.json"]
+
+
+def test_an_empty_start_request_effort_reads_as_none_named(asking):
+    assert send(asking, "b1", "contact", "start-request", "b1-1", request(effort=""))[0] == 0
 
 
 @pytest.mark.parametrize("changes, words", [
@@ -736,25 +930,49 @@ def test_an_entry_with_neither_pid_nor_handle_answers_nothing_recorded(team):
 def test_a_matching_live_agent_is_stopped_by_its_kind_and_moves_to_cleaned(team, child):
     team.pane("a1", "builder", pid=child.pid, started_at=entry.process.creation_time(child.pid))
     body = stop(team, agent_id="a1", force=True)
-    assert body["stopped"] and body["pane_closed"] and body["pane_id"] == "p9"
+    assert body["stopped"] and body["pane_closed"] and body["pane_id"] == "pane-a1"
     assert team.transport.calls[-1][2] == {"pid": child.pid, "handle": "pane-a1", "force": True}
     assert team.entry("a1")["state"] == "cleaned"
 
 
-def test_pane_fields_appear_only_for_a_pane_kind(team):
-    team.agent("a1", "builder", pid=2147483000, started_at="2026-10-22T10:00:00Z", transport_kind="headless",
-               handle="2147483000")
-    team.transport.answers["agent-stop"] = (0, {"stopped": True, "method": "not running"})
+def gone_pid() -> int:
+    dead = sleeper()
+    dead.kill()
+    dead.wait()
+    return dead.pid
+
+
+@pytest.mark.parametrize("kind, fields, named", [
+    ("multiplexer", {"handle": "pane-a1"}, {"pane_id": "pane-a1"}),
+    ("desktop", {"terminal_id": "term-3"}, {"terminal_id": "term-3"}),
+    ("headless", {"handle": "12"}, {}),
+])
+def test_a_gone_agent_whose_close_fails_names_the_pane_or_terminal_only_for_its_kind(team, kind, fields, named):
+    team.agent("a1", "builder", pid=gone_pid(), started_at="2026-10-22T10:00:00Z", transport_kind=kind, **fields)
+    team.transport.answers["agent-stop"] = (4, {"unavailable": True, "reason": "the close failed"})
     body = stop(team, agent_id="a1")
-    assert "pane_closed" not in body and "pane_id" not in body
+    assert body["stopped"] is True and body["method"] == "already gone"
+    if named:
+        assert body["pane_closed"] is False and {k: body[k] for k in named} == named
+        assert "pane_id" not in body or kind == "multiplexer"
+        assert team.entry("a1")["state"] == "unkillable"
+    else:
+        assert "pane_closed" not in body and "pane_id" not in body and "terminal_id" not in body
+        assert team.entry("a1")["state"] == "cleaned"
 
 
-def test_tr4_names_the_terminal_identifier(team):
+def test_tr4_sends_the_terminal_identifier_to_the_kind(team):
     team.agent("a1", "builder", transport_kind="desktop", terminal_id="term-3")
     team.transport.answers["agent-stop"] = (0, {"stopped": True, "method": "closed", "pane_closed": True,
                                                 "terminal_id": "term-3"})
+    stop(team, agent_id="a1")
+    assert team.transport.calls[-1][2] == {"terminal_id": "term-3", "force": False}
+
+
+def test_an_entry_with_a_handle_and_no_kind_answers_stopped_false(team):
+    team.agent("a1", "builder", handle="pane-a1")
     body = stop(team, agent_id="a1")
-    assert team.transport.calls[-1][2]["terminal_id"] == "term-3" and body["terminal_id"] == "term-3"
+    assert body["stopped"] is False and "kind" in body["reason"] and team.transport.calls == []
 
 
 def test_a_failed_close_answers_pane_closed_false_naming_the_pane(team):
@@ -812,6 +1030,21 @@ def test_agent_list_uses_the_goal_cut_to_the_shortest_common_prefix_and_joins_th
     assert body["agents"] == [
         {"agent_name": "agent-team-topo-builder-opus-med", "pane_id": "p1", "agent_id": "a1", "state": "working"},
         {"agent_name": "agent-team-stray", "pane_id": "p7", "agent_id": "", "state": ""}]
+
+
+@pytest.mark.parametrize("verb", ["agent-status", "agent-read"])
+def test_status_or_read_of_an_entry_with_nothing_recorded_answers_in_the_scripts_words(team, verb):
+    team.agent("a1", "builder", state="starting")
+    code, body = team.call(verb, agent_id="a1")
+    assert code == 4 and body["unavailable"] and "a1" in body["reason"] and "starting" in body["reason"]
+    assert team.transport.calls == []
+
+
+def test_an_empty_configured_value_reads_as_empty_text(team, monkeypatch):
+    team.host.config = None
+    done = subprocess.CompletedProcess([], 0, stdout="\n", stderr="")
+    monkeypatch.setattr(entry.subprocess, "run", lambda *a, **k: done)
+    assert team.host.setting("stage-map") == ""
 
 
 def test_agent_status_maps_the_agent_id_to_its_handle_and_refuses_an_unknown_one(team):

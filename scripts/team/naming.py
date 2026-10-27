@@ -65,7 +65,7 @@ def build_agent_name(feature: str, role: str, model_cell: str, effort: str,
     while True:
         suffix = "" if number == 1 else f"-{number}"
         room = LIMIT - 3 - sum(len(p) for p in parts) - len(suffix)
-        name = "-".join((goal_slug[:room], *parts)) + suffix
+        name = "-".join((goal_slug[:max(room, 0)], *parts)) + suffix
         if room < need:
             raise NameRefused(f"agent name {name!r} leaves no room for the goal part "
                               f"({room} characters, {need} needed); shorten the role name")

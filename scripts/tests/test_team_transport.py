@@ -23,6 +23,7 @@ import launch  # noqa: E402
 import process  # noqa: E402
 from contract import Answer, Deadline, Payload  # noqa: E402
 
+time_sleep = time.sleep
 KINDS = ("subagent", "headless", "multiplexer")
 VERBS = ("agent-start", "agent-send", "agent-status", "agent-read", "agent-stop", "agent-list")
 
@@ -471,7 +472,9 @@ class FakeHerdr:
         if key == "agent get":
             if pane not in self.panes or not self.panes[pane]["agent"]:
                 raise herdr.HerdrError("agent_not_found", pane)
-            return {"agent": {"agent": self.panes[pane]["agent"], "agent_status": self.status,
+            status = self.status.pop(0) if isinstance(self.status, list) and len(self.status) > 1 else (
+                self.status[0] if isinstance(self.status, list) else self.status)
+            return {"agent": {"agent": self.panes[pane]["agent"], "agent_status": status,
                               "agent_session": {"value": "sess-9"}}}
         if key == "agent prompt":
             if pane not in self.panes:
@@ -616,6 +619,28 @@ def test_a_start_herdr_calls_ready_but_a_dialog_then_blocks_answers_dialog(fake)
         start("a1")
     assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
     assert "w1:t2" not in fake.tabs
+
+
+def test_the_watch_after_a_start_polls_until_a_late_dialog_blocks(fake, monkeypatch):
+    monkeypatch.setattr(herdr, "SETTLE_S", 3)
+    monkeypatch.setattr(herdr.time, "sleep", lambda s: None)
+    fake.status = ["idle", "idle", "blocked"]
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
+
+
+def test_the_watch_after_a_start_ends_at_once_on_working_and_at_its_window_on_idle(fake, monkeypatch):
+    monkeypatch.setattr(herdr, "SETTLE_S", 3)
+    monkeypatch.setattr(herdr.time, "sleep", lambda s: None)
+    fake.status = "working"
+    began = time.monotonic()
+    assert start("a1")["handle"] and time.monotonic() - began < 1.5
+    monkeypatch.setattr(herdr, "SETTLE_S", 0.3)
+    monkeypatch.setattr(herdr.time, "sleep", lambda s: time_sleep(0.05))
+    fake.status, before = "idle", len(calls(fake, "agent get"))
+    body = start("a2")
+    assert body["handle"] and not calls(fake, "pane close") and len(calls(fake, "agent get")) - before > 2
 
 
 def test_a_message_goes_into_the_receivers_pane_by_agent_prompt(fake):

@@ -449,3 +449,7 @@
 2026-10-27 12:35 | autopilot | 0010-team-entry-script | unparked — the human ran the live V36 permission row (evidence in scratchpad/0010/v36/); 0010 starts again to record it and finish review
 2026-10-27 12:27 | execute | 0010-team-entry-script | verifying — third start: the human's run of the auto-mode trial passed (the one allow rule let the afk-team command make the tab and pane with no classifier check); recorded in providers/CONFORMANCE.md; re-running the build check and the unit rows
 2026-10-27 12:30 | execute | 0010-team-entry-script | verifying — the build check passes and the unit rows pass (151 tests) at this head; every live row now passes
+2026-10-27 12:30 | execute | 0010-team-entry-script | pushed aba7562..0d5323a (3 commits, with the autopilot's 2 journal lines) — the passed auto-mode trial is recorded on the shared branch
+2026-10-27 12:34 | execute | 0010-team-entry-script | reviewing — round 1: fresh reviewers check the whole slice one at a time (what the contract asks, scope, tests, logic, changes to existing code, the verbs' input and answers)
+2026-10-27 13:20 | execute | 0010-team-entry-script | review blocking crit=0 high=1 med=15 low=17 — round 1: six reviewers, one at a time, found 33 points; the worst: two agents could pick the same message id and one message would be lost; 2 low points wait for the feature review, the rest get fixed
+2026-10-27 13:20 | execute | 0010-team-entry-script | developing — fixing the round-1 points, each with a test that fails first

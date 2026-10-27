@@ -993,3 +993,31 @@
 - Chosen: B — the human's rule for this run forbids writing any Claude settings file, and the script's check reads settings files only, so under D-139 it refuses with `missing`. V36 tests the harness: whether the session rule decides `afk-team agent-start` and the tab and pane it makes. The check itself has its unit tests (0009, 0027). agent-start still sets AFK_PROVIDER=claude for the agent it starts. C fakes a passed check
 - Supersedes: none
 - To reverse: the human adds the rule to a probe folder's settings, and the row runs again without AFK_PROVIDER
+
+## D-142 — A message id is built from its sender's agent id
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers review finding f001)
+- Options: A — accept any safe message id, as before vs B — agent-send refuses a message id that is not `<agent-id>-<n>`, `<agent-id>-sup-<n>` for that agent's job supervisor, or `contact-<n>` for the contact agent; the launch prompt states the form
+- Chosen: B — the inbox file and the duplicate check key on the message id alone, so under A two senders that pick the same id lose one message as a duplicate. B keeps every sender's ids disjoint with no change to the inbox layout
+- Supersedes: none
+- To reverse: drop the `message_id` check in scripts/team/entry.py agent_send and the message id sentence in `_identity`
+
+## D-143 — The contact agent applies a start request's lifespan
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers review finding f007)
+- Options: A — the entry script writes the request's lifespan into each listed agent's entry vs B — the script checks the value only; the contact agent writes each listed agent's entry with the request's lifespan, which wins over the role's, in 0015's run procedure (wiring IOU)
+- Chosen: B — the contact agent writes every agent entry before agent-start (PRD AC-050, SDD §7 "Start a role"), and the script never writes a lifespan; A would make a second writer of that field
+- Supersedes: none
+- To reverse: write the lifespan in scripts/team/entry.py `_check_start_request` callers and drop the IOU line
+
+## D-144 — 0010's Scope takes the herdr watch files
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers review finding f018)
+- Options: A — move the D-125 watch to a new subtask vs B — 0010 ## Scope adds adapters/transport/multiplexer/herdr.py, herdr.md and scripts/tests/test_team_transport.py for the D-125 watch and its tests
+- Chosen: B — the watch is the only place agent-start's exit 4 for a late dialog is made, a 0010 Acceptance row; 0006 is done, so no other slice owns the change
+- Supersedes: 0010 ## Scope, for these 3 paths only
+- To reverse: revert the 3 paths to their 0006 state and drop D-125
+
+## D-145 — The exit-5 stop keeps the transport's own 60 s stop cap
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers review finding f027)
+- Options: A — pass the time left of agent-start's budget to the transport's agent-stop as its deadline vs B — the script ends its wait for the stop 5 s before the 120 s budget and answers stopped false; the transport's stop runs on under its own 60 s cap
+- Chosen: B — the 120 s budget binds agent-start's answer, which B keeps; A adds a deadline field to every kind's agent-stop verb (0006, 0007) for a path that runs only after a failed manifest write
+- Supersedes: none
+- To reverse: add a `deadline` field to the transport agent-stop verb and pass it from `_stop_within` in scripts/team/entry.py

@@ -22,6 +22,7 @@ with another creation time is a recycled one and reads `dead`. Never
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -223,6 +224,8 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
     def same(path: str) -> str:
         return os.path.normcase(os.path.realpath(path))
 
+    if not ctime:
+        raise ValueError(f"process {pid} has no creation time, so no prune could ever judge it dead")
     top = same(ask("--show-toplevel"))
     folder = os.path.join(ask("--git-common-dir"), "afk-worktrees")
     names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
@@ -235,15 +238,45 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
             continue
         if not isinstance(document, dict) or not document.get("path") or same(document["path"]) != top:
             continue
-        known = owners_of(document)
-        mine = {"pid": pid, "ctime": str(ctime)}
-        document["owners"] = known + ([] if mine in known else [mine])
-        scratch = os.path.join(folder, f".{name}.{os.getpid()}.tmp")
-        with open(scratch, "w", encoding="utf-8") as out:
-            json.dump(document, out)
-        os.replace(scratch, path)
+        with _record_lock(path):
+            with open(path, encoding="utf-8") as handle:
+                document = json.load(handle)
+            known = owners_of(document)
+            mine = {"pid": pid, "ctime": str(ctime)}
+            document["owners"] = known + ([] if mine in known else [mine])
+            scratch = os.path.join(folder, f".{name}.{os.getpid()}.tmp")
+            with open(scratch, "w", encoding="utf-8") as out:
+                json.dump(document, out)
+            os.replace(scratch, path)
         return path
     return None
+
+
+@contextlib.contextmanager
+def _record_lock(path: str):
+    """Hold `{path}.lock` for one read-change-write; take over a lock older than LOCK_STALE seconds."""
+    lock, end = f"{path}.lock", time.monotonic() + LOCK_WAIT
+    while True:
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            break
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lock) > LOCK_STALE:
+                    os.remove(lock)
+                    continue
+            except OSError:
+                continue
+            if time.monotonic() > end:
+                raise OSError(f"the owner record lock {lock} stayed held for {LOCK_WAIT} s") from None
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
 
 
 def record(argv: list[str]) -> int:
@@ -273,6 +306,8 @@ def record(argv: list[str]) -> int:
 
 
 COPIED = "afk-copied.json"
+LOCK_WAIT = 10.0
+LOCK_STALE = 30.0
 
 
 def git_dir_of(worktree: str) -> str:

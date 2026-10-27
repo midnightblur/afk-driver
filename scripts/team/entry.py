@@ -35,6 +35,7 @@ FORMAT_VERSION = 1
 CONTACT = "contact"
 LIFECYCLE = ("finished", "parked", "exited")
 LIVE = ("starting", "working", "parked")
+PANE_KINDS = ("multiplexer",)
 WAIT_LABEL = "inbox wait"
 START_BUDGET_S = contract.BUDGET_MS["agent-start"] / 1000
 STOP_RESERVE_S = 5
@@ -96,7 +97,7 @@ class Host:
         if done.returncode != 0:
             raise contract.unavailable(f"the configuration reader failed on {key}: {done.stderr.strip()[:300]}")
         text = done.stdout.strip()
-        return json.loads(text) if text[:1] in "{[" else text
+        return json.loads(text) if text[:1] and text[0] in "{[" else text
 
     def model_tiers(self) -> dict:
         if not self.tiers:
@@ -235,7 +236,16 @@ def build_launch_prompt(brief_path: str, charter: Path | None, identity: str) ->
 def _identity(run: Run, entry: dict) -> str:
     return (f"You are agent {entry['agent_id']}, role {entry['role']}, owner generation {entry['owner_generation']},"
             f" of team run {run.feature}. Send each message with {permission.INVOCATION} agent-send"
-            " and one JSON object: agent_id, generation, target, kind, message_id, body_path.")
+            " and one JSON object: agent_id, generation, target, kind, message_id, body_path;"
+            f" each message_id is {entry['agent_id']}-<n>, n a number you count up, the same n on a resend.")
+
+
+def _name(verb: str, run: Run, data: dict, agent_id: str, role: str, cell: str, effort: str) -> tuple[str, str]:
+    taken = {v for a in data["agents"] if a["agent_id"] != agent_id for v in (a["pane_label"], a["agent_name"]) if v}
+    try:
+        return naming.build_agent_name(run.feature, role, cell, effort, taken)
+    except naming.NameRefused as refused:
+        raise contract.bad(verb, str(refused)) from None
 
 
 def _model(host: Host, verb: str, model: str) -> tuple[str, str, str]:
@@ -269,6 +279,8 @@ def copy_settings(main: Path, worktree: Path) -> str:
                 out.close()
                 target.unlink(missing_ok=True)
                 raise
+    except FileExistsError:
+        return f"skipped the copy: {target} exists"
     except OSError as problem:
         raise contract.unavailable(f"the settings copy to {target} failed, so no agent started: {problem}",
                                    copy=str(target)) from None
@@ -282,7 +294,8 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     began = run.host.clock()
     _fields(p, ("agent_id", "role", "model", "brief_path", "cwd", "effort", "resume"))
     agent_id, role, model = _safe(p, "agent_id"), p.text("role"), p.text("model")
-    brief, cwd, resume = p.text("brief_path"), Path(p.text("cwd")), p.text("resume", False)
+    brief, cwd = run.host.cwd / p.text("brief_path"), run.host.cwd / p.text("cwd")
+    resume = p.text("resume", False)
     effort = p.text("effort", False)
     data = run.manifest()
     entry = next((a for a in data["agents"] if a["agent_id"] == agent_id), None)
@@ -297,32 +310,35 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     effort = effort or TIER_EFFORTS.get(run.host.model_tiers()["tiers"][tier]["effort"], "med")
     if not cwd.is_dir():
         raise contract.bad(p.verb, f"field `cwd`: {cwd} is not a folder")
-    if not Path(brief).is_file():
+    if not brief.is_file():
         raise contract.bad(p.verb, f"field `brief_path`: {brief} is not a file")
-    taken = {v for a in data["agents"] if a["agent_id"] != agent_id for v in (a["pane_label"], a["agent_name"]) if v}
-    try:
-        label, name = naming.build_agent_name(run.feature, role, cell, effort, taken)
-    except naming.NameRefused as refused:
-        raise contract.bad(p.verb, str(refused)) from None
+    label, name = _name(p.verb, run, data, agent_id, role, cell, effort)
     kind = run.kind()
     run.permitted()
     settings = copy_settings(run.host.main, cwd)
     try:
-        manifest.record_entry(run.host.root, run.feature, {"agent_id": agent_id, "pane_label": label,
-                                                           "agent_name": name})
+        for _ in range(5):
+            manifest.record_entry(run.host.root, run.feature, {"agent_id": agent_id, "pane_label": label,
+                                                               "agent_name": name})
+            again = run.manifest()
+            if not any(a["agent_id"] < agent_id and name in (a["pane_label"], a["agent_name"])
+                       for a in again["agents"]):
+                break
+            label, name = _name(p.verb, run, again, agent_id, role, cell, effort)
     except manifest.ManifestError as problem:
         raise contract.unavailable(f"the write of the pane label and agent name into entry {agent_id} failed, "
                                    f"so no agent started: {problem}", write="before the transport call") from None
     charter = run.charter(role)
     charter = charter if charter.is_file() else None
-    env = {AFK_PROVIDER: harness, AFK_TEAM_RUN: run.feature, "AFK_PLUGIN_ROOT": str(PLUGIN)}
+    env = {AFK_PROVIDER: harness, AFK_TEAM_RUN: run.feature, "AFK_PLUGIN_ROOT": str(PLUGIN),
+           **({"AFK_TEAM_ROOT": str(run.host.root)} if run.host.env.get("AFK_TEAM_ROOT") else {})}
     if charter is not None:
         env[AFK_CHARTER_FILE] = str(charter)
     payload = {"harness": harness, "name": name, "label": label, "cwd": str(cwd), "model": cell,
                "tab": f"{naming.goal_of(run.feature)} {entry['pattern_step']}",
                "effort": EFFORTS[effort][launch.HARNESSES.index(harness)], "env": env,
                **({"args": list(LAUNCH_ARGS[harness])} if LAUNCH_ARGS[harness] else {}),
-               "prompt": build_launch_prompt(brief, charter, _identity(run, entry)),
+               "prompt": build_launch_prompt(str(brief), charter, _identity(run, entry)),
                "log": str(run.dir / "logs" / f"{agent_id}.log"), **({"resume": resume} if resume else {})}
     (run.dir / "logs").mkdir(parents=True, exist_ok=True)
     code, answer = run.transport(kind, "agent-start", payload)
@@ -340,17 +356,21 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
                                   "started_at": answer.get("started_at")}, left)
         return 5, {**{("stop_reason" if k == "reason" else k): v for k, v in stop.items()},
                    "error": True, "operation": p.verb, "agent_id": agent_id, "pid": pid, "kind": kind,
-                   "started_at": answer.get("started_at"),
+                   "started_at": answer.get("started_at"), "handle": answer.get("handle"),
+                   **({"pane_id": stop.get("pane_id") or answer.get("handle")} if kind in PANE_KINDS else {}),
                    "reason": f"agent {agent_id} started, but the write of its process id and session id failed, "
                              f"so the script stopped it: {problem}",
                    **({"terminal_id": answer["terminal_id"]} if answer.get("terminal_id") else {})}
     if pid is not None:
         try:
-            if worktree_owner.add_owner(str(cwd), pid, worktree_owner.creation_time(pid) or "") is None:
+            ctime = worktree_owner.creation_time(pid)
+            if not ctime:
+                sys.stderr.write(f"afk-team: the creation time of {name} cannot be read; it is no owner of {cwd}\n")
+            elif worktree_owner.add_owner(str(cwd), pid, ctime) is None:
                 sys.stderr.write(f"afk-team: no owner record names {cwd}; its prune does not wait for {name}\n")
         except (OSError, ValueError, subprocess.SubprocessError) as problem:
             sys.stderr.write(f"afk-team: could not add {name} to the owners of {cwd}: {problem}\n")
-    return 0, {**answer, "agent_id": agent_id, "settings": settings}
+    return 0, {**answer, "agent_id": agent_id, "pane_label": label, "agent_name": name, "settings": settings}
 
 
 def _start_supervisor(run: Run, p: contract.Payload) -> tuple[int, dict]:
@@ -408,11 +428,16 @@ def _stop_steps(run: Run, entry: dict, force: bool) -> dict:
     if kind and (handle or terminal):
         target.update({k: v for k, v in (("handle", handle), ("terminal_id", terminal)) if v})
     if not target:
-        return gone
+        return gone or {"stopped": False, "reason": "the entry holds a handle but no transport kind, so nothing "
+                                                    "can close it"}
     if kind:
         code, answer = run.transport(kind, "agent-stop", {**target, "force": force})
         if code != 0:
             answer = {"stopped": False, "reason": answer.get("reason", f"agent-stop answered exit {code}")}
+            if gone is not None and kind in PANE_KINDS and handle:
+                answer.update(pane_closed=False, pane_id=handle)
+            elif gone is not None and terminal:
+                answer.update(pane_closed=False, terminal_id=terminal)
     else:
         answer = process.stop(target["pid"], force=force, wait_s=50)
     if gone is not None:
@@ -547,7 +572,7 @@ def _check_start_request(run: Run, verb: str, raw: bytes, data: dict, pattern: d
     if body["lifespan"] not in manifest.LIFESPANS:
         raise contract.bad(verb, f"the start-request lifespan {body['lifespan']!r} is not one of "
                                  f"{', '.join(manifest.LIFESPANS)}")
-    if body.get("effort") is not None and body["effort"] not in EFFORTS:
+    if body.get("effort") not in (None, "") and body["effort"] not in EFFORTS:
         raise contract.bad(verb, f"the start-request field `effort`: {body['effort']!r} is not one of "
                                  f"{', '.join(EFFORTS)}")
     agents = body["agents"]
@@ -589,6 +614,9 @@ def agent_send(run: Run, p: contract.Payload) -> tuple[int, dict]:
     sender = None if sender_id == CONTACT else _agent(data, sender_id)
     if sender_id != CONTACT and sender is None:
         raise contract.bad(p.verb, f"field `agent_id`: no entry holds agent-id {sender_id}")
+    if not re.fullmatch(rf"{re.escape(sender_id)}-(sup-)?[0-9]+", message_id):
+        raise contract.bad(p.verb, f"field `message_id`: {message_id!r} is not {sender_id}-<n> (or {sender_id}-sup-<n> "
+                                   "for its job supervisor), so it could match another sender's id")
     raw, _ = _body(run, p, kind)
     edge = f"edge {sender['role'] if sender else CONTACT} -> {target} ({kind})"
     if sender is None:
@@ -596,7 +624,8 @@ def agent_send(run: Run, p: contract.Payload) -> tuple[int, dict]:
             raise contract.bad(p.verb, f"{edge}: the contact agent sends only kind message to an agent it started")
         receiver = _receiver(data, p.verb, target)
     elif kind == "finished":
-        _versioned(p.verb, raw, "finished", {"result_path": True})
+        if not isinstance(_versioned(p.verb, raw, "finished", {"result_path": True})["result_path"], str):
+            raise contract.bad(p.verb, "the finished field `result_path` must be text, empty when no result file")
         receiver = _report_target(data, pattern, sender)
     elif kind == "start-request":
         if target != CONTACT:
@@ -624,7 +653,7 @@ def agent_send(run: Run, p: contract.Payload) -> tuple[int, dict]:
     inbox = _to_inbox(run, envelope) if receiver is None or kind in LIFECYCLE else None
     named = receiver["agent_id"] if receiver else CONTACT
     if pane is not None and pane[0] != 0:
-        return pane[0], {**pane[1], "target": named, "inbox_copy": inbox is None or inbox[0] == 0}
+        return pane[0], {**pane[1], "target": named, **({"inbox_copy": inbox[0] == 0} if inbox else {})}
     if inbox is not None and inbox[0] != 0:
         return inbox
     way = pane[1].get("way", "") if pane else "inbox"
@@ -659,6 +688,9 @@ def _entry_call(run: Run, p: contract.Payload, extra: tuple[str, ...]) -> tuple[
     entry = _agent(run.manifest(), agent_id)
     if entry is None:
         raise contract.bad(p.verb, f"field `agent_id`: no entry holds agent-id {agent_id}")
+    if not entry.get("handle") and entry.get("pid") is None:
+        raise contract.unavailable(f"agent {agent_id} in state {entry['state']} has no handle or process id "
+                                   "recorded yet, so there is nothing to ask")
     kind = entry.get("transport_kind") or run.kind()
     payload = {k: v for k, v in (("handle", entry.get("handle")), ("pid", entry.get("pid")),
                                  ("log", str(run.dir / "logs" / f"{agent_id}.log"))) if v}

@@ -25,7 +25,7 @@ integration list and `agent get` output).
 
 | Verb | herdr commands |
 |---|---|
-| `agent-start` | `tab list --workspace $HERDR_WORKSPACE_ID`; a tab of this step with fewer than 4 panes gets `pane split <pane> --direction right\|down --cwd <cwd> --no-focus --env K=V`, else `tab create --workspace … --cwd … --label <tab> --no-focus --env K=V`; then `pane rename <pane> <label>`; then `agent start <name> --kind <harness> --pane <pane> --timeout <ms> -- <args>`; then `pane process-info --pane <pane>` for the process id and `agent get <pane>` for the session id |
+| `agent-start` | `tab list --workspace $HERDR_WORKSPACE_ID`; a tab of this step with fewer than 4 panes gets `pane split <pane> --direction right\|down --cwd <cwd> --no-focus --env K=V`, else `tab create --workspace … --cwd … --label <tab> --no-focus --env K=V`; then `pane rename <pane> <label>`; then `agent start <name> --kind <harness> --pane <pane> --timeout <ms> -- <args>`; then `agent get <pane>` every 0.5 s for up to 3 s, until `working`, where `blocked` closes the pane and answers exit 4 with `dialog` true; then `pane process-info --pane <pane>` for the process id and `agent get <pane>` for the session id |
 | `agent-send` | `agent prompt <pane> <envelope>`, with no `--wait` |
 | `agent-status` | `agent get <pane>`; on a gone agent, `pane get <pane>` tells `exited` (the pane is left) from `gone` |
 | `agent-read` | `pane read <pane> --source recent-unwrapped --lines 2000`; the marker holds a short hash of each of the last 16 non-empty lines, so the text after it is found even under a footer a TUI keeps at the bottom |
@@ -34,7 +34,8 @@ integration list and `agent get` output).
 
 A `codex` resume does not use `agent start` (see the traps): it types the resume
 command into the new pane with `pane run <pane> <command line>`, waits until
-`agent get` shows the agent `idle`, then `agent rename <pane> <name>`.
+`agent get` shows the agent `idle`, then `agent rename <pane> <name>`, then the same
+3 s `agent get` watch as `agent-start`.
 
 ## Delivery way (herdr)
 

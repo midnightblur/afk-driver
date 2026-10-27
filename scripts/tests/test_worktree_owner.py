@@ -131,3 +131,45 @@ def test_add_owner_answers_none_for_a_worktree_no_record_names(tmp_path):
     linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
     record.unlink()
     assert owner.add_owner(str(linked), 4242, "999") is None
+
+
+def test_add_owner_refuses_an_owner_with_no_creation_time(tmp_path):
+    linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
+    before = record.read_text(encoding="utf-8")
+    for empty in ("", None):
+        try:
+            owner.add_owner(str(linked), 4242, empty)
+        except ValueError as refused:
+            assert "creation time" in str(refused)
+        else:
+            raise AssertionError("an owner the prune can never judge dead was written")
+    assert record.read_text(encoding="utf-8") == before
+
+
+def test_add_owner_waits_for_the_record_lock_and_takes_over_a_stale_one(tmp_path, monkeypatch):
+    linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
+    monkeypatch.setattr(owner, "LOCK_WAIT", 0.2)
+    lock = Path(f"{record}.lock")
+    lock.write_text("", encoding="utf-8")
+    try:
+        owner.add_owner(str(linked), 4242, "999")
+    except OSError as busy:
+        assert "lock" in str(busy)
+    else:
+        raise AssertionError("add_owner wrote the record while another writer held its lock")
+    assert json.loads(record.read_text(encoding="utf-8"))["owners"] == [{"pid": 11, "ctime": "1"}]
+    old = time.time() - owner.LOCK_STALE - 5
+    os.utime(lock, (old, old))
+    owner.add_owner(str(linked), 4242, "999")
+    assert {"pid": 4242, "ctime": "999"} in json.loads(record.read_text(encoding="utf-8"))["owners"]
+    assert not lock.exists()
+
+
+def test_parallel_add_owner_calls_keep_every_owner(tmp_path):
+    linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
+    code = (f"import sys; sys.path.insert(0, {str(SCRIPT.parent)!r}); import worktree_owner; "
+            f"worktree_owner.add_owner({str(linked)!r}, int(sys.argv[1]), 'c' + sys.argv[1])")
+    children = [subprocess.Popen([sys.executable, "-c", code, str(n)]) for n in range(100, 108)]
+    assert [c.wait(timeout=120) for c in children] == [0] * 8
+    owners = json.loads(record.read_text(encoding="utf-8"))["owners"]
+    assert sorted(o["pid"] for o in owners) == [11, *range(100, 108)]
