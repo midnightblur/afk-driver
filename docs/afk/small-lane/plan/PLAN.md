@@ -86,7 +86,7 @@ Rows 8–9 are §14 change seams a later subtask uses; every other §14 row is l
 | 1 | 0001-diagnosis-format | diagnosis format file, check script, outside-writes helper | done | — | static, unit, integration | — |
 | 2 | 0002-developer-settings | developer settings K1–K5 move to CONFIG.md | done | — | static, unit, integration | — |
 | 3 | 0003-tracker-attach | `tracker_attach`, Jira formatted text and refusals, registry check E | done | — | static, unit, integration | impl §1, §2, §3, §7 |
-| 4 | 0004-diagnose-rewrite | diagnose never fixes; grills take a diagnosis and end with the size call | developing | 0001-diagnosis-format | static, unit, integration | — |
+| 4 | 0004-diagnose-rewrite | diagnose never fixes; grills take a diagnosis and end with the size call | reviewing | 0001-diagnosis-format | static, unit, integration | — |
 | 5 | 0005-bug-mode | `/afk:to-ticket` bug and ad-hoc mode | pending | 0001-diagnosis-format, 0002-developer-settings, 0003-tracker-attach | static, unit, integration | impl §8; use §1, §2, §3, §7 |
 | 6 | 0006-fix-procedure | shared in-place fix procedure, lesson links | pending | — | static, integration | — |
 | 7 | 0007-ship-script | ship script: open, proof, ready, land | pending | 0001-diagnosis-format, 0002-developer-settings | static, unit, integration | impl §4, §6 |

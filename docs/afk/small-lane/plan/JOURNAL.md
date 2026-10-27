@@ -41,3 +41,6 @@
 2026-10-26 22:11 | autopilot | — | run start — 10 subtasks left (0004-0011, 0013, 0012); 0004 runnable now; no app to boot (D-3), tests run focused locally and in full in CI (human instruction)
 2026-10-26 22:42 | execute | 0004-diagnose-rewrite | designing — ground for INV-022 held, re-read by hand (decision(D-10)); no rationale notes on the edited lines
 2026-10-26 22:42 | execute | 0004-diagnose-rewrite | decision(D-11) — an invoker may hand diagnose a worktree; no person and no starting-branch answer ends blocked; decision(D-12) — AC-008 binds writes, size-call bar; decision(D-13) — fix applies the proposal test-first until its rewrite
+2026-10-26 22:51 | execute | 0004-diagnose-rewrite | developing — diagnose rewritten, size-call file and row, grills and fix pointed at them; pushed f86eb43..ac7bb38 (1 commit)
+2026-10-26 22:51 | execute | 0004-diagnose-rewrite | verifying — plugin-source gates and Produces greps green; focused unit tests 112 passed; full suites and hook smoke run in CI
+2026-10-26 22:52 | execute | 0004-diagnose-rewrite | reviewing — round 1: spec-fidelity, scope-and-impact, test-veracity, logic-correctness, refactor-safety, api-contract
