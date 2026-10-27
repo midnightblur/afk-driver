@@ -190,7 +190,7 @@ def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.P
         except PermissionError as exc:
             if not _RETRY_BUSY_SWAP:
                 raise
-            if not os.access(write_target, os.W_OK):
+            if write_target.exists() and not os.access(write_target, os.W_OK):
                 raise SafeWriteError("is read-only", target) from exc
             if attempt == SWAP_RETRIES:
                 raise SafeWriteError("file swap stayed busy", target) from exc

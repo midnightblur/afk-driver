@@ -22,3 +22,4 @@
 2026-10-27 07:45 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=1 low=4 (round 2) — reviewers found one leftover temp file on Windows and four small test gaps; all five fixed in 77ae17e
 2026-10-27 08:05 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=0 low=5 (round 3) — reviewers found two error-path gaps and three weak tests; fixing all five
 2026-10-27 08:05 | execute | 0001-safe-writer | decision(D-8) — a read-only file on Windows is now refused at once with its real cause instead of being retried as busy
+2026-10-27 08:40 | execute | 0001-safe-writer | review advisory crit=0 high=1 med=0 low=0 (round 4) — the new read-only check also refused a brand-new file whose swap was briefly busy; fixed so only an existing read-only file is refused at once

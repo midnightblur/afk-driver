@@ -178,6 +178,15 @@ def test_a_busy_swap_that_clears_within_the_retries_writes(tmp_path, monkeypatch
     assert target.read_bytes() == b"after"
 
 
+def test_a_busy_swap_that_creates_a_new_file_is_retried(tmp_path, monkeypatch):
+    target = tmp_path / "new.txt"
+    calls, sleeps = busy_replace(monkeypatch, failures=3)
+    assert sw.update_locked(target, lambda text: "created") is True
+    assert len(calls) == 4
+    assert sleeps == [0.05] * 3
+    assert target.read_bytes() == b"created"
+
+
 def test_a_busy_swap_refuses_when_the_file_changed_during_a_retry(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
