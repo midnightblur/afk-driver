@@ -630,6 +630,16 @@ def test_the_watch_after_a_start_polls_until_a_late_dialog_blocks(fake, monkeypa
     assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
 
 
+def test_a_codex_resume_runs_the_same_watch_and_a_late_dialog_answers_exit_4(fake, monkeypatch):
+    monkeypatch.setattr(herdr, "SETTLE_S", 3)
+    monkeypatch.setattr(herdr.time, "sleep", lambda s: None)
+    fake.status = ["idle", "idle", "blocked"]
+    with pytest.raises(Answer) as caught:
+        start("c1", harness="codex", resume="sess-7")
+    assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
+    assert calls(fake, "pane run") and calls(fake, "agent rename")
+
+
 def test_the_watch_after_a_start_ends_at_once_on_working_and_at_its_window_on_idle(fake, monkeypatch):
     monkeypatch.setattr(herdr, "SETTLE_S", 3)
     monkeypatch.setattr(herdr.time, "sleep", lambda s: None)

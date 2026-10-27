@@ -375,22 +375,40 @@ def test_the_launch_environment_carries_the_run_root_the_contact_uses(team):
     assert "AFK_TEAM_ROOT" not in team.transport.calls[-1][2]["env"]
 
 
-def test_two_starts_that_pick_the_same_name_end_with_different_names(team, monkeypatch):
+@pytest.mark.parametrize("mine, other", [("a2", "a1"), ("a1", "a2")])
+def test_two_starts_that_pick_the_same_name_end_with_different_names(team, monkeypatch, mine, other):
     team.agent("a1", "builder", state="starting")
     team.agent("a2", "builder", state="starting")
     real = manifest.record_entry
 
     def racing(root, feature, entry_):
-        if entry_.get("agent_id") == "a2" and "agent_name" in entry_ and not team.entry("a1")["agent_name"]:
-            real(root, feature, {"agent_id": "a1", "pane_label": entry_["pane_label"],
-                                 "agent_name": entry_["agent_name"]})     # a1's start wrote the same name first
+        if entry_.get("agent_id") == mine and "agent_name" in entry_ and not team.entry(other)["agent_name"]:
+            real(root, feature, {"agent_id": other, "pane_label": entry_["pane_label"],
+                                 "agent_name": entry_["agent_name"]})     # the other start wrote the name first
         return real(root, feature, entry_)
 
     monkeypatch.setattr(manifest, "record_entry", racing)
-    code, body = start(team, agent_id="a2")
+    code, body = start(team, agent_id=mine)
     assert code == 0, body
-    assert team.entry("a2")["agent_name"] == "agent-team-to-builder-opus-med-2" == body["agent_name"]
-    assert team.entry("a1")["agent_name"] == "agent-team-topo-builder-opus-med"
+    assert team.entry(mine)["agent_name"] == "agent-team-to-builder-opus-med-2" == body["agent_name"]
+    assert team.entry(other)["agent_name"] == "agent-team-topo-builder-opus-med"
+
+
+def test_a_name_lost_5_times_answers_exit_4_and_starts_nothing(team, monkeypatch):
+    team.agent("a1", "builder", state="starting")
+
+    def taken(root, feature, entry_):
+        raise manifest.NameTaken(f"agent a9 already holds the name {entry_['agent_name']!r}")
+
+    monkeypatch.setattr(manifest, "record_entry", taken)
+    code, body = start(team)
+    assert code == 4 and "a9" in body["reason"] and "agent-start" not in team.transport.verbs()
+
+
+def test_an_agent_id_ending_in_sup_is_refused(team):
+    team.agent("x-sup", "builder", state="starting")
+    code, body = start(team, agent_id="x-sup")
+    assert code == 2 and "-sup" in body["reason"] and team.transport.calls == []
 
 
 def test_a_first_run_dialog_answers_exit_4_naming_the_dialog(team):
@@ -487,7 +505,8 @@ def test_the_settings_copy_copies_once_and_never_overwrites(team):
     assert json.loads((team.worktree / ".claude" / "settings.local.json").read_text()) == {"mine": 1}
 
 
-def test_a_failed_settings_copy_leaves_no_file_and_starts_nothing(team, monkeypatch):
+@pytest.mark.parametrize("at", ["write", "close"])
+def test_a_failed_settings_copy_leaves_no_file_and_starts_nothing(team, monkeypatch, at):
     (team.main / ".claude").mkdir()
     (team.main / ".claude" / "settings.local.json").write_text('{"a": 1}', encoding="utf-8")
     team.agent("a1", "builder", state="starting")
@@ -499,7 +518,8 @@ def test_a_failed_settings_copy_leaves_no_file_and_starts_nothing(team, monkeypa
 
         def write(self, data):
             self.handle.write(data[:1])
-            raise OSError("disk full")
+            if at == "write":
+                raise OSError("disk full")
 
         def close(self):
             self.handle.close()
@@ -509,6 +529,8 @@ def test_a_failed_settings_copy_leaves_no_file_and_starts_nothing(team, monkeypa
 
         def __exit__(self, *exc):
             self.handle.close()
+            if at == "close":
+                raise OSError("disk full at the flush")
 
     monkeypatch.setattr("builtins.open", lambda path, mode="r", *a, **k: Full(real(path, mode, *a, **k))
                         if mode == "xb" else real(path, mode, *a, **k))
@@ -799,6 +821,7 @@ def test_an_empty_start_request_effort_reads_as_none_named(asking):
 @pytest.mark.parametrize("changes, words", [
     ({"lifespan": "Forever"}, "lifespan"),
     ({"effort": "turbo"}, "effort"),
+    ({"effort": ["hi"]}, "effort"),
     ({"pattern_step": "ship"}, "step ship"),
     ({"agents": [{"role": "builder2", "brief_path": "b"}]}, "role builder2"),
     ({"agents": []}, "agents"),
@@ -942,23 +965,19 @@ def gone_pid() -> int:
     return dead.pid
 
 
-@pytest.mark.parametrize("kind, fields, named", [
-    ("multiplexer", {"handle": "pane-a1"}, {"pane_id": "pane-a1"}),
-    ("desktop", {"terminal_id": "term-3"}, {"terminal_id": "term-3"}),
-    ("headless", {"handle": "12"}, {}),
+@pytest.mark.parametrize("kind, fields, named, state", [
+    ("multiplexer", {"handle": "pane-a1"}, {"pane_closed": False, "pane_id": "pane-a1"}, "unkillable"),
+    ("desktop", {"terminal_id": "term-3"}, {"pane_closed": False, "terminal_id": "term-3"}, "unkillable"),
+    ("headless", {"handle": "12"}, {}, "cleaned"),
 ])
-def test_a_gone_agent_whose_close_fails_names_the_pane_or_terminal_only_for_its_kind(team, kind, fields, named):
+def test_a_gone_agent_whose_close_fails_names_the_pane_or_terminal_only_for_its_kind(team, kind, fields, named,
+                                                                                      state):
     team.agent("a1", "builder", pid=gone_pid(), started_at="2026-10-22T10:00:00Z", transport_kind=kind, **fields)
     team.transport.answers["agent-stop"] = (4, {"unavailable": True, "reason": "the close failed"})
     body = stop(team, agent_id="a1")
     assert body["stopped"] is True and body["method"] == "already gone"
-    if named:
-        assert body["pane_closed"] is False and {k: body[k] for k in named} == named
-        assert "pane_id" not in body or kind == "multiplexer"
-        assert team.entry("a1")["state"] == "unkillable"
-    else:
-        assert "pane_closed" not in body and "pane_id" not in body and "terminal_id" not in body
-        assert team.entry("a1")["state"] == "cleaned"
+    assert {k: body[k] for k in ("pane_closed", "pane_id", "terminal_id") if k in body} == named
+    assert team.entry("a1")["state"] == state
 
 
 def test_tr4_sends_the_terminal_identifier_to_the_kind(team):

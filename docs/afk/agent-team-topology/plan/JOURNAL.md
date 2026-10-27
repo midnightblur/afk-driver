@@ -453,3 +453,6 @@
 2026-10-27 12:34 | execute | 0010-team-entry-script | reviewing — round 1: fresh reviewers check the whole slice one at a time (what the contract asks, scope, tests, logic, changes to existing code, the verbs' input and answers)
 2026-10-27 13:20 | execute | 0010-team-entry-script | review blocking crit=0 high=1 med=15 low=17 — round 1: six reviewers, one at a time, found 33 points; the worst: two agents could pick the same message id and one message would be lost; 2 low points wait for the feature review, the rest get fixed
 2026-10-27 13:20 | execute | 0010-team-entry-script | developing — fixing the round-1 points, each with a test that fails first
+2026-10-27 13:47 | execute | 0010-team-entry-script | verifying — the round-1 fixes pass: build check and the unit rows (181 tests in the 3 named files, 11 herdr watch tests); live rows not re-run, no transport code changed
+2026-10-27 13:47 | execute | 0010-team-entry-script | pushed 0d5323a..b2fd47b — the round-1 fixes, with one Settles line for each of the 31 fixed points
+2026-10-27 13:47 | execute | 0010-team-entry-script | reviewing — round 2: fresh reviewers check only what the fixes changed, one at a time

@@ -1021,3 +1021,10 @@
 - Chosen: B — the 120 s budget binds agent-start's answer, which B keeps; A adds a deadline field to every kind's agent-stop verb (0006, 0007) for a path that runs only after a failed manifest write
 - Supersedes: none
 - To reverse: add a `deadline` field to the transport agent-stop verb and pass it from `_stop_within` in scripts/team/entry.py
+
+## D-146 — The manifest refuses a name another entry holds; 0010's Scope takes the 2 files that close the races
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers round-2 review findings on the name and owner-record races)
+- Options: A — agent-start re-reads after its name write and the lower agent id keeps the name vs B — record_entry refuses, under the manifest lock, a pane label or agent name another entry holds (NameTaken), and agent-start takes the next name on that refusal, 5 tries; remove-worktree's adopt() takes the owner record lock that add_owner takes and re-reads the record under it; agent-start refuses an agent id that ends in -sup, so D-142's id forms stay disjoint
+- Chosen: B — A keeps 2 equal names when the higher id records and checks before the lower one writes; only a check inside the lock settles the order. adopt() rewrote the record from an earlier read with no lock, so an owner add_owner wrote in between was lost. 0010 ## Scope adds scripts/team/manifest.py, scripts/tests/test_team_manifest.py and scripts/remove-worktree.py for these changes
+- Supersedes: 0010 ## Scope, for these 3 paths only
+- To reverse: drop NameTaken from scripts/team/manifest.py record_entry and the retry loop in entry.py agent_start; drop record_lock from remove-worktree.py adopt

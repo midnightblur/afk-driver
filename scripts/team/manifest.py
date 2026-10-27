@@ -74,6 +74,10 @@ class ForeignManifest(ManifestError):
     """A manifest of an unknown format version: not read, not changed, not deleted."""
 
 
+class NameTaken(ManifestError):
+    """An agent entry's pane label or agent name that another entry already holds; nothing was written."""
+
+
 class ManifestBusy(ManifestError):
     """Another writer kept the manifest busy past `LOCK_WAIT` seconds; nothing was written."""
 
@@ -366,6 +370,10 @@ def record_entry(root: str | os.PathLike, feature: str, entry: dict) -> dict:
         if entry.get(key) is None:
             raise ManifestError(f"{what} lacks required field {key}")
         found = next((row for row in rows if row[key] == entry[key]), None)
+        names = {entry.get("pane_label"), entry.get("agent_name")} - {None, ""} if agent else set()
+        for other in (row for row in rows if names and row[key] != entry[key]):
+            if names & {other["pane_label"], other["agent_name"]}:
+                raise NameTaken(f"agent {other['agent_id']} already holds the name {sorted(names)[0]!r}")
         if found is None:
             row = {field: None for field in fields}
             row.update(entry)

@@ -114,6 +114,19 @@ def test_record_updates_fields_but_never_the_state(root: Path) -> None:
         manifest.record_entry(root, FEATURE, {"agent_id": "a1", "state": "working"})
 
 
+def test_a_name_another_entry_holds_is_refused_and_nothing_is_written(root: Path) -> None:
+    manifest.record_entry(root, FEATURE, agent("a1", agent_name="g-builder", pane_label="g builder"))
+    manifest.record_entry(root, FEATURE, agent("a2"))
+    for taken in ({"agent_name": "g-builder"}, {"pane_label": "g-builder"}, {"agent_name": "g builder"}):
+        with pytest.raises(manifest.NameTaken, match="a1"):
+            manifest.record_entry(root, FEATURE, {"agent_id": "a2", **taken})
+    with pytest.raises(manifest.NameTaken, match="a1"):
+        manifest.record_entry(root, FEATURE, agent("a3", agent_name="g-builder"))
+    agents = manifest.read_manifest(root, FEATURE)["agents"]
+    assert [(a["agent_id"], a["agent_name"]) for a in agents] == [("a1", "g-builder"), ("a2", None)]
+    manifest.record_entry(root, FEATURE, {"agent_id": "a1", "agent_name": "g-builder", "pid": 9})
+
+
 def test_a_cleaned_entry_takes_no_more_fields(root: Path) -> None:
     manifest.record_entry(root, FEATURE, agent())
     manifest.move_entry(root, FEATURE, "a1", "lost")

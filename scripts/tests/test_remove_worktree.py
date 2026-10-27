@@ -455,6 +455,22 @@ def load_remove():
     return _load("afk_remove", SCRIPT)
 
 
+def test_adopt_rereads_the_record_under_its_lock_and_waits_for_a_held_one(tmp_path, monkeypatch):
+    record_file = tmp_path / "w.json"
+    record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}]}), encoding="utf-8")
+    stale_read = json.loads(record_file.read_text(encoding="utf-8"))
+    record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}, {"pid": 12, "ctime": "2"}]}),
+                           encoding="utf-8")                       # an agent start appended after the prune's read
+    monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 7, "ctime": "c"})
+    load_remove().adopt(OWNER, record_file, stale_read)
+    assert [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))] == [11, 12, 7]
+    monkeypatch.setattr(OWNER, "LOCK_WAIT", 0.3)
+    monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 8, "ctime": "d"})
+    Path(f"{record_file}.lock").write_text("holder", encoding="utf-8")
+    load_remove().adopt(OWNER, record_file, json.loads(record_file.read_text(encoding="utf-8")))
+    assert 8 not in [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))]
+
+
 def test_r11_2_an_unknown_owner_state_keeps_the_worktree(repo, monkeypatch):
     gone = dead_harness()
     path = made(repo, "unsure", owner=spec_of(gone))

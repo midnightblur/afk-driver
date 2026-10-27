@@ -272,16 +272,17 @@ def copy_settings(main: Path, worktree: Path) -> str:
     try:
         data = source.read_bytes()
         target.parent.mkdir(parents=True, exist_ok=True)
-        with open(target, "xb") as out:
-            try:
-                out.write(data)
-            except OSError:
-                out.close()
-                target.unlink(missing_ok=True)
-                raise
+        out = open(target, "xb")
     except FileExistsError:
         return f"skipped the copy: {target} exists"
     except OSError as problem:
+        raise contract.unavailable(f"the settings copy to {target} failed, so no agent started: {problem}",
+                                   copy=str(target)) from None
+    try:
+        with out:
+            out.write(data)
+    except OSError as problem:
+        target.unlink(missing_ok=True)
         raise contract.unavailable(f"the settings copy to {target} failed, so no agent started: {problem}",
                                    copy=str(target)) from None
     return f"copied {source} to {target}"
@@ -294,6 +295,8 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     began = run.host.clock()
     _fields(p, ("agent_id", "role", "model", "brief_path", "cwd", "effort", "resume"))
     agent_id, role, model = _safe(p, "agent_id"), p.text("role"), p.text("model")
+    if agent_id.endswith("-sup"):
+        raise contract.bad(p.verb, f"field `agent_id`: {agent_id!r} ends in -sup, the job supervisor's message id form")
     brief, cwd = run.host.cwd / p.text("brief_path"), run.host.cwd / p.text("cwd")
     resume = p.text("resume", False)
     effort = p.text("effort", False)
@@ -317,14 +320,15 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     run.permitted()
     settings = copy_settings(run.host.main, cwd)
     try:
-        for _ in range(5):
-            manifest.record_entry(run.host.root, run.feature, {"agent_id": agent_id, "pane_label": label,
-                                                               "agent_name": name})
-            again = run.manifest()
-            if not any(a["agent_id"] < agent_id and name in (a["pane_label"], a["agent_name"])
-                       for a in again["agents"]):
+        for attempt in range(5):
+            try:
+                manifest.record_entry(run.host.root, run.feature, {"agent_id": agent_id, "pane_label": label,
+                                                                   "agent_name": name})
                 break
-            label, name = _name(p.verb, run, again, agent_id, role, cell, effort)
+            except manifest.NameTaken:
+                if attempt == 4:
+                    raise
+                label, name = _name(p.verb, run, run.manifest(), agent_id, role, cell, effort)
     except manifest.ManifestError as problem:
         raise contract.unavailable(f"the write of the pane label and agent name into entry {agent_id} failed, "
                                    f"so no agent started: {problem}", write="before the transport call") from None
@@ -572,7 +576,7 @@ def _check_start_request(run: Run, verb: str, raw: bytes, data: dict, pattern: d
     if body["lifespan"] not in manifest.LIFESPANS:
         raise contract.bad(verb, f"the start-request lifespan {body['lifespan']!r} is not one of "
                                  f"{', '.join(manifest.LIFESPANS)}")
-    if body.get("effort") not in (None, "") and body["effort"] not in EFFORTS:
+    if body.get("effort") not in (None, "") and (not isinstance(body["effort"], str) or body["effort"] not in EFFORTS):
         raise contract.bad(verb, f"the start-request field `effort`: {body['effort']!r} is not one of "
                                  f"{', '.join(EFFORTS)}")
     agents = body["agents"]

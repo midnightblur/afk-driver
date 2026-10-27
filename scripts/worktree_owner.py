@@ -29,6 +29,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 
 # Paths gates of plugin versions before the git-dir move left inside a checkout. `create-worktree`
 # excludes them and `remove-worktree.py` does not count them as work; this is their one home.
@@ -238,7 +239,7 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
             continue
         if not isinstance(document, dict) or not document.get("path") or same(document["path"]) != top:
             continue
-        with _record_lock(path):
+        with record_lock(path):
             with open(path, encoding="utf-8") as handle:
                 document = json.load(handle)
             known = owners_of(document)
@@ -253,30 +254,59 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
 
 
 @contextlib.contextmanager
-def _record_lock(path: str):
+def record_lock(path: str):
     """Hold `{path}.lock` for one read-change-write; take over a lock older than LOCK_STALE seconds."""
-    lock, end = f"{path}.lock", time.monotonic() + LOCK_WAIT
+    lock, end, token = f"{path}.lock", time.monotonic() + LOCK_WAIT, f"{os.getpid()}.{uuid.uuid4().hex}"
     while True:
         try:
-            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            with open(lock, "x", encoding="utf-8") as out:
+                out.write(token)
             break
         except FileExistsError:
-            try:
-                if time.time() - os.path.getmtime(lock) > LOCK_STALE:
-                    os.remove(lock)
-                    continue
-            except OSError:
-                continue
-            if time.monotonic() > end:
-                raise OSError(f"the owner record lock {lock} stayed held for {LOCK_WAIT} s") from None
-            time.sleep(0.05)
+            _take_if_stale(lock)
+        if time.monotonic() > end:
+            raise OSError(f"the owner record lock {lock} stayed held for {LOCK_WAIT} s")
+        time.sleep(0.05)
     try:
         yield
     finally:
+        if _read(lock) == token:
+            try:
+                os.remove(lock)
+            except OSError:
+                pass
+
+
+def _read(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def _take_if_stale(lock: str) -> None:
+    """Move a stale lock aside; give it back when a fresh holder's lock was moved instead (one rename wins)."""
+    try:
+        if time.time() - os.path.getmtime(lock) <= LOCK_STALE:
+            return
+    except OSError:
+        return
+    judged, grave = _read(lock), f"{lock}.stale.{os.getpid()}.{uuid.uuid4().hex}"
+    try:
+        os.rename(lock, grave)
+    except OSError:
+        return
+    if _read(grave) != judged:
         try:
-            os.remove(lock)
+            os.rename(grave, lock)
         except OSError:
             pass
+        return
+    try:
+        os.remove(grave)
+    except OSError:
+        pass
 
 
 def record(argv: list[str]) -> int:

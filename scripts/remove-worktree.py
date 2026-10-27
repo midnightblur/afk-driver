@@ -413,12 +413,14 @@ def adopt(owner, record_file: Path, record: dict) -> None:
     if not found or not found.get("pid"):
         return
     mine = {"pid": found["pid"], "ctime": found.get("ctime")}
-    known = owner.owners_of(record)
-    record["owners"] = known + ([] if mine in known else [mine])
-    record["owner"] = mine
     try:
-        record_file.write_text(json.dumps(record), encoding="utf-8")
-    except OSError:
+        with owner.record_lock(str(record_file)):
+            record.update(json.loads(record_file.read_text(encoding="utf-8")))
+            known = owner.owners_of(record)
+            record["owners"] = known + ([] if mine in known else [mine])
+            record["owner"] = mine
+            record_file.write_text(json.dumps(record), encoding="utf-8")
+    except (OSError, ValueError):
         pass
 
 

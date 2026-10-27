@@ -146,18 +146,25 @@ def test_add_owner_refuses_an_owner_with_no_creation_time(tmp_path):
     assert record.read_text(encoding="utf-8") == before
 
 
-def test_add_owner_waits_for_the_record_lock_and_takes_over_a_stale_one(tmp_path, monkeypatch):
+def test_add_owner_gives_up_after_waiting_for_a_held_record_lock(tmp_path, monkeypatch):
     linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
-    monkeypatch.setattr(owner, "LOCK_WAIT", 0.2)
-    lock = Path(f"{record}.lock")
-    lock.write_text("", encoding="utf-8")
+    monkeypatch.setattr(owner, "LOCK_WAIT", 0.5)
+    Path(f"{record}.lock").write_text("holder", encoding="utf-8")
+    began = time.monotonic()
     try:
         owner.add_owner(str(linked), 4242, "999")
     except OSError as busy:
-        assert "lock" in str(busy)
+        assert "lock" in str(busy) and time.monotonic() - began >= 0.5
     else:
         raise AssertionError("add_owner wrote the record while another writer held its lock")
     assert json.loads(record.read_text(encoding="utf-8"))["owners"] == [{"pid": 11, "ctime": "1"}]
+    assert Path(f"{record}.lock").read_text(encoding="utf-8") == "holder"
+
+
+def test_add_owner_takes_over_a_stale_record_lock(tmp_path):
+    linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
+    lock = Path(f"{record}.lock")
+    lock.write_text("", encoding="utf-8")
     old = time.time() - owner.LOCK_STALE - 5
     os.utime(lock, (old, old))
     owner.add_owner(str(linked), 4242, "999")
@@ -165,9 +172,24 @@ def test_add_owner_waits_for_the_record_lock_and_takes_over_a_stale_one(tmp_path
     assert not lock.exists()
 
 
+def test_a_stale_takeover_that_moved_a_fresh_lock_gives_it_back(tmp_path, monkeypatch):
+    lock = tmp_path / "r.json.lock"
+    lock.write_text("fresh holder", encoding="utf-8")
+    old = time.time() - owner.LOCK_STALE - 5
+    os.utime(lock, (old, old))
+    reads = iter(["the stale holder"])                  # judged before a fresh holder replaced the lock
+    real = owner._read
+    monkeypatch.setattr(owner, "_read", lambda path: next(reads, None) or real(path))
+    owner._take_if_stale(str(lock))
+    assert lock.read_text(encoding="utf-8") == "fresh holder"
+    assert [p.name for p in tmp_path.iterdir()] == ["r.json.lock"]
+
+
 def test_parallel_add_owner_calls_keep_every_owner(tmp_path):
     linked, record = _repo_with_record(tmp_path, [{"pid": 11, "ctime": "1"}])
-    code = (f"import sys; sys.path.insert(0, {str(SCRIPT.parent)!r}); import worktree_owner; "
+    start_at = time.time() + 3
+    code = (f"import sys, time; sys.path.insert(0, {str(SCRIPT.parent)!r}); import worktree_owner; "
+            f"time.sleep(max(0, {start_at!r} - time.time())); "
             f"worktree_owner.add_owner({str(linked)!r}, int(sys.argv[1]), 'c' + sys.argv[1])")
     children = [subprocess.Popen([sys.executable, "-c", code, str(n)]) for n in range(100, 108)]
     assert [c.wait(timeout=120) for c in children] == [0] * 8
