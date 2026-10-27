@@ -160,3 +160,10 @@
 - Chosen: end `blocked` naming its path. Diagnose writes the file only at its end, so a stopped run leaves exactly such a worktree, but a session worktree named for the ticket looks the same, and `create-worktree` refuses a fresh cut under a taken name. The person removes it or hands it over, and nothing is committed onto a branch diagnose cannot prove is its own.
 - Supersedes: D-22 "A matching worktree with no diagnosis goes on to a fresh cut"
 - To reverse: reuse the worktree when its owner record proves diagnose made it
+
+## D-24 — how the person clears a worktree with no diagnosis
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 8)
+- Options: name no removal vs name `git worktree remove` vs name `${AFK_PLUGIN_ROOT}/scripts/remove-worktree.py --path <path> --force`
+- Chosen: the blocked reason names `remove-worktree.py --path <path> --force`. A plain `git worktree remove` leaves the owner record, which makes `create-worktree --name` refuse the name as taken, and the branch, which ends the next run `blocked` (branch exists). The plugin script drops the worktree, its record, and the branch when that branch holds no commit of its own.
+- Supersedes: D-23 "The person removes it or hands it over"
+- To reverse: drop the command from the blocked reason in diagnose Phase 0 step 3
