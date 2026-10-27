@@ -14,7 +14,7 @@ The plugin resolves informational rationale threads before it records successful
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | 2 subtasks, uncited — live status in the plan's progress tracker |
-| Smoke gate | plan/PLAN.md | not run |
+| Smoke gate | plan/PLAN.md | green 2026-10-27 (minimal gate) |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
 | Demo plan | DEMO-PLAN.md | — |

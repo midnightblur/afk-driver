@@ -9,3 +9,6 @@
 2026-10-26 23:40 | execute | 0002-sync-harness | reviewing — independent lean-policy review started for specification, scope, and test evidence
 2026-10-26 23:46 | execute | 0002-sync-harness | decision(D-1) — accepted the `/afk:agents-md` no-op because no non-duplicate, permitted steering target exists
 2026-10-26 23:52 | execute | 0002-sync-harness | review(clean) — scope finding withdrawn and the steward-output finding settled by D-1; delta review found nothing actionable
+2026-10-27 15:40 | execute | 0002-sync-harness | adversary skipped(human waiver) — the human waived the live check because this documentation-only slice has no running application target
+2026-10-27 15:42 | execute | 0002-sync-harness | done — the review, verification, rationale receipt, and human-approved live-check waiver are complete
+2026-10-27 15:49 | smoke-test | gate | smoke pass (2/2 scenarios) — both minimal checks passed, and every acceptance criterion has complete evidence
