@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-10-27
+
 ### Fixed
 
 - Lavish polling now refuses with a Markdown fallback instruction
