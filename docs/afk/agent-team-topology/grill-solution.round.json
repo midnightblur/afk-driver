@@ -4867,7 +4867,7 @@
   },
   {
    "round": 47,
-   "state": "current",
+   "state": "settled",
    "header": {
     "component": "round_header",
     "round": 47,
@@ -4942,6 +4942,90 @@
      "by": "human",
      "decision": "HL-6 signed. Existing behaviour: the setup rule offer, the Python runtime install and check, and the plugin path convention each extend.",
      "evidence": "You answered sign, 2026-10-26. The full packet is in this file at commit 3228c42. GRILL-LOG.md solution grill, Signoff rows of R-47."
+    }
+   ]
+  },
+  {
+   "round": 48,
+   "state": "current",
+   "header": {
+    "component": "round_header",
+    "round": 48,
+    "settled_last_round": [
+     "Round 47: you signed the afk-team command, the launcher in afk-bin, and the 3-part spawn check.",
+     "Build step 0027 built them. Claude Code ran afk-team with no prompt in default and auto mode, and setup in auto mode wrote the launcher with no refusal.",
+     "A Codex agent on Windows failed: PowerShell 7 drops the double quotes of the JSON when it calls afk-team.cmd, so every command with a field fails. In the terminal you chose: setup also writes afk-team.ps1."
+    ],
+    "fork": "This round changes one aspect you signed in round 47: the files setup writes outside the repository (side effects). The packet shows only the row that changes. Sign it, or ask for changes in its note.",
+    "unlocks": [
+     "Build step 0027 resumes: the .ps1 launcher, its tests and a live Codex check",
+     "Then step 0010 and the rest"
+    ],
+    "parked": [
+     "Nothing is written to your settings or to your PowerShell execution policy."
+    ],
+    "touches": [
+     {
+      "name": "The design",
+      "anchor": "SDD.md section 7 (effect E13) and design record 0017"
+     }
+    ],
+    "links": [
+     {
+      "label": "The SDD",
+      "href": "SDD.md"
+     }
+    ],
+    "size_note": "1 record of your terminal answer and 1 packet to sign."
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "R48-PS1",
+     "round": 48,
+     "state": "settled",
+     "by": "human",
+     "decision": "On Windows, setup also writes afk-team.ps1 beside afk-team.cmd. PowerShell picks the .ps1 first and passes the JSON through with its quotes. Bash still runs afk-team, and cmd.exe still runs afk-team.cmd.",
+     "evidence": "You answered 'Add afk-team.ps1 (Recommended)' in the terminal, 2026-10-26. Build step 0027's live check: a Codex pane ran afk-team agent-list '{\"run\": \"p0027-live\"}' through afk-team.cmd and the script got invalid JSON (PowerShell 7.6.6). A trial .ps1 in a scratch folder passed {\"run\":\"p-x y\",\"a\":\"b&c|d^e\"} intact."
+    },
+    {
+     "component": "signoff_packet",
+     "id": "HL5-8",
+     "hl_id": "HL-5",
+     "aspect": "Side effects outside the repository: the afk-team launcher files (one more file on Windows)",
+     "tables": [
+      {
+       "caption": "Effect E13 (SDD section 7; E9 in your round-47 packet). Only the Effect cell changes; the other cells stand as signed.",
+       "columns": [
+        "Effect",
+        "Trigger",
+        "Order",
+        "Repeat key",
+        "A partial failure leaves",
+        "Recovery"
+       ],
+       "rows": [
+        [
+         "E13 write the afk-team launcher into afk-bin. Files: afk-team (a shell script for Bash) and, on Windows, afk-team.cmd and afk-team.ps1. Each holds one line that runs the team script of the plugin folder that ran setup. Change from the signed row: afk-team.ps1 is new.",
+         "As signed: a /afk:setup run you start, after the environment sync and after afk-python.",
+         "As signed: each file staged, then moved into place in one step.",
+         "As signed: the file content; setup writes a file only when its bytes differ.",
+         "As signed, for each file: a missing launcher, or one that names an older plugin folder, makes the spawn permission check refuse and name /afk:setup.",
+         "As signed: run /afk:setup again; deleting the afk data folder removes every launcher file."
+        ]
+       ]
+      }
+     ],
+     "alternatives": "Send the JSON on stdin or in a file on Windows: works under every execution policy, but changes the signed form afk-team <command> '<JSON>' for every agent and every skill. Tell Codex agents how to escape quotes: fragile, each agent must get it right on every call. Chosen: afk-team.ps1.",
+     "blast_radius": [
+      "On Windows, afk-bin holds afk-python, afk-team, afk-team.cmd and now afk-team.ps1.",
+      "A PowerShell caller (a Codex agent) runs the .ps1; Bash (Claude Code) and cmd.exe callers are unchanged."
+     ],
+     "risks": [
+      "PowerShell runs a .ps1 only when its execution policy allows local scripts. Under Restricted or AllSigned the .ps1 does not run and PowerShell shows an execution-policy error (vendor behaviour, not tried here; this machine is Bypass). Setup does not change your policy. The build records a live row for this case.",
+      "Not yet proved in a Codex pane: the .ps1 trial ran in a plain PowerShell session. The build step proves it in a live Codex pane before it merges.",
+      "Already true in your round-47 design, shown here so you sign it with this in view: Claude Code and Codex each have their own plugin folder but share one launcher. Running setup from Codex points the launcher at the Codex plugin folder, and Claude Code team runs then refuse until setup runs again from Claude Code (and the other way round). Source: a review finding on build step 0027, not tried live."
+     ]
     }
    ]
   }
