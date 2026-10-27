@@ -298,8 +298,13 @@ def _left_marker(base: pathlib.Path, short_name: str, entries: list[Entry]) -> E
     _check_short_name(short_name)
     folder = base / short_name
     held = _marker_holder(folder / MARKER_NAME)
-    if (not held or any(_key(entry.path) == _key(held) for entry in entries)
-            or [child.name for child in folder.iterdir()] != [MARKER_NAME]):
+    if not held or any(_key(entry.path) == _key(held) for entry in entries):
+        raise RepositoryListError("is not listed", short_name)
+    try:
+        children = [child.name for child in folder.iterdir()]
+    except OSError as error:
+        raise RepositoryListError(f"its folder {folder} cannot be read: {error}", short_name) from error
+    if children != [MARKER_NAME]:
         raise RepositoryListError("is not listed", short_name)
     return Entry(held, short_name)
 

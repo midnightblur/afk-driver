@@ -1,0 +1,11 @@
+{
+  "r-001": "fixed",
+  "r-002": "fixed",
+  "r-003": "fixed",
+  "r-004": "dismissed(withdrawn: the second private call reuses the safe writer's own unchanged-check for one marker restore in the same plugin; the writer module is not changed)",
+  "r-005": "fixed",
+  "r-006": "fixed",
+  "r-007": "fixed",
+  "r-008": "fixed",
+  "r-009": "fixed"
+}

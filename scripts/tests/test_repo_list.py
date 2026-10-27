@@ -531,6 +531,21 @@ def test_a_failed_folder_release_keeps_the_marker_for_a_later_remove(home, root,
     assert rl.remove_repository("proj", root).folder_deleted
 
 
+def test_a_left_marker_whose_folder_cannot_be_read_is_refused_as_a_list_error(home, root, tmp_path,
+                                                                              monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    monkeypatch.setattr(rl, "_release_folder", lambda base, entry: False)
+    rl.remove_repository("proj", root)
+
+    def unreadable(self):
+        raise PermissionError("the folder is locked")
+
+    monkeypatch.setattr(rl.pathlib.Path, "iterdir", unreadable)
+    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+        rl.remove_repository("proj", root)
+    assert marker_of(root, "proj").is_file()
+
+
 def test_remove_of_an_unlisted_name_leaves_a_listed_paths_marker_and_bad_names(home, root, tmp_path):
     repo = make_repo(tmp_path / "src")
     rl.add_repository(repo, root)
@@ -541,6 +556,16 @@ def test_remove_of_an_unlisted_name_leaves_a_listed_paths_marker_and_bad_names(h
     assert marker_of(root, "copy").is_file()
     with pytest.raises(rl.RepositoryListError, match="not a valid short name"):
         rl.remove_repository("..", root)
+
+
+def test_remove_of_an_unlisted_name_leaves_an_unreadable_marker(home, root, tmp_path):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    (root / "copy").mkdir()
+    marker_of(root, "copy").write_text("not json", encoding="utf-8")
+    with pytest.raises(rl.RepositoryListError, match="is not listed"):
+        rl.remove_repository("copy", root)
+    assert marker_of(root, "copy").read_text(encoding="utf-8") == "not json"
+    assert [entry.short_name for entry in rl.all_entries()] == ["proj"]
 
 
 def test_a_short_name_added_again_between_drop_and_release_keeps_its_marker(home, root, tmp_path,
@@ -628,6 +653,7 @@ def test_a_worktree_outside_the_checkout_and_root_finds_nothing_by_text(home, ro
     worktree = tmp_path / "elsewhere" / "wt1"
     git(repo, "worktree", "add", "-q", "-b", "wt1", str(worktree))
     assert rl.find_entry(worktree, root=root) is None
+    assert same(rl.main_checkout(worktree), repo)
 
 
 def test_find_entry_picks_the_innermost_listed_checkout(home, root, tmp_path):

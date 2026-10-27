@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/repo_list.py",
+  "line": 302,
+  "side": "new",
+  "finding": "_left_marker lets a raw OSError escape from folder.iterdir() in the drop step",
+  "why": "An unreadable reserved folder raises PermissionError out of remove_repository instead of RepositoryListError, while the release step now catches OSError.",
+  "fix": "Wrap the iterdir() listing and raise RepositoryListError('is not listed', short_name) on OSError.",
+  "evidence": "[child.name for child in folder.iterdir()] != [MARKER_NAME]",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Test weakened to pass",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_repo_list.py",
+  "line": 625,
+  "side": "new",
+  "finding": "Assertion that main_checkout(worktree) finds the entry was deleted rather than moved",
+  "why": "The remaining test only asserts find_entry is None for a far worktree, so no test now shows a far worktree still reaches its entry via the main checkout.",
+  "fix": "Keep a test that a far worktree resolves through main_checkout to the listed entry, or note that D-20 drops that path.",
+  "evidence": "-    assert rl.find_entry(rl.main_checkout(worktree), root=root) == entry",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "mutation probe (SURVIVED mutant) / happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_repo_list.py",
+  "line": 170,
+  "side": "new",
+  "finding": "No test removes an unlisted name whose marker is unreadable; dropping the not-held guard in _left_marker survives",
+  "why": "The guard that refuses an empty or unreadable marker holder has no negative test, so a corrupt marker could be reported as a removed entry with an empty path.",
+  "fix": "Add a case: write invalid JSON into <root>/copy/.afk-repository, assert remove_repository(copy, root) raises is not listed and the marker stays.",
+  "evidence": "Mutant at scripts/repo_list.py:104 (HEAD) `if (not held or any(` -> `if (any(`: 11 passed with -k remove-or-release-or-unlisted; 5 python mutants sampled, 4 killed, this 1 survived",
+  "id": "r-003"
+ }
+]
