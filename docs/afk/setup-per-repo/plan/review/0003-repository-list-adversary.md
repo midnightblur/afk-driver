@@ -89,4 +89,4 @@ In plain terms: The repository list keeps its data safe under every race tried, 
 - F1: fixed. The list read now retries a refused read on Windows as the safe writer retries its swap, and turns any other read error into `RepositoryListError`. The repro `C:/t/adv3/p7_reader_race.py` re-run: 0 of 80,919 reads raised. The churning writer saw 2 of 32 writes refused with the safe writer's documented `SafeWriteError` "file swap stayed busy".
 - F2: refuted. `Entry.missing` (`scripts/repo_list.py`, property on `Entry`) reports a gone main checkout folder; the probe read only `Entry._fields`.
 - F3: fixed. An empty or blank path is refused with "is empty" for add and repoint.
-- F4: fixed for the short name and the root. A folder that cannot be made is refused with `RepositoryListError`; a list file that is a folder is refused with "cannot be read".
+- F4: fixed. A short name over 255 characters is not valid (`plan/DECISIONS.md` D-21); a root that is a file is refused with "root is not a folder"; any other folder that cannot be made is refused with "cannot be made"; a list file that is a folder is refused with "cannot be read".

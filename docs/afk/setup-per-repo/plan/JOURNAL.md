@@ -59,3 +59,6 @@
 2026-10-27 16:11 | execute | 0003-repository-list | done — the repository list is built, reviewed, attacked and pushed; the pull request waits for the human
 2026-10-27 16:25 | execute | 0003-repository-list | review advisory crit=0 high=0 med=1 low=2 (round 5) — the reviewer of the closing notes found the slice marked done while one attack finding stayed open; the done above is withdrawn
 2026-10-27 16:25 | execute | 0003-repository-list | developing — fixing three attack findings: a list read on Windows during a save, an empty path read as the current folder, and two raw file-system errors
+2026-10-27 16:41 | execute | 0003-repository-list | decision(D-21) — a short name longer than 255 characters is refused on every system, so setup asks for another name with one reason
+2026-10-27 16:41 | execute | 0003-repository-list | pushed 4452828..0bbdb9b (2 commits) — the attack findings are fixed; the Windows read race re-run raised no error in 80,919 reads
+2026-10-27 16:41 | execute | 0003-repository-list | reviewing — independent reviewers read the attack fixes
