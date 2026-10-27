@@ -741,6 +741,27 @@ def test_a_list_file_that_is_a_folder_is_a_list_error(home, root, tmp_path, monk
     assert list(root.iterdir()) == []
 
 
+def test_a_list_folder_that_is_a_file_is_a_list_error_for_every_write(home, root, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    (home / ".afk").write_text("", encoding="utf-8")
+    for call in (lambda: rl.add_repository(repo, root), lambda: rl.remove_repository("proj", root),
+                 lambda: rl.repoint_repository("proj", repo, root)):
+        with pytest.raises(rl.RepositoryListError, match="cannot be read or written"):
+            call()
+    assert (home / ".afk").read_text(encoding="utf-8") == ""
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="a symbolic link needs a privilege on Windows")
+def test_a_dangling_link_list_file_is_written_through(home, root, tmp_path):
+    target = tmp_path / "elsewhere" / "repositories.json"
+    target.parent.mkdir()
+    (home / ".afk").mkdir()
+    (home / ".afk" / "repositories.json").symlink_to(target)
+    assert rl.all_entries() == []
+    entry = rl.add_repository(make_repo(tmp_path / "src"), root)
+    assert rl.all_entries() == [entry] and target.is_file()
+
+
 @pytest.mark.parametrize("empty", ["", "   "])
 def test_find_entry_refuses_a_blank_path_or_root(home, root, tmp_path, monkeypatch, empty):
     repo = make_repo(tmp_path / "src")

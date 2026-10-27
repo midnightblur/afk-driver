@@ -379,9 +379,10 @@ def _require_text(path: str | os.PathLike) -> None:
 
 
 def _update_list(transform) -> None:
-    if os.path.lexists(list_file()) and not os.path.isfile(list_file()):
-        raise RepositoryListError("cannot be read: it is not a file", list_file())
-    safe_write.update_locked(list_file(), transform)
+    try:
+        safe_write.update_locked(list_file(), transform)
+    except OSError as error:
+        raise RepositoryListError(f"cannot be read or written ({error})", list_file()) from error
 
 
 def _read_list() -> list[Entry]:
