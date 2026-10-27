@@ -92,7 +92,7 @@ This skill builds *understanding*; it does not emit decision records. When a dec
 
 ## Next
 
-A diagnosis grill whose size call is `still small` ends at that call ([SIZE-CALL.md](SIZE-CALL.md)); everything below binds every other grill.
+A diagnosis grill whose size call is `still small`, or that ends with no size call, stops there ([SIZE-CALL.md](SIZE-CALL.md)); everything below binds every other grill.
 
 Only declare the requirements decision tree exhausted when ALL hold:
 

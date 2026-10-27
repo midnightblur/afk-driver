@@ -17,3 +17,4 @@
 | 0003-tracker-attach-82c3db8-r7 | crit=0 high=0 med=0 low=0 | [0003-tracker-attach-82c3db8-r7.md](0003-tracker-attach-82c3db8-r7.md) |
 | 0004-diagnose-rewrite-f86eb43-r1 | crit=0 high=2 med=15 low=7 | [0004-diagnose-rewrite-f86eb43-r1.md](0004-diagnose-rewrite-f86eb43-r1.md) |
 | 0004-diagnose-rewrite-ac7bb38-r2 | crit=0 high=0 med=5 low=5 | [0004-diagnose-rewrite-ac7bb38-r2.md](0004-diagnose-rewrite-ac7bb38-r2.md) |
+| 0004-diagnose-rewrite-d22496e-r3 | crit=0 high=1 med=3 low=4 | [0004-diagnose-rewrite-d22496e-r3.md](0004-diagnose-rewrite-d22496e-r3.md) |

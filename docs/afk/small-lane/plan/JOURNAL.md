@@ -44,3 +44,6 @@
 2026-10-26 22:51 | execute | 0004-diagnose-rewrite | developing — diagnose rewritten, size-call file and row, grills and fix pointed at them; pushed f86eb43..ac7bb38 (1 commit)
 2026-10-26 22:51 | execute | 0004-diagnose-rewrite | verifying — plugin-source gates and Produces greps green; focused unit tests 112 passed; full suites and hook smoke run in CI
 2026-10-26 22:52 | execute | 0004-diagnose-rewrite | reviewing — round 1: spec-fidelity, scope-and-impact, test-veracity, logic-correctness, refactor-safety, api-contract
+2026-10-27 01:07 | execute | 0004-diagnose-rewrite | reviewing — round 1: 2 high, 15 medium, 7 low, all fixed in d22496e; decision(D-14) — any linked worktree goes to diagnose, fix takes a path and still-small rows; decision(D-15), decision(D-16)
+2026-10-27 01:07 | execute | 0004-diagnose-rewrite | reviewing — round 2 (delta): 6 medium, 4 low; 9 fixed in b6b4c0b, 1 verified (caller routing is slice 0009's); decision(D-17) — handed worktree's Base, SDD rows narrowed, WORKFLOW-FEEDBACK in Scope
+2026-10-27 01:36 | execute | 0004-diagnose-rewrite | reviewing — round 3 (delta): 1 high, 3 medium, 4 low, all fixed; round 2 was 5 medium and 5 low (the earlier line miscounted); decision(D-18) — a re-run whose worktree is gone is found after the starting-branch question; handed branch name rows narrowed

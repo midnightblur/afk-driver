@@ -7,7 +7,7 @@ The size call is the last decision of a grill handed a `DIAGNOSIS.md`: is the bu
 ## Taking a diagnosis
 
 - The diagnosis is the grill's input in place of a raw idea or a PRD. Read it per `${AFK_PLUGIN_ROOT}/skills/utils/diagnose/DIAGNOSIS-FORMAT.md`; its Symptom, Spec comparison, Root cause and Fix proposal are settled premises that keep their certainty marks.
-- Grill only the open question the verdict names: which fix option for several fixes, what the spec should say for a spec gap. Any other verdict leaves no open question: name it and stop with no size call. Walk only the layers or branches that question touches; rounds follow `ROUND.md` as usual.
+- Grill only the open question the verdict names: which fix option for several fixes, what the spec should say for a spec gap. Any other verdict leaves no open question: name it, and the grill ends there with no size call. Walk only the layers or branches that question touches; rounds follow `ROUND.md` as usual.
 - Write in the grill's own section of the `GRILL-LOG.md` beside the diagnosis (`GRILL-LOG-FORMAT.md`).
 
 ## The call

@@ -11,7 +11,7 @@ Present one round per `../grill-requirements/ROUND.md`, grouped by layer: work t
 
 If a question is answerable from the codebase, PRD, a `PROTOTYPE.md` if one settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), existing ADRs, or the project glossary (start at root `GLOSSARY-MAP.md`, then owning service's `GLOSSARY.md`), do that instead — a read matching a `DELEGATION.md` trigger (plugin root) runs via `afk-reader`, keeping only the cited digest inline. Speak the design in the glossary's canonical vocabulary.
 
-**Handed a `DIAGNOSIS.md`** (a diagnosed bug), grill its fix options per `../grill-requirements/SIZE-CALL.md` and end with its size call. With no PRD for the bug, the grill ends at that call whatever it is, or where SIZE-CALL.md stops without one: it never runs `/afk:to-sdd`, and the Stop conditions below do not apply. With a PRD, a `still small` call ends the grill, and a `too big` call carries on as a full grill of the bug.
+**Handed a `DIAGNOSIS.md`** (a diagnosed bug), grill its fix options per `../grill-requirements/SIZE-CALL.md` and end with its size call. A grill that SIZE-CALL.md ends with no size call stops there. With no PRD for the bug, the grill ends at the call whatever it is: it never runs `/afk:to-sdd`, and the Stop conditions below do not apply. With a PRD, a `still small` call ends the grill, and a `too big` call carries on as a full grill of the bug.
 
 **Open with a pre-brief.** Before L1, spawn one parallel set of `afk-reader` digests (per `DELEGATION.md`): the PRD (accepted staples included), `PROTOTYPE.md` when present, existing ADRs, the glossary (map → owning service), the `## Guardrails` digests named under Design bars, and any existing `GRILL-LOG.md` section (the resume point). Grill from the digests; open a source mid-layer only when a decision needs wording a digest doesn't settle.
 
@@ -114,4 +114,4 @@ Until all hold, keep grilling.
 
 ## Next
 
-A diagnosis grill that ends at its size call (above) stops there. Otherwise, once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts — it carries the sign-off register into §0 and refuses to publish while a live aspect is unsigned. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.
+A diagnosis grill that ends at its size call, or with none (above), stops there. Otherwise, once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts — it carries the sign-off register into §0 and refuses to publish while a live aspect is unsigned. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.
