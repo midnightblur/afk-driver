@@ -5,3 +5,7 @@
 2026-10-26 19:02 | execute | 0001-resolve-rationale-threads | done — fixed the elevated Windows browser launch; the browser file and clean rerun of the sole environmental gate are green
 2026-10-26 23:29 | execute | 0002-sync-harness | designing — `/afk:agents-md` found no non-duplicate steering note and no staple candidate; preparing the trace matrix
 2026-10-26 23:31 | execute | 0002-sync-harness | developing — wrote the trace matrix with every acceptance criterion mapped to its commit and proving test
+2026-10-26 23:36 | execute | 0002-sync-harness | verifying — trace rows, proving test anchors, plan validation, and diff checks are green
+2026-10-26 23:40 | execute | 0002-sync-harness | reviewing — independent lean-policy review started for specification, scope, and test evidence
+2026-10-26 23:46 | execute | 0002-sync-harness | decision(D-1) — accepted the `/afk:agents-md` no-op because no non-duplicate, permitted steering target exists
+2026-10-26 23:52 | execute | 0002-sync-harness | review(clean) — scope finding withdrawn and the steward-output finding settled by D-1; delta review found nothing actionable
