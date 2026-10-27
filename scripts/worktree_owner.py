@@ -233,24 +233,37 @@ def add_owner(worktree: str, pid: int, ctime: str) -> str | None:
     for name in (n for n in names if n.endswith(".json")):
         path = os.path.join(folder, name)
         try:
-            with open(path, encoding="utf-8") as handle:
-                document = json.load(handle)
+            document = _patient(_load_json, path)
         except ValueError:
             continue
         if not isinstance(document, dict) or not document.get("path") or same(document["path"]) != top:
             continue
         with record_lock(path):
-            with open(path, encoding="utf-8") as handle:
-                document = json.load(handle)
+            document = _patient(_load_json, path)
             known = owners_of(document)
             mine = {"pid": pid, "ctime": str(ctime)}
             document["owners"] = known + ([] if mine in known else [mine])
             scratch = os.path.join(folder, f".{name}.{os.getpid()}.tmp")
             with open(scratch, "w", encoding="utf-8") as out:
                 json.dump(document, out)
-            os.replace(scratch, path)
+            _patient(os.replace, scratch, path)
         return path
     return None
+
+
+def _load_json(path: str) -> object:
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _patient(action, *args):
+    """Run `action`, retrying for up to 2 s while Windows refuses it because another process has the file open."""
+    for _ in range(100):
+        try:
+            return action(*args)
+        except PermissionError:
+            time.sleep(0.02)
+    return action(*args)
 
 
 @contextlib.contextmanager
@@ -259,11 +272,17 @@ def record_lock(path: str):
     lock, end, token = f"{path}.lock", time.monotonic() + LOCK_WAIT, f"{os.getpid()}.{uuid.uuid4().hex}"
     while True:
         try:
-            with open(lock, "x", encoding="utf-8") as out:
-                out.write(token)
-            break
+            out = open(lock, "x", encoding="utf-8")
         except FileExistsError:
             _take_if_stale(lock)
+        else:
+            try:
+                with out:
+                    out.write(token)
+            except OSError:
+                os.remove(lock)
+                raise
+            break
         if time.monotonic() > end:
             raise OSError(f"the owner record lock {lock} stayed held for {LOCK_WAIT} s")
         time.sleep(0.05)
@@ -271,10 +290,7 @@ def record_lock(path: str):
         yield
     finally:
         if _read(lock) == token:
-            try:
-                os.remove(lock)
-            except OSError:
-                pass
+            _remove(lock)
 
 
 def _read(path: str) -> str | None:
@@ -285,28 +301,46 @@ def _read(path: str) -> str | None:
         return None
 
 
+def _remove(path: str) -> None:
+    """Remove `path`, waiting out a moment when a waiter has it open (Windows refuses the delete then)."""
+    for _ in range(100):
+        try:
+            os.remove(path)
+            return
+        except FileNotFoundError:
+            return
+        except PermissionError:
+            time.sleep(0.02)
+        except OSError:
+            return
+
+
+def _stale(path: str) -> bool:
+    try:
+        return time.time() - os.path.getmtime(path) > LOCK_STALE
+    except OSError:
+        return False
+
+
 def _take_if_stale(lock: str) -> None:
     """Move a stale lock aside; give it back when a fresh holder's lock was moved instead (one rename wins)."""
-    try:
-        if time.time() - os.path.getmtime(lock) <= LOCK_STALE:
-            return
-    except OSError:
+    if not _stale(lock):
         return
-    judged, grave = _read(lock), f"{lock}.stale.{os.getpid()}.{uuid.uuid4().hex}"
+    judged = _read(lock)
+    if not _stale(lock):
+        return
+    grave = f"{lock}.stale.{os.getpid()}.{uuid.uuid4().hex}"
     try:
         os.rename(lock, grave)
     except OSError:
         return
-    if _read(grave) != judged:
+    if _read(grave) != judged or not _stale(grave):
         try:
             os.rename(grave, lock)
         except OSError:
             pass
         return
-    try:
-        os.remove(grave)
-    except OSError:
-        pass
+    _remove(grave)
 
 
 def record(argv: list[str]) -> int:

@@ -397,18 +397,23 @@ def test_two_starts_that_pick_the_same_name_end_with_different_names(team, monke
 def test_a_name_lost_5_times_answers_exit_4_and_starts_nothing(team, monkeypatch):
     team.agent("a1", "builder", state="starting")
 
+    tries = []
+
     def taken(root, feature, entry_):
+        tries.append(entry_["agent_name"])
         raise manifest.NameTaken(f"agent a9 already holds the name {entry_['agent_name']!r}")
 
     monkeypatch.setattr(manifest, "record_entry", taken)
     code, body = start(team)
     assert code == 4 and "a9" in body["reason"] and "agent-start" not in team.transport.verbs()
+    assert len(tries) == 5
 
 
-def test_an_agent_id_ending_in_sup_is_refused(team):
-    team.agent("x-sup", "builder", state="starting")
-    code, body = start(team, agent_id="x-sup")
-    assert code == 2 and "-sup" in body["reason"] and team.transport.calls == []
+@pytest.mark.parametrize("agent_id, words", [("x-sup", "-sup"), ("contact", "contact")])
+def test_an_agent_id_that_overlaps_another_senders_message_ids_is_refused(team, agent_id, words):
+    team.agent(agent_id, "builder", state="starting")
+    code, body = start(team, agent_id=agent_id)
+    assert code == 2 and words in body["reason"] and team.transport.calls == []
 
 
 def test_a_first_run_dialog_answers_exit_4_naming_the_dialog(team):

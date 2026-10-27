@@ -419,7 +419,9 @@ def adopt(owner, record_file: Path, record: dict) -> None:
             known = owner.owners_of(record)
             record["owners"] = known + ([] if mine in known else [mine])
             record["owner"] = mine
-            record_file.write_text(json.dumps(record), encoding="utf-8")
+            scratch = record_file.with_name(f".{record_file.name}.{os.getpid()}.tmp")
+            scratch.write_text(json.dumps(record), encoding="utf-8")
+            os.replace(scratch, record_file)
     except (OSError, ValueError):
         pass
 

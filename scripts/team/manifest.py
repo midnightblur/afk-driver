@@ -372,8 +372,9 @@ def record_entry(root: str | os.PathLike, feature: str, entry: dict) -> dict:
         found = next((row for row in rows if row[key] == entry[key]), None)
         names = {entry.get("pane_label"), entry.get("agent_name")} - {None, ""} if agent else set()
         for other in (row for row in rows if names and row[key] != entry[key]):
-            if names & {other["pane_label"], other["agent_name"]}:
-                raise NameTaken(f"agent {other['agent_id']} already holds the name {sorted(names)[0]!r}")
+            held = names & {other["pane_label"], other["agent_name"]}
+            if held:
+                raise NameTaken(f"agent {other['agent_id']} already holds the name {sorted(held)[0]!r}")
         if found is None:
             row = {field: None for field in fields}
             row.update(entry)

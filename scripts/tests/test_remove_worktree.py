@@ -455,6 +455,18 @@ def load_remove():
     return _load("afk_remove", SCRIPT)
 
 
+def test_adopt_replaces_the_record_and_never_truncates_it_in_place(tmp_path, monkeypatch):
+    record_file = tmp_path / "w.json"
+    record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}]}), encoding="utf-8")
+    real = Path.write_text
+    monkeypatch.setattr(Path, "write_text", lambda self, *a, **k: (_ for _ in ()).throw(
+        AssertionError("a reader can see the record empty")) if self == record_file else real(self, *a, **k))
+    monkeypatch.setattr(OWNER, "env_owner", lambda: {"pid": 7, "ctime": "c"})
+    load_remove().adopt(OWNER, record_file, json.loads(record_file.read_text(encoding="utf-8")))
+    assert [o["pid"] for o in OWNER.owners_of(json.loads(record_file.read_text(encoding="utf-8")))] == [11, 7]
+    assert sorted(q.name for q in tmp_path.iterdir()) == ["w.json"]
+
+
 def test_adopt_rereads_the_record_under_its_lock_and_waits_for_a_held_one(tmp_path, monkeypatch):
     record_file = tmp_path / "w.json"
     record_file.write_text(json.dumps({"path": "w", "owners": [{"pid": 11, "ctime": "1"}]}), encoding="utf-8")

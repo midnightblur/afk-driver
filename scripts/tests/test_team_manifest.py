@@ -125,6 +125,9 @@ def test_a_name_another_entry_holds_is_refused_and_nothing_is_written(root: Path
     agents = manifest.read_manifest(root, FEATURE)["agents"]
     assert [(a["agent_id"], a["agent_name"]) for a in agents] == [("a1", "g-builder"), ("a2", None)]
     manifest.record_entry(root, FEATURE, {"agent_id": "a1", "agent_name": "g-builder", "pid": 9})
+    with pytest.raises(manifest.NameTaken) as refused:
+        manifest.record_entry(root, FEATURE, {"agent_id": "a2", "pane_label": "a-free", "agent_name": "g-builder"})
+    assert "'g-builder'" in str(refused.value) and "a-free" not in str(refused.value)
 
 
 def test_a_cleaned_entry_takes_no_more_fields(root: Path) -> None:

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+
+import pytest
 import os
 import subprocess
 import sys
@@ -172,17 +174,59 @@ def test_add_owner_takes_over_a_stale_record_lock(tmp_path):
     assert not lock.exists()
 
 
-def test_a_stale_takeover_that_moved_a_fresh_lock_gives_it_back(tmp_path, monkeypatch):
+@pytest.mark.parametrize("stale, fresh", [("the stale holder", "a fresh holder"), ("", "")])
+def test_a_stale_takeover_that_moved_a_fresh_lock_gives_it_back(tmp_path, monkeypatch, stale, fresh):
     lock = tmp_path / "r.json.lock"
-    lock.write_text("fresh holder", encoding="utf-8")
+    lock.write_text(stale, encoding="utf-8")
     old = time.time() - owner.LOCK_STALE - 5
     os.utime(lock, (old, old))
-    reads = iter(["the stale holder"])                  # judged before a fresh holder replaced the lock
-    real = owner._read
-    monkeypatch.setattr(owner, "_read", lambda path: next(reads, None) or real(path))
+    real = os.rename
+
+    def late(src, dst):                    # a fresh holder replaced the stale lock after the age check
+        if str(src) == str(lock) and ".stale." in str(dst):
+            os.remove(lock)
+            lock.write_text(fresh, encoding="utf-8")
+        return real(src, dst)
+
+    monkeypatch.setattr(owner.os, "rename", late)
     owner._take_if_stale(str(lock))
-    assert lock.read_text(encoding="utf-8") == "fresh holder"
-    assert [p.name for p in tmp_path.iterdir()] == ["r.json.lock"]
+    assert lock.read_text(encoding="utf-8") == fresh and time.time() - lock.stat().st_mtime < owner.LOCK_STALE
+    assert [q.name for q in tmp_path.iterdir()] == ["r.json.lock"]
+
+
+def test_the_lock_release_leaves_a_lock_another_holder_took(tmp_path):
+    lock = tmp_path / "r.json.lock"
+    with owner.record_lock(str(tmp_path / "r.json")):
+        lock.write_text("another holder", encoding="utf-8")
+    assert lock.read_text(encoding="utf-8") == "another holder"
+    lock.unlink()
+    with owner.record_lock(str(tmp_path / "r.json")):
+        assert lock.exists()
+    assert not lock.exists()
+
+
+def test_a_failed_token_write_leaves_no_lock(tmp_path, monkeypatch):
+    real = open
+
+    class Broken:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.handle.close()
+
+        def write(self, text):
+            raise OSError("disk full")
+
+    monkeypatch.setattr("builtins.open", lambda path, mode="r", *a, **k: Broken(real(path, mode, *a, **k))
+                        if mode == "x" else real(path, mode, *a, **k))
+    with pytest.raises(OSError, match="disk full"):
+        with owner.record_lock(str(tmp_path / "r.json")):
+            pass
+    assert not (tmp_path / "r.json.lock").exists()
 
 
 def test_parallel_add_owner_calls_keep_every_owner(tmp_path):

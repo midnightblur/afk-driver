@@ -295,8 +295,9 @@ def agent_start(run: Run, p: contract.Payload) -> tuple[int, dict]:
     began = run.host.clock()
     _fields(p, ("agent_id", "role", "model", "brief_path", "cwd", "effort", "resume"))
     agent_id, role, model = _safe(p, "agent_id"), p.text("role"), p.text("model")
-    if agent_id.endswith("-sup"):
-        raise contract.bad(p.verb, f"field `agent_id`: {agent_id!r} ends in -sup, the job supervisor's message id form")
+    if agent_id.endswith("-sup") or agent_id == CONTACT:
+        raise contract.bad(p.verb, f"field `agent_id`: {agent_id!r} is the contact agent's id or ends in -sup, "
+                                   "so its message ids could match another sender's")
     brief, cwd = run.host.cwd / p.text("brief_path"), run.host.cwd / p.text("cwd")
     resume = p.text("resume", False)
     effort = p.text("effort", False)

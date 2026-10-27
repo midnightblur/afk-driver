@@ -1028,3 +1028,10 @@
 - Chosen: B — A keeps 2 equal names when the higher id records and checks before the lower one writes; only a check inside the lock settles the order. adopt() rewrote the record from an earlier read with no lock, so an owner add_owner wrote in between was lost. 0010 ## Scope adds scripts/team/manifest.py, scripts/tests/test_team_manifest.py and scripts/remove-worktree.py for these changes
 - Supersedes: 0010 ## Scope, for these 3 paths only
 - To reverse: drop NameTaken from scripts/team/manifest.py record_entry and the retry loop in entry.py agent_start; drop record_lock from remove-worktree.py adopt
+
+## D-147 — agent-start also refuses the agent id `contact`
+- 2026-10-27 · decided by /afk:execute (0010-team-entry-script, Step 10, answers round-3 review finding f050)
+- Options: A — refuse only ids ending in -sup (D-146) vs B — also refuse the id `contact`, whose own message ids `contact-<n>` are the contact agent's (D-142)
+- Chosen: B — an agent named `contact` would send the contact agent's message ids, and agent-send already reads the sender `contact` as the contact agent
+- Supersedes: none
+- To reverse: drop `or agent_id == CONTACT` from the agent-id check in scripts/team/entry.py agent_start
