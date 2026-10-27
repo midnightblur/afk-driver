@@ -26,7 +26,7 @@ higher-tier scenario (procedure step 4 already homed it).
    | `weak-assertion` | A scenario walks the path but asserts too little (happy-path only, missing field/negative/edge) | **Strengthen that scenario** — don't add a sibling that repeats the weak check |
    | `wrong-path` | A scenario exercises a *near* path, not the one that broke (wrong fixture, wrong branch, mocked-away seam) | Fix the fixture/branch so the real path is covered |
    | `excluded` | A scenario exists but is `@sap`/env-tagged out of the green gate, so it never ran | Note for procedure step 8 — the gate's exclusion let a real regression through |
-   | `disabled/flaky` | Skipped, quarantined, or silently green on a swallowed error | Re-enable + de-flake; a skipped guard is no guard |
+   | `disabled/flaky` | Skipped, quarantined, passing only on a re-run, or silently green on a swallowed error | Re-enable + de-flake; a skipped guard is no guard |
    | `dodged-failure` | The test's author hit a real failure while writing it and reshaped the input/steps to avoid it (payload diverges from the real client's shape; often an in-test comment admits it) | Restore the faithful interaction so the test goes red on the defect; the dodge is itself a reportable finding — the failure it hid was a bug at authoring time |
 
 3. **Act on the class — and revise procedure step 4 if needed.** For `weak-assertion` /

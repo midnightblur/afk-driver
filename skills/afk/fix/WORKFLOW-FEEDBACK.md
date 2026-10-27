@@ -3,10 +3,10 @@
 Procedure step 7 (a step of the shared fix procedure,
 [IN-PLACE-FIX.md](IN-PLACE-FIX.md)) recorded *this feature's* stale artifacts.
 This step asks the next question: **which AFK stage let the bug through, and
-what should change so the next feature doesn't repeat it.** Run **only** when
-the feature was built with AFK assistance: the branch matches
-`git.branch-pattern` and the spec folder holds a `plan/PLAN.md`.
-Ad-hoc/maintenance bugs have no AFK workflow to improve → skip. Skip also when
+what should change so the next feature doesn't repeat it.** Run **only** for
+a fix on an unreleased feature built with AFK assistance (signals:
+[IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature"). Ad-hoc/maintenance
+bugs have no AFK workflow to improve → skip. Skip also when
 procedure steps 1 and 6 named no miss class and step 7 recorded no stale
 artifact: there is no miss to trace.
 
@@ -27,7 +27,7 @@ issue".
    | `weak-assertion` — subtask Acceptance/Verification too loose | slicing | `/afk:to-subtasks` |
    | `wrong-path` — seam/fixture not pinned | architecture | `/afk:grill-solution` → `/afk:to-sdd` (§9b seams) |
    | `excluded` — env-tag policy hid a real regression | gate policy | `/afk:smoke-test` + `VERIFICATION-PLAN.md` tagging |
-   | `disabled/flaky` — a built guard was left skipped/quarantined | execution TDD discipline | `/afk:execute` (TDD step) + `tdd` skill |
+   | `disabled/flaky` — a built guard was left skipped/quarantined or passes only on a re-run | execution TDD discipline | `/afk:execute` (TDD step) + `tdd` skill |
    | `dodged-failure` — an authoring dodge survived review | review gate | `skills/afk/review/checklists/` (test concern) |
    | PRD asserted the wrong behavior | requirements | `/afk:grill-requirements` → `/afk:to-prd` |
 

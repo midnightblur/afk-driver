@@ -104,3 +104,4 @@
 2026-10-27 17:15 | execute | 0006-fix-procedure | verifying — plugin-source gates pass, the wiring scan is clean, the declared result heading is in place, and 108 focused tests pass on Windows; the full suites run in the pull request's checks
 2026-10-27 17:15 | execute | 0006-fix-procedure | reviewing — round 1, full slice
 2026-10-27 17:50 | execute | 0006-fix-procedure | reviewing — round 1: 1 high, 15 medium, 6 low; all 22 fixed in place; decision(D-41) — the last stale pointer to a fix phase and a pointer test join Scope, catalog scenarios pass the paths rule, a flaky check still records its lesson, D-40's ground fact corrected
+2026-10-27 18:44 | execute | 0006-fix-procedure | reviewing — round 2 (delta): 6 medium, 7 low; all 13 fixed; decision(D-42) — a catalog scenario outside the caller's paths stops the fix, and only a fix on an unreleased feature records a workflow lesson

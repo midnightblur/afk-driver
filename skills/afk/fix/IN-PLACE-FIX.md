@@ -14,7 +14,8 @@ The caller hands over:
   when it carries one), or a failing scenario (its id and failing output).
 - The paths its work may change, the tiers its work declares, and its spec
   folder when there is one.
-- The running instance a live tier runs against, when there is one.
+- The running instance a live tier runs against, and the command that
+  restarts it on the working tree, when there is one.
 
 ## Hard rules
 
@@ -24,9 +25,9 @@ The caller hands over:
 - **No ticket.** Write no ticket, and run no skill that writes one.
 - **One result.** Return one result from "In-place fix results" and no
   diagnosis verdict. Write no `DIAGNOSIS.md`.
-- **Caller's paths.** Change only the paths the caller's work may change, and
-  the catalog scenarios that step 4 adds or step 6 fixes. A fix that needs
-  another path → `blocked`, naming the path.
+- **Caller's paths.** Change only the paths the caller's work may change,
+  catalog scenarios included. A fix that needs another path, such as a catalog
+  scenario that step 4 or step 6 calls for → `blocked`, naming the path.
 - **AGENTS.md chain.** The target repository's `AGENTS.md` chain binds here,
   notably its database-migration and commit rules.
 - **Ownership.** Edit no PRD, SDD, ADR, `VERIFICATION-PLAN.md` or `PLAN.md`
@@ -99,11 +100,13 @@ watch it fail for the recorded reason; a test that does not → return
 
 ### 4. Broaden coverage
 
-The step 3 test is the seam regression test. Decide whether a **higher tier**
+The step 3 red check is the seam regression check: the test step 3 ran or
+wrote, or the build or lint command. Decide whether a **higher tier**
 is warranted, and add the **lowest tier that reproduces the bug pattern at its
 right home**. Proportionality is the rule: spend what the case requires. Watch
 each test this step adds fail with the step 3 fix reverted, then pass with it
-restored; the record holds both runs.
+restored; the record holds both runs. A live-tier test runs only on a
+restarted instance (step 5).
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -127,9 +130,10 @@ construction, so its class row above never downgrades it to "no new e2e/api".
 ### 5. Run every tier
 
 Run the step 1 failure, the original un-minimised scenario, every tier the
-caller's work declares, and every tier step 4 added. Restart the running
-instance the caller hands over on the fixed working tree, then run each live
-tier against it. Confirm a UI-visible bug fixed **in the running UI** (mint a
+caller's work declares, and every tier step 4 added. Before each live-tier
+run, restart the running instance on the current working tree with the
+caller's restart command. A live tier with no instance or no restart command
+handed over → return `blocked`, naming the tier. Confirm a UI-visible bug fixed **in the running UI** (mint a
 new token, drive the app again), not only at the test seam.
 
 - Every one green → step 6.
@@ -168,8 +172,8 @@ statements the fix now contradicts (class semantics:
 `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`), and triage each by the table above.
 
 Doc right and code wrong → no artifact is stale. An artifact is stale only when
-the fix changed something it asserts. A stale artifact does not change the
-result.
+the fix changed something it asserts. A stale artifact changes the result
+only through the frozen-SDD rule above.
 
 ### 8. Workflow lesson
 
@@ -210,7 +214,7 @@ far, listed under Edits.
 |--------|---------------|------------------------------|
 | `fixed` | every check in step 5 is green | The failure is gone and every tier is green. The fix sits uncommitted in its working tree. |
 | `fail` | a check other than an adversary reproduction stays red after the fix (step 5) | The fix did not hold; the record names the red check. |
-| `blocked` | the procedure cannot go on (steps 1–3, or a needed path outside the caller's paths) | The failure stays unfixed; the record names the reason. |
+| `blocked` | the procedure cannot go on (steps 1–5, or a needed path outside the caller's paths) | The failure stays unfixed; the record names the reason. |
 | `design_conflict` | the fix needs a binding SDD or ADR decision changed, and that change is a one-way door or a tie (steps 3, 7) | No fix. The record names the decision, the conflict and your recommendation; a superseding ADR comes from `/afk:grill-solution`. |
 | `needs_decision` | any other fork is a one-way door or a tie (step 3) | No fix. The record names the fork, the options and your recommendation. |
 | `adversary_fail` | the failure was an adversary finding and its reproduction still shows the defect after the fix (step 5) | The fix did not hold against the finding; the record names the reproduction and its result. |
