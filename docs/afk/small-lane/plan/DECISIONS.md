@@ -244,3 +244,10 @@
 - Chosen: the folder listing. A resolved path carries the stored letter case on Windows only; on macOS it keeps the typed case. The folder and file names are now taken from their folders' listings, matched by the same file when the typed name is not listed, so every case-blind file system gives one work id.
 - Supersedes: D-34 "the resolved path carries the stored spelling"
 - To reverse: hash the resolved path's names again in `publish_bug_mode.py` and drop `_stored_name`
+
+## D-36 — which branch the blocked reason for a worktree without a diagnosis names
+- 2026-10-27 · decided by the human (0004-diagnose-rewrite, review stalemate)
+- Options: (f060) name only the worktree's path vs also name its branch, read from `git worktree list`; (f061) delete the worktree's own branch in every case vs, with no owner record, delete only the branch `create-worktree --name` would create
+- Chosen: the blocked reason names the worktree's path and the branch a retry needs gone, so the person can still delete that branch after the worktree and its owner record are gone. With an owner record, that branch is the worktree's own, read from `git worktree list`. With no owner record, it is the branch `create-worktree --name <work id, lower-cased>` would create (`git.branch-template` filled with the work id), and only when that branch exists. The review cap is lifted for up to 3 more rounds (11-13).
+- Supersedes: D-25 "then `git branch -D <branch>` while the branch remains", for which branch is named and deleted
+- To reverse: restore the D-25 sentence in diagnose Phase 0 step 3

@@ -79,3 +79,7 @@
 2026-10-27 12:05 | execute | 0005-bug-mode | wiring scan — exit 0; rationale receipt verified (4 entries durable)
 2026-10-27 12:05 | execute | 0005-bug-mode | done
 2026-10-27 12:05 | execute | 0005-bug-mode | outcome success — review settled at round 9 (51 findings, all fixed), adversary passes with 3 medium and 4 low advisory; CI not run (PR conflicting)
+2026-10-27 11:37 | autopilot | 0005-bug-mode | done — 1/10 done this run; review settled at round 9 (51 fixed), adversary passes with 3 medium and 4 low advisory
+2026-10-27 11:37 | autopilot | — | rebased onto origin/main 3c6bd7c and force-pushed with lease (human approved); closure now accepts a rebased fix by its Settles line (507d029, human chose); resuming 0004-diagnose-rewrite with the human's call on f060 and f061
+2026-10-27 11:42 | execute | 0004-diagnose-rewrite | decision(D-36) — the human settles the round 10 stalemate: the blocked reason names the worktree's branch from `git worktree list`; with no owner record only the branch `create-worktree --name` would create is deleted, when it exists; review cap lifted to round 13
+2026-10-27 11:42 | execute | 0004-diagnose-rewrite | developing — f060 and f061 fixed in diagnose Phase 0 step 3
