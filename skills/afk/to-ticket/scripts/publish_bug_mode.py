@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -585,13 +586,18 @@ def _stored_name(path: Path) -> str:
         return path.name
     if path.name in names:
         return path.name
-    for name in names:
+    fold = _fold(path.name)
+    for name in sorted(names, key=lambda name: _fold(name) != fold):
         try:
             if os.path.samefile(path.parent / name, path):
                 return name
         except OSError:
             continue
     return path.name
+
+
+def _fold(name: str) -> str:
+    return unicodedata.normalize("NFC", name).casefold()
 
 
 def _slug(text: str) -> str:

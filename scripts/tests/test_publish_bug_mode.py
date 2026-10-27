@@ -956,13 +956,14 @@ def test_a_re_run_of_one_description_file_keeps_its_work_id(tmp_path):
     assert sorted(stub.issues) == ["1"] and stub.comments("1") == []
 
 
-def test_a_description_file_reached_through_another_case_keeps_its_work_id(tmp_path):
+def test_a_description_file_reached_through_another_case_keeps_its_work_id(tmp_path, monkeypatch):
     note = tmp_path / "docs" / "Export" / "DESCRIPTION.md"
     note.parent.mkdir(parents=True)
     note.write_text("Export drops the last row\n", encoding="utf-8")
     other = tmp_path / "docs" / "export" / "description.md"
     if not other.exists():
         pytest.skip("the file system tells letter case apart")
+    monkeypatch.setattr(mode.Path, "resolve", lambda self, strict=False: self.absolute())  # keeps typed case
     stub = StubGitHub()
     assert run(note, stub, GITHUB, tmp_path, description=True).code == 0
     again = run(other, stub, GITHUB, tmp_path, description=True)
@@ -982,3 +983,17 @@ def test_a_stored_name_is_read_from_its_folder_listing(tmp_path, monkeypatch):
     assert mode._stored_name(tmp_path / "export") == "Export"
     assert mode._stored_name(note) == "DESCRIPTION.md"
     assert mode._stored_name(tmp_path / "gone" / "x.md") == "x.md"
+
+
+def test_a_stored_name_with_no_listed_match_is_kept_as_typed(tmp_path, monkeypatch):
+    (tmp_path / "other.md").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(mode.os.path, "samefile", lambda a, b: False)
+    assert mode._stored_name(tmp_path / "typed.md") == "typed.md"
+
+
+def test_a_stored_name_prefers_its_own_spelling_over_a_hard_link(tmp_path, monkeypatch):
+    for name in ("0.md", "a.md", "\u00e9.md"):
+        (tmp_path / name).write_text("x", encoding="utf-8")
+    monkeypatch.setattr(mode.os.path, "samefile", lambda a, b: True)  # every entry is one file
+    assert mode._stored_name(tmp_path / "A.md") == "a.md"
+    assert mode._stored_name(tmp_path / "E\u0301.md") == "\u00e9.md"
