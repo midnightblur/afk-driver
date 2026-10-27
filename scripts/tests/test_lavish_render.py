@@ -210,13 +210,14 @@ def stop_browser(process):
 def dump_browser_dom(browser, url, profile, output):
     """Write the browser DOM to a file and bound every exit path."""
     command = [
-        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        browser, "--headless=new", "--disable-gpu",
         "--disable-background-networking", "--disable-component-update",
         "--disable-default-apps", "--disable-extensions", "--disable-sync",
         "--disable-crash-reporter", "--no-first-run", "--no-default-browser-check",
         "--virtual-time-budget=1500", "--user-data-dir=" + profile,
         "--dump-dom", url,
     ]
+    command.insert(1, "--do-not-de-elevate" if os.name == "nt" else "--no-sandbox")
     options = {
         "stdin": subprocess.DEVNULL,
         "stdout": output,
@@ -325,6 +326,22 @@ class RenderContract(unittest.TestCase):
                  "</script></body></html>")
         for _ in range(3):
             self.assertEqual(run_in_browser(probe), {"ok": True})
+
+    def test_browser_uses_platform_safe_sandbox_flags(self):
+        process = mock.Mock()
+        process.wait.return_value = 0
+        process.poll.return_value = 0
+        module = sys.modules[__name__]
+        with mock.patch.object(subprocess, "Popen", return_value=process) as popen, \
+                mock.patch.object(module, "WindowsBrowserJob"):
+            dump_browser_dom("browser", "http://artifact", "profile", io.BytesIO())
+        command = popen.call_args.args[0]
+        if os.name == "nt":
+            self.assertIn("--do-not-de-elevate", command)
+            self.assertNotIn("--no-sandbox", command)
+        else:
+            self.assertIn("--no-sandbox", command)
+            self.assertNotIn("--do-not-de-elevate", command)
 
     def test_browser_is_stopped_when_job_creation_fails(self):
         process = mock.Mock()

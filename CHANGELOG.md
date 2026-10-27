@@ -55,6 +55,8 @@ release page from its section here. Nobody tags by hand.
   accepted, and a nested `.git` file whose `gitdir:` points nowhere no longer
   fails placement. `git fetch` and `ls-remote` with `--upload-pack` or `--exec`
   and a `find` value after another predicate's value are now refused.
+- Inline rationale comments now resolve before their batch receipt is recorded.
+  A failed resolution stays pending and retries without another comment.
 
 ## [1.16.0] - 2026-10-20
 

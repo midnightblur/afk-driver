@@ -1678,6 +1678,14 @@ def rationale_scan(entries, trusted, rejected, label=False):
     return found, excluded
 
 
+def _rationale_threads(found):
+    result = {}
+    for thread, markers, _receipts in found:
+        for marker in markers:
+            result.setdefault(marker["op"], []).append(thread)
+    return result
+
+
 def pending_dir(cwd):
     git_dir = Path(_git(cwd, "rev-parse", "--absolute-git-dir").strip())
     return git_dir / "afk" / "rationale"
@@ -1919,13 +1927,23 @@ def _post_pending(cwd, adapter, args, branch, tracked, head, pending):
     if truncated:
         return _blocked("truncated", "the change comment list is truncated; cannot dedupe", change=change)
     found, _ = rationale_scan(entries, trusted, rejected)
-    posted_ops = {m["op"] for _e, markers, _r in found for m in markers}
+    posted_threads = _rationale_threads(found)
     receipts = [r for _e, _m, rs in found for r in rs]
     posted, skipped, failed = [], [], []
+    resolved_now = set()
     for entry in pending:
         op = entry["op"]
-        if op in posted_ops:
+        if op in posted_threads:
             skipped.append(op)
+            for thread in posted_threads[op]:
+                thread_id = str(thread.get("thread") or "")
+                if thread.get("resolved") or thread_id in resolved_now:
+                    continue
+                problem = _resolve_rationale_thread(adapter, change, thread_id)
+                if problem:
+                    failed.append({"op": op, "reason": problem})
+                else:
+                    resolved_now.add(thread_id)
             continue
         line = _retarget(cwd, head, entry) if entry["side"] == "new" else entry["line"]
         if line is None:
@@ -1949,11 +1967,17 @@ def _post_pending(cwd, adapter, args, branch, tracked, head, pending):
             failed.append({"op": op, "reason": answer.get("reason") or "inline position degraded; comment removed"})
             continue
         posted.append(op)
+        thread_id = str(answer.get("thread") or "")
+        problem = _resolve_rationale_thread(adapter, change, thread_id)
+        if problem:
+            failed.append({"op": op, "reason": problem})
+        else:
+            resolved_now.add(thread_id)
     result = {"ok": not failed, "durable": False, "change": change, "created_draft": created,
               "pending": len(pending), "posted": posted, "skipped": skipped, "failed": failed,
               "receipt": None}
     if failed:
-        result["reason"] = f"{len(failed)} of {len(pending)} comments not posted"
+        result["reason"] = f"{len(failed)} of {len(pending)} rationale operations not completed"
         return result
     ops = sorted(entry["op"] for entry in pending)
     batch = digest(ops)[:16]
@@ -1967,6 +1991,19 @@ def _post_pending(cwd, adapter, args, branch, tracked, head, pending):
     return result
 
 
+def _resolve_rationale_thread(adapter, change, thread):
+    if not thread:
+        return "the forge returned no thread id for the inline rationale comment"
+    try:
+        answer = adapter.call("thread-resolve", {
+            "id": change, "thread": thread, "resolved": True}, "write")
+    except LedgerError as error:
+        return str(error)
+    if answer.get("ok") is not True or answer.get("resolved") is not True:
+        return answer.get("reason") or "the forge did not confirm rationale thread resolution"
+    return None
+
+
 def command_rationale_verify(args, adapter):
     cwd = Path.cwd()
     branch, tracked = _branch_state(cwd)
@@ -1977,7 +2014,8 @@ def command_rationale_verify(args, adapter):
     if not pending:
         if args.clear:
             _clear_pending(cwd, [], branch)
-        return {"ok": True, "durable": True, "missing": [], "unreceipted": [], **base}
+        return {"ok": True, "durable": True, "missing": [], "unresolved": [],
+                "unreceipted": [], **base}
     try:
         return _verify_pending(cwd, adapter, args, branch, tracked, pending, base)
     except LedgerError as error:
@@ -1997,20 +2035,25 @@ def _verify_pending(cwd, adapter, args, branch, tracked, pending, base):
     change = args.change or _writable_change(adapter, tracked)
     if not change:
         return {"ok": False, "durable": False, "missing": [e["op"] for e in pending],
-                "unreceipted": [], "reason": "no writable change carries the pending rationale",
+                "unresolved": [], "unreceipted": [],
+                "reason": "no writable change carries the pending rationale",
                 **base}
     view = adapter.call("change-view", {"id": change})
     trusted, rejected = _trusted_set(adapter, args.trust, args.reject)
     entries, truncated = _fetch_entries(adapter, change)
     found, excluded = rationale_scan(entries, trusted, rejected)
-    posted = {m["op"] for _e, markers, _r in found for m in markers}
+    posted_threads = _rationale_threads(found)
+    posted = set(posted_threads)
     wanted = [e["op"] for e in pending]
     receipt = _valid_receipt([r for _e, _m, rs in found for r in rs], wanted, view["head_sha"], cwd)
     missing = [op for op in wanted if op not in posted]
+    unresolved = [op for op in wanted if op in posted and
+                  any(thread.get("resolved") is not True for thread in posted_threads[op])]
     unreceipted = [op for op in wanted if op in posted] if receipt is None else []
-    ok = not missing and not unreceipted and not truncated
+    ok = not missing and not unresolved and not unreceipted and not truncated
     result = {"ok": ok, "durable": ok, "change": change, "missing": missing,
-              "unreceipted": unreceipted, "excluded": excluded, **base}
+              "unresolved": unresolved, "unreceipted": unreceipted,
+              "excluded": excluded, **base}
     if truncated:
         result["reason"] = "the change comment list is truncated"
     if ok and args.clear:

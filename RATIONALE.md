@@ -52,10 +52,12 @@ the commit does, never the rationale.
 4. Post: `… rationale-post [--change <id>]`. It finds the change for the branch the
    local branch tracks, and opens a Draft change for the pushed branch when no writable
    change exists. It checks each target against the pushed head and diff, then posts
-   one inline comment per entry with `require_inline`. After every post succeeds it
-   posts one immutable batch receipt.
+   one inline comment per entry with `require_inline`, and resolves its thread. A retry
+   resolves an existing matching thread without posting a duplicate. After every post
+   and resolution succeeds it posts one immutable batch receipt.
 5. Verify: `… rationale-verify --clear`. It needs one receipt whose batch, count,
-   operation set, and head match the pending entries, and exits 2 otherwise.
+   operation set, and head match the pending entries. Every matching rationale thread
+   must also be resolved. It exits 2 otherwise.
    Only a passing verify allows the words "rationale is durable".
 6. Withdraw: `… rationale-drop --op <id> --reason <text>`. Use it for an entry whose
    line a later commit rewrote or deleted. Verify passes without a dropped entry
