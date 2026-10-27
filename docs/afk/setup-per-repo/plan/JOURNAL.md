@@ -50,3 +50,10 @@
 2026-10-27 14:20 | execute | 0003-repository-list | pushed 8891f99..4f50f63 (1 commits) — the first review round's fixes: removing a repository can no longer leave it listed without its folder marker, and the tests now catch the gaps the reviewers found
 2026-10-27 15:14 | execute | 0003-repository-list | decision(D-19) — if a remove cannot delete the short name's folder, the marker stays and a later remove of that name deletes it
 2026-10-27 15:14 | execute | 0003-repository-list | decision(D-20) — recorded what the earlier path-matching and submodule decisions narrow, and stopped pointing callers at a function the plan does not name
+2026-10-27 15:20 | execute | 0003-repository-list | pushed 8af71c5..5db975f (1 commits) — the second review round's fixes: a failed folder delete no longer breaks remove, and a later remove cleans up the leftover marker
+2026-10-27 15:30 | execute | 0003-repository-list | review advisory crit=0 high=1 med=5 low=3 (round 2) — one untested code path for submodule worktrees and eight smaller gaps; eight fixed in 5db975f, one withdrawn
+2026-10-27 15:55 | execute | 0003-repository-list | review advisory crit=0 high=0 med=1 low=2 (round 3) — a raw file-system error on remove and two test gaps; all three fixed in 2fe65cc
+2026-10-27 15:56 | execute | 0003-repository-list | pushed 5db975f..2fe65cc (1 commits) — the third review round's fixes are on the shared branch
+2026-10-27 16:05 | execute | 0003-repository-list | review clean (round 4) — the fourth review round found nothing; the review loop settled at 2fe65cc with two design notes left for the whole-feature review
+2026-10-27 16:05 | execute | 0003-repository-list | adversary findings crit=0 high=0 med=2 low=2 — an independent attack kept every race promise; a list read on Windows can fail while another process saves the list, and two bad inputs get through without a clear refusal; one medium finding was wrong, because entries do report a gone folder
+2026-10-27 16:11 | execute | 0003-repository-list | done — the repository list is built, reviewed, attacked and pushed; the pull request waits for the human
