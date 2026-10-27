@@ -554,10 +554,10 @@ print(json.dumps({"ok": bool(ident), "inline": inline,
 note-list)
   iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
   edits=$(note_edits_json "$iid")
-  glab api --paginate "projects/:id/merge_requests/$iid/notes?per_page=100&sort=asc&order_by=created_at" 2>/dev/null \
+  { printf '%s\n' "$edits"; glab api --paginate "projects/:id/merge_requests/$iid/notes?per_page=100&sort=asc&order_by=created_at" 2>/dev/null; } \
     | "$PY" -c "$PAGES"'
 import json, sys
-edits = json.loads(sys.argv[1])
+edits = json.loads(sys.stdin.readline())
 if "error" in edits:
     print(json.dumps({"error": True, "reason": edits["error"]}))
     raise SystemExit(0)
@@ -584,7 +584,7 @@ for n in data:
                   "edited": flag})
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
-' "$edits"
+'
   ;;
 
 commit-changes)
@@ -629,9 +629,10 @@ thread-list)
   iid=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
   change_url=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("web_url", ""))')
   edits=$(note_edits_json "$iid")
-  glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
+  { printf '%s\n' "$edits"; glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null; } \
+    | "$PY" -c "$PAGES"'
 import json, sys
-edits = json.loads(sys.argv[2])
+edits = json.loads(sys.stdin.readline())
 if "error" in edits:
     print(json.dumps({"error": True, "reason": edits["error"]}))
     raise SystemExit(0)
@@ -671,7 +672,7 @@ for d in data if isinstance(data, list) else []:
     })
 threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), str(t["id"] or "")))
 print(json.dumps({"threads": threads, "count": len(threads)}))
-' "$change_url" "$edits"
+' "$change_url"
   ;;
 
 thread-reply)
