@@ -216,3 +216,17 @@
 - Chosen: (a) the configured value is often a transition id, and no answer from the ticket ties that id to a state name, so "already in that state" holds only for a state of that name; the refusal now says to re-run without `--in-review` when the ticket is already in review. (b) a given key is put in the tracker's spelling (Jira upper case, GitHub the issue number) and, when it names the recorded ticket, takes the recorded spelling, so `#5` and `5` are one ticket. (c) the description work id is `{slug(folder)}_{slug(file stem)}`: a slug holds only `a-z0-9-`, so `_` cannot occur inside either half, a name with a space is filed, and two folders no longer join alike.
 - Supersedes: D-29 (b), for the description work id format only; BUG-MODE.md "unless the ticket is already in that state"
 - To reverse: revert the `key_of` field, the work id line and the refusal text in `publish_bug_mode.py`
+
+## D-32 — D-30's out-of-Scope edits widened by round 2
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 3)
+- Options: revert the round 2 edits to `outside_writes.py` and its tests vs record them
+- Chosen: record them. Round 2 found that `replace_text(tries=0)` returned without writing and left its temporary file, and that the retry tests did not pin the pause or the default bound. The fix makes the swap always try at least once and adds a third test, and the two D-30 tests now assert the pauses and the default 20 tries. These edits touch only the helper D-30 already moved out of Scope, and change no caller's behaviour: both callers use the default.
+- Supersedes: D-30 "two tests only" and "rename and retry only", for `skills/utils/diagnose/scripts/outside_writes.py` (the at-least-once bound) and `scripts/tests/test_outside_writes.py` (three tests)
+- To reverse: drop the `max(tries, 1)` bound and the third test
+
+## D-33 — a description work id carries a hash of its exact names
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 3)
+- Options: refuse a folder or file name the slug would change vs add a short hash of the exact names to the slugs
+- Chosen: the hash. The id is `{slug(folder)}_{slug(file stem)}-{first 8 hex of sha1 of "folder/file name"}`, so names that slug alike (case, spaces, `_`, `.`, or no ASCII letters at all) still get distinct ids, and no name is refused. A re-run of the same file gets the same id; a renamed file gets a new one. A `--key` that names no ticket once put in the tracker's spelling (`#`) is refused. `run_bug_mode` looks the folder resolver up at call time, so a test can replace it for the command line too.
+- Supersedes: D-31 (c)
+- To reverse: drop the digest from the work id line in `publish_bug_mode.py`

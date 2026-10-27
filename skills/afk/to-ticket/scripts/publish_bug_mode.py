@@ -22,6 +22,7 @@ Exit: 0 written, or a dry run; 1 refused or not confirmed, nothing written;
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -296,13 +297,14 @@ def run_bug_mode(source, *, description: bool = False, ticket_type: str | None =
                  fix_version: str | None = None, proof: tuple = (), in_review: bool = False,
                  consent: str | None = None, dry_run: bool = False, yes: bool = False,
                  tracker=None, kind: str | None = None, config: dict | None = None,
-                 resolve: Callable[[str], str | None] = _resolve_folder,
+                 resolve: Callable[[str], str | None] | None = None,
                  confirm: Callable[[str], bool] = _confirm,
                  sleep: Callable[[float], None] = time.sleep) -> Result:
     """Diagnosis path, or description file, plus an optional type and key ->
     the `TICKET: <key> <link>` line of the ticket created or updated."""
     lines: list[str] = []
     plan = None
+    resolve = resolve or _resolve_folder
     try:
         source = Path(source)
         if not source.is_file():
@@ -376,7 +378,9 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
                in_review, assignee) -> Plan:
     """Every check that can refuse, before any write."""
     if description:
-        work_id = f"{_slug(source.resolve().parent.name)}_{_slug(source.stem)}"
+        folder = source.resolve().parent.name
+        digest = hashlib.sha1(f"{folder}/{source.name}".encode("utf-8")).hexdigest()[:8]
+        work_id = f"{_slug(folder)}_{_slug(source.stem)}-{digest}"
         recorded, text = "", source.read_text(encoding="utf-8").strip()
         if not text:
             raise Refused(f"the description file {source} is empty")
@@ -409,6 +413,8 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
             raise Refused(f"no such proof file: {path}")
 
     given = run.kind.key_of(str(key)) if key else ""
+    if key and not given:
+        raise Refused(f"`--key {key}` names no ticket")
     if given and recorded and given == run.kind.key_of(recorded):
         given = recorded
     target_key = given or recorded
@@ -853,7 +859,7 @@ def main(argv=None) -> int:
                           ticket_type=args.ticket_type, key=args.key, summary=args.summary,
                           fix_version=args.fix_version, proof=tuple(args.proof),
                           in_review=args.in_review, consent=args.consent,
-                          dry_run=args.dry_run, yes=args.yes, resolve=_resolve_folder)
+                          dry_run=args.dry_run, yes=args.yes)
     for line in result.lines:
         print(line)
     return result.code

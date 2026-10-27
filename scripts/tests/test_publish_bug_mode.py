@@ -5,6 +5,7 @@ Each stub keeps the tickets it was asked to write, so a test asserts both the
 payloads and what a re-run finds. Nothing here opens a socket or runs `gh`.
 """
 
+import hashlib
 import json
 import os
 import shutil
@@ -154,6 +155,12 @@ class StubJira(Stub):
 
 
 class StubGitHub(Stub):
+    def call(self, operation, payload):
+        """Every key spelling the adapter accepts names the issue number, as `_number` does."""
+        if "ticket_key" in payload:
+            payload = dict(payload, ticket_key=str(payload["ticket_key"]).rsplit("#", 1)[-1])
+        return super().call(operation, payload)
+
     LABELS = ("bug", "enhancement", "status:in-review")
 
     def __init__(self, labels=LABELS):
@@ -329,7 +336,7 @@ def test_a_description_file_creates_a_ticket_with_its_text_and_no_comment(tmp_pa
     result = run(note, stub, GITHUB, tmp_path, description=True)
     assert result.code == 0, result.lines
     body = stub.issues["1"]["payload"]["description"]
-    assert "Seen on the grid page." in body and "afk-evidence adhoc-export_description ticket" in body
+    assert "Seen on the grid page." in body and f"afk-evidence adhoc-export_description-{_digest('adhoc-export', 'DESCRIPTION.md')} ticket" in body
     assert stub.issues["1"]["payload"]["summary"] == "Export drops the last row"
     assert stub.writes("tracker_comment") == [] and note.is_file()
 
@@ -711,10 +718,15 @@ def test_two_proof_files_with_one_name_upload_under_two_names(tmp_path):
         (tmp_path / sub / "run.png").write_bytes(sub.encode())
     path = diagnosis(tmp_path, **{"Ticket key": "3"})
     proof = (("P-1", str(tmp_path / "a" / "run.png")), ("P-1", str(tmp_path / "b" / "run.png")))
+    sent, real = {}, stub.tracker_attach
+
+    def keep(p):
+        sent.update({os.path.basename(f): Path(f).read_bytes() for f in p["files"]})
+        return real(p)
+
+    stub.tracker_attach = keep
     assert run(path, stub, GITHUB, tmp_path, proof=proof).code == 0
-    attach = [p for op, p in stub.calls if op == "tracker_attach"][0]
-    assert [os.path.basename(f) for f in attach["files"]] == [
-        f"{WORK}-p-1-proof-run.png", f"{WORK}-p-1-proof-run-2.png"]
+    assert sent == {f"{WORK}-p-1-proof-run.png": b"a", f"{WORK}-p-1-proof-run-2.png": b"b"}
 
 
 def test_a_jira_file_stored_differently_is_named_in_a_note(tmp_path):
@@ -849,30 +861,42 @@ def test_a_description_file_name_with_a_space_is_filed(tmp_path):
     note.write_text("Export drops the last row\n", encoding="utf-8")
     result = run(note, stub, GITHUB, tmp_path, description=True)
     assert result.code == 0, result.lines
-    assert "afk-evidence adhoc_bug-report ticket" in stub.issues["1"]["body"]
+    marker = f"afk-evidence adhoc_bug-report-{_digest('adhoc', 'bug report.md')} ticket"
+    assert marker in stub.issues["1"]["body"]
 
 
-def test_description_files_whose_folder_and_name_join_alike_file_two_tickets(tmp_path):
+def _digest(folder, name):
+    return hashlib.sha1(f"{folder}/{name}".encode("utf-8")).hexdigest()[:8]
+
+
+@pytest.mark.parametrize("pair", [
+    (("export", "bug-x.md"), ("export-bug", "x.md")),
+    (("export", "Bug Report.md"), ("export", "bug_report.md")),
+    (("Export Bug", "x.md"), ("export-bug", "x.md")),
+    (("\u65e5\u672c", "\u30e1\u30e2.md"), ("\u4e2d\u6587", "\u7b14\u8bb0.md"))],
+    ids=["folder-and-name-join-alike", "names-slug-alike", "folders-slug-alike", "no-ascii-letters"])
+def test_two_description_files_whose_names_slug_alike_file_two_tickets(tmp_path, pair):
     stub = StubGitHub()
-    for folder, name in (("export", "bug-x.md"), ("export-bug", "x.md")):
+    for folder, name in pair:
         note = tmp_path / "docs" / folder / name
-        note.parent.mkdir(parents=True)
+        note.parent.mkdir(parents=True, exist_ok=True)
         note.write_text("Export drops the last row\n", encoding="utf-8")
         assert run(note, stub, GITHUB, tmp_path, description=True).code == 0
     assert sorted(stub.issues) == ["1", "2"]
 
 
-@pytest.mark.parametrize("stub_cls, config, recorded, given", [
-    (StubGitHub, GITHUB, "5", "#5"), (StubJira, JIRA, "PROJ-5", "proj-5")])
+@pytest.mark.parametrize("stub_cls, config, stored, recorded, given", [
+    (StubGitHub, GITHUB, "5", "5", "#5"), (StubJira, JIRA, "PROJ-5", "PROJ-5", "proj-5"),
+    (StubGitHub, GITHUB, "5", "#5", "5")])
 def test_the_recorded_ticket_in_another_spelling_is_the_same_ticket(tmp_path, stub_cls, config,
-                                                                    recorded, given):
+                                                                    stored, recorded, given):
     stub = stub_cls()
-    stub.add(recorded)
+    stub.add(stored)
     path = diagnosis(tmp_path, **{"Ticket key": recorded})
     assert run(path, stub, config, tmp_path).code == 0
     again = run(path, stub, config, tmp_path, key=given)
     assert again.code == 0, again.lines
-    assert len(stub.comments(recorded)) == 1
+    assert len(stub.comments(stored)) == 1
     assert "ticket:" not in part(path, "Outside writes")
 
 
@@ -890,3 +914,20 @@ def test_a_created_ticket_keys_its_proof_on_its_key_before_any_move(tmp_path):
     assert again.code == 0, again.lines
     assert stub.attachments["PROJ-1"] == ["PROJ-1-p-1-proof-shot.png"]
     assert len(stub.comments("PROJ-1")) == 2
+
+
+@pytest.mark.parametrize("key", ["#", "owner/repo#"])
+def test_a_given_key_that_names_no_ticket_is_refused(tmp_path, key):
+    stub = StubGitHub()
+    result = run(diagnosis(tmp_path), stub, GITHUB, tmp_path, key=key)
+    assert result.code == 1 and "names no ticket" in result.lines[-1]
+    assert stub.writes() == []
+
+
+def test_the_command_line_moves_a_created_ticket_s_folder(tmp_path, monkeypatch, capsys):
+    stub = StubGitHub()
+    _github_config(tmp_path, monkeypatch, stub)
+    path = diagnosis(tmp_path)
+    code = mode.main(["--diagnosis", str(path), "--consent", "person", "--yes"])
+    assert code == 0, capsys.readouterr().out
+    assert (tmp_path / "docs" / "1" / "DIAGNOSIS.md").is_file() and not path.exists()

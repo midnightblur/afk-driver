@@ -68,3 +68,4 @@
 2026-10-27 06:35 | execute | 0005-bug-mode | reviewing — round 1: 1 high, 12 medium, 8 low; 20 fixed, 1 medium design finding deferred to the feature gate; decision(D-28) — two one-line edits outside Scope; decision(D-29) — created ticket's in-review match runs after the create, markers keyed on the created key
 2026-10-27 06:50 | execute | 0005-bug-mode | reviewing — decision(D-30) — a Windows-held diagnosis file made the swap fail one run in five; the shared swap now retries
 2026-10-27 07:55 | execute | 0005-bug-mode | reviewing — round 2 (delta): 5 medium, 5 low; all 10 fixed; decision(D-31) — in-review means a state of that name, keys in the tracker's spelling, description work id from two slugs
+2026-10-27 08:40 | execute | 0005-bug-mode | reviewing — round 3 (delta): 3 medium, 3 low; all 6 fixed; decision(D-32) — D-30's helper edits widened; decision(D-33) — description work id carries a hash of its exact names
