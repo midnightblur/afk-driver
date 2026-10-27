@@ -62,3 +62,31 @@
 - Chosen: (a) after create, answered as `status_warning` — Jira lists transitions per issue, so none exist to check before the issue does; `tracker_transition`, the in-review move, checks before its write. (b) one `gh repo view --json viewerPermission`; READ, TRIAGE or NONE marks every file unsupported. (c) refuse the whole call before any write, so a proof comment is never posted half-filled. (d) the image and video types only; every other file is named in the comment.
 - Supersedes: none
 - To reverse: (a) read the project's workflow statuses before create; (c) attach the files that exist and name the missing ones
+
+## D-10 — how the diagnose slice's ground is re-taken when the scripted check cannot finish
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 4)
+- Options: wait on the scripted seed map over INV-022's six roots vs diff the files INV-022 cites for both seams against its head
+- Chosen: diff the cited files. The seed map over INV-022's roots and declared aliases (`diagnose`, `grill-requirements`, `grill-solution`, `skills/afk/fix`, `/fix`, `afk-toolkit:fix`) ran 25 minutes without an answer and was stopped; inferred cause: the same hit growth D-4 and D-5 record. `git diff d346cfb..HEAD` over the cited files: the diagnose skill, the fix skill, both grill skills, `GRILL-LOG-FORMAT.md`, `to-sdd/SKILL.md` and `test_skill_frontmatter.py` are unchanged; `BEHAVIORS.md` only gained the `ci-parity-before-push` row, so line 47 still names the "Phase 2.5 — Trace the path" doctrine home; `behavior_registry.py` still refuses a missing doctrine section and a row changed without a revision bump. The ground held.
+- Supersedes: none
+- To reverse: run /afk:investigate Q3 on the two seam symbols at the current head and re-plan from its ledger
+
+## D-11 — where diagnose works, and how a caller with no person present answers the starting-branch question
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 5)
+- Options: (a) diagnose always cuts its own worktree vs an invoker may hand over a worktree it already cut for the bug in owned mode; (b) with no person present and no answer, start from the base branch vs end `blocked`
+- Chosen: (a) an invoker may hand one over, and its branch is the Diagnosis branch; otherwise diagnose cuts one with `create-worktree --name <work id, lower-cased> --base <Base>`. SDD §7 has the out-of-slice caller cut the second worktree and then run diagnose in it, and §4 has `/afk:fix` retire the diagnosis worktree, so a caller-cut worktree must be usable. (b) `blocked`, and an invoker may give the answer up front: §3 makes the starting branch a question and lists `blocked` for missing input; a guessed base would put the failing test on the wrong code.
+- Supersedes: none (closes a case SDD §3 leaves open)
+- To reverse: drop the handed-worktree sentence and the up-front answer from diagnose Phase 0 steps 4 and 5
+
+## D-12 — what "before any tracker or forge call" binds for diagnose, and the size-call bar
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 5)
+- Options: (a) read PRD AC-008 as every tracker call, so diagnose writes a file before it reads the ticket, vs every tracker or forge write, with the ticket read as input validation; (b) leave "still small" to the grill's judgement vs give it a bar
+- Chosen: (a) every write: SDD §3 makes the input "a ticket key the tracker returns", which needs the read before any file, and §3 also says diagnose writes nothing when its input is missing. Diagnose itself makes no write, and the file is on disk before any writer runs. (b) a bar in the size-call file: still small is one change to existing behaviour that one `/afk:fix` run can make test-first, with no new requirement past the settled answer, no new or changed public contract, no persisted-data change and no decision that needs a design record; anything else is too big. G-1 names the two routes and no test between them.
+- Supersedes: none
+- To reverse: (a) write the diagnosis skeleton before `tracker_get`; (b) drop the bar and let the grill judge
+
+## D-13 — how `/afk:fix` applies the proposal until its rewrite lands
+- 2026-10-26 · decided by execute (0004-diagnose-rewrite, Step 5)
+- Options: leave `/afk:fix` delegating the fix to diagnose until slice 0008 vs fix applies the diagnosis's proposal itself now
+- Chosen: fix applies it now, the smallest change that keeps every caller working: run diagnose (a light diagnosis when the caller holds the reproduction), read the verdict, and for V-1 bring the diagnosis's failing test into the checkout the bug is fixed in and apply the proposal test-first. A feature-building session fixes in its own worktree, starting diagnose from the branch tip; any other session fixes in the diagnosis worktree. V-2, V-3 and V-4 stop with no code change as `blocked`, V-5 as `cannot_reproduce`, because the fix's status set and its approval step belong to slice 0008.
+- Supersedes: none
+- To reverse: slice 0008 rewrites the fix skill whole

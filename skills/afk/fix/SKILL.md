@@ -9,7 +9,7 @@ description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportion
 
 Run when a bug surfaces — typically a feature's **verification phase** (agent- or human-found), or ad-hoc on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the follow-up to a red feature smoke gate.
 
-`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
+`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
 `fix` does **not** commit, push, or merge — see Hard rules.
 
@@ -26,20 +26,23 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
 
-## Phase 1 — Diagnose (delegate, do not duplicate)
+## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
-Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop (failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked hypotheses, instrumentation, the fix, the **seam-level regression test**, cleanup + post-mortem.
-
-- Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
-- Diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
+1. Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). A finding already in hand — a red tier, a review or adversary finding — asks for a light diagnosis that reuses it as the reproduction. In a feature-building session (Phase 0), answer diagnose's starting-branch question with this branch's tip.
+   - Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
+2. Diagnose ends with `DIAGNOSIS: <verdict> <path>`. Route on the verdict:
+   - V-1 obvious fix → step 3.
+   - V-2 several fixes, V-3 spec gap, V-4 works as specified → stop with no code change; report `blocked` naming the verdict and the diagnosis path. A V-3 or a wrong binding design decision in a feature session also routes per Phase 3.
+   - V-5 cannot reproduce → stop; report `cannot_reproduce` with the diagnosis's Attempts.
+3. **Fix test-first** (`/afk:tdd`) in the checkout the bug is fixed in: this worktree in a feature-building session, else the diagnosis worktree. Bring in the diagnosis's failing test first (`git checkout <Diagnosis branch> -- <test path>` when it is not there), watch it fail, apply the Fix proposal, watch it pass. A light diagnosis's reused check plays the failing test's part.
 
 Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
-Exit gate: root cause known, fix applied, seam regression test green (or seam-absence explicitly documented per diagnose Phase 5).
+Exit gate: verdict V-1, the Fix proposal applied, the diagnosis's failing test green (or the seam absence the diagnosis records in Root cause).
 
 ## Phase 2 — Broaden coverage (proportional)
 
-Diagnose gave you the seam regression test. Decide whether a **higher tier** is warranted. Add the **lowest tier that reproduces the bug pattern at its right home** — don't gold-plate.
+The diagnosis's failing test is the seam regression test. Decide whether a **higher tier** is warranted. Add the **lowest tier that reproduces the bug pattern at its right home** — don't gold-plate.
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -52,7 +55,7 @@ Tiers are the standard set: `static → unit → integration → api → e2e/bro
 
 **Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). Standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
 
-**Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
+**Verify:** re-run the diagnosis's reproduction plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
 ## Phase 2.5 — Escape analysis
 
@@ -109,4 +112,4 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
 - **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).
-- Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted (diagnose Phase 6).
+- Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted.

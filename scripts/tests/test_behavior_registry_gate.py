@@ -68,3 +68,32 @@ def test_behavior_gate_passes_blocks_and_disables(tmp_path: pathlib.Path) -> Non
 def test_plugin_source_runner_dispatches_behavior_registry() -> None:
     runner = (ROOT / "hooks" / "plugin-source-gates.sh").read_text(encoding="utf-8")
     assert 'GATES="skill-registry native-contract genericity behavior-registry"' in runner
+
+
+def diagnose_doctrine_problems(text: str) -> list[str]:
+    problems = []
+    if "\n## Phase 2.5 — Trace the path\n" not in text:
+        problems.append("doctrine heading missing")
+    description = next((line for line in text.splitlines() if line.startswith("description:")), "")
+    for promise in ("fix →", "regression-test", "regression test"):
+        if promise in description:
+            problems.append(f"description promises {promise!r}")
+    for removed in ("Phase 5 — Fix", "Phase 6 reports"):
+        if removed in text:
+            problems.append(f"names removed text {removed!r}")
+    return problems
+
+
+def test_diagnose_keeps_its_doctrine_home_and_promises_no_fix() -> None:
+    text = (ROOT / "skills" / "utils" / "diagnose" / "SKILL.md").read_text(encoding="utf-8")
+    assert diagnose_doctrine_problems(text) == []
+
+
+def test_the_diagnose_pin_catches_a_fixing_description() -> None:
+    fixing = (
+        "---\nname: diagnose\n"
+        'description: "Disciplined diagnosis loop: reproduce → fix → regression-test."\n'
+        "---\n\n## Phase 2.5 — Trace the path\n\nPhase 6 reports it.\n"
+    )
+    assert len(diagnose_doctrine_problems(fixing)) == 3
+    assert diagnose_doctrine_problems(fixing.replace("## Phase 2.5", "## Phase 2.6"))[0] == "doctrine heading missing"

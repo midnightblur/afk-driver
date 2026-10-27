@@ -50,6 +50,16 @@ release page from its section here. Nobody tags by hand.
 
 ### Changed
 
+- `/afk:diagnose` no longer fixes. It reproduces the bug with a failing test,
+  compares it with the specs, names the root cause and writes `DIAGNOSIS.md`
+  with a verdict and a fix proposal, working in its own worktree on a local
+  branch it never pushes. It ends with `DIAGNOSIS: <verdict> <path>` and, run
+  alone, offers `/afk:fix`. `/afk:fix` now applies the proposal test-first.
+  Migration: a caller that relied on diagnose to fix runs `/afk:fix` instead.
+- `/afk:grill-requirements` and `/afk:grill-solution` accept a `DIAGNOSIS.md`
+  and end with a size call (`skills/afk/grill-requirements/SIZE-CALL.md`),
+  recorded as a size-call row in their grill-log section: a still-small bug
+  goes back to `/afk:fix`, a bigger one into the full chain.
 - Jira `tracker_create` and `tracker_comment` send Markdown as formatted text
   (Atlassian Document Format headings, lists, code blocks and links), not one
   plain paragraph.

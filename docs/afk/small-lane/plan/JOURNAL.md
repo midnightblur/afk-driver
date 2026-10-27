@@ -38,3 +38,6 @@
 2026-10-26 10:30 | execute | 0003-tracker-attach | adversary — findings, high=1 med=2 low=4 (D-3 runtime probe); F1 (Windows gh body not UTF-8, hang) and F3 fixed in 297ef3c; review r6 — 2 test findings fixed in 396d378; r7 clean; review gate settled (closure ok at round 7, 25 findings, all fixed)
 2026-10-26 10:30 | execute | 0003-tracker-attach | adversary pass 2 — findings, crit=0 high=0 med=4 low=5; gate passes; position pairing waits on the 0011 live check, the rest advisory; rationale receipt sealed
 2026-10-26 10:30 | execute | 0003-tracker-attach | done
+2026-10-26 22:11 | autopilot | — | run start — 10 subtasks left (0004-0011, 0013, 0012); 0004 runnable now; no app to boot (D-3), tests run focused locally and in full in CI (human instruction)
+2026-10-26 22:42 | execute | 0004-diagnose-rewrite | designing — ground for INV-022 held, re-read by hand (decision(D-10)); no rationale notes on the edited lines
+2026-10-26 22:42 | execute | 0004-diagnose-rewrite | decision(D-11) — an invoker may hand diagnose a worktree; no person and no starting-branch answer ends blocked; decision(D-12) — AC-008 binds writes, size-call bar; decision(D-13) — fix applies the proposal test-first until its rewrite
