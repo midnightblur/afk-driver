@@ -104,3 +104,24 @@
 - Chosen: B — INV-023's ground moved (review fixes in `scripts/safe_write.py`, `scripts/tests/test_safe_write.py`, `scripts/tests/test_install_block.py`); the fresh run at f53fef5 is `closed-with-frontier`, and no claim it makes contradicts SDD §8 row "safe writer" or ADR-0005 (design); its claim that `update_locked` puts a lock file beside every file it writes is the ground of D-13. Its ledger stays in the run's scratch folder (named in the slice's outcome report): the native contract gate's check K matches a provider helper's file name inside the name of that helper's unit test, which the seed map lists as a site, and refuses the ledger
 - Supersedes: the `## Seams` row of `plan/0003-repository-list.md` citing INV-010 — this slice stands on the fresh run
 - To reverse: run `/afk:investigate` on the INV-010 question at the branch head and publish it in the spec folder once check K skips ledger text
+
+## D-16 — Find an entry by path text alone; a caller resolves a far worktree first
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — `find_entry` reads a worktree's `.git` pointer to reach its main checkout vs B — `find_entry` matches path text against the list file alone (the main checkout, or `<root>/<shortName>` when the root is passed); a worktree elsewhere finds nothing until the caller passes `main_checkout(path)`
+- Chosen: B — the Acceptance bullet "Finding the entry for a path reads only the list file" (PRD §Session scope AC-080) forbids reading a pointer file; worktrees setup makes sit under `<root>/<shortName>`, and ADR-0002 (design) lets placement start git for an unusual layout
+- Supersedes: the Goal of `plan/0003-repository-list.md` "finds the entry for any path (main checkout, worktree, subfolder)" — narrowed to worktrees inside the main checkout or under `<root>/<shortName>`
+- To reverse: resolve a worktree's `.git` pointer in `find_entry` of `scripts/repo_list.py` and drop the list-file-only test
+
+## D-17 — Refuse a trailing dot and a device name as a short name on Windows only
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — keep SDD §4's set alone (letters, digits, dot, dash, underscore) vs B — also refuse, on Windows only, a name ending in a dot and a device name (`CON`, `NUL`, `COM1`, ...), and refuse `.` and `..` everywhere
+- Chosen: B — Windows drops a trailing dot from a folder name and opens a device for a device name, so the marker would land in another folder or fail; `.` and `..` name no new folder
+- Supersedes: SDD §4 `entry.shortName` "one folder name: letters, digits, dot, dash, underscore" — narrowed on Windows
+- To reverse: drop the trailing-dot and device-name checks in `_check_short_name` of `scripts/repo_list.py`
+
+## D-18 — Take a submodule's working folder as its main checkout
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — store the folder `git worktree list` names first, which is the git folder (`.git/modules/<name>`) for a submodule and for a clone made with a separate git folder vs B — when that folder holds no `.git`, take its `core.worktree`, else the top level of the path's own checkout when the path is that checkout, else refuse
+- Chosen: B — A stores a git folder as a main checkout, against the Acceptance bullet "a path to a worktree or a subfolder adds that worktree's main checkout"; git cannot name the main checkout of a separate git folder from its linked worktree, so that one case is refused with its reason
+- Supersedes: none
+- To reverse: drop `_apart_main` from `scripts/repo_list.py`

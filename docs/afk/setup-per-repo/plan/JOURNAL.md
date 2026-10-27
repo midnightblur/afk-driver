@@ -42,3 +42,8 @@
 2026-10-27 11:30 | execute | 0003-repository-list | pushed f53fef5..aa2d5e7 (1 commits) — the list module, its tests and two decision records are on the shared branch
 2026-10-27 11:30 | execute | 0003-repository-list | verifying — running the repository checks, the list tests on Windows and Linux, and the end-to-end hook run
 2026-10-27 11:43 | execute | 0003-repository-list | decision(D-15) — re-checked the shared writer this slice uses with a fresh code study, because its code changed since the last study; nothing in it conflicts with the design; the study stays outside the repository because a repository check misreads it
+2026-10-27 11:48 | execute | 0003-repository-list | pushed aa2d5e7..8891f99 (1 commits) — Windows device names are now refused as short names, and the code-study decision is recorded
+2026-10-27 11:48 | execute | 0003-repository-list | reviewing — every check is green; independent reviewers now read the change
+2026-10-27 12:28 | execute | 0003-repository-list | decision(D-16) — finding a repository by path stays a text match on the list file; a worktree placed far away is found by first asking git for its main checkout
+2026-10-27 12:28 | execute | 0003-repository-list | decision(D-17) — a short name ending in a dot, or a reserved device name, is refused on Windows only
+2026-10-27 12:28 | execute | 0003-repository-list | decision(D-18) — adding a submodule now lists its working folder, not the hidden git folder git names first
