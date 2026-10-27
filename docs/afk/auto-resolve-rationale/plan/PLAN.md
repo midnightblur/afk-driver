@@ -21,7 +21,7 @@ flowchart LR
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-resolve-rationale-threads | Resolve rationale threads | done | — | static, unit | — |
-| 2 | 0002-sync-harness | Sync harness | pending | 0001-resolve-rationale-threads | static | — |
+| 2 | 0002-sync-harness | Sync harness | developing | 0001-resolve-rationale-threads | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`.
