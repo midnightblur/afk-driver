@@ -8,9 +8,11 @@ the file, calls `transform(current_text)`, and writes back the text it returns
 through a temp file and one replace. A missing file reads as "". It refuses
 with `SafeWriteError` naming the file when the lock stays held past
 `LOCK_WAIT_SECONDS`, when the file changed between the read and the write,
-when a busy replace on Windows outlasts `SWAP_RETRIES` retries, or when no
-free temp file name turns up. A refusal or failure deletes the temp file, also
-a read-only one, and leaves the file unchanged. The written file
+when a busy replace on Windows outlasts `SWAP_RETRIES` retries, when the file
+is read-only on Windows (refused at once, no retry), or when no free temp file
+name turns up. A refusal or failure leaves the file unchanged and deletes the
+temp file where the OS allows; a failed delete never hides the error. The
+written file
 keeps its previous mode; `owner_only=True` sets read and write for its owner
 alone, also on an unchanged file. Returns False and writes nothing when the
 text did not change.
@@ -171,11 +173,13 @@ def _open_temporary(
 
 
 def _discard(temporary: pathlib.Path) -> None:
-    try:
-        temporary.unlink(missing_ok=True)
-    except PermissionError:
-        os.chmod(temporary, stat.S_IREAD | stat.S_IWRITE)
-        temporary.unlink(missing_ok=True)
+    # A cleanup error must never replace the refusal or failure being raised.
+    with contextlib.suppress(OSError):
+        try:
+            temporary.unlink(missing_ok=True)
+        except PermissionError:
+            os.chmod(temporary, stat.S_IREAD | stat.S_IWRITE)
+            temporary.unlink(missing_ok=True)
 
 
 def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.Path, expected: bytes) -> None:
@@ -186,6 +190,8 @@ def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.P
         except PermissionError as exc:
             if not _RETRY_BUSY_SWAP:
                 raise
+            if not os.access(write_target, os.W_OK):
+                raise SafeWriteError("is read-only", target) from exc
             if attempt == SWAP_RETRIES:
                 raise SafeWriteError("file swap stayed busy", target) from exc
         time.sleep(SWAP_RETRY_SECONDS)

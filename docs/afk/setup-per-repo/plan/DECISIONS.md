@@ -48,3 +48,10 @@
 - Chosen: B — `/afk:investigate` is the single writer of a ledger; the old `main()` (`git show 288b4b3:skills/afk/setup/scripts/install_block.py`, lines 334 and 359) already caught `OSError`, so a busy swap exited 2 before the slice too; the only caller-visible change is up to 10 retries at 50 ms and the message `target file swap stayed busy: <path>`
 - Supersedes: INV-023 `REPORT.md` "instead of a traceback (exit 1)"
 - To reverse: none needed; a fresh `/afk:investigate` run would carry the corrected line
+
+## D-8 — Refuse a read-only file at once on Windows
+- 2026-10-27 · decided by /afk:execute (0001-safe-writer)
+- Options: A — treat a denied replace onto a read-only file as a busy swap (10 retries, "file swap stayed busy") vs B — refuse it at once as "is read-only", naming the file
+- Chosen: B — SDD §7's retry row covers a busy swap; a read-only file is a permanent denial no retry clears, and A gave the user the wrong cause; the error type, the unchanged file and the installer's exit code stay as SDD §7 and ADR-0005 state
+- Supersedes: none (narrows SDD §7 "file swap busy on Windows" to busy files)
+- To reverse: drop the `os.access` check in `_swap` of `scripts/safe_write.py`

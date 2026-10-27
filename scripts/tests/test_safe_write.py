@@ -283,17 +283,11 @@ def test_the_temp_file_descriptor_is_closed_exactly_once(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
     events = track_descriptors(monkeypatch)
-    handles = []
-    real_fdopen = os.fdopen
-
-    def fdopen(*args, **kwargs):
-        handles.append(real_fdopen(*args, **kwargs))
-        return handles[-1]
-
-    monkeypatch.setattr(sw.os, "fdopen", fdopen)
     assert sw.update_locked(target, lambda text: "after") is True
-    assert len(handles) == 1 and handles[0].closed
+    temp_descriptor = next(number for kind, path, number in events if kind == "open" and path.endswith(".tmp"))
     assert temp_descriptor_closes(events) == 0
+    with pytest.raises(OSError):
+        os.fstat(temp_descriptor)
 
 
 def test_the_temp_file_descriptor_is_closed_when_the_handle_never_opens(tmp_path, monkeypatch):
@@ -328,7 +322,7 @@ def test_a_new_file_is_created_without_touching_the_umask(tmp_path, monkeypatch)
 
 @pytest.mark.skipif(os.name == "nt", reason="the umask shapes file modes only on Linux and macOS")
 def test_a_new_file_takes_the_default_mode_under_the_process_umask(tmp_path, monkeypatch):
-    previous = os.umask(0o027)
+    previous = os.umask(0o002)
     try:
         forbid_umask(monkeypatch)
         target = tmp_path / "created.txt"
@@ -336,7 +330,7 @@ def test_a_new_file_takes_the_default_mode_under_the_process_umask(tmp_path, mon
     finally:
         monkeypatch.undo()
         os.umask(previous)
-    assert target.stat().st_mode & 0o777 == 0o640
+    assert target.stat().st_mode & 0o777 == 0o664
 
 
 def collide(monkeypatch, names):
@@ -369,15 +363,51 @@ def test_no_free_temp_file_name_refuses_naming_the_file(tmp_path, monkeypatch):
     assert temps(tmp_path) == [taken]
 
 
+def test_no_free_temp_file_name_names_the_symlink_the_caller_passed(tmp_path, monkeypatch):
+    real = tmp_path / "real.txt"
+    real.write_bytes(b"before")
+    link = tmp_path / "link.txt"
+    try:
+        link.symlink_to(real)
+    except OSError:
+        pytest.skip("this account cannot create symlinks")
+    collide(monkeypatch, ["aaaaaaaaaaaa"] * sw._TEMP_NAME_ATTEMPTS)
+    (tmp_path / ".real.txt.aaaaaaaaaaaa.tmp").write_bytes(b"taken")
+    with pytest.raises(sw.SafeWriteError, match="no free temp file name") as caught:
+        sw.update_locked(link, lambda text: "after")
+    assert caught.value.path == link
+
+
+def test_a_failed_temp_file_delete_keeps_the_original_refusal(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    busy_replace(monkeypatch, failures=100)
+    real_unlink = os.unlink
+
+    def unlink(path, *args, **kwargs):
+        if str(path).endswith(".tmp"):
+            raise PermissionError(32, "file in use by another process", str(path))
+        real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(sw.os, "unlink", unlink)
+    with pytest.raises(sw.SafeWriteError, match="file swap stayed busy"):
+        sw.update_locked(target, lambda text: "after")
+    monkeypatch.undo()
+    assert target.read_bytes() == b"before"
+
+
 @pytest.mark.skipif(os.name != "nt", reason="a read-only file blocks its own replacement only on Windows")
-def test_a_refused_swap_onto_a_read_only_file_deletes_the_temp_file(tmp_path, monkeypatch):
+def test_a_read_only_file_is_refused_at_once_and_the_temp_file_deleted(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
     target.chmod(stat.S_IREAD)
-    monkeypatch.setattr(sw.time, "sleep", lambda _seconds: None)
+    sleeps = []
+    monkeypatch.setattr(sw.time, "sleep", lambda seconds: sleeps.append(seconds))
     try:
-        with pytest.raises(sw.SafeWriteError, match="file swap stayed busy"):
+        with pytest.raises(sw.SafeWriteError, match="is read-only") as caught:
             sw.update_locked(target, lambda text: "after")
+        assert caught.value.path == target
+        assert sleeps == []
         assert target.read_bytes() == b"before"
         assert temps(tmp_path) == []
     finally:

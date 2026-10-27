@@ -19,3 +19,6 @@
 2026-10-27 07:10 | execute | 0001-safe-writer | decision(D-7) — corrected one line in the saved investigation about the old exit code; the program behaves the same
 2026-10-27 07:11 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=2 low=10 — reviewers found no blocking problem; fixing six small issues, three others were withdrawn and three wait for the whole-feature review
 2026-10-27 07:11 | execute | 0001-safe-writer | developing — fixing a double close of a file handle, a brief permission-mask change, and four missing tests
+2026-10-27 07:45 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=1 low=4 (round 2) — reviewers found one leftover temp file on Windows and four small test gaps; all five fixed in 77ae17e
+2026-10-27 08:05 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=0 low=5 (round 3) — reviewers found two error-path gaps and three weak tests; fixing all five
+2026-10-27 08:05 | execute | 0001-safe-writer | decision(D-8) — a read-only file on Windows is now refused at once with its real cause instead of being retried as busy

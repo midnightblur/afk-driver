@@ -1,0 +1,72 @@
+[
+ {
+  "concern": "logic-correctness+resilience",
+  "criterion": "error and rollback paths",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/safe_write.py",
+  "line": 178,
+  "side": "new",
+  "finding": "_discard still lets a second PermissionError escape the finally block, so a temp file held by another process on Windows still replaces the refusal with a raw OSError.",
+  "why": "This input differs from round 2's r-001. Failing input on Windows: a scanner or indexer opens the fresh temp file without delete sharing. os.replace is then denied on every retry, and the code raises SafeWriteError('file swap stayed busy'). In the finally block, the first unlink fails with WinError 32 (a PermissionError). chmod succeeds, because the file is not read-only. The second unlink fails the same way and propagates. The caller gets a PermissionError that names the .tmp file, and the refusal survives only as __context__. That breaks the docstring's promise at lines 12-13 that a refusal deletes the temp file and is the error reported.",
+  "fix": "In _discard, catch OSError on the retry and swallow it when an exception is already in flight (or always, leaving a stray .tmp), so cleanup never replaces the refusal or the original failure.",
+  "evidence": "+    except PermissionError:\n+        os.chmod(temporary, stat.S_IREAD | stat.S_IWRITE)\n+        temporary.unlink(missing_ok=True)",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep+test-veracity",
+  "criterion": "New test proves nothing",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 295,
+  "side": "new",
+  "finding": "`handles[0].closed` is True even when the handle never closed its descriptor, so the 'closed exactly once' test still passes on a leaked temp descriptor.",
+  "why": "Probe: os.fdopen(fd, 'wb', closefd=False) used as a context manager reports f.closed == True, but os.fstat(fd) still succeeds (the descriptor is still open). With no os.close recorded, temp_descriptor_closes(events) == 0 also holds, so the closefd=False leak named in the earlier finding passes both asserts.",
+  "fix": "After the call, also assert the descriptor is gone: keep the temp descriptor number from events and assert os.fstat(number) raises OSError when no later open reused it, or assert handles[0].raw.closefd.",
+  "evidence": "+    assert len(handles) == 1 and handles[0].closed\n+    assert temp_descriptor_closes(events) == 0",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity+delta-sweep",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 339,
+  "side": "new",
+  "finding": "The chosen umask 0o027 maps a hard-coded 0o644 create mode and the 0o666 DEFAULT_CREATE_MODE to the same 0o640, so the test still cannot catch the regression r2 r-005 named.",
+  "why": "0o644 & ~0o027 == 0o640 == 0o666 & ~0o027 (checked in Python); only a umask that keeps group or other write bits (e.g. 0o002 -> 0o664 vs 0o644) tells the two modes apart.",
+  "fix": "Use os.umask(0o002) and expect 0o664 (or 0o007 and expect 0o660).",
+  "evidence": "+    previous = os.umask(0o027)\n...\n+    assert target.stat().st_mode & 0o777 == 0o640",
+  "id": "r-003"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 367,
+  "side": "new",
+  "finding": "The path assertion uses a plain file, where `write_target == target`, so reverting the r2 r-002 fix (naming the resolved real file) still passes.",
+  "why": "_real(target) returns target unchanged unless it is a symlink, and no test in test_safe_write.py uses a symlink (grep 'symlink': no hits), so the new `target` argument to _open_temporary has no test that can fail.",
+  "fix": "Add a POSIX-only (skipif nt) case with `link -> real file`, run the collision through `update_locked(link, ...)`, and assert `caught.value.path == link`.",
+  "evidence": "+    raise SafeWriteError(\"no free temp file name\", target)  /  +    assert caught.value.path == target",
+  "id": "r-004"
+ },
+ {
+  "concern": "logic-correctness+resilience",
+  "criterion": "error and rollback paths",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 379,
+  "side": "new",
+  "finding": "A read-only target on Windows is refused as 'file swap stayed busy' after the full retry wait. The new test now locks in that wrong reason.",
+  "why": "A read-only target is a permanent denial, not a busy swap. _swap (safe_write.py:186-192) still retries it SWAP_RETRIES times, about 0.5 s, and then reports it as busy. install_block then prints 'target file swap stayed busy: <path>', which gives a user who has a read-only instruction file the wrong cause. The round-2 r-001 fix proposed not retrying a denied replace, and this delta pins the old behavior with match=\"file swap stayed busy\".",
+  "fix": "In _swap, before retrying, check whether write_target is read-only (not os.access(write_target, os.W_OK), or the stat read-only bit). If it is, raise SafeWriteError(\"is read-only\", target) at once, and match that reason in the test.",
+  "evidence": "+        with pytest.raises(sw.SafeWriteError, match=\"file swap stayed busy\"):\n+            sw.update_locked(target, lambda text: \"after\")",
+  "id": "r-005"
+ }
+]
