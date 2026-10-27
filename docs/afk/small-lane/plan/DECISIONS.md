@@ -230,3 +230,10 @@
 - Chosen: the hash. The id is `{slug(folder)}_{slug(file stem)}-{first 8 hex of sha1 of "folder/file name"}`, so names that slug alike (case, spaces, `_`, `.`, or no ASCII letters at all) still get distinct ids, and no name is refused. A re-run of the same file gets the same id; a renamed file gets a new one. A `--key` that names no ticket once put in the tracker's spelling (`#`) is refused. `run_bug_mode` looks the folder resolver up at call time, so a test can replace it for the command line too.
 - Supersedes: D-31 (c)
 - To reverse: drop the digest from the work id line in `publish_bug_mode.py`
+
+## D-34 — the description work id hashes the names the file system holds
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 4)
+- Options: hash the names as the caller typed them vs hash the names of the resolved path
+- Chosen: the resolved path. On a file system that ignores letter case, `Export/DESCRIPTION.md` and `export/description.md` are one file, so they must give one work id; the resolved path carries the stored spelling. A given `--key` that is empty once put in the tracker's spelling is refused, including `""`.
+- Supersedes: D-33 "a hash of the exact folder and file name", for which spelling is hashed
+- To reverse: hash `source.parent.name` and `source.name` instead of the resolved names in `publish_bug_mode.py`

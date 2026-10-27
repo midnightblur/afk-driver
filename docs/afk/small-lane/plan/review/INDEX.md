@@ -28,3 +28,4 @@
 | 0005-bug-mode-9f60079-r1 | crit=0 high=1 med=12 low=8 | [0005-bug-mode-9f60079-r1.md](0005-bug-mode-9f60079-r1.md) |
 | 0005-bug-mode-9f50c24-r2 | crit=0 high=0 med=5 low=5 | [0005-bug-mode-9f50c24-r2.md](0005-bug-mode-9f50c24-r2.md) |
 | 0005-bug-mode-94bea8d-r3 | crit=0 high=0 med=3 low=3 | [0005-bug-mode-94bea8d-r3.md](0005-bug-mode-94bea8d-r3.md) |
+| 0005-bug-mode-6285cac-r4 | crit=0 high=0 med=3 low=3 | [0005-bug-mode-6285cac-r4.md](0005-bug-mode-6285cac-r4.md) |

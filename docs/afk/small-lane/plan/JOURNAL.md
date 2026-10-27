@@ -69,3 +69,4 @@
 2026-10-27 06:50 | execute | 0005-bug-mode | reviewing — decision(D-30) — a Windows-held diagnosis file made the swap fail one run in five; the shared swap now retries
 2026-10-27 07:55 | execute | 0005-bug-mode | reviewing — round 2 (delta): 5 medium, 5 low; all 10 fixed; decision(D-31) — in-review means a state of that name, keys in the tracker's spelling, description work id from two slugs
 2026-10-27 08:40 | execute | 0005-bug-mode | reviewing — round 3 (delta): 3 medium, 3 low; all 6 fixed; decision(D-32) — D-30's helper edits widened; decision(D-33) — description work id carries a hash of its exact names
+2026-10-27 09:30 | execute | 0005-bug-mode | reviewing — round 4 (delta): 3 medium, 3 low; all 6 fixed; decision(D-34) — description work id hashes the stored names

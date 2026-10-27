@@ -378,9 +378,9 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
                in_review, assignee) -> Plan:
     """Every check that can refuse, before any write."""
     if description:
-        folder = source.resolve().parent.name
-        digest = hashlib.sha1(f"{folder}/{source.name}".encode("utf-8")).hexdigest()[:8]
-        work_id = f"{_slug(folder)}_{_slug(source.stem)}-{digest}"
+        real = source.resolve()
+        digest = hashlib.sha1(f"{real.parent.name}/{real.name}".encode("utf-8")).hexdigest()[:8]
+        work_id = f"{_slug(real.parent.name)}_{_slug(real.stem)}-{digest}"
         recorded, text = "", source.read_text(encoding="utf-8").strip()
         if not text:
             raise Refused(f"the description file {source} is empty")
@@ -412,8 +412,8 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
         if not Path(path).is_file():
             raise Refused(f"no such proof file: {path}")
 
-    given = run.kind.key_of(str(key)) if key else ""
-    if key and not given:
+    given = run.kind.key_of(str(key)) if key is not None else ""
+    if key is not None and not given:
         raise Refused(f"`--key {key}` names no ticket")
     if given and recorded and given == run.kind.key_of(recorded):
         given = recorded

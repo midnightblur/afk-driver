@@ -6,6 +6,7 @@ payloads and what a re-run finds. Nothing here opens a socket or runs `gh`.
 """
 
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -75,12 +76,17 @@ class Stub:
     def call(self, operation, payload):
         """A scripted answer replaces the stub's own; `Lost(answer)` also skips the write."""
         self.calls.append((operation, json.loads(json.dumps(payload))))
+        if "ticket_key" in payload:
+            payload = dict(payload, ticket_key=self.key_of(payload["ticket_key"]))
         queued = self.script.get(operation)
         if queued and isinstance(queued[0], Lost):
             return queued.pop(0).answer
         answer = getattr(self, operation)(payload)
         scripted = queued.pop(0) if queued else PASS
         return answer if scripted is PASS else scripted
+
+    def key_of(self, key):
+        return key
 
     def writes(self, operation=None):
         return [c for c in self.calls if c[0] in WRITES and (operation is None or c[0] == operation)]
@@ -154,12 +160,16 @@ class StubJira(Stub):
                 "unsupported_files": []}
 
 
+def _github_number():
+    path = ROOT / "adapters" / "tracker" / "github-issues" / "api.py"
+    spec = importlib.util.spec_from_file_location("afk_test_bug_mode_github_api", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module._number
+
+
 class StubGitHub(Stub):
-    def call(self, operation, payload):
-        """Every key spelling the adapter accepts names the issue number, as `_number` does."""
-        if "ticket_key" in payload:
-            payload = dict(payload, ticket_key=str(payload["ticket_key"]).rsplit("#", 1)[-1])
-        return super().call(operation, payload)
+    key_of = staticmethod(_github_number())  # every spelling the adapter accepts names one issue
 
     LABELS = ("bug", "enhancement", "status:in-review")
 
@@ -916,10 +926,12 @@ def test_a_created_ticket_keys_its_proof_on_its_key_before_any_move(tmp_path):
     assert len(stub.comments("PROJ-1")) == 2
 
 
-@pytest.mark.parametrize("key", ["#", "owner/repo#"])
-def test_a_given_key_that_names_no_ticket_is_refused(tmp_path, key):
-    stub = StubGitHub()
-    result = run(diagnosis(tmp_path), stub, GITHUB, tmp_path, key=key)
+@pytest.mark.parametrize("stub_cls, config, key", [
+    (StubGitHub, GITHUB, "#"), (StubGitHub, GITHUB, "owner/repo#"), (StubGitHub, GITHUB, ""),
+    (StubJira, JIRA, ""), (StubJira, JIRA, "   ")])
+def test_a_given_key_that_names_no_ticket_is_refused(tmp_path, stub_cls, config, key):
+    stub = stub_cls()
+    result = run(diagnosis(tmp_path), stub, config, tmp_path, key=key)
     assert result.code == 1 and "names no ticket" in result.lines[-1]
     assert stub.writes() == []
 
@@ -931,3 +943,20 @@ def test_the_command_line_moves_a_created_ticket_s_folder(tmp_path, monkeypatch,
     code = mode.main(["--diagnosis", str(path), "--consent", "person", "--yes"])
     assert code == 0, capsys.readouterr().out
     assert (tmp_path / "docs" / "1" / "DIAGNOSIS.md").is_file() and not path.exists()
+
+
+def test_a_re_run_of_one_description_file_keeps_its_work_id(tmp_path):
+    note = tmp_path / "docs" / "Export" / "DESCRIPTION.md"
+    note.parent.mkdir(parents=True)
+    note.write_text("Export drops the last row\n", encoding="utf-8")
+    stub = StubGitHub()
+    assert run(note, stub, GITHUB, tmp_path, description=True).code == 0
+    again = run(note, stub, GITHUB, tmp_path, description=True)
+    assert again.code == 0, again.lines
+    assert sorted(stub.issues) == ["1"] and stub.comments("1") == []
+    other = tmp_path / "docs" / "export" / "description.md"
+    if not other.exists():
+        pytest.skip("the file system tells letter case apart")
+    third = run(other, stub, GITHUB, tmp_path, description=True)
+    assert third.code == 0, third.lines
+    assert sorted(stub.issues) == ["1"] and stub.comments("1") == []
