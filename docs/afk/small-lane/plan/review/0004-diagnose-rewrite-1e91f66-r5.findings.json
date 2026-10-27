@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "reworked control flow in an existing method (behaviour-preservation risk)",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/SKILL.md",
+  "line": 39,
+  "side": "new",
+  "finding": "Possible in-place regression: fix now picks its worktree with `git -C <spec folder> rev-parse --show-toplevel`, which returns a different repository's top when an outside spec folder (an obsidian vault) is itself a git repository, so the 'outside the repository' branch never fires.",
+  "why": "In-place callers (execute Step 8, the /afk:bug fixer limited to `{WORKTREE_PATH}`) relied on the old 'linked worktree fix runs in' rule; under this rework a git-tracked vault sends the test-first fix into the vault repository instead of the caller's worktree (inferred from adapters/notes/obsidian CONTRACT 'dir and path are under obsidian.vault, not under the repository'; not exercised).",
+  "fix": "Decide 'inside the repository' by matching the folder's `git rev-parse --git-common-dir` to this repository's (or the toplevel appearing in `git worktree list`), else take the worktree-on-Diagnosis-branch route.",
+  "evidence": "+3. **Fix test-first** (`/afk:tdd`) in the worktree that holds the diagnosis: the one its `DIAGNOSIS.md` lies in (`git -C <its folder> rev-parse --show-toplevel`). A spec folder outside the repository → the worktree on the Diagnosis branch (`git worktree list`).",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep,refactor-safety",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/SKILL.md",
+  "line": 39,
+  "side": "new",
+  "finding": "For a spec folder outside the repository (Obsidian vault) the cut-a-worktree guard `git cat-file -e <Diagnosis branch>:<DIAGNOSIS.md path>` can never pass, so once the diagnosis worktree is gone fix stops `blocked` with a false reason although the failing test is committed on the branch and the diagnosis is readable in the vault.",
+  "why": "The vault path is not a path inside any branch, so the delta's only route for an outside spec folder with no worktree is a wrong `blocked` claiming a handed-over worktree kept the file uncommitted.",
+  "fix": "For a spec folder outside the repository, test the failing test's path on the Diagnosis branch (or skip the DIAGNOSIS.md check) before cutting the worktree.",
+  "evidence": "fix/SKILL.md:39 \"A spec folder outside the repository → the worktree on the Diagnosis branch ... No such worktree → cut one onto that branch ... when the branch holds the diagnosis (`git cat-file -e <Diagnosis branch>:<DIAGNOSIS.md path>`); else stop `blocked`, since a handed-over worktree kept it uncommitted\"; adapters/notes/obsidian/CONTRACT.md \"`dir` and `path` are under `obsidian.vault`, not under the repository.\"",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep,refactor-safety",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "A record-only re-run (no DIAGNOSIS.md yet) sets Base to the base branch at `git merge-base <base branch> HEAD`, which is wrong when the first run cut the worktree from a non-base branch tip; the owner record stores no base, so the original start point is lost.",
+  "why": "Phase 2 then reproduces on 'a clean copy of the Base', a base-branch commit that lacks the feature branch's code, which can turn a real bug into V-5 cannot reproduce and records a wrong Base for fix's 'naming the branch and the Base'.",
+  "fix": "Take the Base commit as the worktree's HEAD (diagnose commits nothing before Phase 7) and the Base branch from the invoker's starting-branch answer, else ask, else `blocked`.",
+  "evidence": "diagnose/SKILL.md:34 \"with no `DIAGNOSIS.md` there, its branch is the Diagnosis branch and Base is the base branch at `git merge-base <base branch> HEAD`\"; diagnose/SKILL.md:35 \"ask once: start from this branch's tip, or from the base branch\"; scripts/worktree_owner.py:7 \"record --dir D --name N --path P --branch B --harness H [--session S]\"",
+  "id": "r-003"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "compliance",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The delta narrows D-18's re-run detection (a folder named for the work id now also needs a DIAGNOSIS.md) and adds a new Base rule for a record-only re-run, but no ledger entry records either; D-19 covers only fix's worktree and D-18 still states the old detection.",
+  "why": "Executors read the ledger before working a slice and will build on D-18's recorded call, which the skill no longer follows.",
+  "fix": "Append a D-20 entry superseding D-18's \"a worktree folder named for the work id\" and recording the record-only re-run Base rule.",
+  "evidence": "DECISIONS.md:52 \"a new fork on the same ground gets a new entry, never an edit\"; docs/afk/small-lane/plan/DECISIONS.md:125 \"diagnose finds a re-run by the owner record or a worktree folder named for the work id\"; diagnose/SKILL.md:34 \"an existing linked worktree folder named `<work id, lower-cased>` ... whose spec folder (step 5) holds a `DIAGNOSIS.md` for this Work id\"",
+  "id": "r-004"
+ }
+]

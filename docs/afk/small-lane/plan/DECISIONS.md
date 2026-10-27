@@ -132,3 +132,17 @@
 - Chosen: where the diagnosis is: the worktree its `DIAGNOSIS.md` lies in, else the worktree on the Diagnosis branch, cut only when that branch holds the diagnosis. When fix hands its own worktree to diagnose, the diagnosis lies there, so D-14 (a) still holds. For a path input, the diagnosis's worktree holds the diagnosed code, the failing test and the file; any other worktree may sit on different code, and copying uncommitted files across sessions has no safe source.
 - Supersedes: D-17 "fix cuts a worktree onto the Diagnosis branch only when fix runs outside any linked worktree, which a handed case never does"
 - To reverse: fix in the linked worktree it runs in and bring the files over with `git checkout <Diagnosis branch> -- <paths>`
+
+## D-20 — what makes a re-run, and its Base when no diagnosis was written
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 5)
+- Options: (a) any worktree folder named for the work id marks a re-run vs only one whose spec folder holds a `DIAGNOSIS.md` for this Work id; (b) a re-run found by its owner record with no `DIAGNOSIS.md` takes the base branch as Base vs the worktree's HEAD commit with the starting-branch answer as the Base branch
+- Chosen: (a) only with the diagnosis: a folder name alone can be a person's own worktree, and diagnose would then commit onto a branch it does not own. The owner record still marks a re-run on its own, since only diagnose's `--name` cut writes it. (b) HEAD and the answer: diagnose commits nothing before its end, so HEAD is where the first run started, and the answer names the branch, which the record does not store. A guessed base branch would put the reproduction on the wrong code.
+- Supersedes: D-18 "diagnose finds a re-run by the owner record or a worktree folder named for the work id"
+- To reverse: drop the `DIAGNOSIS.md` condition and the record-only Base rule from diagnose Phase 0 step 3
+
+## D-21 — what lets fix cut a worktree onto the Diagnosis branch
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 5)
+- Options: cut only when the branch holds `DIAGNOSIS.md` (D-19) vs when it holds the failing test, or the diagnosis has none
+- Chosen: the failing test. A notes store outside the repository keeps `DIAGNOSIS.md` off every branch, while diagnose commits the failing test on the Diagnosis branch, so the test is the one thing a cut needs. The diagnosis worktree is the listed worktree whose folder holds the `DIAGNOSIS.md` path, so a notes folder that is its own git repository is never taken for it.
+- Supersedes: D-19 "else the worktree on the Diagnosis branch, cut only when that branch holds the diagnosis"
+- To reverse: gate the cut on `DIAGNOSIS.md` again
