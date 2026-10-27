@@ -18,3 +18,4 @@
 | 0004-diagnose-rewrite-f86eb43-r1 | crit=0 high=2 med=15 low=7 | [0004-diagnose-rewrite-f86eb43-r1.md](0004-diagnose-rewrite-f86eb43-r1.md) |
 | 0004-diagnose-rewrite-ac7bb38-r2 | crit=0 high=0 med=5 low=5 | [0004-diagnose-rewrite-ac7bb38-r2.md](0004-diagnose-rewrite-ac7bb38-r2.md) |
 | 0004-diagnose-rewrite-d22496e-r3 | crit=0 high=1 med=3 low=4 | [0004-diagnose-rewrite-d22496e-r3.md](0004-diagnose-rewrite-d22496e-r3.md) |
+| 0004-diagnose-rewrite-b6b4c0b-r4 | crit=0 high=0 med=2 low=2 | [0004-diagnose-rewrite-b6b4c0b-r4.md](0004-diagnose-rewrite-b6b4c0b-r4.md) |

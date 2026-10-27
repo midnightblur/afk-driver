@@ -125,3 +125,10 @@
 - Chosen: (a) after the question. The filled branch depends on placeholders only `create-worktree` resolves, so diagnose finds a re-run by the owner record or a worktree folder named for the work id, and a gone worktree by `create-worktree`'s refusal. The answer goes unused on a re-run, and step 5 keeps the recorded Base. With no person present and no answer, such a re-run ends `blocked`, as D-11 (b) chose; agent invokers give the answer up front. (b) narrow them: an invoker's branch is not made from the template, and diagnose never names it.
 - Supersedes: SDD §4 "| Diagnosis branch | branch name | no | from the branch template, made from the Base tip | — | lower-cased; passes `git.branch-pattern` |" and DIAGNOSIS-FORMAT.md "branch name from the branch template, made from the Base tip" — not for a worktree the invoker hands over
 - To reverse: (a) detect the branch before the question in diagnose Phase 0 step 3; (b) drop the handed-worktree step
+
+## D-19 — fix works where the diagnosis is
+- 2026-10-27 · decided by execute (0004-diagnose-rewrite, Step 10 round 4)
+- Options: fix works in the linked worktree it runs in (D-17) and brings the diagnosis's files over, vs fix works in the worktree that holds the diagnosis
+- Chosen: where the diagnosis is: the worktree its `DIAGNOSIS.md` lies in, else the worktree on the Diagnosis branch, cut only when that branch holds the diagnosis. When fix hands its own worktree to diagnose, the diagnosis lies there, so D-14 (a) still holds. For a path input, the diagnosis's worktree holds the diagnosed code, the failing test and the file; any other worktree may sit on different code, and copying uncommitted files across sessions has no safe source.
+- Supersedes: D-17 "fix cuts a worktree onto the Diagnosis branch only when fix runs outside any linked worktree, which a handed case never does"
+- To reverse: fix in the linked worktree it runs in and bring the files over with `git checkout <Diagnosis branch> -- <paths>`
