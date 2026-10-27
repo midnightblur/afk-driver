@@ -31,7 +31,7 @@ MUST NOT read: the slice diff, implementor's tests, review findings, any commit 
    - **cross-effect** — the promise's side effects (balances, statuses, links) verified by a follow-up read, not trusted from the mutation response.
 
    Effort bound: ≤3 scenarios per promise × class cell; deepen a cell past that only when one of its scenarios surfaces a finding.
-3. **Execute against `{app-base-url}`** — REST via the suite's shared primitives (token minting, fetch, poll). A browser-only promise: drive it with the ui-e2e harness's driver against the same instance. Create your own test data through public APIs (self-provision; never assume fixtures).
+3. **Execute against `{app-base-url}`** — REST via the suite's shared primitives (token minting, fetch, poll). A browser-only promise: drive it with the ui-e2e harness's driver against the same instance. Create your own test data through public APIs (self-provision; never assume fixtures). Stand in for an outside service with an in-process fake, a local server, or a script stub on PATH. Build or copy no executable: endpoint security quarantines a binary in a temporary folder.
 4. **Verdict.**
    - Every scenario behaves as promised → `clean`.
    - Otherwise `findings`, each: `class` (`correctness` | `spec` | `authz` | `robustness`), severity (`critical`/`high`/`medium`/`low`), the promise it breaks (citation), exact repro (request + actual vs expected response, or UI steps + observed state).

@@ -91,10 +91,12 @@ def state_labels():
 def _gh(*args, stdin=None):
     """Run `gh` and answer parsed JSON, or a described error. Never raises: an
     operation that throws tells the caller nothing about the far side."""
-    if not shutil.which("gh"):
+    exe = shutil.which("gh")
+    if not exe:
         return {"unavailable": True,
                 "reason": "tracker: github-issues — the `gh` CLI is not on PATH"}
-    argv = ["gh", *args]
+    # Run what `which` found: on Windows a bare "gh" starts only gh.exe.
+    argv = [exe, *args]
     try:
         # A child inheriting the server's stdin pipe hangs on Windows.
         feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
