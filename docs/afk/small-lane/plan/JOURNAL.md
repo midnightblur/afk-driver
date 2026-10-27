@@ -74,3 +74,8 @@
 2026-10-27 10:20 | execute | 0005-bug-mode | reviewing — round 6 (delta): 1 medium, 2 low; all 3 fixed
 2026-10-27 10:45 | execute | 0005-bug-mode | reviewing — round 7 (delta): 2 low; both fixed
 2026-10-27 11:05 | execute | 0005-bug-mode | reviewing — round 8 (delta): 1 medium (a low merged at the same line); fixed
+2026-10-27 11:25 | execute | 0005-bug-mode | reviewing — round 9 (delta): clean; closure gate settled at 1df30f3 (9 rounds, 51 findings, all fixed)
+2026-10-27 12:05 | execute | 0005-bug-mode | adversary — findings, crit=0 high=0 med=3 low=4 (D-3 runtime probe, 94 scenarios, local fakes); gate passes; advisory, noted on the change
+2026-10-27 12:05 | execute | 0005-bug-mode | wiring scan — exit 0; rationale receipt verified (4 entries durable)
+2026-10-27 12:05 | execute | 0005-bug-mode | done
+2026-10-27 12:05 | execute | 0005-bug-mode | outcome success — review settled at round 9 (51 findings, all fixed), adversary passes with 3 medium and 4 low advisory; CI not run (PR conflicting)
