@@ -209,3 +209,10 @@
 - Chosen: the shared helper. On Windows the temporary-file swap fails with "Access is denied" while a scanner holds the diagnosis open; the focused suite failed about one run in five on this. Both `publish_bug_mode.py` and `append_outside_write` swap the same file, so one `replace_text` retries a refused swap up to 20 times, 50 ms apart, then raises. Removing the copy also keeps the file mode, which the copy did not.
 - Supersedes: 0005-bug-mode Scope, for `skills/utils/diagnose/scripts/outside_writes.py` (`_replace` renamed `replace_text`, retry added) and `scripts/tests/test_outside_writes.py` (two tests) only
 - To reverse: restore `_replace` in both files without the retry
+
+## D-31 — what "already in review" can mean, one spelling per key, a description work id that cannot collide
+- 2026-10-27 · decided by execute (0005-bug-mode, Step 10 round 2)
+- Options: (a) for an existing ticket with no matching transition, read the changelog to guess whether it reached review vs accept only a state named by the configured value and name the way out; (b) compare keys as typed vs in each tracker's canonical spelling; (c) keep `{folder}-{stem}` vs slugs joined by `_`
+- Chosen: (a) the configured value is often a transition id, and no answer from the ticket ties that id to a state name, so "already in that state" holds only for a state of that name; the refusal now says to re-run without `--in-review` when the ticket is already in review. (b) a given key is put in the tracker's spelling (Jira upper case, GitHub the issue number) and, when it names the recorded ticket, takes the recorded spelling, so `#5` and `5` are one ticket. (c) the description work id is `{slug(folder)}_{slug(file stem)}`: a slug holds only `a-z0-9-`, so `_` cannot occur inside either half, a name with a space is filed, and two folders no longer join alike.
+- Supersedes: D-29 (b), for the description work id format only; BUG-MODE.md "unless the ticket is already in that state"
+- To reverse: revert the `key_of` field, the work id line and the refusal text in `publish_bug_mode.py`

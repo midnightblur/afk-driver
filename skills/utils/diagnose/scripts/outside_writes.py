@@ -157,7 +157,7 @@ def replace_text(path: Path, text: str, tries: int = 20, pause: float = 0.05):
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
         shutil.copymode(path, tmp)
-        for left in range(tries - 1, -1, -1):
+        for left in range(max(tries, 1) - 1, -1, -1):
             try:
                 os.replace(tmp, path)
                 return

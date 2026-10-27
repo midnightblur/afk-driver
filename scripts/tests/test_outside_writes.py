@@ -308,9 +308,11 @@ def test_replace_text_waits_out_a_held_file(tmp_path):
             raise PermissionError(13, "Access is denied")
         real(src, dst)
 
-    with mock.patch("outside_writes.os.replace", held_twice), mock.patch("outside_writes.time.sleep"):
+    with mock.patch("outside_writes.os.replace", held_twice), \
+            mock.patch("outside_writes.time.sleep") as sleep:
         replace_text(target, "new")
     assert target.read_text(encoding="utf-8") == "new" and len(calls) == 3
+    assert sleep.call_args_list == [mock.call(0.05)] * 2
     assert [f.name for f in tmp_path.iterdir()] == ["DIAGNOSIS.md"]
 
 
@@ -318,9 +320,17 @@ def test_replace_text_gives_up_and_leaves_the_file(tmp_path):
     target = tmp_path / "DIAGNOSIS.md"
     target.write_text("old", encoding="utf-8")
     denied = mock.Mock(side_effect=PermissionError(13, "Access is denied"))
-    with mock.patch("outside_writes.os.replace", denied), mock.patch("outside_writes.time.sleep"), \
-            pytest.raises(PermissionError):
-        replace_text(target, "new", tries=3)
-    assert denied.call_count == 3
+    with mock.patch("outside_writes.os.replace", denied), \
+            mock.patch("outside_writes.time.sleep") as sleep, pytest.raises(PermissionError):
+        replace_text(target, "new")
+    assert denied.call_count == 20 and sleep.call_count == 19
     assert target.read_text(encoding="utf-8") == "old"
+    assert [f.name for f in tmp_path.iterdir()] == ["DIAGNOSIS.md"]
+
+
+def test_replace_text_with_no_tries_still_swaps_once(tmp_path):
+    target = tmp_path / "DIAGNOSIS.md"
+    target.write_text("old", encoding="utf-8")
+    replace_text(target, "new", tries=0)
+    assert target.read_text(encoding="utf-8") == "new"
     assert [f.name for f in tmp_path.iterdir()] == ["DIAGNOSIS.md"]

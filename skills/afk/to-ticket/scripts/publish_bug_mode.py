@@ -82,6 +82,7 @@ class Kind:
     type_name: Callable[[dict, str], str]
     type_check: Callable[["Run", str], str | None]
     link: Callable[["Run", str], str]
+    key_of: Callable[[str], str]
 
 
 def _jira_project(config: dict) -> str:
@@ -137,14 +138,14 @@ KINDS = {
             f'project = "{_jira_project(config)}" AND description ~ "\\"{marker}\\""',
         type_name=_jira_type_name,
         type_check=lambda run, name: _jql_value(run, "issuetype", name),
-        link=_jira_link),
+        link=_jira_link, key_of=lambda key: key.strip().upper()),
     "github-issues": Kind(
         in_review_path="github-issues.state-labels", fix_versions=False,
         body_fields="body", comment_fields="comments", state_fields="labels,state",
         body_query=lambda config, marker: f'"{marker}" in:body',
         type_name=lambda config, ticket_type: ticket_type,
         type_check=_github_label_check,
-        link=_github_link),
+        link=_github_link, key_of=lambda key: key.rsplit("#", 1)[-1].strip()),
 }
 
 
@@ -334,6 +335,8 @@ def run_bug_mode(source, *, description: bool = False, ticket_type: str | None =
             return Result(0, lines)
         if not yes and not confirm(f"Run the {len(plan.writes)} write step(s) above? [y/N] "):
             raise Refused("not confirmed")
+        if plan.proof:
+            _hold(plan)
         key_now, link = _execute(run, plan, resolve)
         ticket = f"TICKET: {key_now} {link}".rstrip()
         lines.append(ticket)
@@ -373,7 +376,7 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
                in_review, assignee) -> Plan:
     """Every check that can refuse, before any write."""
     if description:
-        work_id = f"{source.resolve().parent.name}-{source.stem}"
+        work_id = f"{_slug(source.resolve().parent.name)}_{_slug(source.stem)}"
         recorded, text = "", source.read_text(encoding="utf-8").strip()
         if not text:
             raise Refused(f"the description file {source} is empty")
@@ -405,7 +408,9 @@ def _preflight(run, source, description, ticket_type, key, summary, fix_version,
         if not Path(path).is_file():
             raise Refused(f"no such proof file: {path}")
 
-    given = str(key or "").strip()
+    given = run.kind.key_of(str(key)) if key else ""
+    if given and recorded and given == run.kind.key_of(recorded):
+        given = recorded
     target_key = given or recorded
     if target_key:
         got = run.call("tracker_get", {"ticket_key": target_key})
@@ -469,7 +474,8 @@ def _in_review_target(run, key: str, value: str) -> tuple:
     if not _bad(state) and _in_state(state, ("status", value)):
         return ("status", value)
     names = ", ".join(f"{t.get('name')} ({t.get('id')})" for t in offered if isinstance(t, dict)) or "none"
-    raise Refused(f"{key} offers no transition matching the in-review value `{value}`; it offers: {names}")
+    raise Refused(f"{key} offers no transition matching the in-review value `{value}`; it offers: {names}; "
+                  "if it is already in review, re-run without --in-review")
 
 
 def _in_state(answer, target: tuple) -> bool:
@@ -520,10 +526,21 @@ def _step_text(plan: Plan, step: str) -> str:
     return f"move to the in-review state `{IN_REVIEW}`"
 
 
+def _hold(plan: Plan) -> None:
+    """Copy each proof file aside before any write, so a folder move cannot take it away."""
+    plan.staged = tempfile.mkdtemp(prefix="afk-proof-")
+    held = []
+    for n, (kind_name, path) in enumerate(plan.proof):
+        spot = os.path.join(plan.staged, str(n))
+        os.mkdir(spot)
+        held.append((kind_name, os.path.join(spot, Path(path).name)))
+        shutil.copyfile(path, held[-1][1])
+    plan.proof = held
+
+
 def _stage(plan: Plan) -> None:
-    """Copy each proof file to a name carrying the work id, the kind and the step."""
-    folder = tempfile.mkdtemp(prefix="afk-proof-")
-    plan.staged = folder
+    """Copy each held proof file to a name carrying the marker id, the kind and the step."""
+    folder = plan.staged
     names = set()
     staged = []
     for kind_name, path in plan.proof:
@@ -836,7 +853,7 @@ def main(argv=None) -> int:
                           ticket_type=args.ticket_type, key=args.key, summary=args.summary,
                           fix_version=args.fix_version, proof=tuple(args.proof),
                           in_review=args.in_review, consent=args.consent,
-                          dry_run=args.dry_run, yes=args.yes)
+                          dry_run=args.dry_run, yes=args.yes, resolve=_resolve_folder)
     for line in result.lines:
         print(line)
     return result.code

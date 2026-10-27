@@ -329,7 +329,7 @@ def test_a_description_file_creates_a_ticket_with_its_text_and_no_comment(tmp_pa
     result = run(note, stub, GITHUB, tmp_path, description=True)
     assert result.code == 0, result.lines
     body = stub.issues["1"]["payload"]["description"]
-    assert "Seen on the grid page." in body and "afk-evidence adhoc-export-DESCRIPTION ticket" in body
+    assert "Seen on the grid page." in body and "afk-evidence adhoc-export_description ticket" in body
     assert stub.issues["1"]["payload"]["summary"] == "Export drops the last row"
     assert stub.writes("tracker_comment") == [] and note.is_file()
 
@@ -459,6 +459,7 @@ def test_jira_in_review_with_no_matching_transition_is_refused(tmp_path):
     config = dict(JIRA, jira=dict(JIRA["jira"], transitions={"in-review": "99"}))
     result = run(diagnosis(tmp_path), stub, config, tmp_path, key="PROJ-7", in_review=True)
     assert result.code == 1 and "offers no transition" in result.lines[-1]
+    assert "re-run without --in-review" in result.lines[-1]
     assert stub.writes() == []
 
 
@@ -738,6 +739,7 @@ def _github_config(tmp_path, monkeypatch, stub):
                       "    in-review: \"status:in-review\"\n", encoding="utf-8")
     monkeypatch.setenv("AFK_CONFIG", str(config))
     monkeypatch.setattr(mode.tracker_api, "load", lambda required=(): stub)
+    monkeypatch.setattr(mode, "_resolve_folder", lambda key: str(tmp_path / "docs" / key))
 
 
 def test_the_command_line_passes_every_option_through(tmp_path, monkeypatch, capsys):
@@ -758,18 +760,44 @@ def test_the_command_line_passes_every_option_through(tmp_path, monkeypatch, cap
     assert "status:in-review" in stub.issues["4"]["labels"]
 
 
-def test_the_command_line_dry_run_and_its_refusals(tmp_path, monkeypatch, capsys):
+def test_the_command_line_passes_the_fix_version_through(tmp_path, monkeypatch, capsys):
+    stub = StubJira()
+    stub.add("PROJ-4")
+    config = tmp_path / "config.yaml"
+    config.write_text("tracker: jira\njira:\n  project: PROJ\n  transitions:\n    in-review: \"31\"\n",
+                      encoding="utf-8")
+    monkeypatch.setenv("AFK_CONFIG", str(config))
+    monkeypatch.setattr(mode.tracker_api, "load", lambda required=(): stub)
+    monkeypatch.setattr(mode, "_resolve_folder", lambda key: str(tmp_path / "docs" / key))
+    code = mode.main(["--diagnosis", str(diagnosis(tmp_path)), "--key", "PROJ-4", "--fix-version", "1.5",
+                      "--consent", "person", "--yes"])
+    assert code == 0, capsys.readouterr().out
+    assert stub.issues["PROJ-4"]["fixVersions"] == ["1.5"]
+
+
+def test_the_command_line_dry_run_writes_nothing(tmp_path, monkeypatch, capsys):
     stub = StubGitHub()
     _github_config(tmp_path, monkeypatch, stub)
     path = diagnosis(tmp_path)
     assert mode.main(["--diagnosis", str(path), "--summary", "Rows go missing", "--dry-run"]) == 0
     assert '"summary": "Rows go missing"' in capsys.readouterr().out and stub.writes() == []
-    assert mode.main(["--diagnosis", str(path), "--yes"]) == 1
-    assert "--consent" in capsys.readouterr().out
-    for argv in (["--type", "bug"], ["--diagnosis", str(path), "--description", str(path)],
-                 ["--diagnosis", str(path), "--dry-run", "--yes"], ["--diagnosis", str(path), "--proof", "P-1"]):
-        with pytest.raises(SystemExit):
-            mode.main(argv)
+
+
+def test_the_command_line_without_consent_is_refused(tmp_path, monkeypatch, capsys):
+    stub = StubGitHub()
+    _github_config(tmp_path, monkeypatch, stub)
+    assert mode.main(["--diagnosis", str(diagnosis(tmp_path)), "--yes"]) == 1
+    assert "--consent" in capsys.readouterr().out and stub.writes() == []
+
+
+@pytest.mark.parametrize("argv", [
+    ["--type", "bug"], ["--diagnosis", "D", "--description", "D"],
+    ["--diagnosis", "D", "--dry-run", "--yes"], ["--diagnosis", "D", "--proof", "P-1"]],
+    ids=["no-input", "two-inputs", "dry-run-and-yes", "proof-without-path"])
+def test_the_command_line_refuses_a_bad_argument_list(argv):
+    with pytest.raises(SystemExit) as stopped:
+        mode.main(argv)
+    assert stopped.value.code == 2
 
 
 def _git(cwd, *args):
@@ -802,3 +830,63 @@ def test_the_real_resolver_renders_the_configured_spec_folder(tmp_path, monkeypa
     if rendered is None:
         pytest.skip("no POSIX shell to run the notes adapter")
     assert Path(rendered).resolve() == (tmp_path / "specs" / "PROJ-1").resolve()
+
+
+def test_a_proof_file_in_the_spec_folder_survives_the_folder_move(tmp_path):
+    stub, path = StubJira(), diagnosis(tmp_path)
+    shot = path.parent / "shot.png"
+    shot.write_bytes(b"png")
+    result = run(path, stub, JIRA, tmp_path, proof=(("P-1", str(shot)),))
+    assert result.code == 0, result.lines
+    assert (tmp_path / "docs" / "PROJ-1" / "shot.png").is_file()
+    assert stub.attachments["PROJ-1"] == ["PROJ-1-p-1-proof-shot.png"]
+
+
+def test_a_description_file_name_with_a_space_is_filed(tmp_path):
+    stub = StubGitHub()
+    note = tmp_path / "docs" / "adhoc" / "bug report.md"
+    note.parent.mkdir(parents=True)
+    note.write_text("Export drops the last row\n", encoding="utf-8")
+    result = run(note, stub, GITHUB, tmp_path, description=True)
+    assert result.code == 0, result.lines
+    assert "afk-evidence adhoc_bug-report ticket" in stub.issues["1"]["body"]
+
+
+def test_description_files_whose_folder_and_name_join_alike_file_two_tickets(tmp_path):
+    stub = StubGitHub()
+    for folder, name in (("export", "bug-x.md"), ("export-bug", "x.md")):
+        note = tmp_path / "docs" / folder / name
+        note.parent.mkdir(parents=True)
+        note.write_text("Export drops the last row\n", encoding="utf-8")
+        assert run(note, stub, GITHUB, tmp_path, description=True).code == 0
+    assert sorted(stub.issues) == ["1", "2"]
+
+
+@pytest.mark.parametrize("stub_cls, config, recorded, given", [
+    (StubGitHub, GITHUB, "5", "#5"), (StubJira, JIRA, "PROJ-5", "proj-5")])
+def test_the_recorded_ticket_in_another_spelling_is_the_same_ticket(tmp_path, stub_cls, config,
+                                                                    recorded, given):
+    stub = stub_cls()
+    stub.add(recorded)
+    path = diagnosis(tmp_path, **{"Ticket key": recorded})
+    assert run(path, stub, config, tmp_path).code == 0
+    again = run(path, stub, config, tmp_path, key=given)
+    assert again.code == 0, again.lines
+    assert len(stub.comments(recorded)) == 1
+    assert "ticket:" not in part(path, "Outside writes")
+
+
+def test_a_created_ticket_keys_its_proof_on_its_key_before_any_move(tmp_path):
+    stub, path = StubJira(), diagnosis(tmp_path)
+    shot = tmp_path / "shot.png"
+    shot.write_bytes(b"png")
+    proof = (("P-1", str(shot)),)
+    first = run(path, stub, JIRA, tmp_path, proof=proof, resolve=lambda key: None)
+    assert first.code == 0, first.lines
+    assert path.is_file() and part(path, "Work id") == WORK
+    assert stub.attachments["PROJ-1"] == ["PROJ-1-p-1-proof-shot.png"]
+    assert "**Proof for PROJ-1**" in stub.comments("PROJ-1")[-1]
+    again = run(path, stub, JIRA, tmp_path, proof=proof)
+    assert again.code == 0, again.lines
+    assert stub.attachments["PROJ-1"] == ["PROJ-1-p-1-proof-shot.png"]
+    assert len(stub.comments("PROJ-1")) == 2

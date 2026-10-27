@@ -14,7 +14,7 @@ Creates or updates one ticket on the configured tracker (Jira or GitHub Issues) 
 
 ## How to run
 
-1. **Input.** A diagnosis path the diagnosis check accepts, or a description file (`--description`; its work id is `{folder}-{file name without extension}`). Optional: `--type bug|enhancement` (default `bug`, applied to a created ticket), `--key` for an existing ticket, `--summary` for a created ticket's title, `--proof P-n=PATH` per proof file, `--in-review`.
+1. **Input.** A diagnosis path the diagnosis check accepts, or a description file (`--description`; its work id is `{folder}_{file name without extension}`, each lower-cased with other characters as dashes). Optional: `--type bug|enhancement` (default `bug`, applied to a created ticket), `--key` for an existing ticket, `--summary` for a created ticket's title, `--proof P-n=PATH` per proof file, `--in-review`.
 2. **Fix version (Jira).** With a person present, ask which fix version the ticket takes and pass `--fix-version`; no answer → leave it out. Hands-off → leave it out. GitHub Issues → do not ask.
 3. **Dry run** — every check, no write; prints the payloads:
 
@@ -29,7 +29,7 @@ Creates or updates one ticket on the configured tracker (Jira or GitHub Issues) 
 
 ## Refusals, before any write
 
-The diagnosis lacks a part this mode writes (`## Work id`, `## Ticket key`, `## Outside writes`); tracker kind `none` or a tracker with no bug mode; no consent; the diagnosis check refuses the file; the in-review key is not configured (`jira.transitions.in-review`, `github-issues.state-labels.in-review`); `--in-review` on an existing ticket that offers no transition matching it by name or id, unless the ticket is already in that state or the move is listed; a given or recorded key the tracker does not return; an unknown type (Jira issue type, or a GitHub label that does not exist); an unknown Jira fix version, or any fix version on GitHub Issues; a missing proof file or a proof kind outside P-1, P-2, P-3; a description file that is empty; no confirmation.
+The diagnosis lacks a part this mode writes (`## Work id`, `## Ticket key`, `## Outside writes`); tracker kind `none` or a tracker with no bug mode; no consent; the diagnosis check refuses the file; the in-review key is not configured (`jira.transitions.in-review`, `github-issues.state-labels.in-review`); `--in-review` on an existing ticket that offers no transition matching it by name or id, unless the ticket is already in a state of that name or the move is listed; a given or recorded key the tracker does not return; an unknown type (Jira issue type, or a GitHub label that does not exist); an unknown Jira fix version, or any fix version on GitHub Issues; a missing proof file or a proof kind outside P-1, P-2, P-3; a description file that is empty; no confirmation.
 
 A ticket this run creates has no transitions before it exists, so its in-review match runs right after the create and before any other write; no match → exit 2, the created ticket stays and a re-run resumes.
 
@@ -41,8 +41,8 @@ Steps run in this order and stop at the first failure:
 |---|---|---|
 | ticket | create, the summary as the description with the marker; skipped when a key exists | `ticket: <key>` |
 | fix-version | Jira, existing ticket: add the version to those set | none; read from the ticket |
-| evidence | one comment: the diagnosis parts and the change link from Outside writes, with the marker; a description input comments only on an existing ticket. Markers carry the key of a ticket this mode created, and a later different key adds `-{key}` to the step | `evidence: <marker>` |
-| proof | `tracker_attach`: files named `{work id}-{kind}-proof-{file name}` and a comment listing them with the marker; a file the tracker would not take is named in the comment and in a `NOTE:` line | `evidence: <marker>` |
+| evidence | one comment: the diagnosis parts and the change link from Outside writes, with the marker; a description input comments only on an existing ticket. Markers carry the key of a ticket this mode created, and a later different key adds `-` and that key, lower-cased with other characters as dashes, to the step | `evidence: <marker>` |
+| proof | `tracker_attach`: files named `{marker id}-{kind}-proof-{file name}` (the marker id is the created key, else the work id) and a comment listing them with the marker; a file the tracker would not take is named in the comment and in a `NOTE:` line | `evidence: <marker>` |
 | in-review | move to the configured in-review state | `in-review: <key>` |
 
 A listed step is skipped. Every other write is read back first, by its marker or the ticket's state; a failed write is retried at most twice, each after a read-back shows it left nothing. A refusal, a 4xx answer, or a `gh` error that names no network or server fault is shown and never retried; a 5xx or network failure is retried.
