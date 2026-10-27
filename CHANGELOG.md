@@ -41,6 +41,14 @@ release page from its section here. Nobody tags by hand.
 
 - Concurrent worktree creation now uses a conditional Git-ref lock. A waiter
   cannot delete a replacement lock or append duplicate local exclude entries.
+
+## [1.16.1] - 2026-10-27
+
+### Fixed
+
+- Lavish polling now refuses with a Markdown fallback instruction
+  when it cannot resume the agent turn to receive feedback.
+
 - The harness's worktree tool no longer fails on a large build. The creation
   hook returns the path once the checkout and copies are done; build
   provisioning and the repository's `WorktreeCreated` scripts then run in the

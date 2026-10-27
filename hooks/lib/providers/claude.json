@@ -6,6 +6,7 @@
     ]
   },
   "priority": 20,
+  "lavish_poll": true,
   "harness_class": "H-1",
   "session_start_user_message": true,
   "nested_inject_mode": "never",

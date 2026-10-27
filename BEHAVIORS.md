@@ -12,7 +12,7 @@ state: active | scope: all-repos | revision: 1 | doctrine: INVESTIGATION.md §Cl
 For code questions, follow `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; close every applicable boundary and counter-search before answering.
 
 ## lavish-grilling-render
-state: active | scope: configured-repos | revision: 1 | doctrine: LAVISH.md §Managed-session runtime
+state: active | scope: configured-repos | revision: 2 | doctrine: LAVISH.md §Managed-session runtime
 For an interactive grilling session, read `${AFK_PLUGIN_ROOT}/LAVISH.md` and use its session-default render rules.
 
 ## truth-grounding

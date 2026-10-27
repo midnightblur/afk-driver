@@ -33,6 +33,11 @@ sys.exit(int(os.environ.get("FAKE_RC", "0")))
 PAGE = "<html><head><title>t</title></head><body><p>x</p></body></html>\n"
 
 
+@pytest.fixture(autouse=True)
+def supported_provider(monkeypatch):
+    monkeypatch.setenv("AFK_PROVIDER", "claude")
+
+
 @pytest.fixture
 def fake(tmp_path, monkeypatch):
     script = tmp_path / "fake_axi.py"
@@ -100,6 +105,38 @@ def test_lavish_axi_host_in_the_environment_is_refused(fake, monkeypatch, capfd)
     monkeypatch.setenv("LAVISH_AXI_HOST", "127.0.0.1")
     assert lavish_show.main(["page.html"]) == 64
     assert "LAVISH_AXI_HOST" in capfd.readouterr()[1] and calls(fake) == []
+
+
+@pytest.mark.parametrize("argv", [
+    ["poll", "page.html"], ["poll", "page.html", "--agent-reply", "answer"],
+])
+@pytest.mark.parametrize("declared", [{"lavish_poll": False}, {}])
+def test_unsupported_poll_refuses_before_injection_or_upstream(fake, monkeypatch, capfd, argv, declared):
+    monkeypatch.setattr(lavish_show.provider_facts, "facts", lambda: declared)
+    before = Path("page.html").read_bytes()
+    assert lavish_show.main(argv) == 64
+    out, err = capfd.readouterr()
+    assert "lavish_poll" in err and "Markdown fallback" in err
+    assert out == "" and calls(fake) == []
+    assert Path("page.html").read_bytes() == before
+
+
+@pytest.mark.parametrize("argv,injects", [
+    (["page.html"], True), (["page.html", "--no-open"], True), (["page.html", "--reopen"], True),
+    (["end", "page.html"], False), (["stop"], False), (["playbook"], False),
+])
+def test_unsupported_provider_keeps_non_poll_operations(fake, monkeypatch, capfd, argv, injects):
+    monkeypatch.setattr(lavish_show.provider_facts, "facts", lambda: {"lavish_poll": False})
+    assert lavish_show.main(argv) == 0
+    assert out_json(capfd.readouterr()[0]) == {"argv": argv, "runtime": injects}
+    assert calls(fake) == [argv]
+
+
+@pytest.mark.parametrize("provider,expected", [("claude", 0), ("codex", 64)])
+def test_provider_poll_capability_reaches_wrapper(fake, monkeypatch, capfd, provider, expected):
+    monkeypatch.setenv("AFK_PROVIDER", provider)
+    assert lavish_show.main(["poll", "page.html"]) == expected
+    assert calls(fake) == ([["poll", "page.html"]] if expected == 0 else [])
 
 
 def test_a_page_that_cannot_be_injected_is_not_shown(fake):

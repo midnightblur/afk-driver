@@ -17,6 +17,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `plugin_mcp` | Native | Native | Use a documented CLI or API fallback; otherwise stop |
 | `plugin_job_dir` | Native | No | Use plugin-data scratch space |
 | `question_cards` | Native | No | Ask one plain-text question |
+| `lavish_poll` | Supported | Unsupported; wrapper cannot resume the turn | Use `LAVISH.md`'s Markdown fallback; render, reopen, end and stop remain available |
 | `design_push` | Native | No | Keep local HTML canonical |
 | `issue_egress` | `gh` CLI, logged in | `gh` CLI, logged in | Queue the draft on disk and print the publish command |
 | `protected_branch_guard` | PreToolUse guard; declared reads and one recognized read-only shell command pass; `EnterWorktree` moves the session; `WorktreeCreate`, `WorktreeRemove` and `SessionEnd` handlers | PreToolUse guard; declared reads and one recognized read-only shell command pass; the `/cd` line, typed by a detached helper in a herdr pane or by the human; `SessionEnd` handler | Without hooks the installed git backstop still refuses an agent's commit and branch move in the main checkout, and the behavior line instructs |

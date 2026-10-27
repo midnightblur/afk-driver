@@ -36,6 +36,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def default_provider(monkeypatch):
+    monkeypatch.setenv("AFK_PROVIDER", "claude")
+
+
 def repository(
     tmp_path: Path, manifest: str, scripts: dict[str, str] | None = None, name: str = "repo"
 ) -> Path:
