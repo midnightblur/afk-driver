@@ -55,7 +55,7 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
-    "report-issue", "review",
+    "report-issue", "review", "glossary",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -106,6 +106,7 @@ NPM_WORKTREE_INSTALL = ("ci", "none")
 # CONFIG.md and this table say the same thing, and
 # `scripts/tests/test_afk_config.py` fails when they drift apart.
 CHILD_KEYS: dict[str, set[str]] = {
+    "glossary": {"manifest"},
     "jira": {"project", "issue-types", "transitions", "credentials-env"},
     "github-issues": {"repo", "state-labels"},
     "gitlab": {"remote"},
@@ -397,6 +398,32 @@ def load(root: Path | None = None) -> dict:
     return effective
 
 
+def load_committed(root: Path, ref: str) -> dict:
+    """Read one verified commit, with built-in defaults and no local layers."""
+    def git(*args: str) -> bytes:
+        try:
+            result = subprocess.run(['git', '-C', str(root), *args], capture_output=True, check=True)
+            return result.stdout
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise ConfigError(f'cannot read committed configuration at {ref!r}') from error
+
+    commit = git('rev-parse', '--verify', '--end-of-options', f'{ref}^{{commit}}').decode('ascii').strip()
+    entries = git('ls-tree', '-z', commit, '--', '.afk/config.yaml')
+    if not entries:
+        return deep_merge({}, DEFAULTS)
+    if not entries.startswith(b'100644 blob ') and not entries.startswith(b'100755 blob '):
+        raise ConfigError('committed .afk/config.yaml must be a regular file')
+    try:
+        document = parse(git('show', f'{commit}:.afk/config.yaml').decode('utf-8'), f'{commit}:.afk/config.yaml')
+    except UnicodeDecodeError as error:
+        raise ConfigError('committed configuration is not UTF-8 text') from error
+    config = deep_merge(dict(DEFAULTS), document)
+    problems = validate(config)
+    if problems:
+        raise ConfigError('; '.join(problems))
+    return normalize(config)
+
+
 # --------------------------------------------------------------------------
 # Schema validation
 # --------------------------------------------------------------------------
@@ -446,6 +473,11 @@ def normalize_path(value: str) -> str | None:
 
 def normalize(config: dict) -> dict:
     """The same config, its investigation paths in one spelling. In place."""
+    glossary = config.get('glossary')
+    if isinstance(glossary, dict) and 'manifest' in glossary:
+        folded = normalize_path(glossary['manifest'])
+        if folded is not None:
+            glossary['manifest'] = folded
     investigation = config.get("investigation")
     if not isinstance(investigation, dict):
         return config
@@ -574,6 +606,10 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
 
 def validate(config: dict, root: Path | None = None) -> list[str]:
     problems: list[str] = []
+    glossary = config.get('glossary')
+    if isinstance(glossary, dict) and 'manifest' in glossary:
+        if normalize_path(glossary['manifest']) is None:
+            problems.append('glossary.manifest: must be a repository-relative path')
 
     if config.get("schema") != SCHEMA:
         problems.append(f"schema: expected {SCHEMA}, got {config.get('schema')!r}")
@@ -1236,6 +1272,11 @@ def main(argv: list[str]) -> int:
     root = git_root()
 
     try:
+        if command == 'committed':
+            if root is None or len(rest) not in (1, 2) or (len(rest) == 2 and rest[1] != '--json'):
+                raise ConfigError('committed needs a Git reference inside a repository')
+            sys.stdout.write(json.dumps(load_committed(root, rest[0]), indent=2, sort_keys=True) + '\n')
+            return 0
         if command == "init":
             if root is None:
                 sys.stderr.write("afk-config: init must run inside a git repository\n")

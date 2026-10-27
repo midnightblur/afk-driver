@@ -33,6 +33,42 @@ def _module():
 cfg = _module()
 
 
+def test_committed_glossary_config_ignores_overlays(tmp_path, monkeypatch):
+    root = repo(tmp_path)
+    (root / '.afk/config.yaml').write_text(
+        'schema: 1\nglossary:\n  manifest: team/manifest.json\n', encoding='utf-8')
+    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+    _commit(root)
+    (root / '.afk/config.yaml').write_text('schema: 1\n', encoding='utf-8')
+    overlay = root / '.afk/config.local.yaml'
+    overlay.write_text('glossary:\n  manifest: untrusted.json\n', encoding='utf-8')
+    monkeypatch.setenv('AFK_CONFIG', str(overlay))
+    committed = cfg.load_committed(root, 'HEAD')
+    assert committed['glossary']['manifest'] == 'team/manifest.json'
+    assert cfg.validate(committed) == []
+    result = run(['committed', 'HEAD', '--json'], root, {'AFK_CONFIG': str(overlay)})
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == committed
+
+
+@pytest.mark.parametrize('value', ['../escape.json', '/root.json', 'C:escape.json', 7, '', None])
+def test_glossary_manifest_requires_relative_path(value):
+    assert cfg.validate({'schema': 1, 'glossary': {'manifest': value}})
+
+
+def test_committed_null_glossary_is_valid_without_a_manifest(tmp_path):
+    root = repo(tmp_path)
+    (root / '.afk/config.yaml').write_text('schema: 1\nglossary: null\n', encoding='utf-8')
+    subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+    _commit(root)
+    committed = cfg.load_committed(root, 'HEAD')
+    assert cfg.validate(committed) == []
+    assert cfg.get(committed, 'glossary.manifest') is None
+    result = run(['committed', 'HEAD', '--json'], root)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)['glossary'] is None
+
+
 def run(args, cwd, env=None):
     environ = dict(os.environ)
     environ.pop("AFK_CONFIG", None)
