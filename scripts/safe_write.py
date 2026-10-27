@@ -20,8 +20,8 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import secrets
 import stat
-import tempfile
 import time
 from typing import Callable, Iterator
 
@@ -29,6 +29,12 @@ LOCK_WAIT_SECONDS = 2.0
 SWAP_RETRIES = 10
 SWAP_RETRY_SECONDS = 0.05
 OWNER_ONLY_MODE = 0o600
+DEFAULT_CREATE_MODE = 0o666
+_TEMP_NAME_ATTEMPTS = 100
+_TEMP_FLAGS = (
+    os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOINHERIT", 0) | getattr(os, "O_CLOEXEC", 0)
+)
 _LOCK_POLL_SECONDS = 0.05
 _RETRY_BUSY_SWAP = os.name == "nt"
 ENCODING = "utf-8"
@@ -142,14 +148,23 @@ def _file_lock(target: pathlib.Path) -> Iterator[None]:
         handle.close()
 
 
-def _mode(target: pathlib.Path, owner_only: bool) -> int:
+def _mode(target: pathlib.Path, owner_only: bool) -> int | None:
     if owner_only:
         return OWNER_ONLY_MODE
     if target.exists():
         return stat.S_IMODE(target.stat().st_mode)
-    current_umask = os.umask(0)
-    os.umask(current_umask)
-    return 0o666 & ~current_umask
+    return None
+
+
+def _open_temporary(write_target: pathlib.Path, mode: int | None) -> tuple[int, pathlib.Path]:
+    create_mode = DEFAULT_CREATE_MODE if mode is None else OWNER_ONLY_MODE
+    for _ in range(_TEMP_NAME_ATTEMPTS):
+        temporary = write_target.with_name(f".{write_target.name}.{secrets.token_hex(6)}.tmp")
+        try:
+            return os.open(temporary, _TEMP_FLAGS, create_mode), temporary
+        except FileExistsError:
+            continue
+    raise SafeWriteError("no free temp file name", write_target)
 
 
 def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.Path, expected: bytes) -> None:
@@ -169,15 +184,13 @@ def _swap(temporary: pathlib.Path, write_target: pathlib.Path, target: pathlib.P
 def _replace_if_unchanged(target: pathlib.Path, expected: bytes, updated: bytes, owner_only: bool) -> None:
     _require_unchanged(target, expected)
     write_target = _real(target)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=write_target.parent,
-        prefix=f".{write_target.name}.",
-        suffix=".tmp",
-    )
-    temporary = pathlib.Path(temporary_name)
+    mode = _mode(target, owner_only)
+    descriptor, temporary = _open_temporary(write_target, mode)
     try:
-        os.chmod(temporary, _mode(target, owner_only))
+        if mode is not None:
+            os.chmod(temporary, mode)
         with os.fdopen(descriptor, "wb") as handle:
+            descriptor = -1
             handle.write(updated)
             handle.flush()
             os.fsync(handle.fileno())
@@ -190,8 +203,6 @@ def _replace_if_unchanged(target: pathlib.Path, expected: bytes, updated: bytes,
             finally:
                 os.close(directory)
     finally:
-        try:
+        if descriptor != -1:
             os.close(descriptor)
-        except OSError:
-            pass
         temporary.unlink(missing_ok=True)

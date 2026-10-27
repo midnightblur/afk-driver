@@ -385,3 +385,55 @@ def test_lock_serializes_two_separate_processes_never_letting_two_enter_together
     target.write_bytes(b"before")
 
     _run_holder_contender(tmp_path, target, target)
+
+
+def test_legacy_form_refreshes_the_named_block_and_keeps_outside_bytes(tmp_path, capsys):
+    install_block = load_module()
+    source = tmp_path / "source.md"
+    target = tmp_path / "target.md"
+    source.write_bytes(block("investigation", "new"))
+    target.write_bytes(b"before\r\n" + block("investigation", "old", "\r\n") + b"\r\nafter\r\n")
+
+    assert install_block.main([str(source), str(target), "investigation"]) == 0
+    assert target.read_bytes() == b"before\r\n" + block("investigation", "new", "\r\n") + b"\r\nafter\r\n"
+    assert capsys.readouterr().out == f"refreshed investigation block in {target}\n"
+
+    assert install_block.main([str(source), str(target), "investigation"]) == 0
+    assert capsys.readouterr().out == f"investigation block in {target} is already current\n"
+
+
+def test_legacy_form_defaults_to_the_plain_language_block(tmp_path, capsys):
+    install_block = load_module()
+    source = tmp_path / "source.md"
+    target = tmp_path / "target.md"
+    source.write_bytes(block("plain-language", "new"))
+    target.write_bytes(block("plain-language", "old"))
+
+    assert install_block.main([str(source), str(target)]) == 0
+    assert target.read_bytes() == block("plain-language", "new")
+    assert capsys.readouterr().out == f"refreshed plain-language block in {target}\n"
+
+
+def test_legacy_form_without_a_matching_block_exits_1_and_leaves_the_file(tmp_path, capsys):
+    install_block = load_module()
+    source = tmp_path / "source.md"
+    target = tmp_path / "target.md"
+    source.write_bytes(block("plain-language", "new"))
+    target.write_bytes(b"no managed block\n")
+    os.utime(target, (1_000_000, 1_000_000))
+
+    assert install_block.main([str(source), str(target)]) == 1
+    assert target.read_bytes() == b"no managed block\n"
+    assert target.stat().st_mtime == 1_000_000
+    assert capsys.readouterr().out == ""
+
+
+def test_legacy_form_with_a_missing_target_exits_2_and_creates_nothing(tmp_path, capsys):
+    install_block = load_module()
+    source = tmp_path / "source.md"
+    target = tmp_path / "target.md"
+    source.write_bytes(block("plain-language", "new"))
+
+    assert install_block.main([str(source), str(target)]) == 2
+    assert not target.exists()
+    assert capsys.readouterr().err.startswith("install_block: ")

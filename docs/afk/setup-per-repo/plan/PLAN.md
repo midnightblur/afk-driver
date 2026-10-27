@@ -70,7 +70,7 @@ SDD §14 rows each subtask implements: 0001 safe writer; 0002 reader merge, comm
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-safe-writer | shared safe writer + verification tiers | reviewing | — | static, unit, smoke | §14 safe writer |
+| 1 | 0001-safe-writer | shared safe writer + verification tiers | developing | — | static, unit, smoke | §14 safe writer |
 | 2 | 0002-settings-reader | owner rule in the settings reader | pending | 0001 | static, unit, smoke | §14 reader merge, commit gates |
 | 3 | 0003-repository-list | repository list and short-name markers | pending | 0001 | static, unit | use §14 safe writer |
 | 4 | 0004-placement | one placement module: root rules, worktree folder | pending | 0002, 0003 | static, unit | use §14 reader merge |

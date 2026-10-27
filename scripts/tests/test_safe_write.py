@@ -5,7 +5,6 @@ import importlib.util
 import os
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -207,18 +206,103 @@ def test_a_permission_error_off_windows_is_not_retried(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(os.name != "nt", reason="an open handle blocks a file swap only on Windows")
-def test_a_real_busy_swap_on_windows_retries_until_the_handle_closes(tmp_path):
+def test_a_real_busy_swap_on_windows_retries_until_the_handle_closes(tmp_path, monkeypatch):
     target = tmp_path / "file.txt"
     target.write_bytes(b"before")
     handle = open(target, "rb")
-    closer = threading.Timer(0.2, handle.close)
-    closer.start()
+    attempts = []
+    real_replace = os.replace
+
+    def replace(source, destination):
+        attempts.append(destination)
+        try:
+            real_replace(source, destination)
+        except PermissionError:
+            handle.close()
+            raise
+
+    monkeypatch.setattr(sw.os, "replace", replace)
     try:
         assert sw.update_locked(target, lambda text: "after") is True
     finally:
-        closer.join()
         handle.close()
+    assert len(attempts) == 2
     assert target.read_bytes() == b"after"
+
+
+def test_a_change_during_the_temp_file_write_is_refused(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    real_fsync = os.fsync
+
+    def fsync(descriptor):
+        real_fsync(descriptor)
+        if not target.read_bytes().startswith(b"other"):
+            target.write_bytes(b"other writer")
+
+    monkeypatch.setattr(sw.os, "fsync", fsync)
+    with pytest.raises(sw.SafeWriteError, match="changed during update"):
+        sw.update_locked(target, lambda text: "after")
+    assert target.read_bytes() == b"other writer"
+    assert temps(tmp_path) == []
+
+
+def track_descriptors(monkeypatch):
+    opened, closed = [], []
+    real_open, real_close = os.open, os.close
+
+    def open_(*args, **kwargs):
+        descriptor = real_open(*args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    def close(descriptor):
+        closed.append(descriptor)
+        real_close(descriptor)
+
+    monkeypatch.setattr(sw.os, "open", open_)
+    monkeypatch.setattr(sw.os, "close", close)
+    return opened, closed
+
+
+def test_the_temp_file_descriptor_is_closed_exactly_once(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    opened, closed = track_descriptors(monkeypatch)
+    assert sw.update_locked(target, lambda text: "after") is True
+    temp_descriptor = opened[0]
+    assert closed.count(temp_descriptor) == opened.count(temp_descriptor) - 1
+
+
+def test_the_temp_file_descriptor_is_closed_when_the_handle_never_opens(tmp_path, monkeypatch):
+    target = tmp_path / "file.txt"
+    target.write_bytes(b"before")
+    opened, closed = track_descriptors(monkeypatch)
+
+    def fdopen(*_args, **_kwargs):
+        raise OSError("no handle")
+
+    monkeypatch.setattr(sw.os, "fdopen", fdopen)
+    with pytest.raises(OSError, match="no handle"):
+        sw.update_locked(target, lambda text: "after")
+    assert closed == opened
+    assert target.read_bytes() == b"before"
+    assert temps(tmp_path) == []
+
+
+def test_a_new_file_takes_the_default_mode_without_touching_the_umask(tmp_path, monkeypatch):
+    current_umask = os.umask(0o022)
+    os.umask(current_umask)
+
+    def umask(_mask):
+        raise AssertionError("the process umask must not change")
+
+    monkeypatch.setattr(sw.os, "umask", umask)
+    target = tmp_path / "created.txt"
+    assert sw.update_locked(target, lambda text: "new") is True
+    assert target.read_bytes() == b"new"
+    if os.name != "nt":
+        assert target.stat().st_mode & 0o777 == 0o666 & ~current_umask
 
 
 def test_the_installer_reports_a_safe_writer_refusal_as_its_own_error(tmp_path):

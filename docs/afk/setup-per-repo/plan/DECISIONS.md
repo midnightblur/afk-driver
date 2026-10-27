@@ -41,3 +41,10 @@
 - Chosen: B — the Acceptance bullet guards the installer contract the assertions pin; a docstring that names a constant the slice removed is a stale artifact (`FRESHNESS.md` "no artifact goes stale")
 - Supersedes: none
 - To reverse: revert the docstring lines in `_run_holder_contender`
+
+## D-7 — Correct INV-023's busy-swap exit code
+- 2026-10-27 · decided by /afk:execute (0001-safe-writer)
+- Options: A — rewrite INV-023's `REPORT.md` vs B — leave the ledger untouched and record the correction here
+- Chosen: B — `/afk:investigate` is the single writer of a ledger; the old `main()` (`git show 288b4b3:skills/afk/setup/scripts/install_block.py`, lines 334 and 359) already caught `OSError`, so a busy swap exited 2 before the slice too; the only caller-visible change is up to 10 retries at 50 ms and the message `target file swap stayed busy: <path>`
+- Supersedes: INV-023 `REPORT.md` "instead of a traceback (exit 1)"
+- To reverse: none needed; a fresh `/afk:investigate` run would carry the corrected line

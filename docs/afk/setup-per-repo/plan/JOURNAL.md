@@ -15,3 +15,7 @@
 2026-10-27 06:30 | execute | 0001-safe-writer | decision(D-6) — updated one test comment that named a setting the slice removed; no test check changed
 2026-10-27 06:30 | execute | 0001-safe-writer | verifying — running the repository checks, the tests for the changed files and the end-to-end hook run
 2026-10-27 06:38 | execute | 0001-safe-writer | reviewing — every check is green; independent reviewers now read the change
+2026-10-27 06:40 | execute | 0001-safe-writer | pushed c668685..e7af26c (3 commits) — the suite fix, the decision records and the green checks are on the shared branch
+2026-10-27 07:10 | execute | 0001-safe-writer | decision(D-7) — corrected one line in the saved investigation about the old exit code; the program behaves the same
+2026-10-27 07:11 | execute | 0001-safe-writer | review advisory crit=0 high=0 med=2 low=10 — reviewers found no blocking problem; fixing six small issues, three others were withdrawn and three wait for the whole-feature review
+2026-10-27 07:11 | execute | 0001-safe-writer | developing — fixing a double close of a file handle, a brief permission-mask change, and four missing tests
