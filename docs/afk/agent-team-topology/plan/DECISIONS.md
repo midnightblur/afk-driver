@@ -979,3 +979,10 @@
 - Chosen: B — the human's standing rule forbids an agent writing any settings file, and the auto-mode classifier refused agent settings writes 3 times (GRILL-LOG.md trial rows of 2026-10-26); the trial showed the session rule decides before the auto-mode check. 0027's Acceptance and Verification rows now say so
 - Supersedes: none
 - To reverse: the human adds the rule to a probe folder's settings and the live rows run again from there
+
+## D-140 — afk-team.ps1 escapes a payload's double quotes where PowerShell passes them bare
+- 2026-10-26 · decided by /afk:execute (0027-afk-team-launcher, Step 8)
+- Options: A — the .ps1 line passes `@args` as they come vs B — the same one line first escapes each argument's double quotes (and the backslashes before them) when `$PSNativeCommandArgumentPassing` is neither `Standard` nor `Windows`, then passes them
+- Chosen: B — a live child Windows PowerShell 5.1 passed `afk-team agent-list '{"run": "p0027-ps1"}'` through the A form as `the payload is not JSON`, the fault round 48 fixed for pwsh 7; B gives valid JSON in 5.1 and 7.6 for 6 payload shapes (providers/CONFORMANCE.md "Round 48 rows"). The file set and the one line per file stay as R-48 signed
+- Supersedes: none
+- To reverse: in skills/afk/setup/scripts/python_runtime.py drop PS1_ARGS and write `@args` in the .ps1 line
