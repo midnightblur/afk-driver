@@ -157,6 +157,31 @@ def test_a_root_that_is_a_file_is_refused_and_lists_nothing(home, root, tmp_path
     assert rl.all_entries() == []
 
 
+def test_a_marker_that_cannot_be_written_is_refused_naming_its_folder(home, root, tmp_path, monkeypatch):
+    repo = make_repo(tmp_path / "src")
+
+    def refused(marker, *args):
+        raise PermissionError(13, "Permission denied", str(marker))
+
+    monkeypatch.setattr(rl.safe_write, "_replace_if_unchanged", refused)
+    with pytest.raises(rl.RepositoryListError, match="cannot be made or marked") as caught:
+        rl.add_repository(repo, root)
+    assert "proj" in str(caught.value) and "repositories.json" not in str(caught.value)
+    assert rl.all_entries() == []
+
+
+def test_a_release_whose_folder_cannot_be_listed_keeps_the_marker(home, root, tmp_path, monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+
+    def unreadable(self):
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(rl.pathlib.Path, "iterdir", unreadable)
+    removed = rl.remove_repository("proj", root)
+    assert not removed.folder_deleted and rl.all_entries() == []
+    assert marker_of(root, "proj").is_file()
+
+
 def test_a_folder_that_cannot_be_made_is_refused_and_lists_nothing(home, root, tmp_path, monkeypatch):
     repo = make_repo(tmp_path / "src")
     real_mkdir = rl.pathlib.Path.mkdir
@@ -760,6 +785,7 @@ def test_a_dangling_link_list_file_is_written_through(home, root, tmp_path):
     assert rl.all_entries() == []
     entry = rl.add_repository(make_repo(tmp_path / "src"), root)
     assert rl.all_entries() == [entry] and target.is_file()
+    assert (home / ".afk" / "repositories.json").is_symlink()
 
 
 @pytest.mark.parametrize("empty", ["", "   "])

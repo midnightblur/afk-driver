@@ -178,7 +178,7 @@ def remove_repository(short_name: str, root: str | os.PathLike) -> Removed:
     _update_list(drop)
     try:
         _update_list(release)
-    except (safe_write.SafeWriteError, RepositoryListError, OSError):
+    except (safe_write.SafeWriteError, RepositoryListError):
         released[:] = [False]
     return Removed(dropped[0], bool(released and released[0]))
 
@@ -331,6 +331,15 @@ def _marker_holder(marker: pathlib.Path) -> str | None:
 
 
 def _claim_folder(base: pathlib.Path, name: str, main: str, previous: str | None = None) -> None:
+    try:
+        _claim(base, name, main, previous)
+    except OSError as error:
+        raise RepositoryListError(
+            f"folder cannot be made or marked ({error}); pick another short name or root",
+            base / name) from error
+
+
+def _claim(base: pathlib.Path, name: str, main: str, previous: str | None) -> None:
     folder = base / name
     marker = folder / MARKER_NAME
     held = _marker_holder(marker)
@@ -343,11 +352,7 @@ def _claim_folder(base: pathlib.Path, name: str, main: str, previous: str | None
             f"folder is reserved for {held or 'an unreadable marker'}; pick another short name", folder)
     if held is not None and _key(held) == _key(main):
         return
-    try:
-        folder.mkdir(parents=True, exist_ok=True)
-    except OSError as error:
-        raise RepositoryListError(
-            f"folder cannot be made ({error}); pick another short name or root", folder) from error
+    folder.mkdir(parents=True, exist_ok=True)
     before = marker.read_bytes() if held is not None else b""
     text = json.dumps({"path": main}, indent=2) + "\n"
     # The caller holds the list's lock, so the marker write takes no lock of its own.
