@@ -159,7 +159,7 @@ it binds every round.
    smaller.
 
 Proportionality is the doctrine, not a number: spend what the case requires —
-`../fix/SKILL.md` Phase 2 states it, and this file adds nothing to it.
+`../fix/IN-PLACE-FIX.md` step 4 states it, and this file adds nothing to it.
 
 ## Auditing a decided card
 

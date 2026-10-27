@@ -39,3 +39,4 @@
 | 0005-bug-mode-6679da4-r7 | crit=0 high=0 med=0 low=2 | [0005-bug-mode-6679da4-r7.md](0005-bug-mode-6679da4-r7.md) |
 | 0005-bug-mode-17ce9f5-r8 | crit=0 high=0 med=1 low=0 | [0005-bug-mode-17ce9f5-r8.md](0005-bug-mode-17ce9f5-r8.md) |
 | 0005-bug-mode-3f83acf-r9 | clean | [0005-bug-mode-3f83acf-r9.md](0005-bug-mode-3f83acf-r9.md) |
+| 0006-fix-procedure-554b28a-r1 | crit=0 high=1 med=15 low=6 | [0006-fix-procedure-554b28a-r1.md](0006-fix-procedure-554b28a-r1.md) |

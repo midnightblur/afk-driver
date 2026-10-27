@@ -11,7 +11,7 @@ Run when a bug surfaces — typically a feature's **verification phase** (agent-
 
 `fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
-Phases 2 to 3.5 run the steps of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), under its hard rules — see Hard rules.
+Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller: the paths are any the fix needs, the tiers are those whose tests the fix touched, the spec folder is Phase 0 step 3's, and the running instance is the one the diagnosis reproduced against. Which of its hard rules bind: Hard rules.
 
 ## Argument
 
@@ -22,7 +22,7 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
 1. **Source of the finding.**
    - **Jira bug** (key in arg or derivable from branch): `tracker_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phases 3 and 3.5**.
+2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
 
@@ -44,7 +44,7 @@ Exit gate: verdict V-1 (or a V-2/V-3 whose latest size-call row is `still small`
 
 ## Phase 2 — Broaden coverage (proportional)
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then its step 5, with the diagnosis's reproduction as the step 1 failure. A tier or reproduction still red there → report `blocked`, naming it.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then its step 5, with the diagnosis's reproduction as the step 1 failure. A check or reproduction still red there → report `blocked`, naming it.
 
 ## Phase 2.5 — Escape analysis
 
@@ -52,7 +52,7 @@ Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 6. Carry the miss class into Phase 4
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 7. Its `design_conflict` → report `design_conflict`. A stale artifact it records → report `needs_artifact_sync`, naming the artifact and its owning skill.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 7, then route each stale artifact it records to its owning skill; a shifted subtask contract is only named in the report. Its `design_conflict` → keep the fix in the tree (skip the procedure's revert), run Phase 3.5, then report `design_conflict`. A stale artifact this session cannot reconcile → report `needs_artifact_sync`, naming it and its owning skill.
 
 ## Phase 3.5 — Workflow feedback
 
@@ -84,4 +84,5 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 
 ## Hard rules
 
-- **The hard rules of [IN-PLACE-FIX.md](IN-PLACE-FIX.md) bind every run of this skill, its no-commit rule included.** The human commits, or the run that invoked this skill does.
+- **[IN-PLACE-FIX.md](IN-PLACE-FIX.md) hard rules Uncommitted, AGENTS.md chain, Ownership, Lesson, Tier match and Cleanup bind every run of this skill.** The human commits, or the run that invoked this skill does.
+- Its rules No ticket, One result and Caller's paths do not: this skill writes the diagnosis's `DIAGNOSIS.md`, reports the Phase 4 statuses, changes any path the fix needs, and in Phase 3 runs the owning skill of a stale artifact.

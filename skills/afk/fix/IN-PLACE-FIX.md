@@ -14,32 +14,35 @@ The caller hands over:
   when it carries one), or a failing scenario (its id and failing output).
 - The paths its work may change, the tiers its work declares, and its spec
   folder when there is one.
+- The running instance a live tier runs against, when there is one.
 
 ## Hard rules
 
-- Leave the fix uncommitted in the caller's working tree and return. An
-  in-place fix never commits, pushes, opens a change or writes a ticket; the
-  caller commits under its own rules.
-- Return one result from "In-place fix results" and no diagnosis verdict. Write
-  no `DIAGNOSIS.md`.
-- Change only the paths the caller's work may change. A fix that needs another
-  path → `blocked`, naming the path.
-- The target repository's `AGENTS.md` chain binds here, notably its
-  database-migration and commit rules.
-- Route a stale PRD, SDD, ADR, `VERIFICATION-PLAN.md` or `PLAN.md` to its
-  owning skill (step 7). Edit none of them across an ownership boundary.
-- Record a workflow lesson in the lesson ledger (step 8). Edit no AFK skill
-  during a fix.
-- Match the test tier to the bug class (step 4).
-- Before returning, remove every `[DEBUG-...]` instrumentation line (grep the
-  prefix) and delete every throwaway harness.
+- **Uncommitted.** Leave the fix uncommitted in the caller's working tree and
+  return. Never commit, push, merge or open a change; the caller commits under
+  its own rules.
+- **No ticket.** Write no ticket, and run no skill that writes one.
+- **One result.** Return one result from "In-place fix results" and no
+  diagnosis verdict. Write no `DIAGNOSIS.md`.
+- **Caller's paths.** Change only the paths the caller's work may change, and
+  the catalog scenarios that step 4 adds or step 6 fixes. A fix that needs
+  another path → `blocked`, naming the path.
+- **AGENTS.md chain.** The target repository's `AGENTS.md` chain binds here,
+  notably its database-migration and commit rules.
+- **Ownership.** Edit no PRD, SDD, ADR, `VERIFICATION-PLAN.md` or `PLAN.md`
+  across an ownership boundary; step 7 records each stale one.
+- **Lesson.** Record a workflow lesson in the lesson ledger (step 8). Edit no
+  AFK skill during a fix.
+- **Tier match.** Match the test tier to the bug class (step 4).
+- **Cleanup.** Before returning, remove every `[DEBUG-...]` instrumentation
+  line (grep the prefix) and delete every throwaway harness.
 
 ## Unreleased feature
 
-Steps 7 and 8 run only for a fix on an unreleased feature. The signals: the
-branch matches `git.branch-pattern`; the spec folder holds a `plan/PLAN.md`
-whose `Feature:` line is not yet shipped; the failure came from that feature's
-own verification.
+Step 7 runs only for a fix on an unreleased feature. The signals: the branch
+matches `git.branch-pattern`; the spec folder holds a `plan/PLAN.md` whose
+`Feature:` line is not yet shipped; the failure came from that feature's own
+verification.
 
 ## Steps
 
@@ -49,11 +52,12 @@ Before any diagnosis, run the failure once more, unchanged: the check or
 scenario command, or a finding's reproduction. For a finding with nothing to
 run, read the lines it cites at the current head.
 
-- The re-run passes → return `flaky`. Change no product code. The record holds
-  both runs.
-- A finding with nothing to run whose defect does not show at the current
-  head → return `blocked`, naming the finding and the head.
+- The re-run passes → put the miss class `disabled/flaky` into the record, run
+  step 8, and return `flaky`. Change no code. The record holds both runs.
 - The re-run fails → step 2, with its failing output.
+- A finding with nothing to run whose defect shows at the current head → step
+  2, with the cited lines as the failure. Its defect does not show → return
+  `blocked`, naming the finding and the head.
 
 This step re-runs once. The caller's loop decides any further retry.
 
@@ -79,10 +83,10 @@ corroborate a load-bearing claim with code, tests or a specification.
 
 ### 3. Fix test-first
 
-Run `/afk:tdd`. The failing check is the failing test when it is a test.
-Otherwise write a test at the seam that reaches the bug and watch it fail for
-the recorded reason; a test that does not → return `blocked`, naming it. Apply
-the fix and watch the test pass.
+Run `/afk:tdd`. A failing test, build or lint command is itself the red check.
+For a finding or a scenario, write a test at the seam that reaches the bug and
+watch it fail for the recorded reason; a test that does not → return
+`blocked`, naming it. Apply the fix and watch the red check pass.
 
 - Before you change a public contract:
   `${AFK_PLUGIN_ROOT}/VERIFICATION.md` § Verification loop item 5.
@@ -97,7 +101,9 @@ the fix and watch the test pass.
 
 The step 3 test is the seam regression test. Decide whether a **higher tier**
 is warranted, and add the **lowest tier that reproduces the bug pattern at its
-right home**. Proportionality is the rule: spend what the case requires.
+right home**. Proportionality is the rule: spend what the case requires. Watch
+each test this step adds fail with the step 3 fix reverted, then pass with it
+restored; the record holds both runs.
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -121,45 +127,49 @@ construction, so its class row above never downgrades it to "no new e2e/api".
 ### 5. Run every tier
 
 Run the step 1 failure, the original un-minimised scenario, every tier the
-caller's work declares, and every tier step 4 added. A live tier runs against
-the running instance the caller provides. Confirm a UI-visible bug fixed **in
-the running UI** (mint a new token, drive the app again), not only at the test
-seam.
+caller's work declares, and every tier step 4 added. Restart the running
+instance the caller hands over on the fixed working tree, then run each live
+tier against it. Confirm a UI-visible bug fixed **in the running UI** (mint a
+new token, drive the app again), not only at the test seam.
 
 - Every one green → step 6.
-- A tier still red → return `fail`, naming the tier.
 - The failure was an adversary finding and its reproduction still shows the
   defect → return `adversary_fail`.
+- Any other check still red → return `fail`, naming the check.
 
 ### 6. Escape analysis
 
 Name why the existing guard missed the bug: [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)
 holds the procedure and when it applies. Put the miss class into the record.
 
-### 7. Reconcile the source of truth
+### 7. Find stale artifacts
 
 A fix on an unreleased feature can make a load-bearing artifact stale. Triage
-what changed and **route it to the owning skill**; a hand edit across an
-ownership boundary breaks tracker sync, ADR numbering and grill provenance. The
-reads that only locate which artifacts need reconciling (PRD, SDD, ADRs,
-`VERIFICATION-PLAN.md`) go through an `afk-reader` returning a cited digest of
-what each asserts against the fix, per `DELEGATION.md` (plugin root); triage
-and routing stay here.
+what changed and record each stale artifact with its owning skill from the
+table below; run no owning skill here. A hand edit across an ownership boundary
+breaks tracker sync, ADR numbering and grill provenance. The reads that only
+locate which artifacts are stale (PRD, SDD, ADRs, `VERIFICATION-PLAN.md`) go
+through an `afk-reader` returning a cited digest of what each asserts against
+the fix, per `DELEGATION.md` (plugin root); triage stays here.
 
-| What the fix revealed | Stale artifact | Route to |
-|-----------------------|----------------|----------|
+| What the fix revealed | Stale artifact | Owning skill |
+|-----------------------|----------------|--------------|
 | A behavior the PRD specifies was wrong / changed | `PRD.md` + requirement ADR | `/afk:to-prd` → `/afk:to-ticket` (republish) |
-| A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk:grill-solution` → `/afk:to-sdd` (superseding ADR under `adr/design/`) — return `design_conflict` |
-| The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
-| An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | name it in the record for the caller; never re-slice |
+| A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk:grill-solution` → `/afk:to-sdd` (superseding ADR under `adr/design/`) |
+| The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`, then a `NNNN-smoke-*` subtask |
+| An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | `/afk:to-subtasks`, naming the subtask; never re-slice silently |
+
+Classify a change to a frozen SDD decision by `DECISIONS.md` as in step 3: a
+one-way door or a tie → return `design_conflict`; a two-way door is recorded,
+and the SDD goes into the record as stale.
 
 Where a coverage ledger covers this bug's path, read its B13 rows for the
 statements the fix now contradicts (class semantics:
-`${AFK_PLUGIN_ROOT}/INVESTIGATION.md`), and route each by the table above.
+`${AFK_PLUGIN_ROOT}/INVESTIGATION.md`), and triage each by the table above.
 
-Doc right and code wrong → no artifact change. Reconcile only when the fix
-changed something a doc asserts. An artifact this run cannot reconcile goes
-into the record as stale, with its owning skill; it does not change the result.
+Doc right and code wrong → no artifact is stale. An artifact is stale only when
+the fix changed something it asserts. A stale artifact does not change the
+result.
 
 ### 8. Workflow lesson
 
@@ -178,28 +188,30 @@ The caller keeps the record in its own report.
 | Field | Set by | Holds |
 |-------|--------|-------|
 | Failure | intake | the check command, finding id or scenario id |
-| Runs | step 1 | for each run: command, start time, result; the first run's failing output |
+| Runs | steps 1, 4 | for each run: command, start time, result; the first run's failing output |
 | Code caller, Input, Failing path | step 2 | the three cited facts |
 | Edits | steps 3–4 | each file the fix changed |
 | Tiers | step 5 | each tier run, with its result |
-| Miss class | step 6 | the escape-analysis class, when it ran |
+| Miss class | steps 1, 6 | the escape-analysis class, when one was named |
 | Stale artifacts | step 7 | each stale artifact with its owning skill |
 | Lesson | step 8 | the lesson id, when one was recorded |
-| Rationale | steps 3–4 | the pending `rationale-add` operation ids |
-| Reason | any return but `fixed` and `flaky` | the blocker, the red tier or reproduction, or the fork with its options and your recommendation |
+| Rationale | steps 3–4 | the pending `rationale-add` operation ids, and each one a revert dropped |
+| Reason | any return but `fixed` and `flaky` | the blocker, the red check or reproduction, or the fork with its options and your recommendation |
 
-`design_conflict`, `needs_decision` and `flaky` leave no product-code edit in
-the working tree: revert any before returning. `fail`, `adversary_fail` and
-`blocked` leave the edits made so far, listed under Edits.
+`design_conflict`, `needs_decision` and `flaky` leave no edit of the fix in
+the working tree, tests included: before returning, revert each edit and run
+`rationale-drop` (`RATIONALE.md` § Write path) on each pending operation the
+fix recorded. `fail`, `adversary_fail` and `blocked` leave the edits made so
+far, listed under Edits.
 
 ## In-place fix results
 
 | Result | Returned when | What it means for the caller |
 |--------|---------------|------------------------------|
 | `fixed` | every check in step 5 is green | The failure is gone and every tier is green. The fix sits uncommitted in its working tree. |
-| `fail` | a tier stays red after the fix (step 5) | The fix did not hold; the record names the red tier. |
+| `fail` | a check other than an adversary reproduction stays red after the fix (step 5) | The fix did not hold; the record names the red check. |
 | `blocked` | the procedure cannot go on (steps 1–3, or a needed path outside the caller's paths) | The failure stays unfixed; the record names the reason. |
 | `design_conflict` | the fix needs a binding SDD or ADR decision changed, and that change is a one-way door or a tie (steps 3, 7) | No fix. The record names the decision, the conflict and your recommendation; a superseding ADR comes from `/afk:grill-solution`. |
 | `needs_decision` | any other fork is a one-way door or a tie (step 3) | No fix. The record names the fork, the options and your recommendation. |
 | `adversary_fail` | the failure was an adversary finding and its reproduction still shows the defect after the fix (step 5) | The fix did not hold against the finding; the record names the reproduction and its result. |
-| `flaky` | the step 1 re-run passed | No product code changed. The caller counts the check as passed for this run and writes one journal line naming the check and both runs; it adds no new status. |
+| `flaky` | the step 1 re-run passed | No code changed. The caller counts the check as passed for this run and writes one journal line naming the check and both runs; it adds no new status. |

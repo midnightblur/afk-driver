@@ -100,3 +100,7 @@
 2026-10-27 16:26 | execute | 0006-fix-procedure | designing — reading the contract, the design record and the fix skill before writing the shared fix procedure
 2026-10-27 16:58 | execute | 0006-fix-procedure | decision(D-40) — the ground for the fix seams held by re-reading the lines it cites; a finding the fix cannot show returns blocked; a stale document is named, not a new result; only three results undo the edits
 2026-10-27 16:58 | execute | 0006-fix-procedure | developing — the shared fix procedure is written; the fix skill, escape analysis, workflow feedback, the lesson format and AGENTS.md now point at it
+2026-10-27 17:15 | execute | 0006-fix-procedure | pushed 554b28a..54c0b4e (1 commits) — the shared fix procedure and the repointed links are on the pull request
+2026-10-27 17:15 | execute | 0006-fix-procedure | verifying — plugin-source gates pass, the wiring scan is clean, the declared result heading is in place, and 108 focused tests pass on Windows; the full suites run in the pull request's checks
+2026-10-27 17:15 | execute | 0006-fix-procedure | reviewing — round 1, full slice
+2026-10-27 17:50 | execute | 0006-fix-procedure | reviewing — round 1: 1 high, 15 medium, 6 low; all 22 fixed in place; decision(D-41) — the last stale pointer to a fix phase and a pointer test join Scope, catalog scenarios pass the paths rule, a flaky check still records its lesson, D-40's ground fact corrected
