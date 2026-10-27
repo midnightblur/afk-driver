@@ -25,6 +25,7 @@
 | 0004-diagnose-rewrite-4442db8-r8 | crit=0 high=0 med=1 low=0 | [0004-diagnose-rewrite-4442db8-r8.md](0004-diagnose-rewrite-4442db8-r8.md) |
 | 0004-diagnose-rewrite-2309c3c-r9 | crit=0 high=0 med=2 low=1 | [0004-diagnose-rewrite-2309c3c-r9.md](0004-diagnose-rewrite-2309c3c-r9.md) |
 | 0004-diagnose-rewrite-7dd349d-r10 | crit=0 high=0 med=2 low=0 | [0004-diagnose-rewrite-7dd349d-r10.md](0004-diagnose-rewrite-7dd349d-r10.md) |
+| 0004-diagnose-rewrite-507d029-r11 | crit=0 high=0 med=0 low=3 | [0004-diagnose-rewrite-507d029-r11.md](0004-diagnose-rewrite-507d029-r11.md) |
 | 0005-bug-mode-9f60079-r1 | crit=0 high=1 med=12 low=8 | [0005-bug-mode-9f60079-r1.md](0005-bug-mode-9f60079-r1.md) |
 | 0005-bug-mode-9f50c24-r2 | crit=0 high=0 med=5 low=5 | [0005-bug-mode-9f50c24-r2.md](0005-bug-mode-9f50c24-r2.md) |
 | 0005-bug-mode-94bea8d-r3 | crit=0 high=0 med=3 low=3 | [0005-bug-mode-94bea8d-r3.md](0005-bug-mode-94bea8d-r3.md) |
