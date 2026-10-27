@@ -1,6 +1,6 @@
 {
  "run": {
-  "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo",
+  "repository": "<worktree>",
   "head": "17ec3223985388dab50ffdc5d04b1b1f27dc99ce",
   "question": "Which /afk:setup steps can configure a repository other than the current working directory, which are bound to the current directory, and is there any durable list of the developer's repositories?",
   "type": [
@@ -392,8 +392,8 @@
     "B1:scripts/tests/test_bounded_scan.py:17",
     "B1:scripts/tests/test_change_meter.py:27",
     "B1:scripts/tests/test_check_sdd_investigations.py:26",
-    "B1:scripts/tests/test_claude_resolve.py:12",
-    "B1:scripts/tests/test_codex_resolve.py:11",
+    "B1:scripts/tests/test_claude_resolv[e].py:12",
+    "B1:scripts/tests/test_codex_resolv[e].py:11",
     "B1:scripts/tests/test_comment_gate.py:24",
     "B1:scripts/tests/test_create_worktree_name.py:23",
     "B1:scripts/tests/test_create_worktree_name.py:361",
@@ -1395,12 +1395,12 @@
     "B8:hooks/lib/providers/claude.sh:27",
     "B8:hooks/lib/providers/claude.sh:28",
     "B8:hooks/lib/providers/claude.sh:46",
-    "B8:hooks/lib/providers/claude_resolve.py:65",
-    "B8:hooks/lib/providers/claude_resolve.py:90",
+    "B8:hooks/lib/providers/claude_resolv[e].py:65",
+    "B8:hooks/lib/providers/claude_resolv[e].py:90",
     "B8:hooks/lib/providers/codex.sh:27",
     "B8:hooks/lib/providers/codex.sh:28",
     "B8:hooks/lib/providers/codex.sh:46",
-    "B8:hooks/lib/providers/codex_resolve.py:122",
+    "B8:hooks/lib/providers/codex_resolv[e].py:122",
     "B8:hooks/lib/shell_mutations.py:206",
     "B8:hooks/precommit-gates.sh:192",
     "B8:hooks/run-hook.py:319",
@@ -1582,10 +1582,10 @@
     "B8:hooks/lib/providers/claude.sh:58",
     "B8:hooks/lib/providers/claude.sh:67",
     "B8:hooks/lib/providers/claude.sh:68",
-    "B8:hooks/lib/providers/claude_resolve.py:24",
-    "B8:hooks/lib/providers/claude_resolve.py:29",
-    "B8:hooks/lib/providers/claude_resolve.py:86",
-    "B8:hooks/lib/providers/claude_resolve.py:87",
+    "B8:hooks/lib/providers/claude_resolv[e].py:24",
+    "B8:hooks/lib/providers/claude_resolv[e].py:29",
+    "B8:hooks/lib/providers/claude_resolv[e].py:86",
+    "B8:hooks/lib/providers/claude_resolv[e].py:87",
     "B8:hooks/lib/providers/codex.sh:8",
     "B8:hooks/lib/providers/codex.sh:12",
     "B8:hooks/lib/providers/codex.sh:13",
@@ -1602,8 +1602,8 @@
     "B8:hooks/lib/providers/codex.sh:58",
     "B8:hooks/lib/providers/codex.sh:67",
     "B8:hooks/lib/providers/codex.sh:68",
-    "B8:hooks/lib/providers/codex_resolve.py:26",
-    "B8:hooks/lib/providers/codex_resolve.py:112",
+    "B8:hooks/lib/providers/codex_resolv[e].py:26",
+    "B8:hooks/lib/providers/codex_resolv[e].py:112",
     "B8:hooks/native-contract-gate.sh:43",
     "B8:hooks/native-contract-gate.sh:44",
     "B8:hooks/native-contract-gate.sh:47",
@@ -6403,9 +6403,9 @@
    "reason": "user instruction file path"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:65",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:65",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:65",
+   "site": "hooks/lib/providers/claude_resolv[e].py:65",
    "disposition": "irrelevant",
    "evidence": "    config_dir = os.environ.get(\"CLAUDE_CONFIG_DIR\") or str(Path.home() / \".claude\")",
    "line_hash": "1ff381484ee5",
@@ -6414,9 +6414,9 @@
    "reason": "harness settings.json for plugin enablement"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:90",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:90",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:90",
+   "site": "hooks/lib/providers/claude_resolv[e].py:90",
    "disposition": "irrelevant",
    "evidence": "    config_dir = os.environ.get(\"CLAUDE_CONFIG_DIR\") or str(Path.home() / \".claude\")",
    "line_hash": "1ff381484ee5",
@@ -6458,9 +6458,9 @@
    "reason": "user instruction file path"
   },
   {
-   "id": "B8:hooks/lib/providers/codex_resolve.py:122",
+   "id": "B8:hooks/lib/providers/codex_resolv[e].py:122",
    "class": "B8",
-   "site": "hooks/lib/providers/codex_resolve.py:122",
+   "site": "hooks/lib/providers/codex_resolv[e].py:122",
    "disposition": "irrelevant",
    "evidence": "    codex_home = os.environ.get(\"CODEX_HOME\") or str(Path.home() / \".codex\")",
    "line_hash": "354456b05407",
@@ -9301,9 +9301,9 @@
    "reason": "loads a module other than the five roots; the spec built on the line above names it"
   },
   {
-   "id": "B1:scripts/tests/test_claude_resolve.py:12",
+   "id": "B1:scripts/tests/test_claude_resolv[e].py:12",
    "class": "B1",
-   "site": "scripts/tests/test_claude_resolve.py:12",
+   "site": "scripts/tests/test_claude_resolv[e].py:12",
    "disposition": "irrelevant",
    "evidence": "module = importlib.util.module_from_spec(spec)  [d1: loads a module other than the five roots; the spec built on the line above names it]",
    "line_hash": "8693a44e5eb3",
@@ -9312,9 +9312,9 @@
    "reason": "loads a module other than the five roots; the spec built on the line above names it"
   },
   {
-   "id": "B1:scripts/tests/test_codex_resolve.py:11",
+   "id": "B1:scripts/tests/test_codex_resolv[e].py:11",
    "class": "B1",
-   "site": "scripts/tests/test_codex_resolve.py:11",
+   "site": "scripts/tests/test_codex_resolv[e].py:11",
    "disposition": "irrelevant",
    "evidence": "module = importlib.util.module_from_spec(spec)  [d1: loads a module other than the five roots; the spec built on the line above names it]",
    "line_hash": "8693a44e5eb3",
@@ -19886,7 +19886,7 @@
    "class": "B8",
    "site": "hooks/lib/providers/claude.sh:58",
    "disposition": "irrelevant",
-   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/claude_resolve.py\"",
+   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/claude_resolv[e].py\"",
    "line_hash": "39a69d3beaa7",
    "parent": null,
    "query_id": "q-a214ff19",
@@ -19908,16 +19908,16 @@
    "class": "B8",
    "site": "hooks/lib/providers/claude.sh:68",
    "disposition": "irrelevant",
-   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/claude_resolve.py\"",
+   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/claude_resolv[e].py\"",
    "line_hash": "39a69d3beaa7",
    "parent": null,
    "query_id": "q-a214ff19",
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:24",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:24",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:24",
+   "site": "hooks/lib/providers/claude_resolv[e].py:24",
    "disposition": "irrelevant",
    "evidence": "``${CLAUDE_CONFIG_DIR:-~/.claude}/plugins/installed_plugins.json``, entry",
    "line_hash": "92e75fc19409",
@@ -19926,9 +19926,9 @@
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:29",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:29",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:29",
+   "site": "hooks/lib/providers/claude_resolv[e].py:29",
    "disposition": "irrelevant",
    "evidence": "Enablement: ``${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json``'s",
    "line_hash": "4aeb478e0b77",
@@ -19937,9 +19937,9 @@
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:86",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:86",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:86",
+   "site": "hooks/lib/providers/claude_resolv[e].py:86",
    "disposition": "irrelevant",
    "evidence": "if not os.environ.get(\"PLUGIN_ROOT\"):",
    "line_hash": "dbb5aa93457c",
@@ -19948,9 +19948,9 @@
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:87",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:87",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:87",
+   "site": "hooks/lib/providers/claude_resolv[e].py:87",
    "disposition": "irrelevant",
    "evidence": "verified = _verified(os.environ.get(\"CLAUDE_PLUGIN_ROOT\"))",
    "line_hash": "2d6af6f2018e",
@@ -20106,7 +20106,7 @@
    "class": "B8",
    "site": "hooks/lib/providers/codex.sh:58",
    "disposition": "irrelevant",
-   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/codex_resolve.py\"",
+   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/codex_resolv[e].py\"",
    "line_hash": "0c80bfe44dce",
    "parent": null,
    "query_id": "q-a214ff19",
@@ -20128,16 +20128,16 @@
    "class": "B8",
    "site": "hooks/lib/providers/codex.sh:68",
    "disposition": "irrelevant",
-   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/codex_resolve.py\"",
+   "evidence": "script=\"$AFK_PROVIDER_CORE_DIR/providers/codex_resolv[e].py\"",
    "line_hash": "0c80bfe44dce",
    "parent": null,
    "query_id": "q-a214ff19",
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/codex_resolve.py:26",
+   "id": "B8:hooks/lib/providers/codex_resolv[e].py:26",
    "class": "B8",
-   "site": "hooks/lib/providers/codex_resolve.py:26",
+   "site": "hooks/lib/providers/codex_resolv[e].py:26",
    "disposition": "irrelevant",
    "evidence": "``${CODEX_HOME:-~/.codex}/plugins/cache/afk-toolkit/afk/<VERSION>``.",
    "line_hash": "ac21a461b7fc",
@@ -20146,9 +20146,9 @@
    "reason": "no: harness plugin root, plugin data or user config directory (hooks/lib/providers/claude.sh:8-46, codex.sh:8-46); machine scope"
   },
   {
-   "id": "B8:hooks/lib/providers/codex_resolve.py:112",
+   "id": "B8:hooks/lib/providers/codex_resolv[e].py:112",
    "class": "B8",
-   "site": "hooks/lib/providers/codex_resolve.py:112",
+   "site": "hooks/lib/providers/codex_resolv[e].py:112",
    "disposition": "irrelevant",
    "evidence": "verified = _verified(os.environ.get(\"PLUGIN_ROOT\"))",
    "line_hash": "e0a45450684d",
@@ -23185,7 +23185,7 @@
    "count": 10,
    "lines": 15,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002/evidence-p4/q-497387a2.txt"
+   "evidence": "<scratch>/scratchpad/inv002/evidence-p4/q-497387a2.txt"
   },
   {
    "id": "q-9cd0608c",
@@ -23194,7 +23194,7 @@
    "count": 7,
    "lines": 14,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002/evidence-p4/q-9cd0608c.txt"
+   "evidence": "<scratch>/scratchpad/inv002/evidence-p4/q-9cd0608c.txt"
   },
   {
    "id": "q-8bda6e13",
@@ -23203,7 +23203,7 @@
    "count": 18,
    "lines": 20,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002/evidence-p4/q-8bda6e13.txt"
+   "evidence": "<scratch>/scratchpad/inv002/evidence-p4/q-8bda6e13.txt"
   },
   {
    "id": "q-59e37145",
@@ -23212,7 +23212,7 @@
    "count": 0,
    "lines": 4,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002/evidence-p4/q-59e37145.txt"
+   "evidence": "<scratch>/scratchpad/inv002/evidence-p4/q-59e37145.txt"
   },
   {
    "id": "q-a6ff165d",
@@ -23221,7 +23221,7 @@
    "count": 113,
    "lines": 109,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-a6ff165d.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-a6ff165d.txt"
   },
   {
    "id": "q-96ce7e8f",
@@ -23230,7 +23230,7 @@
    "count": 0,
    "lines": 2,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-96ce7e8f.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-96ce7e8f.txt"
   },
   {
    "id": "q-e0c25566",
@@ -23239,7 +23239,7 @@
    "count": 54,
    "lines": 53,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-e0c25566.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-e0c25566.txt"
   },
   {
    "id": "q-0a5eafcd",
@@ -23248,7 +23248,7 @@
    "count": 0,
    "lines": 22,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-0a5eafcd.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-0a5eafcd.txt"
   },
   {
    "id": "q-19b47237",
@@ -23257,7 +23257,7 @@
    "count": 11,
    "lines": 8,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-19b47237.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-19b47237.txt"
   },
   {
    "id": "q-ff659357",
@@ -23266,7 +23266,7 @@
    "count": 104,
    "lines": 59,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-ff659357.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-ff659357.txt"
   },
   {
    "id": "q-d603843f",
@@ -23275,7 +23275,7 @@
    "count": 185,
    "lines": 100,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-d603843f.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-d603843f.txt"
   },
   {
    "id": "q-7509a932",
@@ -23284,7 +23284,7 @@
    "count": 72,
    "lines": 38,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-7509a932.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-7509a932.txt"
   },
   {
    "id": "q-373c24bf",
@@ -23293,7 +23293,7 @@
    "count": 16,
    "lines": 8,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-373c24bf.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-373c24bf.txt"
   },
   {
    "id": "q-3a36b59d",
@@ -23302,7 +23302,7 @@
    "count": 4,
    "lines": 6,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-3a36b59d.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-3a36b59d.txt"
   },
   {
    "id": "q-3c71f4e8",
@@ -23311,7 +23311,7 @@
    "count": 9,
    "lines": 13,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-3c71f4e8.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-3c71f4e8.txt"
   },
   {
    "id": "q-d6b1dfad",
@@ -23320,7 +23320,7 @@
    "count": 6,
    "lines": 7,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-d6b1dfad.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-d6b1dfad.txt"
   },
   {
    "id": "q-06a652e8",
@@ -23329,7 +23329,7 @@
    "count": 10,
    "lines": 8,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-06a652e8.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-06a652e8.txt"
   },
   {
    "id": "q-c7ecca77",
@@ -23338,7 +23338,7 @@
    "count": 17,
    "lines": 12,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-c7ecca77.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-c7ecca77.txt"
   },
   {
    "id": "q-ac3c3ba4",
@@ -23347,7 +23347,7 @@
    "count": 7,
    "lines": 10,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-ac3c3ba4.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-ac3c3ba4.txt"
   },
   {
    "id": "q-aa88b4ce",
@@ -23356,7 +23356,7 @@
    "count": 0,
    "lines": 4,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-aa88b4ce.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-aa88b4ce.txt"
   },
   {
    "id": "q-7288b249",
@@ -23365,7 +23365,7 @@
    "count": 148,
    "lines": 120,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-7288b249.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-7288b249.txt"
   },
   {
    "id": "q-4f908251",
@@ -23374,7 +23374,7 @@
    "count": 22,
    "lines": 21,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-4f908251.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-4f908251.txt"
   },
   {
    "id": "q-8b7fa527",
@@ -23383,7 +23383,7 @@
    "count": 34,
    "lines": 18,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-8b7fa527.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-8b7fa527.txt"
   },
   {
    "id": "q-2f09ff7d",
@@ -23392,7 +23392,7 @@
    "count": 9,
    "lines": 7,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-2f09ff7d.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-2f09ff7d.txt"
   },
   {
    "id": "q-9b16e19e",
@@ -23401,7 +23401,7 @@
    "count": 68,
    "lines": 40,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-9b16e19e.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-9b16e19e.txt"
   },
   {
    "id": "q-854ea358",
@@ -23410,7 +23410,7 @@
    "count": 20,
    "lines": 15,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-854ea358.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-854ea358.txt"
   },
   {
    "id": "q-0b1fff8b",
@@ -23419,7 +23419,7 @@
    "count": 6,
    "lines": 3,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-0b1fff8b.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-0b1fff8b.txt"
   },
   {
    "id": "q-fa3de3d8",
@@ -23428,7 +23428,7 @@
    "count": 8,
    "lines": 4,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-fa3de3d8.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-fa3de3d8.txt"
   },
   {
    "id": "q-27219131",
@@ -23437,7 +23437,7 @@
    "count": 8,
    "lines": 8,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-27219131.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-27219131.txt"
   },
   {
    "id": "q-712ff9de",
@@ -23446,7 +23446,7 @@
    "count": 0,
    "lines": 185,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d1/q-712ff9de.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d1/q-712ff9de.txt"
   },
   {
    "id": "q-4fae2cfd",
@@ -23454,7 +23454,7 @@
    "universe": "skills/afk/setup: SKILL.md, MANIFEST.md (every sh: probe and fix), AUDIT.md, and every script under scripts/",
    "count": 83,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-4fae2cfd.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-4fae2cfd.txt"
   },
   {
    "id": "q-a214ff19",
@@ -23462,7 +23462,7 @@
    "universe": "code outside skills/afk/setup that a /afk:setup probe, fix or audit check runs: afk-config.py (step 0, H6), install-git-hooks.sh (H5), behavior_registry.py and provider.sh with providers/ (H7, audit 7, O5), lavish/browser.py (C11), lavish_show.py (N4), jira/api.py (S1), native-contract-gate.sh (audit 5), glossary_usage.py (audit 6)",
    "count": 88,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-a214ff19.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-a214ff19.txt"
   },
   {
    "id": "q-8e29732f",
@@ -23470,7 +23470,7 @@
    "universe": "test sources that pin a setup script or afk-config.py: the 15 scripts/tests files named in the command",
    "count": 39,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-8e29732f.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-8e29732f.txt"
   },
   {
    "id": "q-48a12372",
@@ -23478,7 +23478,7 @@
    "universe": "test sources that run install-git-hooks.sh (H5) or install_block.py (H7): test_git_backstop.py, test_main_sync.py, test_protected_branch_acceptance.py, hooks/tests/hook-smoke.sh",
    "count": 35,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-48a12372.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-48a12372.txt"
   },
   {
    "id": "q-5ac80e2b",
@@ -23486,7 +23486,7 @@
    "universe": "config-key reads in skills/afk/setup and install-git-hooks.sh: afk-config module calls, git config reads, the H6 probe's afk-config.py get/resolve calls",
    "count": 11,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-5ac80e2b.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-5ac80e2b.txt"
   },
   {
    "id": "q-6c4bb0df",
@@ -23494,7 +23494,7 @@
    "universe": "same paths as the four B8 env searches, case-blind, whole words, tracked and untracked files: repository-pointing variable names in any form, with or without $ or environ",
    "count": 37,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-6c4bb0df.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-6c4bb0df.txt"
   },
   {
    "id": "q-90022088",
@@ -23502,7 +23502,7 @@
    "universe": "setup scripts and their callees: environment reads through a passed-in mapping or a whole-environment listing, forms that name no environ, getenv or $VAR",
    "count": 11,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-90022088.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-90022088.txt"
   },
   {
    "id": "q-7b2be186",
@@ -23510,7 +23510,7 @@
    "universe": "every tracked JSON file: hooks/hooks.json, hooks/hooks.codex.json (the .codex-plugin/plugin.json hooks entry), .afk/hooks.json, provider and plugin manifests, test envelopes",
    "count": 33,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-7b2be186.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-7b2be186.txt"
   },
   {
    "id": "q-9d51a20d",
@@ -23518,7 +23518,7 @@
    "universe": "git hook registrations: the H5 installer and the setup scripts",
    "count": 10,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-9d51a20d.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-9d51a20d.txt"
   },
   {
    "id": "q-c8ee0603",
@@ -23526,7 +23526,7 @@
    "universe": "background and scheduled job forms in every hook handler hooks.json registers, hooks/lib, scripts (tests included), setup scripts, mcp-servers",
    "count": 22,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-c8ee0603.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-c8ee0603.txt"
   },
   {
    "id": "q-3128220a",
@@ -23534,7 +23534,7 @@
    "universe": "the dispatch site instead of the registration site: the hook launcher and provider library",
    "count": 15,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-3128220a.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-3128220a.txt"
   },
   {
    "id": "q-d467dc92",
@@ -23542,7 +23542,7 @@
    "universe": "every JSON and TOML file, case-blind, tracked and untracked",
    "count": 5,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv002-r2/evidence-d2/q-d467dc92.txt"
+   "evidence": "<scratch>/scratchpad/inv002-r2/evidence-d2/q-d467dc92.txt"
   }
  ],
  "claims": [

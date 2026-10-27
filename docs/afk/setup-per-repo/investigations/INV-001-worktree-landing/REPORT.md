@@ -19,16 +19,16 @@ Code-driven creation (the WorktreeCreate hook, the guard's H-2 move, `afk-launch
 - Tests: none pins the nested case, directly or through a wrapper (`plugin-source-gates.sh`, `precommit-gates.sh`, `publish.sh`, `nested-steering.sh`).
 - Cleanup only for `--name`: `create-worktree:433-445`, `remove-worktree.py:9-11`.
 - Docs the code refutes: `docs/afk/setup-per-repo/GRILL-LOG.md:8,17,58,61`, `docs/afk/protected-branch-guard/PRD.md:23,139,212`, `CONFIG.md:136,235`, `skills/afk/setup/MANIFEST.md:214`, `skills/afk/bug/CONFIG.md:43-46`, `scripts/afk-config.py:808-810`. `GLOSSARY.md:324-326` (uncommitted) and `GRILL-LOG.md:33,60,64` state planned design no code implements.
-- Machine state: `resolve worktreeBasePath` here returns `C:/Users/mvu/IdeaProjects/core-services`, another repository.
+- Machine state: `resolve worktreeBasePath` here returns `<work-repo>`, another repository.
 
 ## Frontier
 
 - `hooks/worktree-create.sh:19`, `docs/afk/protected-branch-guard/PRD.md:111`: which harness routes fire WorktreeCreate and honor its path is harness behavior.
-- `docs/afk/setup-per-repo/GRILL-LOG.md:15,67`: how Claude Code and the Codex app place and trust their own worktrees is outside this repository.
+- `docs/afk/setup-per-repo/GRILL-LOG.md:15,67`: how `claude` and the `codex` app place and trust their own worktrees is outside this repository.
 - B14: other repositories, deployment manifests and live consumers.
 
 ## Unverified
 
-- Harness behavior, outside this repository: Claude creation routes and subagent isolation (`c-3a16d3e8`); a Codex native worktree (`c-dde2db70`); where a harness tool lands when the hook fails (`c-288d7e16`); the recorded no-prompt probe, not rerun (`c-8db28af3`).
+- Harness behavior, outside this repository: Claude creation routes and subagent isolation (`c-3a16d3e8`); a `codex` native worktree (`c-dde2db70`); where a harness tool lands when the hook fails (`c-288d7e16`); the recorded no-prompt probe, not rerun (`c-8db28af3`).
 - Inferences: the `/afk:bug` dispatch mode (`c-cb05c389`); which variables each harness exports (`c-971f93d5`); Claude loading `hooks/hooks.json` by default (`c-ac61471e`); the Windows encoding failure in `nested_steering.py`, not run through `run-hook.py` (`c-0cbc3281`).
 - The seed's pending check for B1 (a name form with no simple name) is complete: delta K supersedes it with the case-blind queries fragment G ran (`q-719a17a2`, `q-19ce120a`).

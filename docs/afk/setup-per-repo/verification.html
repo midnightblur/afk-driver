@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verification grill — setup-per-repo</title>
+<meta name="afk-spec-dir" content="docs/afk/setup-per-repo">
+<style>
+/* Kit stylesheet — inlined into every rendered page, never fetched.
+ *
+ * Dark-first on purpose. Every render and every poll injects a forced-dark
+ * override that inverts any page it measures as light (scripts/lavish/inject.py),
+ * so a stylesheet that followed `prefers-color-scheme` would hand a
+ * light-preference machine a page the override then inverts. Tokens still
+ * switch: `data-theme="light"` on <html> paints the light set for a human who
+ * asks for it.
+ *
+ * Color is a dimension, not decoration: one fixed semantic set — settled/pass,
+ * open/undecided, blocked/rejected, existing/unchanged, new/proposed — and
+ * never color alone; every state also carries a word.
+ */
+
+:root {
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-2: #23272f;
+  --line: #333944;
+  --fg: #e6e9ef;
+  --fg-dim: #a7b0be;
+  --settled: #4ade80;
+  --open: #fbbf24;
+  --blocked: #f87171;
+  --neutral: #94a3b8;
+  --accent: #7dd3fc;
+  --focus: #7dd3fc;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --line: #d8dde6;
+  --fg: #14161a;
+  --fg-dim: #545c6a;
+  --settled: #15803d;
+  --open: #b45309;
+  --blocked: #b91c1c;
+  --neutral: #52606d;
+  --accent: #0369a1;
+  --focus: #0369a1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem 1.5rem 7rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.afk-page { max-width: 62rem; margin: 0 auto; }
+
+.afk-title { margin: 0 0 .25rem; font-size: 1.35rem; }
+.afk-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+
+h2, h3, h4 { line-height: 1.3; }
+
+/* No bare h4 rule. Card headings are h4 inside a group, and an h4 rule written
+ * for small labels styles a card's decision sentence as a caption — dim,
+ * uppercase, and smaller than the prose under it. Style headings by their
+ * class, never by their level: a card that moves a level must not change
+ * what it looks like. */
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: .88em; background: var(--surface-2); padding: .1em .35em;
+       border-radius: 3px; }
+
+a { color: var(--accent); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.afk-section { margin: 2rem 0; }
+.afk-section > h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+
+.afk-round {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--open);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.afk-round > .afk-h { margin: 0 0 .75rem; font-size: 1.1rem; }
+
+.afk-round-header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
+.afk-where { margin: 0; font-weight: 600; }
+.afk-settled-last, .afk-next p { margin: .25rem 0; color: var(--fg-dim); }
+.afk-next { margin-top: .75rem; }
+
+.afk-cards { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+/* --- cards ------------------------------------------------------------- */
+
+.afk-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neutral);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: .85rem 1rem;
+}
+.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+                     letter-spacing: normal; text-transform: none; color: var(--fg); }
+.afk-card--decided { border-left-color: var(--accent); }
+.afk-card--debate { border-left-color: var(--open); }
+.afk-card--confirm { border-left-color: var(--open); }
+.afk-card--signoff { border-left-color: var(--blocked); }
+.afk-card--settled { border-left-color: var(--settled); }
+.afk-card[data-afk-state="blocked"] { border-left-color: var(--blocked); }
+
+/* The session rail collapses a card by adding this class; only the heading,
+ * which is always the first child, stays visible. */
+.afk-card.afk-collapsed > *:not(.afk-h) { display: none; }
+
+.afk-fields { margin: .5rem 0 0; }
+.afk-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); margin-top: .6rem; }
+.afk-fields dd { margin: .15rem 0 0; }
+.afk-fields ul { margin: .15rem 0; padding-left: 1.1rem; }
+
+.afk-context { margin: 0 0 .6rem; }
+.afk-context + .afk-context { margin-top: -.2rem; }
+.afk-why-beat { margin: 0 0 .35rem; }
+.afk-third { color: var(--accent); }
+.afk-undecided { color: var(--fg-dim); }
+.afk-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
+
+.afk-degraded {
+  margin: 0 0 .5rem;
+  padding: .5rem .65rem;
+  border: 1px dashed var(--open);
+  border-radius: 4px;
+  color: var(--open);
+}
+
+/* --- option grid ------------------------------------------------------- */
+
+.afk-grid-wrap { overflow-x: auto; margin: .5rem 0; }
+.afk-grid { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.afk-grid caption { text-align: left; color: var(--fg-dim); padding-bottom: .3rem; }
+.afk-grid th, .afk-grid td {
+  border: 1px solid var(--line); padding: .4rem .55rem; text-align: left;
+  vertical-align: top;
+}
+.afk-grid thead th { background: var(--surface); }
+.afk-rec { color: var(--accent); font-weight: 600; font-size: .75rem; }
+
+/* --- table-layout groups: one row per item ----------------------------- */
+
+.afk-rows td { vertical-align: top; }
+.afk-row-id { white-space: nowrap; }
+.afk-row-q { margin: 0 0 .35rem; font-weight: 600; }
+.afk-rows .afk-degraded { margin: .35rem 0; }
+.afk-rows .afk-note { margin-top: 0; }
+/* The column header already says Note, so the field's own label is left for
+ * assistive technology only — clipped, never moved, so it adds no scroll
+ * width inside the wrapper's `overflow-x`. */
+.afk-rows .afk-note span {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+/* The jump control highlights whatever it walks to, card or row. */
+.afk-row.afk-seek { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* --- answer surface ---------------------------------------------------- */
+
+.afk-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+
+.afk-choice { border: 0; margin: 0; padding: 0; }
+/* `display: block` takes the legend out of the fieldset's border-anchored slot,
+ * where its box overlaps the first option row and trips the layout audit. */
+.afk-choice { display: flow-root; }
+.afk-choice legend { display: block; width: 100%; float: none;
+                     margin: 0 0 .3rem;
+                     font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                     color: var(--fg-dim); padding: 0; }
+.afk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+.afk-opt input { margin-top: .25rem; }
+
+.afk-note { display: block; margin-top: .55rem; }
+.afk-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); }
+.afk-note textarea {
+  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; font: inherit; resize: vertical;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- send bar ---------------------------------------------------------- */
+
+.afk-send {
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .7rem 1.25rem;
+  /* Not fully opaque, on purpose. A layout audit that hit-tests text reads a
+   * sticky bar as an occluder: the bar is a sibling of the cards' ancestor, so
+   * whatever text scrolls beneath it samples as covered, and the page is held
+   * behind a repair banner the reader cannot dismiss. The audit asks whether the
+   * blocker is opaque, so a hair under opaque answers no. The blur keeps the bar
+   * as legible as a solid fill, and text under it stays readable rather than
+   * vanishing — which is what the audit was looking for in the first place. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur available: a translucent bar over scrolling text is unreadable, so
+   * take the solid fill back and accept the false warning. Legibility first. */
+  .afk-send { background: var(--surface); }
+}
+.afk-send button {
+  font: inherit; padding: .45rem .9rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  cursor: pointer;
+}
+.afk-send button.afk-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.afk-send button[hidden] { display: none; }
+.afk-card.afk-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
+.afk-send-summary {
+  flex: 1 1 100%; color: var(--fg); font: .82rem/1.35 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+.afk-send-status { color: var(--fg-dim); font-size: .88rem; }
+.afk-send-status.afk-warn { color: var(--open); }
+
+/* --- groups, shape, disclosure, chips ---------------------------------- */
+
+/* Rule 1: the shape line reads before any card, so it is set apart from the
+ * header prose that follows it. */
+.afk-shape {
+  margin: 0 0 .6rem; padding: .45rem .6rem;
+  background: var(--surface-2); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.afk-round-header h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+.afk-group { margin: 1.5rem 0; }
+.afk-group-h {
+  margin: 0 0 .5rem; font-size: .95rem;
+  display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap;
+}
+.afk-count {
+  font-size: .75rem; padding: .05rem .4rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--fg-dim); font-weight: 400;
+}
+.afk-empty-group { color: var(--fg-dim); margin: 0; }
+
+/* Rule 3: heading and lede always visible, the rest one click away. The
+ * answer surface is a sibling of the disclosure, never inside it — a card
+ * stays markable while closed, so scanning and answering are one pass. */
+.afk-lede > :first-child { margin-top: 0; }
+.afk-lede > :last-child { margin-bottom: 0; }
+.afk-rec-line, .afk-evidence-line { margin: .1rem 0 .35rem; }
+.afk-prov, .afk-locked { margin: .25rem 0; color: var(--open); }
+
+.afk-detail { margin: .6rem 0 0; }
+.afk-detail > summary {
+  cursor: pointer; color: var(--accent); font-size: .88rem;
+  padding: .15rem 0; list-style-position: outside;
+}
+.afk-detail > summary:hover { text-decoration: underline; }
+.afk-detail-body {
+  margin-top: .5rem; padding-left: .7rem;
+  border-left: 1px solid var(--line);
+}
+/* A closed disclosure hides its content outright. Left merely unpainted, the
+ * children of a closed `details` keep zero-size boxes stacked on one point, and
+ * a layout audit reads that stack as overlapping text — which holds the page
+ * behind a repair banner the reader cannot dismiss. */
+.afk-detail:not([open]) > .afk-detail-body,
+.afk-ledger:not([open]) > .afk-grid-wrap { display: none; }
+
+/* A print or a PDF of the page must not lose what a disclosure holds: paper
+ * has no click. The renderer cannot force `open` from CSS, so it prints the
+ * label as a heading and the browser's own print rule opens the block; where
+ * it does not, the markdown fallback is the record. */
+@media print {
+  .afk-detail > summary { color: inherit; font-weight: 600; }
+}
+
+.afk-deps { margin: .35rem 0 0; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.afk-deps-label {
+  font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
+}
+.afk-chip {
+  font-size: .8rem; padding: .1rem .45rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--fg); text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+.afk-chip:hover { border-color: var(--accent); }
+.afk-chip--settled { border-color: var(--settled); color: var(--settled); }
+.afk-chip--open { border-color: var(--open); color: var(--open); }
+.afk-chip--blocked { border-color: var(--blocked); color: var(--blocked); }
+.afk-chip-note { font-size: .8rem; color: var(--fg-dim); font-weight: 400; }
+.afk-badge {
+  font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+  padding: .1rem .4rem; border-radius: 3px;
+}
+.afk-badge--open { background: var(--open); color: var(--bg); }
+
+/* --- the two strips ---------------------------------------------------- */
+
+/* Where the session sits in the chain. Sticky, because the map answering
+ * "where am I" is worth less once it has scrolled away. */
+.afk-rail {
+  position: sticky; top: 0; z-index: 30;
+  margin: -1.5rem -1.5rem 1rem; padding: .5rem 1.5rem;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.afk-rail ol, .afk-strip ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+}
+.afk-step {
+  font-size: .78rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.afk-step + .afk-step::before { content: "→"; margin-right: .4rem; color: var(--line); }
+.afk-step--done { color: var(--settled); }
+.afk-step--current { color: var(--fg); font-weight: 700; }
+.afk-step--upcoming { color: var(--fg-dim); opacity: .7; }
+
+/* The rounds so far. Notches, not a progress bar: there is no target count
+ * for a round to be a fraction of. */
+.afk-strip { margin: 0 0 1.25rem; }
+.afk-notch a {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .35rem .6rem; min-width: 6.5rem;
+  border: 1px solid var(--line); border-top: 3px solid var(--neutral);
+  border-radius: 0 0 4px 4px;
+  color: var(--fg); text-decoration: none; font-size: .8rem;
+}
+.afk-notch a:hover { border-color: var(--accent); }
+.afk-notch a span { color: var(--fg-dim); }
+.afk-notch--settled a { border-top-color: var(--settled); }
+.afk-notch--current a { border-top-color: var(--accent); background: var(--surface); }
+
+.afk-round-past { margin: 1.25rem 0; }
+.afk-round-past > h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--fg-dim); }
+
+/* --- re-audit strip and the decision ledger ---------------------------- */
+
+/* One trigger, and it opens the round: a decision that came back unmarked is
+ * not applied, and the human has to meet that before the new cards. */
+.afk-reaudit {
+  margin: 0 0 1rem; padding: .6rem .75rem;
+  border: 1px solid var(--open); border-left-width: 3px; border-radius: 0 4px 4px 0;
+}
+.afk-reaudit ul { margin: .4rem 0; padding-left: 1.1rem; }
+.afk-reaudit p { margin: .3rem 0 0; color: var(--fg-dim); font-size: .88rem; }
+.afk-reaudit a { color: var(--open); }
+
+.afk-ledger { margin: 2rem 0 0; }
+.afk-ledger > summary {
+  cursor: pointer; color: var(--fg-dim); font-size: .88rem; padding: .2rem 0;
+}
+.afk-ledger > summary:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="afk-page"><nav class="afk-rail" aria-label="Where this session sits in the chain"><ol><li class="afk-step afk-step--done">requirements</li><li class="afk-step afk-step--done">design</li><li class="afk-step afk-step--current" aria-current="step">verification</li><li class="afk-step afk-step--upcoming">plan</li><li class="afk-step afk-step--upcoming">execution</li><li class="afk-step afk-step--upcoming">smoke</li><li class="afk-step afk-step--upcoming">ship</li></ol></nav><h1 class="afk-title">Verification grill</h1><p class="afk-sub">setup-per-repo</p><nav class="afk-strip" aria-label="The rounds so far"><ol><li class="afk-notch afk-notch--settled"><a href="#afk-r-1"><b>R-1</b><span>36 cards · 36 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-2"><b>R-2</b><span>24 cards · 24 settled</span></a></li><li class="afk-notch afk-notch--current"><a href="#afk-r-3"><b>R-3</b><span>0 cards</span></a></li></ol></nav><section class="afk-round" id="afk-r-3" data-afk-item="R-3" data-afk-state="current"><h2 class="afk-h">Round R-3 — 0 to answer</h2><div class="afk-round-header"><p class="afk-shape">0 cards, ungrouped.</p><p class="afk-settled-last">Settled last round: All 24 round-2 cards accepted: 22 contract checks, counts gate and times report, the bare secret-step exit status left to its subtask</p><h3>Before you read</h3><ul><li>the settled rounds below — <code>docs/afk/setup-per-repo/verification.round.json</code></li></ul><ul><li><a href="GRILL-LOG.md">The grill log</a></li></ul><h3>The fork</h3><p>The verification set is settled. Nothing on this page needs an answer.
+
+Form: one black-box acceptance test file that drives every entry point in a sandbox, plus a live-run list. This feature&#x27;s first subtask adds the unit, smoke and static tiers to the committed AFK file.
+
+Journeys: 11, covering all 7 stories and all 48 acceptance criteria (round 1 said 55: a miscount). Contract checks: 22, one per contract row and per module with no row; each protected surface has its refused-agent test.
+
+Cross-cutting checks: role access, data scope, input validation, state owned elsewhere, concurrency, repeats, state changes and error shape apply; audit history, deep links, staples and paging do not, each with its reason.
+
+Live-run list, environment-limited: a second real GitHub account, an Enterprise Server host, a real GitLab host, real Jira sites, the Claude Code worktree tool and its hook, folder trust, a second Windows drive.
+
+Gaps for the plan: the final gate expects a running app (a plugin issue to draft, with your approval); CLAUDE_CONFIG_DIR and the secret step; CI does not run the two worktree smoke scripts; how setup detects the Codex app; the bare secret-step exit status.</p><div class="afk-next"><h3>Next</h3><p><b>Unlocks:</b> VERIFICATION-PLAN.md is written: 11 journeys, 7 live-run rows, 22 contract checks; next /afk:to-subtasks</p></div></div><div class="afk-cards"></div></section><section class="afk-section" id="afk-settled"><h2>Settled</h2><section class="afk-round-past" id="afk-r-2"><h3>Round R-2</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-C-3" data-afk-item="C-3" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Creator by name: success prints WORKTREE_PATH= as the last line and exits 0; a root that fails a rule exits 3 with the line naming the rule and /afk:setup; every other failure exits 1 with an ERROR= line.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-3 accept. The contract row gives the success line, both exit statuses and both error lines word for word. (SDD.md:129, :710; PRD.md:55-63, :131)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-4" data-afk-item="C-4" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Creator by branch with a parent: for an agent in a listed repository, a parent outside root/short name exits 3 with the line naming the parent and the folder; the developer&#x27;s own run works anywhere, as today.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-4 accept. The contract row and the authorization row state the permitted caller, the refused caller and the exact refusal line. (SDD.md:130, :276, :710)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-5" data-afk-item="C-5" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Worktree-create hook: success prints only the bare path and exits 0; when the creator fails, the hook exits non-zero and prints nothing.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-5 accept. The contract row gives the output shape and the failure answer; the seam row says the harness uses the printed path. (SDD.md:131, :550)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-6" data-afk-item="C-6" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Guard on git worktree add and move: an agent&#x27;s command whose real target is outside root/short name, or cannot be worked out, is refused with the refusal text word for word; inside, unlisted and the developer&#x27;s own commands pass.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-6 accept. The contract row gives the resolution rules, the parser flags and the refusal text; the authorization row gives the launch-flag exception. (SDD.md:132, :276, :711; SDD.md:636 (the unnamed pins))</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-7" data-afk-item="C-7" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Guard on the creator call: for a listed repository, an agent&#x27;s creator call whose --parent or --dir is outside root/short name is refused with the same refusal text; inside passes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-7 accept. The contract row states the checked arguments and that the answer matches the add and move refusal. (SDD.md:133, :711)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-8" data-afk-item="C-8" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Guard on the two variables: an agent command that sets AFK_WORKTREE_FOLDER or AFK_ALLOW_PROTECTED in any form the guard&#x27;s existing variable rule reads (in front of the command, through env, by export or declare, through a PowerShell env: assignment) is refused and the refusal names the variable.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-8 accept. The guard already refuses another variable&#x27;s assignment or export through these forms, and the design signs the refusal of these two variables. (SDD.md:134, :276; hooks/lib/lavish_direct.py:5, :23, :25 (assignment or export, the declare words, the PowerShell form))</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-22" data-afk-item="C-22" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Move helper: the path it suggests equals the path the creator would make for the same name, and it loads the placement code only when it plans a move.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-22 accept. The seam row says the helper takes its path from the same placement call as the creator and loads placement only when it plans a move. (SDD.md:712)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-9" data-afk-item="C-9" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Root lookup: resolve worktreeRoot prints the confirmed root and exits 0; with no confirmed root it prints the suggestion and a note on stderr; when neither passes the rules it exits 1 with the failed rule on stderr.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-9 accept. The contract row gives the answer and the stderr note for each case. (SDD.md:135)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-10" data-afk-item="C-10" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Validate: prints configuration is valid, then one warning line per ignored value naming setting, file and rule, and exits 0; unknown keys are still refused; jira.credentials-env warns jira.credentials-env was removed; delete this key.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-10 accept. The contract row gives the valid line, the warning shape, the removed-key text and the exit-status rule. (SDD.md:136; adr/design/0001-owner-rule-in-the-reader.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-11" data-afk-item="C-11" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Readers: get, effective, export-shell and resolve leave out every ignored value and answer exactly as today for every value at its owner&#x27;s file.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-11 accept. The contract row says an ignored value is absent and nothing else changes; the design record names the owner-table test. (SDD.md:137; adr/design/0001-owner-rule-in-the-reader.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-18" data-afk-item="C-18" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Settings writer: writes one key at a time to its owner&#x27;s file, quotes values with special first characters, recognises a heading with a note, refuses a key whose owner table says another file, and writes no schema line in the personal file.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-18 accept. The seam row lists each of these behaviours as the new contract of the writer. (SDD.md:714)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-20" data-afk-item="C-20" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Commit gates: the configuration test runs when the reader says the repository is set up or the .afk folder exists, with no Python on the commit path; one test pins both answers.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-20 accept. The seam row states the condition, the no-Python rule and the one pinning test. (SDD.md:720)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-21" data-afk-item="C-21" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Init: fills a new committed file from the personal file&#x27;s team values; setup, not init, writes the personal file; the setup walk never runs init in another repository.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-21 accept. The two seam rows give init&#x27;s new behaviour and the walk&#x27;s rule. (SDD.md:709, :719)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-1" data-afk-item="C-1" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Walk steps: each repository step runs as one script with that repository&#x27;s main checkout as its working folder and project folder; a failing step records failed with the reason and the rerun command, and the next repository still runs.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-1 accept. The seam row and the design record state the scope mark, the working folder, the status and the no-chained-line rule. (SDD.md:127, :439, :719; adr/design/0006-setup-walk-in-target-checkout.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-2" data-afk-item="C-2" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Setup for one repository: a listed short name or a path inside a listed repository selects it; an unlisted path is offered for adding; an unknown short name is refused with the list of names.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-2 accept. The contract row gives the four answers. (SDD.md:128, :498)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-19" data-afk-item="C-19" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Repository list: an add stores the normalized main checkout path and writes the short-name marker first, under the list&#x27;s lock; a stopped add is completed by the next add; a removal keeps the marker while its folder holds a worktree and deletes an empty folder and its marker.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-19 accept. The data, idempotency and failure rows state each of these list behaviours. (SDD.md:147, :163, :212, :297, :398, :434, :452, :498)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-17" data-afk-item="C-17" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Safe writer: one call locks the file, hands over its text and writes back the answer; a file changed meanwhile is refused with nothing changed; a lock held past 2000 ms fails naming the file and deletes the temp file; on Windows a busy swap retries 10 times at 50 ms.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-17 accept. The retry table, the failure matrix and the seam row give every number and outcome. (SDD.md:306-307, :431-433, :713; adr/design/0005-shared-safe-writer.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-12" data-afk-item="C-12" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Forge sign-in check: with an account set, auth-status exits 0 when that account&#x27;s token is available and otherwise answers account not available with a non-zero exit, never using the default login; with no account set it answers as today.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-12 accept. The contract row and the external-seam rows give the answers and the variable per host kind. (SDD.md:138, :545-547)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-13" data-afk-item="C-13" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Forge account helper and wrappers: the helper returns the host and the account name and never a token; every forge verb, branch protection and the GitHub Issues adapter act as the account; the plugin-issue reporter keeps the default login.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-13 accept. The seam row and the design record list every wrapper that changes and the one that does not. (SDD.md:717; adr/design/0003-forge-account-per-call.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-14" data-afk-item="C-14" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Review ledger: trusts a comment author who is any account the forge tool holds on that host, or named with --trust, and no other; a failing login lookup on GitHub makes the review commands exit 2.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-14 accept. The authorization row and the seam row give the trusted set, the cache rule and the exit-2 answer. (SDD.md:280, :718)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-15" data-afk-item="C-15" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Secret step: jira --site, forge --host --account and longpaths run only with a terminal on input and output and outside an agent session; every other run is refused with the reason, and no secret is ever printed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-15 accept. The contract row, the authorization row and the external-seam row give each permitted and refused run. (SDD.md:139, :274, :553, :715; adr/design/0004-jira-sign-in-per-site.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-16" data-afk-item="C-16" data-afk-state="settled"><h3 class="afk-h">R-2 · agent — Jira sign-in load: for the repository&#x27;s jira.site it takes the first source holding a complete sign-in, skips a partial source and names it in the error, and reads per-site names JIRA_SITE_ key _EMAIL and _API_TOKEN, where the key is the site host in capitals with every other character an underscore.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-16 accept. The seam row and the design record give the source order, the name scheme and the refusal content. (SDD.md:140, :716; adr/design/0004-jira-sign-in-per-site.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C-23" data-afk-item="C-23" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Time budgets: which of the design&#x27;s numbers fail a test, and which are only reported? Answer: Gate on the counts: no new file read on any command other than add and move, and no network call on add and move. Report the times only: the guard&#x27;s 50 ms on add and move, 10 ms for the owner rule, 20 ms for the placement import, in the informational bench CI already runs.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: C-23 accept. (SDD.md:564-567; .github/workflows/tests.yml:101-106)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-G-4" data-afk-item="G-4" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Gap 4: the design says a bare run of the secret step prints the 3 commands and exits, but not with which exit status. What does the test check? Answer: The test checks the 3 commands are printed and nothing is written. The exit status goes to the plan&#x27;s gaps list for the subtask to settle and write down.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-2: G-4 accept. (SDD.md:139)</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-1"><h3>Round R-1</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-V-1" data-afk-item="V-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — What is a journey and a contract check in this repository, which has no running app, no browser suite and no REST suite? Answer: Acceptance file plus a live-run list.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: V-1 accept.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-V-2" data-afk-item="V-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — This repository declares no verification tiers. Should this feature add them? Answer: Add them as this feature&#x27;s first subtask.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: V-2 here.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-1" data-afk-item="J-1" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 1, setup over several repositories: run from a folder outside every repository, setup walks 3 listed repositories, asks only for missing values, and reports each one as complete, asked or failed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-1 accept. Story 1 and the cited criteria state every observable this journey checks: asks only what is missing, acts on the given repository from any folder, warns on a local override, and goes on after one repository fails. (PRD.md:67 (story 1); PRD.md:79, :89, :91, :93, :94, :109, :110; SDD.md:127, :439)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-2" data-afk-item="J-2" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 2, worktree placement: in a listed repository, every agent route puts a new worktree at root, short name, worktree name; every agent route outside that folder is refused and the refusal names the folder.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-2 accept. Story 2 and the cited criteria state each route, each refusal, the unlisted-repository pass, the developer pass and the old-worktree case this journey checks. (PRD.md:68 (story 2); PRD.md:122, :130-136, :140; SDD.md:129-134)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-3" data-afk-item="J-3" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 3, forge account per repository: setup saves a repository&#x27;s account only after the host accepts it, and every forge call in that repository then acts as that account.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-3 accept. Story 3, the cited criteria and the external-seam rows state the save rule, the token variable per host kind, the assignee rules and the no-fallback failure. (PRD.md:69 (story 3); PRD.md:104, :109-113; SDD.md:138, :545-547)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-4" data-afk-item="J-4" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 4, the repository list: setup adds a pasted path, refuses a bad path with its reason, keeps two clones of one remote apart, and repairs an entry whose folder is gone.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-4 accept. Story 4, the short-name rules and the list criteria state each refusal and repair this journey checks. (PRD.md:70 (story 4); PRD.md:61-62, :80-85)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-5" data-afk-item="J-5" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 5, change one setting: setup for one repository changes the one setting named and asks nothing else.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-5 accept. Story 5, the one-setting criterion and the contract row for setup with a repository state the four outcomes. (PRD.md:71 (story 5); PRD.md:90; SDD.md:128)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-6" data-afk-item="J-6" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 6, a repository with no committed AFK file: the plugin works from the personal file alone; when a committed file arrives, setup deletes the personal copies it replaces.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-6 accept. Story 6, the owner-rule criteria and the policy&#x27;s teammate line state each read, each warning and the deletion rule. (PRD.md:72 (story 6); PRD.md:98-103, :167)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-7" data-afk-item="J-7" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Journey 7, the Codex app: setup shows the step to point the Codex app&#x27;s worktree root at the same root. How is this proven? Answer: With a stand-in Codex app install: setup shows the step and the step names the root path; with no install, setup shows nothing about it. The real Codex app screen is a live check.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-7 accept. (PRD.md:73 (story 7); PRD.md:126; SDD.md:551)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-8" data-afk-item="J-8" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 8, Jira sign-in per site: each site has one sign-in, every repository on that site uses it, and only the developer&#x27;s own terminal can store one.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-8 accept. The secret-step, Jira and removed-key criteria and contract rows state every refusal and every stored name this journey checks. (PRD.md:92, :105, :114-115; SDD.md:136, :139, :553-554)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-9" data-afk-item="J-9" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 9, upgrade from the previous release: misplaced values stop counting at once, setup offers to move each one, and the old worktree base becomes the root only while it passes the rules.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-9 accept. The migration table, the upgrade record and the cited criteria state each value&#x27;s fate and each offer this journey checks. (PRD.md:101, :116, :123-124, :141; SDD.md:219-230, :440, :448; adr/design/0007-ignore-misplaced-values-at-once.md)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-10" data-afk-item="J-10" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 10, the worktree root: setup asks for the root once per machine, suggests repo-worktrees in the home folder, and gives each root rule its stated outcome.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-10 accept. The root-rules table gives the outcome of each rule; the cited criteria give the ask-once and suggestion behaviour. (PRD.md:55-63 (root rules), :120-121, :125)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-J-11" data-afk-item="J-11" data-afk-state="settled"><h3 class="afk-h">R-1 · agent — Journey 11, an ordinary agent session: it reads only its own repository&#x27;s settings and accounts, and writes working files only into that repository&#x27;s spec folder, whatever note-taking app is set.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: J-11 accept. The working-files and session-scope criteria and the authorization row for reading another repository state the three checks. (PRD.md:145-150; SDD.md:84, :277)</code></dd><dt>Audit</dt><dd>explicit</dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-1" data-afk-item="AS-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Role-based access: which roles, and where is each refusal proven? Answer: Triggered. Roles: the developer in their own terminal, an agent session, a teammate. The agent side is proven by the text the agent receives (journeys 2, 3, 8); the side below it by the creator, the guard and the secret step (round 2). Two actions have no refusal below the instructions in your signed design, editing the list and writing team settings on the agent&#x27;s own initiative; they get an instruction check only, with that reason recorded.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-1 accept. (SDD.md:267-281; PRD.md:156-165)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-2" data-afk-item="AS-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Data scope: what is the scope and where is it proven? Answer: Triggered. The scope is one repository and one machine; there is no company or vendor scope. Proven by journey 11 (a session sees only its repository), journey 6 (a teammate sees no personal value) and journey 1 (only the walk reads other repositories).</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-2 accept. (PRD.md:154, :164, :167; SDD.md:285-291)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-3" data-afk-item="AS-3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Input validation: which inputs, and where proven? Answer: Triggered. Every root rule (journey 10), the list&#x27;s refusals (journey 4), an unknown short name (journey 5), a matching site key (journey 8), and one contract row per refusal in round 2.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-3 accept. (PRD.md:55-63, :82; SDD.md:128, :139)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-4" data-afk-item="AS-4" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Audit history of new database records: does it apply? Answer: Not applicable: the feature adds no database table or entity. Everything it stores is a file under the home folder or a repository&#x27;s git folder.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-4 accept. (SDD.md:285-291)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-5" data-afk-item="AS-5" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Deep links and state in the page address: does it apply? Answer: Not applicable: there is no web page. The surfaces are commands, hooks and the guard.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-5 accept. (SDD.md:123)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-6" data-afk-item="AS-6" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Accepted staples: does it apply? Answer: Not applicable: this plugin has no staples registry, and the PRD accepted none.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-6 accept. (PRD.md:192)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-7" data-afk-item="AS-7" data-afk-state="settled"><h3 class="afk-h">R-1 · human — State owned elsewhere that can change between a check and the action it guards: which windows, and how is each covered? Answer: Triggered, 5 windows. A forge token removed after setup checked it: the call fails with account not available (journey 3). A session starting in a worktree between the setup list and its removal: liveness is read again at removal and the guard checks again (journey 9). The harness rewriting its settings file while the secret step waits: refused, nothing changed (journey 8). A confirmed root that later becomes a repository: the rules run on every read (journey 10). A worktree changing branch between the copy-deletion check and the deletion in the same run: accepted, because the report lists each deleted value so you can type it back.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-7 accept. (SDD.md:423, :447-448, :553; PRD.md:63)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-8" data-afk-item="AS-8" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Two writers at once: does it apply? Answer: Applies. A second writer on a changed file refuses and changes nothing; a lock held past 2000 ms fails naming the file; on Windows a busy file swap retries 10 times at 50 ms. One contract row each in round 2.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-8 accept. (SDD.md:431-433)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-9" data-afk-item="AS-9" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Repeating an action: does it apply? Answer: Applies. A second run asks nothing (journey 1); adding a listed path is refused (journey 4); rerunning the secret step replaces the value and keeps one backup (journey 8); a run stopped after writing a short-name marker reuses it (round 2).</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-9 accept. (SDD.md:295-300, :434)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-10" data-afk-item="AS-10" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Pages and sort order: does it apply? Answer: Not applicable: no surface returns results in pages.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-10 accept. (SDD.md:123-140)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-11" data-afk-item="AS-11" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Allowed state changes: does it apply? Answer: Applies. A forge account goes from unset to saved only after the host accepts it (journey 3). The root migration keeps both keys until deletion, and the new one wins (journey 9). A Jira sign-in goes from absent to stored to replaced, only through the secret step (journey 8).</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-11 accept. (SDD.md:375-378, :440)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AS-12" data-afk-item="AS-12" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Shape of error answers: does it apply? Answer: Applies. Exit 3 with the ERROR= line naming the rule and /afk:setup for a root failure; exit 1 for any other creator failure; the guard&#x27;s refusal text; account not available. One contract row each in round 2.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: AS-12 accept. (SDD.md:129-138)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-1" data-afk-item="E-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — A real second GitHub account on one host: how is it covered? Answer: The automated test uses a stand-in gh with 2 accounts. The real behaviour is a live check before release, marked environment-limited, so the gate does not count it as a failure.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-1 accept. (SDD.md:545, :679)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-2" data-afk-item="E-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — A GitHub Enterprise Server host: how is it covered? Answer: The automated test checks the token goes into GH_ENTERPRISE_TOKEN for such a host. No real host is reachable, so the live half is environment-limited and stays unrun until one is.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-2 accept. (SDD.md:546)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-3" data-afk-item="E-3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — A real GitLab host with one login: how is it covered? Answer: Stand-in glab in the automated test; a live check on a real GitLab host before release, environment-limited.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-3 accept. (SDD.md:547-548)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-4" data-afk-item="E-4" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Real Jira sites: how are they covered? Answer: Stand-in sites in the automated test; a live check with your one real site before release. A second real site is environment-limited.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-4 accept. (PRD.md:114; SDD.md:554)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-5" data-afk-item="E-5" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The Claude Code worktree tool and its hook: how is it covered? Answer: A stand-in harness in the automated test. A live check in a real Claude Code session: the tool lands under the root, and a hook exit 3 creates no worktree. Environment-limited.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-5 accept. (PRD.md:130, :132; SDD.md:550, :591)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-6" data-afk-item="E-6" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Folder trust for subfolders of the root, in Claude Code and Codex: how is it covered? Answer: A live check in each harness: trust the root once, create a worktree in a subfolder, and see no new trust prompt. Environment-limited; the automated test checks only that setup shows the step.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-6 accept. (PRD.md:125; SDD.md:552)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-7" data-afk-item="E-7" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Both systems: where does every automated test run? Answer: On Windows and on Linux before every push: natively on Windows and in WSL here, then in CI on both. Not environment-limited.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-7 accept. (.github/workflows/tests.yml:19-23; SDD.md:570)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-E-8" data-afk-item="E-8" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Cases the design did not exercise: a second Windows drive, CLAUDE_CONFIG_DIR, unusual git layouts. What happens to each? Answer: Add correctness tests for a separate git folder and for a submodule; the guard&#x27;s 50 ms budget stays ungated for them. Run the second-drive test when a second drive exists, else skip it with the reason. CLAUDE_CONFIG_DIR becomes gap 2.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: E-8 accept. (SDD.md:579, :617, :724)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-G-1" data-afk-item="G-1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Gap 1: the final gate needs a running app and two suites this repository does not have. How is it recorded? Answer: Record it in the plan&#x27;s gaps list. After this grill, draft a plugin issue for the smoke-test skill; you approve the exact text before anything is sent.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: G-1 accept. (skills/afk/smoke-test/SKILL.md:12, :39)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-G-2" data-afk-item="G-2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Gap 2: the design does not say where the secret step writes when CLAUDE_CONFIG_DIR moves the harness settings file. What do we do? Answer: Record it in the plan&#x27;s gaps for the design to settle. The test sets CLAUDE_CONFIG_DIR and expects the step either to follow it or to refuse; the subtask picks one and writes it down.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: G-2 accept. (SDD.md:579)</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-G-3" data-afk-item="G-3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Gap 3: CI does not run the two worktree smoke scripts. What do we do for this feature? Answer: Put this feature&#x27;s creator checks in the pytest acceptance file, which CI runs. Record running the two smoke scripts in CI as a follow-up ticket candidate.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>R-1: G-3 accept. (.github/workflows/tests.yml:62-67; scripts/tests/create-worktree-smoke.sh)</code></dd></dl></div></details></article></div></section></section><details class="afk-ledger" id="afk-ledger"><summary>The decision ledger — 60 settled, by whom, on what evidence</summary><div class="afk-grid-wrap"><table class="afk-grid"><thead><tr><th>Item</th><th>Round</th><th>Decided by</th><th>Audit</th><th>Evidence</th></tr></thead><tbody><tr><td><a href="#afk-i-C-3"><code>C-3</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-4"><code>C-4</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-5"><code>C-5</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-6"><code>C-6</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-7"><code>C-7</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-8"><code>C-8</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-22"><code>C-22</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-9"><code>C-9</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-10"><code>C-10</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-11"><code>C-11</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-18"><code>C-18</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-20"><code>C-20</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-21"><code>C-21</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-1"><code>C-1</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-2"><code>C-2</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-19"><code>C-19</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-17"><code>C-17</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-12"><code>C-12</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-13"><code>C-13</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-14"><code>C-14</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-15"><code>C-15</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-16"><code>C-16</code></a></td><td>R-2</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-C-23"><code>C-23</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-G-4"><code>G-4</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-V-1"><code>V-1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-V-2"><code>V-2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-J-1"><code>J-1</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-2"><code>J-2</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-3"><code>J-3</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-4"><code>J-4</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-5"><code>J-5</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-6"><code>J-6</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-7"><code>J-7</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-J-8"><code>J-8</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-9"><code>J-9</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-10"><code>J-10</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-J-11"><code>J-11</code></a></td><td>R-1</td><td>agent</td><td>explicit</td><td>—</td></tr><tr><td><a href="#afk-i-AS-1"><code>AS-1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-2"><code>AS-2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-3"><code>AS-3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-4"><code>AS-4</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-5"><code>AS-5</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-6"><code>AS-6</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-7"><code>AS-7</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-8"><code>AS-8</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-9"><code>AS-9</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-10"><code>AS-10</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-11"><code>AS-11</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AS-12"><code>AS-12</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-1"><code>E-1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-2"><code>E-2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-3"><code>E-3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-4"><code>E-4</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-5"><code>E-5</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-6"><code>E-6</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-7"><code>E-7</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-E-8"><code>E-8</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-G-1"><code>G-1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-G-2"><code>G-2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-G-3"><code>G-3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr></tbody></table></div></details></div>
+<script>
+/* Send runtime — inlined into every rendered page, never fetched.
+ *
+ * The page-writer never authors send logic; this file is that logic, and the
+ * renderer emitting it is what makes the attribute contract true by
+ * construction. It reads only the attribute contract, so a hand-authored card
+ * carrying the same attributes composes identically to a rendered one.
+ *
+ * What it guarantees (LAVISH-KIT.md "Runtime contract"):
+ *   R-1  one `data-afk-input="choice"` and one `data-afk-input="note"` per
+ *        `data-afk-item` card inside the current section; native controls only.
+ *   R-2  one form submit per round — a single tagged queuePrompt plus
+ *        sendQueuedPrompts, never one per item.
+ *   R-3  marks and notes persist by session path and item id in localStorage.
+ *   R-4  the response grammar, emitted verbatim.
+ *
+ * Every window.lavish call is guarded: opening the file with no server running
+ * must behave identically, minus the send.
+ */
+(function () {
+  var bar = document.getElementById('afk-send');
+  if (!bar) return;
+  var form = document.getElementById('afk-answer-form');
+  if (!form) return;
+  var round = bar.getAttribute('data-afk-round') || '?';
+  /* The namespace contains no page-revision token. A render revision must not
+   * silently discard marks made against the same session and item ids. */
+  var KEY = 'afk-answers:' + location.pathname;
+  var LEGACY_KEY = 'afk-round:' + location.pathname;
+  var NO_CHOICE = '—';
+
+  /* Two stores, because the first one is not always there. A host may load this
+   * page in a sandboxed frame with an opaque origin, where every `localStorage`
+   * call throws — and a guarded call that throws loses the draft in silence,
+   * which is the one failure mode nobody is told about. `window.name` survives a
+   * navigation of the same browsing context, an `src` reset included, and an
+   * opaque origin can still read and write it. So marks go to both: whichever
+   * one the host allows is the one that answers on the way back.
+   *
+   * A reload costs the human nothing only if this holds. It is the reason the
+   * page can be re-rendered at all. */
+  function frameRead() {
+    try {
+      var envelope = JSON.parse(window.name || '{}') || {};
+      var drafts = envelope.afkAnswers;
+      return (drafts && drafts[KEY]) || null;
+    } catch (e) { return null; }
+  }
+
+  function frameWrite(value) {
+    try {
+      var envelope = {};
+      try { envelope = JSON.parse(window.name || '{}') || {}; } catch (e) {}
+      /* Another page's name payload is not ours to drop. */
+      if (!envelope.afkAnswers) envelope.afkAnswers = {};
+      envelope.afkAnswers[KEY] = value;
+      window.name = JSON.stringify(envelope);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function localRead() {
+    try {
+      var stored = localStorage.getItem(KEY);
+      if (!stored) {
+        stored = localStorage.getItem(LEGACY_KEY);
+        if (stored) migrateLegacy = true;
+      }
+      return JSON.parse(stored || '{}') || {};
+    } catch (e) { return null; }
+  }
+
+  var migrateLegacy = false;
+  /* The frame store wins a tie: it is written last and cannot go stale behind a
+   * `localStorage` copy the host silently refused to update. */
+  var store = frameRead() || localRead() || {};
+
+  function save() {
+    var text;
+    try { text = JSON.stringify(store); } catch (e) { return false; }
+    var kept = frameWrite(store);
+    try {
+      localStorage.setItem(KEY, text);
+      kept = true;
+    } catch (e) {}
+    return kept;
+  }
+  if (migrateLegacy && save()) {
+    try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+  }
+
+  /* Page order = DOM order, and only cards inside the current section are the
+   * round's questions; settled and carried-over cards answer nothing. */
+  function cards() {
+    var current = document.querySelector('[data-afk-state="current"]');
+    if (!current) return [];
+    return [].slice.call(current.querySelectorAll('[data-afk-item]')).filter(function (el) {
+      return el.querySelector('[data-afk-input="choice"], [data-afk-input="note"]');
+    });
+  }
+
+  function choiceOf(el) {
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (!host) return '';
+    var picked = host.querySelector('input[type="radio"]:checked');
+    return picked ? picked.value : '';
+  }
+
+  function noteOf(el) {
+    var field = el.querySelector('[data-afk-input="note"]');
+    return field ? field.value.trim() : '';
+  }
+
+  function restore(el) {
+    var id = el.getAttribute('data-afk-item');
+    var saved = store[id];
+    if (!saved) return;
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (host && saved.c) {
+      var radios = host.querySelectorAll('input[type="radio"]');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].value === saved.c) { radios[i].checked = true; break; }
+      }
+    }
+    var field = el.querySelector('[data-afk-input="note"]');
+    if (field && saved.n) field.value = saved.n;
+  }
+
+  function remember(el) {
+    var id = el.getAttribute('data-afk-item');
+    var c = choiceOf(el), n = noteOf(el);
+    if (!c && !n) { delete store[id]; } else { store[id] = { c: c, n: n }; }
+    save();
+  }
+
+  /* R-4. One line per card, page order; an em dash stands for no choice, and
+   * the note follows a pipe only when there is one. */
+  function compose() {
+    var lines = ['[round R-' + round + ']'];
+    cards().forEach(function (el) {
+      var id = el.getAttribute('data-afk-item');
+      var c = choiceOf(el) || NO_CHOICE;
+      var n = noteOf(el);
+      lines.push(n ? id + ' ' + c + ' | ' + n : id + ' ' + c);
+    });
+    return lines.join('\n');
+  }
+
+  function answerData() {
+    return cards().map(function (el) {
+      return {
+        id: el.getAttribute('data-afk-item'),
+        choice: choiceOf(el) || '',
+        note: noteOf(el)
+      };
+    });
+  }
+
+  var summary = bar.querySelector('#afk-send-summary');
+  function refreshSummary() {
+    if (!summary) return;
+    summary.textContent = answerData().map(function (answer) {
+      return answer.id + '=' + (answer.choice || NO_CHOICE);
+    }).join(' · ');
+  }
+
+  /* Silence is not agreement. Every answerable card carries the required flag,
+   * so a card with no mark is unanswered rather than accepted. The human is
+   * told which ones before the send, and can still send. */
+  function unmarkedCards() {
+    return cards().filter(function (el) {
+      return el.getAttribute('data-afk-required') === '1' && !choiceOf(el);
+    });
+  }
+
+  function unmarked() {
+    return unmarkedCards().map(function (el) { return el.getAttribute('data-afk-item'); });
+  }
+
+  /* Round size follows what is being decided, so nothing caps the card count.
+   * Navigation is what keeps a long round readable: the bar names every
+   * unmarked card and this control walks to them, first one first. */
+  var jumpBtn = bar.querySelector('#afk-send-jump');
+  function refreshJump() {
+    if (!jumpBtn) return;
+    var pending = unmarkedCards();
+    jumpBtn.hidden = pending.length === 0;
+    jumpBtn.textContent = pending.length === 1
+      ? 'Go to the unmarked card'
+      : 'Go to first of ' + pending.length + ' unmarked';
+  }
+
+  function jumpToFirstUnmarked() {
+    var pending = unmarkedCards();
+    if (!pending.length) return;
+    var target = pending[0];
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('afk-seek');
+    setTimeout(function () { target.classList.remove('afk-seek'); }, 1600);
+    var radio = target.querySelector('[data-afk-input="choice"] input[type="radio"]');
+    if (radio && radio.focus) radio.focus({ preventScroll: true });
+  }
+
+  var status = bar.querySelector('.afk-send-status');
+  function say(text, warn) {
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('afk-warn', !!warn);
+  }
+
+  var armed = false;
+  var sent = false;
+  function send() {
+    if (sent) {
+      say('Already sent. Change an answer, or use Copy the response.');
+      return;
+    }
+    var missing = unmarked();
+    if (missing.length && !armed) {
+      armed = true;
+      say('No mark on ' + missing.join(', ') + ' — those stay unanswered. '
+          + 'Send again to send anyway.', true);
+      return;
+    }
+    armed = false;
+    var bridge = window.lavish;
+    if (!bridge || typeof bridge.queuePrompt !== 'function' ||
+        typeof bridge.sendQueuedPrompts !== 'function') {
+      copy('No session. Copied the answers. Paste them to the agent.');
+      return;
+    }
+    /* afk:send-bridge */
+    bridge.queuePrompt(compose(), {
+      tag: 'choice',
+      text: 'Round R-' + round + ' answers',
+      element: form
+    });
+    bridge.sendQueuedPrompts();
+    sent = true;
+    say('Round R-' + round + ' sent.');
+  }
+
+  function copy(message) {
+    var text = compose();
+    var done = function () {
+      say(message || 'Copied. Paste it to the agent.');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      if (document.execCommand('copy')) {
+        done();
+      } else {
+        say('Copy failed.', true);
+      }
+    } catch (e) { say('Copy failed.', true); }
+    document.body.removeChild(ta);
+  }
+
+  cards().forEach(function (el) {
+    restore(el);
+    el.addEventListener('change', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+    el.addEventListener('input', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+  });
+
+  var copyBtn = bar.querySelector('#afk-send-copy');
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    send();
+  });
+  if (copyBtn) copyBtn.addEventListener('click', function () { copy(); });
+  if (jumpBtn) jumpBtn.addEventListener('click', jumpToFirstUnmarked);
+  refreshJump();
+  refreshSummary();
+
+  var n = cards().length;
+  say(n + (n === 1 ? ' card' : ' cards') + ' in this round — one send answers them all.');
+})();
+</script>
+<!-- afk-lavish-tips:start -->
+<style>
+  .afk-tip { border-bottom: 1px dotted currentColor; cursor: help; }
+  #afk-tip-box {
+    position: fixed; z-index: 2147483647; max-width: 340px; padding: 8px 10px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35); pointer-events: none;
+    opacity: 0; transition: opacity .12s; white-space: normal;
+  }
+  #afk-btw {
+    position: fixed; right: 14px; bottom: 14px; z-index: 2147483646;
+    font: 12.5px/1.4 system-ui, sans-serif; text-align: right;
+  }
+  #afk-btw button {
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit;
+  }
+  #afk-btw button:hover { border-color: rgba(255,255,255,.5); }
+  #afk-btw-panel {
+    position: absolute; bottom: calc(100% + 6px); right: 0; width: 300px;
+    background: #111827; border: 1px solid rgba(255,255,255,.25); border-radius: 8px;
+    padding: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.35); text-align: left;
+  }
+  #afk-btw-q {
+    width: 100%; min-height: 64px; box-sizing: border-box; resize: vertical;
+    background: #0b0f19; color: #f3f4f6; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 6px; padding: 6px; font: inherit;
+  }
+  #afk-btw-panel > div { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+  #afk-nav {
+    position: fixed; top: 14px; right: 14px; z-index: 2147483645; width: 236px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  #afk-nav-head { display: flex; align-items: center; gap: 6px; padding: 7px 10px; cursor: pointer; user-select: none; }
+  #afk-nav-head b { flex: 1; font-weight: 600; }
+  #afk-nav-list { max-height: 62vh; overflow-y: auto; padding: 0 6px 6px; }
+  #afk-nav.afk-min { width: auto; }
+  #afk-nav.afk-min #afk-nav-list { display: none; }
+  .afk-nav-g { margin: 4px 0 2px; padding: 2px 4px; font-weight: 600; opacity: .75; cursor: pointer; user-select: none; }
+  .afk-nav-row { display: block; padding: 3px 4px 3px 10px; border-radius: 5px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .afk-nav-row:hover { background: rgba(255,255,255,.08); }
+  .afk-nav-row.afk-cur { background: rgba(59,130,246,.25); }
+  .afk-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; margin-right: 5px; vertical-align: 1px; }
+  #afk-jump {
+    position: fixed; left: 14px; bottom: 14px; z-index: 2147483645; display: none;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 12.5px/1.4 system-ui, sans-serif;
+  }
+  #afk-jump:hover { border-color: rgba(255,255,255,.5); }
+  .afk-collapsed > *:not(:first-child) { display: none !important; }
+  .afk-caret { cursor: pointer; }
+  .afk-caret::after { content: "▸"; margin-left: 6px; opacity: .55; }
+  .afk-caret.afk-open::after { content: "▾"; }
+  [data-afk-fresh] { box-shadow: -3px 0 0 0 #f59e0b; }
+  [data-afk-item] { scroll-margin-top: 10px; }
+  .afk-flash { outline: 2px solid #f59e0b; outline-offset: 2px; }
+</style>
+<script id="afk-tips-dict" type="application/json">{"ADF": "Atlassian Document Format — the JSON structure Jira Cloud uses for rich text; ticket descriptions are published in it rather than as markdown.", "MR": "Merge Request — GitLab's equivalent of a pull request: a proposed branch merge that is reviewed before landing.", "Draft MR": "A Merge Request marked Draft — visible for review but explicitly not ready to merge. The workflow opens MRs as Draft; a human flips them Ready.", "CI": "Continuous Integration — the automated pipeline (build, tests, checks) that runs on every push; a red pipeline blocks the merge.", "CR": "Code Review — the human review of the merge request. In this workflow the agent stops at the Draft MR; the human owns CR and the merge.", "PO": "Product Owner — the person accountable for what the product should do and in what order; the voice of requirements.", "TDD": "Test-Driven Development — write a failing test first (red), make it pass with the simplest code (green), then clean up (refactor). Guarantees every behavior has a test that has been seen to fail.", "DDD": "Domain-Driven Design — modeling software around the business domain's own concepts and language (entities, aggregates, bounded contexts) rather than around technical structures.", "NFR": "Non-Functional Requirement — a quality the system must have rather than a thing it must do: performance, availability, security. Here every NFR must carry a number ('p95 < 200 ms'), never an adjective ('fast').", "MCP": "Model Context Protocol — the standard through which the coding agent reaches external systems (Jira, browsers, databases) as callable tools.", "DTO": "Data Transfer Object — a plain object shaped for carrying data across a boundary (API request/response), deliberately separate from the persistence entity.", "TOCTOU": "Time-Of-Check to Time-Of-Use — a race where a condition is checked once, acted on later, and the state changes in between. Example: a gate passes at submission, but the external state flips before the irreversible action runs.", "RBAC": "Role-Based Access Control — permissions are granted to roles (admin, approver, viewer) and users get roles.", "ABAC": "Attribute-Based Access Control — access decided from attributes of the user, resource, and context (department, ownership, time) rather than from fixed roles.", "ReBAC": "Relationship-Based Access Control — access derived from relationships between the user and the resource ('owner of', 'member of the team that owns').", "JWT": "JSON Web Token — a signed token carrying the caller's identity and claims; the backend verifies the signature instead of holding session state.", "OAuth": "An authorization standard where a user grants an application limited access to their account via tokens, without sharing their password.", "mTLS": "Mutual TLS — both client and server present certificates, so each side cryptographically verifies the other; used for service-to-service authentication.", "SLO": "Service Level Objective — a measurable reliability or performance target ('99.9% of requests under 300 ms') the service commits to.", "AOP": "Aspect-Oriented Programming — cross-cutting behavior (security checks, transactions, logging) woven around methods by the framework instead of hand-written in each one; in Spring, typically annotations plus proxies.", "JPA": "Java Persistence API — Java's standard object-relational mapping: entity classes map to database tables, repositories issue the queries.", "Envers": "Hibernate Envers — an audit framework that records every change to an annotated JPA entity in history tables, so you can ask what a row looked like at any revision and who changed it.", "ApprovalTests": "A testing style that asserts against a stored 'approved' snapshot of output (often JSON) — the first run records it, later runs diff against it.", "Playwright": "Microsoft's browser-automation framework — drives a real browser (click, type, assert) for end-to-end UI tests.", "Cucumber": "A BDD test framework where scenarios are written in near-English Given/When/Then steps bound to automation code.", "Mermaid": "A text-to-diagram language — flowcharts, sequence and state diagrams are written as plain text and rendered in the page.", "gRPC": "A binary RPC framework — services call each other's typed methods over HTTP/2 instead of exchanging JSON over REST; faster and contract-first, less human-readable.", "UML": "Unified Modeling Language — the standard diagram vocabulary (class, sequence, state diagrams). Used selectively here: sequence diagrams for flows, state diagrams for lifecycles.", "C4": "The C4 model — explaining architecture at four zoom levels: Context (the system among its neighbors), Container (deployable units), Component (parts inside one container), Code. One level per diagram; never mix altitudes.", "arc42": "A widely used architecture-documentation template — twelve standard sections (context, constraints, building blocks, runtime view, deployment, decisions…) so readers always know where to look.", "event storming": "A workshop format where domain experts and developers map a process as a timeline of domain events — used to discover the real workflow and its boundaries before designing.", "HL-1": "Human-locked aspect 1 — entity design: every persisted field, type, nullability, relation, index, audit verdict, retention, and the migration of existing rows. Decided and signed by the human; binding on the executor.", "HL-2": "Human-locked aspect 2 — the API surface: every added or changed endpoint's method, path, roles, request validation, success and error envelopes, and its compatible-vs-breaking verdict. Human-signed.", "HL-3": "Human-locked aspect 3 — authorization and data scoping: who may reach each protected surface, who is denied, and where each guard is enforced. Human-signed.", "HL-4": "Human-locked aspect 4 — lifecycle states, their legal transitions, and the invariants with their guardians. Human-signed.", "HL-5": "Human-locked aspect 5 — irreversible or outward-facing side effects (postings, emails, external calls): what fires, when, and what guards it. Human-signed.", "HL-6": "Human-locked aspect 6 — changes to existing behaviour at the seams: anything someone already depends on that this feature extends or reworks. Human-signed.", "human-locked": "A design aspect only the human decides and signs — entity design, API surface, authorization/scoping, lifecycle & invariants, irreversible side effects, changes to existing behaviour (HL-1..HL-6). Grilled to contract grade, then explicitly signed off; unsigned means the design isn't finished.", "RP-1": "Render point 1 (playbook 'comparison') — a named spot in a skill where the agent renders design alternatives side by side for a human decision. See 'render point'.", "RP-2": "Render point 2 (playbook 'plan') — a named spot in a skill where the agent renders a plan/progress surface. See 'render point'.", "RP-3": "Render point 3 (playbook 'table') — a named spot in a skill where the agent renders a tabular decision surface. See 'render point'.", "RP-4": "Render point 4 (playbook 'table') — a named spot in a skill where the agent renders a tabular decision surface. See 'render point'.", "RP-5": "Render point 5 (playbook 'slides') — a named spot in a skill where the agent renders a stepped, slide-style walkthrough. See 'render point'.", "RP-6": "Render point 6 (playbook 'diagram') — a named spot in a skill where the agent renders a diagram-first surface. See 'render point'.", "RP-7": "Render point 7 (playbook 'input') — a named spot in a skill where the agent renders a page with embedded structured-feedback controls. See 'render point'.", "RP-8": "Render point 8 (playbook 'input') — a named spot in a skill where the agent renders a page with embedded structured-feedback controls. See 'render point'.", "RP-9": "Render point 9 (playbook 'table') — a named spot in a skill where the agent renders a tabular review packet for sign-off. See 'render point'.", "render point": "A named spot (RP-1..RP-9) in a workflow skill where, with a human present, the agent renders an interactive HTML page like this one for the discussion, instead of prose in the terminal.", "lavish-axi": "The tool that serves pages like this one: the agent writes an HTML artifact, your browser opens it, and your annotations and feedback flow back to the agent.", "annotation toggle": "The switch in this page's top bar between driving the page (clicking its own controls) and annotating it (marking up feedback for the agent).", "Send to Agent": "The editor control that sends your queued feedback back to the working agent — nothing reaches the agent until you send.", "debate-class": "A grill question with real alternatives worth weighing — asked one at a time, with a recommendation and its trade-offs.", "confirm-class": "A grill question with a safe default — batched at a section boundary into one quick accept/override round; an overridden confirm escalates to a full debate.", "claim ledger": "The running list of load-bearing claims made during an interview ('the code already does X'), each verified against the codebase or explicitly marked unverified. A refuted claim must be re-settled before the session can end.", "GRILL-LOG.md": "The on-disk checkpoint of an interview's settled decisions (claims, locked layers, verdicts), so a paused or interrupted session resumes without re-asking anything.", "spinoff": "Real work surfaced mid-interview that is out of this ticket's scope — captured as its own tracked stub ticket instead of being dragged into this feature or lost in conversation.", "executor latitude": "Decisions deliberately left to the implementing agent — file layout inside a named module, helper naming, local control flow. Below the design line: not grilled, not in the SDD.", "contract grade": "The level of detail a human-locked aspect must reach before it can even be reviewed for sign-off — e.g. entity design at field-by-field, endpoint design at envelope-by-envelope precision.", "NNNN-slug": "The id shape of a subtask — its filename stem (a rank number plus a short slug, e.g. 0003-post-endpoint). All progress references use this id.", "contract_mismatch": "Outcome token: a consumer subtask could not find what its producer promised (grep-anchor missing) — both subtasks are blocked for a human to resolve.", "produces_drift": "Outcome token: a producer finished but one of its own promised anchors is absent — the implementation drifted from its declared contract.", "design_conflict": "Outcome token: the implementation hit a contradiction with a binding design decision that only a human may resolve — routed back to the design interview, never worked around off the record.", "needs_decision": "Outcome token: the run hit a fork it may not settle alone — hard to reverse, or no clear winner — and parked with the options plus a recommendation so a human can rule in one glance.", "two-way door": "A decision reversible on the branch — undo is a revert plus rework; no migration, external write, or published contract survives it. A hands-off agent takes the recommended option itself and records it in the decision ledger. Opposite — one-way door: a wrong call outlives the feature, so the human decides.", "decision ledger": "plan/DECISIONS.md — the append-only record of auto-taken two-way-door decisions (grammar: DECISIONS.md, plugin root). Executors honour recorded entries over the spec passages they quote; the end-of-run report lists new entries for the human's audit.", "OUTCOME": "The structured result token an execution run ends with (success, test_fail, review_fail, contract_mismatch…) — machine-readable so an orchestrator can route what happens next.", "autopilot": "The hands-off driver that walks the plan subtask by subtask — one fresh agent per slice — parking failures and their dependents instead of stopping, so you return to maximum surviving progress.", "worktree": "A git feature letting one repository check out several branches into separate directories at once — each feature gets its own working copy without a second clone.", "monorepo": "One repository holding many projects that version and ship together — here ~50 microservices plus their UIs and shared libraries.", "UI journey": "A browser flow a person drives end to end (click-path → observable result), proving user-facing behaviour; becomes an automated Cucumber+Playwright scenario.", "API scenario": "A direct-REST check hitting a backend endpoint without a browser — proves the contract for callers that bypass every UI guard.", "env-limited": "A scenario the shared dev environment cannot actually run (needs a VPN-only system, missing provisioned users…) — flagged so the gate excludes it from the green verdict instead of reading it as a failure.", "acceptance criteria": "The testable conditions that define a requirement as done — each must be provable by at least one concrete scenario.", "User Story": "A requirement expressed from an actor's viewpoint ('As a clerk, I can…') — each story must map to at least one demonstrable end-to-end journey.", "definition-of-done": "The concrete, observable outcome that proves a flow worked — a visible state, a posted record, a status transition. 'It works' is not one.", "deep link": "A URL that lands directly on a specific app state (filters, tab, record) rather than the home page — the UI serializes that state into the URL and restores it on load.", "deep-link": "A URL that lands directly on a specific app state (filters, tab, record) rather than the home page — the UI serializes that state into the URL and restores it on load.", "deep-linking": "Landing directly on a specific app state (filters, tab, record) from a URL — the UI serializes that state into the URL and restores it on load.", "aggregate": "In domain-driven design, a cluster of entities treated as one consistency unit, modified only through its root entity; every invariant is enforced inside exactly one aggregate.", "aggregate root": "The single entry-point entity of an aggregate — outside code references and modifies the aggregate only through it, which is what keeps its invariants enforceable.", "invariant": "A rule about the data that must hold at all times (e.g. 'a posted document's total equals the sum of its lines'); each invariant has exactly one guardian responsible for enforcing it.", "value object": "An object defined only by its values, with no identity of its own — two equal amounts are interchangeable. Immutable; contrast with an entity, which has an id and a lifecycle.", "domain event": "A record that something business-meaningful happened ('InvoicePosted'), published so other parts of the system can react without the producer knowing about them.", "anti-corruption layer": "A translation layer between your domain model and an external system's model, so foreign concepts and quirks don't leak into your own code.", "bounded context": "A boundary within which a domain model and its vocabulary are consistent; the same word ('account') can legitimately mean different things in different bounded contexts.", "hexagonal architecture": "Ports-and-adapters: the domain core defines interfaces (ports); infrastructure (database, HTTP, queues) plugs in via adapters. Dependencies always point inward toward the domain.", "state machine": "A model where something is always in exactly one named state and only the listed transitions are legal — makes lifecycles explicit and rejects illegal jumps.", "saga": "A long-running business process split into local transactions across services, with compensating actions to undo earlier steps when a later one fails — the distributed alternative to one big transaction.", "outbox": "Outbox pattern — instead of publishing an event directly (lost if the transaction rolls back), write it to an outbox table in the same transaction; a relay publishes it afterwards. The event is sent if and only if the data change committed.", "2PC": "Two-Phase Commit — a coordinator asks every participant to prepare, then commit, so a distributed transaction is all-or-nothing. Strong but slow and fragile; usually avoided in favor of sagas or eventual consistency.", "CRDT": "Conflict-free Replicated Data Type — a data structure designed so concurrent updates on different replicas merge deterministically without coordination.", "idempotency": "The property that doing an operation twice has the same effect as doing it once — what makes retries safe. Typically enforced with an idempotency key that deduplicates repeated requests.", "idempotent": "Doing it twice has the same effect as doing it once — what makes retries safe.", "optimistic locking": "Concurrency control that lets everyone read freely and detects conflicts at write time via a version column — a stale write fails and retries, instead of rows being locked up front.", "pessimistic locking": "Concurrency control that locks the row up front so nobody else can write it until the transaction ends — safe, but can bottleneck under contention.", "eventual consistency": "A consistency model where replicas or read models may briefly lag the source of truth but converge; readers can see slightly stale data in exchange for availability and speed.", "read-after-write": "A consistency guarantee that a user immediately sees their own just-written data, even when other readers may still see stale state.", "p50": "Median — half of all measurements fall under this value.", "p95": "95th percentile — 95 of 100 measurements fall under this value; 'p95 < 200 ms' means at most 5% of requests are slower. Percentiles expose the tail latency that averages hide.", "p99": "99th percentile — 99 of 100 measurements fall under this value; the deep tail of latency that a small but real share of users experiences.", "sharding": "Splitting one dataset across multiple databases by a key (tenant, company, hash) so no single node holds or serves everything.", "multi-tenancy": "One deployment serving multiple customer organizations (tenants) with isolated data. This platform is build-per-tenant instead: each tenant gets its own build and database, so runtime code is always single-tenant.", "feature flag": "A runtime toggle that turns a code path on or off without redeploying — ship dark, enable gradually, kill instantly.", "sequence diagram": "Shows one scenario as messages between participants over time, top to bottom — the clearest way to see who calls whom and in what order.", "Strategy": "Design pattern: a family of interchangeable algorithms behind one interface, so the caller picks behavior at runtime instead of branching.", "Visitor": "Design pattern: an operation that spans many element types lives in one visitor object, so adding the operation doesn't modify every element class.", "Template Method": "Design pattern: a base class fixes an algorithm's skeleton; subclasses fill in individual steps.", "Chain of Responsibility": "Design pattern: a request passes along a chain of handlers, each deciding to handle it or pass it on.", "review_fail": "An outcome meaning a slice of work finished its coding but did not finish its review and verification gates. It does not mean the code is known bad — only that the sign-off is incomplete.", "parked": "A slice of work that has stopped and will not resume on its own because it needs a decision, a fix, or a gate that could not run. Anything waiting on it stops too.", "park-inherited": "A slice that is stopped purely because something it depends on is stopped — nothing is wrong with the slice itself; it simply cannot start yet.", "blind gate": "A verification pass run by a fresh reviewer who is deliberately denied sight of the code, its tests, and earlier review notes — it works only from what the feature promised to do, so it cannot inherit the author's blind spots.", "corpus ratchet": "The rule that whenever a serious defect is fixed, the exact scenario that exposed it is added to the permanent test collection in the same commit — so the same defect can never come back unnoticed.", "Scope widening": "A dated note the plan owner adds to a slice's contract when real work turned out to need files the slice was not originally allowed to touch. Without the note, the extra edits look like the agent went out of bounds.", "delta round": "A follow-up review pass that looks only at what changed since the previous review, rather than re-reading the whole slice.", "skeptic pass": "A review pass whose reviewer is instructed to actively disbelieve the work and try to show it is wrong, rather than to confirm it looks right.", "e2e": "End-to-end — a test that drives the real application through a browser the way a person would, instead of testing one function in isolation.", "vacuous": "Describes a test that runs and passes without actually proving anything — for example one that checks a page loaded but never checks the thing the test was named for.", "Codex": "OpenAI's command-line coding agent — a second runtime these same workflow skills can run under, as an alternative to Claude Code. Only relevant if you intend to drive the workflow from it.", "npm workspace": "A single shared setup where every browser project in the monorepo is installed together from one lock file at the repository root, rather than each project installing its own copies.", "gitignore": "The file listing paths git should pretend it cannot see, so generated or machine-local files are never accidentally committed.", "Draft state": "A merge request marked as not yet ready for review. It cannot be merged until someone flips it to ready, which is the deliberate final step after all gates pass.", "authorization bypass": "A flaw where a request reaches or affects something the caller should not have been allowed to touch, because the permission check did not run, ran too late, or was answered by the wrong code path.", "sort injection": "Passing an unchecked sort field from the caller straight into a database query, which lets a caller order results by columns that were never meant to be exposed, or crash the query outright.", "PreAuthorize": "A Spring Security annotation placed on an endpoint that states which permission a caller must hold. The framework checks it before the endpoint's own code runs — unless the endpoint's arguments have to be resolved first, which is exactly the ordering bug this run found.", "AFK": "\"Away from keyboard\" — settle requirements and design interactively up front, then let the implementation middle run hands-off; the human returns for CR/Merge and the smoke verdict.", "grill": "An interactive interview skill (grill-requirements, grill-solution, grill-verification) that settles decisions in conversation and writes no design documents — only the glossary and its grill-log checkpoint.", "synthesis skill": "A skill that writes an artifact from already-settled conversation (to-prd, to-sdd, to-verification-plan, to-design-brief, to-subtasks); it never re-interviews.", "full path": "Full = grills + SDD + verification design for complex features; lean = PRD → plan → execute for bugs/refactors/tooling. Mode of the plan follows from what exists upstream, never from a flag.", "lean path": "Full = grills + SDD + verification design for complex features; lean = PRD → plan → execute for bugs/refactors/tooling. Mode of the plan follows from what exists upstream, never from a flag.", "PRD": "Product Requirements Document — the what and why in business language; the most human-readable artifact in the chain.", "ticket description": "The requirements-level distillation of the PRD that /afk:to-ticket publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.", "TICKET.md": "The requirements-level distillation of the PRD that /afk:to-ticket publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.", "SDD": "Solution Design Document — the how, organized top-down by the L1–L9 design layers, one visualization per layer.", "ADR": "Architecture Decision Record — one decision, its alternatives, and why. Two tiers with separate numbering: requirement ADRs (what/why, under adr/requirements/) and design ADRs (how, under adr/design/).", "design brief": "The 1–2 page plain-language digest of PRD + SDD + ADRs (one diagram, a decision table, stakeholder impact) — the fastest way for a human to catch up on a design.", "design review plan": "DESIGN-REVIEW-PLAN.md — the timed run sheet for presenting settled scope and design to the stakeholder room: source ledger, concept ladder, segment cards, objection bank, and an exit that classifies every undecided item. Presentation only; it settles no design.", "demo plan": "DEMO-PLAN.md — the beat-by-beat script for demonstrating a delivered feature. Two profiles: the default at-most-hour, and the fixed-hour company-meeting profile carrying an agenda, feedback disposition, and next steps.", "verification plan": "VERIFICATION-PLAN.md — the feature's UI journeys and API scenarios with per-aspect coverage verdicts; what turns the smoke gate from minimal into full.", "ticket index": "INDEX.md in the ticket's spec folder — the read-this-first dashboard: one-paragraph feature summary, artifact table with states, recommended reading order. Format: skills/afk/to-prd/INDEX-FORMAT.md.", "feature terms file": "LAVISH-TIPS.md in the ticket's spec folder — the feature's committed term → explanation store (glossary entry grammar, but not a glossary: feature- and session-scoped ids and ideas live here); parsed into every lavish render's tooltip dictionary alongside this workflow glossary (LAVISH.md \"Tooltips\").", "plan": "The plan/ directory — PLAN.md (index: solution map, seam register, progress tracker, smoke gate) plus one subtask contract per slice. A local contract, never Jira issues.", "main checkout": "The repo's primary checkout — the first entry of git worktree list, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from the INSTALLED plugin root — ${AFK_PLUGIN_ROOT} inside a hook; elsewhere, the directory three levels above a loaded skill's own directory (skills/<group>/<name>) — never from a path inside the checkout. The main checkout matters for the repository's own artifacts, above all .claude/lessons/LEDGER.jsonl, which every worktree appends to. Cwd stays wherever the work is.", "subtask contract": "One plan/NNNN-slug.md file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.", "context excerpts": "The contract's ## Context excerpts section — verbatim, citation-tagged PRD/SDD/ADR quotes selected at slicing time; the executor's spec context, full parent docs opened only when the excerpts don't settle a question.", "journal": "plan/JOURNAL.md — the append-only, timestamped event log of everything that happened to a plan (status changes, parks, commits, verdicts). The \"what happened while you were gone\" artifact. Format: skills/afk/to-subtasks/JOURNAL-FORMAT.md.", "trace matrix": "plan/TRACE.md — the end-of-feature rollup mapping each acceptance criterion to the subtask, commits, and tests that satisfied it; emitted by the terminal sync-harness subtask.", "grill log": "GRILL-LOG.md in the ticket's spec folder — the on-disk checkpoint of a grill's settled decisions (claim ledger, locked layers, aspect verdicts), so a paused or compacted grill session can resume without re-deriving. Format: skills/afk/grill-requirements/GRILL-LOG-FORMAT.md.", "staple": "A delivered capability that became a standing expectation (registry: {service}/STAPLES.md); every future feature matching its trigger must consider adopting it.", "manifest": "skills/afk/setup/MANIFEST.md — the register of every external dependency the workflow needs (CLIs, MCP servers, secrets, sibling checkouts), one entry each with a runnable Probe: (exit 0 = healthy) and a Fix: (auto: runnable / human: guided). The one home for install steps; skills point at entry ids instead of restating them.", "managed behavior": "One row in the versioned registry BEHAVIORS.md (plugin root) — a standing instruction /afk:setup installs into a developer's own user-global steering file as part of the single afk:behaviors sentinel block, so every agent session on every project follows it without the skill that needs it restating it. Scope is all-repos (every project) or configured-repos (only a repository carrying .afk/config.yaml). Distinct from a staple (a delivered product capability) and from repository-scoped AGENTS.md/.claude/rules steering, which live in the target repository, not a developer's own machine.", "artifact registry": "The FRESHNESS.md table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs. One row is a registry row.", "tooltip dictionary": "The persistent term → explanation map every lavish artifact inherits — seed scripts/lavish/tips.json merged with this workflow glossary, the repository's domain glossaries and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render and poll time by scripts/lavish_show.py (engine scripts/lavish/inject.py); an agent's only job is giving missing terms a committed home once. Doctrine: LAVISH.md \"Tooltips\".", "grill-question triage": "The classification every grill question gets before it's asked (rule: skills/afk/grill-requirements/TRIAGE.md): debate — alternatives worth weighing, asked one at a time; confirm — a safe default the user accepts or overrides, batched at the section/layer boundary into one answer round. An overridden confirm escalates to debate.", "round dossier": "A grill's complete presentation for one dependency layer, answered in one send: where we are, the context to read first, the fork, what the agent decided for the human, the human's own calls, the sign-off packets, and what changes downstream. The unit of interaction that replaces one question per turn. Doctrine: skills/afk/grill-requirements/ROUND.md; a round is complete when the agent has taken every decision it legitimately can, never when a count is reached.", "decided-class item": "A grill item the agent settled itself, presented for explicit audit rather than for an answer. Admissible only when it passes every condition of the decide rule and carries all six fields of the decided-card contract (ROUND.md); a card missing a field degrades to confirm. Silence never accepts one — an unmarked decided card is unanswered. Also: decided card", "evidence grade": "What kind of checking a card's accept asks of the human — repo (a line, row, or measured fact), spec (a quoted passage or a standing steer), pattern (a house convention cited by path), judgment (reasoning with no citation, which no decided card may carry). Information for the auditor, never a gate on what the agent may decide. Table: ROUND.md.", "steer": "The human's correction inside a grill — guidance, an instruction, or a reference — arriving as a note on a card or pinned to the page. Binds the card and its dependents, or the rest of the session when page-level, and is cited as spec-grade evidence thereafter. A steer changes what the agent decides and never lowers its autonomy.", "escape": "The session-level hand-back a human writes when steering has stopped working: for the rest of that session the agent stops deciding, stops recommending, and questions come one at a time. Per session, nothing saved, and the session keeps its state — settled items, marks, and the round in flight all survive. Rules: ROUND.md \"Steering, and one escape\".", "mission control": "The per-feature, read-only HTML dashboard with two layers: live sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and design-digest sections rendered from committed Design digests. A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.", "design digest": "A committed, hash-stamped JSON synthesis of a feature's design docs (plan/digests/.json — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by /afk:mission-control build; a manifest records every source file's hash, so source drift shows as a visible stale banner, never as silently current content. Carries design synthesis only — never status. Contract: skills/afk/mission-control/DIGEST-FORMAT.md.", "L1 — system topology": "where the feature sits among services, UIs, and external systems, and the runtime model (request/response, event-driven, batch); usually inherited from the platform.", "L1": "where the feature sits among services, UIs, and external systems, and the runtime model (request/response, event-driven, batch); usually inherited from the platform.", "L2 — service boundaries & integration": "which service owns what; the endpoints and contracts between them.", "L2": "which service owns what; the endpoints and contracts between them.", "L3 — data architecture": "which datastore holds each piece of state — schema, storage, migration, retention; the most expensive layer to get wrong.", "L3": "which datastore holds each piece of state — schema, storage, migration, retention; the most expensive layer to get wrong.", "L4 — cross-cutting quality": "security (authentication and authorization), transactions, observability, error handling, idempotency, rate limits.", "L4": "security (authentication and authorization), transactions, observability, error handling, idempotency, rate limits.", "L5 — domain model": "entities, aggregates, invariants, and lifecycle states, named in the glossary's language.", "L5": "entities, aggregates, invariants, and lifecycle states, named in the glossary's language.", "L6 — process & coordination": "workflows, state machines, transaction boundaries, async jobs, failure recovery.", "L6": "workflows, state machines, transaction boundaries, async jobs, failure recovery.", "L7 — module decomposition": "packages and modules inside the service, their public interfaces, and dependency direction.", "L7": "packages and modules inside the service, their public interfaces, and dependency direction.", "L8 — tactical patterns": "class-level design patterns (Strategy, State Machine, Builder…) that shape the seams executors implement against.", "L8": "class-level design patterns (Strategy, State Machine, Builder…) that shape the seams executors implement against.", "L9 — implementation seams": "the exact places in existing code the change plugs into, each verified against the codebase before the design is called done.", "L9": "the exact places in existing code the change plugs into, each verified against the codebase before the design is called done.", "seam": "A boundary where new code meets existing code — an existing contract (signature, endpoint, event, table) the feature extends or reworks. The riskiest rows of any plan.", "seam register": "The PLAN.md table mapping each SDD seam to the subtask that implements it and the subtasks that use it.", "cited mode": "Cited = an SDD exists, so every subtask carries typed Produces/Consumes anchors and citation tags that are grep-enforced at three checkpoints; uncited = PRD-only, human-gated instead.", "uncited mode": "Cited = an SDD exists, so every subtask carries typed Produces/Consumes anchors and citation tags that are grep-enforced at three checkpoints; uncited = PRD-only, human-gated instead.", "grep-anchor": "The unique string a Produces bullet declares so its existence in the codebase can be checked mechanically ({file}#{anchor}).", "produces": "The typed contract between subtasks: what code artifacts a slice delivers, and which upstream deliveries it depends on. A consumer's miss is a contract_mismatch; a producer's own miss is produces_drift.", "consumes": "The typed contract between subtasks: what code artifacts a slice delivers, and which upstream deliveries it depends on. A consumer's miss is a contract_mismatch; a producer's own miss is produces_drift.", "materialized seam": "A seam whose stub + disabled contract-shape test were pre-created on the branch at slicing time (opt-in), upgrading its Produces/Consumes contract from grep-checked to compiler-checked; marked [materialized] in the plan. Only for new-Java seams — existing-file and non-Java seams stay grep-anchored.", "park": "Setting a subtask aside at blocked(<reason>) while independent work continues; nothing is lost — a parked row waits for a human decision.", "parked by inheritance": "A subtask that never started because something it is blocked by parked. Recorded in the journal (the tracker row legitimately stays pending).", "stranded": "A subtask whose executing subagent died mid-run, leaving its tracker row at an in-flight status. The journal line flagging it is the truth; the stale cell is not.", "driven mode": "execute run non-interactively under a driver: it never pauses to ask — a decision point follows the decision protocol (DECISIONS.md, plugin root); only a parked fork becomes a structured failure outcome.", "decision point": "A fork mid-run where specs, contract, findings, or reality disagree and more than one defensible option exists. Classified per DECISIONS.md (plugin root): two-way doors are decided on the record; one-way doors and ties park.", "status ladder": "The tracker progression pending → designing → developing → verifying → reviewing → done that execute advances one cell at a time.", "OUTCOME statuses": "The structured result tokens of an execute run (success, test_fail, build_fail, review_fail, adversary_fail, adversary_unrun, rationale_unposted, blocked_by, needs_decision, contract_mismatch, produces_drift, design_conflict, timeout, other). Canonical table with meanings and next actions: README.md §8.", "rationale": "The reason a line of code exists. It lives as an inline comment on the forge change, not in a source comment. Policy and commands: RATIONALE.md.", "batch receipt": "The one immutable note that lists every rationale operation ID posted in a batch. Completion needs a receipt that covers all pending operations.", "pending entry": "A recorded reason not yet posted. It sits under the git directory as recovery data and never counts as the record.", "afk:bug": "Interactive-only mid-task bug capture + autonomous fix pipeline, outside the per-feature chain. Five subcommands: capture/dispatch/status/retest/purge. Refuses capture/dispatch when invoked hands-off (driven/autopilot) — a human must be in the loop.", "ledger": "The per-bug state.json under .claude/bugs/ — the single source of truth for a bug's lifecycle state, written only by the main interactive session (single-writer invariant). Format: skills/afk/bug/LEDGER-FORMAT.md.", "S1-S10": "The ledger's ten states (captured, published, queued, fixing, blocked, fix-pushed, mr-ready, awaiting-retest, verified, refuted). Their order, meanings, and every allowed transition edge live in one home: skills/afk/bug/LEDGER-FORMAT.md.", "evidence bundle": "bundle.md — the human-readable dossier of a captured bug (confidence-labeled facts, reproduction steps, capture context). Format: skills/afk/bug/BUNDLE-FORMAT.md.", "publisher": "The subagent that runs skills/afk/bug/scripts/publish_bug.py — the pipeline's Jira-writing actor (create/transition/comment/backfill on that one Bug ticket, ADR-0001).", "fixer": "The subagent spawned by dispatch into its own git worktree to reproduce, fix, test, push, and open a Draft MR — never merges. Returns exactly one trailing BUGFIX: line (grammar: skills/afk/bug/SKILL.md).", "retester": "The subagent spawned by retest to re-run a bug's reproduction read-only once its fix lands, returning evidence + a claimed RETEST: verdict the main session spot-checks before advancing the ledger.", "one-live-fixer invariant": "At most one bug across the whole ledger may hold the fixing (S4) lane at a time; a second bug queues (S3) instead of dispatching. Also: one-live-fixer (prose names it inside a list of invariants, the category noun carried by the sentence)", "boundary": "One of the 14 generic ways a reference to a symbol can cross code (B1–B14). Catalog, per-class enumeration method, and verdict set: INVESTIGATION.md (plugin root); a repository's own instances live in its investigation: config block (CONFIG.md).", "investigation": "One of the 14 generic ways a reference to a symbol can cross code (B1–B14). Catalog, per-class enumeration method, and verdict set: INVESTIGATION.md (plugin root); a repository's own instances live in its investigation: config block (CONFIG.md).", "closure": "The completion criterion of a code investigation — no node in the work queue is unchecked and every applicable boundary carries a verdict. Transitive expansion runs while the changed facet propagates, never to a time, turn, or token budget. Rule: INVESTIGATION.md.", "frontier": "A boundary deliberately not crossed, recorded with its reason — another repository, unbuilt generated output, an external consumer. Distinct from unverified, which is a boundary that should have been crossed and was not. Neither is ever reported as an absence.", "coverage ledger": "The two-file record of one investigation — a JSON file carrying the complete denominator, plus a short markdown report beside it. frontier and unverified are statuses inside it, never separate files. Table set, field grammar, verdict rule, and location: skills/utils/investigate/LEDGER-FORMAT.md.", "human-locked aspect": "A design aspect the human decides and signs, never the agent and never the executor — entity design, API surface, authz + scoping, lifecycle + invariants, irreversible/outward side effects, changes to existing behaviour (HL-1..HL-6). Each carries a contract grade: the detail it must reach to be reviewable at all. Set + protocol: skills/afk/grill-solution/HUMAN-SIGNOFF.md.", "sign-off": "The human's own affirming answer to a human-locked aspect's question, recorded verbatim as a signoff row in GRILL-LOG.md and carried into SDD §0. Void the moment the aspect's design moves; pending or changes-requested means the design isn't exhausted and the SDD can't publish.", "meeting B**": "The two stakeholder meetings the plugin writes run sheets for, named by the letter their audience already uses: B reviews settled scope and design before the code exists, D demonstrates the delivered feature. Both face the same four judging roles inside a fixed hour, which is why they share one plan format and one agenda checker. Only the skill names depend on the letters — a room using other labels reads B as \"design review\" and D as \"demo\".", "**Meeting D": "The two stakeholder meetings the plugin writes run sheets for, named by the letter their audience already uses: B reviews settled scope and design before the code exists, D demonstrates the delivered feature. Both face the same four judging roles inside a fixed hour, which is why they share one plan format and one agenda checker. Only the skill names depend on the letters — a room using other labels reads B as \"design review\" and D as \"demo\".", "objection window": "Minutes reserved inside a meeting segment, at its end, for the room to challenge what it just saw — so an objection lands while its evidence is still on screen. Presentation overrun never consumes one. Rules: skills/afk/to-meeting-b/MEETING-PLAN-FORMAT.md.", "disposition": "The single outcome a facilitator assigns to an open meeting item after the room discusses it — agreed, revise and return, deferred from scope, or blocked by evidence; everything but agreed names an owner and a date. Distinct from Decision needed, which is the plan author's question written before the meeting.", "review gate": "The independent post-verification code review (clean / advisory / blocking per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: plan/review/INDEX.md.", "review policy": "The slice review gate's roster scale, stamped per plan (PLAN.md header, seeded lean) with per-contract ## Review override. full = every implementation concern on every slice; lean = only concerns whose defects compound or are invisible at feature altitude run per slice — the rest defer to the feature-level review, which widens to cover them and sweeps the deferred findings. Split + resolution: skills/afk/review/SKILL.md \"Gate policy\".", "settle loop": "The review gate's round-based caller protocol — review with fresh contexts, fix or dispute every finding (nits included), adjudicate disputes with fresh skeptics, repeat until a round yields nothing actionable. Roles, round structure, termination, and the referee's information diet: skills/afk/review/SETTLEMENT.md.", "stalemate": "The settle loop's failure exit — the hard round cap reached with findings still open. Always flagged to a human (review_fail / park): non-convergence at the cap signals a real defect being danced around, an unowned spec ambiguity, or a gamed loop — never routine.", "adversary gate": "A fresh session probing the running app under a hard information diet, trying to break the contract (clean / findings / tainted / env_unreachable). tainted = the session saw forbidden material (the diff, the implementor's tests) and must be respawned.", "smoke gate": "The feature-level completion gate — full (runs the verification plan's UI + API suites) or minimal (compile / app-start / regression) — whose green verdict stamps Feature: complete. Its Run history lines keep every run, red ones included.", "preflight": "The feature-level ship gate chained by autopilot after a green smoke gate — brings the branch up to date with master (merge, never rebase), re-runs repo validations and the final seam check, reviews the integrated diff as a whole, readies the MR with evidence, and babysits CI to green. Fixes only mechanical failures; anything semantic parks for the human.", "CI-babysit": "Preflight's tail — watching the pushed pipeline until green, auto-fixing only mechanical reds (format, config validations, merge-induced compile breaks, one flaky retry) within a bounded number of fix-push cycles; CI-only test failures and secret hits always escalate.", "escape analysis": "The post-bug-fix question \"which existing test should have caught this, and why didn't it\" — answered with a named miss class (no-scenario, weak-assertion, wrong-path, excluded, disabled/flaky).", "retro": "The cross-feature retrospective (/afk:retro) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics, the lesson ledger — into recurring signals and evidence-cited proposals to change the workflow; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis, and the safety net behind conclude-at-detection lesson capture.", "lesson": "A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; escape analysis names a miss). Capture protocol: skills/afk/lessons/CAPTURE.md.", "lesson ledger": ".claude/lessons/LEDGER.jsonl in the main checkout (shared across worktrees) — the append-only, event-sourced record of every lesson (opened → applied → verified, or rejected / superseded / filed), stewarded by /afk:lessons. Grammar, class enum, statuses: skills/afk/lessons/LEDGER-FORMAT.md.", "escalation ladder": "The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by skills/afk/lessons/LEDGER-FORMAT.md.", "worktree root": "The one folder on a machine under which agents create every new worktree of every repository in the repository list, each repository in its own subfolder. Chosen by the developer; worktrees that already exist elsewhere are not affected.", "repository list": "The stored list of main checkouts that /afk:setup manages for one developer on one machine. One entry per clone; a second clone of the same remote is a second entry.", "personal sign-in": "A developer's own account and secret for one forge host or one tracker site, kept by the vendor tool or a secret store, never in a repository file.", "change assignee": "The forge account set as assignee on every change the plugin opens. A change is a merge request on GitLab or a pull request on GitHub.", "repository personal file": "A developer's own settings for one repository: read by the main checkout and every worktree of that repository, never committed, never seen by a teammate.", "developer notes": "The notes a developer keeps for themselves, often written with an agent's help, in the note-taking app they chose for their machine. Agents never keep their own working files there; those live in the repository or on the change."}</script>
+<script>
+(function () {
+  var el = document.getElementById('afk-tips-dict');
+  var dict; try { dict = JSON.parse(el.textContent); } catch (e) { return; }
+  if (!Object.keys(dict).length) return;
+  var ciMap = {}, keys, re;
+  var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  function rebuild() {
+    keys = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
+    keys.forEach(function (k) { if (k === k.toLowerCase()) ciMap[k] = dict[k]; });
+    re = new RegExp('(?<![\\w-])(?:' + keys.map(esc).join('|') + ')(?:e?s)?(?!\\w)', 'gi');
+  }
+  rebuild();
+
+  function lookup(s) {
+    if (Object.prototype.hasOwnProperty.call(dict, s)) return dict[s];
+    var lower = s.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(ciMap, lower) ? ciMap[lower] : null;
+  }
+  // The wrap regex admits a plural tail; resolve "MRs"/"classes" to their
+  // singular key under the same case rules.
+  function tipFor(matched) {
+    var tip = lookup(matched);
+    if (tip === null && matched.length > 2 && /s$/i.test(matched)) {
+      tip = lookup(matched.slice(0, -1));
+      if (tip === null && /es$/i.test(matched)) tip = lookup(matched.slice(0, -2));
+    }
+    return tip;
+  }
+
+  function wrap(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        re.lastIndex = 0;
+        var p = n.parentElement;
+        if (!p || p.closest('script,style,noscript,textarea,.afk-tip,#afk-tip-box,#afk-btw,#afk-nav,#afk-jump')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+      var text = node.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text))) {
+        var tip = tipFor(m[0]);
+        if (tip === null) continue;
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var span = document.createElement('span');
+        span.className = 'afk-tip';
+        span.setAttribute('data-afk-tip', tip);
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last === 0) return;
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  // Author-side tooltips (item ids etc.): promote title=/data-tip into the same UI.
+  function promote(root) {
+    root.querySelectorAll('[title],[data-tip]').forEach(function (elx) {
+      if (elx.id === 'afk-tip-box') return;
+      var t = elx.getAttribute('data-tip') || elx.getAttribute('title');
+      if (!t) return;
+      elx.setAttribute('data-afk-tip', t);
+      elx.removeAttribute('title');
+      if (!elx.hasAttribute('data-lavish-action')) elx.classList.add('afk-tip');
+    });
+  }
+
+  // Id-tip propagation (LAVISH.md Tooltips rule 3): an id tipped once serves
+  // every later bare occurrence — harvest single-token authored tips into the
+  // dictionary so wrap() covers the rest of the page.
+  function harvest(root) {
+    var dirty = false;
+    root.querySelectorAll('[data-afk-tip]').forEach(function (elx) {
+      if (elx.closest('#afk-btw,#afk-tip-box,#afk-nav')) return;
+      var token = (elx.textContent || '').trim();
+      if (!/^[A-Za-z][\w.-]{0,23}$/.test(token)) return;
+      if (Object.prototype.hasOwnProperty.call(dict, token)) return;
+      dict[token] = elx.getAttribute('data-afk-tip');
+      dirty = true;
+    });
+    if (dirty) rebuild();
+  }
+
+  var box;
+  function ensureBox() {
+    if (!box) { box = document.createElement('div'); box.id = 'afk-tip-box'; document.body.appendChild(box); }
+    return box;
+  }
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target && e.target.closest && e.target.closest('[data-afk-tip]');
+    if (!t) { if (box) box.style.opacity = '0'; return; }
+    var b = ensureBox();
+    b.textContent = t.getAttribute('data-afk-tip');
+    var r = t.getBoundingClientRect(), bw = b.offsetWidth, bh = b.offsetHeight;
+    var x = Math.max(6, Math.min(r.left, window.innerWidth - bw - 6));
+    var y = r.top - bh - 8;
+    if (y < 6) y = r.bottom + 8;
+    b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.opacity = '1';
+  });
+  window.addEventListener('scroll', function () { if (box) box.style.opacity = '0'; }, true);
+
+  var mo;
+  function scan() {
+    if (mo) mo.disconnect();
+    if (navRefresh) navRefresh();
+    promote(document.body);
+    harvest(document.body);
+    wrap(document.body);
+    if (mo) mo.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Side-question control (LAVISH.md "Side-questions"): rides the normal
+  // queue with a [btw] / [btw:subagent] prefix; absent when the artifact is
+  // opened standalone (no window.lavish, nobody listening).
+  var btwTries = 0;
+  function btw() {
+    if (document.getElementById('afk-btw')) return;
+    if (!window.lavish || !document.body) { if (btwTries++ < 20) setTimeout(btw, 250); return; }
+    var host = document.createElement('div');
+    host.id = 'afk-btw';
+    host.setAttribute('data-lavish-ui', 'afk-btw');
+    host.setAttribute('data-lavish-action', 'btw');
+    host.innerHTML =
+      '<div id="afk-btw-panel" hidden><textarea id="afk-btw-q" data-lavish-action="btw"' +
+      ' placeholder="Quick question about this page..."></textarea>' +
+      '<div><button type="button" id="afk-btw-here" data-lavish-action="btw"' +
+      ' title="Answered by the reviewing agent in this session">Ask here</button>' +
+      '<button type="button" id="afk-btw-side" data-lavish-action="btw"' +
+      ' title="A fresh background agent answers - cheaper, main review keeps going">Ask side agent</button></div></div>' +
+      '<button type="button" id="afk-btw-open" data-lavish-action="btw"' +
+      ' title="Side-question: answered without derailing the review">btw?</button>';
+    document.body.appendChild(host);
+    var panel = host.querySelector('#afk-btw-panel');
+    var q = host.querySelector('#afk-btw-q');
+    host.querySelector('#afk-btw-open').addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) q.focus();
+    });
+    function ask(prefix) {
+      var text = q.value.trim();
+      if (!text || !window.lavish) return;
+      window.lavish.queuePrompt(prefix + ' ' + text, { tag: 'btw' });
+      window.lavish.sendQueuedPrompts();
+      q.value = '';
+      panel.hidden = true;
+    }
+    host.querySelector('#afk-btw-here').addEventListener('click', function () { ask('[btw]'); });
+    host.querySelector('#afk-btw-side').addEventListener('click', function () { ask('[btw:subagent]'); });
+  }
+
+  // Session-nav chrome (LAVISH.md "Page anatomy"): a sticky section rail with
+  // per-state counts, settled cards collapsed to their heading, and a floating
+  // jump-to-current control — built from the authored data-afk-item /
+  // data-afk-state / data-afk-fresh grammar. A page without that markup gets
+  // no chrome.
+  var navRefresh = null;
+  function navChrome() {
+    if (document.getElementById('afk-nav')) return;
+    if (!document.querySelector('[data-afk-item]')) return;
+    var LS = 'afk-nav:' + location.pathname;
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) {}
+    function save() { try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {} }
+    function items() { return [].slice.call(document.querySelectorAll('[data-afk-item]')); }
+    function st(el) {
+      var s = el.getAttribute('data-afk-state');
+      return s === 'current' || s === 'settled' || s === 'blocked' ? s : 'open';
+    }
+    function label(el) {
+      var h = el.firstElementChild;
+      var t = ((h && h.textContent) || el.getAttribute('data-afk-item') || '').replace(/\s+/g, ' ').trim();
+      return t.length > 64 ? t.slice(0, 61) + '…' : t;
+    }
+    function setCollapsed(el, on) {
+      if (st(el) === 'current') on = false;
+      el.classList.toggle('afk-collapsed', on);
+      var h = el.firstElementChild;
+      if (h && st(el) !== 'current') { h.classList.add('afk-caret'); h.classList.toggle('afk-open', !on); }
+    }
+    function applyDefaults() {
+      items().forEach(function (el) {
+        // A table row is already its own summary. Folding one would hide
+        // every cell but the id and leave a one-cell row in a five-column
+        // table. Rows still list in the rail and still take goTo(); they
+        // just never fold.
+        if (el.tagName === 'TR') return;
+        var id = el.getAttribute('data-afk-item'), s = st(el);
+        if (s === 'current') { setCollapsed(el, false); return; }
+        if (el.hasAttribute('data-afk-nav-done')) return;
+        el.setAttribute('data-afk-nav-done', '1');
+        var expanded = Object.prototype.hasOwnProperty.call(store, id) ? !!store[id] : s !== 'settled';
+        setCollapsed(el, !expanded);
+        var h = el.firstElementChild;
+        if (h) {
+          h.setAttribute('data-lavish-action', 'afk-collapse');
+          h.addEventListener('click', function () {
+            var wasCollapsed = el.classList.contains('afk-collapsed');
+            setCollapsed(el, !wasCollapsed);
+            store[id] = wasCollapsed ? 1 : 0; save();
+          });
+        }
+      });
+    }
+    function goTo(el) {
+      setCollapsed(el, false);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('afk-flash');
+      setTimeout(function () { el.classList.remove('afk-flash'); }, 1600);
+    }
+    var nav = document.createElement('div');
+    nav.id = 'afk-nav';
+    nav.setAttribute('data-lavish-ui', 'afk-nav');
+    nav.setAttribute('data-lavish-action', 'afk-nav');
+    nav.innerHTML = '<div id="afk-nav-head" role="button" tabindex="0"><b>On this page</b><span>–</span></div><div id="afk-nav-list"></div>';
+    document.body.appendChild(nav);
+    nav.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.click) { e.preventDefault(); e.target.click(); }
+    });
+    if (store['__min']) nav.classList.add('afk-min');
+    nav.querySelector('#afk-nav-head').addEventListener('click', function () {
+      nav.classList.toggle('afk-min');
+      store['__min'] = nav.classList.contains('afk-min') ? 1 : 0; save();
+    });
+    var GROUPS = [['current', 'Now'], ['open', 'Open'], ['blocked', 'Blocked'], ['settled', 'Settled']];
+    // Rebuild replaces the rail's nodes, so unforced refreshes (mutation-driven
+    // rescans) skip when the item set is unchanged — unrelated page mutations
+    // must not churn the rail a user is about to click.
+    var navSig = null;
+    function rebuildNav(force) {
+      var els = items();
+      var sig = els.map(function (el) {
+        return el.getAttribute('data-afk-item') + '|' + st(el) + '|' +
+          (el.hasAttribute('data-afk-fresh') ? 1 : 0) + '|' + label(el);
+      }).join(';');
+      if (!force && sig === navSig) return;
+      navSig = sig;
+      applyDefaults();
+      var list = nav.querySelector('#afk-nav-list');
+      list.textContent = '';
+      GROUPS.forEach(function (g) {
+        var members = els.filter(function (el) { return st(el) === g[0]; });
+        if (!members.length) return;
+        var gk = '__g:' + g[0];
+        var open = Object.prototype.hasOwnProperty.call(store, gk) ? !!store[gk] : g[0] !== 'settled';
+        var head = document.createElement('div');
+        head.className = 'afk-nav-g';
+        head.textContent = (open ? '▾ ' : '▸ ') + g[1] + (g[0] === 'current' ? '' : ' (' + members.length + ')');
+        head.setAttribute('data-lavish-action', 'afk-nav');
+        head.setAttribute('role', 'button');
+        head.setAttribute('tabindex', '0');
+        head.addEventListener('click', function () { store[gk] = open ? 0 : 1; save(); rebuildNav(true); });
+        list.appendChild(head);
+        if (!open) return;
+        members.forEach(function (el) {
+          var row = document.createElement('div');
+          row.className = 'afk-nav-row' + (g[0] === 'current' ? ' afk-cur' : '');
+          row.setAttribute('data-lavish-action', 'afk-nav');
+          row.setAttribute('role', 'button');
+          row.setAttribute('tabindex', '0');
+          if (el.hasAttribute('data-afk-fresh')) {
+            var dot = document.createElement('span');
+            dot.className = 'afk-dot';
+            dot.setAttribute('data-afk-tip', 'Changed in the round just applied');
+            row.appendChild(dot);
+          }
+          row.appendChild(document.createTextNode(label(el)));
+          row.addEventListener('click', function () { goTo(el); });
+          list.appendChild(row);
+        });
+      });
+    }
+    function currentAnswerSurface() {
+      var current = document.querySelector('[data-afk-state="current"]');
+      if (!current) return null;
+      return current.closest('[data-afk-answer-form="1"]') || current;
+    }
+    var jump = document.createElement('button');
+    jump.type = 'button';
+    jump.id = 'afk-jump';
+    jump.setAttribute('data-lavish-action', 'afk-nav');
+    jump.textContent = '↑ Current question';
+    jump.addEventListener('click', function () {
+      var cur = currentAnswerSurface();
+      if (cur) goTo(cur);
+    });
+    document.body.appendChild(jump);
+    var cur = currentAnswerSurface();
+    if (cur && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        jump.style.display = entries[0].isIntersecting ? 'none' : 'block';
+      }).observe(cur);
+    }
+    rebuildNav(true);
+    navRefresh = function () { rebuildNav(false); };
+  }
+
+  function start() {
+    var pending;
+    mo = new MutationObserver(function (recs) {
+      var ours = recs.every(function (r) {
+        return (box && (r.target === box || box.contains(r.target))) ||
+               (r.target && r.target.closest && r.target.closest('#afk-btw,#afk-nav,#afk-jump'));
+      });
+      if (ours) return;
+      clearTimeout(pending); pending = setTimeout(scan, 300);
+    });
+    btw();
+    navChrome();
+    scan();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
+<!-- afk-lavish-tips:end -->
+<!-- afk-lavish-dark:start -->
+<style>
+  html { color-scheme: dark; }
+  html.afk-lavish-invert { filter: invert(1) hue-rotate(180deg); background: #111 !important; }
+  html.afk-lavish-invert img,
+  html.afk-lavish-invert video,
+  html.afk-lavish-invert canvas,
+  html.afk-lavish-invert iframe { filter: invert(1) hue-rotate(180deg); }
+</style>
+<script>
+(function () {
+  function lum(c) {
+    var m = c && c.match(/[\d.]+/g);
+    if (!m || m.length < 3) return null;
+    if (m.length >= 4 && parseFloat(m[3]) === 0) return null; /* transparent */
+    return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
+  }
+  function apply() {
+    var l = lum(getComputedStyle(document.body).backgroundColor);
+    if (l === null) l = lum(getComputedStyle(document.documentElement).backgroundColor);
+    if (l === null) l = 1; /* nothing painted = browser-default white */
+    if (l > 0.5) document.documentElement.classList.add('afk-lavish-invert');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+  else apply();
+})();
+</script>
+<!-- afk-lavish-dark:end -->
+</body>
+</html>

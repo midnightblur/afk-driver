@@ -1,6 +1,6 @@
 {
   "run": {
-    "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo",
+    "repository": "<worktree>",
     "head": "17ec3223985388dab50ffdc5d04b1b1f27dc99ce",
     "question": "What happens when a repository has no committed .afk/config.yaml but the shared overlay at <git common dir>/afk/config.yaml sets tracker, forge and other repository keys: which keys may the overlay set, and how do the config reader, /afk:setup probes (H0, H2, H6, C3, C3b), the tracker MCP server, gates and skills behave?",
     "type": [
@@ -10790,7 +10790,7 @@
       "query_id": null,
       "impact_verdict": "unchanged",
       "pinned_by": "unguarded",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1 || text = dot_git.read_text(encoding=\"utf-8\", errors=\"replace\").strip() || unreadable .git file: get/effective/export-shell/validate exit 1 with PermissionError traceback via load() :392 -> layers() :373 -> :351 when git resolves the root (GIT_DIR set); validate FILE exit 0; without GIT_DIR git exits 128, root is None, all four exit 0 on defaults. Layer-independent: layers() calls shared_overlay whether or not the committed file exists (:369-375)"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1 || text = dot_git.read_text(encoding=\"utf-8\", errors=\"replace\").strip() || unreadable .git file: get/effective/export-shell/validate exit 1 with PermissionError traceback via load() :392 -> layers() :373 -> :351 when git resolves the root (GIT_DIR set); validate FILE exit 0; without GIT_DIR git exits 128, root is None, all four exit 0 on defaults. Layer-independent: layers() calls shared_overlay whether or not the committed file exists (:369-375)"
     },
     {
       "id": "B1:scripts/afk-config.py:388",
@@ -10896,7 +10896,7 @@
       "class": "B1",
       "site": "scripts/afk-config.py:1278",
       "disposition": "terminal",
-      "evidence": "config = deep_merge(dict(DEFAULTS), parse(text, str(path))) || validate FILE: that file over DEFAULTS only; other layers and the overlay schema rule skipped; `validate .afk/config.yaml` exits 2 when absent (probe); C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7BS || config = deep_merge(dict(DEFAULTS), parse(text, str(path))) || validate <overlay with schema: 1> exit 0 while get/effective/export-shell/validate exit 2; validate .afk/config.yaml exit 2 (No such file or directory) in an overlay-only repository",
+      "evidence": "config = deep_merge(dict(DEFAULTS), parse(text, str(path))) || validate FILE: that file over DEFAULTS only; other layers and the overlay schema rule skipped; `validate .afk/config.yaml` exits 2 when absent (probe); <scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7BS || config = deep_merge(dict(DEFAULTS), parse(text, str(path))) || validate <overlay with schema: 1> exit 0 while get/effective/export-shell/validate exit 2; validate .afk/config.yaml exit 2 (No such file or directory) in an overlay-only repository",
       "parent": null,
       "query_id": null,
       "impact_verdict": "breaks",
@@ -10907,7 +10907,7 @@
       "class": "B1",
       "site": "scripts/afk-config.py:1281",
       "disposition": "terminal",
-      "evidence": "config = load(root) || validate without FILE = load(root): overlay-only config validates (probe); C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7B-WT || config = load(root) || validate exit 0 in the overlay-only repository and its linked worktree",
+      "evidence": "config = load(root) || validate without FILE = load(root): overlay-only config validates (probe); <scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7B-WT || config = load(root) || validate exit 0 in the overlay-only repository and its linked worktree",
       "parent": null,
       "query_id": null,
       "impact_verdict": "unchanged",
@@ -10918,7 +10918,7 @@
       "class": "B1",
       "site": "scripts/afk-config.py:1294",
       "disposition": "terminal",
-      "evidence": "config = load(root) || effective/export-shell/get/resolve all read load(root); C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7BJ \u00a7B-WT || config = load(root) || overlay-only: get tracker none / forge github / git.branch-pattern ^feat/.+$ / repo-hooks gatehooks.json, effective and export-shell carry them, exit 0; overlay tracker: jira -> get tracker jira; same values from the linked worktree",
+      "evidence": "config = load(root) || effective/export-shell/get/resolve all read load(root); <scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7BJ \u00a7B-WT || config = load(root) || overlay-only: get tracker none / forge github / git.branch-pattern ^feat/.+$ / repo-hooks gatehooks.json, effective and export-shell carry them, exit 0; overlay tracker: jira -> get tracker jira; same values from the linked worktree",
       "parent": null,
       "query_id": null,
       "impact_verdict": "unchanged",
@@ -11224,7 +11224,7 @@
       "disposition": "traced",
       "impact_verdict": "breaks",
       "pinned_by": "scripts/tests/test_git_backstop.py:227",
-      "evidence": "[ -d \"$(git rev-parse --show-toplevel 2>/dev/null)/.afk\" ] || exit 0 || the comment gate, the build gates the config selects (:158-172) and the repository PreCommit handlers (:183-186) run only when the worktree has an .afk directory, so a checkout configured only through <git common dir>/afk/config.yaml commits ungated; a gitignored .afk/config.local.yaml creates the directory and the gates run. Pinned by scripts/tests/test_git_backstop.py:227 (test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates): its repo fixture (:48-56) creates no .afk/, installed() (:64-68) installs the AFK pre-commit, and it commits a 4-comment-line a.py as an agent from a linked worktree, asserting exit 0 (:233); on a HEAD copy it passes (exit 0), with line 59 deleted it fails because the comment gate blocks (exit 1). The test_precommit_order.py _run fixture creates .afk at :61 on every run, so that suite never reaches this guard || C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-mutation.txt"
+      "evidence": "[ -d \"$(git rev-parse --show-toplevel 2>/dev/null)/.afk\" ] || exit 0 || the comment gate, the build gates the config selects (:158-172) and the repository PreCommit handlers (:183-186) run only when the worktree has an .afk directory, so a checkout configured only through <git common dir>/afk/config.yaml commits ungated; a gitignored .afk/config.local.yaml creates the directory and the gates run. Pinned by scripts/tests/test_git_backstop.py:227 (test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates): its repo fixture (:48-56) creates no .afk/, installed() (:64-68) installs the AFK pre-commit, and it commits a 4-comment-line a.py as an agent from a linked worktree, asserting exit 0 (:233); on a HEAD copy it passes (exit 0), with line 59 deleted it fails because the comment gate blocks (exit 1). The test_precommit_order.py _run fixture creates .afk at :61 on every run, so that suite never reaches this guard || <scratch>/scratchpad/inv004-r2/probe/evidence-mutation.txt"
     },
     {
       "id": "B1:hooks/precommit-gates.sh:189",
@@ -13032,7 +13032,7 @@
       "query_id": null,
       "impact_verdict": "unchanged",
       "pinned_by": "scripts/tests/test_git_backstop.py:225",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-mutation.txt || def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path): commits a 4-comment-line a.py as an agent with no .afk/ and asserts exit 0 (:233); passes on a copy of HEAD (exit 0), fails with precommit-gates.sh:59 deleted (exit 1, comment gate blocks)"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/evidence-mutation.txt || def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path): commits a 4-comment-line a.py as an agent with no .afk/ and asserts exit 0 (:233); passes on a copy of HEAD (exit 0), fails with precommit-gates.sh:59 deleted (exit 1, comment gate blocks)"
     },
     {
       "id": "B12:scripts/tests/test_precommit_order.py:63",
@@ -13065,7 +13065,7 @@
       "query_id": null,
       "impact_verdict": "unchanged",
       "pinned_by": "unguarded",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A2 \u00a7A3 \u00a7A4 || common = ((admin / pointer.read_text(encoding=\"utf-8\").strip()).resolve() || unreadable commondir: PermissionError traceback exit 1 (GIT_DIR route, all four subcommands); non-UTF-8 commondir: UnicodeDecodeError traceback exit 1; commondir that is a directory: no error, overlay looked up under .git/worktrees/<name>/afk/ and the common overlay silently missed"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A2 \u00a7A3 \u00a7A4 || common = ((admin / pointer.read_text(encoding=\"utf-8\").strip()).resolve() || unreadable commondir: PermissionError traceback exit 1 (GIT_DIR route, all four subcommands); non-UTF-8 commondir: UnicodeDecodeError traceback exit 1; commondir that is a directory: no error, overlay looked up under .git/worktrees/<name>/afk/ and the common overlay silently missed"
     },
     {
       "id": "B1:scripts/afk-config.py:393",
@@ -13076,7 +13076,7 @@
       "query_id": null,
       "impact_verdict": "unchanged",
       "pinned_by": "unguarded",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A6 || document = parse(path.read_text(encoding=\"utf-8\"), str(path)) || unreadable overlay: PermissionError traceback exit 1 for get/effective/export-shell/validate; non-UTF-8 overlay: UnicodeDecodeError traceback exit 1; same read for every layer, so layer-independent"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A6 || document = parse(path.read_text(encoding=\"utf-8\"), str(path)) || unreadable overlay: PermissionError traceback exit 1 for get/effective/export-shell/validate; non-UTF-8 overlay: UnicodeDecodeError traceback exit 1; same read for every layer, so layer-independent"
     },
     {
       "id": "B1:hooks/lib/config.sh:29",
@@ -13087,7 +13087,7 @@
       "query_id": null,
       "impact_verdict": "unchanged",
       "pinned_by": "scripts/tests/test_precommit_order.py:244",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7A6 || exported=$(\"$py\" \"$script\" export-shell 2>/dev/null) \\ || overlay-only: FORGE=github PATTERN=^feat/.+$ HOOKS=gatehooks.json, FAILED empty; unreadable overlay: reader traceback discarded, AFK_CFG_LOAD_FAILED set (:30), AFK_CFG_TRACKER empty"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B \u00a7A6 || exported=$(\"$py\" \"$script\" export-shell 2>/dev/null) \\ || overlay-only: FORGE=github PATTERN=^feat/.+$ HOOKS=gatehooks.json, FAILED empty; unreadable overlay: reader traceback discarded, AFK_CFG_LOAD_FAILED set (:30), AFK_CFG_TRACKER empty"
     },
     {
       "id": "B1:mcp-servers/tracker/server.py:69",
@@ -13099,7 +13099,7 @@
       "disposition": "terminal",
       "impact_verdict": "unchanged",
       "pinned_by": "unguarded",
-      "evidence": "kind = str(_CONFIG.get(_CONFIG.load(_CONFIG.project_root()), \"tracker\") or \"none\") || reads the merged effective config through the one reader, so an overlay-only checkout resolves its tracker: in-process load of a HEAD copy with CLAUDE_PROJECT_DIR naming a repository with no .afk/ and <git common dir>/afk/config.yaml setting tracker: github-issues returns kind github-issues (exit 0). Unguarded for that facet: with :69 mutated to read only <root>/.afk/config.yaml the same probe returns kind none, yet scripts/tests/test_tracker_server.py:73 and all 12 tests of that file still pass (exit 0); :73 writes the committed file through repo()/write_config() (:60-70) and asserts only the kind, so it pins root resolution, never the overlay layer. Start-up: with the checkout's .git file or linked-worktree commondir unreadable, the real server exits 1 on an uncaught PermissionError raised from shared_overlay() (scripts/afk-config.py:351, :356) through _api() at :81, because the catch at :80-83 names only LookupError and ConfigError; layers() calls shared_overlay() whether or not a committed file exists (scripts/afk-config.py:369-373), so this failure does not depend on the change || C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt S0, S1, S2, M"
+      "evidence": "kind = str(_CONFIG.get(_CONFIG.load(_CONFIG.project_root()), \"tracker\") or \"none\") || reads the merged effective config through the one reader, so an overlay-only checkout resolves its tracker: in-process load of a HEAD copy with CLAUDE_PROJECT_DIR naming a repository with no .afk/ and <git common dir>/afk/config.yaml setting tracker: github-issues returns kind github-issues (exit 0). Unguarded for that facet: with :69 mutated to read only <root>/.afk/config.yaml the same probe returns kind none, yet scripts/tests/test_tracker_server.py:73 and all 12 tests of that file still pass (exit 0); :73 writes the committed file through repo()/write_config() (:60-70) and asserts only the kind, so it pins root resolution, never the overlay layer. Start-up: with the checkout's .git file or linked-worktree commondir unreadable, the real server exits 1 on an uncaught PermissionError raised from shared_overlay() (scripts/afk-config.py:351, :356) through _api() at :81, because the catch at :80-83 names only LookupError and ConfigError; layers() calls shared_overlay() whether or not a committed file exists (scripts/afk-config.py:369-373), so this failure does not depend on the change || <scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt S0, S1, S2, M"
     },
     {
       "id": "B3:scripts/afk-config.py:928",
@@ -35894,7 +35894,7 @@
       "universe": "tracked text files under hooks, adapters and mcp-servers",
       "count": 20,
       "lines": 51,
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/p3/q1.out",
+      "evidence": "<scratch>/scratchpad/inv004/p3/q1.out",
       "origin": "tracer"
     },
     {
@@ -35903,7 +35903,7 @@
       "universe": "root markdown documents, adr/ and providers/ (tracked), layer-claim phrasings carrying no name form",
       "count": 15,
       "lines": 22,
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/p5work/widen-1.txt",
+      "evidence": "<scratch>/scratchpad/inv004/p5work/widen-1.txt",
       "origin": "tracer"
     },
     {
@@ -36084,7 +36084,7 @@
       "count": 4,
       "lines": 4,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/search-S1.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/search-S1.txt"
     },
     {
       "id": "q-1d3749fb",
@@ -36093,7 +36093,7 @@
       "count": 3,
       "lines": 4,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/search-S2.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/search-S2.txt"
     },
     {
       "id": "q-04aa0c8d",
@@ -36102,7 +36102,7 @@
       "count": 16,
       "lines": 30,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/search-S3.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/search-S3.txt"
     },
     {
       "id": "q-2fa164f4",
@@ -36111,7 +36111,7 @@
       "count": 14,
       "lines": 19,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/search-S4.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/probe/search-S4.txt"
     },
     {
       "id": "q-075baf0b",
@@ -36120,7 +36120,7 @@
       "count": 0,
       "lines": 100,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-075baf0b.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-075baf0b.txt"
     },
     {
       "id": "q-149bc4f1",
@@ -36129,7 +36129,7 @@
       "count": 0,
       "lines": 109,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-149bc4f1.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-149bc4f1.txt"
     },
     {
       "id": "q-b3c16c06",
@@ -36138,7 +36138,7 @@
       "count": 0,
       "lines": 137,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-b3c16c06.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-b3c16c06.txt"
     },
     {
       "id": "q-ebd711d0",
@@ -36147,7 +36147,7 @@
       "count": 0,
       "lines": 2,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-ebd711d0.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-ebd711d0.txt"
     },
     {
       "id": "q-b83a2463",
@@ -36156,7 +36156,7 @@
       "count": 0,
       "lines": 674,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-b83a2463.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-b83a2463.txt"
     },
     {
       "id": "q-a1006f3b",
@@ -36165,7 +36165,7 @@
       "count": 0,
       "lines": 0,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-a1006f3b.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-a1006f3b.txt"
     },
     {
       "id": "q-330da08d",
@@ -36174,7 +36174,7 @@
       "count": 0,
       "lines": 7,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-330da08d.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-330da08d.txt"
     },
     {
       "id": "q-fd12cda7",
@@ -36183,7 +36183,7 @@
       "count": 0,
       "lines": 23,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/ev-D3-judgment/q-fd12cda7.txt"
+      "evidence": "<scratch>/scratchpad/inv004-r2/ev-D3-judgment/q-fd12cda7.txt"
     },
     {
       "id": "q-5f881a51",
@@ -36192,7 +36192,7 @@
       "count": 3,
       "lines": 12,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A1t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A1t.out"
     },
     {
       "id": "q-9465dd87",
@@ -36201,7 +36201,7 @@
       "count": 71,
       "lines": 76,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A2t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A2t.out"
     },
     {
       "id": "q-09e3cab1",
@@ -36210,7 +36210,7 @@
       "count": 7,
       "lines": 32,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A3t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A3t.out"
     },
     {
       "id": "q-e8c6e86c",
@@ -36219,7 +36219,7 @@
       "count": 1,
       "lines": 5,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A4t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A4t.out"
     },
     {
       "id": "q-c3e17a44",
@@ -36228,7 +36228,7 @@
       "count": 44,
       "lines": 48,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W1t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W1t.out"
     },
     {
       "id": "q-5dab29e3",
@@ -36237,7 +36237,7 @@
       "count": 13,
       "lines": 29,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W2t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W2t.out"
     },
     {
       "id": "q-5acbf90e",
@@ -36246,7 +36246,7 @@
       "count": 83,
       "lines": 113,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W3t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W3t.out"
     },
     {
       "id": "q-88a6832a",
@@ -36255,7 +36255,7 @@
       "count": 1,
       "lines": 71,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W4t.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W4t.out"
     },
     {
       "id": "q-9bf46c96",
@@ -36264,7 +36264,7 @@
       "count": 154,
       "lines": 201,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A1x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A1x.out"
     },
     {
       "id": "q-8ab9ae0f",
@@ -36273,7 +36273,7 @@
       "count": 32,
       "lines": 109,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A2x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A2x.out"
     },
     {
       "id": "q-6f381724",
@@ -36282,7 +36282,7 @@
       "count": 2,
       "lines": 53,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A3x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A3x.out"
     },
     {
       "id": "q-f23b2f3f",
@@ -36291,7 +36291,7 @@
       "count": 4,
       "lines": 14,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/A4x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/A4x.out"
     },
     {
       "id": "q-bfbc7f79",
@@ -36300,7 +36300,7 @@
       "count": 96,
       "lines": 147,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W1x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W1x.out"
     },
     {
       "id": "q-56e6dcfc",
@@ -36309,7 +36309,7 @@
       "count": 100,
       "lines": 147,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W2x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W2x.out"
     },
     {
       "id": "q-d8091e35",
@@ -36318,7 +36318,7 @@
       "count": 1218,
       "lines": 1525,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W3x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W3x.out"
     },
     {
       "id": "q-86d0ecbf",
@@ -36327,7 +36327,7 @@
       "count": 0,
       "lines": 71,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/d4forms/W4x.out"
+      "evidence": "<scratch>/scratchpad/inv004-r2/d4forms/W4x.out"
     }
   ],
   "claims": [
@@ -36368,7 +36368,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:394",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 2"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 2"
       ]
     },
     {
@@ -36384,7 +36384,7 @@
       "citations": [
         "scripts/afk-config.py:133",
         "scripts/afk-config.py:1281",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 0"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 0"
       ]
     },
     {
@@ -36433,7 +36433,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:1260-1279",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 2"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt exit 2"
       ]
     },
     {
@@ -36449,7 +36449,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:1129-1166",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt init exit 0"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt init exit 0"
       ]
     },
     {
@@ -36466,7 +36466,7 @@
         "scripts/afk-config.py:937-942",
         "scripts/afk-config.py:985-990",
         "scripts/tests/test_afk_config_init.py:498",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt"
       ]
     },
     {
@@ -36481,7 +36481,7 @@
       "citations": [
         "scripts/afk-config.py:993",
         "scripts/afk-config.py:1001",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt"
       ]
     },
     {
@@ -36494,7 +36494,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:1204-1209",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt"
       ]
     },
     {
@@ -36507,7 +36507,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:777-796",
-        "probe C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004/evidence-P1-overlay-probe.txt"
+        "probe <scratch>/scratchpad/inv004/evidence-P1-overlay-probe.txt"
       ]
     },
     {
@@ -37137,8 +37137,8 @@
         "scripts/afk-config.py:351",
         "scripts/afk-config.py:356",
         "scripts/afk-config.py:1333",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 GIT_DIR route: afk-config.py get tracker|effective|export-shell|validate exit 1 (PermissionError)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1 validate FILE exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 GIT_DIR route: afk-config.py get tracker|effective|export-shell|validate exit 1 (PermissionError)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1 validate FILE exit 0"
       ]
     },
     {
@@ -37152,7 +37152,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:321",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 plain: git rev-parse exit 128; get tracker -> none exit 0; validate exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 plain: git rev-parse exit 128; get tracker -> none exit 0; validate exit 0"
       ]
     },
     {
@@ -37168,7 +37168,7 @@
         "mcp-servers/tracker/server.py:69",
         "mcp-servers/tracker/server.py:80",
         "scripts/afk-config.py:329",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 in-process load(project_root()) exit 1 (PermissionError)"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A1/\u00a7A2 in-process load(project_root()) exit 1 (PermissionError)"
       ]
     },
     {
@@ -37182,8 +37182,8 @@
       "citations": [
         "scripts/afk-config.py:356",
         "scripts/afk-config.py:357",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A3 get tracker exit 1 (UnicodeDecodeError)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A4 get tracker -> none exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A3 get tracker exit 1 (UnicodeDecodeError)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A4 get tracker -> none exit 0"
       ]
     },
     {
@@ -37199,7 +37199,7 @@
         "scripts/afk-config.py:393",
         "hooks/lib/config.sh:29",
         "hooks/lib/config.sh:30",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A6 get tracker|effective|export-shell|validate exit 1; config.sh LOADED=1 FAILED set TRACKER empty"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7A6 get tracker|effective|export-shell|validate exit 1; config.sh LOADED=1 FAILED set TRACKER empty"
       ]
     },
     {
@@ -37217,8 +37217,8 @@
         "scripts/afk-config.py:1294",
         "scripts/afk-config.py:1281",
         "scripts/afk-config.py:1278",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B get tracker|forge|git.branch-pattern|repo-hooks exit 0; validate exit 0; validate .afk/config.yaml exit 2",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7BJ get tracker -> jira exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B get tracker|forge|git.branch-pattern|repo-hooks exit 0; validate exit 0; validate .afk/config.yaml exit 2",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7BJ get tracker -> jira exit 0"
       ]
     },
     {
@@ -37232,7 +37232,7 @@
       "citations": [
         "scripts/afk-config.py:394",
         "scripts/afk-config.py:1278",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7BS get tracker|effective|export-shell|validate exit 2; validate <overlay> exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7BS get tracker|effective|export-shell|validate exit 2; validate <overlay> exit 0"
       ]
     },
     {
@@ -37246,7 +37246,7 @@
       ],
       "citations": [
         "scripts/afk-config.py:356",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B-WT get forge|git.branch-pattern|export-shell|validate exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7B-WT get forge|git.branch-pattern|export-shell|validate exit 0"
       ]
     },
     {
@@ -37260,10 +37260,10 @@
       ],
       "citations": [
         "hooks/precommit-gates.sh:59",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C1 exit 0, trace '+ exit 0' after '[ -d .../b/.afk ]'; handler marker absent",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C1b exit 0",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C2a exit 2 (comment gate)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C2b exit 2 (refuse.sh exited 1), marker present"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C1 exit 0, trace '+ exit 0' after '[ -d .../b/.afk ]'; handler marker absent",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C1b exit 0",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C2a exit 2 (comment gate)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-probes.txt \u00a7C2b exit 2 (refuse.sh exited 1), marker present"
       ]
     },
     {
@@ -37279,7 +37279,7 @@
       "citations": [
         "scripts/tests/test_git_backstop.py:225",
         "scripts/tests/test_git_backstop.py:233",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-mutation.txt orig: pytest test_r4_1 exit 0; mut: exit 1"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-mutation.txt orig: pytest test_r4_1 exit 0; mut: exit 1"
       ]
     },
     {
@@ -37525,9 +37525,9 @@
         "scripts/afk-config.py:351",
         "scripts/afk-config.py:356",
         "scripts/afk-config.py:369-373",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt S1 `CLAUDE_PROJECT_DIR=<probe>/d5/u1 timeout 30 afk-python mcp-servers/tracker/server.py <repo> < /dev/null` exit 1 (PermissionError)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt S2 `CLAUDE_PROJECT_DIR=<probe>/d5/u2-wt timeout 30 afk-python mcp-servers/tracker/server.py <repo> < /dev/null` exit 1 (PermissionError)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt S0 control, readable overlay-only checkout, exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt S1 `CLAUDE_PROJECT_DIR=<probe>/d5/u1 timeout 30 afk-python mcp-servers/tracker/server.py <repo> < /dev/null` exit 1 (PermissionError)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt S2 `CLAUDE_PROJECT_DIR=<probe>/d5/u2-wt timeout 30 afk-python mcp-servers/tracker/server.py <repo> < /dev/null` exit 1 (PermissionError)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt S0 control, readable overlay-only checkout, exit 0"
       ]
     },
     {
@@ -37542,8 +37542,8 @@
         "scripts/tests/test_tracker_server.py:73",
         "scripts/tests/test_tracker_server.py:60-70",
         "mcp-servers/tracker/server.py:69",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt M mut: afk-python -m pytest -q scripts/tests/test_tracker_server.py exit 0 (12 passed)",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-D5-server.txt M mut: in-process _api() overlay-only kind none; M orig: kind github-issues, exit 0"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt M mut: afk-python -m pytest -q scripts/tests/test_tracker_server.py exit 0 (12 passed)",
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-D5-server.txt M mut: in-process _api() overlay-only kind none; M orig: kind github-issues, exit 0"
       ]
     },
     {
@@ -37559,7 +37559,7 @@
         "scripts/tests/test_git_backstop.py:233",
         "scripts/tests/test_git_backstop.py:48-56",
         "hooks/precommit-gates.sh:59",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv004-r2/probe/evidence-mutation.txt orig: pytest test_r4_1 exit 0; mut (line 59 deleted): exit 1"
+        "<scratch>/scratchpad/inv004-r2/probe/evidence-mutation.txt orig: pytest test_r4_1 exit 0; mut (line 59 deleted): exit 1"
       ]
     }
   ],

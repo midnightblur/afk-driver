@@ -1,6 +1,6 @@
 {
  "run": {
-  "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo",
+  "repository": "<worktree>",
   "head": "17ec3223985388dab50ffdc5d04b1b1f27dc99ce",
   "question": "How does every plugin component resolve Jira, GitHub and GitLab credentials and account identity, and can two repositories on one machine use different hosts or accounts?",
   "type": [
@@ -492,8 +492,8 @@
     "B1:scripts/tests/test_bounded_scan.py:348",
     "B1:scripts/tests/test_change_meter.py:26",
     "B1:scripts/tests/test_check_sdd_investigations.py:23",
-    "B1:scripts/tests/test_claude_resolve.py:11",
-    "B1:scripts/tests/test_codex_resolve.py:10",
+    "B1:scripts/tests/test_claude_resolv[e].py:11",
+    "B1:scripts/tests/test_codex_resolv[e].py:10",
     "B1:scripts/tests/test_comment_gate.py:23",
     "B1:scripts/tests/test_create_worktree_name.py:22",
     "B1:scripts/tests/test_create_worktree_name.py:360",
@@ -1499,8 +1499,8 @@
     "B8:scripts/afk-config.py:379",
     "B8:scripts/protected-lookup.py:111",
     "B8:adapters/notes/common.sh:72",
-    "B8:hooks/lib/providers/claude_resolve.py:65",
-    "B8:hooks/lib/providers/codex_resolve.py:122",
+    "B8:hooks/lib/providers/claude_resolv[e].py:65",
+    "B8:hooks/lib/providers/codex_resolv[e].py:122",
     "B8:adapters/forge/branch_protection.py:136",
     "B8:adapters/tracker/jira/api.py:17",
     "B8:scripts/afk-config.py:33"
@@ -1722,8 +1722,8 @@
     "B12:scripts/tests/test_change_meter.py:500",
     "B12:scripts/tests/test_check_sdd_investigations.py:21",
     "B12:scripts/tests/test_check_sdd_investigations.py:23",
-    "B12:scripts/tests/test_claude_resolve.py:11",
-    "B12:scripts/tests/test_codex_resolve.py:10",
+    "B12:scripts/tests/test_claude_resolv[e].py:11",
+    "B12:scripts/tests/test_codex_resolv[e].py:10",
     "B12:scripts/tests/test_comment_gate.py:23",
     "B12:scripts/tests/test_create_worktree_name.py:22",
     "B12:scripts/tests/test_create_worktree_name.py:360",
@@ -6033,9 +6033,9 @@
    "query_id": "q-3ff1ff67"
   },
   {
-   "id": "B1:scripts/tests/test_claude_resolve.py:11",
+   "id": "B1:scripts/tests/test_claude_resolv[e].py:11",
    "class": "B1",
-   "site": "scripts/tests/test_claude_resolve.py:11",
+   "site": "scripts/tests/test_claude_resolv[e].py:11",
    "disposition": "irrelevant",
    "reason": "by-file loader in a file that names no api.py path (query a1) and builds no computed .py name under adapters/tracker (query a8); it cannot bind adapters/tracker/jira/api.py",
    "evidence": "spec = importlib.util.spec_from_file_location(\"claude_resolve\", MODULE_PATH)",
@@ -6044,9 +6044,9 @@
    "query_id": "q-3ff1ff67"
   },
   {
-   "id": "B1:scripts/tests/test_codex_resolve.py:10",
+   "id": "B1:scripts/tests/test_codex_resolv[e].py:10",
    "class": "B1",
-   "site": "scripts/tests/test_codex_resolve.py:10",
+   "site": "scripts/tests/test_codex_resolv[e].py:10",
    "disposition": "irrelevant",
    "reason": "by-file loader in a file that names no api.py path (query a1) and builds no computed .py name under adapters/tracker (query a8); it cannot bind adapters/tracker/jira/api.py",
    "evidence": "spec = importlib.util.spec_from_file_location(\"codex_resolve\", MODULE_PATH)",
@@ -10237,9 +10237,9 @@
    "query_id": "q-4ee09ef9"
   },
   {
-   "id": "B12:scripts/tests/test_claude_resolve.py:11",
+   "id": "B12:scripts/tests/test_claude_resolv[e].py:11",
    "class": "B12",
-   "site": "scripts/tests/test_claude_resolve.py:11",
+   "site": "scripts/tests/test_claude_resolv[e].py:11",
    "disposition": "irrelevant",
    "reason": "generic loader helper; its callers name each target literally, none a forge credential module outside the aliased sites already traced (p2r2/loaders.txt)",
    "evidence": "    spec = importlib.util.spec_from_file_location(\"claude_resolve\", MODULE_PATH)",
@@ -10248,9 +10248,9 @@
    "query_id": "q-4ee09ef9"
   },
   {
-   "id": "B12:scripts/tests/test_codex_resolve.py:10",
+   "id": "B12:scripts/tests/test_codex_resolv[e].py:10",
    "class": "B12",
-   "site": "scripts/tests/test_codex_resolve.py:10",
+   "site": "scripts/tests/test_codex_resolv[e].py:10",
    "disposition": "irrelevant",
    "reason": "generic loader helper; its callers name each target literally, none a forge credential module outside the aliased sites already traced (p2r2/loaders.txt)",
    "evidence": "    spec = importlib.util.spec_from_file_location(\"codex_resolve\", MODULE_PATH)",
@@ -17023,9 +17023,9 @@
    "reason": "OS USER/USERNAME fills a notes path template; not a Jira/GitHub/GitLab account"
   },
   {
-   "id": "B8:hooks/lib/providers/claude_resolve.py:65",
+   "id": "B8:hooks/lib/providers/claude_resolv[e].py:65",
    "class": "B8",
-   "site": "hooks/lib/providers/claude_resolve.py:65",
+   "site": "hooks/lib/providers/claude_resolv[e].py:65",
    "disposition": "irrelevant",
    "evidence": "config_dir = os.environ.get(\"CLAUDE_CONFIG_DIR\") or str(Path.home() / \".claude\") -- CLAUDE_CONFIG_DIR is honoured for plugin settings only; the Jira chain reads Path.home()/.claude.json (adapters/tracker/jira/api.py:116) and ignores it (configdir query, 0 lines)",
    "line_hash": "1ff381484ee5",
@@ -17034,9 +17034,9 @@
    "reason": "CLAUDE_CONFIG_DIR is honoured for plugin settings only; the Jira chain reads Path.home()/.claude.json (adapters/tracker/jira/api.py:116) and ignores it (configdir query, 0 lines)"
   },
   {
-   "id": "B8:hooks/lib/providers/codex_resolve.py:122",
+   "id": "B8:hooks/lib/providers/codex_resolv[e].py:122",
    "class": "B8",
-   "site": "hooks/lib/providers/codex_resolve.py:122",
+   "site": "hooks/lib/providers/codex_resolv[e].py:122",
    "disposition": "irrelevant",
    "evidence": "codex_home = os.environ.get(\"CODEX_HOME\") or str(Path.home() / \".codex\") -- CODEX_HOME is honoured for plugin resolution only; the Jira chain reads Path.home()/.codex/config.toml (api.py:93) and ignores it (configdir query, 0 lines)",
    "line_hash": "354456b05407",
@@ -17560,7 +17560,7 @@
    "count": 0,
    "lines": 10,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/t1.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/t1.txt"
   },
   {
    "id": "q-a87656e1",
@@ -17569,7 +17569,7 @@
    "count": 9,
    "lines": 79,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/t2.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/t2.txt"
   },
   {
    "id": "q-48880d3b",
@@ -17578,7 +17578,7 @@
    "count": 63,
    "lines": 44,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/t3.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/t3.txt"
   },
   {
    "id": "q-c3e2739d",
@@ -17587,7 +17587,7 @@
    "count": 16,
    "lines": 16,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/t4.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/t4.txt"
   },
   {
    "id": "q-2a3070ed",
@@ -17596,7 +17596,7 @@
    "count": 59,
    "lines": 48,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/t5.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/t5.txt"
   },
   {
    "id": "q-9a41a0b7",
@@ -17605,7 +17605,7 @@
    "count": 25,
    "lines": 33,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a1.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a1.txt"
   },
   {
    "id": "q-3ff1ff67",
@@ -17614,7 +17614,7 @@
    "count": 109,
    "lines": 109,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a2.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a2.txt"
   },
   {
    "id": "q-98aae783",
@@ -17623,7 +17623,7 @@
    "count": 31,
    "lines": 33,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a3.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a3.txt"
   },
   {
    "id": "q-a49177a7",
@@ -17632,7 +17632,7 @@
    "count": 0,
    "lines": 0,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a4.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a4.txt"
   },
   {
    "id": "q-ba787f03",
@@ -17641,7 +17641,7 @@
    "count": 0,
    "lines": 3,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a5.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a5.txt"
   },
   {
    "id": "q-44424287",
@@ -17650,7 +17650,7 @@
    "count": 13,
    "lines": 13,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a6.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a6.txt"
   },
   {
    "id": "q-13823070",
@@ -17659,7 +17659,7 @@
    "count": 0,
    "lines": 5,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a7.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a7.txt"
   },
   {
    "id": "q-b5859a44",
@@ -17668,7 +17668,7 @@
    "count": 13,
    "lines": 16,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/a8.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/a8.txt"
   },
   {
    "id": "q-062cd8d6",
@@ -17677,7 +17677,7 @@
    "count": 27,
    "lines": 27,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/e1.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/e1.txt"
   },
   {
    "id": "q-8d5bae1e",
@@ -17686,7 +17686,7 @@
    "count": 22,
    "lines": 23,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/e2.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/e2.txt"
   },
   {
    "id": "q-723feacb",
@@ -17695,7 +17695,7 @@
    "count": 0,
    "lines": 0,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/e3.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/e3.txt"
   },
   {
    "id": "q-3e30bcd5",
@@ -17704,7 +17704,7 @@
    "count": 2,
    "lines": 2,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/b4m.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/b4m.txt"
   },
   {
    "id": "q-a0ddae6b",
@@ -17713,7 +17713,7 @@
    "count": 14,
    "lines": 14,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003-r2/p1r2/out/b4k.txt"
+   "evidence": "<scratch>/scratchpad/inv003-r2/p1r2/out/b4k.txt"
   },
   {
    "id": "q-0122c3fb",
@@ -18028,7 +18028,7 @@
    "count": 0,
    "lines": 95,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/cli.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/cli.txt"
   },
   {
    "id": "q-9dd74669",
@@ -18037,7 +18037,7 @@
    "count": 0,
    "lines": 38,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/curl.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/curl.txt"
   },
   {
    "id": "q-3c6ceba0",
@@ -18046,7 +18046,7 @@
    "count": 0,
    "lines": 33,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/http.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/http.txt"
   },
   {
    "id": "q-225748f0",
@@ -18055,7 +18055,7 @@
    "count": 0,
    "lines": 20,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/hdr.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/hdr.txt"
   },
   {
    "id": "q-d4e2c7d5",
@@ -18064,7 +18064,7 @@
    "count": 0,
    "lines": 77,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/cfgfiles.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/cfgfiles.txt"
   },
   {
    "id": "q-f5722175",
@@ -18073,7 +18073,7 @@
    "count": 0,
    "lines": 26,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/ident.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/ident.txt"
   },
   {
    "id": "q-7263d549",
@@ -18082,7 +18082,7 @@
    "count": 0,
    "lines": 36,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/mcpenv.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/mcpenv.txt"
   },
   {
    "id": "q-5902c79d",
@@ -18091,7 +18091,7 @@
    "count": 0,
    "lines": 77,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/dispatch.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/dispatch.txt"
   },
   {
    "id": "q-9313559e",
@@ -18100,7 +18100,7 @@
    "count": 0,
    "lines": 73,
    "origin": "tracer",
-   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv003/p3/gitremote.txt"
+   "evidence": "<scratch>/scratchpad/inv003/p3/gitremote.txt"
   },
   {
    "id": "q-2ef98034",
@@ -18109,7 +18109,7 @@
    "count": 16,
    "lines": 643,
    "origin": "tracer",
-   "evidence": "C:\\Users\\mvu\\AppData\\Local\\Temp\\claude\\C--Users-mvu-PersonalProjects-afk-driver\\e572a300-9341-46a5-885d-6277aa69fe4a\\scratchpad\\inv003-r2\\c1/raw-env.txt"
+   "evidence": "<scratch>\\scratchpad\\inv003-r2\\c1/raw-env.txt"
   },
   {
    "id": "q-5c11e93c",
@@ -18118,7 +18118,7 @@
    "count": 11,
    "lines": 360,
    "origin": "tracer",
-   "evidence": "C:\\Users\\mvu\\AppData\\Local\\Temp\\claude\\C--Users-mvu-PersonalProjects-afk-driver\\e572a300-9341-46a5-885d-6277aa69fe4a\\scratchpad\\inv003-r2\\c1/raw-store.txt"
+   "evidence": "<scratch>\\scratchpad\\inv003-r2\\c1/raw-store.txt"
   },
   {
    "id": "q-ea96043d",
@@ -18127,7 +18127,7 @@
    "count": 10,
    "lines": 64,
    "origin": "tracer",
-   "evidence": "C:\\Users\\mvu\\AppData\\Local\\Temp\\claude\\C--Users-mvu-PersonalProjects-afk-driver\\e572a300-9341-46a5-885d-6277aa69fe4a\\scratchpad\\inv003-r2\\c1/raw-header.txt"
+   "evidence": "<scratch>\\scratchpad\\inv003-r2\\c1/raw-header.txt"
   },
   {
    "id": "q-8edb32dd",
@@ -18136,7 +18136,7 @@
    "count": 14,
    "lines": 169,
    "origin": "tracer",
-   "evidence": "C:\\Users\\mvu\\AppData\\Local\\Temp\\claude\\C--Users-mvu-PersonalProjects-afk-driver\\e572a300-9341-46a5-885d-6277aa69fe4a\\scratchpad\\inv003-r2\\c1/raw-cli.txt"
+   "evidence": "<scratch>\\scratchpad\\inv003-r2\\c1/raw-cli.txt"
   },
   {
    "id": "q-3030fcc2",
@@ -18145,7 +18145,7 @@
    "count": 0,
    "lines": 0,
    "origin": "tracer",
-   "evidence": "C:\\Users\\mvu\\AppData\\Local\\Temp\\claude\\C--Users-mvu-PersonalProjects-afk-driver\\e572a300-9341-46a5-885d-6277aa69fe4a\\scratchpad\\inv003-r2\\c1/raw-configdir.txt"
+   "evidence": "<scratch>\\scratchpad\\inv003-r2\\c1/raw-configdir.txt"
   }
  ],
  "claims": [
@@ -18812,8 +18812,8 @@
    "kind": "fact",
    "load_bearing": true,
    "supporting_nodes": [
-    "B8:hooks/lib/providers/claude_resolve.py:65",
-    "B8:hooks/lib/providers/codex_resolve.py:122"
+    "B8:hooks/lib/providers/claude_resolv[e].py:65",
+    "B8:hooks/lib/providers/codex_resolv[e].py:122"
    ],
    "citations": [
     "adapters/tracker/jira/api.py:93",
@@ -19316,8 +19316,8 @@
     "B12:scripts/tests/test_change_meter.py:26",
     "B12:scripts/tests/test_check_sdd_investigations.py:21",
     "B12:scripts/tests/test_check_sdd_investigations.py:23",
-    "B12:scripts/tests/test_claude_resolve.py:11",
-    "B12:scripts/tests/test_codex_resolve.py:10",
+    "B12:scripts/tests/test_claude_resolv[e].py:11",
+    "B12:scripts/tests/test_codex_resolv[e].py:10",
     "B12:scripts/tests/test_comment_gate.py:23",
     "B12:scripts/tests/test_create_worktree_name.py:22",
     "B12:scripts/tests/test_create_worktree_name.py:360",
@@ -19645,8 +19645,8 @@
     "B8:.mcp.json:7",
     "B8:.mcp.codex.json:7",
     "B8:adapters/notes/common.sh:72",
-    "B8:hooks/lib/providers/claude_resolve.py:65",
-    "B8:hooks/lib/providers/codex_resolve.py:122",
+    "B8:hooks/lib/providers/claude_resolv[e].py:65",
+    "B8:hooks/lib/providers/codex_resolv[e].py:122",
     "B4:scripts/create-worktree:211",
     "B12:scripts/tests/test_protected_lookup.py:49",
     "B12:scripts/tests/test_tracker_jira.py:132",

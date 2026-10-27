@@ -5,7 +5,7 @@
 > Layer: Requirements
 > Context ticket: setup-per-repo
 
-A new worktree lands at `<root>/<repository short name>/<worktree name>`. The short name is the main checkout folder name unless it clashes, and setup refuses a short name whose folder it did not make for that repository. The Codex app makes its own folders in the same root, so this check keeps its folders apart.
+A new worktree lands at `<root>/<repository short name>/<worktree name>`. The short name is the main checkout folder name unless it clashes, and setup refuses a short name whose folder it did not make for that repository. The `codex` app makes its own folders in the same root, so this check keeps its folders apart.
 
 ## Considered Options
 

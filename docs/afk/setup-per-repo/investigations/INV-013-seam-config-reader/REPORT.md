@@ -1,0 +1,26 @@
+midnightblur/afk-driver@2e934894cd49ae1aa0a9d3ecf37de2ae2d2e20e3 · closed-with-frontier · boundaries 13/14 · unverified 1 (load-bearing 0) · ledger: docs/afk/setup-per-repo/investigations/INV-013-seam-config-reader/COVERAGE.json
+
+## Answer
+All four seams are `reworked`: existing callers see changed values or exits.
+
+| Seam | Existing contract | Behaviour changes callers see | Landmines the new path skips |
+|---|---|---|---|
+| (a) reader | `load(root) -> dict` merges 6 layers, no source kept (`scripts/afk-config.py:363-397`); `validate` sees the merged dict (`:575`); an unknown child key exits 2 (`:626-637`); `resolve` accepts only `DEVELOPER_KEYS` (`:1309`) | committed remote ignored: forge CLI derives the project (`adapters/forge/github/forge.sh:130-135`, `gitlab/forge.sh:135-143`), `protected-lookup.py:126` uses the tracking remote; `create-worktree:272-279` copies the default list; notes kind from home/default (`hooks/lib/adapter.sh:32`); obsidian refuses (`adapters/notes/obsidian/notes.sh:13-17`); local/env `tracker` ignored by `mcp-servers/tracker/server.py:69`; local `report-issue.repository` ignored (`publish.sh:129`) | `credentials-env` out of `CHILD_KEYS` is an error, not a warning; `publish.sh:121` and `seed_map.py:297` fail on any problem; scaffold writes ignored lines (`:1003`, `:1033`, `:1054`, `:1111`); `create-worktree:188` drops `resolve` errors, so a dropped `worktreeBasePath` lands in `$HOME/repo-worktrees` (`:245`); `load` spawns no git (`:345`); `redact.py:366` regex-reads `TOP_LEVEL`; `effective` JSON shape read by `forge_ledger.py:1145` |
+| (b) is-set-up | 4 different tests: `-d .afk` (`hooks/precommit-gates.sh:59`), `is_file` (`developer_values.py:177`), model-judged guard text (`scripts/behavior_registry.py:227`), `init` + `committed_elsewhere` base refs and main worktree (`afk-config.py:1129-1168`) | repositories with only a personal file start running comment, plugin-source, build and PreCommit gates; `configured` flips (consumer `MANIFEST.md:185`) | missed sites: `setup_secrets.py:157`, `MANIFEST.md:42,72`, setup `SKILL.md:50-51,66,69`, `tracker_api.py:42,49`, `adapter.sh:41,47`; `precommit-gates.sh:59` runs before afk-python is loaded; guard text change marks every installed block stale (`behavior_registry.py:777-778`, read ADR 0005 first, `AGENTS.md:87`) |
+| (c) 12 sites | INV-005 list | value changes at 9: `precommit-gates.sh:59`, `protected-lookup.py:107-127`, `_machine_layer`/scaffold (`:937-990`), `committed_elsewhere`, `init`, `validate FILE` (`:1278`), `developer_values.py:164,177`, `setup_secrets.py:157`. Unchanged: `precommit-gates.sh:186-199`, `release-gate.sh:81-83`, `seed_map.py:286-288` | `precommit-gates.sh:186-199` is the no-afk-python path; `protected-lookup` fast path vs `load()` 92 ms against the 50 ms guard budget; `developer_values set` writes only 5 `developer:` keys (`:57-69,197`) |
+| (d) spec folder | `to-prd/SKILL.md:36` is the one notes-kind lookup; JSON `resolve` returns `{kind, dir, template, exists}` (`adapters/notes/common.sh:54-78,116-129`); only obsidian moves files | obsidian PRDs land in the repo; a committed `notes: notion` is ignored, so mirroring stops silently, and `NOTES.md:12` reads an ignored key | `ADAPTERS.md:4` forbids naming a kind; `ADAPTERS.md:131` documents positional args; no tests on notes scripts (`providers/CONFORMANCE.md:91-94` manual) |
+
+Same-commit duties: `CHILD_KEYS` matches `CONFIG.md` (drift test `scripts/tests/test_afk_config.py:356`); `developer_values.py:42,146-160`; `FRESHNESS.md:78`; `adapters/tracker/jira/adapter.json:25` and `CONTRACT.md:25-31`; `MANIFEST.md:149,974-984`; CHANGELOG `[Unreleased]`, MAJOR candidate the human decides (`CHANGELOG.md:22-26`).
+
+## Sites
+Tests that go red: `test_afk_config.py:148,165,179,346`; `create-worktree-smoke.sh:217-218`; `test_create_worktree_name.py:208,217`; `test_protected_branch_acceptance.py:819`; `test_precommit_order.py:257`; `test_setup_developer_values.py:69,140,166`; `test_afk_config_init.py:76,430,447,510,520,553,593`; `test_setup_h6_probe.py:80,122` once the H6 probe follows the owner rule. Unguarded: `precommit-gates.sh:59`, `create-worktree:245`, `publish.sh:129`, `release-gate.sh:81-83`. Full site list: `COVERAGE.json` (2112 nodes, 1518 spec-document hits irrelevant).
+
+## Frontier
+- B14: consuming repositories, installed plugin copies, live harness consumers.
+
+## Unverified
+- Whether the hit set holds every reference over the name forms searched (not load-bearing).
+- `init` with no committed file (`afk-config.py:1168` breaks: the scaffold is filled from the personal file's team values): design gap, answered by the solution grill: L9.5, A-7.
+- `$AFK_CONFIG` and `.afk/config.local.yaml` owner (`developer_values.py:142`, `publish-smoke.sh:214` unchanged): design gap, answered by the solution grill: L9.3.
+- `~/.afk/config.yaml` as a personal source (`test_setup_developer_values.py:66,79,126`, `test_setup_h6_probe.py:129` unchanged; `create-worktree:251` breaks: a committed `developer.ideBinary` is ignored): design gap, answered by the solution grill: L9.4.
+- Commit-path cost of the is-set-up test (`hooks/README.md:83` unchanged: shell file tests, no Python): design gap, answered by the solution grill: L9.14, A-4.

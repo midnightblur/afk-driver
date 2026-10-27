@@ -9,11 +9,11 @@ A developer who uses AFK in several local repositories configures all of them wi
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 6 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 7 records |
 | Design brief | DESIGN-BRIEF.md | — |
-| Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Verification plan | VERIFICATION-PLAN.md | UI + API |
+| Plan | plan/PLAN.md | 13 subtasks, cited — live status in the plan's progress tracker |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |

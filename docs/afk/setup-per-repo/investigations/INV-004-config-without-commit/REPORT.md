@@ -1,4 +1,4 @@
-C:\Users\mvu\PersonalProjects\afk-driver\.claude\worktrees\setup-per-repo@17ec3223985388dab50ffdc5d04b1b1f27dc99ce · closed-with-frontier · boundaries 13/14 · unverified 2 (load-bearing 0) · ledger: docs/afk/setup-per-repo/investigations/INV-004-config-without-commit/COVERAGE.json
+<worktree>@17ec3223985388dab50ffdc5d04b1b1f27dc99ce · closed-with-frontier · boundaries 13/14 · unverified 2 (load-bearing 0) · ledger: docs/afk/setup-per-repo/investigations/INV-004-config-without-commit/COVERAGE.json
 
 ## Answer
 

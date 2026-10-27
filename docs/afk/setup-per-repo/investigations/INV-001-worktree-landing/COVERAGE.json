@@ -1,6 +1,6 @@
 {
   "run": {
-    "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo",
+    "repository": "<worktree>",
     "head": "17ec3223985388dab50ffdc5d04b1b1f27dc99ce",
     "question": "Where can a worktree created by an agent or a harness worktree tool land, which creation paths read developer.worktreeBasePath, and do worktrees outside that path keep working with every plugin hook and script?",
     "type": [
@@ -1392,9 +1392,9 @@
         "B12:scripts/tests/test_change_meter.py:489",
         "B12:scripts/tests/test_check_hook_trust.py:9",
         "B12:scripts/tests/test_check_sdd_investigations.py:20",
-        "B12:scripts/tests/test_claude_resolve.py:6",
+        "B12:scripts/tests/test_claude_resolv[e].py:6",
         "B12:scripts/tests/test_codex_marketplace_ref.py:9",
-        "B12:scripts/tests/test_codex_resolve.py:5",
+        "B12:scripts/tests/test_codex_resolv[e].py:5",
         "B12:scripts/tests/test_comment_gate.py:18",
         "B12:scripts/tests/test_create_worktree_name.py:127",
         "B12:scripts/tests/test_create_worktree_name.py:157",
@@ -3525,7 +3525,7 @@
       "class": "B13",
       "site": "skills/afk/setup/MANIFEST.md:214",
       "disposition": "terminal",
-      "reason": "REFUTED: a bare clone resolves a value. Probe: bare repo <T>/outer/proj.git, isolated HOME, resolve -> <T>/outer-worktrees exit 0 (C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-E/bare_probe.out); worktree_base takes the bare dir's parent as the main checkout (scripts/afk-config.py:816-819)",
+      "reason": "REFUTED: a bare clone resolves a value. Probe: bare repo <T>/outer/proj.git, isolated HOME, resolve -> <T>/outer-worktrees exit 0 (<scratch>/scratchpad/inv/evidence-E/bare_probe.out); worktree_base takes the bare dir's parent as the main checkout (scripts/afk-config.py:816-819)",
       "evidence": "probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally",
       "line_hash": "5baca1a35490",
       "parent": null,
@@ -10511,9 +10511,9 @@
       "query_id": "q-b7e51336"
     },
     {
-      "id": "B12:scripts/tests/test_claude_resolve.py:6",
+      "id": "B12:scripts/tests/test_claude_resolv[e].py:6",
       "class": "B12",
-      "site": "scripts/tests/test_claude_resolve.py:6",
+      "site": "scripts/tests/test_claude_resolv[e].py:6",
       "disposition": "irrelevant",
       "reason": "test line: fixture setup or assertion; the plugin sites it exercises carry their own nodes.",
       "evidence": "ROOT = Path(__file__).resolve().parents[2]",
@@ -10533,9 +10533,9 @@
       "query_id": "q-b7e51336"
     },
     {
-      "id": "B12:scripts/tests/test_codex_resolve.py:5",
+      "id": "B12:scripts/tests/test_codex_resolv[e].py:5",
       "class": "B12",
-      "site": "scripts/tests/test_codex_resolve.py:5",
+      "site": "scripts/tests/test_codex_resolv[e].py:5",
       "disposition": "irrelevant",
       "reason": "test line: fixture setup or assertion; the plugin sites it exercises carry their own nodes.",
       "evidence": "ROOT = Path(__file__).resolve().parents[2]",
@@ -18257,7 +18257,7 @@
       "class": "B13",
       "site": "docs/afk/setup-per-repo/GRILL-LOG.md:63",
       "disposition": "terminal",
-      "evidence": "\"- Settled: the existing machine value becomes the root if it passes; today's fails (inside another repository), so agents refuse until setup is answered (R-4 W-2R, replaces W-2)\" | checked against scripts/afk-config.py:832: \"if isinstance(value, str) and value.strip():\" | consistent: afk-config.py resolve worktreeBasePath in this repository prints C:/Users/mvu/IdeaProjects/core-services (exit 0), a folder holding .git",
+      "evidence": "\"- Settled: the existing machine value becomes the root if it passes; today's fails (inside another repository), so agents refuse until setup is answered (R-4 W-2R, replaces W-2)\" | checked against scripts/afk-config.py:832: \"if isinstance(value, str) and value.strip():\" | consistent: afk-config.py resolve worktreeBasePath in this repository prints <work-repo> (exit 0), a folder holding .git",
       "parent": null,
       "query_id": null
     },
@@ -18616,7 +18616,7 @@
       "site": "scripts/tests/test_glossary_usage.py:174",
       "disposition": "terminal",
       "reason": "live pin walks the running checkout (root = parents[2], :169); probe: with a nested worktree of the same repo its GLOSSARY.md copy consumes every term, so the pin cannot fail",
-      "evidence": "files = gu.consumers(root, glossary) ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "files = gu.consumers(root, glossary) ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18676,7 +18676,7 @@
       "site": "scripts/create-worktree:495",
       "disposition": "terminal",
       "reason": "failure path: with a relative DEST and a foreign cwd, provisioning prints 'no such worktree: rel-wt/a' and is skipped; exit stays 0",
-      "evidence": "bash \"$AFK_ROOT_DIR/scripts/worktree-provision\" \"${PROVISION_ARGS[@]}\" >/dev/null \\ ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_base.json",
+      "evidence": "bash \"$AFK_ROOT_DIR/scripts/worktree-provision\" \"${PROVISION_ARGS[@]}\" >/dev/null \\ ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_base.json",
       "parent": null,
       "query_id": null
     },
@@ -18686,7 +18686,7 @@
       "site": "scripts/create-worktree:512",
       "disposition": "terminal",
       "reason": "failure path: cd to a relative DEST fails from a foreign cwd, so repository WorktreeCreated scripts never run; '|| true' keeps exit 0",
-      "evidence": "( cd \"$DEST\" && env -u CLAUDE_PROJECT_DIR -u PROJECT_DIR AFK_WORKTREE_PATH=\"$DEST_DIR_FWD\" AFK_WORKTREE_BRANCH=\"$BRANCH\" \\ ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_base.json",
+      "evidence": "( cd \"$DEST\" && env -u CLAUDE_PROJECT_DIR -u PROJECT_DIR AFK_WORKTREE_PATH=\"$DEST_DIR_FWD\" AFK_WORKTREE_BRANCH=\"$BRANCH\" \\ ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_base.json",
       "parent": null,
       "query_id": null
     },
@@ -18696,7 +18696,7 @@
       "site": "scripts/glossary_usage.py:111",
       "disposition": "terminal",
       "reason": "only the root GLOSSARY.md is excluded; a nested worktree's GLOSSARY.md copy is a consumer of every term (probe)",
-      "evidence": "if not p.is_file() or p == glossary: ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "if not p.is_file() or p == glossary: ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18706,7 +18706,7 @@
       "site": "skills/afk/agents-md/scripts/mechanical_check.py:72",
       "disposition": "terminal",
       "reason": "SKIP_DIRS (:42) has no .claude or worktree entry; probe: findings doubled and the nested CLAUDE.md listed under [migrate]",
-      "evidence": "dns[:] = [d for d in dns if d not in SKIP_DIRS] ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "dns[:] = [d for d in dns if d not in SKIP_DIRS] ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18716,7 +18716,7 @@
       "site": "skills/utils/report-issue/scripts/redact.py:341",
       "disposition": "terminal",
       "reason": "every walked file name joins the kept-basename list, tracked or not; probe: ZorblaxSecret.java stops reading as <product-file>",
-      "evidence": "basenames.add(name) ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "basenames.add(name) ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18726,7 +18726,7 @@
       "site": "skills/utils/report-issue/scripts/redact.py:348",
       "disposition": "terminal",
       "reason": "PascalCase words of every walked text file are kept; probe: ZorblaxLedger kept once the nested worktree holds notes/log.txt",
-      "evidence": "pascal.update(re.findall(r\"\\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\\b\", text)) ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "pascal.update(re.findall(r\"\\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\\b\", text)) ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18736,7 +18736,7 @@
       "site": "hooks/lib/nested_steering.py:196",
       "disposition": "terminal",
       "reason": "cwd at the main checkout: the chain below it includes the nested worktree root, so its AGENTS.md is injected (probe)",
-      "evidence": "for g in chain_below(d, ceiling): ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested2.json",
+      "evidence": "for g in chain_below(d, ceiling): ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested2.json",
       "parent": null,
       "query_id": null
     },
@@ -18746,7 +18746,7 @@
       "site": "hooks/lib/nested_steering.py:311",
       "disposition": "terminal",
       "reason": "failure path: under afk-python with piped cp1252 stdout the write raises 'charmap' codec error on U+2192, logged, nothing injected (probe without PYTHONUTF8)",
-      "evidence": "sys.stdout.write(text) ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "sys.stdout.write(text) ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -18766,7 +18766,7 @@
       "site": "hooks/lib/provider.sh:439",
       "disposition": "terminal",
       "reason": "a gate copy run against another checkout resolves no plugin dir and passes silently (probe: R's gate copy, exit 0, no output)",
-      "evidence": "[ \"$plugin_top\" = \"$repo_top\" ] || { printf ' ; probe: C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/probe_nested.json",
+      "evidence": "[ \"$plugin_top\" = \"$repo_top\" ] || { printf ' ; probe: <scratch>/scratchpad/inv-r2/evidence-I/probe_nested.json",
       "parent": null,
       "query_id": null
     },
@@ -21846,7 +21846,7 @@
       "class": "B13",
       "site": "docs/afk/setup-per-repo/investigations/INV-001-worktree-landing/REPORT.md:1",
       "disposition": "irrelevant",
-      "evidence": "`C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo@17ec3223985388dab50ffdc5d04b1b1f27dc99ce \u00b7 partial \u00b7 boundaries 6/14 \u00b7 unverified 7 (load-bearing 5) \u00b7 ledger: C:/Users/mvu/Pe...` - an earlier report of these investigations; restates the ledger, asserts nothing new",
+      "evidence": "`<worktree>@17ec3223985388dab50ffdc5d04b1b1f27dc99ce \u00b7 partial \u00b7 boundaries 6/14 \u00b7 unverified 7 (load-bearing 5) \u00b7 ledger: <home>/Pe...` - an earlier report of these investigations; restates the ledger, asserts nothing new",
       "parent": null,
       "query_id": "q-72c585b4",
       "line_hash": "d787fab45343"
@@ -21936,7 +21936,7 @@
       "class": "B13",
       "site": "docs/afk/setup-per-repo/investigations/INV-001-worktree-landing/REPORT.md:18",
       "disposition": "irrelevant",
-      "evidence": "`- Machine state: `resolve worktreeBasePath` here returns `C:/Users/mvu/IdeaProjects/core-services`, another repository.` - an earlier report of these investigations; restates the ledger, asserts nothing new",
+      "evidence": "`- Machine state: `resolve worktreeBasePath` here returns `<work-repo>`, another repository.` - an earlier report of these investigations; restates the ledger, asserts nothing new",
       "parent": null,
       "query_id": "q-72c585b4",
       "line_hash": "e9ea1c3ab935"
@@ -21986,7 +21986,7 @@
       "class": "B13",
       "site": "docs/afk/setup-per-repo/investigations/INV-004-config-without-commit/REPORT.md:1",
       "disposition": "irrelevant",
-      "evidence": "`C:\\Users\\mvu\\PersonalProjects\\afk-driver\\.claude\\worktrees\\setup-per-repo@17ec3223985388dab50ffdc5d04b1b1f27dc99ce \u00b7 closed-with-frontier \u00b7 boundaries 13/14 \u00b7 unverified 2 (load-bearing 0) \u00b7 ledger: d...` - an earlier report of these investigations; restates the ledger, asserts nothing new",
+      "evidence": "`<worktree>@17ec3223985388dab50ffdc5d04b1b1f27dc99ce \u00b7 closed-with-frontier \u00b7 boundaries 13/14 \u00b7 unverified 2 (load-bearing 0) \u00b7 ledger: d...` - an earlier report of these investigations; restates the ledger, asserts nothing new",
       "parent": null,
       "query_id": "q-72c585b4",
       "line_hash": "c42ac4f45ab6"
@@ -23308,7 +23308,7 @@
       "count": 20,
       "lines": 22,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T1-q-d2c43b1c.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T1-q-d2c43b1c.txt"
     },
     {
       "id": "q-3448795c",
@@ -23317,7 +23317,7 @@
       "count": 6,
       "lines": 7,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T2-q-3448795c.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T2-q-3448795c.txt"
     },
     {
       "id": "q-8cfcbf32",
@@ -23326,7 +23326,7 @@
       "count": 6,
       "lines": 21,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T3-q-8cfcbf32.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T3-q-8cfcbf32.txt"
     },
     {
       "id": "q-fafcbede",
@@ -23335,7 +23335,7 @@
       "count": 2,
       "lines": 9,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T4-q-fafcbede.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T4-q-fafcbede.txt"
     },
     {
       "id": "q-b030ee57",
@@ -23344,7 +23344,7 @@
       "count": 15,
       "lines": 57,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T5-q-b030ee57.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T5-q-b030ee57.txt"
     },
     {
       "id": "q-c9bc22d5",
@@ -23353,7 +23353,7 @@
       "count": 4,
       "lines": 4,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T6-q-c9bc22d5.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T6-q-c9bc22d5.txt"
     },
     {
       "id": "q-fd63b742",
@@ -23362,7 +23362,7 @@
       "count": 0,
       "lines": 2,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T7-q-fd63b742.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T7-q-fd63b742.txt"
     },
     {
       "id": "q-9a9219fb",
@@ -23371,7 +23371,7 @@
       "count": 26,
       "lines": 32,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T8-q-9a9219fb.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T8-q-9a9219fb.txt"
     },
     {
       "id": "q-5f96f59e",
@@ -23380,7 +23380,7 @@
       "count": 4,
       "lines": 4,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T9-q-5f96f59e.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T9-q-5f96f59e.txt"
     },
     {
       "id": "q-9c453743",
@@ -23389,7 +23389,7 @@
       "count": 13,
       "lines": 14,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T10-q-9c453743.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T10-q-9c453743.txt"
     },
     {
       "id": "q-30be7a64",
@@ -23398,7 +23398,7 @@
       "count": 7,
       "lines": 9,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-A/T11-q-30be7a64.txt"
+      "evidence": "<scratch>/scratchpad/inv/evidence-A/T11-q-30be7a64.txt"
     },
     {
       "id": "q-835938d1",
@@ -23576,7 +23576,7 @@
       "count": 5,
       "lines": 11,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-67803f1a.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-67803f1a.txt"
     },
     {
       "id": "q-0979df71",
@@ -23585,7 +23585,7 @@
       "count": 0,
       "lines": 3,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-0979df71.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-0979df71.txt"
     },
     {
       "id": "q-e59133b7",
@@ -23594,7 +23594,7 @@
       "count": 0,
       "lines": 0,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-e59133b7.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-e59133b7.txt"
     },
     {
       "id": "q-0b220a60",
@@ -23603,7 +23603,7 @@
       "count": 0,
       "lines": 2,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-0b220a60.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-0b220a60.txt"
     },
     {
       "id": "q-5a8b32a1",
@@ -23612,7 +23612,7 @@
       "count": 0,
       "lines": 0,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-5a8b32a1.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-5a8b32a1.txt"
     },
     {
       "id": "q-0dcac0b3",
@@ -23621,7 +23621,7 @@
       "count": 34,
       "lines": 37,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-0dcac0b3.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-0dcac0b3.txt"
     },
     {
       "id": "q-d1d301e2",
@@ -23630,7 +23630,7 @@
       "count": 9,
       "lines": 11,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-d1d301e2.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-d1d301e2.txt"
     },
     {
       "id": "q-3b52ad35",
@@ -23639,7 +23639,7 @@
       "count": 11,
       "lines": 12,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-3b52ad35.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-3b52ad35.txt"
     },
     {
       "id": "q-b3dbd4fb",
@@ -23648,7 +23648,7 @@
       "count": 0,
       "lines": 21,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-b3dbd4fb.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-b3dbd4fb.txt"
     },
     {
       "id": "q-6de198a3",
@@ -23657,7 +23657,7 @@
       "count": 6,
       "lines": 26,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-6de198a3.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-6de198a3.txt"
     },
     {
       "id": "q-052efe47",
@@ -23666,7 +23666,7 @@
       "count": 5,
       "lines": 7,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-052efe47.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-052efe47.txt"
     },
     {
       "id": "q-035a8afa",
@@ -23675,7 +23675,7 @@
       "count": 60,
       "lines": 66,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-035a8afa.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-035a8afa.txt"
     },
     {
       "id": "q-2c21d84c",
@@ -23684,7 +23684,7 @@
       "count": 7,
       "lines": 20,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-2c21d84c.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-2c21d84c.txt"
     },
     {
       "id": "q-a8c9dd9c",
@@ -23693,7 +23693,7 @@
       "count": 1,
       "lines": 1,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-a8c9dd9c.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-a8c9dd9c.txt"
     },
     {
       "id": "q-edcdeeac",
@@ -23702,7 +23702,7 @@
       "count": 5,
       "lines": 8,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-edcdeeac.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-edcdeeac.txt"
     },
     {
       "id": "q-73705fcb",
@@ -23711,7 +23711,7 @@
       "count": 22,
       "lines": 33,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-73705fcb.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-73705fcb.txt"
     },
     {
       "id": "q-719a17a2",
@@ -23720,7 +23720,7 @@
       "count": 39,
       "lines": 308,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-719a17a2.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-719a17a2.txt"
     },
     {
       "id": "q-19ce120a",
@@ -23729,7 +23729,7 @@
       "count": 27,
       "lines": 62,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-G/q-19ce120a.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-G/q-19ce120a.txt"
     },
     {
       "id": "q-b106c42a",
@@ -23738,7 +23738,7 @@
       "count": 23,
       "lines": 23,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/s3.out.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-I/s3.out.txt"
     },
     {
       "id": "q-db388af1",
@@ -23747,7 +23747,7 @@
       "count": 0,
       "lines": 5,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv-r2/evidence-I/s2b.out.txt"
+      "evidence": "<scratch>/scratchpad/inv-r2/evidence-I/s2b.out.txt"
     },
     {
       "id": "q-8c304756",
@@ -23756,7 +23756,7 @@
       "count": 29,
       "lines": 121,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv001-r3/evidence-J/q-8c304756.txt"
+      "evidence": "<scratch>/scratchpad/inv001-r3/evidence-J/q-8c304756.txt"
     },
     {
       "id": "q-aac0e25b",
@@ -23765,7 +23765,7 @@
       "count": 20,
       "lines": 28,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv001-r3/evidence-J/q-aac0e25b.txt"
+      "evidence": "<scratch>/scratchpad/inv001-r3/evidence-J/q-aac0e25b.txt"
     },
     {
       "id": "q-72c585b4",
@@ -23774,7 +23774,7 @@
       "count": 380,
       "lines": 520,
       "origin": "tracer",
-      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv001-r3/evidence-J/q-72c585b4.txt"
+      "evidence": "<scratch>/scratchpad/inv001-r3/evidence-J/q-72c585b4.txt"
     }
   ],
   "claims": [
@@ -24398,7 +24398,7 @@
         "B11:skills/afk/setup/scripts/ancestor_instruction_files.py:88"
       ],
       "citations": [
-        "session context: C:/Users/mvu/PersonalProjects/afk-driver/CLAUDE.md loaded",
+        "session context: <main checkout>/CLAUDE.md loaded",
         "skills/afk/setup/scripts/ancestor_instruction_files.py:6"
       ]
     },
@@ -24455,7 +24455,7 @@
         "afk-python scripts/afk-config.py resolve worktreeBasePath (cwd bare repo, isolated HOME) -> exit 0",
         "scripts/afk-config.py:816",
         "scripts/afk-config.py:819",
-        "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/e572a300-9341-46a5-885d-6277aa69fe4a/scratchpad/inv/evidence-E/bare_probe.out"
+        "<scratch>/scratchpad/inv/evidence-E/bare_probe.out"
       ]
     },
     {
@@ -24477,8 +24477,8 @@
       ]
     },
     {
-      "id": "c-096714c1",
-      "text": "In this repository worktreeBasePath resolves to C:/Users/mvu/IdeaProjects/core-services, a value from a HOME-scoped layer (the same resolve under an isolated HOME derives instead), so a --branch/--dir worktree of this repository lands inside another repository's folder; the layer file was not read.",
+      "id": "c-6c49a380",
+      "text": "In this repository worktreeBasePath resolves to <work-repo>, a value from a HOME-scoped layer (the same resolve under an isolated HOME derives instead), so a --branch/--dir worktree of this repository lands inside another repository's folder; the layer file was not read.",
       "kind": "fact",
       "load_bearing": true,
       "supporting_nodes": [
@@ -24903,8 +24903,8 @@
       ]
     },
     {
-      "id": "c-af9f0743",
-      "text": "GRILL-LOG.md:63 holds at this checkout: afk-config.py resolve worktreeBasePath prints C:/Users/mvu/IdeaProjects/core-services with exit 0, and that folder holds a .git directory, so today's value names another repository.",
+      "id": "c-9c3a3561",
+      "text": "GRILL-LOG.md:63 holds at this checkout: afk-config.py resolve worktreeBasePath prints <work-repo> with exit 0, and that folder holds a .git directory, so today's value names another repository.",
       "kind": "fact",
       "load_bearing": false,
       "supporting_nodes": [
@@ -24913,7 +24913,7 @@
       "citations": [
         "docs/afk/setup-per-repo/GRILL-LOG.md:63",
         "afk-python scripts/afk-config.py resolve worktreeBasePath (exit 0)",
-        "ls -d C:/Users/mvu/IdeaProjects/core-services/.git (exit 0)"
+        "ls -d <work-repo>/.git (exit 0)"
       ]
     },
     {
@@ -25731,7 +25731,7 @@
         "c-c5a2eddc",
         "c-c8c6d252",
         "c-abf862ae",
-        "c-096714c1",
+        "c-6c49a380",
         "c-c6bd0e1d",
         "c-8db28af3",
         "c-8f0158fb",
@@ -25739,7 +25739,7 @@
         "c-450daee5",
         "c-2ae3fdc4",
         "c-9ebedaa9",
-        "c-af9f0743",
+        "c-9c3a3561",
         "c-102310c0",
         "c-cbd26791",
         "c-2778d8f4"

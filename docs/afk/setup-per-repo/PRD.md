@@ -70,7 +70,7 @@ A secret is never a setting. It is stored once per host and account by the vendo
 4. As a developer, I want to add a new clone to the list in the same run, and remove or repoint an entry whose folder is gone.
 5. As a developer, I want to change one value of one repository alone.
 6. As a developer on a repository with no committed AFK file, I want the plugin to work from my personal file alone, so that nothing of mine is shared with a team that does not use AFK.
-7. As a developer with the Codex app, I want setup to tell me to point the Codex worktree root at the same root.
+7. As a developer with the `codex` app, I want setup to tell me to point the `codex` worktree root at the same root.
 
 ## Acceptance Criteria
 
@@ -99,7 +99,7 @@ A secret is never a setting. It is stored once per host and account by the vendo
 - [ ] AC-021 For every team setting, a repository with no committed AFK file reads the value from the repository personal file. Setup asks for it there.
 - [ ] AC-022 For every personal setting, a committed value is ignored with a warning naming the setting.
 - [ ] AC-023 For every machine setting, a value in any repository file is ignored with a warning naming the setting.
-- [ ] AC-024 When a repository gains a committed AFK file, the next setup run lists the developer's personal-file copies of team settings and offers to delete them.
+- [ ] AC-024 When a repository gains a committed AFK file, the next setup run deletes, without asking, each personal-file copy of a team setting the committed file holds a real value for. It keeps every copy while a worktree of the repository is on a branch without the committed file. The report lists each deleted setting, file and value, and each kept copy with its reason.
 - [ ] AC-025 A repository with no committed AFK file passes every plugin check that today requires that file: the commit gates, the setup check for the AFK file, `init`, the developer-values step and the behavior registry.
 - [ ] AC-026 The forge remote is asked only when the clone has more than 1 remote. With 1 remote it stays empty, and agents still open changes on the correct project.
 - [ ] AC-027 `jira.credentials-env` either selects the Jira credentials it names or is removed from the schema. A value that is accepted and never read fails this criterion.
@@ -122,12 +122,12 @@ A secret is never a setting. It is stored once per host and account by the vendo
 - [ ] AC-042 Until the developer confirms a root, agents use the suggestion if it passes catalog R. If it fails, agents refuse to create a worktree and say to run setup.
 - [ ] AC-043 An existing machine-wide worktree base value becomes the root if it passes catalog R. If it fails, agents refuse to create a worktree until setup is answered.
 - [ ] AC-044 A worktree root in any repository file is ignored with a warning.
-- [ ] AC-045 When a harness asks to trust the root, setup trusts it once, and a worktree in any subfolder needs no further trust prompt (unverified premise: Claude Code and Codex extend folder trust to subfolders).
-- [ ] AC-046 When the Codex app is installed, setup shows the step to set its worktree root to the same root (unverified premise: the Codex app keeps its worktrees under its own root, movable only in its settings screen, and names its own folders there).
+- [ ] AC-045 When a harness asks to trust the root, setup trusts it once, and a worktree in any subfolder needs no further trust prompt (unverified premise: `claude` and `codex` extend folder trust to subfolders).
+- [ ] AC-046 When the `codex` app is installed, setup shows the step to set its worktree root to the same root (unverified premise: the `codex` app keeps its worktrees under its own root, movable only in its settings screen, and names its own folders there).
 
 ### Worktree creation
 
-- [ ] AC-050 Every agent route that creates a worktree of a listed repository puts it at `<root>/<short name>/<worktree name>`. This covers the plugin's worktree creator in every mode and the harness worktree tool (unverified premise: Claude Code moves worktrees only through its worktree-create hook; the harness creates and isolates worktrees through that hook).
+- [ ] AC-050 Every agent route that creates a worktree of a listed repository puts it at `<root>/<short name>/<worktree name>`. This covers the plugin's worktree creator in every mode and the harness worktree tool (unverified premise: `claude` moves worktrees only through its worktree-create hook; the harness creates and isolates worktrees through that hook).
 - [ ] AC-051 A relative or `~` path never lands a worktree inside the main checkout. The creator refuses it, and the exit status says so.
 - [ ] AC-052 When the plugin's worktree-create hook fails, the harness tool creates no worktree outside the root (unverified premise: where a harness tool lands when its hook fails or is missing).
 - [ ] AC-053 An agent's `git worktree add` or `git worktree move` for a listed repository whose real target is outside `<root>/<short name>` is refused. The refusal names the root folder.
@@ -178,7 +178,7 @@ A teammate sees only the committed AFK file and never any value from catalog S r
 | M6 Placement guard | refuses an agent's worktree add or move for a listed repository that lands outside its root folder |
 | M7 No-committed-file support | every part that requires the committed AFK file also accepts the repository personal file |
 | M8 Agent file placement | agent working files always go to the spec folder; the note-taking app holds only developer notes |
-| M9 Setup cleanup | lists worktrees inside another repository; shows the Codex root step |
+| M9 Setup cleanup | lists worktrees inside another repository; shows the `codex` root step |
 
 - One worktree root per machine: ADR [0001](adr/requirements/0001-one-worktree-root.md). Layout repository then worktree: ADR [0006](adr/requirements/0006-root-layout.md).
 - Setting owners: ADR [0002](adr/requirements/0002-setting-ownership.md), catalog S.
@@ -217,9 +217,9 @@ Assumptions this PRD rests on (user-acknowledged, outside this repository):
 - A Jira API token belongs to one Atlassian account (AC-035).
 - The harness passes the tracker server its stored sign-in and picks one tracker entry when user, project and plugin scope each define one (AC-035).
 - gh and glab choose the host, and so the account, for calls that name no host (AC-030, AC-033).
-- Claude Code moves worktrees only through its worktree-create hook; the harness creates worktrees and isolates subagents through it (AC-050).
+- `claude` moves worktrees only through its worktree-create hook; the harness creates worktrees and isolates subagents through it (AC-050).
 - Where a harness tool puts a worktree when that hook fails or is missing (AC-052).
-- Claude Code and Codex extend folder trust to subfolders (AC-045).
-- The Codex app keeps its worktrees under its own root, movable only in its settings screen, and names its own folders there (AC-046).
+- `claude` and `codex` extend folder trust to subfolders (AC-045).
+- The `codex` app keeps its worktrees under its own root, movable only in its settings screen, and names its own folders there (AC-046).
 
 Evidence: investigations INV-001 to INV-004 under `investigations/`, all re-run on the investigation tool fix (PR #113, Draft). The grill log holds every settled decision and its round.
