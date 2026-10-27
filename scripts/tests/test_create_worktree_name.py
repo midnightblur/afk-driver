@@ -470,6 +470,19 @@ def test_r2_6_a_lock_held_by_a_dead_process_is_broken(tmp_path):
     assert not lock.exists()
 
 
+def test_concurrent_creators_recover_one_stale_lock_without_duplicate_excludes(tmp_path):
+    repo = make_repo(tmp_path)
+    lock = repo / ".git" / "afk-worktrees" / ".lock"
+    lock.mkdir(parents=True)
+    (lock / "holder").write_text("2147483000:1", encoding="utf-8")
+    with ThreadPoolExecutor(4) as pool:
+        done = list(pool.map(lambda n: create(repo, "--name", f"recover-{n}"), range(4)))
+    assert [d.returncode for d in done] == [0, 0, 0, 0], [d.stderr for d in done]
+    exclude = (repo / ".git" / "info" / "exclude").read_text(encoding="utf-8").splitlines()
+    for entry in ("/.claude/worktrees/", "/.claude/hooks/.gate-cache/", "/.claude/metrics/"):
+        assert exclude.count(entry) == 1
+
+
 def test_r2_6_a_lock_held_by_a_live_process_is_kept_and_only_its_holder_releases_it(tmp_path):
     import time
     owner = owner_module()

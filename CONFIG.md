@@ -10,6 +10,7 @@ Read the effective configuration with the one reader; never parse the file:
 afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" effective --json
 afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.command
 afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" committed <commit> --json
 ```
 
 `validate` fails only on schema problems. For each repository-relative path
@@ -37,6 +38,12 @@ Highest precedence first:
 
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
 files absent is a supported state — the built-in defaults apply.
+
+`committed <commit> --json` reads only `.afk/config.yaml` from the verified Git
+commit and applies built-in defaults. An absent committed file uses those
+defaults. This command ignores machine, shared, local, and environment layers.
+Glossary gates use this view at the recorded merge base after refreshing the
+target reference. An unreadable commit or invalid configuration fails closed.
 
 ## Starting a repository off
 
@@ -124,6 +131,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `obsidian` | map | `vault` |
 | `notion` | map | `parent-page-id` |
 | `artifacts` | map | `service-map` |
+| `glossary` | map | `manifest` (optional repository-relative path to the versioned JSON manifest; see [Glossary manifest](#glossary-manifest)) |
 | `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`), `worktree-repo` (`isolated` \| `shared`), `worktree-seed` (`auto` \| `none` \| a path), `worktree-seed-exclude` (globs the seed skips, default `*-SNAPSHOT`) |
 | `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (where a new worktree installs), `worktree-install` (`ci` \| `none`), `worktree-command` (argv words restoring the dependencies, default `npm ci`) |
 | `verification` | map | `tiers`, `env` |
@@ -290,6 +298,86 @@ fold to the one spelling at the read, so what a consumer receives is `gen`
 whichever of those was written. A value that cannot fold to a
 repository-relative path — absolute, drive-lettered, or holding a `..` segment
 — is a configuration error, reported before any run starts.
+
+## Glossary manifest
+
+`glossary.manifest` selects a committed file owned by the repository's team.
+Omit the key until prerequisite adoption reaches the target branch.
+`glossary: null` also disables the manifest.
+The glossary adapter reads the pointer, manifest, ownership map, and baseline definitions
+from the recorded merge base. Feature files and local overlays cannot change
+that authority.
+
+The manifest is strict JSON. Version 1 requires exactly these fields:
+
+| Field | Type | Contract |
+|---|---|---|
+| `version` | integer | `1` |
+| `roots` | string list | Non-empty repository-relative directories or files eligible for search. |
+| `exclusions` | string list | Additional repository-relative path globs; an empty list is valid. |
+| `routes` | object list | Non-empty list of the route records below. |
+
+Every route requires exactly these fields:
+
+| Field | Type | Contract |
+|---|---|---|
+| `id` | string | Non-empty and unique within the manifest. |
+| `path_patterns` | string list | Globs that match changed repository paths. |
+| `domain_areas` | string list | Exact names of declared domain areas. |
+| `glossary_path` | string | Repository-relative glossary path listed in `GLOSSARY-MAP.md`. |
+| `owner_chain` | string list | Non-empty list of human owner identifiers. |
+
+Duplicate JSON keys, duplicate list values, unknown fields, unsupported
+versions, absolute paths, and parent traversal fail validation. Paths use `/`;
+the reader accepts backslash separators and normalizes them. A route needs
+at least one path pattern or domain area. The ownership map remains the
+authority for glossary targets; the manifest supplies delivery routes and
+owner chains.
+
+Each definition's `Owner` is the exact canonical path of its owning glossary,
+such as `billing/GLOSSARY.md` or the shared root `GLOSSARY.md`.
+The pinned ownership map must list that path. Manifest routes targeting the
+path resolve its human owner chains. A definition cannot name another
+glossary, a route ID, a map label, or an account as its `Owner`.
+Ownership reads and writes both enforce this rule.
+
+An ordinary definition revision retains its adopted `ID`. A replacement adds
+a new definition with `Replaces` naming the prior ID and retains the prior
+definition so the reference still resolves. A new ID that reuses a prior
+term or alias requires that explicit relationship. Rename the prior canonical
+term when needed to keep spellings unambiguous.
+
+Before a definition write, call `read_definition_source(snapshot, path)`.
+It returns the pinned feature definition and exact observed working bytes,
+after checking pinned ownership and allowing Git's CRLF/LF conversion.
+Pass those bytes to `write_definitions(snapshot, path, expected, updated)`.
+The writer checks the head and expected bytes again immediately before
+replacement. It returns the replacement bytes for the next sequential write.
+Changed content causes an error and remains untouched. Committed control
+authority still comes from the merge base.
+
+All glossary writes share an operating-system advisory lock under the absolute
+Git common directory at `afk/glossary-lifecycle/write.lock`. The writer holds
+it through content checks, validation across glossaries, and atomic replacement.
+Linked worktrees use the same lock. Acquisition waits at most 10 seconds by
+default; the adapter's `lock_timeout` argument sets a different bound.
+A timeout raises `RepositoryLockTimeout`, a typed repository error.
+The lock protects cooperating writers; expected bytes still detect outside edits.
+
+Search uses regular UTF-8 files at the pinned feature head. The file must be
+tracked and within both configured roots and the explicit feature scope.
+The adapter applies mandatory exclusions from `BUILTIN_EXCLUSIONS` in
+`scripts/glossary_lifecycle/repository.py`, then manifest and feature exclusions.
+These exclude generated output, dependencies, logs, fixtures, seeds, and data
+exports. Binary content and symlinks are ineligible. Additional repository
+formats or export locations belong in `exclusions`.
+
+The default provider uses deterministic token overlap and identifies its
+method as `token-overlap-v1`, with model `none`. It ranks glossary term IDs
+against the eligible source text. Each area returns at most 20 candidates
+with 3 source snippets each. Evidence records roots, exclusions, method,
+model, excluded paths, candidate counts, and truncation. Provider errors
+fail the operation. Exact term and route matches have no candidate cap.
 
 ## Secrets
 

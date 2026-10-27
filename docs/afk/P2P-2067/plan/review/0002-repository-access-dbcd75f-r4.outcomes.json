@@ -1,0 +1,11 @@
+[
+  {"id":"R2-01","outcome":"fixed","summary":"Owner references resolve to canonical owning glossary paths."},
+  {"id":"R2-02","outcome":"fixed","summary":"Adopted IDs remain present and replacements are explicit."},
+  {"id":"R2-03","outcome":"fixed","summary":"Root GLOSSARY.md links resolve with or without ./ prefixes."},
+  {"id":"R2-04","outcome":"fixed","summary":"Expected bytes preserve concurrent working-tree edits."},
+  {"id":"R2-05","outcome":"fixed","summary":"Null glossary configuration disables the manifest without an untyped failure."},
+  {"id":"R2-06","outcome":"fixed","summary":"Ranking tests assert relevant order and unequal positive scores."},
+  {"id":"R2-07","outcome":"fixed","summary":"A repository-wide lock serializes validation and glossary replacement."},
+  {"id":"R2-08","outcome":"fixed","summary":"Invalid Git filenames and malformed tree records return RepositoryError."},
+  {"id":"R2-09","outcome":"fixed","summary":"Tracked text uses one strict cat-file batch read."}
+]

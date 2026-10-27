@@ -6,7 +6,9 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
@@ -60,6 +62,34 @@ def test_a_pid_that_does_not_exist_is_dead():
     child.wait()
     time.sleep(0.2)
     assert owner.state(child.pid, "1") == "dead"
+
+
+def test_stale_recovery_and_new_creation_cannot_overlap(tmp_path, monkeypatch):
+    lock = tmp_path / ".lock"
+    lock.mkdir()
+    (lock / "holder").write_text("123:old", encoding="utf-8")
+    checking, resume = threading.Event(), threading.Event()
+
+    def delayed_state(pid, ctime):
+        if ctime == "old":
+            checking.set()
+            assert resume.wait(10)
+            return "dead"
+        return "alive"
+
+    monkeypatch.setattr(owner, "state", delayed_state)
+    with ThreadPoolExecutor(2) as pool:
+        first = pool.submit(owner.creation_lock, str(tmp_path), "123:new")
+        assert checking.wait(10)
+        second = pool.submit(owner.creation_lock, str(tmp_path), "456:new")
+        try:
+            time.sleep(0.3)
+            assert not second.done()
+        finally:
+            resume.set()
+        assert first.result(timeout=10)
+        assert not second.result(timeout=10)
+    assert (lock / "holder").read_text(encoding="utf-8") == "123:new"
 
 
 def test_owner_is_the_first_ancestor_that_is_not_a_shell_or_interpreter(monkeypatch):
