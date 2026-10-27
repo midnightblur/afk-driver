@@ -677,36 +677,44 @@ def test_a_damaged_list_is_refused_and_left_alone(home, root, tmp_path, text):
     assert list_path.read_text(encoding="utf-8") == text
 
 
-def busy_open(monkeypatch, refusals):
-    """Refuse the list file's first `refusals` opens as a writer's swap does on Windows."""
-    calls = []
+def busy_open(monkeypatch, refusals, code=13):
+    """Refuse the list file's first `refusals` opens as a writer's swap does on Windows (errno 13)."""
+    calls, sleeps = [], []
 
     def fake(file, *args, **kwargs):
         if str(file).endswith("repositories.json"):
             calls.append(file)
             if len(calls) <= refusals:
-                raise PermissionError(13, "Permission denied", str(file))
+                raise OSError(code, os.strerror(code), str(file))
         return builtins.open(file, *args, **kwargs)
 
     monkeypatch.setattr(rl, "open", fake, raising=False)
-    monkeypatch.setattr(rl.safe_write, "SWAP_RETRY_SECONDS", 0)
-    return calls
+    monkeypatch.setattr(rl.time, "sleep", sleeps.append)
+    return calls, sleeps
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="a swap refuses readers only on Windows")
 def test_a_read_during_a_swap_is_retried_on_windows(home, root, tmp_path, monkeypatch):
     repo = make_repo(tmp_path / "src")
     entry = rl.add_repository(repo, root)
-    calls = busy_open(monkeypatch, 2)
+    calls, sleeps = busy_open(monkeypatch, 2)
     assert rl.find_entry(repo) == entry
-    assert len(calls) == 3
+    assert len(calls) == 3 and sleeps == [rl.safe_write.SWAP_RETRY_SECONDS] * 2
+
+
+def test_a_read_failing_for_another_reason_is_a_list_error_at_once(home, root, tmp_path, monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    calls, sleeps = busy_open(monkeypatch, 1, code=5)
+    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+        rl.all_entries()
+    assert len(calls) == 1 and sleeps == []
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="a swap refuses readers only on Windows")
 def test_a_read_still_refused_after_the_retries_is_a_list_error_on_windows(home, root, tmp_path,
                                                                            monkeypatch):
     rl.add_repository(make_repo(tmp_path / "src"), root)
-    calls = busy_open(monkeypatch, rl.safe_write.SWAP_RETRIES + 1)
+    calls, _ = busy_open(monkeypatch, rl.safe_write.SWAP_RETRIES + 1)
     with pytest.raises(rl.RepositoryListError, match="cannot be read"):
         rl.all_entries()
     assert len(calls) == rl.safe_write.SWAP_RETRIES + 1
@@ -715,17 +723,33 @@ def test_a_read_still_refused_after_the_retries_is_a_list_error_on_windows(home,
 @pytest.mark.skipif(IS_WINDOWS, reason="off Windows a refused read is never a swap")
 def test_a_refused_read_is_a_list_error_at_once_off_windows(home, root, tmp_path, monkeypatch):
     rl.add_repository(make_repo(tmp_path / "src"), root)
-    calls = busy_open(monkeypatch, 1)
+    calls, sleeps = busy_open(monkeypatch, 1)
     with pytest.raises(rl.RepositoryListError, match="cannot be read"):
         rl.all_entries()
-    assert len(calls) == 1
+    assert len(calls) == 1 and sleeps == []
 
 
-def test_a_list_file_that_is_a_folder_is_a_list_error(home, monkeypatch):
+def test_a_list_file_that_is_a_folder_is_a_list_error(home, root, tmp_path, monkeypatch):
+    repo = make_repo(tmp_path / "src")
     (home / ".afk" / "repositories.json").mkdir(parents=True)
     monkeypatch.setattr(rl.safe_write, "SWAP_RETRY_SECONDS", 0)
-    with pytest.raises(rl.RepositoryListError, match="cannot be read"):
-        rl.all_entries()
+    for call in (rl.all_entries, lambda: rl.find_entry(repo), lambda: rl.add_repository(repo, root),
+                 lambda: rl.remove_repository("proj", root),
+                 lambda: rl.repoint_repository("proj", repo, root)):
+        with pytest.raises(rl.RepositoryListError, match="cannot be read"):
+            call()
+    assert list(root.iterdir()) == []
+
+
+@pytest.mark.parametrize("empty", ["", "   "])
+def test_find_entry_refuses_a_blank_path_or_root(home, root, tmp_path, monkeypatch, empty):
+    repo = make_repo(tmp_path / "src")
+    rl.add_repository(repo, root)
+    monkeypatch.chdir(repo)
+    with pytest.raises(rl.RepositoryListError, match="is empty"):
+        rl.find_entry(empty)
+    with pytest.raises(rl.RepositoryListError, match="is empty"):
+        rl.find_entry(root / "proj", root=empty)
 
 
 def test_find_entry_matches_checkout_subfolder_and_root_folder_by_text(home, root, tmp_path):

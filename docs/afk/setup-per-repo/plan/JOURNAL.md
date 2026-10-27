@@ -62,3 +62,4 @@
 2026-10-27 16:41 | execute | 0003-repository-list | decision(D-21) — a short name longer than 255 characters is refused on every system, so setup asks for another name with one reason
 2026-10-27 16:41 | execute | 0003-repository-list | pushed 4452828..0bbdb9b (2 commits) — the attack findings are fixed; the Windows read race re-run raised no error in 80,919 reads
 2026-10-27 16:41 | execute | 0003-repository-list | reviewing — independent reviewers read the attack fixes
+2026-10-27 17:11 | execute | 0003-repository-list | review advisory crit=0 high=0 med=2 low=2 (round 6) — the folder-shaped list file was refused on read only, a blank lookup still read the current folder, and two test gaps; all four fixed

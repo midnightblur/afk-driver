@@ -112,6 +112,9 @@ def _within(child_key: str, parent_key: str) -> bool:
 
 def find_entry(path: str | os.PathLike, *, root: str | os.PathLike | None = None) -> Entry | None:
     """The entry whose main checkout, or whose `<root>/<shortName>` folder, holds `path`, by text."""
+    _require_text(path)
+    if root is not None:
+        _require_text(root)
     entries = _read_list()
     key = _key(normalize(path))
     holders = [entry for entry in entries if _within(key, _key(entry.path))]
@@ -146,7 +149,7 @@ def add_repository(
         added.append(Entry(main, name))
         return _dump([*entries, added[0]])
 
-    safe_write.update_locked(list_file(), transform)
+    _update_list(transform)
     return added[0]
 
 
@@ -172,9 +175,9 @@ def remove_repository(short_name: str, root: str | os.PathLike) -> Removed:
         released.append(not taken and _release_folder(base, entry))
         return text
 
-    safe_write.update_locked(list_file(), drop)
+    _update_list(drop)
     try:
-        safe_write.update_locked(list_file(), release)
+        _update_list(release)
     except (safe_write.SafeWriteError, RepositoryListError, OSError):
         released[:] = [False]
     return Removed(dropped[0], bool(released and released[0]))
@@ -199,14 +202,13 @@ def repoint_repository(short_name: str, path: str | os.PathLike, root: str | os.
         moved.append(Entry(main, entry.short_name))
         return _dump([moved[0] if other is entry else other for other in entries])
 
-    safe_write.update_locked(list_file(), transform)
+    _update_list(transform)
     return moved[0]
 
 
 def main_checkout(path: str | os.PathLike) -> str:
     """The normalized main checkout of the repository holding `path`; refuses bare and non-git."""
-    if not os.fspath(path).strip():
-        raise RepositoryListError("is empty; give the repository's path", os.fspath(path))
+    _require_text(path)
     target = normalize(path)
     if not os.path.isdir(target):
         raise RepositoryListError("is not a folder", target)
@@ -368,6 +370,18 @@ def _release_folder(base: pathlib.Path, entry: Entry) -> bool:
         safe_write._replace_if_unchanged(marker, b"", kept, False)
         return False
     return True
+
+
+def _require_text(path: str | os.PathLike) -> None:
+    """A blank path would normalize to the current folder."""
+    if not os.fspath(path).strip():
+        raise RepositoryListError("is empty; give a path", os.fspath(path))
+
+
+def _update_list(transform) -> None:
+    if os.path.lexists(list_file()) and not os.path.isfile(list_file()):
+        raise RepositoryListError("cannot be read: it is not a file", list_file())
+    safe_write.update_locked(list_file(), transform)
 
 
 def _read_list() -> list[Entry]:
