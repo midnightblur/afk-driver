@@ -271,7 +271,8 @@ def test_the_current_rule_beside_an_old_entry_gives_ok(home: dict) -> None:
 
 
 @pytest.mark.parametrize("old", ['Bash(afk-python "/home/u/.claude/plugins/cache/afk/1.0.0/scripts/afk-team.py" *)',
-                                 'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)'])
+                                 'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)',
+                                 'Bash(afk-python "C:\\Users\\u\\plugins\\afk\\scripts\\afk-team.py" *)'])
 @needs_bash
 def test_a_rule_of_an_earlier_text_is_stale(home: dict, old: str) -> None:
     _write(home["user"], allow=[old])
