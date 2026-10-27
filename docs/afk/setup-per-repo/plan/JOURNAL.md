@@ -13,3 +13,5 @@
 2026-10-27 06:28 | execute | 0001-safe-writer | developing — resumed the slice after the suite fix; correcting two small notes left by the first run
 2026-10-27 06:30 | execute | 0001-safe-writer | decision(D-5) — corrected the list of programs that use the installer; the earlier choice still holds on the right list
 2026-10-27 06:30 | execute | 0001-safe-writer | decision(D-6) — updated one test comment that named a setting the slice removed; no test check changed
+2026-10-27 06:30 | execute | 0001-safe-writer | verifying — running the repository checks, the tests for the changed files and the end-to-end hook run
+2026-10-27 06:38 | execute | 0001-safe-writer | reviewing — every check is green; independent reviewers now read the change
