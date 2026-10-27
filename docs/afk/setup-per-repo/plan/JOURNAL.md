@@ -65,3 +65,6 @@
 2026-10-27 17:11 | execute | 0003-repository-list | review advisory crit=0 high=0 med=2 low=2 (round 6) — the folder-shaped list file was refused on read only, a blank lookup still read the current folder, and two test gaps; all four fixed
 2026-10-27 17:33 | execute | 0003-repository-list | review advisory crit=0 high=0 med=2 low=1 (round 7) — the list-write check still let a file at the list's folder through and refused a link the reader accepts; replaced by one catch around every list write
 2026-10-27 17:53 | execute | 0003-repository-list | review advisory crit=0 high=0 med=1 low=3 (round 8) — a marker or folder failure was reported as a list-file failure, plus a dead catch and a weak link test; all four fixed
+2026-10-27 18:26 | execute | 0003-repository-list | pushed 9e64d3c..a10d312 (1 commits) — a marker or folder failure now names that folder, not the list file
+2026-10-27 18:26 | execute | 0003-repository-list | review clean (round 9) — three reviewers found nothing at a10d312; static, unit on Windows and Linux, and smoke are green
+2026-10-27 18:26 | execute | 0003-repository-list | done — the repository list is built, reviewed clean, attacked with every finding fixed or refuted, and pushed; the pull request waits for the human
