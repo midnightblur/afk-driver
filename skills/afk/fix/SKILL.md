@@ -11,7 +11,7 @@ Run when a bug surfaces — typically a feature's **verification phase** (agent-
 
 `fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
-Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its spec folder is the one Phase 0 step 3 locates. Its running instance is the one the diagnosis reproduced against, restarted the way the diagnosis started it. Hard rules lists which procedure rules bind.
+Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its spec folder is the one Phase 0 step 3 locates. Its running instance and restart command are the ones the invoker names; with none, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
 
 ## Argument
 

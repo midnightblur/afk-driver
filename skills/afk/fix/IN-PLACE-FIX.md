@@ -25,22 +25,30 @@ The caller hands over:
 - **No ticket.** Write no ticket, and run no skill that writes one.
 - **One result.** Return one result from "In-place fix results" and no
   diagnosis verdict. Write no `DIAGNOSIS.md`.
-- **Caller's paths.** Change only the paths the caller's work may change,
-  catalog scenarios included. A fix that needs another path, such as a catalog
-  scenario that step 4 or step 6 calls for → `blocked`, naming the path.
+- **Caller's paths.** Change only the paths the caller's work may change. A
+  fix that needs another path → `blocked`, naming the path. A catalog scenario
+  that step 4 or step 6 calls for outside those paths is no exception.
 - **AGENTS.md chain.** The target repository's `AGENTS.md` chain binds here,
   notably its database-migration and commit rules.
 - **Ownership.** Edit no PRD, SDD, ADR, `VERIFICATION-PLAN.md` or `PLAN.md`
   across an ownership boundary; step 7 records each stale one.
-- **Lesson.** Record a workflow lesson in the lesson ledger (step 8). Edit no
-  AFK skill during a fix.
+- **Lesson.** Record a workflow lesson in the lesson ledger when step 8
+  applies. Edit no AFK skill during a fix.
 - **Tier match.** Match the test tier to the bug class (step 4).
 - **Cleanup.** Before returning, remove every `[DEBUG-...]` instrumentation
   line (grep the prefix) and delete every throwaway harness.
 
+## Live tiers
+
+A check that runs against the running instance runs, in any step, only after
+the caller's restart command has restarted that instance on the current
+working tree. A live check with no instance or no restart command handed over
+→ return `blocked`, naming the check.
+
 ## Unreleased feature
 
-Step 7 runs only for a fix on an unreleased feature. The signals: the branch
+Step 7 and the workflow lesson of step 8 run only for a fix on an unreleased
+feature. The signals: the branch
 matches `git.branch-pattern`; the spec folder holds a `plan/PLAN.md` whose
 `Feature:` line is not yet shipped; the failure came from that feature's own
 verification.
@@ -105,8 +113,8 @@ wrote, or the build or lint command. Decide whether a **higher tier**
 is warranted, and add the **lowest tier that reproduces the bug pattern at its
 right home**. Proportionality is the rule: spend what the case requires. Watch
 each test this step adds fail with the step 3 fix reverted, then pass with it
-restored; the record holds both runs. A live-tier test runs only on a
-restarted instance (step 5).
+restored; the record holds both runs. A live-tier test follows "Live
+tiers" for each of the two runs.
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -130,11 +138,9 @@ construction, so its class row above never downgrades it to "no new e2e/api".
 ### 5. Run every tier
 
 Run the step 1 failure, the original un-minimised scenario, every tier the
-caller's work declares, and every tier step 4 added. Before each live-tier
-run, restart the running instance on the current working tree with the
-caller's restart command. A live tier with no instance or no restart command
-handed over → return `blocked`, naming the tier. Confirm a UI-visible bug fixed **in the running UI** (mint a
-new token, drive the app again), not only at the test seam.
+caller's work declares, and every tier step 4 added, each live tier under
+"Live tiers". Confirm a UI-visible bug fixed **in the running UI** (mint a new
+token, drive the app again), not only at the test seam.
 
 - Every one green → step 6.
 - The failure was an adversary finding and its reproduction still shows the

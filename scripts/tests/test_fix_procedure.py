@@ -52,8 +52,11 @@ POINTERS = [
     "skills/afk/grill-requirements/ROUND.md",
     "AGENTS.md",
 ]
-# "IN-PLACE-FIX.md ... step N" or "procedure step(s) N and M"; the cited numbers must be procedure steps.
-CITED_STEP = re.compile(r"(?:IN-PLACE-FIX\.md\S*|procedure)\s+steps?\s+(\d+)(?:\s*(?:,|and|or|to)\s*(\d+))?")
+# A cited procedure step: "IN-PLACE-FIX.md ... step N", "procedure step(s) N and M", "then its step N",
+# "steps N to M of the shared fix procedure"; every cited number must be a procedure step.
+CITED_STEP = re.compile(
+    r"(?:IN-PLACE-FIX\.md\S*|procedure|then its)\s+steps?\s+(\d+)(?:\s*(?:,|and|or|to)\s*(\d+))?"
+    r"|steps?\s+(\d+)\s+to\s+(\d+)\s+of\s+the\s+shared\s+fix\s+procedure", re.IGNORECASE)
 FIX_PHASE = re.compile(r"(?:fix/SKILL\.md|/afk:fix|fix skill)['`)\]]*'?s?\s+Phases?\s+[0-9]", re.IGNORECASE)
 
 
@@ -68,8 +71,8 @@ def test_each_pointer_names_the_procedure_file(path):
 
 @pytest.mark.parametrize("path", POINTERS)
 def test_each_cited_procedure_step_exists(path):
-    cited = {n for pair in CITED_STEP.findall((ROOT / path).read_text(encoding="utf-8")) for n in pair if n}
-    assert cited <= _procedure_steps()
+    cited = {n for groups in CITED_STEP.findall((ROOT / path).read_text(encoding="utf-8")) for n in groups if n}
+    assert cited and cited <= _procedure_steps()
 
 
 def test_no_file_points_at_a_fix_phase_the_procedure_now_holds():
