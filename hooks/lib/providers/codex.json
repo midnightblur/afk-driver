@@ -1,10 +1,12 @@
 {
   "detect": {
     "any_env": [
-      "PLUGIN_ROOT"
+      "PLUGIN_ROOT",
+      "CODEX_THREAD_ID"
     ]
   },
   "priority": 10,
+  "lavish_poll": false,
   "harness_class": "H-2",
   "session_start_user_message": true,
   "nested_inject_mode": "always",

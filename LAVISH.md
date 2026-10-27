@@ -448,7 +448,11 @@ definition — the render points in the table above. **A driven-mode run never
 renders and never polls**: a no-timeout poll inside a
 hands-off run would wedge it on a human who is, by design, away.
 
-**Markdown fallback.** Any failure — wrapper exit `65`, `69` or `127`, no browser
+**Polling capability.** The wrapper requires the active provider's `lavish_poll`
+capability (`CAPABILITIES.md`). When it is unavailable, use the Markdown
+fallback below for answers. Render, reopen, end and stop remain available.
+
+**Markdown fallback.** Any failure — wrapper exit `64`, `65`, `69` or `127`, no browser
 available, a `poll` that errors out — falls back to the skill's existing
 markdown flow. **Never a phase failure**: the phase completes via
 markdown, work is not lost, the skill continues exactly as before lavish

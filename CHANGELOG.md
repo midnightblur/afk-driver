@@ -39,6 +39,9 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- Lavish polling now refuses with a Markdown fallback instruction
+  when it cannot resume the agent turn to receive feedback.
+
 - The harness's worktree tool no longer fails on a large build. The creation
   hook returns the path once the checkout and copies are done; build
   provisioning and the repository's `WorktreeCreated` scripts then run in the

@@ -6,7 +6,8 @@
     afk-python scripts/lavish_show.py stop
     afk-python scripts/lavish_show.py playbook [id]
 
-Open, reopen and poll first inject the runtime (`lavish/inject.py`; the file is rewritten
+Polling requires the active provider to declare the `lavish_poll` capability.
+Accepted open, reopen and poll operations inject the runtime (`lavish/inject.py`; the file is rewritten
 only when its bytes change), then run `lavish-axi` with the same arguments, the inherited
 standard streams and its exit status. On POSIX the upstream replaces this process; on
 Windows it runs as a child, without `cmd.exe` unless the npm package is unreadable. A killed
@@ -19,7 +20,8 @@ wrapper killed inside that window leaves that process running.
 
 Exit codes of the wrapper itself (nothing upstream ran):
     64   refused: `share`, `setup`, `update`, any other operation or argument shape, a
-         missing or non-HTML target, or `LAVISH_AXI_HOST` in the environment
+         missing or non-HTML target, `LAVISH_AXI_HOST` in the environment,
+         or `poll` without the active provider's `lavish_poll` capability
     65   the page runtime could not be injected
     69   the `.cmd` fallback could not set up the jobs that bind its processes' lifetime
     127  `lavish-axi` is not on PATH (run `/afk:setup`)
@@ -38,8 +40,10 @@ import threading
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "hooks" / "lib"))
 
 from lavish import inject  # noqa: E402
+import provider_facts  # noqa: E402
 
 FORBIDDEN = {
     "share": "publishes the page to a public third-party host",
@@ -79,6 +83,9 @@ def plan(argv: list[str]) -> str | None:
             raise Refused("`end` takes exactly one .html page")
         return None
     if op == "poll":
+        if provider_facts.facts().get("lavish_poll") is not True:
+            raise Refused("`poll` requires the active provider's lavish_poll capability. "
+                          "Use the existing Markdown fallback in LAVISH.md.")
         if not rest or not (len(rest) == 1 or (len(rest) == 3 and rest[1] == "--agent-reply")):
             raise Refused("`poll` takes one .html page and an optional `--agent-reply <message>`")
         return page(rest[0])

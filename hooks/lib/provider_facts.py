@@ -1,6 +1,6 @@
 """The current harness's declarations from `hooks/lib/providers/<name>.json`, for Python callers.
 
-`facts()` picks the provider the way `afk_provider` in `provider.sh` does: `AFK_PROVIDER` names it,
+`facts()` selects from these declarations: `AFK_PROVIDER` names the provider,
 else the lowest `priority` whose `detect.any_env` variable is set; no match gives {}.
 """
 from __future__ import annotations
