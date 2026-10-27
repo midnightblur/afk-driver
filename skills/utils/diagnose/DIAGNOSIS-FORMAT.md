@@ -14,7 +14,7 @@ Each part is a `## {Part}` heading, in this order. A part is empty when its head
 | Ticket key | the tracker key | yes | no | the bug mode, only while empty; a later different key goes to Outside writes |
 | Verdict | one of V-1..V-5, written `V-{n} {name}` | no | no | diagnose; a re-run replaces it |
 | Base | the branch the reproduction started from, and its commit id | no | no | diagnose |
-| Diagnosis branch | branch name from the branch template, made from the Base tip | no | no | diagnose; never pushed by it |
+| Diagnosis branch | branch name of the diagnosis worktree, read from `git worktree list`, made from the Base tip | no | no | diagnose; never pushed by it |
 | Symptom | the behaviour as checked, not as reported | no | yes | diagnose |
 | Spec comparison | what the PRD, SDD, verification plan or other specs say, with citations | no | yes | diagnose |
 | Reproduction | test path, command and failing output; a light diagnosis gives the reused check or finding | per verdict | yes | diagnose |
