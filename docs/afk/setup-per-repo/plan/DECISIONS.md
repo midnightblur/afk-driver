@@ -125,3 +125,17 @@
 - Chosen: B — A stores a git folder as a main checkout, against the Acceptance bullet "a path to a worktree or a subfolder adds that worktree's main checkout"; git cannot name the main checkout of a separate git folder from its linked worktree, so that one case is refused with its reason
 - Supersedes: none
 - To reverse: drop `_apart_main` from `scripts/repo_list.py`
+
+## D-19 — A failed folder release leaves the marker, and a later remove deletes it
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — raise when the release after the list write fails, though the entry is already gone vs B — return `folder_deleted` false and let a later `remove_repository` of that short name delete a marker that holds a path no entry lists, when the folder holds only the marker
+- Chosen: B — the list write is the remove; the release cannot share its lock (`update_locked` has no step after the write), and B gives the left marker a way out through the same call instead of blocking the short name until a hand delete
+- Supersedes: SDD §4 relation "list entry → marker" "empty folder and marker deleted" — narrowed to "deleted by this remove, or by a later remove of the short name when the deletion failed"
+- To reverse: drop `_left_marker` and widen the release `except` in `remove_repository` of `scripts/repo_list.py`
+
+## D-20 — Name what D-16 and D-18 narrow
+- 2026-10-27 · decided by /afk:execute (0003-repository-list)
+- Options: A — leave D-16 pointing callers at `main_checkout` and D-18 at "Supersedes: none" vs B — D-16 names no list-module call for a worktree outside the main checkout and `<root>/<shortName>` (placement starts its own git for such a layout, ADR-0002 (design)); D-18 narrows AC-003 and the `GLOSSARY.md` "main checkout" reading for a separate git folder
+- Chosen: B — `main_checkout` is in neither the slice's Produces nor 0004's Consumes, and the two narrowings belong on the record
+- Supersedes: D-16 "until the caller passes `main_checkout(path)`" — dropped; the Acceptance bullet of `plan/0003-repository-list.md` "a path to a worktree or a subfolder adds that worktree's main checkout" — narrowed: a linked worktree of a clone with a separate git folder and no `core.worktree` is refused; `GLOSSARY.md` "Main checkout" as the first entry of `git worktree list` — for a submodule or a separate git folder it is that folder's working folder
+- To reverse: restore the `main_checkout(path)` sentence in the module docstring of `scripts/repo_list.py`

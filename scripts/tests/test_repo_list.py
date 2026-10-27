@@ -148,6 +148,28 @@ def test_a_submodule_adds_its_working_folder_not_its_git_folder(home, root, tmp_
     assert same(entry.path, outer / "lib")
 
 
+def make_submodule_worktree(tmp_path: Path) -> tuple[Path, Path]:
+    library = make_repo(tmp_path / "src", "lib")
+    outer = make_repo(tmp_path / "src", "outer")
+    git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(library), "lib")
+    worktree = tmp_path / "lib-wt1"
+    git(outer / "lib", "worktree", "add", "-q", "-b", "wt1", str(worktree))
+    return outer / "lib", worktree
+
+
+def test_a_submodules_linked_worktree_adds_the_submodules_working_folder(home, root, tmp_path):
+    checkout, worktree = make_submodule_worktree(tmp_path)
+    assert same(rl.add_repository(worktree, root, short_name="lib").path, checkout)
+
+
+def test_a_submodule_whose_working_folder_is_gone_is_refused(home, root, tmp_path):
+    checkout, worktree = make_submodule_worktree(tmp_path)
+    remove_tree(checkout)
+    with pytest.raises(rl.RepositoryListError, match="is gone"):
+        rl.add_repository(worktree, root, short_name="lib")
+    assert not (home / ".afk" / "repositories.json").exists()
+
+
 def test_a_separate_git_folder_adds_its_main_checkout_and_refuses_its_worktree(home, root, tmp_path):
     main, store, worktree = tmp_path / "main", tmp_path / "store", tmp_path / "wt1"
     git(tmp_path, "init", "-q", "-b", "dev", f"--separate-git-dir={store}", str(main))
@@ -489,6 +511,36 @@ def test_a_refused_release_still_removes_the_entry_and_keeps_the_marker(home, ro
     removed = rl.remove_repository("proj", root)
     assert not removed.folder_deleted and len(calls) == 2
     assert stored(home)["repositories"] == [] and marker_of(root, "proj").is_file()
+    monkeypatch.setattr(rl.safe_write, "update_locked", real_update)
+    again = rl.remove_repository("proj", root)
+    assert again.folder_deleted and same(again.entry.path, removed.entry.path)
+    assert not (root / "proj").exists() and stored(home)["repositories"] == []
+
+
+def test_a_failed_folder_release_keeps_the_marker_for_a_later_remove(home, root, tmp_path, monkeypatch):
+    rl.add_repository(make_repo(tmp_path / "src"), root)
+    real_release = rl._release_folder
+
+    def denied(base, entry):
+        raise PermissionError("the marker is open in another process")
+
+    monkeypatch.setattr(rl, "_release_folder", denied)
+    assert not rl.remove_repository("proj", root).folder_deleted
+    assert rl.all_entries() == [] and marker_of(root, "proj").is_file()
+    monkeypatch.setattr(rl, "_release_folder", real_release)
+    assert rl.remove_repository("proj", root).folder_deleted
+
+
+def test_remove_of_an_unlisted_name_leaves_a_listed_paths_marker_and_bad_names(home, root, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    rl.add_repository(repo, root)
+    (root / "copy").mkdir()
+    marker_of(root, "copy").write_bytes(marker_of(root, "proj").read_bytes())
+    with pytest.raises(rl.RepositoryListError, match="is not listed"):
+        rl.remove_repository("copy", root)
+    assert marker_of(root, "copy").is_file()
+    with pytest.raises(rl.RepositoryListError, match="not a valid short name"):
+        rl.remove_repository("..", root)
 
 
 def test_a_short_name_added_again_between_drop_and_release_keeps_its_marker(home, root, tmp_path,
@@ -570,13 +622,12 @@ def test_find_entry_matches_without_case_on_windows(home, root, tmp_path):
     assert rl.find_entry(str(repo / "sub").upper()) == entry
 
 
-def test_a_worktree_outside_the_checkout_and_root_is_found_through_its_main_checkout(home, root, tmp_path):
+def test_a_worktree_outside_the_checkout_and_root_finds_nothing_by_text(home, root, tmp_path):
     repo = make_repo(tmp_path / "src")
-    entry = rl.add_repository(repo, root)
+    rl.add_repository(repo, root)
     worktree = tmp_path / "elsewhere" / "wt1"
     git(repo, "worktree", "add", "-q", "-b", "wt1", str(worktree))
     assert rl.find_entry(worktree, root=root) is None
-    assert rl.find_entry(rl.main_checkout(worktree), root=root) == entry
 
 
 def test_find_entry_picks_the_innermost_listed_checkout(home, root, tmp_path):

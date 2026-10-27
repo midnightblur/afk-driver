@@ -12,13 +12,14 @@ added, each entry `path` and `shortName`). Each entry reserves one folder
 `<root>/<shortName>`, whose `.afk-repository` marker holds the entry's path.
 Every list and marker write goes through the safe writer (`safe_write.py`)
 under the list's lock, so no lock file sits in a folder under the root.
+Remove drops the entry, then deletes the marker and its empty folder; when that
+second step fails, the marker stays and a later remove of the short name deletes it.
 
 A stored path is absolute with links resolved; paths and short names compare
 without case on Windows. `find_entry` matches path text against the list file
 alone and never starts git, so a worktree outside its main checkout and outside
-`<root>/<shortName>` finds nothing; pass `main_checkout(path)` to find its entry.
-Add and repoint resolve a worktree or subfolder to
-its main checkout with git, and refuse a bare clone, a folder that is not a git
+`<root>/<shortName>` finds nothing. Add and repoint resolve a worktree or
+subfolder to its main checkout with git, and refuse a bare clone, a folder that is not a git
 repository, and a path already listed. A refusal raises
 `RepositoryListError`; a refused write raises the safe writer's
 `SafeWriteError`. Standard library only.
@@ -155,7 +156,11 @@ def remove_repository(short_name: str, root: str | os.PathLike) -> Removed:
 
     def drop(text: str) -> str:
         entries = _parse(text)
-        dropped.append(_named(entries, short_name))
+        try:
+            dropped.append(_named(entries, short_name))
+        except RepositoryListError:
+            dropped.append(_left_marker(base, short_name, entries))
+            return text
         return _dump([other for other in entries if other is not dropped[0]])
 
     def release(text: str) -> str:
@@ -168,7 +173,7 @@ def remove_repository(short_name: str, root: str | os.PathLike) -> Removed:
     safe_write.update_locked(list_file(), drop)
     try:
         safe_write.update_locked(list_file(), release)
-    except safe_write.SafeWriteError:
+    except (safe_write.SafeWriteError, RepositoryListError, OSError):
         released[:] = [False]
     return Removed(dropped[0], bool(released and released[0]))
 
@@ -214,13 +219,13 @@ def main_checkout(path: str | os.PathLike) -> str:
     if not os.path.isdir(main):
         raise RepositoryListError(f"its main checkout {main} is gone", target)
     if not os.path.exists(os.path.join(main, ".git")):
-        main = _apart_main(target, main)
+        main = _separate_git_main(target, main)
     return main
 
 
-def _apart_main(target: str, git_folder: str) -> str:
-    """Main checkout of a repository whose git folder lies apart (a submodule, a separate git folder)."""
-    done = _git(target, f"--git-dir={git_folder}", "config", "--local", "--get", "core.worktree")
+def _separate_git_main(target: str, git_folder: str) -> str:
+    """Main checkout of a repository with a separate git folder (a submodule, `--separate-git-dir`)."""
+    done = _git(target, "config", "--file", os.path.join(git_folder, "config"), "--get", "core.worktree")
     if done.returncode == 0 and done.stdout.strip():
         main = normalize(os.path.join(git_folder, done.stdout.strip()))
     else:
@@ -286,6 +291,17 @@ def _named(entries: list[Entry], short_name: str) -> Entry:
         if _key(entry.short_name) == _key(short_name):
             return entry
     raise RepositoryListError("is not listed", short_name)
+
+
+def _left_marker(base: pathlib.Path, short_name: str, entries: list[Entry]) -> Entry:
+    """The marker an earlier remove left behind: it holds a path no entry lists."""
+    _check_short_name(short_name)
+    folder = base / short_name
+    held = _marker_holder(folder / MARKER_NAME)
+    if (not held or any(_key(entry.path) == _key(held) for entry in entries)
+            or [child.name for child in folder.iterdir()] != [MARKER_NAME]):
+        raise RepositoryListError("is not listed", short_name)
+    return Entry(held, short_name)
 
 
 def _marker_holder(marker: pathlib.Path) -> str | None:
