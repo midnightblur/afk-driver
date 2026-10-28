@@ -203,3 +203,45 @@
 - Chosen: B — review key f028: INV-016 records that the sign-in load hands Jira a base of scheme plus host, and ADR-0004 (design) derives the per-site key from the host, so two paths on one host would share one sign-in; a context path is a non-goal of this feature
 - Supersedes: the fix of review key f021, which allowed a path
 - To reverse: allow `(/\S*)?` in the `jira.site` check of `scripts/afk-config.py` and define the per-site key for a path in ADR-0004
+
+## D-30 — Re-take the reader seam's ground with a fresh question on the one call this slice uses
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — re-run INV-013 whole (its Q3 question on the owner-rule change, 7 subjects) vs B — one fresh Q1 run on `parse_single_file`, the only reader call placement makes
+- Chosen: B — `ground_diff.py` against INV-013 exits 1 (4297 places; 0002-settings-reader built the change INV-013 studied), and the contract's `## Seams` row binds placement to the single-file parse, never the merge; INV-024 at cc6bff8 is `closed-with-frontier` and no claim in it contradicts SDD §8 row "settings reader (changed)" (D-15 precedent)
+- Supersedes: the `## Seams` row of `plan/0004-placement.md` citing INV-013 — this slice stands on INV-024
+- To reverse: run `/afk:investigate` on the INV-013 question at the branch head and re-check placement against its claims
+
+## D-31 — The short-name marker counts as part of the repository list placement reads
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — read only the machine file and the list file, and skip R-06 on a check vs B — also read the marker in `<root>/<short name>` on every check
+- Chosen: B — R-06 asks whether setup made the folder for that repository, which only the marker answers, and R-07 checks on every read; SDD §4 relation "list entry → marker" sets its fetch posture to "read per add, remove, placement check"
+- Supersedes: the `## Verification` row of `plan/0004-placement.md` "assert only the machine file and the list file are read" — widened to the marker of the checked entry's short name
+- To reverse: drop `_short_name_folder` from `ROOT_RULES` in `scripts/placement.py` and narrow the read-count test
+
+## D-32 — R-04 warns on every root with a space; the caller says whether a listed repository builds with Maven
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — placement reads each listed repository's build gates to warn only for Maven vs B — placement returns the R-04 warning for any space, and setup words it for the repositories that build with Maven
+- Chosen: B — A breaks the Acceptance bullet "Placement reads only the machine file and the repository list", and PRD catalog R gives the R-04 outcome to setup ("setup accepts it and warns")
+- Supersedes: none — narrows the Acceptance bullet "R-04 a space in the path (a warning when a listed repository builds with Maven)" of `plan/0004-placement.md` to "a warning; the caller decides the Maven case"
+- To reverse: give `_no_space` in `scripts/placement.py` the repository's build gates
+
+## D-33 — A failing old base value refuses; a passing one is the root with state suggested
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — a failing machine `developer.worktreeBasePath` falls through to the suggestion vs B — it refuses with its rule, and a passing one has state suggested, source `developer.worktreeBasePath`
+- Chosen: B — PRD AC-043 "If it fails, agents refuse to create a worktree until setup is answered"; the SDD §6 root state diagram keeps the old base value in NotConfirmed, which the developer leaves only by answering the root question
+- Supersedes: none — reads the Acceptance bullet "else the old machine `developer.worktreeBasePath` when it passes catalog R; else the suggestion" as "else the suggestion when no old base value is set"
+- To reverse: in `_candidate` of `scripts/placement.py`, try the suggestion when the old base value fails
+
+## D-34 — R-05 finds a clash through the entry lookup; the earlier entry keeps the short name
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — read every entry with `all_entries` to find a clash vs B — check the short name is one valid folder name, then ask `find_entry` for `<root>/<short name>`; an earlier entry holding it refuses the later one with R-05
+- Chosen: B — SDD §8 row "repository list (new)" keeps "all entries" for setup only and SDD §5 says the read-all call is used only by setup; the list module refuses a clash at add, so a clash comes only from a hand edit
+- Supersedes: none
+- To reverse: read `all_entries` in `_short_name_free` of `scripts/placement.py` and refuse both clashing entries
+
+## D-35 — A repository git cannot map to a main checkout counts as not listed
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — refuse a target when git names a repository whose main checkout placement cannot work out vs B — answer not listed
+- Chosen: B — PRD AC-055 leaves an unlisted repository unchecked, and the cases are a bare repository (the list refuses one) and a linked worktree of a separate git folder without `core.worktree`, whose main checkout git does not name (D-18); A would refuse agents in repositories no entry lists
+- Supersedes: none
+- To reverse: return a refusal from `_entry_for` in `scripts/placement.py` when `_main_by_git` answers None for a folder inside a repository

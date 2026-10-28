@@ -114,3 +114,11 @@
 2026-10-28 02:15 | execute | 0002-settings-reader | done — review settled at round 6, adversary advisory only, rationale durable; tracker row set done
 2026-10-28 02:21 | execute | 0002-settings-reader | outcome success — review settled at round 6, adversary advisory (1 medium, 3 low), PR checklist ticked
 2026-10-28 02:23 | autopilot | run | heartbeat 3/13 done, starting 0004-placement — the settings rule is finished; placement can now use it and the repository list
+2026-10-28 02:33 | execute | 0004-placement | designing — started the placement module, which picks and checks the folder for every new agent worktree
+2026-10-28 02:35 | execute | 0004-placement | decision(D-30) — the settings reader changed since its code study, so a fresh study (INV-024) checked the one reader call placement uses; nothing in it conflicts with the design
+2026-10-28 02:35 | execute | 0004-placement | developing — writing the placement module and its tests against real temporary git repositories
+2026-10-28 02:43 | execute | 0004-placement | decision(D-31) — the check also reads the marker file in the repository's worktree folder, because only it says setup made that folder
+2026-10-28 02:43 | execute | 0004-placement | decision(D-32) — a space in the root always gives a warning; setup says when a repository that builds with Maven is affected
+2026-10-28 02:43 | execute | 0004-placement | decision(D-33) — an old worktree base value that breaks a rule stops agents until setup is answered, as the requirements say
+2026-10-28 02:43 | execute | 0004-placement | decision(D-34) — a short name two entries share is found through the normal lookup; the entry listed first keeps it
+2026-10-28 02:43 | execute | 0004-placement | decision(D-35) — a repository whose main checkout git cannot name is treated as not listed
