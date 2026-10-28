@@ -33,8 +33,7 @@ OWNS_OUTPUT = ("headless",)
 FIELDS = {"run", "watched_agent_id"}
 UTC_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-LIMIT = re.compile(r"usage limit|hit your (?:usage )?limit|\b\d+-hour limit|weekly limit"
-                   r"|\blimit reached\b.*\b(?:resets?|try again)\b", re.I)
+LIMIT = re.compile(r"usage limit|hit your (?:usage )?limit|\b\d+-hour limit|weekly limit|\bsession limit", re.I)
 RETRYING = re.compile(r"\bretrying\b", re.I)
 EPOCH = re.compile(r"\|(\d{10})\b")
 ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?", re.I)

@@ -261,10 +261,26 @@ def test_a_reset_time_the_supervisor_cannot_read_is_none(line):
     assert supervisor.reset_time(line, SEEN) is None
 
 
-def test_an_iso_time_with_no_offset_is_the_machine_local_time():
+@pytest.fixture
+def plus_seven(monkeypatch):
+    """The machine zone set to UTC+7 where the platform can switch it (POSIX tzset); else the machine's own."""
+    if not hasattr(time, "tzset"):
+        yield None
+        return
+    monkeypatch.setenv("TZ", "XYZ-7")
+    time.tzset()
+    yield timezone(timedelta(hours=7))
+    monkeypatch.undo()
+    time.tzset()
+
+
+def test_an_iso_time_with_no_offset_is_the_machine_local_time(plus_seven):
     found = supervisor.reset_time("usage limit reached; resets at 2026-10-02 10:15:00", SEEN)
-    local = time.mktime((2026, 10, 2, 10, 15, 0, 0, 0, -1))      # the C library's local time, not astimezone
-    assert found == datetime.fromtimestamp(local, timezone.utc)
+    if plus_seven:
+        assert found == datetime(2026, 10, 2, 3, 15, tzinfo=timezone.utc)
+    else:
+        local = time.mktime((2026, 10, 2, 10, 15, 0, 0, 0, -1))      # the C library's local time, not astimezone
+        assert found == datetime.fromtimestamp(local, timezone.utc)
 
 
 def test_a_log_timestamp_before_the_limit_phrase_is_not_the_reset_time():
@@ -288,6 +304,8 @@ def test_each_provider_limit_form_is_read_as_the_limit_line(text, line):
     "Error: context limit reached for this conversation\n",
     "wrote quota.py\nerror: tests failed\n",
     "usage limit reached, retrying in 30 s\n",
+    "Error: context limit reached for this conversation, try again with a shorter prompt\n",
+    "Error: output limit reached. Try again\n",
 ])
 def test_a_line_that_is_no_provider_usage_limit_is_not_read_as_one(text):
     assert supervisor.limit_line(text) is None
