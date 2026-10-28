@@ -122,3 +122,9 @@
 2026-10-28 02:43 | execute | 0004-placement | decision(D-33) — an old worktree base value that breaks a rule stops agents until setup is answered, as the requirements say
 2026-10-28 02:43 | execute | 0004-placement | decision(D-34) — a short name two entries share is found through the normal lookup; the entry listed first keeps it
 2026-10-28 02:43 | execute | 0004-placement | decision(D-35) — a repository whose main checkout git cannot name is treated as not listed
+2026-10-28 02:50 | execute | 0004-placement | pushed cc6bff8..540a7d9 (1 commits) — the placement module, its tests, the code study and six decision records are on the shared branch; three reasons posted on the pull request
+2026-10-28 02:51 | execute | 0004-placement | verifying — running the repository checks, the placement and neighbouring tests on Windows and Linux, and the end-to-end hook run
+2026-10-28 03:16 | execute | 0004-placement | reviewing — checks green: repository gates, 475 tests on Windows, 137 on Linux, end-to-end hook run; independent review starts
+2026-10-28 03:36 | execute | 0004-placement | review r1 advisory — crit=0 high=0 med=6 low=14; 20 findings posted on the pull request, 10 design findings sent to the feature review; developing — fixing four code bugs and five test gaps, one scope note
+2026-10-28 03:43 | execute | 0004-placement | decision(D-36) — placement keeps calling the list module's private short-name check and marker read; the public form is left to the feature review
+2026-10-28 03:43 | execute | 0004-placement | review r1 fixes — nested repositories in a worktree, link then .. targets, a broken machine file for an unlisted repository, module reuse, five test gaps; one disputed test finding stands and is fixed

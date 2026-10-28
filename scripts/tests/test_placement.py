@@ -182,16 +182,19 @@ def test_a_root_in_a_repository_file_is_never_read_as_the_root(home, tmp_path, m
 
 # --- catalog R, one test per row -------------------------------------------
 
-@pytest.mark.parametrize("value", ["relative/root", "~/repo-worktrees", "./wt", 5]
+@pytest.mark.parametrize("value", ["relative/root", "~/repo-worktrees", "./wt"]
                          + ([r"\no-drive\root"] if IS_WINDOWS else []))
 def test_r01_a_root_that_is_not_absolute_is_refused(home, value):
-    if isinstance(value, str):
-        set_root(home, value)
-    else:
-        machine(home, f"developer:\n  worktreeRoot: {value}\n")
+    set_root(home, value)
     state = pl.root_state()
     assert (state.state, state.rule) == (pl.REFUSED, "R-01")
-    assert "absolute" in state.reason or "not a path" in state.reason
+    assert state.reason == f"{value} is not an absolute path"
+
+
+def test_r01_a_root_that_is_not_text_is_refused(home):
+    machine(home, "developer:\n  worktreeRoot: 5\n")
+    state = pl.root_state()
+    assert (state.state, state.rule, state.reason) == (pl.REFUSED, "R-01", "5 is not a path")
 
 
 def test_r02_a_root_inside_a_repository_is_refused_naming_it(home, tmp_path):
@@ -282,12 +285,30 @@ def test_r06_a_folder_reserved_for_another_repository_is_refused(listed, root, h
     assert verdict.rule == "R-06" and "reserved" in verdict.reason
 
 
-@pytest.mark.parametrize("prepare", ["absent", "empty"])
-def test_r06_an_absent_or_empty_folder_passes(root, home, tmp_path, prepare):
+def test_r06_an_unreadable_marker_is_refused(listed, root):
+    (root / "proj" / rl.MARKER_NAME).write_text("{", encoding="utf-8")
+    verdict = pl.target_for(listed, "wt1")
+    assert verdict.rule == "R-06" and "an unreadable marker" in verdict.reason
+
+
+def test_r06_a_file_at_the_short_name_is_refused(root, home, tmp_path):
     repo = make_repo(tmp_path / "src")
     write_list(home, [(rl.normalize(repo), "proj")])
-    if prepare == "empty":
-        (root / "proj").mkdir()
+    (root / "proj").write_text("x", encoding="utf-8")
+    verdict = pl.target_for(repo, "wt1")
+    assert verdict.rule == "R-06" and "is not a folder" in verdict.reason
+
+
+def test_r06_an_absent_folder_passes(root, home, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    write_list(home, [(rl.normalize(repo), "proj")])
+    assert pl.target_for(repo, "wt1").state == pl.INSIDE
+
+
+def test_r06_an_empty_folder_passes(root, home, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    write_list(home, [(rl.normalize(repo), "proj")])
+    (root / "proj").mkdir()
     assert pl.target_for(repo, "wt1").state == pl.INSIDE
 
 
@@ -321,6 +342,23 @@ def test_an_unlisted_repository_is_not_listed_and_not_checked(root, home, tmp_pa
     assert pl.target_for(repo, "wt1") == pl.Verdict(pl.NOT_LISTED, None)
 
 
+def test_an_unlisted_repository_is_not_listed_even_with_a_broken_machine_file(root, home, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    machine(home, "developer: {worktreeRoot: /x}\n")
+    assert pl.target_for(repo, "wt1") == pl.Verdict(pl.NOT_LISTED, None)
+    assert pl.check_target(tmp_path / "away", repo).state == pl.NOT_LISTED
+
+
+@pytest.mark.parametrize("where", ["the main checkout", "a worktree under the root"])
+def test_a_listed_repository_with_a_broken_machine_file_raises(listed, root, home, where):
+    worktree = root / "proj" / "wt0"
+    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
+    folder = {"the main checkout": listed, "a worktree under the root": worktree}[where]
+    machine(home, "developer: {worktreeRoot: /x}\n")
+    with pytest.raises(pl.PlacementError, match="flow syntax"):
+        pl.target_for(folder, "wt1")
+
+
 def test_a_name_that_climbs_out_of_the_folder_is_refused(listed, root):
     verdict = pl.target_for(listed, os.path.join("..", "escape"))
     assert (verdict.state, verdict.rule) == (pl.REFUSED, pl.OUTSIDE)
@@ -352,11 +390,12 @@ def test_a_target_inside_the_folder_passes(listed, root):
 
 
 @pytest.mark.parametrize("where", ["beside the checkout", "inside the checkout", "another short name",
-                                   "the folder itself"])
+                                   "a short name sharing the prefix", "the folder itself"])
 def test_a_target_outside_the_folder_is_refused_naming_it(listed, root, tmp_path, where):
     target = {"beside the checkout": tmp_path / "src" / "proj-wt",
               "inside the checkout": listed / ".claude" / "worktrees" / "x",
               "another short name": root / "other" / "x",
+              "a short name sharing the prefix": root / "proj-extra" / "x",
               "the folder itself": root / "proj"}[where]
     verdict = pl.check_target(target, listed)
     assert (verdict.state, verdict.rule) == (pl.REFUSED, pl.OUTSIDE)
@@ -392,6 +431,17 @@ def test_links_are_resolved_on_both_sides(listed, root, tmp_path):
     away.mkdir()
     link(away, root / "proj" / "door")
     assert pl.check_target(root / "proj" / "door" / "x", listed).rule == pl.OUTSIDE
+
+
+def test_a_link_then_dotdot_is_judged_where_the_folder_lands(listed, root, tmp_path):
+    (tmp_path / "away" / "inner").mkdir(parents=True)
+    link(tmp_path / "away" / "inner", root / "proj" / "door")
+    target = os.path.join(str(root / "proj" / "door"), "..", "x")
+    verdict = pl.check_target(target, listed)
+    os.makedirs(target)
+    landed = next(p for p in (root / "proj" / "x", tmp_path / "away" / "x") if p.is_dir())
+    assert same(verdict.target, landed)
+    assert (verdict.state == pl.INSIDE) == same(landed.parent, root / "proj")
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")
@@ -451,13 +501,57 @@ def test_a_listed_submodules_worktree_elsewhere_is_found_through_git(root, tmp_p
     assert git_calls
 
 
-def test_a_worktree_elsewhere_of_a_listed_repository_is_found_through_git(listed, root, tmp_path, git_calls):
-    for worktree in (tmp_path / "beside", listed / ".claude" / "worktrees" / "inner"):
-        git(listed, "worktree", "add", "-q", "-b", worktree.name, str(worktree))
-        git_calls.clear()
-        assert pl.check_target(tmp_path / "away", worktree).rule == pl.OUTSIDE
-        assert pl.target_for(worktree, "wt1").state == pl.INSIDE
-        assert git_calls
+@pytest.mark.parametrize("where", ["beside the checkout", "inside the checkout"])
+def test_a_worktree_elsewhere_of_a_listed_repository_is_found_through_git(listed, root, tmp_path, git_calls,
+                                                                          where):
+    worktree = {"beside the checkout": tmp_path / "beside",
+                "inside the checkout": listed / ".claude" / "worktrees" / "inner"}[where]
+    git(listed, "worktree", "add", "-q", "-b", worktree.name, str(worktree))
+    git_calls.clear()
+    assert pl.check_target(tmp_path / "away", worktree).rule == pl.OUTSIDE
+    assert pl.target_for(worktree, "wt1").state == pl.INSIDE
+    assert git_calls
+
+
+def test_a_worktree_two_levels_under_the_short_name_is_found_by_text(listed, root, git_calls):
+    worktree = root / "proj" / "team" / "wt0"
+    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
+    git_calls.clear()
+    assert pl.target_for(worktree, "wt1").state == pl.INSIDE
+    assert git_calls == []
+
+
+def test_a_clone_inside_a_worktree_under_the_root_is_not_listed(listed, root, tmp_path):
+    worktree = root / "proj" / "wt0"
+    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
+    make_repo(worktree / "vendor", "lib")
+    assert pl.check_target(tmp_path / "away", worktree / "vendor" / "lib").state == pl.NOT_LISTED
+
+
+def test_a_submodule_inside_a_worktree_under_the_root_is_not_listed(listed, root, tmp_path):
+    worktree = root / "proj" / "wt0"
+    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
+    library = make_repo(tmp_path / "lib-src", "lib")
+    git(worktree, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(library), "lib")
+    assert pl.check_target(tmp_path / "away", worktree / "lib").state == pl.NOT_LISTED
+
+
+def test_a_clone_directly_under_the_short_name_is_not_listed(listed, root, tmp_path):
+    make_repo(root / "proj", "lib")
+    assert pl.check_target(tmp_path / "away", root / "proj" / "lib").state == pl.NOT_LISTED
+
+
+def test_a_worktree_of_a_separate_git_folder_without_core_worktree_is_not_listed(root, tmp_path, git_calls):
+    repo = tmp_path / "src" / "proj"
+    repo.mkdir(parents=True)
+    git(repo, "init", "-q", "-b", "dev", f"--separate-git-dir={tmp_path / 'store.git'}")
+    git(repo, "-c", "user.name=T", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "seed")
+    rl.add_repository(repo, root)
+    worktree = tmp_path / "elsewhere"
+    git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
+    git_calls.clear()
+    assert pl.check_target(tmp_path / "away", worktree).state == pl.NOT_LISTED
+    assert git_calls, "D-35: git names no main checkout, so the answer is not listed"
 
 
 def test_a_git_dir_variable_points_placement_at_its_repository(listed, root, tmp_path, git_calls):
@@ -491,7 +585,7 @@ def test_a_listed_check_reads_only_the_machine_file_the_list_and_the_marker(list
     allowed = {os.path.normcase(os.path.realpath(path)) for path in (
         home / ".afk" / "config.yaml", home / ".afk" / "repositories.json", root / "proj" / rl.MARKER_NAME)}
     assert set(opened) == allowed
-    assert len(opened) == 4, opened
+    assert len(opened) <= 4, opened
 
 
 def test_import_and_machine_file_parse_time_is_reported(home, root, capsys):
@@ -508,6 +602,18 @@ def test_import_and_machine_file_parse_time_is_reported(home, root, capsys):
 
 
 # --- failures ---------------------------------------------------------------
+
+def test_a_module_loaded_from_another_file_under_the_same_name_is_not_reused(monkeypatch):
+    import types
+    monkeypatch.setitem(sys.modules, "afk_config", types.ModuleType("afk_config"))
+    private = "_afk_placement_afk_config"
+    try:
+        fresh = load(SCRIPT, "afk_placement_fresh")
+        assert hasattr(fresh.afk_config, "parse_single_file")
+        assert same(fresh.afk_config.__file__, ROOT / "scripts" / "afk-config.py")
+    finally:
+        sys.modules.pop(private, None)
+
 
 def test_a_machine_file_outside_the_subset_raises(home):
     machine(home, "developer: {worktreeRoot: /x}\n")

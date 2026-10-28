@@ -19,7 +19,8 @@ nested clone, a worktree elsewhere). A target is inside when, with `~`
 expanded, made absolute against `folder` and links resolved, it lies below
 `<root>/<short name>`; paths compare without case on Windows. Placement reads
 only the machine file, the list file and the entry's short-name marker. A file
-or git failure raises `PlacementError`. Standard library only.
+or git failure raises `PlacementError`; an unreadable machine file still lets an
+unlisted repository answer not listed. Standard library only.
 """
 from __future__ import annotations
 
@@ -39,6 +40,9 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 
 def _load(name: str, file: str):
+    loaded = sys.modules.get(name)
+    if loaded is not None and pathlib.Path(getattr(loaded, "__file__", None) or "").resolve() != _HERE / file:
+        name = f"_afk_placement_{name}"
     if name not in sys.modules:
         spec = importlib.util.spec_from_file_location(name, _HERE / file)
         module = importlib.util.module_from_spec(spec)
@@ -240,12 +244,17 @@ def check_target(target: str | os.PathLike, folder: str | os.PathLike, *,
     _require_text(folder)
     raw = os.path.expanduser(os.fspath(target))
     absolute = raw if os.path.isabs(raw) else os.path.join(os.path.abspath(os.fspath(folder)), raw)
-    return _place(folder, environ, os.path.normpath(absolute), None)
+    return _place(folder, environ, os.path.realpath(absolute), None)
 
 
 def _place(folder, environ, target: str | None, name: str | None) -> Verdict:
     environ = os.environ if environ is None else environ
-    root = root_state()
+    try:
+        root = root_state()
+    except PlacementError:
+        if _entry_for(os.fspath(folder), environ, None) is None:
+            return Verdict(NOT_LISTED, target)
+        raise
     rooted = root.rule != "R-01"
     entry = _entry_for(os.fspath(folder), environ, root.path if rooted else None)
     if entry is None:
@@ -277,7 +286,7 @@ def _entry_for(folder: str, environ: Mapping[str, str], root: str | None):
         if top is None:
             return None
         entry = _find(top, root)
-        if entry is not None and (_key(entry.path) == _key(top) or not _below(top, entry.path)):
+        if entry is not None and (_key(entry.path) == _key(top) or _worktree_under(top, root, entry)):
             return entry
         if entry is None and os.path.isdir(os.path.join(top, ".git")):
             return None
@@ -286,6 +295,15 @@ def _entry_for(folder: str, environ: Mapping[str, str], root: str | None):
         return None
     entry = _find(main, None)
     return entry if entry is not None and _key(entry.path) == _key(main) else None
+
+
+def _worktree_under(top: str, root: str | None, entry) -> bool:
+    """`top` is a worktree below `<root>/<short name>`, not a repository nested in one."""
+    if root is None or not os.path.isfile(os.path.join(top, ".git")):
+        return False
+    base = os.path.join(root, entry.short_name)
+    outer = _git_top(os.path.dirname(top))
+    return _below(top, base) and (outer is None or not _below(outer, base))
 
 
 def _git_top(start: str) -> str | None:

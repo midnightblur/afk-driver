@@ -245,3 +245,10 @@
 - Chosen: B — PRD AC-055 leaves an unlisted repository unchecked, and the cases are a bare repository (the list refuses one) and a linked worktree of a separate git folder without `core.worktree`, whose main checkout git does not name (D-18); A would refuse agents in repositories no entry lists
 - Supersedes: none
 - To reverse: return a refusal from `_entry_for` in `scripts/placement.py` when `_main_by_git` answers None for a folder inside a repository
+
+## D-36 — Placement calls the list module's private short-name check and marker read
+- 2026-10-28 · decided by /afk:execute (0004-placement)
+- Options: A — copy the short-name check and the marker read into placement vs B — call `_check_short_name` and `_marker_holder` of `scripts/repo_list.py` vs C — make both public in the list module
+- Chosen: B — the list module stays the one owner of both formats, and C edits `scripts/repo_list.py`, outside this slice's Scope; the feature review owns the public form (review key 0004-placement/f004)
+- Supersedes: none
+- To reverse: give `scripts/repo_list.py` public names for both and switch the two calls in `_short_name_free` and `_short_name_folder` of `scripts/placement.py`
