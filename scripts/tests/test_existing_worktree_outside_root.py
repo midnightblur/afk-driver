@@ -567,7 +567,7 @@ def _(f, s):
                             AFK_CFG_MAVEN_WORKTREE_SEED="none"))
 
 
-@case("adapters/build-gate/npm/gates.sh")
+@case("adapters/build-gate/npm/gates.sh+adapters/build-gate/npm/ui-lint-gate.sh")
 def _(f, s):
     gates = "adapters/build-gate/npm/gates.sh"
     return [outcome(f, s, sh(f, gates, "gate-discover", cwd=s.path)),
@@ -889,7 +889,8 @@ def observe(forest: Forest, item: Case, site: Site):
     return value, changes(before, after)
 
 
-CRASHES = ("Traceback (most recent call last)", ": command not found", "SyntaxError", "unexpected failure near line")
+CRASHES = ("Traceback (most recent call last)", ": command not found", "SyntaxError", "unexpected failure near line",
+           "No such file or directory", "usage: ")
 
 
 def crash_in(value) -> str | None:
@@ -922,15 +923,16 @@ def test_a_reading_member_behaves_on_an_outside_worktree_as_on_its_twin_and_chan
 @pytest.mark.parametrize("item", [c for c in CASES if c.writes], ids=lambda c: c.member)
 def test_a_writing_member_makes_the_same_changes_in_an_outside_worktree_as_in_its_twin(forest, item):
     for kind, out_changes, in_changes in observe_pairs(forest, item):
+        assert in_changes, f"{kind}: the member wrote nothing under the root"
         assert out_changes == in_changes, f"{kind}: {sorted(out_changes)} != {sorted(in_changes)}"
 
 
-def test_every_excluded_member_names_a_plugin_file_and_no_case_covers_it_whole():
-    members = {case.member for case in CASES}
+def test_every_excluded_member_names_a_plugin_file_and_a_part_exclusion_names_a_tested_member():
+    tested = {part.split(":")[0] for case in CASES for part in case.member.split("+")}
     for key in EXCLUDED:
-        path = key.split(" (")[0]
+        path, _, part = key.partition(" (")
         assert (PLUGIN_ROOT / path).is_file(), key
-        assert key not in members, key
+        assert (path in tested) == bool(part), f"{key}: a '(part)' key needs a case for the rest, a whole key none"
 
 
 # --- cleanup removes an outside worktree as it removes one under the root -------------------------

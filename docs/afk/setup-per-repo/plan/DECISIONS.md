@@ -363,3 +363,17 @@
 - Chosen: B — the 52 excluded files are 26 `.json` and 26 `.md` ledgers and reports (`git ls-files 'docs/afk/*/investigations/**'`), which no code runs; a mention there cannot call the creator; the review re-checked the live callers by hand and found none broken
 - Supersedes: none
 - To reverse: run `/afk:investigate` again with B1 partitioned over that folder
+
+## D-52 — Only an agent's `--dir` that climbs out of the short-name folder is refused
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — refuse it for every caller vs B — refuse it in an agent session; a developer's lands where it points, with a note naming the folder it leaves
+- Chosen: B — ADR-0004 (requirements) binds the guard to agents only, and AC-056 keeps the developer free to create a worktree anywhere; `--parent` already splits the same way
+- Supersedes: D-47, for developer sessions
+- To reverse: make the refusal after `place` in the name/dir branch of `scripts/create-worktree` unconditional again
+
+## D-53 — Every placement under the root makes sure the short-name folder carries its marker
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — claim only a missing folder in the name/dir modes vs B — claim whenever placement answers inside, in every mode, when the marker does not name this repository; the claim is skipped without the lock when it does
+- Chosen: B — R-06 also lets an empty unmarked folder pass, and an agent's `--parent` inside the folder made it with plain `mkdir`; both left a folder the next creation refused
+- Supersedes: D-48's "removed by hand" scope
+- To reverse: claim only when `$WORKTREE_PARENT` is missing, as D-48 first did

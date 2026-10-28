@@ -351,3 +351,42 @@ def test_a_removed_short_name_folder_is_made_again_with_its_marker(listed, root,
     marker = json.loads((root / "proj" / rl.MARKER_NAME).read_text(encoding="utf-8"))
     assert same(marker["path"], listed)
     assert same(path_of(create(listed, home, "--name", "next")), root / "proj" / "next")
+
+
+def test_a_developer_dir_that_climbs_out_of_the_folder_lands_where_it_points(listed, root, home):
+    path = path_of(create(listed, home, "--branch", "feat/dv", "--dir", "../dv", "--base", "dev", "--no-open",
+                          agent=False))
+    assert same(path, root / "dv")
+
+
+def test_an_agent_dir_whose_dots_stay_inside_the_folder_lands_there(listed, root, home):
+    path = path_of(create(listed, home, "--branch", "feat/in", "--dir", "../proj/in", "--base", "dev", "--no-open"))
+    assert same(path, root / "proj" / "in")
+
+
+def test_an_empty_short_name_folder_with_no_marker_gets_its_marker(listed, root, home):
+    (root / "proj" / rl.MARKER_NAME).unlink()
+    assert same(path_of(create(listed, home, "--name", "first")), root / "proj" / "first")
+    assert same(json.loads((root / "proj" / rl.MARKER_NAME).read_text(encoding="utf-8"))["path"], listed)
+    assert same(path_of(create(listed, home, "--name", "second")), root / "proj" / "second")
+
+
+def test_an_agent_parent_in_a_removed_short_name_folder_makes_it_with_its_marker(listed, root, home):
+    (root / "proj" / rl.MARKER_NAME).unlink()
+    (root / "proj").rmdir()
+    path = path_of(create(listed, home, "--branch", "feat/pm", "--dir", "pm", "--base", "dev",
+                          "--parent", str(root / "proj"), "--no-open"))
+    assert same(path, root / "proj" / "pm")
+    assert same(json.loads((root / "proj" / rl.MARKER_NAME).read_text(encoding="utf-8"))["path"], listed)
+    assert same(path_of(create(listed, home, "--name", "after")), root / "proj" / "after")
+
+
+def test_a_folder_claim_that_cannot_take_the_list_lock_exits_1_and_makes_nothing(listed, root, home):
+    (root / "proj" / rl.MARKER_NAME).unlink()
+    (root / "proj").rmdir()
+    with rl.safe_write._file_lock(rl.list_file()):
+        done = create(listed, home, "--name", "locked")
+    reason = error_of(done, 1)
+    assert reason.endswith("could not be made with its marker - run /afk:setup"), reason
+    assert "Traceback" not in done.stderr, done.stderr
+    assert_nothing_made(listed, "worktree-locked", root / "proj")
