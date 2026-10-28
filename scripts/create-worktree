@@ -275,7 +275,6 @@ if [[ -n "$NAME" ]]; then
   provider_json="$(cygpath -m "$provider_json" 2>/dev/null || echo "$provider_json")"
   FOLDER="${AFK_WORKTREE_FOLDER:-$("$PY_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("worktree_folder", ""))' "$provider_json" 2>/dev/null || true)}"
   FOLDER="${FOLDER:-.claude/worktrees}"
-  [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
   WORKTREE_PARENT=""
   DIR_NAME="$NAME"
   BRANCH_TEMPLATE="$(cd "$REPO_DIR" && "$PY_BIN" "$AFK_ROOT_DIR/scripts/afk-config.py" get git.branch-template 2>/dev/null || true)"
@@ -397,6 +396,7 @@ else
     root_note="$("$PY_BIN" "$AFK_ROOT_DIR/scripts/afk-config.py" resolve worktreeRoot 2>&1)" || true
     printf '  %bWorktree folder: %s (worktree root: %s)%b\n' "$YELLOW" "$P_FOLDER" "${root_note//$'\n'/; }" "$NC" >&2
   elif [[ -n "$NAME" ]]; then
+    [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
     WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"
   else
     WORKTREE_PARENT="$P_FOLDER"

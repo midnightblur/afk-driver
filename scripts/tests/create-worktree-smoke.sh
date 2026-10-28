@@ -45,6 +45,9 @@ REPO="$TMP_ROOT/main-repo"
 WT_PARENT="$TMP_ROOT/worktrees"
 STUBBIN="$TMP_ROOT/stubbin"
 NPM_LOG="$TMP_ROOT/npm-invocations.log"
+# The creator reads ~/.afk through placement: tests 1-9 run under an empty home of their own.
+export HOME="$TMP_ROOT/home0" USERPROFILE="$TMP_ROOT/home0"
+mkdir -p "$HOME"
 
 cleanup() {
   # Prune/remove any worktree we created, then nuke the whole sandbox.

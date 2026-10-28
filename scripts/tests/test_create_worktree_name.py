@@ -58,6 +58,16 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     return repo
 
 
+@pytest.fixture(autouse=True)
+def sandbox_home(tmp_path, monkeypatch):
+    """The creator asks placement, which reads ~/.afk: every test gets an empty home of its own."""
+    home = tmp_path / "sandbox-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    return home
+
+
 def create(repo: Path, *args: str, session: str = "s1", cwd: Path | None = None,
            extra_env: dict[str, str] | None = None):
     environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude",

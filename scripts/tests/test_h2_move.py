@@ -33,6 +33,16 @@ def env_of(**extra: str) -> dict:
     return env
 
 
+@pytest.fixture(autouse=True)
+def sandbox_home(tmp_path, monkeypatch):
+    """The guard and the creator read ~/.afk: every test gets an empty home of its own."""
+    home = tmp_path / "sandbox-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    return home
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     path = tmp_path / "my repo"
@@ -618,3 +628,53 @@ def test_a_repeat_call_returns_the_recorded_move_without_loading_placement(liste
     (home / ".afk" / "config.yaml").write_text("developer: text\n", encoding="utf-8")
     monkeypatch.setattr(module, "target", lambda *a: pytest.fail("a repeat call loaded placement"))
     assert module.plan(_place(repo), {"session_id": "s-again", "cwd": str(repo)}, {}) == first
+
+
+def _marker(repo: Path, session: str) -> Path:
+    folder = repo / ".git" / "afk-session"
+    folder.mkdir(exist_ok=True)
+    return folder / f"{session}.move"
+
+
+def test_an_unreadable_marker_names_a_fresh_path_and_starts_nothing(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    _marker(repo, "s-torn").write_text("{not json", encoding="utf-8")
+    spawned: list = []
+    module = _h2_module()
+    monkeypatch.setattr(module, "spawn", lambda *a, **k: spawned.append(a))
+    chosen = module.plan(_place(repo), {"session_id": "s-torn", "cwd": str(repo)}, {})
+    assert "error" not in chosen and Path(chosen["path"]).parent == root / "my-repo", chosen
+    assert not spawned
+
+
+def test_a_stale_marker_of_a_missing_worktree_is_started_again(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-stale")
+    recorded = {"name": "session-old", "path": str(root / "my-repo" / "session-old"), "pane": "", "marker": str(marker)}
+    marker.write_text(json.dumps(recorded), encoding="utf-8")
+    old = time.time() - module.RETRY_AFTER - 60
+    os.utime(marker, (old, old))
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    assert module.plan(_place(repo), {"session_id": "s-stale", "cwd": str(repo)}, {}) == recorded
+    assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == "session-old", spawned
+    assert marker.stat().st_mtime > old + 30
+
+
+def test_a_move_another_call_recorded_first_is_the_one_returned(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
+    module = _h2_module()
+    marker = _marker(repo, "s-race")
+    rival = {"name": "session-rival", "path": str(root / "my-repo" / "session-rival"), "pane": "", "marker": str(marker)}
+    real_fresh = module.fresh
+
+    def racing_fresh(*args):
+        chosen = real_fresh(*args)
+        marker.write_text(json.dumps(rival), encoding="utf-8")  # the other call wins the create
+        return chosen
+
+    monkeypatch.setattr(module, "fresh", racing_fresh)
+    assert module.plan(_place(repo), {"session_id": "s-race", "cwd": str(repo)}, {}) == rival

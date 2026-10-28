@@ -392,3 +392,17 @@
 - Supersedes: D-48's Debt line (it named three of the five calls)
 - To reverse: add a public `claim_folder` to `scripts/repo_list.py` and call it from `claim_short_name_folder` in `scripts/create-worktree`
 - Debt: the creator calls five private `repo_list` helpers (feature-gate design review)
+
+## D-56 — Setup's H6 probe stops resolving `worktreeBasePath` in this slice
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — leave the probe to 0010-setup-walk, as D-46 did, with `scripts/tests/test_setup_h6_probe.py` red (8 of 12) until then vs B — drop `worktreeBasePath` from the probe's `keys` here, so the probe checks no root until 0010 adds `worktreeRoot` vs C — keep `resolve worktreeBasePath` answering until 0010
+- Chosen: B — SDD §3 says the callers of `resolve` move in the same commit, and A leaves a red suite for every slice before 0010; C breaks this contract's "`resolve worktreeBasePath` is gone"; the key only ever failed on a bare clone, so B loses no check a developer saw
+- Supersedes: D-46's H6 `keys` duty for 0010-setup-walk, which becomes "add `worktreeRoot` to the probe's `keys`" (its K3-sentence duty stands)
+- To reverse: restore `keys="worktreeBasePath"` in `skills/afk/setup/MANIFEST.md` H6 and hand the test file to 0010-setup-walk
+
+## D-57 — The creator is a second writer of short-name markers
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep SDD §2's "setup is the only writer" and move the folder claim into setup vs B — let the creator claim a missing or empty short-name folder under the list lock (D-48, D-53) and record that the single-writer rule no longer holds for markers
+- Chosen: B — the claim writes only the marker of a repository already in the list, under the list's own lock, and the list itself keeps setup as its only writer
+- Supersedes: SDD §2 row "Repository list and short-name markers" ("setup is the only writer") and plan/0003-repository-list.md's "written when setup takes the short name", for markers only
+- To reverse: drop `claim_short_name_folder` from `scripts/create-worktree` and refuse a missing or unmarked folder with `run /afk:setup`

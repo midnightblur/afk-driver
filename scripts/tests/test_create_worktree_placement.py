@@ -87,9 +87,9 @@ def env_for(home: Path, agent: bool) -> dict:
     return env
 
 
-def create(repo: Path, home: Path, *args: str, agent: bool = True, cwd: Path | None = None):
+def create(repo: Path, home: Path, *args: str, agent: bool = True, cwd: Path | None = None, **extra: str):
     return subprocess.run([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), *args],
-                          capture_output=True, text=True, cwd=cwd or repo, env=env_for(home, agent),
+                          capture_output=True, text=True, cwd=cwd or repo, env={**env_for(home, agent), **extra},
                           timeout=600)
 
 
@@ -329,8 +329,9 @@ def test_a_name_ignores_parent_and_lands_under_the_root(tmp_path, listed, root, 
     assert not outside.exists()
 
 
-def test_a_dir_that_climbs_out_of_the_folder_refuses_with_exit_3(listed, root, home):
-    reason = error_of(create(listed, home, "--branch", "feat/up", "--dir", "../up", "--base", "dev", "--no-open"), 3)
+def test_an_agent_dir_that_climbs_out_of_the_folder_refuses_with_exit_3(listed, root, home):
+    reason = error_of(create(listed, home, "--branch", "feat/up", "--dir", "../up", "--base", "dev", "--no-open",
+                             agent=True), 3)
     assert reason.startswith("worktree folder: ") and " is outside " in reason, reason
     assert_nothing_made(listed, "feat/up", root / "up", root / "proj" / "up")
 
@@ -418,3 +419,15 @@ def test_an_agent_parent_through_a_linked_short_name_folder_keeps_its_marker(tmp
                           "--parent", str(root / "proj"), "--no-open"))
     assert same(path, real / "ln")
     assert same(json.loads((real / rl.MARKER_NAME).read_text(encoding="utf-8"))["path"], listed)
+
+
+def test_a_listed_name_ignores_a_harness_folder_that_leaves_the_repository(listed, root, home):
+    path = path_of(create(listed, home, "--name", "hf", AFK_WORKTREE_FOLDER="../elsewhere"))
+    assert same(path, root / "proj" / "hf")
+
+
+def test_an_unlisted_name_with_a_harness_folder_that_leaves_the_repository_exits_1(tmp_path, home):
+    loose = make_repo(tmp_path / "loose")
+    reason = error_of(create(loose, home, "--name", "hf", AFK_WORKTREE_FOLDER="../elsewhere"), 1)
+    assert reason == "the worktree folder '../elsewhere' must stay inside the repository", reason
+    assert not (tmp_path / "elsewhere").exists()
