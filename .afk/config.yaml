@@ -5,18 +5,35 @@ schema: 1
 toolkit-version: "1.16.1"
 tracker: github-issues
 forge: github
-notes: repo-files
 github-issues:
   repo: midnightblur/afk-driver
   state-labels:
     dev-pending: "status:dev-pending"
     in-review: "status:in-review"
     done: "status:done"
-github:
-  remote: origin
 git:
   base-branch: origin/main
   branch-pattern: '^[a-z0-9][a-z0-9/._-]*$'
   branch-template: 'feat/{ticket_lower}'
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+verification:
+  tiers:
+    unit:
+      command: afk-python
+      args:
+        - -m
+        - pytest
+        - scripts/tests
+        - -q
+    smoke:
+      command: bash
+      args:
+        - hooks/tests/hook-smoke.sh
+    static:
+      command: bash
+      args:
+        - hooks/plugin-source-gates.sh
+        - --range
+        - origin/main
+        - HEAD

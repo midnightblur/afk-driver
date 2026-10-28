@@ -1,0 +1,72 @@
+[
+ {
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/safe_write.py",
+  "line": 191,
+  "side": "new",
+  "finding": "On Windows a read-only target leaves its temp file behind, and a cleanup PermissionError replaces the SafeWriteError.",
+  "why": "The temp file is set read-only (S_IMODE of a 0o444 target) before the swap; os.replace onto a read-only file is denied on every retry, then `temporary.unlink` in the finally block is denied too, so the docstring promise that a refusal deletes the temp file breaks and the caller gets `[WinError 5] Access is denied: '.ro.txt.<hex>.tmp'` with the real refusal only as __context__ (scratchpad probe: target chmod 0o444, update_locked -> PermissionError, ctx SafeWriteError('file swap stayed busy'), leftover ['.ro.txt.67522c93f1fd.tmp'], content unchanged).",
+  "fix": "Apply the target mode only after a successful swap, or clear the read-only bit (os.chmod(temporary, stat.S_IWRITE|stat.S_IREAD)) before unlink in the finally block, and do not retry a denied replace as if the swap were busy.",
+  "evidence": "+        if mode is not None:\n+            os.chmod(temporary, mode)  ... finally: ... temporary.unlink(missing_ok=True); docstring: \"A refusal or failure deletes the temp file and leaves the file unchanged.\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep+test-veracity",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "scripts/safe_write.py",
+  "line": 167,
+  "side": "new",
+  "finding": "The new refusal names the resolved real file, not the caller's path, and the module docstring's list of refusals does not mention it.",
+  "why": "Every other SafeWriteError names `target` (the tests check caught.value.path == target), so for a symlinked instruction file this one path reports a different file; the docstring at lines 8-11 lists the refusals (lock held, file changed, busy replace) and is now incomplete (FRESHNESS.md 'no artifact goes stale').",
+  "fix": "Pass `target` into _open_temporary and raise SafeWriteError(\"no free temp file name\", target); add the case to the docstring's list of refusals.",
+  "evidence": "raise SafeWriteError(\"no free temp file name\", write_target)",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_install_block.py",
+  "line": 438,
+  "side": "new",
+  "finding": "The test name claims 'creates nothing', but the safe writer's lock takes `.target.md.afk.lock` in tmp_path before the stat fails, and the test checks only the target.",
+  "why": "The name promises more than the asserts check, and the stderr check accepts any message with the prefix, so a different OSError (not the missing target) would pass too.",
+  "fix": "Rename to 'creates no target', or assert the folder holds only source.md and the lock file; also assert the stderr message names the target path.",
+  "evidence": "assert not target.exists()\n    assert capsys.readouterr().err.startswith(\"install_block: \")",
+  "id": "r-003"
+ },
+ {
+  "concern": "delta-sweep+logic-correctness+test-veracity",
+  "criterion": "New test proves nothing",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 274,
+  "side": "new",
+  "finding": "The test named 'closed exactly once' cannot catch a leaked temp descriptor, only a second explicit close.",
+  "why": "track_descriptors records only explicit os.close calls, and the file object from os.fdopen closes its descriptor in C without calling os.close; so if the handle never closed the descriptor (for example os.fdopen(..., closefd=False)), POSIX gives opened=[t, d], closed=[d] and Windows gives opened=[t], closed=[], and in both cases 0 == 1 - 1 passes; the formula also works only because the directory descriptor may or may not reuse the temp descriptor's number.",
+  "fix": "Wrap os.fdopen to keep the returned handle and assert handle.closed after the call, plus closed.count(temp_descriptor) == 0 when no number reuse happened; or rename the test to 'never closed a second time'.",
+  "evidence": "assert closed.count(temp_descriptor) == opened.count(temp_descriptor) - 1",
+  "id": "r-004"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_safe_write.py",
+  "line": 305,
+  "side": "new",
+  "finding": "Possible weak mode check: the new-file mode assertion runs under the ambient umask, so a hard-coded 0o644 create mode survives on a typical umask 022 runner; the assert also sits behind an if inside the test body.",
+  "why": "With umask 022, 0o666 & ~umask equals 0o644, so the test cannot tell the umask-respecting DEFAULT_CREATE_MODE path from a fixed mode, and the in-body os.name branch hides the skip on Windows.",
+  "fix": "Set a distinctive umask (e.g. 0o027) before the call and restore it in a finally, then expect 0o640; move the mode check into a separate POSIX-only test with skipif instead of the in-body if.",
+  "evidence": "if os.name != \"nt\":\n        assert target.stat().st_mode & 0o777 == 0o666 & ~current_umask",
+  "id": "r-005"
+ }
+]

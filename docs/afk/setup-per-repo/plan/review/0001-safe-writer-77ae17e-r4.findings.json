@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep+logic-correctness+refactor-safety+resilience+test-veracity",
+  "criterion": "No failure story",
+  "severity": "high",
+  "class": "correctness",
+  "file": "scripts/safe_write.py",
+  "line": 193,
+  "side": "new",
+  "finding": "On Windows, a busy swap that creates a new file is now refused at once as 'is read-only' instead of being retried, because os.access returns False for a path that does not exist.",
+  "why": "Scenario: update_locked on a missing file (the docstring says a missing file reads as \"\", and install_block._update reaches it when a user instruction file does not exist yet); another process (scanner, indexer) holds the fresh temp file, so os.replace raises PermissionError; os.access(write_target, os.W_OK) on the missing write_target returns False (probed here: os.access on a nonexistent path -> False), so the SDD §7 retry row ('file swap busy on Windows | 10 retries at 50 ms') is skipped and setup fails with the wrong cause. Every busy-swap test (test_safe_write.py:158-205) uses an existing target, so none catches it.",
+  "fix": "Treat only an existing file as read-only, e.g. `if write_target.exists() and not os.access(write_target, os.W_OK)` (or stat it and check the read-only bit, FileNotFoundError meaning not read-only); add a busy_replace test on a missing target that expects 11 calls and a written file.",
+  "evidence": "+            if not os.access(write_target, os.W_OK):\n+                raise SafeWriteError(\"is read-only\", target) from exc",
+  "id": "r-001"
+ }
+]

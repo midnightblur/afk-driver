@@ -1,0 +1,696 @@
+{
+ "run": {
+  "repository": "<worktree>",
+  "head": "cc6bff8c5819f21be1f46c28dcd4179a65890e92",
+  "question": "How does parse_single_file in scripts/afk-config.py work end to end: which file it opens, whether it applies the merge or the owner rule, whether it starts git, and what it returns or raises for an absent, unreadable or malformed file?",
+  "type": [
+   "Q1"
+  ],
+  "roots": [
+   "parse_single_file"
+  ],
+  "aliases": {
+   "parse_single_file": [
+    {
+     "form": "simple",
+     "value": "parse_single_file",
+     "enumerated": true
+    },
+    {
+     "form": "string-literal",
+     "value": "\"parse_single_file\"",
+     "enumerated": true
+    },
+    {
+     "form": "import-alias",
+     "value": "parse_single_file",
+     "enumerated": true,
+     "source": "declared"
+    },
+    {
+     "form": "wire",
+     "value": "parse-single-file",
+     "enumerated": true,
+     "source": "declared"
+    }
+   ]
+  },
+  "inventory_hash": "361e553c769c47807a0e11fcf278633454189fad934540ea5c021bead0a4053d",
+  "inventory_count": 663,
+  "config": {
+   "path": ".afk/config.yaml",
+   "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "design_phase": false,
+  "started": "2026-10-28T06:31:21.223894+00:00",
+  "finished": "2026-10-28T06:31:23.357235+00:00",
+  "merged_from": 1,
+  "verdict": "closed-with-frontier"
+ },
+ "boundaries": [
+  {
+   "class": "B1",
+   "status": "closed",
+   "method": "every name form, whole repository",
+   "hits": 7,
+   "hit_ids": [
+    "B1:docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+    "B1:docs/afk/setup-per-repo/plan/0004-placement.md:47",
+    "B1:docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+    "B1:scripts/afk-config.py:458",
+    "B1:scripts/tests/test_afk_config_owner.py:283",
+    "B1:scripts/tests/test_afk_config_owner.py:285",
+    "B1:scripts/tests/test_afk_config_owner.py:286"
+   ],
+   "mechanism": "default",
+   "name_forms": {
+    "parse_single_file": [
+     {
+      "form": "simple",
+      "value": "parse_single_file",
+      "enumerated": true
+     },
+     {
+      "form": "string-literal",
+      "value": "\"parse_single_file\"",
+      "enumerated": true
+     },
+     {
+      "form": "import-alias",
+      "value": "parse_single_file",
+      "enumerated": true,
+      "source": "declared"
+     },
+     {
+      "form": "wire",
+      "value": "parse-single-file",
+      "enumerated": true,
+      "source": "declared"
+     }
+    ]
+   },
+   "query_ids": [
+    "q-ee089b91"
+   ],
+   "universe": "tracked text files (binary excluded), and the second universe"
+  },
+  {
+   "class": "B2",
+   "status": "closed",
+   "method": "declaration and parameter forms carrying the name",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "tracked files",
+   "query_ids": [
+    "q-60fff836"
+   ]
+  },
+  {
+   "class": "B3",
+   "status": "n/a",
+   "method": "judgment: read scripts/afk-config.py:422-462",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "no reflection reaches it: afk-config.py loads by file path through importlib and callers name the function by attribute, which B1 searched",
+   "mechanism": "default",
+   "universe": "no method ran",
+   "query_ids": []
+  },
+  {
+   "class": "B4",
+   "status": "closed",
+   "method": "the name as a string literal",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "tracked files",
+   "query_ids": [
+    "q-4388b8e3"
+   ]
+  },
+  {
+   "class": "B5",
+   "status": "n/a",
+   "method": "judgment: read scripts/afk-config.py:422-462",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "it writes nothing and defines no wire type; the file grammar it reads is parse() at scripts/afk-config.py:274, read as a hop",
+   "mechanism": "default",
+   "universe": "no method ran",
+   "query_ids": []
+  },
+  {
+   "class": "B6",
+   "status": "n/a",
+   "method": "judgment: read scripts/afk-config.py:422-462",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "the plugin has no build step, so no generated output exists (AGENTS.md 'No package build step')",
+   "mechanism": "default",
+   "universe": "no generated paths declared",
+   "query_ids": []
+  },
+  {
+   "class": "B7",
+   "status": "n/a",
+   "method": "judgment: read scripts/afk-config.py:422-462",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "no aggregator manifest: a standard-library script loaded by path",
+   "mechanism": "default",
+   "universe": "no aggregator manifests declared",
+   "query_ids": []
+  },
+  {
+   "class": "B8",
+   "status": "closed",
+   "method": "name forms filtered to configuration files",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths",
+   "query_ids": [
+    "q-ee089b91"
+   ]
+  },
+  {
+   "class": "B9",
+   "status": "closed",
+   "method": "name forms filtered to schema and migration sources",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths",
+   "query_ids": [
+    "q-ee089b91"
+   ]
+  },
+  {
+   "class": "B10",
+   "status": "n/a",
+   "method": "judgment: read scripts/afk-config.py:422-462",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "the plugin has no user interface source and no service endpoint",
+   "mechanism": "default",
+   "universe": "no method ran",
+   "query_ids": []
+  },
+  {
+   "class": "B11",
+   "status": "closed",
+   "method": "registration forms in files that name the subject",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "files that name the subject",
+   "query_ids": [
+    "q-aa33d2ce",
+    "q-ee089b91"
+   ]
+  },
+  {
+   "class": "B12",
+   "status": "closed",
+   "method": "name forms filtered to test sources",
+   "hits": 3,
+   "hit_ids": [
+    "B12:scripts/tests/test_afk_config_owner.py:283",
+    "B12:scripts/tests/test_afk_config_owner.py:285",
+    "B12:scripts/tests/test_afk_config_owner.py:286"
+   ],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths",
+   "query_ids": [
+    "q-ee089b91"
+   ]
+  },
+  {
+   "class": "B13",
+   "status": "closed",
+   "method": "name forms filtered to documents",
+   "hits": 3,
+   "hit_ids": [
+    "B13:docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+    "B13:docs/afk/setup-per-repo/plan/0004-placement.md:47",
+    "B13:docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75"
+   ],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths",
+   "query_ids": [
+    "q-ee089b91"
+   ]
+  },
+  {
+   "class": "B14",
+   "status": "frontier",
+   "method": "outside this repository",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "another repository, deployment manifest, or live consumer",
+   "mechanism": "default",
+   "sites": null,
+   "query_ids": [],
+   "universe": "nothing in this repository"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "B12:scripts/tests/test_afk_config_owner.py:283",
+   "class": "B12",
+   "site": "scripts/tests/test_afk_config_owner.py:283",
+   "disposition": "terminal",
+   "evidence": "def test_parse_single_file_reads_one_file_unfiltered(tmp_path, home): -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "c8bc3cf22e6a",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B12:scripts/tests/test_afk_config_owner.py:285",
+   "class": "B12",
+   "site": "scripts/tests/test_afk_config_owner.py:285",
+   "disposition": "terminal",
+   "evidence": "assert cfg.parse_single_file(file) == {\"tracker\": \"jira\", \"developer\": {\"worktreeRoot\": \"/w\"}} -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "344b77de5cf5",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B12:scripts/tests/test_afk_config_owner.py:286",
+   "class": "B12",
+   "site": "scripts/tests/test_afk_config_owner.py:286",
+   "disposition": "terminal",
+   "evidence": "assert cfg.parse_single_file(tmp_path / \"absent.yaml\") == {} -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "bbbcb890e10a",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B13:docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+   "class": "B13",
+   "site": "docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+   "disposition": "terminal",
+   "evidence": "- scripts/afk-config.py#def parse_single_file( — one file parsed without the merge -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "32b3f6b5d21e",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B13:docs/afk/setup-per-repo/plan/0004-placement.md:47",
+   "class": "B13",
+   "site": "docs/afk/setup-per-repo/plan/0004-placement.md:47",
+   "disposition": "terminal",
+   "evidence": "- 0002-settings-reader scripts/afk-config.py#def parse_single_file( — the machine file parsed without the merge -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "5b13bd3c7570",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B13:docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+   "class": "B13",
+   "site": "docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+   "disposition": "terminal",
+   "evidence": "| Module answers (SDD §8) | `load()` → `dict`; `ignored_values()` → list of 3-tuples, stable over calls; `is_set_up()` true for committed (also empty) or personal file, false for none, local overlay o -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "c2da058aa465",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+   "class": "B1",
+   "site": "docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+   "disposition": "terminal",
+   "evidence": "- scripts/afk-config.py#def parse_single_file( — one file parsed without the merge -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "32b3f6b5d21e",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:docs/afk/setup-per-repo/plan/0004-placement.md:47",
+   "class": "B1",
+   "site": "docs/afk/setup-per-repo/plan/0004-placement.md:47",
+   "disposition": "terminal",
+   "evidence": "- 0002-settings-reader scripts/afk-config.py#def parse_single_file( — the machine file parsed without the merge -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "5b13bd3c7570",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+   "class": "B1",
+   "site": "docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+   "disposition": "terminal",
+   "evidence": "| Module answers (SDD §8) | `load()` → `dict`; `ignored_values()` → list of 3-tuples, stable over calls; `is_set_up()` true for committed (also empty) or personal file, false for none, local overlay o -- document asserts one file parsed without the merge; code agrees at scripts/afk-config.py:458-462",
+   "line_hash": "c2da058aa465",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:scripts/afk-config.py:458",
+   "class": "B1",
+   "site": "scripts/afk-config.py:458",
+   "disposition": "traced",
+   "evidence": "def parse_single_file(path: Path) -> dict:",
+   "line_hash": "b4f3e59b999b",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:scripts/tests/test_afk_config_owner.py:283",
+   "class": "B1",
+   "site": "scripts/tests/test_afk_config_owner.py:283",
+   "disposition": "terminal",
+   "evidence": "def test_parse_single_file_reads_one_file_unfiltered(tmp_path, home): -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "c8bc3cf22e6a",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:scripts/tests/test_afk_config_owner.py:285",
+   "class": "B1",
+   "site": "scripts/tests/test_afk_config_owner.py:285",
+   "disposition": "terminal",
+   "evidence": "assert cfg.parse_single_file(file) == {\"tracker\": \"jira\", \"developer\": {\"worktreeRoot\": \"/w\"}} -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "344b77de5cf5",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:scripts/tests/test_afk_config_owner.py:286",
+   "class": "B1",
+   "site": "scripts/tests/test_afk_config_owner.py:286",
+   "disposition": "terminal",
+   "evidence": "assert cfg.parse_single_file(tmp_path / \"absent.yaml\") == {} -- pins a present file parsed unfiltered and an absent file read as {}",
+   "line_hash": "bbbcb890e10a",
+   "parent": null,
+   "query_id": "q-ee089b91"
+  },
+  {
+   "id": "B1:scripts/afk-config.py:460",
+   "class": "B1",
+   "site": "scripts/afk-config.py:460",
+   "disposition": "terminal",
+   "evidence": "if not path.is_file(): return {} -- an absent path or a folder reads as an empty mapping",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:462",
+   "class": "B1",
+   "site": "scripts/afk-config.py:462",
+   "disposition": "terminal",
+   "evidence": "return parse(_read(path), str(path)) -- one file; no layers(), no deep_merge, no _owner_filter",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:425",
+   "class": "B1",
+   "site": "scripts/afk-config.py:425",
+   "disposition": "terminal",
+   "evidence": "return path.read_text(encoding='utf-8', errors=errors) -- the only open; no subprocess on this path",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:427",
+   "class": "B1",
+   "site": "scripts/afk-config.py:427",
+   "disposition": "terminal",
+   "evidence": "except OSError: raise ConfigError(f'{path}: cannot read it (...)')",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:429",
+   "class": "B1",
+   "site": "scripts/afk-config.py:429",
+   "disposition": "terminal",
+   "evidence": "except UnicodeDecodeError: raise ConfigError(f'{path}: not UTF-8 text (...)')",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:362",
+   "class": "B1",
+   "site": "scripts/afk-config.py:362",
+   "disposition": "terminal",
+   "evidence": "if not isinstance(document, dict): raise ConfigError(f'{where}: the top level must be a mapping')",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  },
+  {
+   "id": "B1:scripts/afk-config.py:265",
+   "class": "B1",
+   "site": "scripts/afk-config.py:265",
+   "disposition": "terminal",
+   "evidence": "lowered in ('null', '~') -> None; digits -> int; true/false -> bool; else the text -- values keep the parse() type",
+   "parent": "B1:scripts/afk-config.py:458",
+   "query_id": null
+  }
+ ],
+ "queries": [
+  {
+   "id": "q-ee089b91",
+   "command": "git grep -n -I -E -e parse_single_file -e '\"parse_single_file\"' -e '(^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])'",
+   "universe": "tracked text files, binary excluded",
+   "count": 13,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-cd4e0bb9",
+   "command": "git grep -n -I -E -i --untracked -e parse_single_file -e '\"parse_single_file\"' -e '(^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])'",
+   "universe": "case-blind pass over tracked and untracked files, not ignored",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-c81b4f4e",
+   "command": "git grep -n -I -E --untracked -e '(^|[^[:alnum:]_])parse\\-single\\-file($|[^[:alnum:]_])'",
+   "universe": "tracked and untracked text files, not ignored",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-60fff836",
+   "command": "git grep -n -I -E -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])|(^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])|(^|[^[:alnum:]_])parse\\-single\\-file($|[^[:alnum:]_]))' -e '\\(\\s*(parse_single_file|parse_single_file|parse\\-single\\-file)\\s+\\w'",
+   "universe": "tracked files",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-0c0e296b",
+   "command": "git grep -n -I -E -i -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])|(^|[^[:alnum:]_])parse_single_file($|[^[:alnum:]_])|(^|[^[:alnum:]_])parse\\-single\\-file($|[^[:alnum:]_]))' -e '\\(\\s*(parse_single_file|parse_single_file|parse\\-single\\-file)\\s+\\w'",
+   "universe": "tracked files, case-blind",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-4388b8e3",
+   "command": "git grep -n -I -E -e '[\\\"'\"'\"'](parse_single_file|parse_single_file|parse\\-single\\-file)[\\\"'\"'\"']'",
+   "universe": "tracked files",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-44cc41df",
+   "command": "git grep -n -I -E -i -e '[\\\"'\"'\"'](parse_single_file|parse_single_file|parse\\-single\\-file)[\\\"'\"'\"']'",
+   "universe": "tracked files, case-blind",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-aa33d2ce",
+   "command": "git grep -n -I -E -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- docs/afk/setup-per-repo/plan/0002-settings-reader.md docs/afk/setup-per-repo/plan/0004-placement.md docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md scripts/afk-config.py scripts/tests/test_afk_config_owner.py",
+   "universe": "files that name the subject",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-3bba9a23",
+   "command": "git grep -n -I -E -i -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- docs/afk/setup-per-repo/plan/0002-settings-reader.md docs/afk/setup-per-repo/plan/0004-placement.md docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md scripts/afk-config.py scripts/tests/test_afk_config_owner.py",
+   "universe": "files that name the subject, case-blind",
+   "count": 0,
+   "evidence": null,
+   "origin": "seed"
+  }
+ ],
+ "claims": [
+  {
+   "id": "c-a228a92a",
+   "text": "the hit set holds every reference to parse_single_file over the name forms this pass searched",
+   "kind": "unverified",
+   "load_bearing": false,
+   "supporting_nodes": [],
+   "citations": []
+  },
+  {
+   "id": "c-46667299",
+   "text": "parse_single_file(path) returns {} when path is not a regular file, else parse(_read(path), str(path)): one file, no layer merge and no owner filter",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:scripts/afk-config.py:458",
+    "B1:scripts/afk-config.py:460",
+    "B1:scripts/afk-config.py:462"
+   ],
+   "citations": [
+    "scripts/afk-config.py:458-462"
+   ]
+  },
+  {
+   "id": "c-91f84861",
+   "text": "parse_single_file opens only path, through Path.read_text in _read, and starts no git or other process",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:scripts/afk-config.py:462",
+    "B1:scripts/afk-config.py:425"
+   ],
+   "citations": [
+    "scripts/afk-config.py:422-430",
+    "scripts/afk-config.py:274-363"
+   ]
+  },
+  {
+   "id": "c-d5c8ee29",
+   "text": "an unreadable or non-UTF-8 file raises ConfigError naming the file; text outside the YAML subset or a top level that is not a mapping raises ConfigError from parse",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:scripts/afk-config.py:427",
+    "B1:scripts/afk-config.py:429",
+    "B1:scripts/afk-config.py:362"
+   ],
+   "citations": [
+    "scripts/afk-config.py:427",
+    "scripts/afk-config.py:429",
+    "scripts/afk-config.py:362"
+   ]
+  },
+  {
+   "id": "c-4c8f1956",
+   "text": "values keep the type parse() gives them: a developer.worktreeRoot can come back as text, a number, a Boolean, None or a nested map or list, so a caller checks its type",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:scripts/afk-config.py:265"
+   ],
+   "citations": [
+    "scripts/afk-config.py:242-271"
+   ]
+  },
+  {
+   "id": "c-dde7c35e",
+   "text": "only scripts/tests/test_afk_config_owner.py:283-286 calls it at this head; no plugin code calls it yet",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B1:docs/afk/setup-per-repo/plan/0002-settings-reader.md:75",
+    "B1:docs/afk/setup-per-repo/plan/0004-placement.md:47",
+    "B1:docs/afk/setup-per-repo/plan/review/0002-settings-reader-adversary.md:75",
+    "B1:scripts/afk-config.py:458",
+    "B1:scripts/tests/test_afk_config_owner.py:283",
+    "B1:scripts/tests/test_afk_config_owner.py:285",
+    "B1:scripts/tests/test_afk_config_owner.py:286"
+   ],
+   "citations": [
+    "git grep -n -I -E -e parse_single_file -e '\"parse_single_file\"' exit 0"
+   ]
+  }
+ ],
+ "counter_checks": [
+  {
+   "method": "name forms carrying no simple name: parse-single-file",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a228a92a"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B1",
+    "B8",
+    "B9",
+    "B12",
+    "B13"
+   ],
+   "query_ids": [
+    "q-c81b4f4e"
+   ]
+  },
+  {
+   "method": "case-blind pass over tracked and untracked files, not ignored",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a228a92a"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B1",
+    "B8",
+    "B9",
+    "B12",
+    "B13"
+   ],
+   "query_ids": [
+    "q-cd4e0bb9"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a228a92a"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B2"
+   ],
+   "query_ids": [
+    "q-0c0e296b"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a228a92a"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B4"
+   ],
+   "query_ids": [
+    "q-44cc41df"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a228a92a"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B11"
+   ],
+   "query_ids": [
+    "q-3bba9a23"
+   ]
+  }
+ ]
+}

@@ -186,7 +186,8 @@ def _render_body(registry: Registry, plugin_root: pathlib.Path) -> str:
                 [
                     "",
                     "## Configured repositories",
-                    "Apply this section only when the repository contains `.afk/config.yaml`.",
+                    "Apply this section only when the repository contains `.afk/config.yaml`, "
+                    "or its git common directory contains `afk/config.yaml`.",
                 ]
             )
         emitted = False

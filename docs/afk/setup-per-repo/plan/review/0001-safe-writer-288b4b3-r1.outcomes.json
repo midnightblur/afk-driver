@@ -1,0 +1,14 @@
+{
+  "r-001": "deferred",
+  "r-002": "fixed",
+  "r-003": "fixed",
+  "r-004": "dismissed(withdrawn: f4b891a is not a slice commit; D-4 records it)",
+  "r-005": "fixed",
+  "r-006": "dismissed(withdrawn: forced by-product of the mandated investigation)",
+  "r-007": "deferred",
+  "r-008": "fixed",
+  "r-009": "deferred",
+  "r-010": "fixed",
+  "r-011": "fixed",
+  "r-012": "dismissed(withdrawn: no contract promises the case and no caller reaches it)"
+}

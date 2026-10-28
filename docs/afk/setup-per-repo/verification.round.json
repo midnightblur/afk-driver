@@ -1,0 +1,560 @@
+{
+ "schema": 1,
+ "purpose": "Verification grill",
+ "feature": "setup-per-repo",
+ "stage": "verification",
+ "spec_dir": "docs/afk/setup-per-repo",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "V-1",
+     "decision": "What is a journey and a contract check in this repository, which has no running app, no browser suite and no REST suite? Answer: Acceptance file plus a live-run list.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: V-1 accept."
+    },
+    {
+     "component": "settled_card",
+     "id": "V-2",
+     "decision": "This repository declares no verification tiers. Should this feature add them? Answer: Add them as this feature's first subtask.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: V-2 here."
+    },
+    {
+     "component": "settled_card",
+     "id": "J-1",
+     "decision": "Journey 1, setup over several repositories: run from a folder outside every repository, setup walks 3 listed repositories, asks only for missing values, and reports each one as complete, asked or failed.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-1 accept. Story 1 and the cited criteria state every observable this journey checks: asks only what is missing, acts on the given repository from any folder, warns on a local override, and goes on after one repository fails. (PRD.md:67 (story 1); PRD.md:79, :89, :91, :93, :94, :109, :110; SDD.md:127, :439)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-2",
+     "decision": "Journey 2, worktree placement: in a listed repository, every agent route puts a new worktree at root, short name, worktree name; every agent route outside that folder is refused and the refusal names the folder.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-2 accept. Story 2 and the cited criteria state each route, each refusal, the unlisted-repository pass, the developer pass and the old-worktree case this journey checks. (PRD.md:68 (story 2); PRD.md:122, :130-136, :140; SDD.md:129-134)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-3",
+     "decision": "Journey 3, forge account per repository: setup saves a repository's account only after the host accepts it, and every forge call in that repository then acts as that account.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-3 accept. Story 3, the cited criteria and the external-seam rows state the save rule, the token variable per host kind, the assignee rules and the no-fallback failure. (PRD.md:69 (story 3); PRD.md:104, :109-113; SDD.md:138, :545-547)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-4",
+     "decision": "Journey 4, the repository list: setup adds a pasted path, refuses a bad path with its reason, keeps two clones of one remote apart, and repairs an entry whose folder is gone.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-4 accept. Story 4, the short-name rules and the list criteria state each refusal and repair this journey checks. (PRD.md:70 (story 4); PRD.md:61-62, :80-85)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-5",
+     "decision": "Journey 5, change one setting: setup for one repository changes the one setting named and asks nothing else.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-5 accept. Story 5, the one-setting criterion and the contract row for setup with a repository state the four outcomes. (PRD.md:71 (story 5); PRD.md:90; SDD.md:128)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-6",
+     "decision": "Journey 6, a repository with no committed AFK file: the plugin works from the personal file alone; when a committed file arrives, setup deletes the personal copies it replaces.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-6 accept. Story 6, the owner-rule criteria and the policy's teammate line state each read, each warning and the deletion rule. (PRD.md:72 (story 6); PRD.md:98-103, :167)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-7",
+     "decision": "Journey 7, the Codex app: setup shows the step to point the Codex app's worktree root at the same root. How is this proven? Answer: With a stand-in Codex app install: setup shows the step and the step names the root path; with no install, setup shows nothing about it. The real Codex app screen is a live check.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: J-7 accept. (PRD.md:73 (story 7); PRD.md:126; SDD.md:551)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-8",
+     "decision": "Journey 8, Jira sign-in per site: each site has one sign-in, every repository on that site uses it, and only the developer's own terminal can store one.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-8 accept. The secret-step, Jira and removed-key criteria and contract rows state every refusal and every stored name this journey checks. (PRD.md:92, :105, :114-115; SDD.md:136, :139, :553-554)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-9",
+     "decision": "Journey 9, upgrade from the previous release: misplaced values stop counting at once, setup offers to move each one, and the old worktree base becomes the root only while it passes the rules.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-9 accept. The migration table, the upgrade record and the cited criteria state each value's fate and each offer this journey checks. (PRD.md:101, :116, :123-124, :141; SDD.md:219-230, :440, :448; adr/design/0007-ignore-misplaced-values-at-once.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-10",
+     "decision": "Journey 10, the worktree root: setup asks for the root once per machine, suggests repo-worktrees in the home folder, and gives each root rule its stated outcome.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-10 accept. The root-rules table gives the outcome of each rule; the cited criteria give the ask-once and suggestion behaviour. (PRD.md:55-63 (root rules), :120-121, :125)"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-11",
+     "decision": "Journey 11, an ordinary agent session: it reads only its own repository's settings and accounts, and writes working files only into that repository's spec folder, whatever note-taking app is set.",
+     "round": 1,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-1: J-11 accept. The working-files and session-scope criteria and the authorization row for reading another repository state the three checks. (PRD.md:145-150; SDD.md:84, :277)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-1",
+     "decision": "Role-based access: which roles, and where is each refusal proven? Answer: Triggered. Roles: the developer in their own terminal, an agent session, a teammate. The agent side is proven by the text the agent receives (journeys 2, 3, 8); the side below it by the creator, the guard and the secret step (round 2). Two actions have no refusal below the instructions in your signed design, editing the list and writing team settings on the agent's own initiative; they get an instruction check only, with that reason recorded.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-1 accept. (SDD.md:267-281; PRD.md:156-165)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-2",
+     "decision": "Data scope: what is the scope and where is it proven? Answer: Triggered. The scope is one repository and one machine; there is no company or vendor scope. Proven by journey 11 (a session sees only its repository), journey 6 (a teammate sees no personal value) and journey 1 (only the walk reads other repositories).",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-2 accept. (PRD.md:154, :164, :167; SDD.md:285-291)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-3",
+     "decision": "Input validation: which inputs, and where proven? Answer: Triggered. Every root rule (journey 10), the list's refusals (journey 4), an unknown short name (journey 5), a matching site key (journey 8), and one contract row per refusal in round 2.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-3 accept. (PRD.md:55-63, :82; SDD.md:128, :139)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-4",
+     "decision": "Audit history of new database records: does it apply? Answer: Not applicable: the feature adds no database table or entity. Everything it stores is a file under the home folder or a repository's git folder.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-4 accept. (SDD.md:285-291)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-5",
+     "decision": "Deep links and state in the page address: does it apply? Answer: Not applicable: there is no web page. The surfaces are commands, hooks and the guard.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-5 accept. (SDD.md:123)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-6",
+     "decision": "Accepted staples: does it apply? Answer: Not applicable: this plugin has no staples registry, and the PRD accepted none.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-6 accept. (PRD.md:192)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-7",
+     "decision": "State owned elsewhere that can change between a check and the action it guards: which windows, and how is each covered? Answer: Triggered, 5 windows. A forge token removed after setup checked it: the call fails with account not available (journey 3). A session starting in a worktree between the setup list and its removal: liveness is read again at removal and the guard checks again (journey 9). The harness rewriting its settings file while the secret step waits: refused, nothing changed (journey 8). A confirmed root that later becomes a repository: the rules run on every read (journey 10). A worktree changing branch between the copy-deletion check and the deletion in the same run: accepted, because the report lists each deleted value so you can type it back.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-7 accept. (SDD.md:423, :447-448, :553; PRD.md:63)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-8",
+     "decision": "Two writers at once: does it apply? Answer: Applies. A second writer on a changed file refuses and changes nothing; a lock held past 2000 ms fails naming the file; on Windows a busy file swap retries 10 times at 50 ms. One contract row each in round 2.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-8 accept. (SDD.md:431-433)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-9",
+     "decision": "Repeating an action: does it apply? Answer: Applies. A second run asks nothing (journey 1); adding a listed path is refused (journey 4); rerunning the secret step replaces the value and keeps one backup (journey 8); a run stopped after writing a short-name marker reuses it (round 2).",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-9 accept. (SDD.md:295-300, :434)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-10",
+     "decision": "Pages and sort order: does it apply? Answer: Not applicable: no surface returns results in pages.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-10 accept. (SDD.md:123-140)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-11",
+     "decision": "Allowed state changes: does it apply? Answer: Applies. A forge account goes from unset to saved only after the host accepts it (journey 3). The root migration keeps both keys until deletion, and the new one wins (journey 9). A Jira sign-in goes from absent to stored to replaced, only through the secret step (journey 8).",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-11 accept. (SDD.md:375-378, :440)"
+    },
+    {
+     "component": "settled_card",
+     "id": "AS-12",
+     "decision": "Shape of error answers: does it apply? Answer: Applies. Exit 3 with the ERROR= line naming the rule and /afk:setup for a root failure; exit 1 for any other creator failure; the guard's refusal text; account not available. One contract row each in round 2.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: AS-12 accept. (SDD.md:129-138)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-1",
+     "decision": "A real second GitHub account on one host: how is it covered? Answer: The automated test uses a stand-in gh with 2 accounts. The real behaviour is a live check before release, marked environment-limited, so the gate does not count it as a failure.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-1 accept. (SDD.md:545, :679)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-2",
+     "decision": "A GitHub Enterprise Server host: how is it covered? Answer: The automated test checks the token goes into GH_ENTERPRISE_TOKEN for such a host. No real host is reachable, so the live half is environment-limited and stays unrun until one is.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-2 accept. (SDD.md:546)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-3",
+     "decision": "A real GitLab host with one login: how is it covered? Answer: Stand-in glab in the automated test; a live check on a real GitLab host before release, environment-limited.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-3 accept. (SDD.md:547-548)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-4",
+     "decision": "Real Jira sites: how are they covered? Answer: Stand-in sites in the automated test; a live check with your one real site before release. A second real site is environment-limited.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-4 accept. (PRD.md:114; SDD.md:554)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-5",
+     "decision": "The Claude Code worktree tool and its hook: how is it covered? Answer: A stand-in harness in the automated test. A live check in a real Claude Code session: the tool lands under the root, and a hook exit 3 creates no worktree. Environment-limited.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-5 accept. (PRD.md:130, :132; SDD.md:550, :591)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-6",
+     "decision": "Folder trust for subfolders of the root, in Claude Code and Codex: how is it covered? Answer: A live check in each harness: trust the root once, create a worktree in a subfolder, and see no new trust prompt. Environment-limited; the automated test checks only that setup shows the step.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-6 accept. (PRD.md:125; SDD.md:552)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-7",
+     "decision": "Both systems: where does every automated test run? Answer: On Windows and on Linux before every push: natively on Windows and in WSL here, then in CI on both. Not environment-limited.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-7 accept. (.github/workflows/tests.yml:19-23; SDD.md:570)"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-8",
+     "decision": "Cases the design did not exercise: a second Windows drive, CLAUDE_CONFIG_DIR, unusual git layouts. What happens to each? Answer: Add correctness tests for a separate git folder and for a submodule; the guard's 50 ms budget stays ungated for them. Run the second-drive test when a second drive exists, else skip it with the reason. CLAUDE_CONFIG_DIR becomes gap 2.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: E-8 accept. (SDD.md:579, :617, :724)"
+    },
+    {
+     "component": "settled_card",
+     "id": "G-1",
+     "decision": "Gap 1: the final gate needs a running app and two suites this repository does not have. How is it recorded? Answer: Record it in the plan's gaps list. After this grill, draft a plugin issue for the smoke-test skill; you approve the exact text before anything is sent.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: G-1 accept. (skills/afk/smoke-test/SKILL.md:12, :39)"
+    },
+    {
+     "component": "settled_card",
+     "id": "G-2",
+     "decision": "Gap 2: the design does not say where the secret step writes when CLAUDE_CONFIG_DIR moves the harness settings file. What do we do? Answer: Record it in the plan's gaps for the design to settle. The test sets CLAUDE_CONFIG_DIR and expects the step either to follow it or to refuse; the subtask picks one and writes it down.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: G-2 accept. (SDD.md:579)"
+    },
+    {
+     "component": "settled_card",
+     "id": "G-3",
+     "decision": "Gap 3: CI does not run the two worktree smoke scripts. What do we do for this feature? Answer: Put this feature's creator checks in the pytest acceptance file, which CI runs. Record running the two smoke scripts in CI as a follow-up ticket candidate.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: G-3 accept. (.github/workflows/tests.yml:62-67; scripts/tests/create-worktree-smoke.sh)"
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "C-3",
+     "decision": "Creator by name: success prints WORKTREE_PATH= as the last line and exits 0; a root that fails a rule exits 3 with the line naming the rule and /afk:setup; every other failure exits 1 with an ERROR= line.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-3 accept. The contract row gives the success line, both exit statuses and both error lines word for word. (SDD.md:129, :710; PRD.md:55-63, :131)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-4",
+     "decision": "Creator by branch with a parent: for an agent in a listed repository, a parent outside root/short name exits 3 with the line naming the parent and the folder; the developer's own run works anywhere, as today.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-4 accept. The contract row and the authorization row state the permitted caller, the refused caller and the exact refusal line. (SDD.md:130, :276, :710)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-5",
+     "decision": "Worktree-create hook: success prints only the bare path and exits 0; when the creator fails, the hook exits non-zero and prints nothing.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-5 accept. The contract row gives the output shape and the failure answer; the seam row says the harness uses the printed path. (SDD.md:131, :550)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-6",
+     "decision": "Guard on git worktree add and move: an agent's command whose real target is outside root/short name, or cannot be worked out, is refused with the refusal text word for word; inside, unlisted and the developer's own commands pass.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-6 accept. The contract row gives the resolution rules, the parser flags and the refusal text; the authorization row gives the launch-flag exception. (SDD.md:132, :276, :711; SDD.md:636 (the unnamed pins))"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-7",
+     "decision": "Guard on the creator call: for a listed repository, an agent's creator call whose --parent or --dir is outside root/short name is refused with the same refusal text; inside passes.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-7 accept. The contract row states the checked arguments and that the answer matches the add and move refusal. (SDD.md:133, :711)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-8",
+     "decision": "Guard on the two variables: an agent command that sets AFK_WORKTREE_FOLDER or AFK_ALLOW_PROTECTED in any form the guard's existing variable rule reads (in front of the command, through env, by export or declare, through a PowerShell env: assignment) is refused and the refusal names the variable.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-8 accept. The guard already refuses another variable's assignment or export through these forms, and the design signs the refusal of these two variables. (SDD.md:134, :276; hooks/lib/lavish_direct.py:5, :23, :25 (assignment or export, the declare words, the PowerShell form))"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-22",
+     "decision": "Move helper: the path it suggests equals the path the creator would make for the same name, and it loads the placement code only when it plans a move.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-22 accept. The seam row says the helper takes its path from the same placement call as the creator and loads placement only when it plans a move. (SDD.md:712)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-9",
+     "decision": "Root lookup: resolve worktreeRoot prints the confirmed root and exits 0; with no confirmed root it prints the suggestion and a note on stderr; when neither passes the rules it exits 1 with the failed rule on stderr.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-9 accept. The contract row gives the answer and the stderr note for each case. (SDD.md:135)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-10",
+     "decision": "Validate: prints configuration is valid, then one warning line per ignored value naming setting, file and rule, and exits 0; unknown keys are still refused; jira.credentials-env warns jira.credentials-env was removed; delete this key.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-10 accept. The contract row gives the valid line, the warning shape, the removed-key text and the exit-status rule. (SDD.md:136; adr/design/0001-owner-rule-in-the-reader.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-11",
+     "decision": "Readers: get, effective, export-shell and resolve leave out every ignored value and answer exactly as today for every value at its owner's file.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-11 accept. The contract row says an ignored value is absent and nothing else changes; the design record names the owner-table test. (SDD.md:137; adr/design/0001-owner-rule-in-the-reader.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-18",
+     "decision": "Settings writer: writes one key at a time to its owner's file, quotes values with special first characters, recognises a heading with a note, refuses a key whose owner table says another file, and writes no schema line in the personal file.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-18 accept. The seam row lists each of these behaviours as the new contract of the writer. (SDD.md:714)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-20",
+     "decision": "Commit gates: the configuration test runs when the reader says the repository is set up or the .afk folder exists, with no Python on the commit path; one test pins both answers.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-20 accept. The seam row states the condition, the no-Python rule and the one pinning test. (SDD.md:720)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-21",
+     "decision": "Init: fills a new committed file from the personal file's team values; setup, not init, writes the personal file; the setup walk never runs init in another repository.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-21 accept. The two seam rows give init's new behaviour and the walk's rule. (SDD.md:709, :719)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-1",
+     "decision": "Walk steps: each repository step runs as one script with that repository's main checkout as its working folder and project folder; a failing step records failed with the reason and the rerun command, and the next repository still runs.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-1 accept. The seam row and the design record state the scope mark, the working folder, the status and the no-chained-line rule. (SDD.md:127, :439, :719; adr/design/0006-setup-walk-in-target-checkout.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-2",
+     "decision": "Setup for one repository: a listed short name or a path inside a listed repository selects it; an unlisted path is offered for adding; an unknown short name is refused with the list of names.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-2 accept. The contract row gives the four answers. (SDD.md:128, :498)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-19",
+     "decision": "Repository list: an add stores the normalized main checkout path and writes the short-name marker first, under the list's lock; a stopped add is completed by the next add; a removal keeps the marker while its folder holds a worktree and deletes an empty folder and its marker.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-19 accept. The data, idempotency and failure rows state each of these list behaviours. (SDD.md:147, :163, :212, :297, :398, :434, :452, :498)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-17",
+     "decision": "Safe writer: one call locks the file, hands over its text and writes back the answer; a file changed meanwhile is refused with nothing changed; a lock held past 2000 ms fails naming the file and deletes the temp file; on Windows a busy swap retries 10 times at 50 ms.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-17 accept. The retry table, the failure matrix and the seam row give every number and outcome. (SDD.md:306-307, :431-433, :713; adr/design/0005-shared-safe-writer.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-12",
+     "decision": "Forge sign-in check: with an account set, auth-status exits 0 when that account's token is available and otherwise answers account not available with a non-zero exit, never using the default login; with no account set it answers as today.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-12 accept. The contract row and the external-seam rows give the answers and the variable per host kind. (SDD.md:138, :545-547)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-13",
+     "decision": "Forge account helper and wrappers: the helper returns the host and the account name and never a token; every forge verb, branch protection and the GitHub Issues adapter act as the account; the plugin-issue reporter keeps the default login.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-13 accept. The seam row and the design record list every wrapper that changes and the one that does not. (SDD.md:717; adr/design/0003-forge-account-per-call.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-14",
+     "decision": "Review ledger: trusts a comment author who is any account the forge tool holds on that host, or named with --trust, and no other; a failing login lookup on GitHub makes the review commands exit 2.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-14 accept. The authorization row and the seam row give the trusted set, the cache rule and the exit-2 answer. (SDD.md:280, :718)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-15",
+     "decision": "Secret step: jira --site, forge --host --account and longpaths run only with a terminal on input and output and outside an agent session; every other run is refused with the reason, and no secret is ever printed.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-15 accept. The contract row, the authorization row and the external-seam row give each permitted and refused run. (SDD.md:139, :274, :553, :715; adr/design/0004-jira-sign-in-per-site.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-16",
+     "decision": "Jira sign-in load: for the repository's jira.site it takes the first source holding a complete sign-in, skips a partial source and names it in the error, and reads per-site names JIRA_SITE_ key _EMAIL and _API_TOKEN, where the key is the site host in capitals with every other character an underscore.",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "evidence": "R-2: C-16 accept. The seam row and the design record give the source order, the name scheme and the refusal content. (SDD.md:140, :716; adr/design/0004-jira-sign-in-per-site.md)"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-23",
+     "decision": "Time budgets: which of the design's numbers fail a test, and which are only reported? Answer: Gate on the counts: no new file read on any command other than add and move, and no network call on add and move. Report the times only: the guard's 50 ms on add and move, 10 ms for the owner rule, 20 ms for the placement import, in the informational bench CI already runs.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: C-23 accept. (SDD.md:564-567; .github/workflows/tests.yml:101-106)"
+    },
+    {
+     "component": "settled_card",
+     "id": "G-4",
+     "decision": "Gap 4: the design says a bare run of the secret step prints the 3 commands and exits, but not with which exit status. What does the test check? Answer: The test checks the 3 commands are printed and nothing is written. The exit status goes to the plan's gaps list for the subtask to settle and write down.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: G-4 accept. (SDD.md:139)"
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "current",
+   "header": {
+    "round": 3,
+    "settled_last_round": [
+     "All 24 round-2 cards accepted: 22 contract checks, counts gate and times report, the bare secret-step exit status left to its subtask"
+    ],
+    "unlocks": [
+     "VERIFICATION-PLAN.md is written: 11 journeys, 7 live-run rows, 22 contract checks; next /afk:to-subtasks"
+    ],
+    "fork": "The verification set is settled. Nothing on this page needs an answer.\n\nForm: one black-box acceptance test file that drives every entry point in a sandbox, plus a live-run list. This feature's first subtask adds the unit, smoke and static tiers to the committed AFK file.\n\nJourneys: 11, covering all 7 stories and all 48 acceptance criteria (round 1 said 55: a miscount). Contract checks: 22, one per contract row and per module with no row; each protected surface has its refused-agent test.\n\nCross-cutting checks: role access, data scope, input validation, state owned elsewhere, concurrency, repeats, state changes and error shape apply; audit history, deep links, staples and paging do not, each with its reason.\n\nLive-run list, environment-limited: a second real GitHub account, an Enterprise Server host, a real GitLab host, real Jira sites, the Claude Code worktree tool and its hook, folder trust, a second Windows drive.\n\nGaps for the plan: the final gate expects a running app (a plugin issue to draft, with your approval); CLAUDE_CONFIG_DIR and the secret step; CI does not run the two worktree smoke scripts; how setup detects the Codex app; the bare secret-step exit status.",
+    "touches": [
+     {
+      "name": "the settled rounds below",
+      "anchor": "docs/afk/setup-per-repo/verification.round.json"
+     }
+    ],
+    "links": [
+     {
+      "label": "The grill log",
+      "href": "GRILL-LOG.md"
+     }
+    ]
+   },
+   "items": []
+  }
+ ]
+}

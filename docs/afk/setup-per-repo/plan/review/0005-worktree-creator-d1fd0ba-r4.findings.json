@@ -1,0 +1,72 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "hooks/lib/h2_move.py",
+  "line": 104,
+  "side": "new",
+  "finding": "plan() runs the placement call before the existing-marker check, so every repeat call re-places and a root that went bad hides the pending worktree",
+  "why": "The guard calls h2_hint -> plan on every refusal (hooks/lib/protected_branch_guard.py:582); a repeat call whose marker already exists (line 112 FileExistsError) discards the fresh path, yet target() has already loaded placement, and a refused root now returns {\"error\"} instead of the recorded creation, so the contract's 'placement is loaded only when the helper plans a move' is unmet for a call that plans no move.",
+  "fix": "Check for the session's existing marker (return its recorded chosen dict) before calling target(); call target() only when a new marker will be written.",
+  "evidence": "hooks/lib/h2_move.py:104-109 `path, refused = target(root, name, facts)` / `if refused: return {... \"error\": refused}` runs before the `open(marker, \"x\")` at line ~111 and its `except FileExistsError` branch at line 112; plan 0005 Acceptance: 'placement is loaded only when the helper plans a move'"
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_existing_worktree_outside_root.py",
+  "line": 362,
+  "side": "new",
+  "finding": "The `hooks/worktree-prune.sh:adopt` case passes whether or not the hook adopts the session",
+  "why": "Both twins are cut with AFK_WORKTREE_OWNER=f.owner (forest `live` env), and `worktree_owner.py record` writes `env_owner()` first (scripts/worktree_owner.py:223), so `f.owner in owners` is already True before the hook runs; with no record both sides give None. The case cannot fail if `adopt` (scripts/remove-worktree.py:410, called at :437) is removed.",
+  "fix": "Cut the case's twins with a different owner (e.g. forest.other), run the hook as f.owner, and assert f.owner is in owners afterwards and was not before.",
+  "evidence": "docstring `A session that starts in the worktree keeps it and becomes an owner of it.`; `return Code(done.returncode), f.norm(done.stdout, s), s.path.is_dir(), owners and f.owner in owners`; creation: `cut(...)` -> `create(live, ...)` with `live = forest.env()` which sets `AFK_WORKTREE_OWNER=self.owner`"
+ },
+ {
+  "id": "r-003",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "docs/afk/setup-per-repo/plan/DECISIONS.md",
+  "line": 344,
+  "side": "new",
+  "finding": "D-48's Debt line still lists three private repo_list calls; the creator now calls five (D-54 and the f016 fix added `_marker_holder` and `_key`)",
+  "why": "The debt record is the only place the creator's reach into repo_list internals is stated, and D-54 changed that reach without amending it.",
+  "fix": "Amend D-48's Debt line (or add a Debt line to D-54) to name `_marker_holder` and `_key` besides `_parse`, `_claim_folder`, `_update_list`.",
+  "evidence": "DECISIONS.md:344 `Debt: the creator calls repo_list's private _parse, _claim_folder and _update_list, as placement does`; scripts/create-worktree:351 `repo_list._marker_holder(folder / repo_list.MARKER_NAME)`, :352 and :356 `repo_list._key(...)`. Search pattern: `repo_list\\._` over scripts/create-worktree, compared with the D-48 Debt wording; D-54 (DECISIONS.md:381-386) mentions only `all_entries`/`find_entry`."
+ },
+ {
+  "id": "r-004",
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_existing_worktree_outside_root.py",
+  "line": 977,
+  "side": "new",
+  "finding": "The cleanup test steers its actions with `if`/`elif` on the parametrized member name",
+  "why": "One body runs three different removal routes through string-compared branches and a `.get(..., \"prune\")` default, so a mistyped member id silently selects the prune route with no removal call for the loop.",
+  "fix": "Split into one test per member, or parametrize the removal action as a callable alongside the disposable-repo name.",
+  "evidence": "`if member == \"hooks/worktree-prune.sh:dead-owner\": codes.append(...)` / `if member == \"hooks/worktree-remove.sh\": ... elif member == \"scripts/remove-worktree.py\": ...` / `name = {...}.get(member, \"prune\")`"
+ },
+ {
+  "id": "r-005",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "skills/afk/bug/SKILL.md",
+  "line": 67,
+  "side": "new",
+  "finding": "Bug dispatch says `Exit 3 is a K3 refusal`, but the creator now exits 3 for other causes (short-name rule R-06 and an agent's `--dir` that climbs out, D-47/D-52)",
+  "why": "Exit 3 was narrowed to the root in the K3 rewrite, yet `place` refuses on every catalog R rule and the name/dir branch refuses an agent's climbing `--dir`, so the skill and bug/CONFIG.md misname the cause of a refused dispatch.",
+  "fix": "Say exit 3 is a placement refusal (root, short name or folder) and that the ERROR= line names the cause; make skills/afk/bug/CONFIG.md:46 and :72 match (`K3 (fails a root rule)`).",
+  "evidence": "skills/afk/bug/SKILL.md:67 `Exit 3 is a K3 refusal -> fail closed`; skills/afk/bug/CONFIG.md:46 `exit 3 is a refusal` and :72 `K3 (fails a root rule)`; scripts/create-worktree:334-335 `[[ \"$P_STATE\" != refused || \"$P_RULE\" == outside || \"$P_RULE\" == main ]] || refuse_exit \"worktree root: $P_RULE $P_REASON ...\"` fires for any rule including the short-name rule R-06 (scripts/placement.py:185); :390 `refuse_exit \"worktree folder: $P_REASON - pass a plain folder name as --dir\"`. Search: `exit 3|exits 3` over skills/, README.md, SAFETY.md, PROVIDERS.md, hooks/README.md; consumers checked: hooks/worktree-create.sh, scripts/afk-launch.py, scripts/afk-move.py, hooks/lib/h2_move.py, skills/afk/execute/SKILL.md:16, skills/utils/settle-change/SKILL.md:70 (none read the exit code as K3)."
+ }
+]

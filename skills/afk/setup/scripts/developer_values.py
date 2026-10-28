@@ -39,7 +39,8 @@ def _module(name: str, path: Path):
 
 
 ac = _module("afk_config_for_developer_values", PLUGIN_ROOT / "scripts" / "afk-config.py")
-ORDER = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary")
+ORDER = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary",
+         "worktreeRoot", "forgeAccount")
 
 
 def machine_file() -> Path:
@@ -141,15 +142,18 @@ def status(root: Path) -> dict:
     forge = str(ac.get(config, "forge") or "none")
     shared = ac.shared_overlay(root)
     named = os.environ.get("AFK_CONFIG")
-    files = [("explicit", Path(named) if named else None),
-             ("checkout", root / ".afk" / "config.local.yaml"),
-             ("repository", shared), ("machine", machine_file())]
+    committed = (root / ".afk" / "config.yaml").is_file()
+    files = [("explicit", "env", Path(named) if named else None),
+             ("checkout", "local", root / ".afk" / "config.local.yaml"),
+             ("repository", "shared", shared), ("machine", "home", machine_file())]
     need = {
         "trackerAssignee": "required" if tracker != "none" else "n/a",
         "mrReviewer": "required" if forge != "none" else "n/a",
         "mrAssignee": "optional" if forge != "none" else "n/a",
         "worktreeBasePath": "required",
         "ideBinary": "optional",
+        "worktreeRoot": "n/a",
+        "forgeAccount": "n/a",
     }
     suggest = {
         "trackerAssignee": lambda: (jira_email() if tracker == "jira"
@@ -158,11 +162,16 @@ def status(root: Path) -> dict:
         "mrAssignee": lambda: forge_user(forge),
         "worktreeBasePath": lambda: None,
         "ideBinary": ide_guess,
+        "worktreeRoot": lambda: None,
+        "forgeAccount": lambda: None,
     }
     keys = {}
     for key in ORDER:
         value = ac.developer_value(config, key, root)
-        source = next((label for label, p in files if p is not None and key in read_block(p)), None)
+        owner = ac.OWNER_TABLE.get(f"developer.{key}")
+        source = next((label for label, kind, p in files if p is not None and key in read_block(p)
+                       and ((reads := ac.layer_reads(kind, committed)) is None or owner in reads)),
+                      None)
         if value is not None and source is None:
             source = "derived"
         entry = {"need": need[key], "value": value, "source": source}

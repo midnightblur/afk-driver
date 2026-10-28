@@ -1,0 +1,5 @@
+{
+  "r-001": "fixed",
+  "r-002": "dismissed(withdrawn: Windows folds .. by text, so the test pins the verdict to the OS on both systems and goes red under Linux on the round-1 code)",
+  "r-003": "fixed"
+}

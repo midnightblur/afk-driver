@@ -8,14 +8,16 @@
 #                 worktree really exists on disk
 #   2. config   — .claude/.mcp.json path references are cloned into the worktree and the
 #                 main-repo path is rewritten to the worktree path (AC-005 / PRD AC-009)
-#   3. copy     — the copy list comes from configuration: a repository naming its own
-#                 entries gets those, and `copy-personal: false` gets none
+#   3. copy     — the copy list comes from the repository personal file: the entries it
+#                 names are copied, and `copy-personal: false` copies none
 #   4. gates    — the worktree is handed to the build gates, and --skip-build-gate and
 #                 the deprecated aliases reach them
 #   5. bad name — a non-conforming branch prints ERROR=<reason> incl. the gate pattern,
 #                 exits non-zero, and creates NO worktree (SDD §9b)
 #   6. trap     — a failure inside a helper still emits one ERROR= line
 #   7. teardown — the created worktree is removed cleanly
+#   8. placement — a listed repository lands under the worktree root; a relative root exits 3
+#                 and makes nothing (sandbox home)
 #
 # What each build gate then does to the worktree is scripts/tests/worktree-provision-smoke.sh.
 # Self-contained: no network, no real build tool, no IDE. Exit 0 = all green.
@@ -43,6 +45,9 @@ REPO="$TMP_ROOT/main-repo"
 WT_PARENT="$TMP_ROOT/worktrees"
 STUBBIN="$TMP_ROOT/stubbin"
 NPM_LOG="$TMP_ROOT/npm-invocations.log"
+# The creator reads ~/.afk through placement: tests 1-9 run under an empty home of their own.
+export HOME="$TMP_ROOT/home0" USERPROFILE="$TMP_ROOT/home0"
+mkdir -p "$HOME"
 
 cleanup() {
   # Prune/remove any worktree we created, then nuke the whole sandbox.
@@ -94,6 +99,10 @@ write_config() {   # write_config <extra yaml>
     echo "$BRANCH_YAML"
     [[ -n "${1:-}" ]] && echo "$1"
   } > "$REPO/.afk/config.yaml"
+}
+write_personal() {   # write_personal <yaml>: the repository personal file every worktree reads
+  mkdir -p "$REPO/.git/afk"
+  echo "$1" > "$REPO/.git/afk/config.yaml"
 }
 write_config "build-gates:
   - npm
@@ -206,7 +215,8 @@ drop_worktree "$WT7"
 # --- Test 3: the copy list comes from configuration -------------------------
 mkdir -p "$REPO/tooling"
 echo "personal" > "$REPO/tooling/notes.txt"
-write_config "worktree:
+write_config
+write_personal "worktree:
   copy:
     - tooling
   copy-ignored-claude-md: false"
@@ -218,7 +228,7 @@ WT8="$(printf '%s\n' "$OUT8" | tail -n1)"; WT8="${WT8#WORKTREE_PATH=}"
 [[ ! -e "$WT8/.mcp.json" ]] && ok "an entry not in the list is not copied" || bad ".mcp.json copied though the list omits it"
 drop_worktree "$WT8"
 
-write_config "worktree:
+write_personal "worktree:
   copy-personal: false"
 GOOD6="team/development/tester/smoke6-$$"
 OUT9="$(run_cwt --branch "$GOOD6" --dir good6 --base "$BASE_BRANCH" \
@@ -230,6 +240,43 @@ else
   bad "copy-personal: false still copied files (wt: $WT9)"
 fi
 drop_worktree "$WT9"
+
+# --- Test 8: a listed repository lands under the worktree root ---------------
+# Own repository and home: placement reads ~/.afk, so HOME and USERPROFILE point at the sandbox.
+PY="${AFK_PYTHON:-afk-python}"
+LHOME="$TMP_ROOT/home"; LROOT="$TMP_ROOT/wt root"; LREPO="$TMP_ROOT/listed"
+mkdir -p "$LHOME/.afk" "$LROOT" "$LREPO"
+git -C "$LREPO" init -q -b dev
+git -C "$LREPO" -c user.email=smoke@test.local -c user.name=smoke-tester commit -q --allow-empty -m seed
+LROOT_FWD="$(cygpath -m "$LROOT" 2>/dev/null || echo "$LROOT")"
+printf "developer:\n  worktreeRoot: '%s'\n" "$LROOT_FWD" > "$LHOME/.afk/config.yaml"
+HOME="$LHOME" USERPROFILE="$LHOME" "$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import repo_list; repo_list.add_repository(sys.argv[2], sys.argv[3])' \
+  "$PLUGIN_ROOT/scripts" "$LREPO" "$LROOT"
+OUT10="$(cd "$LREPO" && HOME="$LHOME" USERPROFILE="$LHOME" bash "$CWT" --name listed --no-open 2>"$TMP_ROOT/err10.log")"
+RC10=$?
+WT10="$(printf '%s\n' "$OUT10" | tail -n1)"; WT10="${WT10#WORKTREE_PATH=}"
+WT10_FWD="$(cygpath -m "$WT10" 2>/dev/null || echo "$WT10")"
+if [[ $RC10 -eq 0 && "$WT10_FWD" == "$LROOT_FWD/listed/listed" && -f "$WT10/.git" ]]; then
+  ok "a listed repository's --name worktree lands at <root>/<short name>/<name>"
+else
+  bad "listed --name (rc $RC10, path $WT10); stderr: $(cat "$TMP_ROOT/err10.log")"
+fi
+
+printf "developer:\n  worktreeRoot: relative/root\n" > "$LHOME/.afk/config.yaml"
+OUT11="$(cd "$LREPO" && HOME="$LHOME" USERPROFILE="$LHOME" bash "$CWT" --name refused --no-open 2>"$TMP_ROOT/err11.log")"
+RC11=$?
+if [[ $RC11 -eq 3 ]] && grep -q '^ERROR=worktree root: R-01 ' "$TMP_ROOT/err11.log"; then
+  ok "a relative root exits 3 with the R-01 line"
+else
+  bad "relative root (rc $RC11); stderr: $(cat "$TMP_ROOT/err11.log")"
+fi
+if [[ "$(git -C "$LREPO" worktree list --porcelain | grep -c '^worktree ')" -eq 2 \
+      && ! -e "$LREPO/.claude/worktrees/refused" && ! -e "$LROOT/listed/refused" ]]; then
+  ok "a refused run makes no worktree"
+else
+  bad "a refused run left a worktree"
+fi
+git -C "$LREPO" worktree remove --force "$WT10" >/dev/null 2>&1 || true
 
 # --- summary ----------------------------------------------------------------
 echo ""

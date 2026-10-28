@@ -254,8 +254,14 @@ def test_without_the_launcher_a_present_manifest_blocks(plugin, tmp_path):
     assert NO_LAUNCHER_BLOCK in done.stderr and "--no-verify" in done.stderr and "cheap" not in ran, done.stderr
 
 
-def test_without_the_launcher_a_repo_hooks_key_in_the_local_layer_blocks(plugin, tmp_path):
-    done, ran = _run(plugin, tmp_path, local="repo-hooks: ci/local-hooks.json\n", HOME=tmp_path.as_posix(),
-                     **NO_LAUNCHER)
+def test_without_the_launcher_a_repo_hooks_key_in_the_committed_file_blocks(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, manifest="ci/hooks.json", HOME=tmp_path.as_posix(), **NO_LAUNCHER)
     assert done.returncode == 2, done.stderr
     assert NO_LAUNCHER_BLOCK in done.stderr, done.stderr
+
+
+def test_without_the_launcher_a_local_repo_hooks_key_beside_a_committed_file_is_ignored(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, local="repo-hooks: ci/local-hooks.json\n", HOME=tmp_path.as_posix(),
+                     **NO_LAUNCHER)
+    assert done.returncode == 0, done.stderr
+    assert NO_LAUNCHER_BLOCK not in done.stderr, done.stderr

@@ -4,7 +4,9 @@
 cuts the worktree and, inside a terminal workspace, types the `/cd` line into the pane.
 One creation per session, keyed by the pane id when there is one (the H-2 session id
 changes on `/cd`), else by the session id. The helper writes its outcome into the marker:
-`created` on success, `error` (create-worktree's `ERROR=` text) on failure.
+`created` on success, `error` (create-worktree's `ERROR=` text) on failure. The path comes
+from the creator's own placement call (`target`), loaded only when a move is planned; a
+refused root or short name returns `error` at once and starts nothing.
 """
 from __future__ import annotations
 
@@ -71,6 +73,30 @@ def spawn(argv: list[str], env: dict | None = None, cwd: str | None = None, log:
             sink.close()
 
 
+def target(root: Path, name: str, facts: dict) -> tuple[str, str]:
+    """`(path, "")` where `create-worktree --name <name>` puts the worktree, or `("", refusal)`."""
+    spec = importlib.util.spec_from_file_location("afk_placement_for_move", PLUGIN_ROOT / "scripts" / "placement.py")
+    placement = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(placement)
+        verdict = placement.target_for(str(root), name)
+    except Exception as problem:
+        return "", f"placement: {problem}"
+    if verdict.state == placement.REFUSED:
+        return "", f"worktree root: {verdict.rule} {verdict.reason} - run /afk:setup"
+    if verdict.state == placement.INSIDE:
+        return verdict.target, ""
+    folder = os.environ.get("AFK_WORKTREE_FOLDER") or facts.get("worktree_folder") or ".claude/worktrees"
+    return str(root / folder / name), ""
+
+
+def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
+    path, refused = target(root, name, facts)
+    if refused:
+        return {"name": name, "path": "", "pane": pane, "error": refused}
+    return {"name": name, "path": path, "pane": pane, "marker": str(marker)}
+
+
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
     """`{"path", "name", "pane"}` of the worktree this session is being moved into."""
     common = Path(place["common"])
@@ -82,17 +108,22 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     marker_dir.mkdir(exist_ok=True)
     marker = marker_dir / f"{key}.move"
     name = f"session-{uuid.uuid4().hex[:8]}"
-    folder = os.environ.get("AFK_WORKTREE_FOLDER") or facts.get("worktree_folder") or ".claude/worktrees"
-    chosen = {"name": name, "path": str(root / folder / name), "pane": pane}
-    chosen["marker"] = str(marker)
-    try:
-        with open(marker, "x", encoding="utf-8") as out:
-            json.dump(chosen, out)
-    except FileExistsError:
+    created = False
+    if not marker.exists():  # placement loads only for a move this call records
+        chosen = fresh(root, name, pane, facts, marker)
+        if chosen.get("error"):
+            return chosen
+        try:
+            with open(marker, "x", encoding="utf-8") as out:
+                json.dump(chosen, out)
+            created = True
+        except FileExistsError:
+            pass  # a concurrent call recorded its move first
+    if not created:
         try:
             chosen = json.loads(marker.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            return chosen
+            return fresh(root, name, pane, facts, marker)
         if Path(chosen["path"]).exists() and owner_is_dead(common, chosen["name"]):
             marker.unlink(missing_ok=True)  # an earlier session's worktree, not this one's
             return plan(place, envelope, facts)

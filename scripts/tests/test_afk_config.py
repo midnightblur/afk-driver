@@ -15,6 +15,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -33,10 +34,14 @@ def _module():
 cfg = _module()
 
 
+NO_HOME = Path(tempfile.mkdtemp(prefix="afk-config-no-home-"))   # empty, private to this run
+
+
 def run(args, cwd, env=None):
     environ = dict(os.environ)
     environ.pop("AFK_CONFIG", None)
     environ.pop("CLAUDE_PROJECT_DIR", None)
+    environ.update({"HOME": str(NO_HOME), "USERPROFILE": str(NO_HOME)})
     environ.update(env or {})
     return subprocess.run(
         [sys.executable, str(SCRIPTS / "afk-config.py"), *args],
@@ -149,25 +154,27 @@ def test_four_layers_apply_in_the_documented_order(tmp_path, monkeypatch):
     home = tmp_path / "home"
     (home / ".afk").mkdir(parents=True)
     (home / ".afk" / "config.yaml").write_text(
-        "schema: 1\ntracker: jira\nforge: gitlab\nnotes: obsidian\n", encoding="utf-8"
+        "notes: obsidian\ndeveloper:\n  mrReviewer: home\n  ideBinary: home-ide\n",
+        encoding="utf-8",
     )
     monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
 
     root = repo(tmp_path)
-    (root / ".afk" / "config.yaml").write_text(
-        "schema: 1\nforge: github\nnotes: notion\n", encoding="utf-8"
-    )
-    (root / ".afk" / "config.local.yaml").write_text("notes: repo-files\n", encoding="utf-8")
+    (root / ".afk" / "config.yaml").write_text("schema: 1\nforge: github\n", encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text(
+        "developer:\n  mrReviewer: local\n", encoding="utf-8")
 
     effective = cfg.load(root)
-    assert effective["tracker"] == "jira"        # from the machine layer
-    assert effective["forge"] == "github"        # repository beats machine
-    assert effective["notes"] == "repo-files"    # local overlay beats repository
+    assert effective["notes"] == "obsidian"                    # from the machine layer
+    assert effective["forge"] == "github"
+    assert effective["developer"]["ideBinary"] == "home-ide"
+    assert effective["developer"]["mrReviewer"] == "local"     # local overlay beats machine
 
     named = tmp_path / "explicit.yaml"
-    named.write_text("notes: obsidian\n", encoding="utf-8")
+    named.write_text("developer:\n  mrReviewer: named\n", encoding="utf-8")
     monkeypatch.setenv("AFK_CONFIG", str(named))
-    assert cfg.load(root)["notes"] == "obsidian"  # AFK_CONFIG beats everything
+    assert cfg.load(root)["developer"]["mrReviewer"] == "named"  # AFK_CONFIG beats everything
 
 
 def _commit(root: Path) -> None:
@@ -182,17 +189,20 @@ def test_the_shared_overlay_sits_between_repository_and_checkout(tmp_path, monke
     monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
     monkeypatch.delenv("AFK_CONFIG", raising=False)
     root = repo(tmp_path)
-    (root / ".afk" / "config.yaml").write_text("schema: 1\nforge: github\nnotes: notion\n",
-                                               encoding="utf-8")
     shared = cfg.shared_overlay(root)
     assert shared.resolve() == (root / ".git" / "afk" / "config.yaml").resolve()
     shared.parent.mkdir(parents=True)
-    shared.write_text("forge: gitlab\nnotes: obsidian\n", encoding="utf-8")
-    (root / ".afk" / "config.local.yaml").write_text("notes: repo-files\n", encoding="utf-8")
+    shared.write_text("forge: gitlab\ndeveloper:\n  mrReviewer: shared\n  ideBinary: shared-ide\n",
+                      encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text(
+        "developer:\n  mrReviewer: local\n", encoding="utf-8")
 
     effective = cfg.load(root)
-    assert effective["forge"] == "gitlab"        # shared overlay beats repository
-    assert effective["notes"] == "repo-files"    # checkout overlay beats shared overlay
+    assert effective["forge"] == "gitlab"            # no committed file: the shared overlay holds it
+    assert effective["developer"] == {"mrReviewer": "local", "ideBinary": "shared-ide"}
+
+    (root / ".afk" / "config.yaml").write_text("schema: 1\nforge: github\n", encoding="utf-8")
+    assert cfg.load(root)["forge"] == "github"       # a committed file owns the team setting
 
 
 def test_every_worktree_reads_the_same_shared_overlay(tmp_path, monkeypatch):

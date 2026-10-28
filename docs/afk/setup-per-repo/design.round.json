@@ -1,0 +1,1065 @@
+{
+ "schema": 1,
+ "purpose": "Design grill",
+ "feature": "setup-per-repo",
+ "stage": "design",
+ "spec_dir": "docs/afk/setup-per-repo",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L1-1",
+     "decision": "The feature adds no new running program: every part reads its settings and the repository list from files at the moment it needs them, as the plugin does today.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L1-1 accept. The config reader keeps no cache and reads the files on every call (one read measured at 0.2 seconds); the tracker server already reads the settings again on every call. (scripts/afk-config.py:388-397; mcp-servers/tracker/server.py:65-76)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-1",
+     "decision": "The config reader applies the owner rule while it merges the files, so every part that reads a setting gets the same answer and the same ignored values.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-1 accept. CONFIG.md says to read the effective configuration with the one reader and never parse the file; INV-005 (closed with frontier) found most code already reads through it. (CONFIG.md:7; AGENTS.md:223; investigations/INV-005-config-readers/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-2",
+     "decision": "A new repository list module owns the list: setup is its only writer, and the worktree creator, the guard and setup read the list through it.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-2 accept. The design bar says one design decision has one owner module; two files that must change together mean a wrong boundary. (skills/afk/review/checklists/design-quality.md:40)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-3",
+     "decision": "One placement function computes the folder of every new worktree of a listed repository, the worktree root then the short name then the worktree name, and the worktree creator, the move helper and the guard all call it.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-3 accept. Today the creator script and the move helper each compute the in-checkout folder on their own. (scripts/create-worktree:225-228; hooks/lib/h2_move.py:66-100)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-4",
+     "decision": "The config reader answers one question, whether a repository is set up for the plugin, and every part that tests for the committed file today asks it instead.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-4 accept. Each of these sites tests for the committed file on its own (INV-004 lists every site). (hooks/precommit-gates.sh:59; skills/afk/setup/scripts/developer_values.py:177; scripts/behavior_registry.py:227)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-5",
+     "decision": "The setup walk runs each per-repository step with that repository's main checkout as the working folder, and the steps keep reading the working folder as they do today.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-5 accept. Register probes already run from the repository root, and every per-repository step uses the working folder's repository (INV-002). (skills/afk/setup/MANIFEST.md:11; hooks/install-git-hooks.sh:44)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-6",
+     "decision": "The Jira adapter picks the account for the repository's Jira site each time it loads its sign-in; the tracker server and its registration do not change.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-6 accept. The adapter loads the sign-in on every call, and the server already knows the repository root on that call. (adapters/tracker/jira/api.py:107-136; mcp-servers/tracker/server.py:65-76)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-7",
+     "decision": "The requirements step always takes the spec folder from the repository-files kind, whatever note-taking app is chosen.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-7 accept. The Notion kind already calls the repository-files kind's resolve directly to find the repository folder. (adapters/notes/notion/NOTES.md:18; skills/afk/to-prd/SKILL.md:36)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-9",
+     "decision": "One account helper gives the environment for every gh or glab call made for a repository, naming that repository's forge host and account; the two forge adapter wrappers, the branch-protection lookup, the GitHub issues tracker and setup's account lookup all use it.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "R-1: L2-9 accept. INV-006 (closed with frontier): no plugin code sets the host or account variables, every call passes on the caller's whole environment, and the forge adapters already run every call through one wrapper function each. (investigations/INV-006-forge-cli-calls/REPORT.md; adapters/forge/github/forge.sh:88; adapters/forge/gitlab/forge.sh:95)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L2-8",
+     "decision": "Yes: the hook for Claude Code, the guard for agent commands in both, and the shown setup step for the Codex app.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: L2-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2",
+     "round": 1,
+     "by": "human",
+     "decision": "Signed: the command surface (/afk:setup and /afk:setup repo, create-worktree in both modes with exit 3 for a root failure, the worktree-create hook, the guard refusal on git worktree add and move, resolve worktreeRoot, validate warnings, ignored values absent from every read).",
+     "evidence": "R-1: HL-2 sign | sign",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L3-1",
+     "decision": "In its own file, ~/.afk/repositories.json. Only the repository list module writes it: it writes a temporary file, then renames it over the old one.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L3-2",
+     "decision": "Setup writes a small file, .afk-repository, inside each repository's folder under the root, holding that main checkout's path. A folder under the root without a matching file counts as taken, and setup asks for another short name.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L3-3",
+     "decision": "In the machine settings file as developer.worktreeRoot. When it is absent, the root is not confirmed and the suggestion, repo-worktrees in your home folder, applies if it passes the root rules. While developer.worktreeRoot is absent, an existing machine-wide developer.worktreeBasePath is used as the root instead, and agents refuse to create a worktree when it fails a rule.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L3-4",
+     "decision": "In a new team setting, jira.site, for example https://example.atlassian.net. While it is unset, the Jira adapter uses the one existing sign-in and its address, as it does today.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L3-5",
+     "decision": "In the repository personal file as developer.forgeAccount. The forge host is not stored: it comes from the repository's forge remote every time.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L3-6",
+     "decision": "Remove it: CONFIG.md drops it, the reader ignores it, and validate warns 'jira.credentials-env was removed; delete this key' instead of refusing it, so a committed file that still carries it keeps validating.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L3-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-1",
+     "decision": "The account helper asks gh for that account's token on that host (gh auth token --hostname <host> --user <account>) and sets GH_TOKEN and GH_HOST for that one call. The token is kept in memory only and written nowhere.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-2",
+     "decision": "The repository's account must be the one glab is signed in with on that host. Setup checks it (glab api user on that host) and saves nothing when they differ, naming the signed-in account. The account helper sets GITLAB_HOST only.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-3",
+     "round": 2,
+     "by": "human",
+     "decision": "Per-site names in the existing sign-in block: the same files as today, plain text: JIRA_SITE_<site>_EMAIL and JIRA_SITE_<site>_API_TOKEN beside the three current names, which stay the sign-in for their own site",
+     "evidence": "R-2: L4-3 envnames",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-4",
+     "decision": "The Jira adapter takes all three values of one sign-in from one place and never mixes fields from two sources.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "R-2: L4-4 accept. Today each field is filled separately, and INV-008 reproduced a sign-in built from the address of one file and the email and token of another. (adapters/tracker/jira/api.py:107-127; investigations/INV-008-secret-storage/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-5",
+     "decision": "The step takes what it signs in to as arguments: setup_secrets.py jira --site <address>, and setup_secrets.py forge --host <host> --account <name>. Setup prints one such command per missing sign-in for you to run in your own terminal. The step refuses to run unless both its input and its output are a terminal and no agent marker is set (CLAUDECODE for Claude Code, PLUGIN_ROOT for Codex).",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-6",
+     "decision": "The step makes the file readable by your user only on Linux and macOS, and keeps one backup copy, replacing the previous one rather than adding a new copy each run.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-7",
+     "decision": "validate lists every ignored value with the setting, the file and the rule, and the setup walk shows the same list per repository. Every other read stays silent.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-8",
+     "decision": "Guard: no new file read for any command other than git worktree add or move; for those two, at most 50 milliseconds added and no network call. Reader: the owner rule adds at most 10 milliseconds to one load. Setup account checks: one try per call, a 20-second limit each; on failure that repository is reported failed and you rerun setup for it.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: L4-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-9",
+     "decision": "Listing a repository is the switch: an unlisted repository behaves exactly as today, so the feature has no other on-off setting.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "R-2: L4-9 accept. The requirements leave a repository that is not in the list unchecked, and the signed command surface keeps unlisted repositories unchanged. (PRD.md AC-055; HL-2 surfaces table (unlisted repositories: unchanged))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-10",
+     "decision": "Outside a setup run, code reads only the current repository's settings, found from the session's folder; only the setup walk reads other listed repositories.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "R-2: L4-10 accept. The reader finds the repository from the session's project folder or working folder, and the requirements limit cross-repository reads to a setup run you asked for. (scripts/afk-config.py:324-329; PRD.md AC-080)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L4-11",
+     "decision": "The setup walk changes another repository's files only through its scripts, never by editing a file directly.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "R-2: L4-11 accept. INV-007 found the guard refuses a direct edit under another repository's git folder as a change to its main checkout, and allows the setup scripts. (hooks/lib/protected_branch_guard.py:374-383; investigations/INV-007-guard-setup-walk/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1",
+     "round": 2,
+     "by": "human",
+     "decision": "Signed: stored state field by field (repository list, short-name marker, machine and personal file keys, committed-file changes, per-site Jira sign-in names, migration of existing values, retention).",
+     "evidence": "R-2: HL-1 sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3",
+     "round": 2,
+     "by": "human",
+     "decision": "Signed in round 2, then voided: its cleanup row named the wrong enforcement point. The corrected packet is in round 3.",
+     "evidence": "R-2: HL-3 sign | I sign; voided after INV-009",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L5-1",
+     "decision": "Setup removes the list entry and keeps the marker while the folder holds a worktree, so the short name stays reserved for that repository. Adding the repository again reuses the folder. Once the folder is empty, setup deletes the marker and the folder.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L5-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L5-2",
+     "decision": "Setup reports the entry as missing and offers to remove it; nothing removes it on its own. If you add the moved repository at its new path and choose the same short name, setup asks whether the folder's marker should point to the new path, and changes it only when you answer yes.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L5-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L5-3",
+     "decision": "New worktrees go under the new root. Worktrees already under the old root stay where they are and keep working, and setup moves nothing. Agents may still use them, but an agent moving one with git worktree move must move it under the new root.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L5-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L5-4",
+     "decision": "Each rule the stored data must keep has exactly one guardian: the code that decides it. Other code that needs the answer calls the guardian and never applies the rule itself. The table is in the lifecycle packet below.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "R-3: L5-4 accept. The design bar asks for one owner per decision, and INV-001 found the worktree path computed in two places today. (skills/afk/review/checklists/design-quality.md:40 (one decision, one owner); investigations/INV-001-worktree-landing/REPORT.md; scripts/create-worktree:225-228 and hooks/lib/h2_move.py:66-100 (the path is computed twice today))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-1",
+     "decision": "Every file this feature writes or changes goes through one shared safe-write module. It locks the file, reads it again to check nothing changed, writes a temporary file, flushes it to disk, and swaps it in. That covers the repository list, the markers, the settings writer and the secret step. The module is the existing locked writer of the instruction-file installer, moved where every writer can use it.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "R-3: L6-1 accept. INV-010 found no shared helper. The instruction-file installer has the only writer with a lock, a re-read and a flush; two settings writes run at once lost 50 to 80 of 100 values. (skills/afk/setup/scripts/install_block.py:105-224; investigations/INV-010-settings-write-atomicity/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-2",
+     "decision": "The safe-write module tries the swap again up to 10 times, 50 milliseconds apart. If it still fails, the write fails with a message naming the file, deletes its temporary file and changes nothing. A busy lock fails the same way after 2 seconds, which is the installer's existing wait.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-3",
+     "decision": "The secret step reads the harness settings file again at the moment it writes, while holding the lock, and changes only its own sign-in values. Anything the harness changed while you typed is kept.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "R-3: L6-3 accept. The step reads the file before prompting and writes the whole old copy after the sign-in check, so a change in between is lost. (skills/afk/setup/scripts/setup_secrets.py:185,252; investigations/INV-010-settings-write-atomicity/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-4",
+     "decision": "Every setup write sets a value, so running it twice changes nothing: adding a path already in the list does nothing, and a marker that already holds this repository's path is reused. Running setup again is the recovery for any interrupted run.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "R-3: L6-4 accept. INV-011 found setup checks every step again on each run and keeps no progress file, and most steps give the same result when run twice. (skills/afk/setup/SKILL.md:80,130; investigations/INV-011-setup-rerun-failure/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-5",
+     "decision": "Setup records the failure for that repository and step, goes on with the other steps and repositories, and ends with one line per repository and step. A new status, failed, carries the reason and the command to rerun that repository.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-6",
+     "decision": "Holding the list's lock: check the path and the short name, write the marker, then write the list entry. If the run stops after the marker, the next run finds a marker holding this repository's path and reuses it, so nothing needs undoing.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-7",
+     "decision": "The new root and placement checks run before anything is made, so their refusal (exit 3) leaves nothing behind. INV-009 found that failures after git has added the worktree are never rolled back today, that a failed add leaves its new branch behind, and that the move helper can hand back a half-made folder on its retry. Those are outside this feature and become their own issue.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-8",
+     "decision": "Only one that is clean and idle: no changed or new files, no commit that no remote and no other branch holds, and no live session using it. Setup shows each one with its state and removes it only on your yes, with git worktree remove and no force option, which the guard checks again. The branch is kept. Every other one is listed with the reason it stays.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-9",
+     "round": 3,
+     "by": "human",
+     "decision": "You chose: delete the copies without asking. It returns as a debate in round 4 because it changes a requirement and two signed rows.",
+     "evidence": "R-3: L6-9 auto",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-10",
+     "decision": "Write developer.worktreeRoot first, read it back through the config reader, and only then offer to delete the old value. If the run stops between the two, both values exist and the new one wins.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-10 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L6-11",
+     "decision": "Yes, after this round, through the issue reporter, which shows you each issue before sending it. The defects: the lesson log gives the same number to two lessons written at once and tears long lines (INV-010); the worktree creator never rolls back and the move helper reuses a half-made folder (INV-009); the npm provisioner reports success after a failed install (INV-009); the git-hook installer reports installed when it wrote nothing (INV-011); the change-settling skill's cleanup is refused by the guard, and two documents describe the remover wrongly (INV-009).",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L6-11 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3-corrected",
+     "round": 3,
+     "by": "human",
+     "decision": "Signed, then voided: its personal-copy row said one answer per repository, and you chose delete without asking. The amended packet is in round 4.",
+     "evidence": "R-3: HL-3-corrected sign | I sign; voided by L6-9 auto",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-4",
+     "round": 3,
+     "by": "human",
+     "decision": "Signed: lifecycles of the list entry, the root, the forge account and the Jira sign-in, and the one guardian of each rule.",
+     "evidence": "R-3: HL-4 sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5",
+     "round": 3,
+     "by": "human",
+     "decision": "Signed, then voided: its personal-copy row said one answer per repository, and you chose delete without asking. The amended packet is in round 4.",
+     "evidence": "R-3: HL-5 sign | I sign; voided by L6-9 auto",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 4,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L6-9-debate",
+     "round": 4,
+     "by": "human",
+     "decision": "Delete personal copies of team settings without asking once the repository commits its own settings file, and list each deleted setting, file and value in setup's report. Requirement AC-024 is reworded to match.",
+     "evidence": "R-4: L6-9-debate autoreport",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3-amended",
+     "round": 4,
+     "by": "human",
+     "decision": "Signed: access, with the worktree-removal row corrected and copy deletion as its own row.",
+     "evidence": "R-4: HL-3-amended sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5-amended",
+     "round": 4,
+     "by": "human",
+     "decision": "Signed: irreversible effects, with copies deleted without asking and listed in the report.",
+     "evidence": "R-4: HL-5-amended sign | I sign",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 5,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L7-1",
+     "decision": "The four new shared modules live in the plugin's scripts folder, beside the worktree owner module: the repository list, worktree placement, the safe writer, and the forge account helper. Each has an underscore name, uses only the standard library, and is loaded by file path the way every shared module is today. Their tests go in the scripts test folder that CI already runs.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L7-1 accept. INV-012 found the scripts folder is where code shared by hooks, skills and adapters already lives, reached by path, and the guard already loads from it. (scripts/worktree_owner.py, loaded by hooks/lib/occupancy.py:26 and scripts/create-worktree:348; .github/workflows/tests.yml:64; investigations/INV-012-shared-module-conventions/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L7-2",
+     "decision": "Dependencies point one way: hooks, skills and adapters use the scripts-folder modules, and those modules use only each other and the standard library. The safe writer moves out of the instruction-file installer into the scripts folder, and the installer loads it from there.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L7-2 accept. The guard never loads from the skills folder today, and nothing else imports the installer, so moving its writer touches one caller. (investigations/INV-012-shared-module-conventions/REPORT.md (the guard never reaches skills; install_block.py has no Python importer))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L7-3",
+     "decision": "Repository list: find the entry for a path, list all entries (setup only), add, remove, and point a short name at a new path. Placement: the current root with its state (confirmed, suggested, refused, and why); the target folder for a new worktree; and a yes or a refusal for a target someone else chose. Safe writer: one call that locks a file, gives the caller its current text, writes back what the caller returns, and refuses if the file changed meanwhile; an option sets owner-only access. Forge account helper: for a repository, its forge host and account name, never a token. Config reader: the merged settings with the owner rule applied, the list of values it ignored, and whether a repository is set up.",
+     "round": 5,
+     "by": "human",
+     "evidence": "R-5: L7-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L7-4",
+     "decision": "The account helper returns only the host and the account name. Each forge wrapper fetches the token itself, right before the call, by asking gh for that account's token on that host, and passes it to that one call. The token never leaves the wrapper's process and is never printed.",
+     "round": 5,
+     "by": "human",
+     "evidence": "R-5: L7-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L7-5",
+     "decision": "Placement reads only the machine settings file and the repository list, not the full settings merge. The owner rule puts the root only in the machine file, so nothing else can change the answer. Measured on this machine: loading the reader takes 18 ms and parsing the machine file under 1 ms, while the full merge takes 92 ms.",
+     "round": 5,
+     "by": "human",
+     "evidence": "R-5: L7-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L8-1",
+     "decision": "The owner rule is one table in the config reader, giving each setting its owner (team, personal or machine) beside the reader's existing tables of keys and defaults. The merge passes each file through the table: a value at the wrong place is dropped and recorded as ignored.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L8-1 accept. The reader already describes every setting in tables, and catalog S assigns an owner per setting. (scripts/afk-config.py:53-59, 108-147 (key and default tables); PRD catalog S)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L8-2",
+     "decision": "The root and short-name rules are an ordered list of small checks, one per row of the root rules catalog. Each check returns pass or that row's outcome; placement returns the first failure. A test pins each row.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L8-2 accept. The catalog gives each rule its own outcome, so one check per row maps the catalog one to one. (PRD catalog R (rows R-01 to R-07, each with an outcome))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L8-3",
+     "decision": "The Jira sign-in load tries each source in its existing order (the environment, the Claude settings file, the Codex settings file) and takes the first one that holds a complete sign-in for the repository's site. A source with part of a sign-in is skipped, and the error names it.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L8-3 accept. Round 2 settled that a sign-in comes whole from one source; the existing source order stays. (adapters/tracker/jira/api.py:107-136; card L4-4 of round 2)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L8-4",
+     "decision": "Each forge kind keeps its own wrapper. The GitHub wrapper sets the host and the fetched token per call; the GitLab wrapper sets the host only, and setup's account check refuses a mismatched login. The account helper is the same for both.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "R-5: L8-4 accept. The plugin already keeps one adapter per forge kind, and the two tools take an account in different ways (round 2). (adapters/forge/github/forge.sh:88; adapters/forge/gitlab/forge.sh:95; ADAPTERS.md (one adapter per forge kind))",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 6,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "L9-1",
+     "round": 6,
+     "by": "human",
+     "decision": "Ignore at once; setup moves what it can. Values the owner rule ignores show a warning in validate and setup; setup offers to copy each to where its owner reads it; no fallback code.",
+     "evidence": "R-6: L9-1 strictmove",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-2",
+     "round": 6,
+     "by": "human",
+     "decision": "With ignore-at-once chosen: this release is the next major version, with an upgrade note in the changelog.",
+     "evidence": "R-6: L9-2 accept (card text: major if ignore-at-once)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-3",
+     "decision": "Yes. .afk/config.local.yaml stays a per-checkout override of any value, and setup warns when it overrides a value setup manages, as the requirements say. $AFK_CONFIG stays a whole-settings override for tests and CI. The owner rule covers the committed file, the repository personal file and the machine file.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-4",
+     "decision": "Personal values in the machine file (the assignees) stay a default for every repository. A value in a repository personal file wins over it.",
+     "round": 6,
+     "by": "agent",
+     "evidence": "R-6: L9-4 accept. The owner rule lets a personal value live in any of the developer's own files, and the machine file is one of them; tests and the creator read machine-wide values today. (adr/requirements/0002-setting-ownership.md (personal values live in the developer's own files); scripts/create-worktree:251; investigations/INV-013-seam-config-reader/REPORT.md)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-5",
+     "decision": "The same as today: it writes the committed .afk/config.yaml for the team to commit. Setup, not init, writes the repository personal file for a repository you use without a committed file.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-6",
+     "decision": "For a listed repository, the creator checks its own final target with placement and refuses (exit 3) a target outside <root>/<short name> when an agent marker is set (CLAUDECODE or PLUGIN_ROOT). Without an agent marker, as in your own terminal, --parent works as today. A relative --parent is resolved first, so it can never land inside the main checkout.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-7",
+     "decision": "Yes, as it lifts the guard's other branch rules today. Only you can set it, when you start a session; an agent cannot set it from a command.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-8",
+     "decision": "The guard classifies git worktree add as a new kind of change that it checks only for listed repositories, so an add in an unlisted repository passes exactly as today. Placement answers 'not listed' before it can fail, and it starts no git process.",
+     "round": 6,
+     "by": "agent",
+     "evidence": "R-6: L9-8 accept. INV-014 found the existing check refuses any target it cannot resolve and refuses on any error, and a new add target never resolves; a test pins that a plain add passes. (investigations/INV-014-seam-worktree-guard/REPORT.md; hooks/lib/protected_branch_guard.py:602,744 (any error after a change is identified refuses); tests/test_shell_mutations.py:44)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-9",
+     "decision": "Yes, if it is clean. 'Idle' means no agent session is recorded in it; the plugin cannot see your terminals. A clean worktree loses nothing, and its branch is kept; your terminal finds its folder gone.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-9 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-10",
+     "decision": "Run with no arguments, the step prints its commands (jira --site, forge --host --account, longpaths) and exits. The Windows long-path fix becomes its own command, longpaths, still run in your terminal because it needs administrator rights.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-10 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-11",
+     "decision": "The settings writer keeps taking several KEY=VALUE pairs in one call, and writes them one key at a time inside the call. A value starting with a character the reader treats as special is written quoted. A heading line with a note after it is recognised, so no second block is added.",
+     "round": 6,
+     "by": "agent",
+     "evidence": "R-6: L9-11 accept. INV-015 found the setup register calls the writer with several pairs, and found the unquoted-value and duplicate-heading defects. (investigations/INV-015-seam-setup-writers/REPORT.md; skills/afk/setup/scripts/developer_values.py:57-86, 189-209; scripts/afk-config.py:186-196, 254)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-12",
+     "decision": "The safe writer has its own error type. The installer's existing error type becomes a kind of it, so the installer's callers and tests see the same error as today. The Jira sign-in load keeps its name, takes no argument, returns the same three values and exits the same way; it finds the repository itself, as the GitHub Issues adapter already does.",
+     "round": 6,
+     "by": "agent",
+     "evidence": "R-6: L9-12 accept. INV-015 and INV-016 found tests and four callers that depend on the current error type and the sign-in call's shape. (investigations/INV-015-seam-setup-writers/REPORT.md (installer error type, 3 named tests); investigations/INV-016-seam-jira-signin/REPORT.md (4 callers unpack 3 values); adapters/tracker/github-issues/api.py:66-74)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-13",
+     "decision": "Setup refuses to store a second site whose name matches a different site's, names both sites, and stores nothing. The name rule stays: the site's host in capitals, every other character an underscore.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-13 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-14",
+     "decision": "With two file tests in the gate script: a committed .afk folder, or a repository personal file. That is exactly the reader's answer, and one test pins that the two agree. No Python starts on the commit path.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-14 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-15",
+     "round": 6,
+     "by": "human",
+     "decision": "Not settled: you wrote 'not sure, probably \"worktree main checkout\" is more clear?'. Back in round 7 with examples.",
+     "evidence": "R-6: L9-15 write-in",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-16",
+     "decision": "The setup walk never runs init in another repository, and runs each step there as one plain command started in that main checkout, never a chained shell line.",
+     "round": 6,
+     "by": "agent",
+     "evidence": "R-6: L9-16 accept. INV-018 found that creating .afk in another repository makes the change meter hold the session there, and that one plain command per step passes the guard. (investigations/INV-018-seam-setup-walk/REPORT.md (guard view; change meter holds the session in a repository where .afk is created); hooks/lib/change_meter.py:207-237)",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S1",
+     "decision": "Reworked. The merge applies the owner table and records what it ignored; new keys jira.site, developer.worktreeRoot, developer.forgeAccount are registered; jira.credentials-env warns instead of failing; is-set-up and the ignored list are new calls; load() keeps returning a plain dictionary, so its nine importers keep working. Team values in the machine file and personal values in the committed file are handled as card L9-1 decides.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S2",
+     "decision": "Reworked for listed repositories only: new worktrees land under <root>/<short name>; the creator refuses an agent's target outside it (exit 3, its own exit path, not the error trap); the move helper takes its path from placement, loaded only when it plans a move; the guard checks git worktree add and move. Unlisted repositories: unchanged. Measured: the guard's added read takes 2 to 13 ms, one cold run of 21 took 57 ms; L9 audit re-checks. This row stays open until INV-014 closes: its search for other names of the same code is incomplete.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S3",
+     "decision": "Safe writer: extends (the installer keeps its names and errors). Settings writer: reworked (any key to its owner's file, quoting and heading fixes, the machine-file refusal follows the owner table). Secret step: reworked (subcommands, the terminal and agent-marker refusal, a fresh read under the lock, owner-only access, one backup).",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S4",
+     "decision": "Reworked: a sign-in mixing fields from two sources stops working, and its test changes; the site comes from jira.site, read on each call; the init hint and the assignee suggestion read the repository's site.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S5",
+     "decision": "Reworked when an account is set: the host comes from the guard's existing host lookup (the remote parser gives none); gh calls act as the account, so the review ledger's trusted login changes and a change already in review needs --trust for the old login once; branch protection and the GitHub Issues tracker use the account; the plugin issue reporter keeps the default login. Unset: unchanged.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-S6",
+     "decision": "Extends, with reworked parts: scope marks, the repository loop, the new steps and the failed status; CONFIG.md and README section 4 are rewritten for the owner rule; about 30 lines across GLOSSARY, PROVIDERS, CAPABILITIES, the adapter contracts and the bug skill's config are corrected; the FRESHNESS registry gains rows for the four new modules.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: L9-S6 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 7,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "A-1",
+     "decision": "Use the plugin's existing agent detector (the same test the branch-name gate uses), not the two names I listed. The guard also checks the creator call itself: for a listed repository it reads the creator's --parent or --dir and refuses one outside <root>/<short name>, and it refuses an agent command that sets AFK_WORKTREE_FOLDER or AFK_ALLOW_PROTECTED inline. The creator keeps its own check as a second line.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: A-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-2",
+     "decision": "Idle means every session recorded in the worktree (its occupancy records and its owner record) is dead by the existing liveness check. A worktree with no record at all counts as unknown, not idle: setup shows it as unknown and removes it only on your yes, like the others.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: A-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-3",
+     "decision": "Correction to card L9-12: the installer's error type stays the one its code raises. The shared writer raises its own error, and the installer turns that into its existing error, so its callers and tests see exactly what they see today.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: A-3 accept. The installer's command catches only its own error type, and tests expect that type; a parent type raised from the moved code would slip past both. (skills/afk/setup/scripts/install_block.py:334,359; scripts/tests/test_install_block.py:127,163; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-4",
+     "decision": "A repository is set up when it has a committed .afk/config.yaml or a repository personal file; that is the reader's answer. The commit gates also keep running when the .afk folder exists without a settings file (for example one holding only repository hooks), as they do today. One test pins both: the gate runs whenever the reader says set up, or the folder exists.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: A-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-5",
+     "decision": "Correction to card L9-16: every per-repository check the setup walk runs becomes a script the walk calls with that main checkout as its folder and as the session's project folder, so readers inside the step resolve the right repository. The register's inline shell checks move into those scripts.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: A-5 accept. The audit found the register's checks are multi-line shell scripts the guard cannot read as one plain command, and that readers prefer the session's project folder over the working folder. (skills/afk/setup/MANIFEST.md:11,136-175; scripts/afk-config.py:324-331 (the project folder wins); scripts/create-worktree:512 (already clears it); compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-6",
+     "decision": "For a listed repository, that value is ignored with a warning, as the stored-state table you signed already says, and setup offers to delete it; existing worktrees stay. The root is asked fresh, suggesting repo-worktrees in your home folder. A machine-wide value, which exists only if you wrote it by hand, still becomes the root when it passes the rules.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: A-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-7",
+     "decision": "init fills the new committed file from the personal file's team values instead of placeholders. Setup deletes a personal copy only once the committed file holds a real value for that setting, and only when no worktree of the repository is on a branch that lacks the committed file; otherwise it keeps the copy and says why.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: A-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-1",
+     "decision": "The guard reads git worktree add with its own parser, which knows the -b, -B, --orphan and --reason options, and handles add in its own branch, because an add target does not exist yet.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-1 accept. The audit found: The shared parser reads the branch name in 'add -b <branch> <path>' as the path. (hooks/lib/shell_mutations.py:331-342,384-400; hooks/lib/protected_branch_guard.py:622-626; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-2",
+     "decision": "Placement first compares the command's folder against the listed paths by text, and starts git only for unusual layouts (a GIT_DIR variable, a core.worktree setting, a submodule); those may exceed the 50 ms budget, and the design says so.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-2 accept. The audit found: The folder lookup falls back to git for unusual layouts. (hooks/lib/protected_branch_guard.py:160-166,185-188; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-3",
+     "decision": "Placement resolves links and drive-letter case on both the target and <root>/<short name> before comparing, with a Windows test; a relative --parent is made absolute first.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-3 accept. The audit found: The guard's path comparison follows no links, and --parent is never made absolute. (hooks/lib/protected_branch_guard.py:68-69; scripts/create-worktree:197,254,287-288; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-4",
+     "decision": "The creator's new refusal has its own exit path that prints ERROR= and exits 3, bypassing the error trap that would rewrite it; the refusal names the failing root rule and the command that fixes it.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-4 accept. The audit found: Every failure exits 1 through one trap, and a refused session's hint leads back to the creator. (scripts/create-worktree:68,73; claude.json move hint (EnterWorktree); compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-5",
+     "decision": "The move helper and the creator take a refused session's new worktree path from one placement call, so the folder the hint names is the folder created.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-5 accept. The audit found: The hint prints a path before the creator runs. (hooks/lib/h2_move.py:77-78,96; scripts/afk-move.py:260; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-6",
+     "decision": "The repository list writes its markers under the list's own lock, so no lock file is left inside a folder under the root; removing a marker leaves the folder empty.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-6 accept. The audit found: The safe writer leaves a lock file beside every file it writes. (skills/afk/setup/scripts/install_block.py:155-160; scripts/tests/test_install_block.py:210-220; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-7",
+     "decision": "Branch protection takes the account: its one token request adds the account, its cache key includes it, and a test covers a default login that differs from the account.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-7 accept. The audit found: The lookup asks for the default github.com token and caches without the account. (adapters/forge/branch_protection.py:183,190,207-212; scripts/protected-lookup.py:223; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-8",
+     "decision": "With an account set, the forge login check fails with 'account not available' when that account's token cannot be had, and never falls back to the default login.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-8 accept. The audit found: The login check passes when any account is signed in. (adapters/forge/github/forge.sh:365-371; adapters/forge/gitlab/forge.sh:378-384; adapters/forge/github/CONTRACT.md:16-19,27-28; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-9",
+     "decision": "The review ledger's trusted logins are every account the forge tool is signed in with on that host, plus --trust, so switching a repository's account does not stop a change already in review.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-9 accept. The audit found: The ledger trusts only the current login and stops on any other author. (skills/afk/review/scripts/forge_ledger.py:626-628,829-835,843-844,1793-1800; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-10",
+     "decision": "The review ledger's cached identity and rationale scope include the account, so an offline run never trusts a previous account.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-10 accept. The audit found: The cache key has no account. (skills/afk/review/scripts/forge_ledger.py:2085-2104,2169-2182; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-11",
+     "decision": "The account helper takes the host from the same remote the wrapper uses for the project (the configured forge remote, else the only remote), through the guard's existing host lookup.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-11 accept. The audit found: The remote parser drops the host. (adapters/forge/gitlab/forge.sh:150-154; adapters/forge/project_from_remote.py:33; scripts/protected-lookup.py:119-141; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-12",
+     "decision": "The GitHub Issues tracker uses the forge remote's host and account; a tracker repository on another host is not supported, and setup says so.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-12 accept. The audit found: The tracker takes a bare owner/name with no host. (adapters/tracker/github-issues/api.py:77-79,91-106; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-13",
+     "decision": "The Jira tracker server and the publishers each read the site from their own repository; the server's refusals name the site and the folder it read, as they already name the folder.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-13 accept. The audit found: The server reads settings from its own start folder, which is the session's repository. (mcp-servers/tracker/server.py:69,89-93; adapters/tracker/jira/api.py:460-467; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-14",
+     "decision": "The protected-branch lookup, the setup step's 'says none' check and the seed map ask the reader whether a repository is set up and where a value came from, instead of listing settings files themselves.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-14 accept. The audit found: Three more places list settings files by hand. (scripts/protected-lookup.py:107-111; skills/afk/setup/MANIFEST.md:142-148; skills/utils/investigate seed_map.py:283-286; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-15",
+     "decision": "The settings writer never writes a schema line into the repository personal file, with a test.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-15 accept. The audit found: The reader refuses a schema line there and init's template starts with one. (scripts/afk-config.py:392-393,994-998; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-16",
+     "decision": "The owner table covers every setting, including the schema version and plugin version (team), the copy options (personal) and the issue reporter's auto-publish switch (personal); a test pins it against the settings document, and the reader's top-level list stays a literal the redactor can read.",
+     "round": 7,
+     "by": "agent",
+     "evidence": "R-7: F-16 accept. The audit found: Five settings have no owner, and the redactor reads the top-level list by pattern. (scripts/afk-config.py:54,79,127; scripts/tests/test_afk_config.py:356-382; skills/utils/report-issue/scripts/redact.py:366; compatibility audit, round 7 (auditor replies in this session))",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L9-15b",
+     "decision": "'The worktree's top folder'. For example: 'the gate runs from the worktree's top folder' (today: 'from the worktree root').",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: L9-15b accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-6",
+     "round": 7,
+     "by": "human",
+     "decision": "Signed: Changed behaviour: what works differently for people already using the plugin.",
+     "evidence": "R-7: HL-6 sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5-narrowed",
+     "round": 7,
+     "by": "human",
+     "decision": "Signed: Irreversible effects (one row narrowed by card A-7).",
+     "evidence": "R-7: HL-5-narrowed sign | I sign",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 8,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "HL-1-delta",
+     "round": 8,
+     "by": "human",
+     "decision": "Signed: Stored state (only the rows round 7 changed; the rest of your round 2 signature stands).",
+     "evidence": "R-8: HL-1-delta sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2-delta",
+     "round": 8,
+     "by": "human",
+     "decision": "Signed: The command surface (only the rows round 7 changed; the rest of your round 1 signature stands).",
+     "evidence": "R-8: HL-2-delta sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3-delta",
+     "round": 8,
+     "by": "human",
+     "decision": "Signed: Access (only the rows round 7 changed; the rest of your round 2 signature stands).",
+     "evidence": "R-8: HL-3-delta sign | I sign",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5-delta",
+     "round": 8,
+     "by": "human",
+     "decision": "Signed: Irreversible effects (only the rows round 7 changed; the rest of your round 4 signature stands).",
+     "evidence": "R-8: HL-5-delta sign | I sign",
+     "audit": "explicit"
+    }
+   ]
+  }
+ ]
+}

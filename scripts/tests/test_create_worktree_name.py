@@ -35,7 +35,8 @@ def git(cwd: Path, *args: str) -> str:
                           text=True).stdout.strip()
 
 
-def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = None) -> Path:
+def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = None,
+              personal: str = "") -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "-q", "-b", "dev")
@@ -45,6 +46,9 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     if config:
         (repo / ".afk").mkdir()
         (repo / ".afk" / "config.yaml").write_text("schema: 1\n" + config, encoding="utf-8")
+    if personal:
+        (repo / ".git" / "afk").mkdir()
+        (repo / ".git" / "afk" / "config.yaml").write_text(personal, encoding="utf-8")
     for name, body in (files or {}).items():
         target = repo / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +56,16 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "seed")
     return repo
+
+
+@pytest.fixture(autouse=True)
+def sandbox_home(tmp_path, monkeypatch):
+    """The creator asks placement, which reads ~/.afk: every test gets an empty home of its own."""
+    home = tmp_path / "sandbox-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    return home
 
 
 def create(repo: Path, *args: str, session: str = "s1", cwd: Path | None = None,
@@ -216,7 +230,7 @@ def test_the_copy_walk_prunes_every_provider_worktree_folder_with_an_external_pa
     })
     copy_roots = sorted({folder.split("/", 1)[0] for folder in provider_folders})
     config = "worktree:\n  copy:\n" + "".join(f"    - {root}\n" for root in copy_roots)
-    repo = make_repo(tmp_path, config, files={
+    repo = make_repo(tmp_path, personal=config, files={
         ".gitignore": "".join(f"{folder}/\n" for folder in provider_folders),
     })
     assert provider_folders
@@ -237,7 +251,7 @@ def test_the_copy_walk_prunes_every_provider_worktree_folder_with_an_external_pa
         assert not (wt / folder).exists()
 
 
-def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(tmp_path):
+def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(tmp_path, monkeypatch):
     source_parent = tmp_path / "source"
     source_parent.mkdir()
     repo = make_repo(source_parent)
@@ -254,12 +268,22 @@ def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(
         encoding="utf-8",
     )
 
+    spec = importlib.util.spec_from_file_location("afk_repo_list_for_name_tests", PLUGIN_ROOT / "scripts" / "repo_list.py")
+    repo_list = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = repo_list
+    spec.loader.exec_module(repo_list)
+    listed_root = tmp_path / "listed-root"
+    listed_root.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    repo_list.add_repository(repo, listed_root)
+
     done = create(repo, "--branch", "fix/foreign-base", "--dir", "new",
                   "--base", "dev", "--no-open",
                   extra_env={"HOME": str(home), "USERPROFILE": str(home)})
 
-    assert done.returncode != 0
-    assert "different Git repository" in done.stderr
+    assert done.returncode == 3, done.stderr
+    assert "ERROR=worktree root: R-02 " in done.stderr and "inside the git repository" in done.stderr
     assert not parent.exists()
     assert git(repo, "worktree", "list", "--porcelain").count("worktree ") == 1
     assert git(repo, "branch", "--list", "fix/foreign-base") == ""
@@ -267,7 +291,7 @@ def test_a_machine_worktree_base_inside_another_repo_is_refused_before_creation(
 
 def test_the_repository_copy_list_is_carried_over(tmp_path):
     """AC-016."""
-    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n",
+    repo = make_repo(tmp_path, personal="worktree:\n  copy:\n    - notes.local\n",
                      files={".gitignore": "notes.local\n"})
     (repo / "notes.local").write_text("mine", encoding="utf-8")
     wt = path_of(create(repo, "--name", "cp"))
@@ -276,7 +300,7 @@ def test_the_repository_copy_list_is_carried_over(tmp_path):
 
 def test_the_copied_files_are_recorded_with_their_content_hash(tmp_path):
     import hashlib
-    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n    - tooling\n",
+    repo = make_repo(tmp_path, personal="worktree:\n  copy:\n    - notes.local\n    - tooling\n",
                      files={".gitignore": "notes.local\ntooling/\n"})
     (repo / "notes.local").write_text("mine", encoding="utf-8")
     (repo / "tooling").mkdir()

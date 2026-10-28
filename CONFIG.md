@@ -1,8 +1,9 @@
 # CONFIG.md — the consuming repository's contract with AFK Toolkit
 
 A repository tells the toolkit what it is by committing `.afk/config.yaml` at
-its root. Nothing else in the repository configures the toolkit, and no file in
-the toolkit names a repository path.
+its root. Until it commits one, a developer's repository personal file holds
+its team settings ("Setting owners"). Nothing else in the repository configures
+the toolkit, and no file in the toolkit names a repository path.
 
 Read the effective configuration with the one reader; never parse the file:
 
@@ -28,15 +29,40 @@ Highest precedence first:
 
 | Layer | Path | Purpose |
 |---|---|---|
-| explicit | `$AFK_CONFIG` | a named file, for tests and one-off runs |
-| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer, this checkout only; may not set `schema` |
-| shared overlay | `<git common dir>/afk/config.yaml` | untracked, per developer, read by every worktree of this repository — the default home for a developer's own `developer:` block; may not set `schema` |
-| repository | `<git root>/.afk/config.yaml` | committed, the repository's contract |
-| machine | `~/.afk/config.yaml` | per-machine defaults across repositories |
+| explicit | `$AFK_CONFIG` | a named file, for tests and one-off runs; the owner rule does not filter it |
+| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer, this checkout only; read as the repository personal file is; may not set `schema` |
+| shared overlay | `<git common dir>/afk/config.yaml` | the repository personal file: untracked, per developer, read by every worktree of this repository; may not set `schema` |
+| repository | `<git root>/.afk/config.yaml` | the committed file: the repository's contract |
+| machine | `~/.afk/config.yaml` | the machine file: machine settings, and personal defaults across repositories |
 | built-in | — | the defaults below |
 
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
-files absent is a supported state — the built-in defaults apply.
+files absent is a supported state — the built-in defaults apply. A file the
+reader cannot read, a `.git` file or `commondir` included, is an error naming it.
+
+## Setting owners
+
+Each setting has one owner, and the owner decides the files the reader takes
+it from. A value in a file its owner does not read is ignored: `get`,
+`effective`, `export-shell` and `resolve` leave it out, and no fallback reads
+it. `validate` prints `configuration is valid`, then one `warning:` line per
+ignored value on stdout, naming the setting, the file and the rule; an ignored
+value never changes the exit status.
+
+| Owner | Read from | Settings |
+|---|---|---|
+| team | the committed file; with no committed file, the repository personal file and the local overlay | `schema`, `toolkit-version`, `tracker`, `forge`, `build-gates`, `repo-hooks`, `jira.site`, `jira.project`, `jira.issue-types`, `jira.transitions`, `github-issues.*`, `git.*`, `repo-files.*`, `artifacts.*`, `maven.*`, `npm.*`, `verification.*`, `setup.*`, `investigation.*`, `report-issue.*`, `review.*` |
+| personal | the repository personal file and the local overlay; the machine file as a default | `github.remote`, `gitlab.remote`, `worktree.*`, `developer.trackerAssignee`, `developer.mrReviewer`, `developer.mrAssignee`, `developer.ideBinary`, `developer.forgeAccount` |
+| machine | the machine file | `notes`, `obsidian.vault`, `notion.parent-page-id`, `developer.worktreeRoot`, `developer.worktreeBasePath` |
+
+`x.*` means every child key of `x` in the schema below. `jira.credentials-env`
+was removed: it is ignored in every file, and `validate` prints
+`jira.credentials-env was removed; delete this key`. A repository is set up when
+it has a committed file or a repository personal file; the commit gates also run
+where an `.afk` folder exists. Every notes kind keeps agent working files in the
+spec folder that `repo-files.spec-dir` renders inside the repository, whatever
+`notes` names. `scripts/tests/test_afk_config_owner.py` pins this table against
+`OWNER_TABLE` in the reader.
 
 ## Starting a repository off
 
@@ -57,9 +83,9 @@ and the Jira credential chain (`PROVIDERS.md`) resolves `JIRA_BASE_URL`,
 `tracker` and `jira.project` are `TODO`s too. When the machine layer
 (`~/.afk/config.yaml`) already sets a `tracker` or `forge` other than `none`
 that `init` cannot detect, `init` writes that value as a `TODO` comment instead
-of `none`, so the repository file does not shadow it; an inherited `tracker`
-picks the matching template block, and `github-issues.repo` stays a `TODO`
-unless the remote is on `github.com`.
+of `none`: the machine file is not read for a team setting ("Setting owners"), so
+uncomment the line to pin it. That `tracker` picks the matching template block,
+and `github-issues.repo` stays a `TODO` unless the remote is on `github.com`.
 `init` prints the keys it left as `TODO` on one line.
 
 The file it writes always passes `validate`. `/afk:setup` runs it for you when
@@ -114,9 +140,9 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `toolkit-version` | string | the toolkit version this repository was configured against |
 | `tracker` | `jira` \| `github-issues` \| `none` | which tracker adapter answers `tracker_*` |
 | `forge` | `gitlab` \| `github` \| `none` | which forge adapter answers `change-*` and `ci-*` |
-| `notes` | `repo-files` \| `notion` \| `obsidian` | where narrative documents live |
+| `notes` | `repo-files` \| `notion` \| `obsidian` | the developer's note-taking app; agent working files stay in the spec folder whatever it names |
 | `build-gates` | list of `maven` \| `npm` | which build-gate adapters load; omit for none |
-| `jira` | map | `project`, `issue-types`, `transitions`, `credentials-env` |
+| `jira` | map | `site` (the Jira site address), `project`, `issue-types`, `transitions` |
 | `github-issues` | map | `repo`, `state-labels` |
 | `gitlab` / `github` | map | `remote` |
 | `git` | map | `base-branch`, `branch-pattern`, `branch-template` |
@@ -133,7 +159,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files approved plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (legacy Boolean, ignored; every GitHub write needs explicit human approval) |
 | `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
-| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `ideBinary`, `forgeAccount` (the forge account this repository's forge calls act as), `worktreeRoot` (the folder that holds every worktree), `worktreeBasePath` (the old worktree base, read while `worktreeRoot` is absent). Their owners and files: "Setting owners"; none is read from the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
 as a root `GLOSSARY-MAP.md` (`skills/utils/glossary/GLOSSARY-FORMAT.md`), and one
@@ -228,7 +254,9 @@ are listed, and handlers judge the staged bytes. Each run appends a
 `gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
 "Latency metrics & budget"). Without `afk-python` the handlers cannot run, and the
 commit blocks whenever the repository could declare them: `.afk/hooks.json` exists,
-or any Discovery layer mentions `repo-hooks` or cannot be read. The shell parses
+or a file the reader takes `repo-hooks` from mentions it or cannot be read: the
+`$AFK_CONFIG` file, and the committed file, else the repository personal file and the
+local overlay. The shell parses
 neither file; `/afk:setup` installs the launcher. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
 `git commit --no-verify` skip them with the plugin's gates.
 
@@ -293,12 +321,9 @@ repository-relative path — absolute, drive-lettered, or holding a `..` segment
 
 ## Secrets
 
-A configuration file holds environment variable NAMES, never values.
-`jira.credentials-env` lists the variables the Jira adapter reads. Values come
-from the environment or the harness credential store. A developer's own
-non-secret values live under `developer:` in the shared overlay or
-`~/.afk/config.yaml`, or in the gitignored `.afk/config.local.yaml` when one
-checkout needs a different value.
+A configuration file never holds a secret. Secret values come from the
+environment or the harness credential store. A developer's own non-secret
+values live under `developer:` in the files "Setting owners" names for them.
 
 The subset, the discovery order, the child keys of every map above, the
 readable failure of `validate FILE`, and the agreement between the three views

@@ -1,0 +1,140 @@
+{
+ "schema": 1,
+ "purpose": "Plan approval",
+ "feature": "setup-per-repo",
+ "stage": "plan",
+ "spec_dir": "docs/afk/setup-per-repo",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "current",
+   "header": {
+    "round": 1,
+    "settled_last_round": [
+     "Verification plan written: 18 journey rows and 22 contract rows for the final gate",
+     "Plan written: 13 subtasks, each citing the design, and it passes the plan check"
+    ],
+    "unlocks": [
+     "Running the first subtask, the safe writer, once the spec files pass the commit gates and are committed"
+    ],
+    "fork": "The plan is on disk: 10 build subtasks along the design's module lines, 2 that write the one acceptance test file, and 1 last subtask that updates the agent guide files.\n\nThree things are your call. First, how many review concerns check each subtask before it is done. I recommend the lean set: three concerns on every subtask, a logic check on every subtask that a later one builds on, and everything else at the final feature review. Second, two subtasks where I pull one deferred concern forward, because later subtasks copy their pattern. Third, one criterion the plan cannot prove in full yet.",
+    "touches": [
+     {"name": "the plan index", "anchor": "docs/afk/setup-per-repo/plan/PLAN.md"},
+     {"name": "the safe writer subtask", "anchor": "docs/afk/setup-per-repo/plan/0001-safe-writer.md"},
+     {"name": "the placement subtask", "anchor": "docs/afk/setup-per-repo/plan/0004-placement.md"},
+     {"name": "the worktree creator subtask", "anchor": "docs/afk/setup-per-repo/plan/0005-worktree-creator.md"}
+    ],
+    "links": [
+     {"label": "The plan", "href": "plan/PLAN.md"},
+     {"label": "The SDD", "href": "SDD.md"},
+     {"label": "The verification plan", "href": "VERIFICATION-PLAN.md"}
+    ],
+    "size_note": "4 cards: 1 call on the review policy, 2 per-subtask additions, 1 call on an unproven criterion.",
+    "groups": [
+     {"id": "policy", "title": "How much review each subtask gets"},
+     {"id": "deviations", "title": "Per-subtask additions", "after": ["policy"], "layout": "table"},
+     {"id": "open", "title": "A criterion the plan cannot prove yet"}
+    ]
+   },
+   "items": [
+    {
+     "component": "debate_card",
+     "id": "P-1",
+     "group": "policy",
+     "question": "Which review concerns check each subtask before it counts as done?",
+     "context": "Every subtask ends with an independent review. The plan sets how many concerns that review runs. Each concern is one reviewer with one checklist, for example whether the change does what the contract says, or whether the tests really prove it.\n\nUnder the lean set, a concern that costs the same to fix later waits for the final review of the whole feature. That final review always runs every concern. Under the full set, every subtask runs every concern.\n\nThis plan has 13 subtasks. 12 of them have a later subtask that builds on them; only the last, the guide-file update, has none.",
+     "options": [
+      {
+       "id": "lean",
+       "label": "Lean set",
+       "criteria": {
+        "always": "Contract match, scope, test strength on all 13; the logic check on the 12 that a later subtask builds on",
+        "triggered": "Refactor safety where a subtask changes existing lines, which is most of them",
+        "deferred": "Code quality, agent-guide rules, module design, failure handling: checked once at the final feature review",
+        "cost": "About half the reviewers per subtask"
+       }
+      },
+      {
+       "id": "full",
+       "label": "Full set",
+       "criteria": {
+        "always": "Contract match, scope, test strength, logic, code quality, agent-guide rules on all 13",
+        "triggered": "Refactor safety, module design and failure handling where the change shape calls for them",
+        "deferred": "Nothing",
+        "cost": "Every reviewer on every subtask; the most review rounds"
+       }
+      }
+     ],
+     "criteria_order": ["always", "triggered", "deferred", "cost"],
+     "recommended": "lean",
+     "why": "The concerns lean keeps on each subtask are the ones whose defects spread: a wrong contract or a weak test misleads every later subtask. The deferred ones cost the same to fix at the final review, which runs them all. The two subtasks whose pattern others copy get their deferred concern pulled forward in the next group.",
+     "undecided_because": "The review policy sets how much review time the whole run spends. The plan rule leaves that to you; lean is only the default."
+    },
+    {
+     "component": "confirm_row",
+     "id": "D-1",
+     "group": "deviations",
+     "question": "Subtask 1, the safe writer: also check failure handling on this subtask?",
+     "recommended": "Yes. Every file this feature writes goes through this writer, and it handles locks, retries and a changed file. A gap there would repeat in every writer built on it.",
+     "why": "Under the lean set, failure handling waits for the final review. By then 4 subtasks would depend on the writer.",
+     "cite": "plan/0001-safe-writer.md (Review section); SDD.md §7 failure matrix",
+     "alternatives": [
+      {"id": "defer", "label": "No, leave it for the final review", "why": "Fewer reviewers on this subtask; a writer fault is found later, with more to rework."}
+     ]
+    },
+    {
+     "component": "confirm_row",
+     "id": "D-2",
+     "group": "deviations",
+     "question": "Subtask 4, placement: also check module design on this subtask?",
+     "recommended": "Yes. The worktree creator, the move helper, the guard and setup all ask this one module, and the design says none of them may re-apply a root rule. Its shape is the one the others copy.",
+     "why": "Under the lean set, module design waits for the final review. A poor shape there costs 4 callers a rework.",
+     "cite": "plan/0004-placement.md (Review section); adr/design/0002-one-placement-guardian.md",
+     "alternatives": [
+      {"id": "defer", "label": "No, leave it for the final review", "why": "Fewer reviewers on this subtask; a shape problem is found after the callers are built."}
+     ]
+    },
+    {
+     "component": "debate_card",
+     "id": "O-1",
+     "group": "open",
+     "question": "Criterion AC-060 says every plugin hook, gate and script works on an existing worktree outside the root. The plan proves it only for the commit gate and worktree cleanup. How is the rest covered?",
+     "context": "Developers keep worktrees made before this feature, and those sit outside the new root. The verification plan proved two consumers on such a worktree, the commit gate and cleanup, and the creator subtask runs one more sample. Nobody has listed the full set of hooks, gates and scripts that read a worktree path.\n\nA criterion over a set counts as covered only when each member has a proving test or a recorded exclusion.",
+     "options": [
+      {
+       "id": "enumerate",
+       "label": "List the set inside subtask 5",
+       "criteria": {
+        "proves": "Every hook, gate and script that reads a worktree path, each run on a worktree outside the root",
+        "cost": "One more acceptance bullet and test in subtask 5; the implementer lists the set from the code",
+        "delay": "None"
+       }
+      },
+      {
+       "id": "grill",
+       "label": "A short verification interview first",
+       "criteria": {
+        "proves": "The same set, agreed with you before any code",
+        "cost": "One interview round and a plan update",
+        "delay": "Before the first subtask runs"
+       }
+      },
+      {
+       "id": "narrow",
+       "label": "Record the narrowing",
+       "criteria": {
+        "proves": "Only the commit gate, cleanup and the sample",
+        "cost": "None now; the criterion stays partly unproven, recorded with its reason",
+        "delay": "None"
+       }
+      }
+     ],
+     "criteria_order": ["proves", "cost", "delay"],
+     "recommended": "enumerate",
+     "why": "It proves the whole criterion at the cost of one test, and the subtask that changes worktree paths is the one placed to find every reader of them. An interview adds a round for a list the code can give.",
+     "undecided_because": "Narrowing a criterion's coverage is your decision, never the plan's. Adding a bullet to subtask 5 changes its contract, so it waits for your answer."
+    }
+   ]
+  }
+ ]
+}

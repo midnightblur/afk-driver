@@ -5,6 +5,7 @@ two things about it: that it says what the repository actually is, and that
 `validate` accepts it. A scaffold that needs hand-repair before it validates is
 worse than no scaffold.
 """
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -73,7 +74,17 @@ def test_github_repo_with_package_json(tmp_path):
     assert config["tracker"] == "github-issues"
     assert config["build-gates"] == ["npm"]
     assert config["npm"]["workspace-root"] == "."
-    assert config["github"]["remote"] == "origin"
+    assert "github" not in config            # the remote is a personal setting
+
+
+@pytest.mark.parametrize("remote", ["https://github.com/acme/widget.git",
+                                    "git@gitlab.com:acme/widget.git", None])
+def test_the_scaffold_writes_only_values_the_committed_file_may_hold(tmp_path, remote):
+    text, _ = scaffold_of(make_repo(tmp_path, "r", remote, [("pom.xml", "<project/>\n")]))
+    ignored = []
+    ac._owner_filter("repo", ac.parse(text, "<scaffold>"), Path("<scaffold>"), True, ignored)
+    assert ignored == []
+    assert "credentials-env" not in text
 
 
 def test_gitlab_repo_with_pom(tmp_path):
@@ -426,14 +437,20 @@ def _effective(repo, text):
     return ac.load(repo)
 
 
-def test_a_machine_tracker_is_not_shadowed_by_none(tmp_path, monkeypatch):
+def _pinned(text, key):
+    """`text` with the scaffold's commented `key` line uncommented."""
+    return re.sub(rf"^# ({re.escape(key)}: )", r"\1", text, count=1, flags=re.M)
+
+
+def test_a_machine_tracker_is_offered_to_pin_because_it_is_not_read(tmp_path, monkeypatch):
     _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: jira\n")
     repo = make_repo(tmp_path, "shadow", "git@gitlab.com:acme/w.git")
     todos = []
     text = ac.scaffold(repo, todos)
-    assert _effective(repo, text)["tracker"] == "jira"
-    assert "TODO" in text and "tracker: jira" in text
+    assert _effective(repo, text)["tracker"] == "none"
+    assert "TODO" in text and "# tracker: jira" in text and "not read from" in text
     assert "tracker" in todos
+    assert _effective(repo, _pinned(text, "tracker"))["tracker"] == "jira"
 
 
 def test_no_lower_tracker_still_writes_none(tmp_path, monkeypatch):
@@ -443,13 +460,14 @@ def test_no_lower_tracker_still_writes_none(tmp_path, monkeypatch):
     assert config["tracker"] == "none"
 
 
-def test_a_machine_forge_is_not_shadowed_by_none(tmp_path, monkeypatch):
+def test_a_machine_forge_is_offered_to_pin_because_it_is_not_read(tmp_path, monkeypatch):
     _home_with(tmp_path, monkeypatch, "schema: 1\nforge: gitlab\n")
     repo = make_repo(tmp_path, "noremote")
     todos = []
     text = ac.scaffold(repo, todos)
-    assert _effective(repo, text)["forge"] == "gitlab"
+    assert _effective(repo, text)["forge"] == "none"
     assert "forge" in todos
+    assert _effective(repo, _pinned(text, "forge"))["forge"] == "gitlab"
 
 
 def test_jira_hint_reads_the_tracker_env_block_in_claude_json(tmp_path, monkeypatch):
@@ -513,7 +531,7 @@ def test_a_machine_github_issues_tracker_gets_the_github_block(tmp_path, monkeyp
     text = ac.scaffold(repo, todos)
     assert "github-issues:" in text and "set `tracker: jira`" not in text
     assert todos == ["tracker", "github-issues.repo"] and "repo: TODO" in text
-    assert _effective(repo, text)["tracker"] == "github-issues"
+    assert _effective(repo, _pinned(text, "tracker"))["tracker"] == "github-issues"
 
 
 def test_init_names_the_machine_tracker_todos_exactly(tmp_path, monkeypatch, capsys):

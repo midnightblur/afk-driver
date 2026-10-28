@@ -9,13 +9,17 @@ therefore never loses the note.
 
 ## Before any verb
 
-1. Read `notion.parent-page-id` from `.afk/config.yaml`. Absent → stop and say
-   so, naming the key; do not pick a page.
+1. Read `notion.parent-page-id` through the settings reader:
+   `afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-config.py" get notion.parent-page-id`.
+   It is a machine setting: the reader takes it from the machine file
+   (`~/.afk/config.yaml`) and ignores a value in any repository file. Absent
+   (exit 1) → stop and say so, naming the key and the machine file; do not
+   pick a page.
 2. Check a Notion MCP server is connected. Not connected → answer
    `{"unavailable": true, "reason": "notes: notion — no Notion MCP server is
    connected"}` and stop. Never fall back silently to a different store.
 3. Resolve the work item's directory:
-   `bash adapters/notes/repo-files/notes.sh resolve '{"workId": "<id>"}'`.
+   `bash "${AFK_PLUGIN_ROOT}/adapters/notes/repo-files/notes.sh" resolve '{"workId": "<id>"}'`.
    Its `dir` is the local tree this kind mirrors.
 
 ## Verbs

@@ -16,7 +16,8 @@
   },
   "configKeys": [
     "notes",
-    "notion.parent-page-id"
+    "notion.parent-page-id",
+    "repo-files.spec-dir"
   ],
   "register": [
     "H9"

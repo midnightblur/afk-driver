@@ -27,7 +27,9 @@ Discovery, highest precedence first:
     built-in defaults
 
 Layers are deep-merged: a mapping merges key by key, any other value replaces.
-Neither overlay may change `schema`.
+Neither overlay may change `schema`. Before the merge, `OWNER_TABLE` filters
+each file: a value at a file its owner does not read is dropped and recorded,
+and `ignored_values` lists what was dropped (`CONFIG.md` "Setting owners").
 
 Secrets never live in a configuration file. A file names ENVIRONMENT VARIABLES;
 the values come from the environment or a harness credential store.
@@ -70,7 +72,10 @@ TOP_LEVEL = {
 # `mrAssignee` never gates — an unset or `none` one means no assignee). `worktreeBasePath`
 # has a default because it is DERIVED (`worktree_base`) and names no person;
 # `ideBinary` has none because no default could be right.
-DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary"}
+DEVELOPER_KEYS = {
+    "trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary",
+    "worktreeRoot", "forgeAccount",
+}
 
 # What a new worktree carries over from the checkout it was cut from. These are
 # personal, untracked files a fresh `git worktree add` would leave behind — the
@@ -106,7 +111,7 @@ NPM_WORKTREE_INSTALL = ("ci", "none")
 # CONFIG.md and this table say the same thing, and
 # `scripts/tests/test_afk_config.py` fails when they drift apart.
 CHILD_KEYS: dict[str, set[str]] = {
-    "jira": {"project", "issue-types", "transitions", "credentials-env"},
+    "jira": {"site", "project", "issue-types", "transitions"},
     "github-issues": {"repo", "state-labels"},
     "gitlab": {"remote"},
     "github": {"remote"},
@@ -144,6 +149,59 @@ DEFAULTS: dict = {
     "review": {
         "ledger-only-paths": ["plan/review/**", "plan/JOURNAL.md"],
     },
+}
+
+# Each setting's owner decides which files it is read from (`CONFIG.md` "Setting owners").
+TEAM, PERSONAL, MACHINE = "team", "personal", "machine"
+OWNER_TABLE = {
+    "schema": TEAM, "toolkit-version": TEAM, "tracker": TEAM, "forge": TEAM,
+    "build-gates": TEAM, "repo-hooks": TEAM,
+    "jira.site": TEAM, "jira.project": TEAM, "jira.issue-types": TEAM,
+    "jira.transitions": TEAM,
+    "github-issues.repo": TEAM, "github-issues.state-labels": TEAM,
+    "git.base-branch": TEAM, "git.branch-pattern": TEAM, "git.branch-template": TEAM,
+    "repo-files.spec-dir": TEAM,
+    "artifacts.service-map": TEAM,
+    "maven.reactor-pom": TEAM, "maven.formatter-config": TEAM,
+    "maven.formatter-plugin": TEAM, "maven.default-module": TEAM,
+    "maven.skip-ui-flag": TEAM, "maven.worktree-repo": TEAM, "maven.worktree-seed": TEAM,
+    "maven.worktree-seed-exclude": TEAM,
+    "npm.lint": TEAM, "npm.workspace-root": TEAM, "npm.worktree-install": TEAM,
+    "npm.worktree-command": TEAM,
+    "verification.tiers": TEAM, "verification.env": TEAM,
+    "setup.extra": TEAM,
+    "investigation.boundaries": TEAM, "investigation.generated": TEAM,
+    "investigation.reactor": TEAM,
+    "report-issue.repository": TEAM, "report-issue.auto-publish": TEAM,
+    "review.ledger-only-paths": TEAM,
+    "github.remote": PERSONAL, "gitlab.remote": PERSONAL,
+    "worktree.copy": PERSONAL, "worktree.copy-personal": PERSONAL,
+    "worktree.copy-ignored-claude-md": PERSONAL,
+    "developer.trackerAssignee": PERSONAL, "developer.mrReviewer": PERSONAL,
+    "developer.mrAssignee": PERSONAL, "developer.ideBinary": PERSONAL,
+    "developer.forgeAccount": PERSONAL,
+    "notes": MACHINE, "obsidian.vault": MACHINE, "notion.parent-page-id": MACHINE,
+    "developer.worktreeRoot": MACHINE, "developer.worktreeBasePath": MACHINE,
+}
+
+# A key no reader takes any more: ignored in every file, and `validate` says so.
+REMOVED_KEYS = {
+    "jira.credentials-env": "jira.credentials-env was removed; delete this key",
+}
+
+# Why a value at this file is ignored, per owner.
+_OWNER_RULES = {
+    TEAM: "a team setting is read from the committed file, else the repository personal file",
+    PERSONAL: "a personal setting is never read from the committed file",
+    MACHINE: "a machine setting is read only from the machine file",
+}
+
+# Owners each layer reads; `shared` is the repository personal file. `$AFK_CONFIG` has no row: unfiltered.
+_READS = {
+    "home": {PERSONAL, MACHINE},
+    "repo": {TEAM},
+    "shared": {TEAM, PERSONAL},
+    "local": {TEAM, PERSONAL},
 }
 
 
@@ -343,21 +401,33 @@ def shared_overlay(root: Path) -> Path | None:
     """`<git common dir>/afk/config.yaml`: the one file every worktree of `root` reads.
 
     Read from `.git` itself rather than by spawning git: `load` runs on every gate run.
+    A `.git` file or `commondir` that cannot be read is a `ConfigError` naming it.
     """
     dot_git = root / ".git"
     if dot_git.is_dir():
         common = dot_git
     elif dot_git.is_file():
-        text = dot_git.read_text(encoding="utf-8", errors="replace").strip()
+        text = _read(dot_git, errors="replace").strip()
         if not text.startswith("gitdir:"):
             return None
         admin = (root / text[len("gitdir:"):].strip()).resolve()
         pointer = admin / "commondir"
-        common = ((admin / pointer.read_text(encoding="utf-8").strip()).resolve()
+        common = ((admin / _read(pointer).strip()).resolve()
                   if pointer.is_file() else admin)
     else:
         return None
     return common / "afk" / "config.yaml"
+
+
+def _read(path: Path, errors: str = "strict") -> str:
+    """A file's text, or a `ConfigError` naming the file and the reason."""
+    try:
+        return path.read_text(encoding="utf-8", errors=errors)
+    except OSError as problem:
+        raise ConfigError(f"{path}: cannot read it ({problem.strerror or problem})") from problem
+    except UnicodeDecodeError as problem:
+        raise ConfigError(
+            f"{path}: not UTF-8 text ({problem.reason} at byte {problem.start})") from problem
 
 
 def layers(root: Path | None) -> list[tuple[str, Path]]:
@@ -385,16 +455,120 @@ def layers(root: Path | None) -> list[tuple[str, Path]]:
     return found
 
 
-def load(root: Path | None = None) -> dict:
+def parse_single_file(path: Path) -> dict:
+    """One file parsed without the merge and without the owner rule; `{}` when absent."""
+    if not path.is_file():
+        return {}
+    return parse(_read(path), str(path))
+
+
+def is_set_up(root: Path | None = None) -> bool:
+    """Whether a repository is set up: it has a committed file or a repository personal file."""
     if root is None:
         root = git_root()
+    if root is None:
+        return False
+    if (root / ".afk" / "config.yaml").is_file():
+        return True
+    shared = shared_overlay(root)
+    return shared is not None and shared.is_file()
+
+
+def layer_reads(kind: str, committed: bool) -> set[str] | None:
+    """Owners a layer of `kind` is read for; None reads every owner (`$AFK_CONFIG`)."""
+    reads = _READS.get(kind)
+    if reads is not None and committed and kind in ("shared", "local"):
+        reads = reads - {TEAM}
+    return reads
+
+
+def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
+                  ignored: list[tuple[str, str, str]], kept_names: set[str] | None = None) -> dict:
+    """`document` without the values its file may not hold; each one dropped lands in `ignored`."""
+    reads = layer_reads(kind, committed)
+
+    def keep(setting: str) -> bool:
+        if setting in REMOVED_KEYS:
+            ignored.append((setting, str(path), REMOVED_KEYS[setting]))
+            return False
+        owner = OWNER_TABLE.get(setting)
+        if reads is None or owner is None or owner in reads:
+            if kept_names is not None:
+                kept_names.add(setting)
+            return True
+        ignored.append((setting, str(path), _OWNER_RULES[owner]))
+        return False
+
+    kept: dict = {}
+    for key, value in document.items():
+        if key in OWNER_TABLE or not isinstance(value, dict):
+            if keep(key):
+                kept[key] = value
+            continue
+        block = {child: item for child, item in value.items() if keep(f"{key}.{child}")}
+        if block or not value:
+            kept[key] = block
+    return kept
+
+
+def _merge(root: Path | None) -> tuple[dict, list[tuple[str, str, str]]]:
+    if root is None:
+        root = git_root()
+    found = layers(root)
+    committed = any(kind == "repo" for kind, _ in found)
     effective = dict(DEFAULTS)
-    for kind, path in layers(root):
-        document = parse(path.read_text(encoding="utf-8"), str(path))
+    ignored: list[tuple[str, str, str]] = []
+    kept: set[tuple[str, str]] = set()
+    for kind, path in found:
+        document = parse(_read(path), str(path))
         if kind in ("local", "shared") and "schema" in document:
             raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
-        effective = deep_merge(effective, document)
-    return effective
+        names: set[str] = set()
+        effective = deep_merge(effective, _owner_filter(kind, document, path, committed, ignored, names))
+        kept.update((setting, str(path)) for setting in names)
+    # A file read as two layers (a checkout at home) is ignored only where neither layer keeps it.
+    return effective, [value for value in dict.fromkeys(ignored) if value[:2] not in kept]
+
+
+def load(root: Path | None = None) -> dict:
+    """The merged settings as a plain dictionary; values the owner rule ignores are absent."""
+    return _merge(root)[0]
+
+
+def ignored_values(root: Path | None = None) -> list[tuple[str, str, str]]:
+    """(setting, file, rule) for each value the owner rule dropped, in merge order."""
+    return _merge(root)[1]
+
+
+def ignored_line(setting: str, file: str, rule: str) -> str:
+    """The one warning line `validate` prints for an ignored value."""
+    if setting in REMOVED_KEYS:
+        return f"{rule} ({file})"
+    return f"{setting} in {file} is ignored: {rule}"
+
+
+def _validate_one(path: Path, root: Path | None
+                  ) -> tuple[dict, list[tuple[str, str, str]], Path | None]:
+    """One named file merged over the defaults, filtered as the layer its path names; and its checkout."""
+    document = parse(_read(path), str(path))
+    known = [(Path.home() / ".afk" / "config.yaml", "home")]
+    if root is not None and (root / ".git").exists():   # a root guessed outside any checkout is none
+        known += [(root / ".afk" / "config.yaml", "repo"), (root / ".afk" / "config.local.yaml", "local")]
+        shared = shared_overlay(root)
+        if shared is not None:
+            known.append((shared, "shared"))
+    matches = {name for where, name in known if where.resolve() == path.resolve()}
+    kind = "env" if matches == {"home", "repo"} else next(iter(matches), "env")   # as load(): both layers
+    common = path.resolve().parent.parent
+    if (kind == "env" and path.parent.name == "afk" and common.name == ".git"
+            and (common / "HEAD").is_file()):
+        kind, root = "shared", common.parent   # another checkout's personal file
+    if kind in ("local", "shared") and "schema" in document:
+        raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
+    committed = root is not None and (root / ".afk" / "config.yaml").is_file()
+    ignored: list[tuple[str, str, str]] = []
+    kept = _owner_filter(kind, document, path, committed, ignored)
+    return deep_merge(dict(DEFAULTS), kept), ignored, root
 
 
 # --------------------------------------------------------------------------
@@ -631,6 +805,8 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
             problems.append(f"{name}: must be a mapping")
             continue
         for key in sorted(set(block_value) - allowed):
+            if f"{name}.{key}" in REMOVED_KEYS:
+                continue
             problems.append(
                 f"{name}.{key}: unknown key; expected one of "
                 f"{', '.join(sorted(allowed))}"
@@ -653,10 +829,9 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                 else:
                     _relative_path(problems, where, entry)
 
-    creds = (config.get("jira") or {}).get("credentials-env") if isinstance(
-        config.get("jira"), dict) else None
-    if creds is not None and not isinstance(creds, list):
-        problems.append("jira.credentials-env: must be a block list of variable NAMES")
+    site = config["jira"].get("site") if isinstance(config.get("jira"), dict) else None
+    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+/?", site)):
+        problems.append("jira.site: must be the site address, e.g. https://example.atlassian.net")
 
     worktree = config.get("worktree")
     if isinstance(worktree, dict):
@@ -838,6 +1013,34 @@ def developer_value(config: dict, key: str, root: Path | None = None) -> str | N
     return None
 
 
+def resolve_worktree_root() -> int:
+    """`resolve worktreeRoot`: placement's root, checked against catalog R on this read.
+
+    Exit 0 prints the root, with a stderr note when it is not confirmed; exit 1
+    names the failed rule; exit 2 means placement could not read its files.
+    """
+    sys.modules.setdefault("afk_config", sys.modules[__name__])
+    spec = importlib.util.spec_from_file_location(
+        "afk_placement_for_config", Path(__file__).resolve().parent / "placement.py")
+    placement = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(placement)
+    try:
+        root = placement.root_state()
+    except placement.PlacementError as problem:
+        sys.stderr.write(f"afk-config: worktreeRoot: {problem}\n")
+        return 2
+    if root.state == placement.REFUSED:
+        sys.stderr.write(f"afk-config: worktreeRoot: {root.rule} {root.reason} - run /afk:setup\n")
+        return 1
+    for warning in root.warnings:
+        sys.stderr.write(f"afk-config: warning: worktreeRoot: {warning.rule} {warning.reason}\n")
+    if root.state == placement.SUGGESTED:
+        sys.stderr.write(f"afk-config: worktreeRoot is not confirmed; {root.path} comes from "
+                         f"{root.source} - run /afk:setup to confirm it\n")
+    sys.stdout.write(shell_value(root.path) + "\n")
+    return 0
+
+
 # --------------------------------------------------------------------------
 # Scaffolding a starter file
 # --------------------------------------------------------------------------
@@ -956,12 +1159,13 @@ def _jira_env_present() -> bool:
 
 
 def _inherited_line(key: str, found: str, inherited: dict, left: list[str]) -> list[str]:
-    """The `key: value` line, or a TODO naming the lower layer's value when
-    writing `found` would shadow it."""
+    """The `key: value` line, or a TODO naming the machine file's value, which a
+    team setting is not read from, so the developer can pin it here."""
     if key not in inherited:
         return [f"{key}: {found}"]
     left.append(key)
-    return [f"# TODO: {key}: {inherited[key]} comes from the machine layer; uncomment to pin it here",
+    return [f"# TODO: {key}: {inherited[key]} is in the machine file, which a team setting is not "
+            f"read from; uncomment to pin it here",
             f"# {key}: {inherited[key]}"]
 
 
@@ -983,7 +1187,7 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     base = detect_base_branch(root)
     tracker = "github-issues" if on_github else "none"
     lower = _machine_layer()
-    # A `none` written here would shadow the machine layer's value.
+    # The machine file's tracker or forge is not read, so the scaffold offers to pin it.
     inherited = {
         key: lower[key] for key, found in (("tracker", tracker), ("forge", forge))
         if found == "none" and lower.get(key) not in (None, "none")
@@ -1000,7 +1204,6 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
         "",
         *(_inherited_line("tracker", tracker, inherited, left)),
         *(_inherited_line("forge", forge, inherited, left)),
-        "notes: repo-files",
     ]
 
     if gates:
@@ -1030,10 +1233,7 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
             "#     bug: Bug",
             "#   transitions:",
             "#     ready-for-review: Ready for Review",
-            "#   credentials-env:          # variable NAMES; never a secret",
-            "#     - JIRA_BASE_URL",
-            "#     - JIRA_EMAIL",
-            "#     - JIRA_API_TOKEN",
+            "#   site: https://TODO.atlassian.net",
         ]
     else:
         if not slug:
@@ -1049,9 +1249,6 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
             '    done: "status:done"',
         ]
     lines.append("")
-
-    if forge in ("gitlab", "github"):
-        lines += [f"{forge}:", f"  remote: {remote or 'origin'}", ""]
 
     lines += ["git:", f"  base-branch: {base}"]
     lines += [
@@ -1260,37 +1457,32 @@ def main(argv: list[str]) -> int:
         if command == "validate":
             if rest:
                 path = Path(rest[0])
-                # A file this tool cannot read is a configuration error like any
-                # other — a named path with a reason — never a Python traceback,
-                # which tells the reader nothing about which path failed.
-                try:
-                    text = path.read_text(encoding="utf-8")
-                except OSError as problem:
-                    sys.stderr.write(
-                        f"afk-config: {path}: {problem.strerror or problem}\n")
-                    return 2
-                except UnicodeDecodeError as problem:
-                    sys.stderr.write(
-                        f"afk-config: {path}: not UTF-8 text ({problem.reason} "
-                        f"at byte {problem.start})\n"
-                    )
-                    return 2
-                config = deep_merge(dict(DEFAULTS), parse(text, str(path)))
                 root = root if root is not None else path.parent.parent
+                config, ignored, root = _validate_one(path, root)
             else:
-                config = load(root)
+                config, ignored = _merge(root)
             problems = validate(config, root)
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
             warnings = path_warnings(config, root)
             for warning in warnings:
                 sys.stderr.write(f"afk-config: warning: {warning}\n")
+            notes = [ignored_line(*value) for value in ignored]
             if problems:
+                sys.stderr.write("".join(f"afk-config: warning: {note}\n" for note in notes))
                 return 2
             noted = f" ({len(warnings)} warning{'s' * (len(warnings) != 1)})" if warnings else ""
             sys.stdout.write(f"afk-config: configuration is valid{noted}\n")
+            sys.stdout.write("".join(f"afk-config: warning: {note}\n" for note in notes))
             return 0
 
+        key = rest[0].split(".")[-1] if command == "resolve" and rest else ""
+        if key == "worktreeRoot":
+            return resolve_worktree_root()
+        if key == "worktreeBasePath":
+            sys.stderr.write("afk-config: `resolve worktreeBasePath` is gone; "
+                             "`resolve worktreeRoot` names the folder that holds every worktree\n")
+            return 2
         config = load(root)
         if command == "effective":
             sys.stdout.write(json.dumps(config, indent=2, sort_keys=True) + "\n")

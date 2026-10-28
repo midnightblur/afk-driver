@@ -1,45 +1,40 @@
 # notes/obsidian — capability contract
 
-The same Markdown tree as [`repo-files`](../repo-files/CONTRACT.md), rooted
-inside `obsidian.vault` so the vault indexes it, and linked with wikilinks so
-the vault's graph sees the links.
+The same Markdown tree as [`repo-files`](../repo-files/CONTRACT.md), in the
+checkout's spec folder, linked with wikilinks so an Obsidian graph sees the
+links. Agent working files stay in the repository whatever app is chosen.
 
-Entry: `notes.sh`, which states this kind's root and link form and sources the
-family implementation in [`../common.sh`](../common.sh).
+Entry: `notes.sh`, which states this kind's link form and sources the family
+implementation in [`../common.sh`](../common.sh).
 
 ## Verbs
 
 `resolve`, `note-create`, `note-read`, `note-update`, `note-delete` and
-`note-link` — the same six as `repo-files`, with the same payloads and the same
-answer fields. Two differences:
-
-- `dir` and `path` are under `obsidian.vault`, not under the repository.
-- `note-link` answers a wikilink — `[[PRD|text]]` — not a Markdown link.
+`note-link` — the same six as `repo-files`, with the same payloads, the same
+answer fields and the same `dir` and `path`. One difference: `note-link`
+answers a wikilink — `[[PRD|text]]` — not a Markdown link.
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | 0 | the verb ran |
-| 2 | the verb could not resolve what it needed; the message names the key |
+| 2 | the verb could not resolve what it needed; the message names the key or the path |
 | 3 | not a verb of this family |
-| 4 | `obsidian.vault` names a directory that is not on this machine |
 
 ## Configuration keys read
 
-- `notes`
-- `obsidian.vault` — the vault directory, absolute
-- `repo-files.spec-dir` — the path template inside the vault, so a note keeps
-  the same relative place in either store
+- `notes` — the developer's note-taking app, from the machine file
+- `repo-files.spec-dir` — the path template, as for `repo-files`
+
+`obsidian.vault` (machine file) names the developer's own vault. This kind
+does not read it: no agent working file goes to the vault.
 
 ## Runtime
 
-Python 3. Obsidian itself need not be running: the vault is a directory of
-Markdown files, and this kind writes the files.
+`git` and Python 3, as for `repo-files`. Obsidian itself need not be running.
 
 ## Documented degradation
 
-A vault directory that is absent (an unmounted drive, a different machine)
-answers `unavailable` with the configured path, exit 4. It never falls back to
-the repository — a caller that wanted the vault must know the vault was
-missed.
+None beyond `repo-files`: run outside a git checkout, the kind refuses with
+exit 2.

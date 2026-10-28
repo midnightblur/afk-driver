@@ -1,0 +1,828 @@
+{
+ "schema": 1,
+ "feature": "setup-per-repo",
+ "stage": "requirements",
+ "purpose": "Requirements grill",
+ "spec_dir": "docs/afk/setup-per-repo",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "P-1",
+     "decision": "Pain: agents put every new worktree inside the main checkout, not in the worktree folder you chose.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: P-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "P-2",
+     "decision": "Pain: setup configures only the repository the session stands in, except your personal values.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: P-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "P-3",
+     "decision": "Pain: GitHub may use a different account per repository; one Jira account per site is enough.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: P-3 not-a-pain, then R-2: X-1 A",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "P-4",
+     "decision": "Pain: setup does not remember your repositories and asks for the paths again on every run.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: P-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-1",
+     "decision": "Three actors: the developer, an agent session, a teammate.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: A-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-1",
+     "decision": "The forge kind and the tracker kind of a repository are always private, per developer.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-1 C. Its pain is asked in round 3 as DA-1.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-2",
+     "decision": "Each repository names which account it uses; each secret is stored once per host and account.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-2 B; scope set by R-2: X-1 A",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-3",
+     "decision": "The plugin creator and the Claude worktree tool use the worktree folder; setup shows the Codex app step; the command guard refuses an agent's worktree outside the folder.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-3 B",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-4",
+     "decision": "Setup asks the worktree folder for every repository and suggests one; until you confirm, agents use the suggestion.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-5",
+     "decision": "Setup keeps a repository list in ~/.afk and suggests folders your agent tools opened before on the first run.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-6",
+     "decision": "Every per-repository setup step works from any folder.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-7",
+     "decision": "One repository is one clone: its main checkout and all its worktrees.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-8",
+     "decision": "Setup never writes per-worktree values.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: S-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-1",
+     "decision": "Term: worktree folder.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: T-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-2",
+     "decision": "Term: repository list.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: T-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-3",
+     "decision": "Term: personal sign-in.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: T-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-4",
+     "decision": "Term: change assignee.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: T-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-5",
+     "decision": "Term: repository personal file.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: T-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-1",
+     "decision": "Vendor facts accepted as quoted from vendor docs.",
+     "round": 1,
+     "by": "human",
+     "evidence": "R-1: F-1 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "X-1",
+     "decision": "Forge account per repository; Jira one account per Jira site.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: X-1 A",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "X-2",
+     "decision": "Forge and tracker kinds and all their settings are private; team rules stay committed.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: X-2 A",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "X-3",
+     "decision": "Committed forge and tracker values act as suggestions and keep working until you confirm.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: X-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-1",
+     "decision": "Story: from any folder, setup walks every listed repository and asks only what is missing.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-2",
+     "decision": "Story: add a new clone to the list and set it up in the same run.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-3",
+     "decision": "Story: a moved or deleted list entry is reported, with remove or new path offered.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-4",
+     "decision": "Story: change one value for one repository without answering everything again.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-5",
+     "decision": "Story: agents create every new worktree in the repository's worktree folder.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-6",
+     "decision": "Story: agents act as the repository's account and set its assignees.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "US-7",
+     "decision": "Story: setup shows the Codex app worktree-root step when Codex is installed.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: US-7 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "AC-1",
+     "decision": "The worktree folder rule binds agents only.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your first message: the config only dictate new worktrees created by future agents. R-2: AC-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "AC-2",
+     "decision": "You give every value; an agent never handles a secret.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: AC-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "AC-3",
+     "decision": "A guard refusal names the folder; no agent-settable bypass.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: AC-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "AC-4",
+     "decision": "A session reads only its own repository's settings and account.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: AC-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-1",
+     "decision": "Setup refuses a worktree folder that is relative, inside the main checkout, inside another repository, or another repository's folder.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: V-1 accept. Its stated reason is corrected in round 3 as V-1R.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-2",
+     "decision": "Setup saves an account only when the host accepts it.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: V-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-3",
+     "decision": "The repository list holds only main checkouts.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: V-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-1",
+     "decision": "Existing worktrees stay where they are and keep working.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your first message: if existing worktrees are else where then they should still function fine. R-2: W-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-2",
+     "decision": "The machine-wide worktree folder value stops being used at once.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: W-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-3",
+     "decision": "The existing Jira sign-in is kept as the sign-in for its site.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: W-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-4",
+     "decision": "Machine-wide assignee and reviewer values are confirmed per repository.",
+     "round": 2,
+     "by": "human",
+     "evidence": "R-2: W-4 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "V-1R",
+     "decision": "V-1 kept on corrected evidence: a folder inside a repository confuses plugin tools there.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: V-1R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-1",
+     "decision": "Forge and tracker kinds stay private; every part that looks for the committed file accepts your personal file. Pain: other teams will use the plugin, and your choices must not be shared.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-1 A | there will be a wider consumer scope from other teams, so I do not like it to be shared",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-2",
+     "decision": "The repository's account also covers push sign-in and commit email; setup warns when they disagree.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-11",
+     "decision": "The unread Jira credentials key is made to work or removed; the design picks.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-11 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-3",
+     "decision": "One worktree root for every repository, so a harness with one path setting fits; each repository's worktrees stay apart by path. Items it reopens follow in round 4.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-3 write-in | now thinking about it, probably we only need one worktree root folder for all repos to share, that way we can avoid if a harness only allow to configure one path. it also simplify the setup process a bit. of course each repo's worktree should be distinguishable either from the nested path or prefix or things like that",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-4",
+     "decision": "The guard covers only worktrees of listed repositories; the check itself is restated for one root in round 4.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-4 write-in | only worktree for registered repos, but not by where the worktrees land because now I want them all in one place",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-5",
+     "decision": "Setup lists worktrees that sit inside another repository and offers to remove clean, idle ones.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-6",
+     "decision": "No per-worktree worktree location; checked on every read. Restated for one root in round 4.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-8",
+     "decision": "The suggestion obeys the folder rules, every parent checked; on failure agents refuse.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-12a",
+     "decision": "Live check of folder trust on Claude Code and Codex before the build. Restated for one root in round 4.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-12a accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-7",
+     "decision": "No suggestions: setup asks you to paste the path of every repository to register; later runs list them with remove and add.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-7 write-in | does not need suggestions. afk:setup ask users to paste paths to all repos they want to register subsequent setup can list already registered ones, including options to remove them or add new ones",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-12b",
+     "decision": "Setup saves an account only when its host accepts it; you rerun setup for that repository when the host is reachable, and the other repositories carry on.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: DA-12b block",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-9",
+     "decision": "No change: two clones of one remote are two repositories.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "R-1 S-7 accepted. R-3: DA-9 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "L-1",
+     "decision": "Fix the investigation tool first, then rerun the four investigations; the PRD waits.",
+     "round": 3,
+     "by": "human",
+     "evidence": "R-3: L-1 C",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 4,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "T-1R",
+     "decision": "Term: worktree root, one folder per machine for every listed repository, each in its own subfolder.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: T-1R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "WR-1",
+     "decision": "Layout inside the root: repository name, then worktree name.",
+     "round": 4,
+     "by": "agent",
+     "evidence": "scripts/create-worktree:228. R-4: WR-1 accept | I do like it but will it work if let's say Codex only allow you to configure one worktree root per machine?",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "WR-2",
+     "decision": "A repository's subfolder is its main checkout's folder name; setup asks a different short name when two share one.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: WR-2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-4R",
+     "decision": "Setup asks the root once per machine, suggesting repo-worktrees in your home folder; agents use a passing suggestion until you confirm, else refuse.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: S-4R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-1R2",
+     "decision": "Setup refuses a relative root or one inside any repository, every parent checked; creates it if missing.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: V-1R2 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-6R",
+     "decision": "Only the machine file holds the root; a root in any repository file is ignored with a warning; checked on every read.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: DA-6R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-2R",
+     "decision": "The existing machine value becomes the root if it passes; yours fails, so agents refuse until you answer in setup.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: W-2R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-4R",
+     "decision": "The guard checks every new worktree of a listed repository by where it really lands; moving one out is refused; unlisted repositories are not checked.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: DA-4R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-3R",
+     "decision": "Setup tells you to set the Codex app worktree root to the same root when Codex is installed.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: DA-3R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-12aR",
+     "decision": "Setup trusts the root once if a harness asks; the live check tests that trust covers subfolders.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: DA-12aR accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-2",
+     "decision": "Accepted as unchecked outside facts: Codex app subfolder naming, and harness trust for subfolders.",
+     "round": 4,
+     "by": "human",
+     "evidence": "R-4: F-2 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 5,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "WR-3",
+     "decision": "Setup refuses a repository short name already taken in the root by a folder it did not make for that repository, and asks another.",
+     "round": 5,
+     "by": "human",
+     "evidence": "R-5: WR-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "DA-10",
+     "decision": "Decide team or personal ownership setting by setting (re-asked R-6).",
+     "round": 5,
+     "by": "human",
+     "evidence": "R-5: DA-10 write-in | then we do need to look at the settings, and for each one decide which are owned by the team and which are personal",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 6,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "OW-0",
+     "decision": "A team setting comes from the committed file when there is one and cannot be overridden there; with no committed file setup keeps it in your personal file. A personal setting lives only in your own files; a committed value for it is ignored with a warning. When a repository gains a committed file, setup offers to delete your copies.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-0 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-1",
+     "decision": "The forge kind is a team setting.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-1 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-2",
+     "decision": "The forge remote: re-asked R-7 with an explanation.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-2 write-in | need more explanation for this one. I don't quite understand",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-3",
+     "decision": "The tracker kind is a team setting.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-3 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-4",
+     "decision": "The Jira site, project, work item types and status names are team settings.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-5",
+     "decision": "The GitHub issues repository and status labels are team settings.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-5 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-6",
+     "decision": "Notes are personal and per machine: where notes live, the Notion parent page and the Obsidian vault are kept in your machine file, not per repository. There is no team notes practice.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-6 write-in | there's no Team notes taking practice. it's all personal. it's also NOT per repo so I don't quite understand why this question is here the plugin help devs setup their fav notes taking platform, that's it. it's not per repo. it's per machine",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-7",
+     "decision": "The Obsidian vault is personal, per machine (folded into OW-6).",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-7 accept | again, notes is not per repo, it's per machine",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-8",
+     "decision": "The files a new worktree copies are personal.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-8 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-9",
+     "decision": "Accounts, both assignees, the reviewer, commit email, IDE and the root are personal; the root only in the machine file.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-9 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "OW-10",
+     "decision": "Every other setting stays team.",
+     "round": 6,
+     "by": "human",
+     "evidence": "R-6: OW-10 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 7,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "OW-2R",
+     "decision": "The forge remote is personal; setup asks only when the clone has more than one remote, otherwise it stays empty.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: OW-2R accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "NT-1",
+     "decision": "No notes setting per repository: notes stay per machine (re-asked R-8 on overwrites).",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: NT-1 write-in | keep notes out of \"per repo\" setting. it is per machine",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "WR-4",
+     "decision": "Setup accepts a root with a space and warns when a listed repository builds with Maven.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: WR-4 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-3",
+     "decision": "Accepted as unchecked outside facts: harness worktree creation and subagent isolation, Codex app worktrees, where a worktree lands when the hook fails or is missing, harness tracker sign-in handover and scope choice, gh and glab host choice with no host.",
+     "round": 7,
+     "by": "human",
+     "evidence": "R-7: F-3 accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 8,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "NT-2",
+     "decision": "Withdrawn: the notes platform holds the developer's own notes, written with agents' help; agents keep their working files in the repository or on the change, so two repositories never write agent files into one vault (term and scope asked R-9).",
+     "round": 8,
+     "by": "human",
+     "evidence": "R-8: NT-2 write-in | I feel like there's a misunderstanding about notes taking the notes taking is meant for dev to (with agetns' help) write their own notes it's not meant for agents to write notes for themselves for their operations (they should write files like markdowns, or post inline comments into the MR/PR, etc)",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 9,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "T-6",
+     "decision": "Term: developer notes, the notes a developer keeps for themselves in the note-taking app chosen for their machine; agents never keep working files there.",
+     "round": 9,
+     "by": "human",
+     "evidence": "R-9: T-6 accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "NT-3",
+     "decision": "In this feature: agents write every working file into the repository's spec folder, whatever note-taking app is chosen; the app is used only for developer notes.",
+     "round": 9,
+     "by": "human",
+     "evidence": "R-9: NT-3 accept",
+     "audit": "explicit"
+    }
+   ]
+  }
+ ]
+}

@@ -146,7 +146,7 @@ a token value — not even partially.
     grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
   done; return 1; }
-  keys="worktreeBasePath"; h=""
+  keys=""; h=""
   if [ "$("$PY" "$AC" get tracker)" != none ]; then
     keys="trackerAssignee $keys"
   elif ! says_none tracker; then

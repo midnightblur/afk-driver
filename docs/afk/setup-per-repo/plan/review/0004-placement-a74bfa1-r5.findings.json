@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/placement.py",
+  "line": 269,
+  "side": "new",
+  "finding": "check_target now answers INSIDE for a short-name path that is a dangling link; the previous code and target_for refuse it with R-06",
+  "why": "realpath(base) turns a dangling link into its missing target, so R-06's lexists() sees nothing and passes. The target is realpath'd the same way and lands below it. The unresolved link at <root>/<short name> never reaches the rule.",
+  "fix": "Run R-06 on the unresolved path (or refuse when lexists(unresolved) and not isdir(unresolved)), and resolve only for display and the _below comparison; add a dangling-link test.",
+  "evidence": "base = os.path.realpath(base)  # then _Ask(root.path, entry, base)"
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "scripts/placement.py",
+  "line": 162,
+  "side": "new",
+  "finding": "`ask.folder or os.path.join(ask.root, ask.entry.short_name)` fallback is dead code",
+  "why": "The only construction site of a short-name _Ask always passes a non-None base, because the unrooted case returns earlier. The fallback branch can never run.",
+  "fix": "Use ask.folder directly and drop the fallback, or keep it and add a test that reaches it.",
+  "evidence": "folder = ask.folder or os.path.join(ask.root, ask.entry.short_name)"
+ }
+]
