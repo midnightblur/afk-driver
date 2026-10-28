@@ -137,3 +137,7 @@
 2026-10-28 02:35 | execute | 0013-config-contract | decision(D-49) — a second stale comment line in the worktree script joins this slice so its review finding can be fixed and closed
 2026-10-28 02:40 | execute | 0013-config-contract | review advisory crit=0 high=0 med=0 low=2 — round 5: a stale comment in the worktree script and loop-shaped tests; fixed in 1cfdabd and pushed
 2026-10-28 02:50 | execute | 0013-config-contract | review clean — round 6: delta sweep, test veracity and scope found nothing; this commit adds the Settles trailers the round 2-5 fix commits lacked
+2026-10-28 03:00 | execute | 0013-config-contract | review settled — round 7 clean at 261295d; 16 findings over 7 rounds, all fixed; closure gate passes
+2026-10-28 03:20 | execute | 0013-config-contract | adversary — findings, crit=0 high=0 med=3 low=3 (D-3 runtime probe, 592 checks, local fakes); gate passes; advisory, noted on the change
+2026-10-28 03:20 | execute | 0013-config-contract | wiring scan exit 0
+2026-10-28 03:21 | execute | 0013-config-contract | outcome success — review settled at round 7 (16 findings, all fixed), adversary passes with 3 medium and 3 low advisory; CI ran green on 51bf4ae, later heads not run (PR conflicting with main)

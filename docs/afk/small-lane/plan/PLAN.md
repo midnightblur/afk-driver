@@ -95,7 +95,7 @@ Rows 8–9 are §14 change seams a later subtask uses; every other §14 row is l
 | 10 | 0010-out-of-slice | blocking and non-blocking defects outside the slice | pending | 0008-standalone-fix, 0009-in-place-callers | static, unit, integration | impl §5; use §9 |
 | 11 | 0011-bug-removal-release | remove `/afk:bug`, one tracker writer, major release | pending | 0001..0010 (all implementation subtasks) | static, unit, integration | — |
 | 12 | 0012-sync-harness | AGENTS.md harness sync + trace matrix | pending | every other subtask | static | — |
-| 13 | 0013-config-contract | config reader keeps the developer-settings contract (D-7) | developing | 0002-developer-settings | static, unit, integration | use developer settings |
+| 13 | 0013-config-contract | config reader keeps the developer-settings contract (D-7) | done | 0002-developer-settings | static, unit, integration | use developer settings |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
