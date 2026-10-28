@@ -34,7 +34,6 @@ HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
 SGR = re.compile(r"\x1b\[[0-9;]*m")
 DIM = re.compile(r"^(?:\x1b\[0?m| )*\x1b\[2m")
-REPLACE_TRIES = 5  # a marker read takes milliseconds, so half a second outlasts it
 UI: dict = {}  # the harness's move_ui facts, from hooks/lib/providers/<provider>.json
 DONE = REFUSED = COMPOSER = GLYPH = None
 ATTEMPTS, WAIT_IDLE, SETTLE = 3, 600.0, 2.0
@@ -118,28 +117,25 @@ def create(args) -> tuple[Path | None, str]:
 
 
 def record(marker: str, **outcome: str) -> None:
-    """Write the creation outcome into the pane's move marker."""
+    """Write the creation outcome into the pane's move marker, under the marker's lock."""
     if not marker:
         return
-    target = Path(marker)
-    whole = target.with_name(f"{target.name}.outcome")
-    try:
-        body = json.loads(target.read_text(encoding="utf-8"))
+
+    def merge(text: str) -> str:
+        if not text:
+            return text  # the marker is gone: nothing is waiting for this outcome
+        body = json.loads(text)
         body.pop("error", None)
         body.update(outcome)
-        whole.write_text(json.dumps(body), encoding="utf-8")
-        for _ in range(REPLACE_TRIES):
-            try:
-                os.replace(whole, target)  # whole or not at all: a failed swap keeps the old marker
-                return
-            except PermissionError:
-                time.sleep(0.1)  # on Windows a reader holding the marker open blocks the swap
-    except (OSError, ValueError):
-        pass
+        return json.dumps(body)
+
     try:
-        whole.unlink(missing_ok=True)
-    except OSError:
-        pass
+        spec = importlib.util.spec_from_file_location("afk_safe_write_for_move", HERE / "safe_write.py")
+        safe_write = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(safe_write)
+        safe_write.update_locked(Path(marker), merge)
+    except Exception as problem:  # a held lock, a busy swap, an unreadable marker
+        log(f"outcome {outcome} not recorded in {marker}: {problem!r}")
 
 
 def herdr_json(binary: str, *argv: str):

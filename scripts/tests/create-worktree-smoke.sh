@@ -208,9 +208,10 @@ drop_worktree "$WT6"
 GOOD4="team/development/tester/smoke4-$$"
 OUT7="$(run_cwt --branch "$GOOD4" --dir good4 --base "$BASE_BRANCH" \
         --repo "$REPO" --parent "$WT_PARENT" --no-open --no-npm --no-m2 --m2-seed "$TMP_ROOT/nowhere" 2>"$TMP_ROOT/err7.log")"
+RC7=$?
 WT7="$(printf '%s\n' "$OUT7" | tail -n1)"; WT7="${WT7#WORKTREE_PATH=}"
-[[ -d "$WT7" ]] && ok "deprecated flags still produce a worktree" || bad "deprecated flags broke the run"
-[[ ! -s "$NPM_LOG" ]] && ok "--no-npm still skips its build gate" || bad "--no-npm no longer skips"
+[[ $RC7 -eq 0 && -d "$WT7" ]] && ok "deprecated flags still produce a worktree" || bad "deprecated flags broke the run (exit $RC7)"
+[[ $RC7 -eq 0 && ! -s "$NPM_LOG" ]] && ok "--no-npm still skips its build gate" || bad "--no-npm no longer skips"
 grep -q 'deprecated' "$TMP_ROOT/err7.log" && ok "deprecated flags print a notice" || bad "no deprecation notice"
 drop_worktree "$WT7"
 

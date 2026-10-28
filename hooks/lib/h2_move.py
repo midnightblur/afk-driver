@@ -6,7 +6,9 @@ One creation per session, keyed by the pane id when there is one (the H-2 sessio
 changes on `/cd`), else by the session id. The helper writes its outcome into the marker:
 `created` on success, `error` (create-worktree's `ERROR=` text) on failure. The path comes
 from the creator's own placement call (`target`), loaded only when a move is planned; a
-refused root or short name returns `error` at once and starts nothing.
+refused root or short name returns `error` at once and starts nothing. Every read and write
+of the marker runs under the safe writer's lock, so no call sees it half-written and only
+one call records, replaces or restarts a move.
 """
 from __future__ import annotations
 
@@ -22,15 +24,20 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[2])
 RETRY_AFTER = 180  # seconds a recorded creation may stay unfinished before it is started again
-WRITING = 10  # seconds an unparsable marker may still be mid-write (one small JSON write)
+
+
+def _load(name: str, file: str):
+    """The plugin script `scripts/<file>`, loaded by path as module `name`."""
+    spec = importlib.util.spec_from_file_location(name, PLUGIN_ROOT / "scripts" / file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def owner_env() -> dict:
     """`AFK_WORKTREE_OWNER` for the harness above this hook, resolved while it is still alive."""
     try:
-        spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = _load("afk_worktree_owner", "worktree_owner.py")
         found = module.env_owner() or module.find_owner()
     except Exception:
         return {}
@@ -41,10 +48,7 @@ def owner_is_dead(common: Path, name: str) -> bool:
     """Has the session that made worktree `name` ended?"""
     try:
         record = json.loads((common / "afk-worktrees" / f"{name}.json").read_text(encoding="utf-8"))
-        spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module.all_dead(record)
+        return _load("afk_worktree_owner", "worktree_owner.py").all_dead(record)
     except Exception:
         return False
 
@@ -76,10 +80,8 @@ def spawn(argv: list[str], env: dict | None = None, cwd: str | None = None, log:
 
 def target(root: Path, name: str, facts: dict) -> tuple[str, str]:
     """`(path, "")` where `create-worktree --name <name>` puts the worktree, or `("", refusal)`."""
-    spec = importlib.util.spec_from_file_location("afk_placement_for_move", PLUGIN_ROOT / "scripts" / "placement.py")
-    placement = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(placement)
+        placement = _load("afk_placement_for_move", "placement.py")
         verdict = placement.target_for(str(root), name)
     except Exception as problem:
         return "", f"placement: {problem}"
@@ -91,33 +93,20 @@ def target(root: Path, name: str, facts: dict) -> tuple[str, str]:
     return str(root / folder / name), ""
 
 
+def failed(name: str, pane: str, why: str) -> dict:
+    """The result for a move that is not under way: no path, and why."""
+    return {"name": name, "path": "", "pane": pane, "error": why}
+
+
 def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
     path, refused = target(root, name, facts)
     if refused:
-        return {"name": name, "path": "", "pane": pane, "error": refused}
+        return failed(name, pane, refused)
     return {"name": name, "path": path, "pane": pane, "marker": str(marker)}
 
 
-def record(marker: Path, chosen: dict) -> bool:
-    """Create the marker; False when another call recorded its move first."""
-    try:
-        with open(marker, "x", encoding="utf-8") as out:
-            json.dump(chosen, out)
-        return True
-    except FileExistsError:
-        return False
-
-
-def age_of(marker: Path) -> float | None:
-    """Seconds since the marker was last written; None once it is gone."""
-    try:
-        return time.time() - marker.stat().st_mtime
-    except FileNotFoundError:
-        return None
-
-
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
-    """`{"path", "name", "pane"}` of the worktree this session is being moved into."""
+    """The move record `{"name", "path", "pane", "marker"}` this session is moved into, or `failed()`."""
     common = Path(place["common"])
     root = common.parent if common.name == ".git" else Path(place["root"])
     pane = os.environ.get("HERDR_PANE_ID", "") if os.environ.get("HERDR_ENV") else ""
@@ -127,39 +116,54 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     marker_dir.mkdir(exist_ok=True)
     marker = marker_dir / f"{key}.move"
     name = f"session-{uuid.uuid4().hex[:8]}"
-    created = False
-    if not marker.exists():  # placement loads only for a move this call records
-        chosen = fresh(root, name, pane, facts, marker)
-        if chosen.get("error"):
-            return chosen
-        created = record(marker, chosen)
-    if not created:
+    decided: dict = {}
+
+    def settle(text: str) -> str:
+        """Under the marker's lock: keep the recorded move, or record a new or restarted one."""
+        decided.clear()
         try:
-            chosen = json.loads(marker.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            return plan(place, envelope, facts)  # dropped since the check above
-        except OSError as problem:
-            return {"name": name, "path": "", "pane": pane, "error": f"move record: {problem}"}
+            chosen = json.loads(text) if text else None
         except ValueError:
-            age = age_of(marker)
-            if age is not None and age < WRITING:
-                return {"name": name, "path": "", "pane": pane,
-                        "error": "move record: another call is still writing it - try the command again"}
-            marker.unlink(missing_ok=True)  # unreadable long after its write: corrupt
-            return plan(place, envelope, facts)
-        age = age_of(marker)
-        if age is None:
-            return plan(place, envelope, facts)
-        if Path(chosen["path"]).exists() and owner_is_dead(common, chosen["name"]):
-            marker.unlink(missing_ok=True)  # an earlier session's worktree, not this one's
-            return plan(place, envelope, facts)
-        if Path(chosen["path"]).exists() or age < RETRY_AFTER:
-            return chosen
-        marker.touch()
-    if os.environ.get("AFK_MOVE_SPAWN") == "0":  # a test knob: name the path, cut nothing
+            chosen = None  # every write is whole under the lock, so this marker is corrupt
+        if isinstance(chosen, dict) and chosen.get("path"):
+            started = chosen.get("started")
+            if Path(chosen["path"]).exists():
+                if not owner_is_dead(common, chosen["name"]):  # else an earlier session's worktree
+                    chosen.pop("error", None)
+                    decided["chosen"] = chosen
+                    return text
+            elif isinstance(started, (int, float)) and time.time() - started < RETRY_AFTER:
+                decided["chosen"] = chosen
+                return text
+            else:
+                chosen.pop("error", None)
+                decided.update(chosen=chosen, start=True)
+                return json.dumps(dict(chosen, started=time.time()))
+        chosen = fresh(root, name, pane, facts, marker)  # placement loads only for a move this call records
+        if chosen.get("error"):
+            decided["chosen"] = chosen
+            return text
+        decided.update(chosen=chosen, start=True)
+        return json.dumps(dict(chosen, started=time.time()))
+
+    try:
+        safe_write = _load("afk_safe_write_for_move", "safe_write.py")
+        safe_write.update_locked(marker, settle)
+    except Exception as problem:  # a held lock, an unreadable marker, a failed write
+        return failed(name, pane, f"move record: {problem}")
+    chosen = {k: v for k, v in decided["chosen"].items() if k != "started"}  # the clock is the marker's own
+    if not decided.get("start") or os.environ.get("AFK_MOVE_SPAWN") == "0":  # a test knob: name the path, cut nothing
         return chosen
-    spawn([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-move.py"), "--repo", str(root),
-           "--name", chosen["name"], "--session", session, "--provider", str(facts.get("name") or ""),
-           "--pane", chosen["pane"], "--cwd", str(envelope.get("cwd") or root), "--marker", str(marker)],
-          owner_env())
+    try:
+        spawn([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-move.py"), "--repo", str(root),
+               "--name", chosen["name"], "--session", session, "--provider", str(facts.get("name") or ""),
+               "--pane", chosen["pane"], "--cwd", str(envelope.get("cwd") or root), "--marker", str(marker)],
+              owner_env())
+    except OSError as problem:
+        why = f"the move helper did not start: {problem}"
+        try:
+            safe_write.update_locked(marker, lambda text: json.dumps(dict(json.loads(text), error=why)))
+        except Exception:
+            pass  # the move stays recorded as unfinished and is started again after RETRY_AFTER
+        return failed(chosen["name"], chosen["pane"], why)
     return chosen

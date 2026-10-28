@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -605,7 +606,8 @@ def test_an_unreadable_machine_file_returns_the_placement_error_and_starts_nothi
 def test_the_owner_calls_work_without_placement_and_a_move_needs_it(repo, tmp_path, monkeypatch):
     bare = tmp_path / "plugin-without-placement"
     (bare / "scripts").mkdir(parents=True)
-    (bare / "scripts" / "worktree_owner.py").write_bytes((PLUGIN_ROOT / "scripts" / "worktree_owner.py").read_bytes())
+    for kept in ("worktree_owner.py", "safe_write.py"):
+        (bare / "scripts" / kept).write_bytes((PLUGIN_ROOT / "scripts" / kept).read_bytes())
     module = _h2_module()
     monkeypatch.setattr(module, "PLUGIN_ROOT", bare)
     monkeypatch.setenv("AFK_WORKTREE_OWNER", "4242:1")
@@ -636,40 +638,9 @@ def _marker(repo: Path, session: str) -> Path:
     return folder / f"{session}.move"
 
 
-def test_a_marker_still_being_written_is_kept_and_starts_nothing(listed_repo, monkeypatch):
-    repo, home, root = listed_repo
-    marker = _marker(repo, "s-young")
-    marker.write_text("{\"name\": ", encoding="utf-8")
-    spawned: list = []
-    module = _h2_module()
-    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
-    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
-    chosen = module.plan(_place(repo), {"session_id": "s-young", "cwd": str(repo)}, {})
-    assert chosen["error"].startswith("move record: another call is still writing it") and chosen["path"] == "", chosen
-    assert marker.read_text(encoding="utf-8") == "{\"name\": " and not spawned
-
-
-def test_a_marker_dropped_before_it_is_read_is_planned_again(listed_repo, monkeypatch):
-    repo, home, root = listed_repo
-    marker = _marker(repo, "s-gone")
-    marker.write_text(json.dumps({"name": "session-gone", "path": "x", "pane": ""}), encoding="utf-8")
-    spawned: list = []
-    module = _h2_module()
-    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
-    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
-    real = Path.read_text
-
-    def vanishing(self, *args, **kwargs):
-        if self == marker and not getattr(vanishing, "done", False):
-            vanishing.done = True
-            self.unlink()  # another call dropped it between the existence check and the read
-            raise FileNotFoundError(str(self))
-        return real(self, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", vanishing)
-    chosen = module.plan(_place(repo), {"session_id": "s-gone", "cwd": str(repo)}, {})
-    assert "error" not in chosen and chosen["name"] != "session-gone", chosen
-    assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == chosen["name"], spawned
+def _left_in(folder: Path, marker: Path) -> set:
+    """What the marker's folder holds besides the safe writer's lock file."""
+    return {p.name for p in folder.iterdir()} - {f".{marker.name}.afk.lock"}
 
 
 def test_a_corrupt_marker_is_replaced_and_its_new_move_is_started(listed_repo, monkeypatch):
@@ -678,49 +649,85 @@ def test_a_corrupt_marker_is_replaced_and_its_new_move_is_started(listed_repo, m
     marker.write_text("{not json", encoding="utf-8")
     spawned: list = []
     module = _h2_module()
-    old = time.time() - module.WRITING - 60
-    os.utime(marker, (old, old))
     monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
     monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
     chosen = module.plan(_place(repo), {"session_id": "s-torn", "cwd": str(repo)}, {})
     assert "error" not in chosen and Path(chosen["path"]).parent == root / "my-repo", chosen
-    assert json.loads(marker.read_text(encoding="utf-8")) == chosen
+    written = json.loads(marker.read_text(encoding="utf-8"))
+    assert written.pop("started") <= time.time() and written == chosen
     assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == chosen["name"], spawned
-    assert [p.name for p in marker.parent.iterdir()] == [marker.name]
+    assert _left_in(marker.parent, marker) == {marker.name}
 
 
-def test_the_helper_writes_its_outcome_into_the_marker_whole(tmp_path, monkeypatch):
+def test_two_calls_at_once_record_one_move_and_start_it_once(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    spawned: list = []
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    real_fresh = module.fresh
+    monkeypatch.setattr(module, "fresh", lambda *a: (time.sleep(0.5), real_fresh(*a))[1])  # hold the lock a while
+    results: list = []
+
+    def call():
+        results.append(module.plan(_place(repo), {"session_id": "s-race", "cwd": str(repo)}, {}))
+
+    threads = [threading.Thread(target=call) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    assert len(results) == 2 and all("error" not in r for r in results), results
+    assert results[0]["name"] == results[1]["name"] and len(spawned) == 1, (results, spawned)
+
+
+def test_two_calls_at_once_replace_a_dead_sessions_move_once(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-twice")
+    old = root / "my-repo" / "session-old"
+    old.mkdir(parents=True)
+    (repo / ".git" / "afk-worktrees").mkdir(exist_ok=True)
+    (repo / ".git" / "afk-worktrees" / "session-old.json").write_text(
+        json.dumps({"owner": {"pid": 2147483000, "ctime": "1"}}), encoding="utf-8")
+    marker.write_text(json.dumps({"name": "session-old", "path": str(old), "pane": "", "marker": str(marker),
+                                  "started": time.time()}), encoding="utf-8")
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    spawned: list = []
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    real_dead = module.owner_is_dead
+    monkeypatch.setattr(module, "owner_is_dead", lambda *a: (time.sleep(0.3), real_dead(*a))[1])  # widen the race
+    results: list = []
+    threads = [threading.Thread(target=lambda: results.append(
+        module.plan(_place(repo), {"session_id": "s-twice", "cwd": str(repo)}, {}))) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    names = {r["name"] for r in results}
+    assert len(results) == 2 and len(names) == 1 and "session-old" not in names, results
+    assert len(spawned) == 1 and json.loads(marker.read_text(encoding="utf-8"))["name"] in names, spawned
+
+
+def test_the_helper_writes_its_outcome_into_the_marker_whole(tmp_path):
     folder = tmp_path / "afk-session"
     folder.mkdir()
     marker = folder / "s.move"
-    marker.write_text(json.dumps({"name": "n", "path": "p", "error": "old"}), encoding="utf-8")
-    module = load_move()
-    replaced: list = []
-    real = os.replace
-    monkeypatch.setattr(module.os, "replace", lambda a, b: (replaced.append(Path(b)), real(a, b)))
-    module.record(str(marker), created="p")
-    assert json.loads(marker.read_text(encoding="utf-8")) == {"name": "n", "path": "p", "created": "p"}
-    assert replaced == [marker] and [p.name for p in folder.iterdir()] == ["s.move"]
+    marker.write_text(json.dumps({"name": "n", "path": "p", "error": "old", "started": 1}), encoding="utf-8")
+    load_move().record(str(marker), created="p")
+    assert json.loads(marker.read_text(encoding="utf-8")) == {"name": "n", "path": "p", "started": 1, "created": "p"}
+    assert _left_in(folder, marker) == {"s.move"}
 
 
-def test_a_swap_a_reader_keeps_blocking_leaves_the_old_marker_whole(tmp_path, monkeypatch):
+def test_an_outcome_the_helper_cannot_write_is_logged_not_lost_silently(tmp_path, monkeypatch):
     folder = tmp_path / "afk-session"
     folder.mkdir()
     marker = folder / "s.move"
-    before = json.dumps({"name": "n", "path": "p"})
-    marker.write_text(before, encoding="utf-8")
+    marker.mkdir()  # a marker no one can read
     module = load_move()
-    tries: list = []
-
-    def blocked(a, b):
-        tries.append(b)
-        raise PermissionError("the marker is open in another process")
-
-    monkeypatch.setattr(module.os, "replace", blocked)
-    monkeypatch.setattr(module.time, "sleep", lambda seconds: None)
-    module.record(str(marker), created="p")
-    assert marker.read_text(encoding="utf-8") == before and len(tries) == module.REPLACE_TRIES
-    assert [p.name for p in folder.iterdir()] == ["s.move"]
+    monkeypatch.setattr(module, "LOG", tmp_path / "move.log")
+    module.record(str(marker), error="create-worktree failed")
+    assert "not recorded in" in (tmp_path / "move.log").read_text(encoding="utf-8")
 
 
 def test_a_marker_that_cannot_be_read_returns_an_error_and_starts_nothing(listed_repo, monkeypatch):
@@ -739,30 +746,60 @@ def test_a_stale_marker_of_a_missing_worktree_is_started_again(listed_repo, monk
     repo, home, root = listed_repo
     module = _h2_module()
     marker = _marker(repo, "s-stale")
-    recorded = {"name": "session-old", "path": str(root / "my-repo" / "session-old"), "pane": "", "marker": str(marker)}
-    marker.write_text(json.dumps(recorded), encoding="utf-8")
     old = time.time() - module.RETRY_AFTER - 60
-    os.utime(marker, (old, old))
+    recorded = {"name": "session-old", "path": str(root / "my-repo" / "session-old"), "pane": "", "marker": str(marker)}
+    marker.write_text(json.dumps(dict(recorded, started=old, error="the first try failed")), encoding="utf-8")
     spawned: list = []
     monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
     monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
-    assert module.plan(_place(repo), {"session_id": "s-stale", "cwd": str(repo)}, {}) == recorded
+    chosen = module.plan(_place(repo), {"session_id": "s-stale", "cwd": str(repo)}, {})
+    assert chosen["name"] == "session-old" and "error" not in chosen, chosen
     assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == "session-old", spawned
-    assert marker.stat().st_mtime > old + 30
+    written = json.loads(marker.read_text(encoding="utf-8"))
+    assert written["started"] > old + 30 and "error" not in written
 
 
-def test_a_move_another_call_recorded_first_is_the_one_returned(listed_repo, monkeypatch):
+def test_a_recent_failed_move_is_reported_and_not_started_again(listed_repo, monkeypatch):
     repo, home, root = listed_repo
-    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
     module = _h2_module()
-    marker = _marker(repo, "s-race")
-    rival = {"name": "session-rival", "path": str(root / "my-repo" / "session-rival"), "pane": "", "marker": str(marker)}
-    real_fresh = module.fresh
+    marker = _marker(repo, "s-failed")
+    recorded = {"name": "session-f", "path": str(root / "my-repo" / "session-f"), "pane": "", "marker": str(marker),
+                "started": time.time(), "error": "branch name refused"}
+    marker.write_text(json.dumps(recorded), encoding="utf-8")
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-failed", "cwd": str(repo)}, {})
+    assert chosen["error"] == "branch name refused" and not spawned
 
-    def racing_fresh(*args):
-        chosen = real_fresh(*args)
-        marker.write_text(json.dumps(rival), encoding="utf-8")  # the other call wins the create
-        return chosen
 
-    monkeypatch.setattr(module, "fresh", racing_fresh)
-    assert module.plan(_place(repo), {"session_id": "s-race", "cwd": str(repo)}, {}) == rival
+def test_an_old_error_is_not_reported_once_the_worktree_exists(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-there")
+    path = root / "my-repo" / "session-t"
+    path.mkdir(parents=True)
+    marker.write_text(json.dumps({"name": "session-t", "path": str(path), "pane": "", "marker": str(marker),
+                                  "started": time.time(), "error": "a retry lost the race"}), encoding="utf-8")
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-there", "cwd": str(repo)}, {})
+    assert chosen["path"] == str(path) and "error" not in chosen and not spawned, chosen
+
+
+def test_a_helper_that_does_not_start_is_reported_and_recorded(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+
+    def broken(argv, env):
+        raise OSError("no such interpreter")
+
+    monkeypatch.setattr(module, "spawn", broken)
+    chosen = module.plan(_place(repo), {"session_id": "s-nostart", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("the move helper did not start: ") and chosen["path"] == "", chosen
+    written = json.loads(_marker(repo, "s-nostart").read_text(encoding="utf-8"))
+    assert written["error"] == chosen["error"]
+    again = module.plan(_place(repo), {"session_id": "s-nostart", "cwd": str(repo)}, {})
+    assert again["error"] == chosen["error"]
