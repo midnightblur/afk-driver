@@ -102,3 +102,5 @@
 2026-10-27 23:58 | execute | 0002-settings-reader | review round 2 — verdict advisory crit=0 high=0 med=6 low=3; nine findings posted as f018..f026, fixing them all
 2026-10-28 00:39 | execute | 0002-settings-reader | review round 2 closed — nine fixes pushed in 3a3136f, threads resolved, summary note written; round 3 re-reviews the fixes
 2026-10-28 00:42 | execute | 0002-settings-reader | review round 3 — verdict advisory crit=0 high=0 med=2 low=2; four findings posted as f027..f030
+2026-10-28 01:00 | execute | 0002-settings-reader | review round 3 closed — four fixes pushed in eb22541, threads resolved, summary note written; round 4 re-reviews
+2026-10-28 01:06 | execute | 0002-settings-reader | review round 4 — verdict advisory crit=0 high=0 med=0 low=2; f031 fixing, f032 disputed (asks for a file outside Scope)
