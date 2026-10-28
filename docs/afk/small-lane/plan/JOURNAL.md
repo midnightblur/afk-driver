@@ -178,3 +178,6 @@
 2026-10-28 20:58 | execute | 0007-ship-script | adversary findings crit=0 high=0 med=4 low=8 — advisory: land pushes a branch whose only commit past Base is the diagnosis commit (A1), ready trusts a recorded change from another branch (A2), open reuses a change into another target (A3), proof posts credentials verbatim (A4); report plan/review/0007-ship-script-adversary.md
 2026-10-28 20:59 | execute | 0007-ship-script | wiring scan clean (exit 0); rationale receipts verified, none pending
 2026-10-28 21:00 | execute | 0007-ship-script | done — success: 10 review rounds settled at c4032334 (f060 deferred to the feature gate), adversary advisory only
+2026-10-28 21:30 | autopilot | 0007-ship-script | 6/13 done, starting 0006-fix-procedure (resume at review round 5 replies); adversary A1 on D-51 (land would push a diagnosis branch holding only its failing test) goes to the human
+2026-10-28 21:04 | execute | 0006-fix-procedure | reviewing — resumed at the round 5 replies after the rebase onto main: f065 marked fixed and its thread resolved (f064 was already resolved); round 5 summary posted with 12 keys, all fixed
+2026-10-28 21:04 | execute | 0006-fix-procedure | decision(D-52) — the round 5 summary names the commits the round reviewed before the rebase, because the ledger script accepts only those; round 6 reads the rebased commits
