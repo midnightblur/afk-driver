@@ -45,7 +45,7 @@ REPO="$TMP_ROOT/main-repo"
 WT_PARENT="$TMP_ROOT/worktrees"
 STUBBIN="$TMP_ROOT/stubbin"
 NPM_LOG="$TMP_ROOT/npm-invocations.log"
-# The creator reads ~/.afk through placement: tests 1-9 run under an empty home of their own.
+# The creator reads ~/.afk through placement: tests 1-7 run under an empty home of their own; test 8 builds its own.
 export HOME="$TMP_ROOT/home0" USERPROFILE="$TMP_ROOT/home0"
 mkdir -p "$HOME"
 
@@ -198,8 +198,10 @@ drop_worktree "$WT_PARENT/good2"
 GOOD3="team/development/tester/smoke3-$$"
 OUT6="$(run_cwt --branch "$GOOD3" --dir good3 --base "$BASE_BRANCH" \
         --repo "$REPO" --parent "$WT_PARENT" --no-open --skip-build-gate npm 2>"$TMP_ROOT/err6.log")"
+RC6=$?
 WT6="$(printf '%s\n' "$OUT6" | tail -n1)"; WT6="${WT6#WORKTREE_PATH=}"
-[[ ! -s "$NPM_LOG" ]] && ok "--skip-build-gate reaches the provisioner" || bad "--skip-build-gate did not skip"
+[[ $RC6 -eq 0 && -d "$WT6" ]] && ok "--skip-build-gate still produces a worktree" || bad "--skip-build-gate run failed (exit $RC6)"
+[[ $RC6 -eq 0 && ! -s "$NPM_LOG" ]] && ok "--skip-build-gate reaches the provisioner" || bad "--skip-build-gate did not skip"
 drop_worktree "$WT6"
 
 : > "$NPM_LOG"

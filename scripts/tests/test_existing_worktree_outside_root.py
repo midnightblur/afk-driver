@@ -58,6 +58,9 @@ EXCLUDED = {
                                     "through tracker none",
     "adapters/tracker/github-issues/api.py": "every operation calls the GitHub API; config-root resolution is "
                                              "covered through tracker none",
+    **{f"hooks/{gate}-gate.sh": "judges only the plugin's own repository and returns at once in any other "
+                                "(afk_plugin_dir); the dispatcher case runs it"
+       for gate in ("skill-registry", "native-contract", "genericity", "behavior-registry")},
 }
 
 CONFIG = """schema: 1
@@ -529,10 +532,6 @@ def _(f, s):
 @case("hooks/plugin-source-gates.sh")
 def _(f, s):
     return outcome(f, s, sh(f, "hooks/plugin-source-gates.sh", "--staged", cwd=s.path))
-
-
-for _gate in ("skill-registry", "native-contract", "genericity", "behavior-registry"):
-    case(f"hooks/{_gate}-gate.sh")(lambda f, s, g=_gate: outcome(f, s, sh(f, f"hooks/{g}-gate.sh", cwd=s.path)))
 
 
 @case("hooks/wiring-gate.sh+hooks/lib/bounded_scan.py", serial=True)

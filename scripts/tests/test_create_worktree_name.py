@@ -185,6 +185,7 @@ def test_a_template_without_name_never_reuses_one_branch(tmp_path):
     fixed = "git:\n  branch-template: 'team/fixed'\n"
     repo = make_repo(tmp_path, fixed)
     assert git(path_of(create(repo, "--name", "a")), "rev-parse", "--abbrev-ref", "HEAD") == "worktree-a"
+    assert git(path_of(create(repo, "--name", "b")), "rev-parse", "--abbrev-ref", "HEAD") == "worktree-b"
 
 
 def test_simultaneous_starts_end_in_different_worktrees_on_different_branches(tmp_path):
@@ -462,15 +463,27 @@ def test_r2_2_a_session_in_the_main_checkout_branches_from_its_head(tmp_path):
     assert git(wt, "rev-parse", "HEAD") == git(repo, "rev-parse", "HEAD")
 
 
-def test_r2_4_a_repository_with_no_commit_gets_an_orphan_worktree(tmp_path):
+def _git_version() -> tuple:
+    out = subprocess.run(["git", "--version"], capture_output=True, text=True).stdout
+    return tuple(int(n) for n in out.split()[-1].split(".")[:2] if n.isdigit())
+
+
+def _empty_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "fresh"
     repo.mkdir()
     git(repo, "init", "-q", "-b", "dev")
-    done = create(repo, "--name", "first")
-    version = tuple(int(n) for n in git(repo, "--version").split()[-1].split(".")[:2] if n.isdigit())
-    if version < (2, 42):
-        assert done.returncode != 0 and "AFK_ALLOW_PROTECTED=1" in done.stderr
-        return
+    return repo
+
+
+@pytest.mark.skipif(_git_version() >= (2, 42), reason="git 2.42+ makes the orphan worktree")
+def test_r2_4_a_repository_with_no_commit_is_refused_on_old_git(tmp_path):
+    done = create(_empty_repo(tmp_path), "--name", "first")
+    assert done.returncode != 0 and "AFK_ALLOW_PROTECTED=1" in done.stderr
+
+
+@pytest.mark.skipif(_git_version() < (2, 42), reason="git before 2.42 has no orphan worktree")
+def test_r2_4_a_repository_with_no_commit_gets_an_orphan_worktree(tmp_path):
+    done = create(_empty_repo(tmp_path), "--name", "first")
     assert done.returncode == 0, done.stderr
     wt = path_of(done)
     assert git(wt, "symbolic-ref", "--short", "HEAD") == "worktree-first"
@@ -504,14 +517,19 @@ def test_r2_6_a_lock_held_by_a_live_process_is_kept_and_only_its_holder_releases
     environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
     waiting = subprocess.Popen([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--name", "waits"],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=repo, env=environ)
+    ours = (lock / "holder").read_text(encoding="utf-8")
     time.sleep(6)
     assert waiting.poll() is None, "a live holder's lock must not be broken"
+    assert (lock / "holder").read_text(encoding="utf-8") == ours
     assert not (repo / ".claude" / "worktrees" / "waits").exists()
     (lock / "holder").unlink()
     lock.rmdir()
+    released = time.time()
     out, err = waiting.communicate(timeout=300)
     assert waiting.returncode == 0, err
     assert not lock.exists()
+    made = (repo / ".claude" / "worktrees" / "waits" / ".git").stat().st_mtime
+    assert made >= released - 1, "the creation must begin only after the holder released the lock"
 
 
 def test_r2_1_the_registered_creation_hook_records_the_launching_process_as_owner(tmp_path):

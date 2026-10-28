@@ -97,6 +97,19 @@ def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
     return {"name": name, "path": path, "pane": pane, "marker": str(marker)}
 
 
+def record(marker: Path, chosen: dict) -> bool:
+    """Write the marker whole or not at all; False when another call recorded its move first."""
+    whole = marker.with_name(f"{marker.name}.{chosen['name']}")
+    whole.write_text(json.dumps(chosen), encoding="utf-8")
+    try:
+        os.link(whole, marker)
+        return True
+    except FileExistsError:
+        return False
+    finally:
+        whole.unlink(missing_ok=True)
+
+
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
     """`{"path", "name", "pane"}` of the worktree this session is being moved into."""
     common = Path(place["common"])
@@ -113,17 +126,15 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
         chosen = fresh(root, name, pane, facts, marker)
         if chosen.get("error"):
             return chosen
-        try:
-            with open(marker, "x", encoding="utf-8") as out:
-                json.dump(chosen, out)
-            created = True
-        except FileExistsError:
-            pass  # a concurrent call recorded its move first
+        created = record(marker, chosen)
     if not created:
         try:
             chosen = json.loads(marker.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return fresh(root, name, pane, facts, marker)
+        except OSError as problem:
+            return {"name": name, "path": "", "pane": pane, "error": f"move record: {problem}"}
+        except ValueError:
+            marker.unlink(missing_ok=True)  # markers are written whole, so this one is corrupt
+            return plan(place, envelope, facts)
         if Path(chosen["path"]).exists() and owner_is_dead(common, chosen["name"]):
             marker.unlink(missing_ok=True)  # an earlier session's worktree, not this one's
             return plan(place, envelope, facts)

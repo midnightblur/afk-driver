@@ -413,3 +413,17 @@
 - Chosen: B — the report-issue redactor reads every tracked `.json` outside `tests/` as plugin vocabulary, so the quoted word made two `test_report_issue.py` tests fail on the full Linux run; a new word would break the same way the next time a record quotes it, and the record is telemetry no gate reads
 - Supersedes: none
 - To reverse: restore the word in that findings file's r-007 evidence
+
+## D-59 — The spec passages this slice's placement calls override stay in the ledger
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — amend `SDD.md` and `VERIFICATION-PLAN.md` in this slice, outside its Scope vs B — quote each overridden passage here, since a `Supersedes:` line overrides the exact passage it quotes (root `DECISIONS.md` "Before working a slice")
+- Chosen: B — the specs are outside every slice's Scope and the ledger is the protocol's home for an override; A would put a second scope exception on top of D-60's
+- Supersedes: SDD §4 `path` row "written when setup takes the short name" (D-57's "SDD §2 row" is the §3 row "Repository list and short-name markers") and `VERIFICATION-PLAN.md` A18/A19 "setup-only writer", for short-name markers only (as D-57); SDD §3 `create-worktree --name` row "every other failure: exit 1" and `--branch --dir` row's exit-3 cell, which also cover any catalog R refusal (D-39) and an agent's `--dir` that climbs out of the short-name folder (D-47, D-52)
+- To reverse: amend those SDD and verification-plan passages and drop this entry's Supersedes line
+
+## D-60 — This slice edits three files outside its Scope
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — edit them here vs B — hand each to the slice whose Scope lists it (0010-setup-walk for `skills/afk/setup/MANIFEST.md`, 0006-worktree-guard for `scripts/tests/test_protected_branch_acceptance.py` and `scripts/tests/test_protected_branch_guard.py`)
+- Chosen: A — each edit follows from this slice's own change: the H6 probe called the removed `resolve worktreeBasePath` (D-56) and its prose and `AFK_WORKTREE_FOLDER` row describe the old placement; the two test files run the creator and the move helper, which now read `~/.afk` through placement, so they get the same empty sandbox home as this slice's own tests; B leaves suites red or reading the real home until those slices run
+- Supersedes: 0005-worktree-creator `## Scope`, for these three files only; 0010-setup-walk still owns the rest of H6, including adding `worktreeRoot` to the probe's `keys` (D-56)
+- To reverse: revert this slice's hunks in those three files

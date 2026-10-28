@@ -636,14 +636,44 @@ def _marker(repo: Path, session: str) -> Path:
     return folder / f"{session}.move"
 
 
-def test_an_unreadable_marker_names_a_fresh_path_and_starts_nothing(listed_repo, monkeypatch):
+def test_a_corrupt_marker_is_replaced_and_its_new_move_is_started(listed_repo, monkeypatch):
     repo, home, root = listed_repo
-    _marker(repo, "s-torn").write_text("{not json", encoding="utf-8")
+    marker = _marker(repo, "s-torn")
+    marker.write_text("{not json", encoding="utf-8")
     spawned: list = []
     module = _h2_module()
-    monkeypatch.setattr(module, "spawn", lambda *a, **k: spawned.append(a))
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
     chosen = module.plan(_place(repo), {"session_id": "s-torn", "cwd": str(repo)}, {})
     assert "error" not in chosen and Path(chosen["path"]).parent == root / "my-repo", chosen
+    assert json.loads(marker.read_text(encoding="utf-8")) == chosen
+    assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == chosen["name"], spawned
+    assert [p.name for p in marker.parent.iterdir()] == [marker.name]
+
+
+def test_the_helper_writes_its_outcome_into_the_marker_whole(tmp_path, monkeypatch):
+    folder = tmp_path / "afk-session"
+    folder.mkdir()
+    marker = folder / "s.move"
+    marker.write_text(json.dumps({"name": "n", "path": "p", "error": "old"}), encoding="utf-8")
+    module = load_move()
+    replaced: list = []
+    real = os.replace
+    monkeypatch.setattr(module.os, "replace", lambda a, b: (replaced.append(Path(b)), real(a, b)))
+    module.record(str(marker), created="p")
+    assert json.loads(marker.read_text(encoding="utf-8")) == {"name": "n", "path": "p", "created": "p"}
+    assert replaced == [marker] and [p.name for p in folder.iterdir()] == ["s.move"]
+
+
+def test_a_marker_that_cannot_be_read_returns_an_error_and_starts_nothing(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    _marker(repo, "s-locked").mkdir()
+    spawned: list = []
+    module = _h2_module()
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-locked", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("move record: ") and chosen["path"] == "", chosen
     assert not spawned
 
 

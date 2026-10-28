@@ -69,7 +69,7 @@ repository list is not checked: its fixer worktree goes to the sibling directory
 | Operation | Required value | Nothing resolves it → |
 |-----------|----------------|------------------------|
 | Tracker publish | K1 | No tracker call is attempted; bug stays `captured` (S1); the unpublished capture is still fully on disk and shown by `status` |
-| Fixer dispatch | K3 (fails a root rule) | Dispatch refused; no worktree created, no fixer spawned; the reason is the script's `ERROR=worktree root: <rule> <reason> - run /afk:setup` line. |
+| Fixer dispatch | K3 or the short name fails a placement rule (exit 3) | Dispatch refused; no worktree created, no fixer spawned; the reason is the script's `ERROR=` line, which names the rule and the fixing command. |
 | Change Ready flip | K2 (absent, or the literal `none`) | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
 | Interactive worktree open | K4 | Worktree is still created; the IDE simply isn't launched (K4 is optional — its absence never blocks) |
 | MR/PR create | K5 | The change opens with no assignee; creation is never blocked (K5 is optional — its absence never blocks) |

@@ -127,8 +127,8 @@ a token value — not even partially.
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
 - **Probe:** ask `afk-config.py
   resolve`, never `get` and never a file: `resolve` applies the whole chain —
-  the developer's own value from any layer, then the derived worktree base — so
-  the probe cannot disagree with the pipeline it gates. `trackerAssignee` and
+  the developer's own value from any layer — so the probe cannot disagree with
+  the pipeline it gates. `trackerAssignee` and
   `mrReviewer` name a person, so nothing resolves them but the developer's own
   answer: unresolved is a FAILURE, not an n/a. Each is asked for only where its
   adapter has the concept, so the selected kind decides which keys are probed.
@@ -1000,7 +1000,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_PROTECTED_TIMEOUT` | `scripts/protected-lookup.py` | seconds the forge protected-branch read may take before the guard falls back to the default-branch, `main`, `master` rule (default 5) |
 | `AFK_PROTECTION_CACHE_TTL` | `scripts/protected-lookup.py` | seconds a definite forge protected-branch answer is reused, in `<git common dir>/afk/protection-cache.json` (default and maximum 300; `0` asks the forge every time); the default branch, `main` and `master` are always asked |
 | `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API, used only with a `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` you set yourself; without one the CLI is used, and the CLI login token is never sent to an override (tests, proxies) |
-| `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
+| `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | for a repository not in the repository list: folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
 | `AFK_SCAN_DEADLINE` | `hooks/lib/bounded_scan.py` | seconds one repository scan may run before the verdict is unknown (default 120; keep below the Stop hook's `--deadline`) |
 | `AFK_MOVE_SPAWN` | `hooks/lib/h2_move.py` | `0` names the H-2 worktree path in a refusal without cutting it (tests only) |

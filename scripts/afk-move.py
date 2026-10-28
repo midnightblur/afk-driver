@@ -125,7 +125,13 @@ def record(marker: str, **outcome: str) -> None:
         body = json.loads(target.read_text(encoding="utf-8"))
         body.pop("error", None)
         body.update(outcome)
-        target.write_text(json.dumps(body), encoding="utf-8")
+        whole = target.with_name(f"{target.name}.outcome")
+        whole.write_text(json.dumps(body), encoding="utf-8")
+        try:
+            os.replace(whole, target)  # a reader never sees a half-written marker
+        except OSError:
+            whole.unlink(missing_ok=True)
+            target.write_text(json.dumps(body), encoding="utf-8")
     except (OSError, ValueError):
         pass
 

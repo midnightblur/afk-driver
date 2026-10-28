@@ -188,7 +188,10 @@ def _refusal_cases(tmp_path: Path, home: Path, repo: Path, root: Path):
     yield "R-03", lambda: set_root(home, tmp_path / "missing-root")
 
 
-@pytest.mark.parametrize("case", range(4))
+REFUSALS = ("r01-relative", "r01-tilde", "r02-inside-repo", "r03-missing")
+
+
+@pytest.mark.parametrize("case", range(len(REFUSALS)), ids=REFUSALS)
 @pytest.mark.parametrize("mode", ["name", "branch"])
 def test_a_root_that_fails_a_rule_refuses_with_exit_3_and_makes_nothing(tmp_path, listed, root, home, case, mode):
     rule, breaks = list(_refusal_cases(tmp_path, home, listed, root))[case]
@@ -301,6 +304,15 @@ def test_a_relative_parent_inside_the_main_checkout_refuses(tmp_path, home, agen
                              "--parent", "wts", "--no-open", agent=agent), 3)
     assert reason.startswith(f"parent {(repo / 'wts').as_posix()} is inside the main checkout "), reason
     assert_nothing_made(repo, "feat/in", repo / "wts")
+
+
+@pytest.mark.parametrize("agent", [True, False])
+def test_a_tilde_parent_inside_the_main_checkout_refuses(tmp_path, agent):
+    repo = make_repo(tmp_path / "src")
+    reason = error_of(create(repo, repo, "--branch", "feat/hi", "--dir", "hi", "--base", "dev",
+                             "--parent", "~/wts", "--no-open", agent=agent), 3)
+    assert reason.startswith(f"parent {(repo / 'wts').as_posix()} is inside the main checkout "), reason
+    assert_nothing_made(repo, "feat/hi", repo / "wts")
 
 
 def test_an_absolute_parent_inside_another_repository_is_refused_before_creation(tmp_path, home):
