@@ -78,7 +78,7 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
-Phase 2.5 ran → add the **miss class** to the summary; Phase 3.5 ran → append the **lesson id** so the workflow-improvement lesson isn't lost:
+Phase 2.5 ran → add the **miss class** to the summary; procedure step 8 recorded a lesson → append the **lesson id** so the workflow-improvement lesson isn't lost:
 
 ```
 OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]

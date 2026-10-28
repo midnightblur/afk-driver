@@ -43,7 +43,8 @@ The caller hands over:
 A check that runs against the running instance runs, in any step, only after
 the caller's restart command has restarted that instance on the current
 working tree. A live check with no instance or no restart command handed over
-→ return `blocked`, naming the check.
+→ restore the step 3 fix when a step reverted it, then return `blocked`,
+naming the check.
 
 ## Unreleased feature
 
@@ -173,9 +174,11 @@ the fix, per `DELEGATION.md` (plugin root); triage stays here.
 | The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`, then a `NNNN-smoke-*` subtask |
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | `/afk:to-subtasks`, naming the subtask; never re-slice silently |
 
-Classify a change to a frozen SDD decision by `DECISIONS.md` as in step 3: a
-one-way door or a tie → run step 8, then return `design_conflict`; a two-way
-door is recorded, and the SDD goes into the record as stale.
+Classify a change to a frozen SDD decision by `DECISIONS.md` as in step 3. A
+one-way door or a tie → put the SDD into the record as stale, run step 8, then
+return `design_conflict`. A two-way door is recorded, and the SDD goes into the
+record as stale; when `plan/DECISIONS.md` already holds an entry for that
+decision, put its id into the record instead of a new entry.
 
 Where a coverage ledger covers this bug's path, read its B13 rows for the
 statements the fix now contradicts (class semantics:
