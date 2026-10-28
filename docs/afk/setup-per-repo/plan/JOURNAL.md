@@ -140,3 +140,6 @@
 2026-10-28 04:48 | execute | 0004-placement | pushed a74bfa1..a900962 (1 commits) — round 4 fixes and the round 4 report; three fixes recorded and their threads closed
 2026-10-28 04:49 | execute | 0004-placement | reviewing — round 5 checks only the round 4 fixes, with two fresh reviewers
 2026-10-28 05:02 | execute | 0004-placement | review r5 advisory — crit=0 high=0 med=1 low=1; both fixed: a dangling link at the short name is refused by a check too, and a dead fallback is gone
+2026-10-28 05:04 | execute | 0004-placement | pushed a900962..1449751 (1 commits) — round 5 fixes and the round 5 report; two fixes recorded and their threads closed
+2026-10-28 05:05 | execute | 0004-placement | reviewing — round 6 checks only the round 5 fixes, with two fresh reviewers
+2026-10-28 05:16 | execute | 0004-placement | review r6 advisory — crit=0 high=0 med=0 low=1; fixed: the dangling-link test now states the folder it expects for each entry point

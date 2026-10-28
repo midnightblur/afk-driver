@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_placement.py",
+  "line": 539,
+  "side": "new",
+  "finding": "Dangling-link test builds its expected reason from verdict.folder, not from an independent expected path",
+  "why": "The sibling test pins `folder = os.path.realpath(elsewhere)`; this one accepts any folder text the verdict reports, so a wrong but consistent folder passes.",
+  "fix": "Assert the folder against the expected value per case: `os.path.realpath(elsewhere)` for the checked target, `root / 'proj'` for the new target.",
+  "evidence": "assert verdict.rule == \"R-06\" and verdict.reason == f\"{verdict.folder} is not a folder; pick another short name\""
+ }
+]

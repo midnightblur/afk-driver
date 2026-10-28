@@ -529,14 +529,18 @@ def test_a_short_name_refusal_names_a_linked_folder_as_the_check_shows_it(linked
     assert verdict.reason == f"{folder} was not made by setup for {rl.normalize(repo)}; pick another short name"
 
 
-@pytest.mark.parametrize("ask", [lambda repo, root: pl.target_for(repo, "wt1"),
-                                 lambda repo, root: pl.check_target(root / "proj" / "wt1", repo)],
-                         ids=["new target", "checked target"])
-def test_a_dangling_link_at_the_short_name_is_refused(linked_short_name_folder, root, ask):
+@pytest.mark.parametrize("ask, shown", [
+    (lambda repo, root: pl.target_for(repo, "wt1"), lambda root, elsewhere: str(root / "proj")),
+    (lambda repo, root: pl.check_target(root / "proj" / "wt1", repo),
+     lambda root, elsewhere: os.path.realpath(elsewhere)),
+], ids=["new target", "checked target"])
+def test_a_dangling_link_at_the_short_name_is_refused(linked_short_name_folder, root, ask, shown):
     repo, elsewhere = linked_short_name_folder
     elsewhere.rmdir()
+    folder = shown(root, elsewhere)
     verdict = ask(repo, root)
-    assert verdict.rule == "R-06" and verdict.reason == f"{verdict.folder} is not a folder; pick another short name"
+    assert verdict.rule == "R-06" and verdict.folder == folder
+    assert verdict.reason == f"{folder} is not a folder; pick another short name"
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")
