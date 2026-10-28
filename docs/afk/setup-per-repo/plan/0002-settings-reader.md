@@ -29,8 +29,18 @@ complex
 - scripts/tests/create-worktree-smoke.sh — fixtures only
 - scripts/tests/test_create_worktree_name.py — fixtures only
 - scripts/tests/test_protected_branch_acceptance.py — fixtures only
-- skills/afk/setup/scripts/developer_values.py — key order only
+- skills/afk/setup/scripts/developer_values.py — key order, plus the status reporting D-22 and D-24 record
 - scripts/tests/test_setup_developer_values.py
+- scripts/tests/test_precommit_order.py
+- adapters/notes/notion/NOTES.md
+- adapters/notes/obsidian/notes.sh
+- adapters/notes/obsidian/CONTRACT.md
+- adapters/notes/repo-files/notes.sh
+- adapters/notes/repo-files/CONTRACT.md
+- providers/CONFORMANCE.md
+- ADAPTERS.md
+- adapters/tracker/jira/adapter.json
+- .afk/config.yaml
 
 ## Seams
 - implement: `afk-config.py` merge in `afk_config` (`load`, `validate`, `get`, `resolve`) — owner table, ignored values, is-set-up, new keys (INV-013)
@@ -56,6 +66,7 @@ complex
 - [ ] Implements the public interface in SDD §8 row "settings reader (changed)" unmodified (SDD §8)
 - [ ] `CONFIG.md` documents the owner of every setting, the three new keys and the removed key (SDD §14 row "`afk-config.py` merge in `afk_config`")
 - [ ] Tests outside the reader that put personal worktree settings (`worktree.*`) in the committed file write them to the repository personal file instead, and the developer-values key order covers `worktreeRoot` and `forgeAccount`, so every test that passed before this slice still passes (human re-slice 2026-10-27, after the 0002 park)
+- [ ] No file in this slice's Scope still reads, lists or documents a setting at a file its owner does not read: the notes adapters and their docs take the machine-owned notes settings from the machine file, the Jira adapter's setting list names `jira.site` and drops `jira.credentials-env`, the plugin's own `.afk/config.yaml` holds no personal or machine value, and the no-Python commit check keeps every repository that has hooks gated (round-1 review findings f002 f004 f005 f006 f013; human re-slice 2026-10-27, after the second 0002 park)
 
 ## Produces
 - scripts/afk-config.py#OWNER_TABLE = — every setting's owner: team, personal or machine
