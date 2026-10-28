@@ -128,3 +128,6 @@
 2026-10-28 03:36 | execute | 0004-placement | review r1 advisory — crit=0 high=0 med=6 low=14; 20 findings posted on the pull request, 10 design findings sent to the feature review; developing — fixing four code bugs and five test gaps, one scope note
 2026-10-28 03:43 | execute | 0004-placement | decision(D-36) — placement keeps calling the list module's private short-name check and marker read; the public form is left to the feature review
 2026-10-28 03:43 | execute | 0004-placement | review r1 fixes — nested repositories in a worktree, link then .. targets, a broken machine file for an unlisted repository, module reuse, five test gaps; one disputed test finding stands and is fixed
+2026-10-28 04:01 | execute | 0004-placement | pushed 540a7d9..02a274f (1 commits) — round 1 fixes and the round 1 report; ten fixes recorded and their threads closed on the pull request
+2026-10-28 04:01 | execute | 0004-placement | reviewing — round 2 checks only the fixes, with four fresh reviewers
+2026-10-28 04:09 | execute | 0004-placement | review r2 advisory — crit=0 high=0 med=0 low=3; two fixed (one spelling for a checked target and its folder, a test split), one test finding withdrawn after a dispute

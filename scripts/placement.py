@@ -262,6 +262,8 @@ def _place(folder, environ, target: str | None, name: str | None) -> Verdict:
     base = os.path.join(root.path, entry.short_name) if rooted else None
     if name is not None:
         target = os.path.normpath(os.path.join(base, name)) if base is not None else None
+    elif base is not None:
+        base = os.path.realpath(base)
     if root.state == REFUSED:
         return Verdict(REFUSED, target, base, root.rule, root.reason, root.warnings)
     failed, _ = _run([rule for rule in ROOT_RULES if rule.scope == "short name"], _Ask(root.path, entry))

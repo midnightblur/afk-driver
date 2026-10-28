@@ -349,14 +349,18 @@ def test_an_unlisted_repository_is_not_listed_even_with_a_broken_machine_file(ro
     assert pl.check_target(tmp_path / "away", repo).state == pl.NOT_LISTED
 
 
-@pytest.mark.parametrize("where", ["the main checkout", "a worktree under the root"])
-def test_a_listed_repository_with_a_broken_machine_file_raises(listed, root, home, where):
-    worktree = root / "proj" / "wt0"
-    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
-    folder = {"the main checkout": listed, "a worktree under the root": worktree}[where]
+def test_a_listed_checkout_with_a_broken_machine_file_raises(listed, home):
     machine(home, "developer: {worktreeRoot: /x}\n")
     with pytest.raises(pl.PlacementError, match="flow syntax"):
-        pl.target_for(folder, "wt1")
+        pl.target_for(listed, "wt1")
+
+
+def test_a_worktree_under_the_root_with_a_broken_machine_file_raises(listed, root, home):
+    worktree = root / "proj" / "wt0"
+    git(listed, "worktree", "add", "-q", "-b", "wt0", str(worktree))
+    machine(home, "developer: {worktreeRoot: /x}\n")
+    with pytest.raises(pl.PlacementError, match="flow syntax"):
+        pl.target_for(worktree, "wt1")
 
 
 def test_a_name_that_climbs_out_of_the_folder_is_refused(listed, root):
@@ -442,6 +446,19 @@ def test_a_link_then_dotdot_is_judged_where_the_folder_lands(listed, root, tmp_p
     landed = next(p for p in (root / "proj" / "x", tmp_path / "away" / "x") if p.is_dir())
     assert same(verdict.target, landed)
     assert (verdict.state == pl.INSIDE) == same(landed.parent, root / "proj")
+
+
+def test_a_target_under_a_linked_root_is_shown_with_its_folder_in_one_spelling(home, tmp_path):
+    real = tmp_path / "real-root"
+    real.mkdir()
+    link(real, tmp_path / "root-link")
+    set_root(home, tmp_path / "root-link")
+    repo = make_repo(tmp_path / "src")
+    rl.add_repository(repo, tmp_path / "root-link")
+    verdict = pl.check_target(tmp_path / "away" / "x", repo)
+    assert verdict.rule == pl.OUTSIDE
+    assert os.path.dirname(verdict.folder) == os.path.realpath(real)
+    assert verdict.target == os.path.realpath(tmp_path / "away" / "x")
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")

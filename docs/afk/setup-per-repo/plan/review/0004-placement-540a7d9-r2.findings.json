@@ -1,0 +1,44 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/placement.py",
+  "line": 247,
+  "side": "new",
+  "finding": "check_target now returns the realpath of the target but the folder and message still use the unresolved root text, so a refusal can show two spellings of one tree.",
+  "why": "With a root reached through a link, Verdict.target is the resolved path while base is os.path.normpath of the configured root, so the outside message mixes spellings for the consumers that print it; the comparison itself is still right.",
+  "fix": "Show the resolved base (or the unresolved target) in the verdict so both sides use one spelling, and add a test with a linked root.",
+  "evidence": "return _place(folder, environ, os.path.realpath(absolute), None)   vs   base = os.path.join(root.path, entry.short_name) if rooted else None"
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology (oracle derived from the system under test)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_placement.py",
+  "line": 442,
+  "side": "new",
+  "finding": "The link-then-dotdot test takes its expected folder from where the OS lands the directory, so on Windows it cannot fail on the bug it was written for.",
+  "why": "Win32 folds door\\..\\x by text, so on Windows landed is root/proj/x and the pre-fix normpath code passes too; only Linux guards the regression.",
+  "fix": "Skip the test on Windows with that reason, or assert a fixed expectation in a Linux-only test.",
+  "evidence": "landed = next(p for p in (root / \"proj\" / \"x\", tmp_path / \"away\" / \"x\") if p.is_dir())"
+ },
+ {
+  "id": "r-003",
+  "concern": "test-veracity",
+  "criterion": "Obscure Test (irrelevant setup noise)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_placement.py",
+  "line": 356,
+  "side": "new",
+  "finding": "The \"the main checkout\" case of the broken-machine-file test also runs git worktree add, which that case never uses.",
+  "why": "The unused worktree and the dict lookup that picks folder are setup noise, and they hide that the two cases reach the entry through different lookups.",
+  "fix": "Split into two tests: one on listed, one on a worktree under the root.",
+  "evidence": "folder = {\"the main checkout\": listed, \"a worktree under the root\": worktree}[where]"
+ }
+]
