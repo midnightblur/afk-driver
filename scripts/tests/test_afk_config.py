@@ -590,22 +590,31 @@ def test_afk_config_naming_the_committed_file_reads_no_developer(tmp_path):
     assert out.stderr.count("committed file holds no developer") == 1
 
 
-@pytest.mark.parametrize("name", ["x.git", ".git"])
-def test_a_separate_git_directory_derives_no_worktree_base(tmp_path, name):
+def _separate_checkout(tmp_path: Path, name: str) -> Path:
     checkout, store = tmp_path / "checkout", tmp_path / "store"
     checkout.mkdir()
     store.mkdir()
     done = subprocess.run(["git", "init", "-q", "--separate-git-dir", str(store / name)],
                           cwd=str(checkout), capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
-    out = run(["resolve", "worktreeBasePath"], checkout, _home(tmp_path))
-    assert (out.returncode, out.stdout) == (1, "")
+    return checkout
+
+
+def test_a_separate_git_directory_not_named_git_derives_no_worktree_base(tmp_path):
+    checkout = _separate_checkout(tmp_path, "x.git")
     linked = _linked_worktree(checkout, tmp_path / "linked")
-    out = run(["resolve", "worktreeBasePath"], linked, _home(tmp_path))
-    if name == ".git":       # the linked worktree trusts the git folder's parent
+    for where in (checkout, linked):
+        out = run(["resolve", "worktreeBasePath"], where, _home(tmp_path))
+        assert (out.returncode, out.stdout) == (1, ""), where
+
+
+def test_a_separate_git_directory_named_git_derives_beside_it_from_every_worktree(tmp_path):
+    checkout = _separate_checkout(tmp_path, ".git")
+    linked = _linked_worktree(checkout, tmp_path / "linked")
+    for where in (checkout, linked):
+        out = run(["resolve", "worktreeBasePath"], where, _home(tmp_path))
+        assert out.returncode == 0, (where, out.stderr)
         assert Path(out.stdout.strip()).resolve() == (tmp_path / "store-worktrees").resolve()
-    else:
-        assert (out.returncode, out.stdout) == (1, "")
 
 
 def _linked_worktree(checkout: Path, where: Path) -> Path:

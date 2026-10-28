@@ -131,8 +131,9 @@ release page from its section here. Nobody tags by hand.
   `developer_values.py status` and the `/afk:setup` H6 probe ignore its
   values. Migration: move such a block to `<git common dir>/afk/config.yaml`
   or `~/.afk/config.yaml`.
-- A bare clone, a submodule, or a main checkout whose git directory lives
-  outside it no longer derives `worktreeBasePath`; set the key.
+- A bare clone, or a repository whose git directory is not a folder named
+  `.git` (a submodule, most separate git directories), no longer derives
+  `worktreeBasePath`; set the key.
 - A misspelled key under `developer:` is named, with its file, by `resolve`
   on stderr, by `developer_values.py status` and by the H6 probe, not only by
   `validate`.

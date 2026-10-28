@@ -132,3 +132,4 @@
 2026-10-28 00:51 | execute | 0013-config-contract | decision(D-48) — one stale comment line in the worktree script joins this slice so its review finding can be fixed and closed
 2026-10-28 01:05 | execute | 0013-config-contract | pushed 51bf4ae — round-1 fixes for all eight findings
 2026-10-28 01:32 | execute | 0013-config-contract | review advisory crit=0 high=0 med=0 low=1 — round 2: a separate git folder that is itself named .git still derived a worktree base; fixed in 7b432e5 and pushed
+2026-10-28 01:58 | execute | 0013-config-contract | review advisory crit=0 high=0 med=2 low=0 — round 3: CONFIG.md named the wrong mechanism for a linked worktree, and linked worktrees had no test; fixed in f004ed4 and pushed

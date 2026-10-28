@@ -324,10 +324,10 @@ An empty `developer:` block, or a key left blank, overrides nothing.
 
 K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
 main checkout even from inside a worktree, so every worktree of one repository
-agrees on the directory. A bare clone, a submodule, or a main checkout whose
-git directory lives outside it derives nothing and needs the key. A linked
-worktree of that last kind cannot see its main checkout, so it derives beside
-the git directory's parent folder; set the key there too.
+agrees on the directory. A bare clone, or a repository whose git directory is
+not a folder named `.git` (a submodule, most separate git directories), derives
+nothing and needs the key. A separate git directory that is itself named `.git`
+derives beside its own parent folder, the one `git worktree list` names first.
 
 **A missing value.** The literal `none` for K1, K2 or K5 reads exactly as an
 unset key, and overrides a broader layer's value — it records "nobody". When an
