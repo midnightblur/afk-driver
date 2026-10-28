@@ -15,7 +15,8 @@ A **concluded** workflow lesson — the gap is confirmed, not suspected:
 - a human corrects the agent's misunderstanding of an established pattern or
   instruction;
 - a human clarifies a term the agent misread;
-- escape analysis names a miss class;
+- a fix names a miss class or a stale artifact (gate:
+  `skills/afk/fix/WORKFLOW-FEEDBACK.md`);
 - a documented instruction was demonstrably not followed.
 
 One-off, obvious-from-code, or this-session-only → **not a lesson** (same bar

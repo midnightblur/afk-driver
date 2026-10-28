@@ -30,6 +30,9 @@ issue".
    | `disabled/flaky` — a built guard was left skipped/quarantined or passes only on a re-run | execution TDD discipline | `/afk:execute` (TDD step) + `tdd` skill |
    | `dodged-failure` — an authoring dodge survived review | review gate | `skills/afk/review/checklists/` (test concern) |
    | PRD asserted the wrong behavior | requirements | `/afk:grill-requirements` → `/afk:to-prd` |
+   | A frozen SDD decision was wrong or infeasible | architecture | `/afk:grill-solution` → `/afk:to-sdd` |
+   | No verification scenario would catch the bug | verification design | `/afk:grill-verification` → `/afk:to-verification-plan` |
+   | An in-flight subtask contract shifted | slicing | `/afk:to-subtasks` |
 
 2. **Write the structured lesson** (the ledger payload — facts only, reference
    don't duplicate):

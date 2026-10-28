@@ -341,7 +341,7 @@ The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhau
 _Avoid_: postmortem (that is per-incident), audit (that is `/afk:setup audit`'s staleness hunt)
 
 **Lesson**:
-A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; escape analysis names a miss). Capture protocol: `skills/afk/lessons/CAPTURE.md`.
+A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; a fix names a miss class or a stale artifact). Capture protocol: `skills/afk/lessons/CAPTURE.md`.
 _Avoid_: retro item (aggregation comes later), todo (a lesson carries its own drafted fix)
 
 **Lesson ledger**:

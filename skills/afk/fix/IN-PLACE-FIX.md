@@ -48,10 +48,9 @@ working tree. A live check with no instance or no restart command handed over
 ## Unreleased feature
 
 Step 7 and the workflow lesson of step 8 run only for a fix on an unreleased
-feature. The signals: the branch
-matches `git.branch-pattern`; the spec folder holds a `plan/PLAN.md` whose
-`Feature:` line is not yet shipped; the failure came from that feature's own
-verification.
+feature: all three signals hold. The branch matches `git.branch-pattern`; the
+spec folder holds a `plan/PLAN.md` and the branch's change is not merged; the
+failure came from that feature's own verification.
 
 ## Steps
 
@@ -114,7 +113,8 @@ is warranted, and add the **lowest tier that reproduces the bug pattern at its
 right home**. Proportionality is the rule: spend what the case requires. Watch
 each test this step adds fail with the step 3 fix reverted, then pass with it
 restored; the record holds both runs. A live-tier test follows "Live
-tiers" for each of the two runs.
+tiers" for each of the two runs. An added test that passes with the fix
+reverted, or fails with it restored → return `blocked`, naming it.
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -151,6 +151,8 @@ token, drive the app again), not only at the test seam.
 
 Name why the existing guard missed the bug: [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)
 holds the procedure and when it applies. Put the miss class into the record.
+A scenario escape analysis fixes in place that does not go red, then green →
+return `blocked`, naming it.
 
 ### 7. Find stale artifacts
 
@@ -170,8 +172,8 @@ the fix, per `DELEGATION.md` (plugin root); triage stays here.
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | `/afk:to-subtasks`, naming the subtask; never re-slice silently |
 
 Classify a change to a frozen SDD decision by `DECISIONS.md` as in step 3: a
-one-way door or a tie → return `design_conflict`; a two-way door is recorded,
-and the SDD goes into the record as stale.
+one-way door or a tie → run step 8, then return `design_conflict`; a two-way
+door is recorded, and the SDD goes into the record as stale.
 
 Where a coverage ledger covers this bug's path, read its B13 rows for the
 statements the fix now contradicts (class semantics:

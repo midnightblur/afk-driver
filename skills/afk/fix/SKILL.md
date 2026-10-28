@@ -11,7 +11,7 @@ Run when a bug surfaces — typically a feature's **verification phase** (agent-
 
 `fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
-Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its spec folder is the one Phase 0 step 3 locates. Its running instance and restart command are the ones Phase 0 step 5 takes; with none, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
+Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its working tree is the diagnosis worktree Phase 1 step 3 picks. Its spec folder is the one Phase 0 step 2 locates. Its running instance and restart command are the ones Phase 0 step 5 takes; with none, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
 
 ## Argument
 
@@ -22,10 +22,10 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
 1. **Source of the finding.**
    - **Jira bug** (key in arg or derivable from branch): `tracker_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
-3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+2. **Locate artifacts**, when the bug belongs to a feature: `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+3. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
-5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and the command that restarts it on the working tree. Take both from the invoker; ask when the invoker named neither.
+5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
@@ -34,10 +34,10 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
 2. **Route** on diagnose's status line (`DIAGNOSIS: <verdict> <path>`, its last line) or on a handed diagnosis's Verdict part:
    - V-1 obvious fix → step 3.
    - V-2 several fixes or V-3 spec gap whose latest size-call row for its Work id, across both grill sections of the `GRILL-LOG.md` beside it, is `still small` (`${AFK_PLUGIN_ROOT}/skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` "Size-call row") → step 3, applying the row's `settled:` answer as the Fix proposal.
-   - Any other V-2 or V-3, or V-4 works as specified → stop with no code change. A wrong binding SDD/ADR decision in a feature session → report `design_conflict`, naming the decision; no code changed, and a superseding ADR comes from `/afk:grill-solution` → `/afk:to-sdd`. Otherwise report `blocked` naming the verdict and the diagnosis path.
+   - Any other V-2 or V-3, or V-4 works as specified → stop with no code change. A wrong binding SDD/ADR decision in a feature session: classify the change by `DECISIONS.md` (plugin root). A one-way door or a tie → report `design_conflict`, naming the decision; no code changed, and a superseding ADR comes from `/afk:grill-solution` → `/afk:to-sdd`. A two-way door → record it per `DECISIONS.md` and go to step 3, with the recorded decision as the Fix proposal. Otherwise report `blocked` naming the verdict and the diagnosis path.
    - V-5 cannot reproduce → stop; report `cannot_reproduce` with the diagnosis's Attempts.
    - `DIAGNOSIS: blocked — <reason>` → stop; report `blocked` with that reason.
-3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: of the worktrees in `git worktree list` whose folder holds the `DIAGNOSIS.md` path, the one with the longest folder path (linked worktrees can sit inside the main checkout), else the one on the Diagnosis branch. Neither → cut one onto that branch (`${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`) when the branch holds the failing test (`git cat-file -e <Diagnosis branch>:<test path>`) or the diagnosis has none; else stop `blocked`, since a handed-over worktree kept the test uncommitted. A worktree fix may not edit (another session holds it) → stop `blocked`, naming it. Watch the failing test fail (it passes or does not build → stop `blocked`, naming the branch and the Base), apply the Fix proposal, watch it pass. A light diagnosis's reused check, or a seam absence recorded in Root cause, plays the failing test's part. The failing test and `DIAGNOSIS.md` stay beside the fix for whoever commits it: the test becomes the regression test, and the diagnosis ships with the fix. A worktree fix did not start in stays for the human to commit from; the report names its path.
+3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: of the worktrees in `git worktree list` whose folder holds the `DIAGNOSIS.md` path, the one with the longest folder path (linked worktrees can sit inside the main checkout), else the one on the Diagnosis branch. Neither → cut one onto that branch (`${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`) when the branch holds the failing test (`git cat-file -e <Diagnosis branch>:<test path>`) or the diagnosis has none; else stop `blocked`, since a handed-over worktree kept the test uncommitted. A worktree fix may not edit (another session holds it) → stop `blocked`, naming it. Watch the failing test fail (it passes or does not build → stop `blocked`, naming the branch and the Base), apply the Fix proposal, watch it pass. A failing test that runs against the running instance follows [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Live tiers" for both runs. A light diagnosis's reused check, or a seam absence recorded in Root cause, plays the failing test's part. The failing test and `DIAGNOSIS.md` stay beside the fix for whoever commits it: the test becomes the regression test, and the diagnosis ships with the fix. A worktree fix did not start in stays for the human to commit from; the report names its path.
 
 Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
@@ -45,7 +45,7 @@ Exit gate: verdict V-1 (or a V-2/V-3 whose latest size-call row is `still small`
 
 ## Phase 2 — Broaden coverage (proportional)
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then its step 5, with the diagnosis's reproduction as its step 1 failure. A check or reproduction still red there → report `blocked`, naming it.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then procedure step 5, with the diagnosis's reproduction as the failure of procedure step 1. A check or reproduction still red there, or a `blocked` return → report `blocked`, naming it.
 
 ## Phase 2.5 — Escape analysis
 
