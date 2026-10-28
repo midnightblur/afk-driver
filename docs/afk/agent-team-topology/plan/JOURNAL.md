@@ -482,3 +482,5 @@
 2026-10-27 21:29 | execute | 0011-job-supervisor | adversary — first attempt env_unreachable (the guard refused git init in a scratch folder); re-run from the worktree with AFK_TEAM_ROOT in scratch: findings, 53 probes, 0/0/1/2 advisory (A-1 the run's own limit words read as parked, A-2 a named zone is unknown with no tzdata, A-3 a second start before the first is recorded answers 0, D-153); note on the change, comment 6458191681
 2026-10-27 21:29 | execute | 0011-job-supervisor | wiring gate exit 0; rationale receipt verified (nothing pending); final tip 666f14f: 63 supervisor and 113 entry-script tests pass, Produces anchor passes
 2026-10-27 21:29 | execute | 0011-job-supervisor | done — review settled at round 4, adversary advisory only; open for the human: add <run>/supervisors/ to 0012-cleanup step 2 (wiring IOU, D-152)
+2026-10-27 21:30 | autopilot | run | heartbeat 15/27 done, starting 0012-cleanup
+2026-10-27 21:30 | autopilot | 0012-cleanup | decision(D-154) — cleanup's step 2 now lists the job supervisors' folder, so the supervisor's claim files are deleted with the run's messages

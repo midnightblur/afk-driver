@@ -1077,3 +1077,10 @@
 - Chosen: B — the run still holds one supervisor per agent (I20) and the agent still gets exactly one exited or parked message; A changes agent-start, which 0011's ## Scope does not hold
 - Supersedes: none
 - To reverse: make scripts/team/entry.py `_start_supervisor` wait for the child's claim file and answer its refusal
+
+## D-154 — 0012's step 2 lists the supervisors folder in the message area
+- 2026-10-27 · decided by /afk:autopilot (orchestrator, agent-decided under the 2026-09-30 hands-off grant, before 0012 starts)
+- Options: A — leave 0012's Acceptance as written and hold the run for the human to add the folder vs B — add `<run>/supervisors/` to the step-2 Acceptance bullet of 0012-cleanup.md, as D-152 and its wiring IOU ask
+- Chosen: B — a one-line contract edit on a pending subtask that closes an anchored IOU; the folder holds only run state, so deleting it with the message area changes no signed row
+- Supersedes: none
+- To reverse: remove the supervisors clause from 0012-cleanup.md's step-2 Acceptance bullet and reopen the IOU

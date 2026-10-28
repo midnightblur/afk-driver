@@ -24,7 +24,7 @@ complex
 ## Acceptance
 - [ ] Implements the public interface in SDD §8 row "Cleanup" unmodified: five fixed steps, one call per run, reporting survivors (SDD §8 row "Cleanup")
 - [ ] Step 1 kills every process the manifest names, the inbox wait job and each job supervisor included, by calling agent-stop on every remaining agent entry, a lost entry included, and on every process entry by its process id (plan D-39); agent-stop kills by the process id when the entry holds one, closes the pane when it holds a handle, and kills only after the identity check, agent-decided (SDD §8 row "Cleanup")
-- [ ] Steps 2 to 5 delete the message area of the run directory (message bodies, inboxes with their processed folders, completion signals and result files in the run directory), then the knowledge store, then the resolved pattern, then the manifest, last (SDD §7)
+- [ ] Steps 2 to 5 delete the message area of the run directory (message bodies, inboxes with their processed folders, completion signals, the job supervisors' folder `<run>/supervisors/` (D-152, D-154) and result files in the run directory), then the knowledge store, then the resolved pattern, then the manifest, last (SDD §7)
 - [ ] A phase does not report finished while the manifest holds an unkilled process; a failed kill leaves the entry unkillable and holds the phase (SDD §6)
 - [ ] While any entry stays unkillable, or a process entry is left after a failed kill, cleanup skips steps 2 to 5, and its report says the message area, the knowledge store, the resolved pattern and the manifest are kept for the next cleanup, agent-decided (SDD §7)
 - [ ] The charter files in the run directory are deleted with the run directory in step 2, the design's inferred reading (SDD §4)
