@@ -484,3 +484,7 @@
 2026-10-27 21:29 | execute | 0011-job-supervisor | done — review settled at round 4, adversary advisory only; open for the human: add <run>/supervisors/ to 0012-cleanup step 2 (wiring IOU, D-152)
 2026-10-27 21:30 | autopilot | run | heartbeat 15/27 done, starting 0012-cleanup
 2026-10-27 21:30 | autopilot | 0012-cleanup | decision(D-154) — cleanup's step 2 now lists the job supervisors' folder, so the supervisor's claim files are deleted with the run's messages
+2026-10-27 21:40 | execute | 0012-cleanup | designing — the 4 consumed anchors hold; the slice adds two new files and has no seam ground to re-take
+2026-10-27 21:48 | execute | 0012-cleanup | decision(D-155) — cleanup answers an exit code and a report, and kills only through agent-stop
+2026-10-27 21:48 | execute | 0012-cleanup | decision(D-156) — step 2 deletes everything in the run folder but the knowledge store, the pattern and the manifest, and follows no link out of it
+2026-10-27 21:48 | execute | 0012-cleanup | decision(D-157) — background processes stop before agents; an agent still starting is marked lost first; a stop call that fails marks the agent unkillable

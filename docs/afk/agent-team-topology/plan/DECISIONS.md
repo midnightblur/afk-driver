@@ -1084,3 +1084,24 @@
 - Chosen: B — a one-line contract edit on a pending subtask that closes an anchored IOU; the folder holds only run state, so deleting it with the message area changes no signed row
 - Supersedes: none
 - To reverse: remove the supervisors clause from 0012-cleanup.md's step-2 Acceptance bullet and reopen the IOU
+
+## D-155 — Cleanup's call shape and exit codes
+- 2026-10-27 · decided by /afk:execute (0012-cleanup, Step 4)
+- Options: A — cleanup kills processes and moves entries itself vs B — `run_cleanup(feature, host=None)` answers (exit code, report) and calls agent-stop (force true) and agent-list through `entry.run_command`; `scripts/team/cleanup.py '{"run": <feature>}'` prints the report; exit 0 finished, 1 held (an entry left or a delete failed, files kept), 2 a bad argument, 4 the manifest cannot be read
+- Chosen: B — D-32 and D-39 put every kill behind agent-stop's identity check, and run_command answers every failure in the team entry script's shape; exit 1 lets a shell caller tell a held phase (SDD §6 I5) from a finished one
+- Supersedes: none
+- To reverse: change `run_cleanup(` and `main(` in scripts/team/cleanup.py before 0015 calls them
+
+## D-156 — Step 2 deletes the run directory except what steps 3 to 5 delete
+- 2026-10-27 · decided by /afk:execute (0012-cleanup, Step 4)
+- Options: A — step 2 deletes only the parts its Acceptance names vs B — step 2 deletes every file and folder of the run directory except the knowledge store, `pattern.json` and the `manifest.` files (the manifest, its lock and their temporary files); charters, checkpoints, logs and permission.json go with it; a link is removed, never followed
+- Chosen: B — SDD §4 deletes the charter files "with the run directory in step 2" (SDD.md:375) and the running checkpoint "by the same cleanup step" (SDD.md:299), and a result file in the run directory has no fixed name (SDD §4 S-173), so only a rule by exclusion reaches all of them; not following a link keeps a result file a stage placed outside the run directory (SDD §7)
+- Supersedes: none
+- To reverse: list step 2's parts by name in scripts/team/cleanup.py
+
+## D-157 — Step 1's order, a starting entry, and a failed agent-stop call
+- 2026-10-27 · decided by /afk:execute (0012-cleanup, Step 4)
+- Options: A — stop entries in manifest order and leave a failed call's entry as it is vs B — stop process entries (the wait job, each job supervisor) before agent entries; move an entry in starting to lost before its agent-stop; when agent-stop answers a non-zero exit, it moved nothing, so cleanup moves the entry to unkillable
+- Chosen: B — a supervisor stopped first sends no exited message for an agent cleanup stops; A1 allows only working and lost (manifest TRANSITIONS; SDD §7 Cleanup "an entry still in starting through lost"); PRD AC-050 marks a failed stop unkillable
+- Supersedes: none
+- To reverse: drop the reorder, the starting move and the unkillable move from scripts/team/cleanup.py step 1
