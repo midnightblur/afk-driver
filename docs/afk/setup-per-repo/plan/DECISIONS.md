@@ -406,3 +406,10 @@
 - Chosen: B — the claim writes only the marker of a repository already in the list, under the list's own lock, and the list itself keeps setup as its only writer
 - Supersedes: SDD §2 row "Repository list and short-name markers" ("setup is the only writer") and plan/0003-repository-list.md's "written when setup takes the short name", for markers only
 - To reverse: drop `claim_short_name_folder` from `scripts/create-worktree` and refuse a missing or unmarked folder with `run /afk:setup`
+
+## D-58 — A test's probe word quoted in a review record is masked
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — rename the probe word in `scripts/tests/test_existing_worktree_outside_root.py` vs B — mask the word in `plan/review/0005-worktree-creator-98a0a12-r3.findings.json`, as D-4 masked quoted fixture values
+- Chosen: B — the report-issue redactor reads every tracked `.json` outside `tests/` as plugin vocabulary, so the quoted word made two `test_report_issue.py` tests fail on the full Linux run; a new word would break the same way the next time a record quotes it, and the record is telemetry no gate reads
+- Supersedes: none
+- To reverse: restore the word in that findings file's r-007 evidence

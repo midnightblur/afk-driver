@@ -95,6 +95,6 @@
   "finding": "Possible vacuous check: the new `assert in_changes` ('the member wrote nothing under the root') cannot fail for two writing cases",
   "why": "The probes for scripts/lavish/inject.py and write_report.py create their own files in the worktree (probe-page.html, COVERAGE.json) before calling the member, so the change set is non-empty whether or not the member wrote anything.",
   "fix": "Snapshot after the fixture setup inside the probe, or assert the member's own output file (REPORT.md, the rewritten page) is in in_changes for those two cases.",
-  "evidence": "test_existing_worktree_outside_root.py:826-827 `page.write_text(\"<html>...Zorblax...\")` before `inject.inject_file`; :789-791 `(folder / \"COVERAGE.json\").write_text(...)` before write_report.py; observe() takes `before` at :881 ahead of the probe, so probe-written files count as changes"
+  "evidence": "test_existing_worktree_outside_root.py:826-827 `page.write_text(\"<html>...<probe word>...\")` before `inject.inject_file`; :789-791 `(folder / \"COVERAGE.json\").write_text(...)` before write_report.py; observe() takes `before` at :881 ahead of the probe, so probe-written files count as changes"
  }
 ]
