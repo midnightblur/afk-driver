@@ -27,8 +27,8 @@ a person, and a committed file never names a person. Each developer answers for
 themselves: `/afk:setup` asks in session, from any linked worktree.
 
 Resolution, highest first: the `developer:` value from any layer (checkout
-beats repository beats machine), then — for `worktreeBasePath` alone — a derived value,
-then fail closed.
+beats repository beats machine), then fail closed. K3 is the exception: its own
+resolution is below the keys table.
 
 ## Keys
 
@@ -36,14 +36,16 @@ then fail closed.
 |----|-----|------|---------|---------------|-------|
 | K1 | `trackerAssignee` | string | Account id or email a work item the plugin creates is assigned to — the bug ticket (fail-closed, below) and spinoff tickets via `/afk:to-ticket` (unset → no assignee). The tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
 | K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready. The literal `none` is a valid answer: it records "nobody reviews my changes", and every consumer reads it exactly as an absent key | nothing — a person has no default | Change Ready flip |
-| K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout | Fixer dispatch |
+| K3 | `worktreeRoot` | absolute path | The worktree root: the folder that holds every worktree of a repository in the repository list, at `<root>/<short name>/<worktree name>` | the suggestion `~/repo-worktrees`, or the old machine `worktreeBasePath`, while it passes the root rules | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right | (optional) interactive worktree open |
 | K5 | `mrAssignee` | string | Forge user every MR/PR the plugin opens is assigned to, the fix change included. Unset or the literal `none` means no assignee — it never gates; `none` overrides a broader layer's value | nothing — a person has no default | (optional) MR/PR create |
 
-K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
-MAIN checkout even from inside a worktree, so every worktree of one repository
-agrees on the directory. A repository whose git directory is not inside the tree
-(a bare clone) derives nothing and needs the key.
+K3 lives only in the machine file. `afk-config.py resolve worktreeRoot` prints it
+(exit 0, with a stderr note when it is not confirmed) or names the failed root rule
+(exit 1). `scripts/create-worktree` asks placement itself, so the dispatch reads K3
+through the script's exit status: exit 3 is a refusal. A repository not in the
+repository list is not checked: its fixer worktree goes to the sibling directory
+`<main-checkout-name>-worktrees`.
 
 ## Read contract
 
@@ -58,15 +60,16 @@ agrees on the directory. A repository whose git directory is not inside the tree
   reads no config and is never blocked by absent config — a capture is never
   lost to it (PRD AC-001).
 - **Additive keys.** New keys may be added over time; existing keys are never
-  removed or repurposed. An unknown key under `developer:` is a validation
-  error, so a typo is named rather than silently ignored.
+  repurposed. K3 replaced `worktreeBasePath`, which still parses and is read
+  only as the old base K3 can fall back to. An unknown key under `developer:` is
+  a validation error, so a typo is named rather than silently ignored.
 
 ## Fail-closed matrix
 
 | Operation | Required value | Nothing resolves it → |
 |-----------|----------------|------------------------|
 | Tracker publish | K1 | No tracker call is attempted; bug stays `captured` (S1); the unpublished capture is still fully on disk and shown by `status` |
-| Fixer dispatch | K3 | Dispatch refused; no worktree created, no fixer spawned; the reason names the key. Only reachable when the derivation also failed. |
+| Fixer dispatch | K3 (fails a root rule) | Dispatch refused; no worktree created, no fixer spawned; the reason is the script's `ERROR=worktree root: <rule> <reason> - run /afk:setup` line. |
 | Change Ready flip | K2 (absent, or the literal `none`) | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
 | Interactive worktree open | K4 | Worktree is still created; the IDE simply isn't launched (K4 is optional — its absence never blocks) |
 | MR/PR create | K5 | The change opens with no assignee; creation is never blocked (K5 is optional — its absence never blocks) |
@@ -87,7 +90,8 @@ developer:
 ```
 
 That one file satisfies every gate above: K1, K2, K4 and K5 from the machine, K3
-derived. A repository with a different reviewer adds its own `developer:` block
+the suggestion once `~/repo-worktrees` exists. A repository with a different
+reviewer adds its own `developer:` block
 in `<git common dir>/afk/config.yaml`; every worktree of that repository reads
 it, so nothing needs writing again when a worktree is created.
 

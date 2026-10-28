@@ -40,4 +40,5 @@ INV-021
 INV-022
 INV-023
 INV-024
+INV-025
 Z0-9       # character class of the tracker-key regex [A-Z][A-Z0-9]+-\d+ (skills/utils/settle-change/SKILL.md)

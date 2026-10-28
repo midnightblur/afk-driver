@@ -21,26 +21,32 @@
 #                     no pattern accepts any name.
 #                     If it already exists, the worktree attaches to it (--base ignored).
 #                     If it doesn't exist, --base is required to create it.
-#   --dir <name>      Worktree directory name, created under the base parent dir.
+#   --dir <name>      Worktree directory name, created under the parent dir.
 #
 # Or, instead of --branch/--dir, a name (the agent path):
 #   --name <name>     Worktree name: 1-64 of A-Z a-z 0-9 . _ - (no `..`), checked before any
-#                     filesystem or git call. The worktree goes under the current harness's
-#                     folder inside the main checkout (hidden through the clone's local
-#                     exclude file); the branch is `git.branch-template` with `{name}` and
-#                     `{user}` filled when it holds no other placeholder, else `worktree-<name>`.
-#                     An owner record and a lock live under the git common directory.
+#                     filesystem or git call. The branch is `git.branch-template` with `{name}`
+#                     and `{user}` filled when it holds no other placeholder, else
+#                     `worktree-<name>`. An owner record and a lock live under the git common
+#                     directory. --parent is ignored.
 #   --session <id>    Session id to record in the owner record (with --name).
+#
+# Placement (scripts/placement.py) picks the folder before anything is made. A repository
+# in the repository list gets `<root>/<short name>/<name or dir>`; a root or short name
+# that fails a catalog R rule refuses. A repository not in the list gets, for --name, the
+# current harness's folder inside the main checkout (hidden through the clone's local
+# exclude file), and for --branch/--dir, the sibling `<main-checkout>-worktrees`.
 #
 # Options:
 #   --base <branch>   Base branch to branch from when --branch doesn't exist yet.
 #   --track           Pass --track to `git worktree add` (use when the branch will be pushed).
 #   --repo <path>     Main repo dir. Default: first entry of `git worktree list` (the main
 #                     worktree), else the current toplevel.
-#   --parent <path>   Worktree parent dir. Default: the resolved
-#                     `worktreeBasePath` — the developer's own value, else a
-#                     sibling directory `<main-checkout>-worktrees` derived
-#                     from git.
+#   --parent <path>   Worktree parent dir instead of the placement's folder. `~` and a
+#                     relative path are made absolute against the current folder first, and
+#                     a relative or `~` one that lands inside the main checkout is refused.
+#                     In an agent session, for a listed repository, the worktree must lie
+#                     inside `<root>/<short name>`; a developer's own terminal is not checked.
 #   --idea-bin <path> IDE launcher. Default: `developer.ideBinary`.
 #   --no-configs      Skip copying the files `worktree.copy` names.
 #   --no-open         Skip launching the IDE on the new worktree (set by non-interactive callers).
@@ -60,18 +66,21 @@
 #   --m2-seed <path>  => the seed key its adapter documents, set in .afk/config.yaml
 #
 # Output contract (machine-readable, always the LAST line):
-#   success  -> WORKTREE_PATH=<absolute path>
-#   failure  -> ERROR=<reason>   (and a non-zero exit; never a bare set-e death)
+#   success  -> WORKTREE_PATH=<absolute path>, exit 0
+#   refusal  -> exit 3: ERROR=worktree root: <rule> <reason> - run /afk:setup, or
+#               ERROR=parent <path> is outside <root>/<short name> - <fix>, or
+#               ERROR=parent <path> is inside the main checkout <path> - <fix>
+#   failure  -> ERROR=<reason>, exit 1 (never a bare set-e death)
+# A refusal comes before any folder, branch or worktree is made.
 #
-# Per-dev config (a `developer:` block, normally in ~/.afk/config.yaml) supplies
-# worktreeBasePath + ideBinary. Both are optional: worktreeBasePath is derived
-# when unset, and no IDE is launched without ideBinary.
-# (key names owned by skills/afk/bug/CONFIG.md); a CLI flag always overrides the config value.
+# Per-dev config (a `developer:` block) supplies ideBinary (key names owned by
+# skills/afk/bug/CONFIG.md); no IDE is launched without it, and --idea-bin overrides it.
 
 set -u
 
 # --- error contract: every failure path emits a single ERROR= line + non-zero exit --------
 error_exit() { echo "ERROR=$1" >&2; exit 1; }
+refuse_exit() { echo "ERROR=$1" >&2; exit 3; }
 # safety net: any command that fails under set -e trips this instead of dying silently.
 # `set -E` (errtrace) is load-bearing — without it the ERR trap is NOT inherited into shell
 # functions / command substitutions, so a failure inside a helper (perl/cp/mkdir) would be a
@@ -219,13 +228,11 @@ read_config_key() {
   [[ -f "$script" ]] || {
     if [[ -z "${CFG_WARNED:-}" ]]; then
       CFG_WARNED=1
-      echo -e "  ${YELLOW}No afk-config.py under $AFK_ROOT_DIR — ignoring developer defaults; pass --parent/--idea-bin explicitly${NC}" >&2
+      echo -e "  ${YELLOW}No afk-config.py under $AFK_ROOT_DIR — ignoring developer defaults; pass --idea-bin explicitly${NC}" >&2
     fi
     return 0
   }
-  # `resolve`, not `get`: it applies the whole chain — the developer's own
-  # value, then the repository's committed default, then the derived one —
-  # so this script never learns the order.
+  # `resolve`, not `get`: it applies the developer chain, so this script never learns the order.
   ( cd "$repo" && "$PY_BIN" "$script" resolve "$key" 2>/dev/null ) || true
 }
 
@@ -258,15 +265,16 @@ branch_for_name() {
   fi
 }
 
+# shellcheck source=/dev/null
+source "$AFK_ROOT_DIR/hooks/lib/provider.sh"
+
 if [[ -n "$NAME" ]]; then
-  # shellcheck source=/dev/null
-  source "$AFK_ROOT_DIR/hooks/lib/provider.sh"
   provider_json="$AFK_ROOT_DIR/hooks/lib/providers/$(afk_provider).json"
   provider_json="$(cygpath -m "$provider_json" 2>/dev/null || echo "$provider_json")"
   FOLDER="${AFK_WORKTREE_FOLDER:-$("$PY_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("worktree_folder", ""))' "$provider_json" 2>/dev/null || true)}"
   FOLDER="${FOLDER:-.claude/worktrees}"
   [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
-  WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"
+  WORKTREE_PARENT=""
   DIR_NAME="$NAME"
   BRANCH_TEMPLATE="$(cd "$REPO_DIR" && "$PY_BIN" "$AFK_ROOT_DIR/scripts/afk-config.py" get git.branch-template 2>/dev/null || true)"
   BRANCH="$(branch_for_name "$NAME")"
@@ -276,24 +284,101 @@ if [[ -n "$NAME" ]]; then
 fi
 
 
-if [[ -z "$WORKTREE_PARENT" ]]; then
-  WORKTREE_PARENT="$(read_config_key worktreeBasePath "$REPO_DIR")"
-  WORKTREE_SOURCE="developer.worktreeBasePath (or its derived default)"
-  if [[ -z "$WORKTREE_PARENT" ]]; then
-    # Only reachable when the resolver could not derive one either — a bare
-    # clone, or a git dir outside the tree. Say where it landed rather than
-    # creating worktrees somewhere the human never named.
-    WORKTREE_PARENT="${HOME}/repo-worktrees"
-    WORKTREE_SOURCE="last-resort default (set developer.worktreeBasePath or pass --parent)"
+# --- placement: every check below runs before anything is made.
+native_path() { cygpath -m "$1" 2>/dev/null || printf '%s\n' "$1"; }
+
+# ask_placement name|dir|parent <worktree name, or the worktree path for parent> [agent relative]
+# One line, fields split by \x1f: state, target, folder, rule, reason.
+ask_placement() {
+  "$PY_BIN" - "$(native_path "$AFK_ROOT_DIR/scripts/placement.py")" "$1" "$(native_path "$REPO_DIR")" "${@:2}" <<'PY'
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("afk_placement_for_creator", sys.argv[1])
+placement = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(placement)
+mode, folder, value = sys.argv[2:5]
+
+def answer():
+    if mode == "parent":
+        agent, relative = sys.argv[5:7]
+        main = os.path.realpath(folder)
+        target = os.path.realpath(value)
+        inside_main = os.path.normcase(target).startswith(os.path.normcase(main.rstrip("\\/") + os.sep))
+        if relative == "1" and (inside_main or os.path.normcase(target) == os.path.normcase(main)):
+            return "refused", target, main, "main", ""
+        if agent != "1":
+            return placement.NOT_LISTED, target, None, None, None
+        return placement.check_target(value, folder)
+    verdict = placement.target_for(folder, value)
+    if mode == "dir" and verdict.state == placement.NOT_LISTED:
+        return verdict.state, None, placement.afk_config.worktree_base(placement.pathlib.Path(folder)), None, None
+    return verdict[:5]
+
+try:
+    fields = answer()
+except placement.PlacementError as error:
+    fields = ("error", None, None, None, f"placement: {error}")
+text = lambda part: "" if part is None else str(part).replace("\n", " ")
+line = "\x1f".join(text(part) for part in fields)
+print(line.replace("\\", "/") if os.name == "nt" else line)
+PY
+}
+
+P_STATE="" P_TARGET="" P_FOLDER="" P_RULE="" P_REASON=""
+place() {
+  local answer
+  answer="$(ask_placement "$@")" || error_exit "placement gave no answer for $REPO_DIR"
+  IFS=$'\x1f' read -r P_STATE P_TARGET P_FOLDER P_RULE P_REASON <<<"$answer" || true
+  [[ "$P_STATE" != error ]] || error_exit "$P_REASON"
+  [[ "$P_STATE" != refused || "$P_RULE" == outside || "$P_RULE" == main ]] || \
+    refuse_exit "worktree root: $P_RULE $P_REASON - run /afk:setup"
+}
+
+PLACED=false
+if [[ -z "$NAME" && -n "$WORKTREE_PARENT" ]]; then
+  parent_given="$WORKTREE_PARENT" relative=0
+  case "$WORKTREE_PARENT" in
+    "~") WORKTREE_PARENT="$HOME" relative=1 ;;
+    "~/"*) WORKTREE_PARENT="$HOME/${WORKTREE_PARENT#\~/}" relative=1 ;;
+  esac
+  case "$WORKTREE_PARENT" in
+    /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+    *) WORKTREE_PARENT="$PWD/$WORKTREE_PARENT" relative=1 ;;
+  esac
+  WORKTREE_PARENT="$(native_path "$WORKTREE_PARENT")"
+  agent=0
+  ! afk_agent_session || agent=1
+  place parent "${WORKTREE_PARENT%/}/$DIR_NAME" "$agent" "$relative"
+  [[ "$P_RULE" != main ]] || \
+    refuse_exit "parent $WORKTREE_PARENT is inside the main checkout $P_FOLDER - pass an absolute --parent outside it ('$parent_given' was relative)"
+  [[ "$P_RULE" != outside ]] || \
+    refuse_exit "parent $WORKTREE_PARENT is outside $P_FOLDER - pass --parent $P_FOLDER, or leave --parent out"
+else
+  place "$([[ -n "$NAME" ]] && echo name || echo dir)" "$DIR_NAME"
+  if [[ "$P_STATE" == inside ]]; then
+    PLACED=true
+    WORKTREE_PARENT="$P_FOLDER"
+    root_note="$("$PY_BIN" "$AFK_ROOT_DIR/scripts/afk-config.py" resolve worktreeRoot 2>&1)" || true
+    printf '  %bWorktree folder: %s (worktree root: %s)%b\n' "$YELLOW" "$P_FOLDER" "${root_note//$'\n'/; }" "$NC" >&2
+  elif [[ -n "$NAME" ]]; then
+    WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"
+  else
+    WORKTREE_PARENT="$P_FOLDER"
+    WORKTREE_SOURCE="derived beside the main checkout; this repository is not in the repository list"
+    if [[ -z "$WORKTREE_PARENT" ]]; then
+      # A bare clone, or a git dir outside the tree, derives nothing. Say where it landed.
+      WORKTREE_PARENT="${HOME}/repo-worktrees"
+      WORKTREE_SOURCE="last-resort default (pass --parent)"
+    fi
+    echo -e "  ${YELLOW}Worktree parent: $WORKTREE_PARENT — $WORKTREE_SOURCE${NC}" >&2
   fi
-  echo -e "  ${YELLOW}Worktree parent: $WORKTREE_PARENT — $WORKTREE_SOURCE${NC}" >&2
 fi
 if [[ -z "$IDEA_BIN" ]]; then
   IDEA_BIN="$(read_config_key ideBinary "$REPO_DIR")"
 fi
 
 DEST="$WORKTREE_PARENT/$DIR_NAME"
-[[ ! -d "$DEST" ]] || error_exit "worktree ${NAME:+name '$NAME' is already taken: }already exists at $DEST"
+[[ "$PLACED" != true ]] || DEST="$P_TARGET"
+[[ ! -e "$DEST" ]] || error_exit "worktree ${NAME:+name '$NAME' is already taken: }already exists at $DEST"
 
 # A configured base can name a directory under another checkout, including a
 # child that does not exist yet. Inspect its nearest existing ancestor before
@@ -474,16 +559,21 @@ if [[ -n "$NAME" ]]; then
   ! git -C "$REPO_DIR" rev-parse --verify -q "refs/heads/$BRANCH" >/dev/null || error_exit "branch '$BRANCH' already exists; choose another name"
 fi
 
+BRANCH_EXISTS=false
+if git -C "$REPO_DIR" rev-parse --verify "$BRANCH" &>/dev/null; then
+  BRANCH_EXISTS=true
+elif [[ "$ORPHAN" != true ]]; then
+  [[ -n "$BASE_BRANCH" ]] \
+    || error_exit "branch '$BRANCH' does not exist and --base was not given"
+  git -C "$REPO_DIR" rev-parse --verify "$BASE_BRANCH" &>/dev/null \
+    || error_exit "base branch '$BASE_BRANCH' does not exist in $REPO_DIR"
+fi
+
 echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
 git -C "$REPO_DIR" worktree prune
 
 echo -e "${YELLOW}Creating worktree at $DEST...${NC}" >&2
 mkdir -p "$WORKTREE_PARENT"
-
-BRANCH_EXISTS=false
-if git -C "$REPO_DIR" rev-parse --verify "$BRANCH" &>/dev/null; then
-  BRANCH_EXISTS=true
-fi
 
 if [[ "$BRANCH_EXISTS" == true ]]; then
   git -C "$REPO_DIR" worktree add "$DEST" "$BRANCH" >&2 \
@@ -493,10 +583,6 @@ elif [[ "$ORPHAN" == true ]]; then
   git -C "$REPO_DIR" worktree add --orphan -b "$BRANCH" "$DEST" >&2 \
     || error_exit "this repository has no commit yet and this git cannot create an orphan worktree (needs git 2.42). A human makes the first commit by starting the session with AFK_ALLOW_PROTECTED=1"
 else
-  [[ -n "$BASE_BRANCH" ]] \
-    || error_exit "branch '$BRANCH' does not exist and --base was not given"
-  git -C "$REPO_DIR" rev-parse --verify "$BASE_BRANCH" &>/dev/null \
-    || error_exit "base branch '$BASE_BRANCH' does not exist in $REPO_DIR"
   if [[ "$TRACK_FLAG" == true ]]; then
     git -C "$REPO_DIR" worktree add --track -b "$BRANCH" "$DEST" "$BASE_BRANCH" >&2 \
       || error_exit "git worktree add --track failed for '$BRANCH'"
@@ -507,10 +593,10 @@ else
 fi
 
 if [[ -n "$NAME" ]]; then
-  # Hide the folder from the main checkout's `git status`, once, under the lock.
+  # Hide the harness folder from the main checkout's `git status`, once, under the lock.
   exclude="$COMMON_DIR/info/exclude"
   mkdir -p "$COMMON_DIR/info"
-  grep -qxF "/${FOLDER%/}/" "$exclude" 2>/dev/null || printf '/%s/\n' "${FOLDER%/}" >> "$exclude"
+  [[ "$PLACED" == true ]] || grep -qxF "/${FOLDER%/}/" "$exclude" 2>/dev/null || printf '/%s/\n' "${FOLDER%/}" >> "$exclude"
   # Gate cache and metrics that older plugin versions wrote in the tree must not read as work.
   while IFS= read -r runtime; do
     runtime="${runtime%$'\r'}"

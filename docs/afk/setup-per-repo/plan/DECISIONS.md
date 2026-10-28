@@ -252,3 +252,69 @@
 - Chosen: B — the list module stays the one owner of both formats, and C edits `scripts/repo_list.py`, outside this slice's Scope; the feature review owns the public form (review key 0004-placement/f004)
 - Supersedes: none
 - To reverse: give `scripts/repo_list.py` public names for both and switch the two calls in `_short_name_free` and `_short_name_folder` of `scripts/placement.py`
+
+## D-37 — An unlisted `--branch --dir` without `--parent` goes to the sibling `<main>-worktrees`; a set old base value no longer moves it
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep a `developer.worktreeBasePath` from any layer as the flat parent of an unlisted repository's `--dir` worktree vs B — the derived sibling `<main-checkout-name>-worktrees`, else `~/repo-worktrees` when git names no main checkout
+- Chosen: B — the contract removes `resolve worktreeBasePath`, and placement already reads the old machine value as a root candidate (D-33), so A gives one key two meanings; SDD §3 row "`create-worktree --branch <b> --dir <d> [--parent <p>]`" declares the change "breaking … for a set worktree base value"
+- Supersedes: none
+- To reverse: in `ask_placement` dir mode of `scripts/create-worktree`, use `developer_value(config, "worktreeBasePath")` for a not listed answer
+
+## D-38 — A `~` or relative `--parent` is made absolute against the caller's folder, and one inside the main checkout is refused, for every caller
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — make it absolute and refuse it only in an agent session vs B — for every caller, with exit 3 and the line `ERROR=parent <path> is inside the main checkout <main> - pass an absolute --parent outside it (… was relative)`
+- Chosen: B — PRD AC-051 "A relative or `~` path never lands a worktree inside the main checkout" names no actor; a developer keeps "anywhere" (AC-056) for an absolute `--parent` and for a relative one outside the checkout
+- Supersedes: none
+- To reverse: test `agent` before the relative check in `ask_placement` parent mode of `scripts/create-worktree`
+
+## D-39 — A placement read failure exits 1 with `ERROR=placement: <reason>`; every catalog R refusal takes the root line
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — exit 3 for any problem placement reports vs B — exit 3 only for a refused rule (R-01..R-03, R-05, R-06), exit 1 for an unreadable machine file or list file or a failed git call
+- Chosen: B — SDD §3 row "`create-worktree --name <name>`": exit 3 when the "root fails a rule", "every other failure: exit 1, `ERROR=<reason>`"; R-05 and R-06 are catalog R rules, so they print `ERROR=worktree root: <rule> <reason> - run /afk:setup`
+- Supersedes: none
+- To reverse: call `refuse_exit` for the `error` state in `place` of `scripts/create-worktree`
+
+## D-40 — `resolve worktreeBasePath` exits 2 and names `resolve worktreeRoot`; the derived value stays for setup's report
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — drop the key from `resolve` so it fails as any unknown key vs B — refuse it with exit 2 and name the replacement vs C — B, and remove the derived value from `developer_value`
+- Chosen: B — the contract says `resolve worktreeBasePath` "is gone", and a named replacement tells a stale caller what to run; C breaks the H6 status of `skills/afk/setup/scripts/developer_values.py`, which 0009-settings-writer owns
+- Supersedes: none
+- To reverse: delete the `worktreeBasePath` branch before `load(root)` in `main` of `scripts/afk-config.py`
+
+## D-41 — The creator asks placement for the folder and reads `resolve worktreeRoot` only for its note
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — read the root through `resolve worktreeRoot` and join `<root>/<short name>/<name>` in the creator vs B — take the folder from placement's `target_for`, then print `Worktree folder: <folder> (worktree root: <resolve answer>)` on stderr
+- Chosen: B — ADR-0002 (design) "the creator asks placement and computes no folder itself"; the Produces anchor `resolve worktreeRoot` stays live as the developer-facing note
+- Supersedes: none
+- To reverse: drop the `root_note` call in `scripts/create-worktree`
+
+## D-42 — The move helper starts nothing when placement refuses
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — fall back to the old path for the hint vs B — return the refusal as the plan's error, with no marker and no detached creation
+- Chosen: B — the creator exits 3 for the same name, so a started move fails after the pane was told where to go; the contract requires the hint to equal the creator's path
+- Supersedes: none
+- To reverse: return the old `root / folder / name` from `target` in `hooks/lib/h2_move.py` on a refusal
+
+## D-43 — The plugin-root `CONFIG.md` sentence on resolving `worktreeBasePath` waits for 0010-setup-walk
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — edit `CONFIG.md` here, outside Scope vs B — leave it to 0010-setup-walk, which has `CONFIG.md` and `CHANGELOG.md` in Scope, as D-28 did
+- Chosen: B — executors read this ledger before working a slice (root `DECISIONS.md`)
+- For 0010-setup-walk: in the `developer` row of `CONFIG.md`, replace "Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one" with `resolve worktreeRoot` (placement's root, checked on each read; exit 1 names the failed rule) and drop the derived value; add the `resolve worktreeBasePath` removal to the changelog
+- Supersedes: `FRESHNESS.md` same-commit rule for that sentence — deferred to 0010-setup-walk
+- To reverse: edit the sentence in this slice's commit and drop this entry's duty
+
+## D-44 — The plugin's worktree-path readers for AC-060, and the ones no sandbox can run
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — test only the creator, the move helper and cleanup vs B — every reader found in the code, one case each in `scripts/tests/test_existing_worktree_outside_root.py`, run on a worktree cut outside the root and one inside it
+- Chosen: B — the contract's Acceptance bullet asks for every hook, gate and script that reads a worktree path
+- The list: every case id of that test file names its member. Hooks: `worktree-create.sh`, `worktree-remove.sh`, `worktree-prune.sh`, `protected-branch-occupancy.py` (+ `hooks/lib/occupancy.py`), `protected-branch-guard.py` (+ `hooks/lib/protected_branch_guard.py`, `shell_mutations.py`, `read_only.py`, `main_sync.py`), `run-hook.py repo-list`, `nested-steering.sh`, `install-git-hooks.sh`, `agents-md-config-check.sh`, `branch-name-gate.sh`, `git-backstop.py`, `precommit-gates.sh`, `gate-context.sh`, `gate-cache.sh`, `gate-metrics.sh`, `comment-gate.sh`, `plugin-source-gates.sh` and its four gates, `wiring-gate.sh`, `hooks/lib/provider.sh`, `lesson-append.sh`, `lesson-digest.sh`, `stall-watchdog.sh`. Adapters: maven `gates.sh`, `maven-lock.sh`, `worktree-provision.sh`; npm `gates.sh`, `worktree-provision.sh`; `notes/common.sh`; the tracker server with tracker `none`. Scripts: `create-worktree`, `worktree-provision`, `worktree_owner.py`, `remove-worktree.py`, `afk-move.py`, `afk-launch.py`, `placement.py`, `repo_list.py`, `protected-lookup.py`, `afk-config.py`, `tracker_api.py`, `lavish/inject.py`. Skill scripts: setup `ancestor_instruction_files.py`, `background_git_hooks.py`, `setup_secrets.py`, `developer_values.py`; `gc-check.sh`; `verify-contract.sh`; `mission_control.py` + `mc/sections/understanding.py`; `validate_plan.py`; `forge_ledger.py`; `write_report.py`; `seed_map.py`; report-issue `publish.sh --list`
+- Exclusions (no sandbox can run them): `maven-compile-gate.sh`, `java-format-gate.sh`, `app-start-gate.sh`, `mutation-probe.sh` (need `mvnw`, a JDK and a Maven project); npm `ui-lint-gate.sh` lint (needs eslint and `node_modules`); npm `worktree-provision.sh` install (`npm ci` downloads); the typing part of `afk-move.py` (needs the `herdr` binary); `forge_ledger.py` forge calls and `publish.sh` publish (a forge CLI over the network); the `jira` and `github-issues` tracker adapters (remote APIs)
+- Supersedes: none
+- To reverse: delete the test file and this entry
+
+## D-45 — The base checks run before the creator prunes or makes the parent folder
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep the base checks beside `git worktree add`, after `git worktree prune` and `mkdir -p <parent>` vs B — run them first, so the only things before them are read-only git calls and, for `--name`, the creation lock, which the exit releases
+- Chosen: B — INV-025 found the write steps ran before the base checks at HEAD; ADR-0002 (design) "the creator runs every check before anything is made"; the `--name` taken-name and branch checks stay under the lock, which makes them race-free
+- Supersedes: none
+- To reverse: move the two base checks in `scripts/create-worktree` back into the `else` branch before `git worktree add`

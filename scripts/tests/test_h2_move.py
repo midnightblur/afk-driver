@@ -513,3 +513,87 @@ def test_p10_the_check_is_redone_after_the_idle_wait(tmp_path, monkeypatch):
     herdr, log = stub_herdr(tmp_path, "\u203a", working_polls=5, switch_after=3)
     module.type_line(herdr, "w:pF", Path("C:/x"))
     assert not prompts(log)
+
+
+# --- the hint takes its path from the creator's own placement call ----------------------
+
+def _h2_module():
+    spec = importlib.util.spec_from_file_location("afk_h2_move_for_placement", PLUGIN_ROOT / "hooks" / "lib" / "h2_move.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_bash():
+    spec = importlib.util.spec_from_file_location("afk_run_hook_for_h2", PLUGIN_ROOT / "hooks" / "run-hook.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    found = module.find_bash()
+    if found is None:
+        pytest.skip("no POSIX shell on this machine")
+    return found
+
+
+@pytest.fixture
+def listed_repo(repo, tmp_path, monkeypatch):
+    """`repo` in the repository list of a temporary home, under a confirmed root."""
+    home, root = tmp_path / "home", tmp_path / "root"
+    (home / ".afk").mkdir(parents=True)
+    root.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    (home / ".afk" / "config.yaml").write_text(f"developer:\n  worktreeRoot: '{root.as_posix()}'\n",
+                                               encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("afk_repo_list_for_h2", PLUGIN_ROOT / "scripts" / "repo_list.py")
+    repo_list = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = repo_list
+    spec.loader.exec_module(repo_list)
+    repo_list.add_repository(repo, root, short_name="my-repo")
+    return repo, home, root
+
+
+def _place(repo: Path) -> dict:
+    return {"common": str(repo / ".git"), "root": str(repo)}
+
+
+def test_the_hint_path_equals_the_creators_path_for_the_same_name(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
+    chosen = _h2_module().plan(_place(repo), {"session_id": "s-same", "cwd": str(repo)}, {})
+    assert "error" not in chosen and Path(chosen["path"]).parent == root / "my-repo", chosen
+    env = env_of(HOME=str(home), USERPROFILE=str(home), AFK_PYTHON=sys.executable)
+    done = subprocess.run([str(_load_bash()), str(PLUGIN_ROOT / "scripts" / "create-worktree"), "--repo",
+                           repo.as_posix(), "--name", chosen["name"], "--session", "s-same"],
+                          capture_output=True, text=True, cwd=repo, env=env, timeout=600)
+    last = done.stdout.strip().splitlines()[-1] if done.stdout.strip() else ""
+    assert done.returncode == 0 and last.startswith("WORKTREE_PATH="), done.stdout + done.stderr
+    assert os.path.normcase(Path(last.removeprefix("WORKTREE_PATH="))) == os.path.normcase(Path(chosen["path"]))
+
+
+def test_a_refused_root_returns_the_refusal_and_starts_nothing(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    (home / ".afk" / "config.yaml").write_text("developer:\n  worktreeRoot: relative/root\n", encoding="utf-8")
+    spawned: list = []
+    module = _h2_module()
+    monkeypatch.setattr(module, "spawn", lambda *a, **k: spawned.append(a))
+    chosen = module.plan(_place(repo), {"session_id": "s-ref", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("worktree root: R-01 ") and chosen["error"].endswith(" - run /afk:setup")
+    assert not spawned and not list((repo / ".git" / "afk-session").glob("*.move"))
+
+
+def test_placement_is_loaded_only_when_a_move_is_planned(repo, monkeypatch):
+    loaded: list[str] = []
+    real = importlib.util.spec_from_file_location
+
+    def record(name, path, *rest, **options):
+        loaded.append(Path(path).name)
+        return real(name, path, *rest, **options)
+
+    module = _h2_module()
+    monkeypatch.setattr(importlib.util, "spec_from_file_location", record)
+    module.owner_env()
+    module.owner_is_dead(repo / ".git", "none")
+    assert "placement.py" not in loaded
+    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
+    module.plan(_place(repo), {"session_id": "s-load", "cwd": str(repo)}, {})
+    assert "placement.py" in loaded

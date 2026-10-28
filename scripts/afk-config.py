@@ -1013,6 +1013,34 @@ def developer_value(config: dict, key: str, root: Path | None = None) -> str | N
     return None
 
 
+def resolve_worktree_root() -> int:
+    """`resolve worktreeRoot`: placement's root, checked against catalog R on this read.
+
+    Exit 0 prints the root, with a stderr note when it is not confirmed; exit 1
+    names the failed rule; exit 2 means placement could not read its files.
+    """
+    sys.modules.setdefault("afk_config", sys.modules[__name__])
+    spec = importlib.util.spec_from_file_location(
+        "afk_placement_for_config", Path(__file__).resolve().parent / "placement.py")
+    placement = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(placement)
+    try:
+        root = placement.root_state()
+    except placement.PlacementError as problem:
+        sys.stderr.write(f"afk-config: worktreeRoot: {problem}\n")
+        return 2
+    if root.state == placement.REFUSED:
+        sys.stderr.write(f"afk-config: worktreeRoot: {root.rule} {root.reason} - run /afk:setup\n")
+        return 1
+    for warning in root.warnings:
+        sys.stderr.write(f"afk-config: warning: worktreeRoot: {warning.rule} {warning.reason}\n")
+    if root.state == placement.SUGGESTED:
+        sys.stderr.write(f"afk-config: worktreeRoot is not confirmed; {root.path} comes from "
+                         f"{root.source} - run /afk:setup to confirm it\n")
+    sys.stdout.write(shell_value(root.path) + "\n")
+    return 0
+
+
 # --------------------------------------------------------------------------
 # Scaffolding a starter file
 # --------------------------------------------------------------------------
@@ -1448,6 +1476,13 @@ def main(argv: list[str]) -> int:
             sys.stdout.write("".join(f"afk-config: warning: {note}\n" for note in notes))
             return 0
 
+        key = rest[0].split(".")[-1] if command == "resolve" and rest else ""
+        if key == "worktreeRoot":
+            return resolve_worktree_root()
+        if key == "worktreeBasePath":
+            sys.stderr.write("afk-config: `resolve worktreeBasePath` is gone; "
+                             "`resolve worktreeRoot` names the folder that holds every worktree\n")
+            return 2
         config = load(root)
         if command == "effective":
             sys.stdout.write(json.dumps(config, indent=2, sort_keys=True) + "\n")

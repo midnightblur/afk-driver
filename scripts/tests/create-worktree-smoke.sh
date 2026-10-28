@@ -16,6 +16,8 @@
 #                 exits non-zero, and creates NO worktree (SDD §9b)
 #   6. trap     — a failure inside a helper still emits one ERROR= line
 #   7. teardown — the created worktree is removed cleanly
+#   8. placement — a listed repository lands under the worktree root; a relative root exits 3
+#                 and makes nothing (sandbox home)
 #
 # What each build gate then does to the worktree is scripts/tests/worktree-provision-smoke.sh.
 # Self-contained: no network, no real build tool, no IDE. Exit 0 = all green.
@@ -235,6 +237,43 @@ else
   bad "copy-personal: false still copied files (wt: $WT9)"
 fi
 drop_worktree "$WT9"
+
+# --- Test 8: a listed repository lands under the worktree root ---------------
+# Own repository and home: placement reads ~/.afk, so HOME and USERPROFILE point at the sandbox.
+PY="${AFK_PYTHON:-afk-python}"
+LHOME="$TMP_ROOT/home"; LROOT="$TMP_ROOT/wt root"; LREPO="$TMP_ROOT/listed"
+mkdir -p "$LHOME/.afk" "$LROOT" "$LREPO"
+git -C "$LREPO" init -q -b dev
+git -C "$LREPO" -c user.email=smoke@test.local -c user.name=smoke-tester commit -q --allow-empty -m seed
+LROOT_FWD="$(cygpath -m "$LROOT" 2>/dev/null || echo "$LROOT")"
+printf "developer:\n  worktreeRoot: '%s'\n" "$LROOT_FWD" > "$LHOME/.afk/config.yaml"
+HOME="$LHOME" USERPROFILE="$LHOME" "$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import repo_list; repo_list.add_repository(sys.argv[2], sys.argv[3])' \
+  "$PLUGIN_ROOT/scripts" "$LREPO" "$LROOT"
+OUT10="$(cd "$LREPO" && HOME="$LHOME" USERPROFILE="$LHOME" bash "$CWT" --name listed --no-open 2>"$TMP_ROOT/err10.log")"
+RC10=$?
+WT10="$(printf '%s\n' "$OUT10" | tail -n1)"; WT10="${WT10#WORKTREE_PATH=}"
+WT10_FWD="$(cygpath -m "$WT10" 2>/dev/null || echo "$WT10")"
+if [[ $RC10 -eq 0 && "$WT10_FWD" == "$LROOT_FWD/listed/listed" && -f "$WT10/.git" ]]; then
+  ok "a listed repository's --name worktree lands at <root>/<short name>/<name>"
+else
+  bad "listed --name (rc $RC10, path $WT10); stderr: $(cat "$TMP_ROOT/err10.log")"
+fi
+
+printf "developer:\n  worktreeRoot: relative/root\n" > "$LHOME/.afk/config.yaml"
+OUT11="$(cd "$LREPO" && HOME="$LHOME" USERPROFILE="$LHOME" bash "$CWT" --name refused --no-open 2>"$TMP_ROOT/err11.log")"
+RC11=$?
+if [[ $RC11 -eq 3 ]] && grep -q '^ERROR=worktree root: R-01 ' "$TMP_ROOT/err11.log"; then
+  ok "a relative root exits 3 with the R-01 line"
+else
+  bad "relative root (rc $RC11); stderr: $(cat "$TMP_ROOT/err11.log")"
+fi
+if [[ "$(git -C "$LREPO" worktree list --porcelain | grep -c '^worktree ')" -eq 2 \
+      && ! -e "$LREPO/.claude/worktrees/refused" && ! -e "$LROOT/listed/refused" ]]; then
+  ok "a refused run makes no worktree"
+else
+  bad "a refused run left a worktree"
+fi
+git -C "$LREPO" worktree remove --force "$WT10" >/dev/null 2>&1 || true
 
 # --- summary ----------------------------------------------------------------
 echo ""
