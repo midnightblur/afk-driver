@@ -143,3 +143,5 @@
 2026-10-28 03:21 | execute | 0013-config-contract | outcome success — review settled at round 7 (16 findings, all fixed), adversary passes with 3 medium and 3 low advisory; CI ran green on 51bf4ae, later heads not run (PR conflicting with main)
 2026-10-28 02:37 | autopilot | 0013-config-contract | done — 2/10 done this run; review settled at round 7 (16 fixed), adversary passes with 3 medium and 3 low advisory
 2026-10-28 02:37 | autopilot | — | run end — 5/13 done (the two '5/13 done, starting' lines above counted 4), 3 parked (0004, 0006, 0007), 5 parked by inheritance (0008-0012); smoke and preflight not run; PR 126 conflicts with main
+2026-10-28 10:15 | autopilot | — | rebased onto origin/main fb15eef and force-pushed with lease (human approved); human settles 0004 (Scope list + format row, review without the plan ledger) and resumes 0007 then 0006; resuming 0007-ship-script at review round 2
+2026-10-28 10:18 | execute | 0007-ship-script | reviewing — resumed at review round 2 after the rebase; the slice commit is now ae7c09b and the round 1 fix commit c283e0f
