@@ -1,0 +1,19 @@
+{
+  "r-001": "fixed",
+  "r-002": "carried(partly fixed by D-23; the rest needs scripts/tests/test_precommit_order.py, outside Scope)",
+  "r-004": "fixed",
+  "r-005": "carried(outside Scope; the human re-slices)",
+  "r-006": "carried(outside Scope; the human re-slices)",
+  "r-007": "carried(outside Scope; the human re-slices)",
+  "r-008": "fixed(caller ledger finished: closed-with-frontier)",
+  "r-009": "fixed",
+  "r-010": "fixed",
+  "r-011": "fixed",
+  "r-003": "fixed",
+  "r-012": "deferred",
+  "r-013": "carried(outside Scope; the human re-slices)",
+  "r-014": "fixed",
+  "r-015": "fixed",
+  "r-016": "deferred",
+  "r-017": "deferred"
+}

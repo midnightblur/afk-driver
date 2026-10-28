@@ -78,3 +78,5 @@
 2026-10-27 19:53 | execute | 0002-settings-reader | reviewing — six independent reviewers read the change; the Windows and Linux test runs continue alongside
 2026-10-27 20:19 | execute | 0002-settings-reader | review blocking crit=0 high=1 med=9 low=7 (round 1) — a code-search config check now refuses the removed Jira key, and four stale files outside this step's list still read or name settings the new rule ignores
 2026-10-27 20:52 | execute | 0002-settings-reader | decision(D-23, D-24) — without Python the commit check no longer reads the machine file; setup names a value's source only from a file the rule reads
+2026-10-27 21:25 | execute | 0002-settings-reader | review round 1 closed — 9 fixed in 24e1bc0, 5 carried, 3 deferred to the feature gate; pull request checklist unmarks this step
+2026-10-27 21:25 | execute | 0002-settings-reader | blocked(scope) — five review findings need files outside this step's list (notes adapter docs, the Jira adapter manifest, the plugin's own settings file, one commit-order test); the human re-slices, and the attack check has not run yet
