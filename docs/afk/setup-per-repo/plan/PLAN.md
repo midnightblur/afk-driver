@@ -3,7 +3,7 @@
 > Parent ticket: setup-per-repo   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/setup-per-repo
-> Last updated: 2026-10-27 (status column maintained by /afk:execute)
+> Last updated: 2026-10-28 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
@@ -71,7 +71,7 @@ SDD §14 rows each subtask implements: 0001 safe writer; 0002 reader merge, comm
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-safe-writer | shared safe writer + verification tiers | done | — | static, unit, smoke | §14 safe writer |
-| 2 | 0002-settings-reader | owner rule in the settings reader | reviewing | 0001 | static, unit, smoke | §14 reader merge, commit gates |
+| 2 | 0002-settings-reader | owner rule in the settings reader | done | 0001 | static, unit, smoke | §14 reader merge, commit gates |
 | 3 | 0003-repository-list | repository list and short-name markers | done | 0001 | static, unit | use §14 safe writer |
 | 4 | 0004-placement | one placement module: root rules, worktree folder | pending | 0002, 0003 | static, unit | use §14 reader merge |
 | 5 | 0005-worktree-creator | creator, worktree-create hook, move helper ask placement | pending | 0004 | static, unit, smoke | impl §5, use §6 |

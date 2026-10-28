@@ -106,3 +106,9 @@
 2026-10-28 01:06 | execute | 0002-settings-reader | review round 4 — verdict advisory crit=0 high=0 med=0 low=2; f031 fixing, f032 disputed (asks for a file outside Scope)
 2026-10-28 01:19 | execute | 0002-settings-reader | review round 4 closed — f031 fixed in c12a0ab, f032 deferred to the feature gate, summary note written; round 5 re-reviews
 2026-10-28 01:27 | execute | 0002-settings-reader | review round 5 — verdict advisory crit=0 high=0 med=1 low=2; three findings posted, fixing them all
+2026-10-28 01:40 | execute | 0002-settings-reader | review round 5 closed — three fixes pushed in f432ca0, threads resolved, summary note written; round 6 re-reviews
+2026-10-28 01:51 | execute | 0002-settings-reader | review settled — closure passed at round 6 (clean); f012 f016 f017 f032 deferred to the feature gate
+2026-10-28 01:53 | execute | 0002-settings-reader | adversary gate started — fresh blind subagent probes the reader CLI, the commit hook and the notes adapters at runtime (D-2)
+2026-10-28 02:14 | execute | 0002-settings-reader | adversary gate — verdict findings crit=0 high=0 med=1 low=3 (probed 330); advisory only, noted on the change, proceeding
+2026-10-28 02:14 | execute | 0002-settings-reader | wiring scan — exit 0, no orphan
+2026-10-28 02:15 | execute | 0002-settings-reader | done — review settled at round 6, adversary advisory only, rationale durable; tracker row set done
