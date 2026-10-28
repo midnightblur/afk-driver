@@ -42,9 +42,9 @@ The caller hands over:
 
 A check that runs against the running instance runs, in any step, only after
 the caller's restart command has restarted that instance on the current
-working tree. A live check with no instance or no restart command handed over
-→ restore the step 3 fix when a step reverted it, then return `blocked`,
-naming the check.
+working tree. A live check with no instance or no restart command handed over,
+or whose restart fails → restore the step 3 fix when a step reverted it, then
+return `blocked`, naming the check and any restart output.
 
 ## Unreleased feature
 
@@ -178,7 +178,7 @@ Classify a change to a frozen SDD decision by `DECISIONS.md` as in step 3. A
 one-way door or a tie → put the SDD into the record as stale, run step 8, then
 return `design_conflict`. A two-way door is recorded, and the SDD goes into the
 record as stale; when `plan/DECISIONS.md` already holds an entry for that
-decision, put its id into the record instead of a new entry.
+decision, reuse it instead of writing a new entry.
 
 Where a coverage ledger covers this bug's path, read its B13 rows for the
 statements the fix now contradicts (class semantics:
@@ -211,6 +211,7 @@ The caller keeps the record in its own report.
 | Tiers | step 5 | each tier run, with its result |
 | Miss class | steps 1, 6 | the escape-analysis class, when one was named |
 | Stale artifacts | steps 3, 7 | each stale artifact with its owning skill |
+| Decisions | steps 3, 7 | each `plan/DECISIONS.md` entry id the fix recorded or reused |
 | Lesson | step 8 | the lesson id, when one was recorded |
 | Rationale | steps 3–4 | the pending `rationale-add` operation ids, and each one a revert dropped |
 | Reason | any return but `fixed` and `flaky` | the blocker, the red check or reproduction, or the fork with its options and your recommendation |

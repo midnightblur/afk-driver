@@ -11,7 +11,7 @@ Run when a bug surfaces — typically a feature's **verification phase** (agent-
 
 `fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
-Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its working tree is the diagnosis worktree Phase 1 step 3 picks. Its spec folder is the one Phase 0 step 2 locates. Its running instance and restart command are the ones Phase 0 step 5 takes; with none, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
+Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its working tree is the diagnosis worktree Phase 1 step 3 picks. Its spec folder is the one Phase 0 step 2 locates. Its running instance and restart command are the ones Phase 0 step 5 takes; with none after that step's asks, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
 
 ## Argument
 
@@ -25,7 +25,7 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
 2. **Locate artifacts**, when the bug belongs to a feature: `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 3. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
-5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve.
+5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve, and when procedure step 4 or 5 is about to run a live check the invoker named neither for.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
@@ -78,7 +78,7 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
-Phase 2.5 ran → add the **miss class** to the summary; procedure step 8 recorded a lesson → append the **lesson id** so the workflow-improvement lesson isn't lost:
+The record holds a miss class → add the **miss class** to the summary; procedure step 8 recorded a lesson → append the **lesson id** so the workflow-improvement lesson isn't lost:
 
 ```
 OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
