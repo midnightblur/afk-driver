@@ -1,0 +1,17 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_supervisor.py",
+  "line": 279,
+  "side": "new",
+  "finding": "Possible conditional test logic: the no-offset ISO test branches on the fixture, and on a platform without time.tzset (Windows) the else branch runs the machine-local oracle.",
+  "why": "The else branch cannot tell local time from UTC on a machine whose zone is UTC, so the weakness that the previous round fixed remains on every tzset-less platform, and one test body holds two behaviours.",
+  "fix": "Split into a POSIX test that uses plus_seven and skips when time.tzset is absent, and keep the mktime oracle as its own separate test.",
+  "evidence": "+    if plus_seven:\n+        assert found == datetime(2026, 10, 2, 3, 15, tzinfo=timezone.utc)\n+    else:\n+        local = time.mktime((2026, 10, 2, 10, 15, 0, 0, 0, -1))",
+  "id": "r-001",
+  "key": "f022"
+ }
+]
