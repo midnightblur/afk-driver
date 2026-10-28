@@ -154,3 +154,9 @@
 2026-10-28 12:02 | execute | 0007-ship-script | review findings crit=0 high=3 med=3 low=2 — corrects the two 'review r2' lines above to the event grammar: round 2 found 8, all fixed in 33e4cd4
 2026-10-28 12:02 | execute | 0007-ship-script | review findings crit=0 high=0 med=3 low=3 — round 3 found 6 (posted as f022-f027): land under `auto` misses a default branch other than main or master, the Base commit parse is narrow, a reset branch with no own commit lands, 2 refusals and master have no test
 2026-10-28 12:02 | execute | 0007-ship-script | developing — fixing round 3: `auto` adds the remote's default branch, the Base commit is found anywhere after the branch, land needs a commit the Diagnosis branch made
+2026-10-28 12:40 | execute | 0007-ship-script | pushed 33e4cd4..9fef686 (1 commits) — the round 3 fix is on the pull request; focused ship tests 87 passed
+2026-10-28 12:40 | execute | 0007-ship-script | reviewing — review round 4 on the round 3 fix
+2026-10-28 13:31 | execute | 0007-ship-script | review blocking crit=0 high=3 med=3 low=2 — corrects the 'review findings' line for round 2 to a verdict token: 8 found, all fixed in 33e4cd4
+2026-10-28 13:31 | execute | 0007-ship-script | review advisory crit=0 high=0 med=3 low=3 — corrects the 'review findings' line for round 3: 6 found, all fixed in 9fef686
+2026-10-28 13:31 | execute | 0007-ship-script | review advisory crit=0 high=0 med=4 low=4 — round 4 found 8 (f028-f035): land counted a rebase or a commit message as a fix commit, 5 test gaps, a docstring source and the journal grammar
+2026-10-28 13:31 | execute | 0007-ship-script | developing — fixing round 4: land counts only commits, cherry-picks, reverts and new rebase results; focused ship tests 95 passed

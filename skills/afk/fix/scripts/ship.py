@@ -74,6 +74,8 @@ FORGE_TIMEOUT = 120
 GIT_TIMEOUT = 300
 LEDGER_TIMEOUT = 900
 NOT_WRITABLE = {"closed", "merged", "locked"}
+MADE_HERE = {"commit", "commit (amend)", "commit (merge)", "commit (initial)", "cherry-pick",
+             "revert"}
 EXIT = {"done": 0, "skipped": 0, "draft": 0, "no-change": 0, "refused": 1,
         "not-fast-forward": 2, "blocked": 2}
 
@@ -607,7 +609,6 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     if target in (_auto_base_names(cwd, remote) if base == "auto" else _base_names(cwd, base)):
         raise refuse(f"{target} is the repository's base branch; a fix for it ships through "
                      "open, never land")
-    _carries_a_fix(cwd, d, head)
     entry = f"push: {target}@{head}"
     if listed(d.path, entry):
         return {"status": "skipped", "reason": f"`{entry}` is listed"}
@@ -615,6 +616,7 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     fetched = _git(cwd, "fetch", "--quiet", remote, f"refs/heads/{target}", check=False)
     if fetched.returncode:
         raise block(f"cannot fetch {target} from {remote}: {_tail(fetched.stderr)}")
+    _carries_a_fix(cwd, d, head, _git(cwd, "rev-parse", "FETCH_HEAD").stdout.strip())
     pushed = _push(cwd, tools, remote, target, head, contained=True)
     if not pushed.ok:
         if isinstance(pushed.answer, dict) and pushed.answer.get("moved"):
@@ -627,8 +629,8 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
 
 
 def _auto_base_names(cwd: Path, remote: str) -> set[str]:
-    """`auto` as afk-config.py `detect_base_branch` reads it: the remote's default branch, main
-    and master; refused when the remote names none of them."""
+    """`auto` (CONFIG.md) widened for land: the remote's default branch (as protected-lookup.py
+    `default_branch` reads it), main and master; refused when the remote names none of them."""
     prefix = f"refs/remotes/{remote}/"
     head = _git(cwd, "symbolic-ref", "--quiet", f"{prefix}HEAD", check=False).stdout.strip()
     found = {head.removeprefix(prefix)} if head.startswith(prefix) else set()
@@ -640,9 +642,9 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
     return found | {"main", "master"}
 
 
-def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
-    """Refuse a land with no commit past the Base commit that the Diagnosis branch made itself
-    (a branch reflog entry other than a reset, a branch move or a fast-forward)."""
+def _carries_a_fix(cwd: Path, d: Diagnosis, head: str, tip: str):
+    """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
+    cherry-pick or revert in its reflog, or a rebase result the fetched `tip` does not hold."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -655,8 +657,12 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
         raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
                      "nothing to land")
     log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
-    made = {sha for sha, _, subject in (line.partition(" ") for line in log.splitlines())
-            if not subject.startswith(("reset:", "branch:")) and "Fast-forward" not in subject}
+    made = set()
+    for sha, _, subject in (line.partition(" ") for line in log.splitlines()):
+        action = subject.partition(": ")[0]
+        if action in MADE_HERE or ("rebase" in action and action.endswith("(finish)") and _git(
+                cwd, "merge-base", "--is-ancestor", sha, tip, check=False).returncode == 1):
+            made.add(sha)
     if not commits & made:
         raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
                      f"was made on {d.branch}, so land would ship no fix")

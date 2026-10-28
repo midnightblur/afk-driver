@@ -882,14 +882,32 @@ def test_fast_forward_land_refuses_the_remote_default_branch_under_auto(tmp_path
     git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop")
     path = diagnosis(tmp_path, Base=f"develop@{main}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo), protected=(), base="auto"))
-    assert result["status"] == "refused" and "base branch" in result["reason"], result
+    assert result["status"] == "refused", result
+    assert "develop is the repository's base branch" in result["reason"], result
     assert remote_tip(repo, "develop") == main and entries(path) == []
+
+
+def test_fast_forward_land_under_auto_refuses_main_with_no_tracking_ref(tmp_path, repo):
+    main = git(repo, "rev-parse", "origin/main")
+    git(repo, "push", "-q", "origin", f"{main}:refs/heads/develop")
+    git(repo, "fetch", "-q", "origin")
+    git(repo, "update-ref", "-d", "refs/remotes/origin/main")
+    git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop")
+    path = diagnosis(tmp_path, Base=f"main@{main}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo), protected=(), base="auto"))
+    assert result["status"] == "refused", result
+    assert "main is the repository's base branch" in result["reason"], result
+    assert remote_tip(repo, "main") == main and entries(path) == []
 
 
 def test_fast_forward_land_refuses_auto_when_the_remote_names_no_default_branch(tmp_path, repo):
     path, _ = land_case(tmp_path, repo)
     before = remote_tip(repo, FEATURE)
+    subprocess.run(["git", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], cwd=repo,
+                   capture_output=True)
     git(repo, "update-ref", "-d", "refs/remotes/origin/main")
+    assert subprocess.run(["git", "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"], cwd=repo,
+                          capture_output=True).returncode != 0
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo), protected=(), base="auto"))
     assert result["status"] == "refused" and "names no default branch" in result["reason"], result
     assert remote_tip(repo, FEATURE) == before and entries(path) == []
@@ -908,28 +926,87 @@ def test_fast_forward_land_refuses_a_base_commit_it_cannot_check(tmp_path, repo,
     assert remote_tip(repo, FEATURE) == before and entries(path) == []
 
 
-def test_fast_forward_land_reads_a_base_commit_written_after_a_word(tmp_path, repo):
+@pytest.mark.parametrize("shape", ["`{branch}` at `{commit}`", "{branch} added at {commit}"])
+def test_fast_forward_land_reads_a_base_commit_written_after_a_word(tmp_path, repo, shape):
     land_case(tmp_path, repo)
     start = git(repo, "rev-parse", f"origin/{FEATURE}")
-    path = diagnosis(tmp_path, Base=f"`{FEATURE}` at `{start}`")
+    path = diagnosis(tmp_path, Base=shape.format(branch=FEATURE, commit=start))
     head = git(repo, "rev-parse", "HEAD")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
     assert result["status"] == "done", result
     assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
 
 
-def test_fast_forward_land_refuses_a_branch_reset_to_a_newer_feature_tip(tmp_path, repo):
+def test_fast_forward_land_refuses_a_base_commit_shorter_than_7_characters(tmp_path, repo):
+    land_case(tmp_path, repo)
+    before, start = remote_tip(repo, FEATURE), git(repo, "rev-parse", f"origin/{FEATURE}")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:6]}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "names no commit" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+@pytest.mark.parametrize("take_tip", [
+    ("reset", "-q", "--hard", f"origin/{FEATURE}"),
+    ("checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}"),
+    ("merge", "-q", "--ff-only", f"origin/{FEATURE}"),
+])
+def test_fast_forward_land_refuses_a_branch_reset_to_a_newer_feature_tip(tmp_path, repo, take_tip):
     git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
     start = git(repo, "rev-parse", "HEAD")
     other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
     moved = commit(other, "later.txt")
     git(other, "push", "-q", "origin", FEATURE)
     git(repo, "fetch", "-q", "origin")
-    git(repo, "reset", "-q", "--hard", f"origin/{FEATURE}")
+    git(repo, *take_tip)
+    assert git(repo, "rev-parse", "HEAD") == moved
     path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
     assert result["status"] == "refused" and "was made on" in result["reason"], result
     assert remote_tip(repo, FEATURE) == moved and entries(path) == []
+
+
+def moved_feature(tmp_path, repo):
+    """A stranger commit pushed onto the feature branch and fetched; returns its id."""
+    other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
+    moved = commit(other, "later.txt")
+    git(other, "push", "-q", "origin", FEATURE)
+    git(repo, "fetch", "-q", "origin")
+    return moved
+
+
+def test_fast_forward_land_refuses_a_branch_rebased_onto_a_newer_tip_with_no_fix(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    moved = moved_feature(tmp_path, repo)
+    git(repo, "rebase", "-q", f"origin/{FEATURE}")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == moved and entries(path) == []
+
+
+def test_fast_forward_land_pushes_a_fix_rebased_onto_a_newer_tip(tmp_path, repo):
+    path, _ = land_case(tmp_path, repo)
+    moved_feature(tmp_path, repo)
+    git(repo, "rebase", "-q", f"origin/{FEATURE}")
+    head = git(repo, "rev-parse", "HEAD")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done" and result["how"] == "pushed", result
+    assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+def test_fast_forward_land_pushes_a_fix_whose_message_says_fast_forward(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    (repo / "fix.txt").write_text("fixed\n", encoding="utf-8")
+    git(repo, "add", "fix.txt")
+    git(repo, "commit", "-q", "-m", "Fast-forward the export cursor past the last row")
+    head = git(repo, "rev-parse", "HEAD")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done", result
+    assert remote_tip(repo, FEATURE) == head
 
 
 def test_a_lost_open_on_a_branch_with_only_a_merged_change_opens_a_new_one(tmp_path, repo):
