@@ -80,3 +80,15 @@
 2026-10-27 20:52 | execute | 0002-settings-reader | decision(D-23, D-24) — without Python the commit check no longer reads the machine file; setup names a value's source only from a file the rule reads
 2026-10-27 21:25 | execute | 0002-settings-reader | review round 1 closed — 9 fixed in 24e1bc0, 5 carried, 3 deferred to the feature gate; pull request checklist unmarks this step
 2026-10-27 21:25 | execute | 0002-settings-reader | blocked(scope) — five review findings need files outside this step's list (notes adapter docs, the Jira adapter manifest, the plugin's own settings file, one commit-order test); the human re-slices, and the attack check has not run yet
+2026-10-27 21:29 | autopilot | 0002-settings-reader | parked(blocked) — second run fixed every finding inside its list and pushed 24e1bc0; five findings need files outside the list, so the human re-slices again
+2026-10-27 21:29 | autopilot | 0004-placement | parked(waiting on 0002-settings-reader) — needs the settings rule finished first
+2026-10-27 21:29 | autopilot | 0005-worktree-creator | parked(waiting on 0004-placement) — needs the placement step, itself waiting on 0002
+2026-10-27 21:29 | autopilot | 0006-worktree-guard | parked(waiting on 0004-placement) — needs the placement step, itself waiting on 0002
+2026-10-27 21:29 | autopilot | 0007-forge-account | parked(waiting on 0002-settings-reader) — needs the settings rule finished first
+2026-10-27 21:29 | autopilot | 0008-jira-sign-in | parked(waiting on 0002-settings-reader) — needs the settings rule finished first
+2026-10-27 21:29 | autopilot | 0009-settings-writer | parked(waiting on 0002-settings-reader) — needs the settings rule finished first
+2026-10-27 21:29 | autopilot | 0010-setup-walk | parked(waiting on 0004-placement) — needs placement, forge account, Jira sign-in and settings writer, all waiting on 0002
+2026-10-27 21:29 | autopilot | 0011-smoke-e2e | parked(waiting on 0002-settings-reader) — runs after every build step
+2026-10-27 21:29 | autopilot | 0012-smoke-api | parked(waiting on 0002-settings-reader) — runs after every build step
+2026-10-27 21:29 | autopilot | 0013-sync-harness | parked(waiting on 0002-settings-reader) — runs last
+2026-10-27 21:29 | autopilot | run | run end — 2/13 done, 1 parked, 10 waiting on it; smoke and preflight not run
