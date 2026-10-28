@@ -110,6 +110,7 @@ def _no_python(tmp_path: Path) -> tuple[str, Path]:
 
 
 NO_LAUNCHER = {"AFK_PYTHON": "afk-python-absent"}
+NO_LAUNCHER_BLOCK = "afk-python not found; run /afk:setup"
 
 
 @pytest.mark.parametrize("layout", ["personal", "folder"])
@@ -170,6 +171,7 @@ def test_without_the_launcher_only_a_file_the_reader_takes_repo_hooks_from_decla
     _declare_hooks(tmp_path, checkout, where)
     done, _ = _run_gates(plugin, tmp_path, checkout, NO_LAUNCHER)
     assert done.returncode == (2 if blocked else 0), done.stdout + done.stderr
+    assert (NO_LAUNCHER_BLOCK in done.stderr) is blocked, done.stderr
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))

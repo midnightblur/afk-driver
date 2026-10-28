@@ -235,14 +235,14 @@ def test_the_new_keys_are_accepted_with_their_owners(tmp_path, home):
 
 
 @pytest.mark.parametrize("site", ["example.atlassian.net", "https://a b",
-                                  "https://example.net/any/path", "ftp://example.net"])
+                                  "https://example.net/a b", "ftp://example.net"])
 def test_a_jira_site_that_is_not_an_address_is_refused(site):
     problems = cfg.validate({"schema": 1, "jira": {"site": site}})
     assert any(p.startswith("jira.site:") for p in problems)
 
 
 @pytest.mark.parametrize("site", ["https://x.atlassian.net", "https://x.atlassian.net/",
-                                  "http://jira.example.net"])
+                                  "http://jira.example.net", "https://example.net/jira"])
 def test_a_jira_site_address_is_accepted(site):
     assert cfg.validate({"schema": 1, "jira": {"site": site}}) == []
 
@@ -384,6 +384,7 @@ def test_validate_of_one_named_file_filters_it_as_its_layer(tmp_path, home):
     ("personal", "notes: obsidian\n", "notes", True),
     ("local", "notes: obsidian\n", "notes", False),
     ("machine", "tracker: jira\n", "tracker", False),
+    ("machine", "tracker: jira\n", "tracker", True),
 ])
 def test_validate_of_one_named_file_filters_every_layer(tmp_path, home, layer, text, setting,
                                                         outside):
@@ -402,6 +403,24 @@ def test_validate_of_a_named_personal_file_refuses_schema_from_outside_the_check
     done = run(["validate", str(file)], tmp_path, home)
     assert done.returncode == 2
     assert "may not set `schema`" in done.stderr
+
+
+def test_validate_of_a_named_personal_file_checks_paths_under_its_checkout(tmp_path, home):
+    root = _repo(tmp_path)
+    (root / "web").mkdir()
+    file = personal(root, "npm:\n  workspace-root: web\n")
+    done = run(["validate", str(file)], tmp_path, home)
+    assert done.returncode == 0, done.stderr
+    assert "does not exist" not in done.stderr
+
+
+def test_validate_of_a_file_under_a_folder_named_git_that_is_not_one_reads_it_whole(
+        tmp_path, home):
+    file = _write(tmp_path / "plain" / ".git" / "afk" / "config.yaml",
+                  "schema: 1\nnotes: obsidian\n")
+    done = run(["validate", str(file)], tmp_path, home)
+    assert done.returncode == 0, done.stderr
+    assert "is ignored" not in done.stdout
 
 
 def test_every_reader_view_leaves_an_ignored_value_out(tmp_path, home):

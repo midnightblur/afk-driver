@@ -541,16 +541,17 @@ def ignored_line(setting: str, file: str, rule: str) -> str:
     return f"{setting} in {file} is ignored: {rule}"
 
 
-def _validate_one(path: Path, root: Path | None) -> tuple[dict, list[tuple[str, str, str]]]:
-    """One named file merged over the defaults, filtered as the layer its path names."""
+def _validate_one(path: Path, root: Path | None
+                  ) -> tuple[dict, list[tuple[str, str, str]], Path | None]:
+    """One named file merged over the defaults, filtered as the layer its path names; and its checkout."""
     document = parse(_read(path), str(path))
-    known = {(Path.home() / ".afk" / "config.yaml"): "home"}
+    known = {(Path.home() / ".afk" / "config.yaml"): "home"}   # first: the root guess may be the home folder
     if root is not None:
-        known[root / ".afk" / "config.yaml"] = "repo"
-        known[root / ".afk" / "config.local.yaml"] = "local"
+        known.setdefault(root / ".afk" / "config.yaml", "repo")
+        known.setdefault(root / ".afk" / "config.local.yaml", "local")
         shared = shared_overlay(root)
         if shared is not None:
-            known[shared] = "shared"
+            known.setdefault(shared, "shared")
     kind = next((name for where, name in known.items()
                  if where.resolve() == path.resolve()), "env")
     common = path.resolve().parent.parent
@@ -562,7 +563,7 @@ def _validate_one(path: Path, root: Path | None) -> tuple[dict, list[tuple[str, 
     committed = root is not None and (root / ".afk" / "config.yaml").is_file()
     ignored: list[tuple[str, str, str]] = []
     kept = _owner_filter(kind, document, path, committed, ignored)
-    return deep_merge(dict(DEFAULTS), kept), ignored
+    return deep_merge(dict(DEFAULTS), kept), ignored, root
 
 
 # --------------------------------------------------------------------------
@@ -824,7 +825,7 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                     _relative_path(problems, where, entry)
 
     site = config["jira"].get("site") if isinstance(config.get("jira"), dict) else None
-    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+/?", site)):
+    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+(/\S*)?", site)):
         problems.append("jira.site: must be the site address, e.g. https://example.atlassian.net")
 
     worktree = config.get("worktree")
@@ -1424,7 +1425,7 @@ def main(argv: list[str]) -> int:
             if rest:
                 path = Path(rest[0])
                 root = root if root is not None else path.parent.parent
-                config, ignored = _validate_one(path, root)
+                config, ignored, root = _validate_one(path, root)
             else:
                 config, ignored = _merge(root)
             problems = validate(config, root)

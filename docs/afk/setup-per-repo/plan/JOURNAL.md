@@ -96,3 +96,7 @@
 2026-10-27 22:38 | execute | 0002-settings-reader | designing — third run started on the widened file list; the work already pushed is kept, and the code it stands on has not changed since the second run
 2026-10-27 22:39 | execute | 0002-settings-reader | developing — fixing the five review findings the widened list now covers: the commit check without Python, the notes adapter files and docs, the Jira adapter key list and the plugin's own settings file
 2026-10-27 22:52 | execute | 0002-settings-reader | decision(D-25) — the setup dependency list still names the old Obsidian vault read; the setup-walk step, which already edits that list, updates it
+2026-10-27 22:54 | execute | 0002-settings-reader | pushed 12b3d27..5f69f1b (1 commits) — the five carried review fixes are on the shared branch
+2026-10-27 22:59 | execute | 0002-settings-reader | verifying — running the repository checks, the tests for the changed files on Windows and Linux, and the end-to-end hook run
+2026-10-27 23:30 | execute | 0002-settings-reader | reviewing — static checks green, every promised symbol found, the end-to-end hook run green; six independent reviewers read the fixes since the first review round
+2026-10-27 23:58 | execute | 0002-settings-reader | review round 2 — verdict advisory crit=0 high=0 med=6 low=3; nine findings posted as f018..f026, fixing them all

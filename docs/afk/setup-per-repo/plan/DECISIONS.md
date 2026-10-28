@@ -174,3 +174,17 @@
 - Chosen: B — the row is one table cell in a file a later slice of this plan already edits; a third park for it costs more than the stale cell, and the reader still exports the variable, so no caller breaks
 - Supersedes: `FRESHNESS.md` same-commit rule for the `AFK_CFG_OBSIDIAN_VAULT` row of `skills/afk/setup/MANIFEST.md` — deferred to 0010-setup-walk
 - To reverse: edit that row (drop the obsidian consumer, or delete the row) in the commit that removes the read
+
+## D-26 — The carried narrowing and the dead notes roots are done; D-23 and D-11 describe the state before them
+- 2026-10-28 · decided by /afk:execute (0002-settings-reader)
+- Options: A — leave D-23 and D-11 as they read vs B — record that the re-slice let this slice finish what they carried
+- Chosen: B — review key f025: the no-launcher branch of `hooks/precommit-gates.sh` now reads only `$AFK_CONFIG` and the committed file, else the local overlay and the repository personal file, and both kinds' `notes_root` functions are deleted
+- Supersedes: D-23 choice B and its reverse recipe — the whole narrowing landed (option A, with the out-of-scope test replaced after the re-slice); D-11 "their headers stale, which the out-of-scope files carry until a later slice edits them" — the functions are deleted and the headers rewritten
+- To reverse: restore the layer loop of D-23 option B in `hooks/precommit-gates.sh`, and the `notes_root` functions in `adapters/notes/obsidian/notes.sh` and `adapters/notes/repo-files/notes.sh`
+
+## D-27 — Keep `layer_reads` public beside the SDD §8 reader answers
+- 2026-10-28 · decided by /afk:execute (0002-settings-reader)
+- Options: A — make it private, so `skills/afk/setup/scripts/developer_values.py` either imports a private name or restates which owners each file is read for vs B — keep the one public function both `_owner_filter` and `status` call
+- Chosen: B — review key f020: one statement of the read rule is the reason D-24 gave; the name is plugin-internal, so renaming it later is cheap
+- Supersedes: the Acceptance bullet "Implements the public interface in SDD §8 row \"settings reader (changed)\" unmodified" of `plan/0002-settings-reader.md` — widened by `layer_reads(kind, committed)`
+- To reverse: rename it `_layer_reads` and give `status` its own copy of the read rule

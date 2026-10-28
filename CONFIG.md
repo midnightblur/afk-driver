@@ -254,7 +254,9 @@ are listed, and handlers judge the staged bytes. Each run appends a
 `gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
 "Latency metrics & budget"). Without `afk-python` the handlers cannot run, and the
 commit blocks whenever the repository could declare them: `.afk/hooks.json` exists,
-or any Discovery layer mentions `repo-hooks` or cannot be read. The shell parses
+or a file the reader takes `repo-hooks` from mentions it or cannot be read: the
+`$AFK_CONFIG` file, and the committed file, else the repository personal file and the
+local overlay. The shell parses
 neither file; `/afk:setup` installs the launcher. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
 `git commit --no-verify` skip them with the plugin's gates.
 
