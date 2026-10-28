@@ -130,3 +130,5 @@
 2026-10-28 00:37 | execute | 0013-config-contract | reviewing — round 1, full slice
 2026-10-28 00:46 | execute | 0013-config-contract | review advisory crit=0 high=0 med=2 low=6 — round 1: the separate-git-folder promise is wider than the code and untested, a blank misspelled key escapes validate, and five smaller gaps; all posted on the pull request, fixing in place
 2026-10-28 00:51 | execute | 0013-config-contract | decision(D-48) — one stale comment line in the worktree script joins this slice so its review finding can be fixed and closed
+2026-10-28 01:05 | execute | 0013-config-contract | pushed 51bf4ae — round-1 fixes for all eight findings
+2026-10-28 01:32 | execute | 0013-config-contract | review advisory crit=0 high=0 med=0 low=1 — round 2: a separate git folder that is itself named .git still derived a worktree base; fixed in 7b432e5 and pushed

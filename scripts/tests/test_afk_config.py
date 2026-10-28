@@ -600,6 +600,27 @@ def test_a_separate_git_directory_derives_no_worktree_base(tmp_path, name):
     assert done.returncode == 0, done.stderr
     out = run(["resolve", "worktreeBasePath"], checkout, _home(tmp_path))
     assert (out.returncode, out.stdout) == (1, "")
+    linked = _linked_worktree(checkout, tmp_path / "linked")
+    out = run(["resolve", "worktreeBasePath"], linked, _home(tmp_path))
+    if name == ".git":       # the linked worktree trusts the git folder's parent
+        assert Path(out.stdout.strip()).resolve() == (tmp_path / "store-worktrees").resolve()
+    else:
+        assert (out.returncode, out.stdout) == (1, "")
+
+
+def _linked_worktree(checkout: Path, where: Path) -> Path:
+    git = ["git", "-C", str(checkout), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "x"], check=True)
+    subprocess.run(git + ["worktree", "add", "-q", str(where)], check=True)
+    return where
+
+
+def test_a_linked_worktree_derives_the_main_checkouts_base(tmp_path):
+    root = _committed(tmp_path, "")
+    linked = _linked_worktree(root, tmp_path / "linked")
+    paths = [run(["resolve", "worktreeBasePath"], where, _home(tmp_path)) for where in (root, linked)]
+    assert [p.returncode for p in paths] == [0, 0], [p.stderr for p in paths]
+    assert {Path(p.stdout.strip()).resolve() for p in paths} == {(tmp_path / "repo-worktrees").resolve()}
 
 
 def test_validate_names_a_blank_misspelled_key(tmp_path):
