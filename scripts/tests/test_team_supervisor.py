@@ -263,7 +263,24 @@ def test_a_reset_time_the_supervisor_cannot_read_is_none(line):
 
 def test_an_iso_time_with_no_offset_is_the_machine_local_time():
     found = supervisor.reset_time("usage limit reached; resets at 2026-10-02 10:15:00", SEEN)
-    assert found == datetime(2026, 10, 2, 10, 15).astimezone(timezone.utc)
+    local = time.mktime((2026, 10, 2, 10, 15, 0, 0, 0, -1))      # the C library's local time, not astimezone
+    assert found == datetime.fromtimestamp(local, timezone.utc)
+
+
+def test_a_log_timestamp_before_the_limit_phrase_is_not_the_reset_time():
+    found = supervisor.reset_time("2026-10-27 12:00:00 You've hit your limit - resets 3pm (UTC)", SEEN)
+    assert found == datetime(2026, 9, 29, 15, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("text, line", [
+    ("ok\n5-hour limit reached - resets 3pm (UTC)\n", "5-hour limit reached - resets 3pm (UTC)"),
+    ("ok\nweekly limit reached\n", "weekly limit reached"),
+    ("Session limit reached - resets 3pm (UTC)\nbye\n", "Session limit reached - resets 3pm (UTC)"),
+    ("Claude AI usage limit reached|1759140900\n", "Claude AI usage limit reached|1759140900"),
+    ("You've hit your limit, try again later\n", "You've hit your limit, try again later"),
+])
+def test_each_provider_limit_form_is_read_as_the_limit_line(text, line):
+    assert supervisor.limit_line(text) == line
 
 
 @pytest.mark.parametrize("text", [

@@ -33,7 +33,8 @@ OWNS_OUTPUT = ("headless",)
 FIELDS = {"run", "watched_agent_id"}
 UTC_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-LIMIT = re.compile(r"usage limit|hit your (?:usage )?limit|\b\d+-hour limit|weekly limit", re.I)
+LIMIT = re.compile(r"usage limit|hit your (?:usage )?limit|\b\d+-hour limit|weekly limit"
+                   r"|\blimit reached\b.*\b(?:resets?|try again)\b", re.I)
 RETRYING = re.compile(r"\bretrying\b", re.I)
 EPOCH = re.compile(r"\|(\d{10})\b")
 ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?", re.I)
@@ -173,6 +174,8 @@ def _clock(text: str, seen_at: datetime) -> datetime | None:
 
 def reset_time(line: str, seen_at: datetime) -> datetime | None:
     """The reset time a provider-limit line states, in UTC; None when it states none the supervisor reads."""
+    phrase = LIMIT.search(line)
+    line = line[phrase.start():] if phrase else line     # a log timestamp before the limit phrase is no reset time
     found = EPOCH.search(line)
     if found:
         return datetime.fromtimestamp(int(found.group(1)), timezone.utc)
