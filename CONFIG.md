@@ -35,8 +35,9 @@ Highest precedence first:
 | machine | `~/.afk/config.yaml` | per-machine defaults across repositories |
 | built-in | — | the defaults below |
 
-Layers deep-merge: a mapping merges key by key, any other value replaces. Both
-files absent is a supported state — the built-in defaults apply.
+Layers deep-merge: a mapping merges key by key, any other value replaces;
+"Developer settings (K1–K5)" below names the two exceptions under `developer:`.
+Both files absent is a supported state — the built-in defaults apply.
 
 ## Starting a repository off
 
@@ -307,9 +308,11 @@ workflow doctor (`skills/afk/setup/MANIFEST.md` · H6).
 | Checkout | `<repo>/.afk/config.local.yaml` | a value that differs in ONE checkout; gitignored |
 
 The committed `.afk/config.yaml` holds none of these keys: K1, K2 and K5 name a
-person, and a committed file never names a person. Resolution, highest first:
+person, and a committed file never names a person. `validate` refuses a
+`developer:` block there, and nothing reads one. Resolution, highest first:
 the `developer:` value from any layer (checkout beats repository beats
 machine), then — for `worktreeBasePath` alone — a derived value, then nothing.
+An empty `developer:` block, or a key left blank, overrides nothing.
 
 | ID | Key | Type | Meaning | Falls back to |
 |----|-----|------|---------|---------------|
@@ -321,7 +324,8 @@ machine), then — for `worktreeBasePath` alone — a derived value, then nothin
 
 K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
 main checkout even from inside a worktree, so every worktree of one repository
-agrees on the directory. A bare clone derives nothing and needs the key.
+agrees on the directory. A bare clone, or a checkout whose git directory lies
+outside it, derives nothing and needs the key.
 
 **A missing value.** The literal `none` for K1, K2 or K5 reads exactly as an
 unset key, and overrides a broader layer's value — it records "nobody". When an
@@ -338,7 +342,8 @@ its own operations and states it on its own page.
 
 New keys may be added; existing keys are never removed or repurposed. An
 unknown key under `developer:` is a validation error, so a typo is named rather
-than silently ignored.
+than silently ignored: `resolve` names it on stderr and H6 names it too, with
+the file that holds it.
 
 A hypothetical `~/.afk/config.yaml` that answers K1, K2, K4 and K5, with K3
 derived:

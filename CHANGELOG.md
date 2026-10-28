@@ -126,6 +126,18 @@ release page from its section here. Nobody tags by hand.
 - `/afk:adversary` fakes outside services with in-process fakes, local servers
   or script stubs, and never builds an executable that endpoint security
   quarantines.
+- A `developer:` block in the committed `.afk/config.yaml` is no longer read:
+  `afk-config.py validate` refuses it and names the file, and `resolve`,
+  `developer_values.py status` and the `/afk:setup` H6 probe ignore its
+  values. Migration: move such a block to `<git common dir>/afk/config.yaml`
+  or `~/.afk/config.yaml`.
+- A bare clone, or a checkout whose git directory lies outside it, no longer
+  derives `worktreeBasePath`; set the key.
+- A misspelled key under `developer:` is named, with its file, by `resolve`
+  on stderr, by `developer_values.py status` and by the H6 probe, not only by
+  `validate`.
+- An empty `developer:` block, or a blank key, in a narrower layer no longer
+  erases the broader layers' values.
 
 ## [1.16.1] - 2026-10-27
 

@@ -118,3 +118,10 @@
 2026-10-27 22:27 | execute | 0007-ship-script | verifying — plugin-source gates pass, the declared function is in place, 48 ship tests and 117 forge adapter tests pass on Windows; the full suites run in the pull request's checks
 2026-10-27 22:32 | execute | 0007-ship-script | reviewing — round 1, full slice
 2026-10-27 23:15 | execute | 0007-ship-script | review round 1 — 13 findings (1 high: no test proved the push is never forced), all fixed in place; decision(D-47) records the proof step's inputs, the tracked-job duty on 0008 and the GitLab conformance note
+2026-10-27 23:52 | execute | 0007-ship-script | reviewing — round 2, the round-1 fixes
+2026-10-28 00:40 | execute | 0007-ship-script | blocked — run ended in review round 2: 7 findings (2 high: base-branch auto not resolved; land lists a push for a branch with no fix commit) not yet posted or fixed; resume at Step 10 round 2 post
+2026-10-28 00:08 | autopilot | 0007-ship-script | parked — blocked: run ended in review round 2 with 7 findings unposted (high: the default auto base branch is never refused, so land can push onto main); adversary and wiring checks not run
+2026-10-28 00:08 | autopilot | 0008-standalone-fix | parked(waiting on 0004-diagnose-rewrite, 0006-fix-procedure, 0007-ship-script)
+2026-10-28 00:08 | autopilot | run | 5/13 done, starting 0013-config-contract
+2026-10-28 00:10 | execute | 0013-config-contract | designing — the reader that resolves developer settings is being changed to keep the promises the settings documentation makes
+2026-10-28 00:18 | execute | 0013-config-contract | developing — ground re-read instead of re-scripted (the scripted search stops at its hit cap, as D-4 and D-26 record): since INV-026 the reader, the setup script and the H6 probe changed only through 0002 and 0003, and every reader of the five keys still resolves through the one reader; tests first

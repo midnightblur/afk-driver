@@ -132,7 +132,9 @@ a token value — not even partially.
   a person, so nothing resolves them but the developer's own answer: missing is
   a FAILURE, not an n/a, and a recorded `none` is an answer. Each is asked for
   only where its adapter has the concept, so the selected kind decides which
-  keys are probed.
+  keys are probed. A `developer:` block in the committed `.afk/config.yaml`, or
+  a key `CONFIG.md` does not list, is never read: the probe names each one and
+  fails, for the human to move or correct by hand.
   ```
   git rev-parse --git-dir >/dev/null 2>&1 \
     || { echo "skipped (no repository)"; exit 0; }
@@ -160,12 +162,16 @@ a token value — not even partially.
   i="$(printf '%s' "$s" | "$PY" -c \
       'import json,sys; d=json.load(sys.stdin); print(" ".join(k for k in d["inherited"] if d["keys"][k]["need"] == "required"))' \
       2>/dev/null)"
-  [ -z "$h$m$i" ] && { echo ok; exit 0; }
+  p="$(printf '%s' "$s" | "$PY" -c \
+      'import json,sys; print("\n".join(json.load(sys.stdin)["problems"]))' \
+      2>/dev/null)"
+  [ -z "$h$m$i$p" ] && { echo ok; exit 0; }
   echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
        "forge=$("$PY" "$AC" get forge)"
   [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
   [ -z "$m" ] || echo "unresolved:$m"
   [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
+  [ -z "$p" ] || printf '%s\n' "$p" | sed 's/^/edit by hand: /'
   exit 1
   ```
 - **Fix:** `human:` agent-guided in session, from a linked worktree or no repository;

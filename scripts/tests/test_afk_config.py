@@ -362,9 +362,11 @@ TYPOS = {
 @pytest.mark.parametrize("name,typo", sorted(TYPOS.items()))
 def test_an_unknown_child_key_is_refused_with_its_dotted_path(tmp_path, name, typo):
     root = repo(tmp_path, f"typo-{name}")
-    (root / ".afk" / "config.yaml").write_text(
-        f"schema: 1\n{name}:\n  {typo}: value\n", encoding="utf-8"
-    )
+    (root / ".afk" / "config.yaml").write_text("schema: 1\n", encoding="utf-8")
+    # The committed file may hold no developer block, so that typo sits in the checkout file.
+    target = "config.local.yaml" if name == "developer" else "config.yaml"
+    with (root / ".afk" / target).open("a", encoding="utf-8") as handle:
+        handle.write(f"{name}:\n  {typo}: value\n")
     done = run(["validate"], root)
     assert done.returncode == 2
     assert f"{name}.{typo}: unknown key" in done.stderr
@@ -504,3 +506,120 @@ def test_path_warnings_unit(tmp_path):
     assert cfg.path_warnings(config, None) == []
     assert cfg.path_warnings(config, tmp_path) == [
         "setup.extra: gone.md does not exist under the repository root"]
+
+
+# ---- developer settings contract (CONFIG.md "Developer settings (K1–K5)") ----
+
+def _home(tmp_path: Path, developer: str | None = None) -> dict:
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True, exist_ok=True)
+    (home / ".afk" / "config.yaml").unlink(missing_ok=True)
+    if developer is not None:
+        (home / ".afk" / "config.yaml").write_text(developer, encoding="utf-8")
+    return {"HOME": str(home), "USERPROFILE": str(home)}
+
+
+def _committed(tmp_path: Path, developer: str) -> Path:
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text("schema: 1\n" + developer, encoding="utf-8")
+    _commit(root)
+    return root
+
+
+def test_validate_refuses_a_developer_block_in_the_committed_file(tmp_path):
+    root = _committed(tmp_path, "developer:\n  mrReviewer: lead\n")
+    env = _home(tmp_path)
+    for args in (["validate"], ["validate", str(root / ".afk" / "config.yaml")]):
+        out = run(args, root, env)
+        assert out.returncode == 2, out.stderr
+        assert "committed file holds no developer" in out.stderr
+        assert str(root / ".afk" / "config.yaml") in out.stderr
+
+
+def test_an_empty_committed_developer_block_is_refused_too(tmp_path):
+    root = _committed(tmp_path, "developer:\n")
+    out = run(["validate"], root, _home(tmp_path))
+    assert out.returncode == 2 and "committed file holds no developer" in out.stderr
+
+
+def test_validate_accepts_a_developer_block_in_every_developer_layer(tmp_path):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path, "developer:\n  mrReviewer: mine\n")
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text("developer:\n  mrAssignee: me\n", encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text("developer:\n  ideBinary: x\n",
+                                                     encoding="utf-8")
+    out = run(["validate"], root, env)
+    assert out.returncode == 0, out.stderr
+    home_file = Path(env["HOME"]) / ".afk" / "config.yaml"
+    for path in (home_file, shared, root / ".afk" / "config.local.yaml"):
+        out = run(["validate", str(path)], root, env)
+        assert out.returncode == 0, (path, out.stderr)
+
+
+def test_resolve_never_takes_a_value_from_the_committed_file(tmp_path):
+    root = _committed(tmp_path, "developer:\n  mrReviewer: lead\n  worktreeBasePath: D:/team\n")
+    out = run(["resolve", "mrReviewer"], root, _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+    assert "committed file holds no developer" in out.stderr
+    out = run(["resolve", "mrReviewer"], root, _home(tmp_path, "developer:\n  mrReviewer: mine\n"))
+    assert (out.returncode, out.stdout.strip()) == (0, "mine")
+    derived = run(["resolve", "worktreeBasePath"], root, _home(tmp_path))
+    assert derived.stdout.strip() == str(tmp_path / "repo-worktrees").replace("\\", "/")
+    effective = run(["effective", "--json"], root, _home(tmp_path))
+    assert "developer" not in json.loads(effective.stdout)
+
+
+def test_a_bare_clone_derives_no_worktree_base(tmp_path):
+    root = _committed(tmp_path, "")
+    bare = tmp_path / "bare.git"
+    subprocess.run(["git", "clone", "-q", "--bare", str(root), str(bare)], check=True,
+                   capture_output=True)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(bare), "worktree", "add", "-q", str(linked)], check=True,
+                   capture_output=True)
+    for cwd in (bare, linked):
+        out = run(["resolve", "worktreeBasePath"], cwd, _home(tmp_path))
+        assert (out.returncode, out.stdout) == (1, ""), (cwd, out.stdout)
+
+
+def test_a_bare_repository_named_dot_git_derives_nothing_either(tmp_path):
+    root = _committed(tmp_path, "")
+    holder = tmp_path / "holder"
+    holder.mkdir()
+    subprocess.run(["git", "clone", "-q", "--bare", str(root), str(holder / ".git")],
+                   check=True, capture_output=True)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(holder / ".git"), "worktree", "add", "-q", str(linked)],
+                   check=True, capture_output=True)
+    out = run(["resolve", "worktreeBasePath"], linked, _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+
+
+@pytest.mark.parametrize("layer", ["home", "shared", "local"])
+def test_resolve_names_a_misspelled_developer_key_in_any_layer(tmp_path, layer):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path)
+    path = {"home": Path(env["HOME"]) / ".afk" / "config.yaml",
+            "shared": cfg.shared_overlay(root),
+            "local": root / ".afk" / "config.local.yaml"}[layer]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("developer:\n  mrReviwer: lead\n", encoding="utf-8")
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout) == (1, "")
+    assert "developer.mrReviwer" in out.stderr and str(path) in out.stderr
+
+
+@pytest.mark.parametrize("narrow", ["developer:\n", "developer:\n  mrReviewer:\n",
+                                    "developer:\n  mrReviewer: ''\n"])
+def test_an_empty_narrower_developer_block_erases_nothing(tmp_path, narrow):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path, "developer:\n  mrReviewer: mine\n")
+    (root / ".afk" / "config.local.yaml").write_text(narrow, encoding="utf-8")
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text(narrow, encoding="utf-8")
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout.strip()) == (0, "mine"), out.stderr
+    assert run(["validate"], root, env).returncode == 0

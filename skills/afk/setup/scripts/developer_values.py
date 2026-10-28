@@ -10,7 +10,9 @@ asks the human in session and records the answers here.
 `.afk/config.yaml`), and names, per key: `need` (required | optional | n/a for this repository's
 adapters), the resolved `value`, its `source` layer, and a `suggestion` to offer.
 `missing` lists the required keys nothing resolves; `inherited` the keys naming a
-person or a location that only the machine file supplies. A `worktreeBasePath` set in a file also shows its `derived` value.
+person or a location that only the machine file supplies; `problems` each file's `developer:`
+block or key that is never read (the committed file's block, a misspelled key), to edit by hand.
+A `worktreeBasePath` set in a file also shows its `derived` value.
 
 `set` writes the repository file `<git common dir>/afk/config.yaml`, which the main
 checkout and every worktree read; `--machine` writes `~/.afk/config.yaml`, the
@@ -190,6 +192,7 @@ def status(root: Path) -> dict:
         # A machine default may name another repository's person or folder.
         "inherited": [k for k, e in keys.items()
                       if e["need"] != "n/a" and e["source"] == "machine" and k != "ideBinary"],
+        "problems": ac.developer_problems(root),
         "keys": keys,
     }
 

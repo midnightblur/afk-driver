@@ -27,7 +27,8 @@ Discovery, highest precedence first:
     built-in defaults
 
 Layers are deep-merged: a mapping merges key by key, any other value replaces.
-Neither overlay may change `schema`.
+Neither overlay may change `schema`. Under `developer:` the committed file is
+never read, and a blank block or key overrides nothing (`_developer_layer`).
 
 Secrets never live in a configuration file. A file names ENVIRONMENT VARIABLES;
 the values come from the environment or a harness credential store.
@@ -385,6 +386,20 @@ def layers(root: Path | None) -> list[tuple[str, Path]]:
     return found
 
 
+def _developer_layer(kind: str, document: dict) -> dict:
+    """`document` as it may speak for a developer: the committed file never does,
+    and a blank `developer:` block or key overrides no broader layer."""
+    block = document.get("developer", {})
+    if kind == "repo" or block is None:
+        return {k: v for k, v in document.items() if k != "developer"}
+    if not isinstance(block, dict):
+        return document
+    kept = {k: v for k, v in block.items()
+            if v is not None and not (isinstance(v, str) and not v.strip())}
+    rest = {k: v for k, v in document.items() if k != "developer"}
+    return {**rest, "developer": kept} if kept else rest
+
+
 def load(root: Path | None = None) -> dict:
     if root is None:
         root = git_root()
@@ -393,8 +408,34 @@ def load(root: Path | None = None) -> dict:
         document = parse(path.read_text(encoding="utf-8"), str(path))
         if kind in ("local", "shared") and "schema" in document:
             raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
-        effective = deep_merge(effective, document)
+        effective = deep_merge(effective, _developer_layer(kind, document))
     return effective
+
+
+def committed_developer(path: Path, document: dict) -> str | None:
+    """The refusal for a committed file that holds a `developer:` block, else None."""
+    if "developer" not in document:
+        return None
+    return (f"{path}: the committed file holds no developer settings, so its `developer:` "
+            "block is not read; move it to <git common dir>/afk/config.yaml or "
+            "~/.afk/config.yaml (CONFIG.md \"Developer settings (K1–K5)\")")
+
+
+def developer_problems(root: Path | None) -> list[str]:
+    """Per file: a `developer:` block the committed file holds, and every key no
+    layer may hold, so a typo is named wherever developer values are read."""
+    problems: list[str] = []
+    for kind, path in layers(root):
+        document = parse(path.read_text(encoding="utf-8"), str(path))
+        refusal = committed_developer(path, document) if kind == "repo" else None
+        block = document.get("developer")
+        if refusal:
+            problems.append(refusal)
+        elif isinstance(block, dict):
+            problems += [f"{path}: developer.{key}: unknown key; expected one of "
+                         f"{', '.join(sorted(DEVELOPER_KEYS))}"
+                         for key in sorted(set(block) - DEVELOPER_KEYS)]
+    return problems
 
 
 # --------------------------------------------------------------------------
@@ -759,7 +800,7 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     developer = config.get("developer")
     if isinstance(developer, dict):
         for key, value in developer.items():
-            if key in DEVELOPER_KEYS and not isinstance(value, str):
+            if key in DEVELOPER_KEYS and value is not None and not isinstance(value, str):
                 problems.append(f"developer.{key}: must be a string")
 
     return problems
@@ -813,7 +854,11 @@ def worktree_base(root: Path | None = None) -> Path | None:
     common = _git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
     if not common:
         return None
-    main_checkout = Path(common).parent
+    git_dir = Path(common)
+    if git_dir.name != ".git" or _git(
+            start, "config", "--file", str(git_dir / "config"), "--bool", "core.bare") == "true":
+        return None
+    main_checkout = git_dir.parent
     if main_checkout.name in ("", "/") or not main_checkout.name:
         return None
     return main_checkout.parent / (main_checkout.name + "-worktrees")
@@ -934,9 +979,13 @@ def repo_slug(root: Path, remote: str) -> str:
     return path if path.count("/") == 1 else ""
 
 
+def _machine_file() -> Path:
+    return Path.home() / ".afk" / "config.yaml"
+
+
 def _machine_layer() -> dict:
     """The per-machine file, the only layer below the repository file."""
-    home = Path.home() / ".afk" / "config.yaml"
+    home = _machine_file()
     if not home.is_file():
         return {}
     return parse(home.read_text(encoding="utf-8"), str(home))
@@ -1108,8 +1157,8 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     lines += [
         "# Who work is assigned to, and who reviews it, are NOT configured here:",
         "# a committed file never names a person. Each developer answers for",
-        "# themselves in `~/.afk/config.yaml` under `developer:`, which `/afk:setup`",
-        "# asks for.",
+        "# themselves under `developer:` in `<git common dir>/afk/config.yaml`, or",
+        "# `~/.afk/config.yaml` for every repository, which `/afk:setup` asks for.",
     ]
 
     return "\n".join(lines).rstrip("\n") + "\n"
@@ -1275,11 +1324,19 @@ def main(argv: list[str]) -> int:
                         f"at byte {problem.start})\n"
                     )
                     return 2
-                config = deep_merge(dict(DEFAULTS), parse(text, str(path)))
+                document = parse(text, str(path))
+                config = deep_merge(dict(DEFAULTS), document)
+                own = git_root(path.resolve().parent)
+                committed = (own is not None and path.resolve() != _machine_file().resolve()
+                             and (own / ".afk" / "config.yaml").resolve() == path.resolve())
                 root = root if root is not None else path.parent.parent
             else:
                 config = load(root)
-            problems = validate(config, root)
+                path = root / ".afk" / "config.yaml" if root is not None else None
+                committed = path is not None and path.is_file()
+                document = parse(path.read_text(encoding="utf-8"), str(path)) if committed else {}
+            refusal = committed_developer(path, document) if committed else None
+            problems = validate(config, root) + ([refusal] if refusal else [])
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
             warnings = path_warnings(config, root)
@@ -1312,6 +1369,8 @@ def main(argv: list[str]) -> int:
                     f"{', '.join(sorted(DEVELOPER_KEYS))}\n"
                 )
                 return 2
+            for problem in developer_problems(root):
+                sys.stderr.write(f"afk-config: {problem}\n")
             resolved = developer_value(config, key, root)
             if resolved is None:
                 return 1

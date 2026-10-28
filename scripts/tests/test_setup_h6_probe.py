@@ -148,6 +148,26 @@ def test_a_recorded_none_person_is_an_answer(repo, home):
     assert out.stdout.strip() == "ok"
 
 
+def test_a_committed_developer_block_is_never_ok(repo, home):
+    committed = repo / ".afk" / "config.yaml"
+    write(committed, NONE + DEV)
+    out = run(repo, home)
+    assert out.returncode == 1
+    lines = out.stdout.splitlines()
+    assert lines[0] == "resolved: tracker=none forge=none"
+    assert any(line.startswith("edit by hand: ") and "committed file holds no developer" in line
+               for line in lines), out.stdout
+
+
+def test_a_misspelled_developer_key_is_never_ok(repo, home):
+    write(repo / ".afk" / "config.yaml", NONE)
+    write(repo / ".git" / "afk" / "config.yaml", "developer:\n  mrReviwer: you\n")
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert out.stdout.splitlines()[-1].startswith("edit by hand: ")
+    assert "developer.mrReviwer" in out.stdout
+
+
 def test_a_status_that_fails_is_reported_not_ok(tmp_path, repo, home):
     """Tracker and forge say none, so only the missing developer_values.py keeps the probe from ok."""
     stub = tmp_path / "stub"
