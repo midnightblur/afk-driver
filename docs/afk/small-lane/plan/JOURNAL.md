@@ -162,3 +162,5 @@
 2026-10-28 13:31 | execute | 0007-ship-script | developing — fixing round 4: land counts only commits, cherry-picks, reverts and new rebase results; focused ship tests 95 passed
 2026-10-28 14:40 | execute | 0007-ship-script | review blocking crit=0 high=1 med=3 low=1 — round 5 found 5 (f036-f040): a rebased fix pushed before was refused on re-run, a rebase onto another branch with no fix passed, and 3 test gaps
 2026-10-28 14:40 | execute | 0007-ship-script | developing — fixing round 5: a rebase counts as a fix only when its result differs from the commit it replayed onto; focused ship tests 102 passed
+2026-10-28 15:20 | execute | 0007-ship-script | review blocking crit=0 high=1 med=0 low=1 — round 6 found 2 (f041-f042): a rebase that drops the fix counted as a fix, and the 7-character test checked its outcome only on one branch
+2026-10-28 15:20 | execute | 0007-ship-script | developing — fixing round 6: a rebase result the branch already held before the rebase is not a fix; focused ship tests 103 passed

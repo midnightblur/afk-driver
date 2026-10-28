@@ -943,11 +943,11 @@ def test_fast_forward_land_reads_a_base_commit_of_7_characters_or_more(tmp_path,
     before, start = remote_tip(repo, FEATURE), git(repo, "rev-parse", f"origin/{FEATURE}")
     path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:length]}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    landed = status == "done"
     assert result["status"] == status, result
-    if status == "refused":
-        assert "names no commit" in result["reason"] and remote_tip(repo, FEATURE) == before
-    else:
-        assert remote_tip(repo, FEATURE) == head
+    assert landed or "names no commit" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == (head if landed else before)
+    assert entries(path) == ([f"push: {FEATURE}@{head}"] if landed else [])
 
 
 @pytest.mark.parametrize("take_tip", [
@@ -1018,6 +1018,21 @@ def test_fast_forward_land_refuses_a_branch_rebased_onto_another_branch_with_no_
     commit(repo, "other.txt")
     git(repo, "checkout", "-q", BRANCH)
     git(repo, "rebase", "-q", "other-work")
+    before = remote_tip(repo, FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def test_fast_forward_land_refuses_a_rebase_that_drops_the_only_fix(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    moved = moved_feature(tmp_path, repo)
+    git(repo, "merge", "-q", "--ff-only", f"origin/{FEATURE}")
+    commit(repo, "fix.txt", "fixed\n")
+    git(repo, "-c", "sequence.editor=sed -i '2s/^pick/drop/'", "rebase", "-q", "-i", "HEAD~2")
+    assert git(repo, "rev-parse", "HEAD") == moved
     before = remote_tip(repo, FEATURE)
     path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))

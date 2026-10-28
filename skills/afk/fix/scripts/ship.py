@@ -644,7 +644,8 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
 
 def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
     """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
-    cherry-pick or revert in its reflog, or a rebase that replayed commits (result != onto)."""
+    cherry-pick or revert in its reflog, or a rebase whose result is neither its onto commit nor a
+    commit the branch held before it (a rebase that drops the fix makes nothing)."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -657,12 +658,16 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
         raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
                      "nothing to land")
     log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
+    rows = [line.partition(" ") for line in log.splitlines()]
     made = set()
-    for sha, _, subject in (line.partition(" ") for line in log.splitlines()):
+    for i, (sha, _, subject) in enumerate(rows):
         action, _, rest = subject.partition(": ")
         onto = re.search(r" onto ([0-9a-f]{40,64})\b", rest)
+        before = rows[i + 1][0] if i + 1 < len(rows) else ""
         if action in MADE_HERE or ("rebase" in action and action.endswith("(finish)")
-                                   and onto is not None and onto.group(1) != sha):
+                                   and onto is not None and onto.group(1) != sha and not (
+                before and _git(cwd, "merge-base", "--is-ancestor", sha, before,
+                                check=False).returncode == 0)):
             made.add(sha)
     if not commits & made:
         raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
