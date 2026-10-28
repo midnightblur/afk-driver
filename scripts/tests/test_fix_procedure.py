@@ -52,16 +52,26 @@ POINTERS = [
     "skills/afk/grill-requirements/ROUND.md",
     "AGENTS.md",
 ]
-# A cited procedure step: "IN-PLACE-FIX.md ... step N", "procedure step(s) N and M", "then its step N",
+# A cited procedure step: "IN-PLACE-FIX.md ... step N", "procedure step(s) N and M", "its step N",
 # "steps N to M of the shared fix procedure"; every cited number must be a procedure step.
 CITED_STEP = re.compile(
-    r"(?:IN-PLACE-FIX\.md\S*|procedure|then its)\s+steps?\s+(\d+)(?:\s*(?:,|and|or|to)\s*(\d+))?"
+    r"(?:IN-PLACE-FIX\.md\S*|procedure|\bits)\s+steps?\s+(\d+)(?:\s*(?:,|and|or|to)\s*(\d+))?"
     r"|steps?\s+(\d+)\s+to\s+(\d+)\s+of\s+the\s+shared\s+fix\s+procedure", re.IGNORECASE)
 FIX_PHASE = re.compile(r"(?:fix/SKILL\.md|/afk:fix|fix skill)['`)\]]*'?s?\s+Phases?\s+[0-9]", re.IGNORECASE)
 
 
+STEPS = [("1", "Re-run once"), ("2", "Record the failing path"), ("3", "Fix test-first"),
+         ("4", "Broaden coverage"), ("5", "Run every tier"), ("6", "Escape analysis"),
+         ("7", "Find stale artifacts"), ("8", "Workflow lesson"), ("9", "Return")]
+
+
 def _procedure_steps() -> set[str]:
     return set(re.findall(r"^### (\d+)\. ", PROCEDURE.read_text(encoding="utf-8"), re.MULTILINE))
+
+
+def test_the_procedure_steps_keep_the_numbers_their_pointers_cite():
+    # A renumbered step leaves every pointer citing a real but wrong step; pinning the order catches it.
+    assert re.findall(r"^### (\d+)\. (.+)$", PROCEDURE.read_text(encoding="utf-8"), re.MULTILINE) == STEPS
 
 
 @pytest.mark.parametrize("path", POINTERS)
@@ -92,7 +102,10 @@ def test_the_procedure_re_runs_a_failure_once_before_any_diagnosis():
     first = re.search(r"^### (\d+)\. (.+)$", text, re.MULTILINE)
     assert first.groups() == ("1", "Re-run once")
     step1 = _section(text, "### 1. Re-run once").split("\n### ")[0]
-    assert re.search(r"re-run passes .*`flaky`", step1, re.DOTALL)
+    passes = re.search(r"^- The re-run passes.*?(?=^- |\Z)", step1, re.MULTILINE | re.DOTALL).group(0)
+    fails = re.search(r"^- The re-run fails.*?(?=^- |\Z)", step1, re.MULTILINE | re.DOTALL).group(0)
+    assert all(part in passes for part in ("`flaky`", "`disabled/flaky`", "step 8", "Change no code"))
+    assert "step 2" in fails and "flaky" not in fails
     assert "re-runs once" in step1
 
 

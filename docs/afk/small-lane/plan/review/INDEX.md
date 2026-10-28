@@ -42,3 +42,4 @@
 | 0006-fix-procedure-554b28a-r1 | crit=0 high=1 med=15 low=6 | [0006-fix-procedure-554b28a-r1.md](0006-fix-procedure-554b28a-r1.md) |
 | 0006-fix-procedure-54c0b4e-r2 | crit=0 high=0 med=6 low=7 | [0006-fix-procedure-54c0b4e-r2.md](0006-fix-procedure-54c0b4e-r2.md) |
 | 0006-fix-procedure-5693ac2-r3 | crit=0 high=0 med=5 low=1 | [0006-fix-procedure-5693ac2-r3.md](0006-fix-procedure-5693ac2-r3.md) |
+| 0006-fix-procedure-e3718b2-r4 | crit=0 high=0 med=6 low=7 | [0006-fix-procedure-e3718b2-r4.md](0006-fix-procedure-e3718b2-r4.md) |

@@ -7,8 +7,8 @@ what should change so the next feature doesn't repeat it.** Run **only** for
 a fix on an unreleased feature built with AFK assistance (signals:
 [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature"). Ad-hoc/maintenance
 bugs have no AFK workflow to improve → skip. Skip also when
-procedure steps 1 and 6 named no miss class and step 7 recorded no stale
-artifact: there is no miss to trace.
+procedure steps 1 and 6 named no miss class and procedure step 7 recorded no
+stale artifact: there is no miss to trace.
 
 The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
@@ -54,9 +54,8 @@ issue".
      --source <slice or finding id, else ticket key> --evidence <path:line> --writer fix
    ```
 
-   `--class` maps from the miss class per the mapping table in
-   `skills/afk/lessons/LEDGER-FORMAT.md`; a lesson from a stale artifact alone
-   takes `--class wrong-design` and no `--miss`. The `draft` must stand alone. The
+   `--class` comes from `skills/afk/lessons/LEDGER-FORMAT.md` "Miss-class
+   mapping"; a lesson from a stale artifact alone takes no `--miss`. The `draft` must stand alone. The
    draft is applied later — reviewed against `/afk:writing-for-agents` — via
    `/afk:lessons apply`, never in this session. Put the minted lesson id into
    the procedure's record.

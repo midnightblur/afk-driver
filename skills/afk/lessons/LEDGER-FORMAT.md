@@ -76,8 +76,8 @@ Transition event:
 
 ## Miss-class mapping
 
-The escape-analysis step of the shared fix procedure
-(`skills/afk/fix/IN-PLACE-FIX.md` step 6) names a **miss class** (set owned by
+The shared fix procedure (`skills/afk/fix/IN-PLACE-FIX.md` steps 1 and 6)
+names a **miss class** (set owned by
 `skills/afk/fix/ESCAPE-ANALYSIS.md` — lockstep with this table). It rides the
 `miss` field verbatim; the lesson `class` derives from it:
 
@@ -87,6 +87,9 @@ The escape-analysis step of the shared fix procedure
 | `excluded` | `wrong-design` |
 | `disabled/flaky` | `missed-instruction` |
 | `dodged-failure` | `test-dodge` |
+
+A lesson from a stale artifact alone (procedure step 7) names no miss class
+and takes the lesson `class` `wrong-design`.
 
 ## Escalation ladder
 

@@ -198,9 +198,9 @@ The caller keeps the record in its own report.
 | Field | Set by | Holds |
 |-------|--------|-------|
 | Failure | intake | the check command, finding id or scenario id |
-| Runs | steps 1, 4 | for each run: command, start time, result; the first run's failing output |
+| Runs | steps 1, 4, 6 | for each run: command, start time, result; the first run's failing output |
 | Code caller, Input, Failing path | step 2 | the three cited facts |
-| Edits | steps 3–4 | each file the fix changed |
+| Edits | steps 3, 4, 6 | each file the fix changed |
 | Tiers | step 5 | each tier run, with its result |
 | Miss class | steps 1, 6 | the escape-analysis class, when one was named |
 | Stale artifacts | step 7 | each stale artifact with its owning skill |
@@ -220,7 +220,7 @@ far, listed under Edits.
 |--------|---------------|------------------------------|
 | `fixed` | every check in step 5 is green | The failure is gone and every tier is green. The fix sits uncommitted in its working tree. |
 | `fail` | a check other than an adversary reproduction stays red after the fix (step 5) | The fix did not hold; the record names the red check. |
-| `blocked` | the procedure cannot go on (steps 1–5, or a needed path outside the caller's paths) | The failure stays unfixed; the record names the reason. |
+| `blocked` | the procedure cannot go on (steps 1–6, or a needed path outside the caller's paths) | The failure stays unfixed; the record names the reason. |
 | `design_conflict` | the fix needs a binding SDD or ADR decision changed, and that change is a one-way door or a tie (steps 3, 7) | No fix. The record names the decision, the conflict and your recommendation; a superseding ADR comes from `/afk:grill-solution`. |
 | `needs_decision` | any other fork is a one-way door or a tie (step 3) | No fix. The record names the fork, the options and your recommendation. |
 | `adversary_fail` | the failure was an adversary finding and its reproduction still shows the defect after the fix (step 5) | The fix did not hold against the finding; the record names the reproduction and its result. |
