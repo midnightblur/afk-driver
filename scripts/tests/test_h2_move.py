@@ -607,3 +607,14 @@ def test_the_owner_calls_work_without_placement_and_a_move_needs_it(repo, tmp_pa
     monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
     chosen = module.plan(_place(repo), {"session_id": "s-load", "cwd": str(repo)}, {})
     assert chosen["error"].startswith("placement: "), chosen
+
+
+def test_a_repeat_call_returns_the_recorded_move_without_loading_placement(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
+    module = _h2_module()
+    first = module.plan(_place(repo), {"session_id": "s-again", "cwd": str(repo)}, {})
+    assert "error" not in first, first
+    (home / ".afk" / "config.yaml").write_text("developer: text\n", encoding="utf-8")
+    monkeypatch.setattr(module, "target", lambda *a: pytest.fail("a repeat call loaded placement"))
+    assert module.plan(_place(repo), {"session_id": "s-again", "cwd": str(repo)}, {}) == first

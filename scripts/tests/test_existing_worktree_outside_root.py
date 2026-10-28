@@ -351,15 +351,23 @@ def _(f, s):
                             CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT)), "o")
 
 
-@case("hooks/worktree-prune.sh:adopt")
+def owners_in(record: Path) -> list[str]:
+    return [f"{o['pid']}:{o['ctime']}" for o in OWNER.owners_of(json.loads(record.read_text("utf-8")))]
+
+
+@case("hooks/worktree-prune.sh:adopt", kinds=("name",))
 def _(f, s):
-    """A session that starts in the worktree keeps it and becomes an owner of it."""
-    done = sh(f, "hooks/worktree-prune.sh", cwd=s.path)
+    """A session that starts in the worktree becomes an owner of it; only a --name worktree has a record."""
     record = f.main / ".git" / "afk-worktrees" / f"{s.label}.json"
-    owners = None
-    if record.is_file():
-        owners = [f"{o['pid']}:{o['ctime']}" for o in OWNER.owners_of(json.loads(record.read_text("utf-8")))]
-    return Code(done.returncode), f.norm(done.stdout, s), s.path.is_dir(), owners and f.owner in owners
+    kept = record.read_bytes()
+    try:
+        before = owners_in(record)
+        done = sh(f, "hooks/worktree-prune.sh", cwd=s.path, AFK_WORKTREE_OWNER=f.other)
+        after = owners_in(record)
+    finally:
+        record.write_bytes(kept)
+    assert f.other not in before and f.other in after and f.owner in after, (before, after)
+    return Code(done.returncode), f.norm(done.stdout, s), s.path.is_dir()
 
 
 @case("hooks/protected-branch-occupancy.py+hooks/lib/occupancy.py")
@@ -972,22 +980,30 @@ def removal_state(repo: Path, path: Path, label: str) -> tuple:
     return path.exists(), git(repo, "branch", "--list", f"worktree-{label}") != "", record.exists()
 
 
-@pytest.mark.parametrize("member", ["hooks/worktree-remove.sh", "scripts/remove-worktree.py",
-                                    "hooks/worktree-prune.sh:dead-owner"])
+def remove_by_hook(forest, repo: Path, paths) -> list[int]:
+    envelopes = [{"session_id": "s-rm", "cwd": str(repo), "hook_event_name": "WorktreeRemove",
+                  "worktree_path": str(path)} for path in paths]
+    return [sh(forest, "hooks/worktree-remove.sh", cwd=repo, stdin=json.dumps(e)).returncode for e in envelopes]
+
+
+def remove_by_script(forest, repo: Path, paths) -> list[int]:
+    return [py(forest, "scripts/remove-worktree.py", "--path", str(path), cwd=repo).returncode for path in paths]
+
+
+def prune_dead_owners(forest, repo: Path, paths) -> list[int]:
+    return [sh(forest, "hooks/worktree-prune.sh", cwd=repo).returncode]
+
+
+REMOVALS = {"hooks/worktree-remove.sh": ("rmhook", remove_by_hook),
+            "scripts/remove-worktree.py": ("rmpy", remove_by_script),
+            "hooks/worktree-prune.sh:dead-owner": ("prune", prune_dead_owners)}
+
+
+@pytest.mark.parametrize("member", sorted(REMOVALS))
 def test_cleanup_removes_an_outside_worktree_as_it_removes_one_under_the_root(forest, member):
-    name = {"hooks/worktree-remove.sh": "rmhook", "scripts/remove-worktree.py": "rmpy"}.get(member, "prune")
+    name, remove = REMOVALS[member]
     repo, outside, inside = forest.disposable[name]
     assert removal_state(repo, outside, "wq-on") == removal_state(repo, inside, "wq-in") == (True, True, True)
-    codes = []
-    if member == "hooks/worktree-prune.sh:dead-owner":
-        codes.append(sh(forest, "hooks/worktree-prune.sh", cwd=repo).returncode)
-    for path in (outside, inside):
-        if member == "hooks/worktree-remove.sh":
-            envelope = {"session_id": "s-rm", "cwd": str(repo), "hook_event_name": "WorktreeRemove",
-                        "worktree_path": str(path)}
-            codes.append(sh(forest, "hooks/worktree-remove.sh", cwd=repo, stdin=json.dumps(envelope)).returncode)
-        elif member == "scripts/remove-worktree.py":
-            codes.append(py(forest, "scripts/remove-worktree.py", "--path", str(path), cwd=repo).returncode)
-    assert set(codes) == {0}
+    assert set(remove(forest, repo, (outside, inside))) == {0}
     assert removal_state(repo, outside, "wq-on") == removal_state(repo, inside, "wq-in") == (False, False, False)
     assert git(repo, "worktree", "list", "--porcelain").count("worktree ") == 1

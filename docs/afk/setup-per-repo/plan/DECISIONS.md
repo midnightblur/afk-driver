@@ -384,3 +384,11 @@
 - Chosen: B — the seam rule stays as two contracts already state it, and a folder reached through a link keeps the listed short name instead of the link target's basename
 - Supersedes: none
 - To reverse: restore the `all_entries()` scan in `claim_short_name_folder` and amend the "setup only" lines in `scripts/repo_list.py`, `plan/0003-repository-list.md` and `plan/0010-setup-walk.md`
+
+## D-55 — The folder claim keeps calling the repository list's private helpers
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — add a public claim call to `scripts/repo_list.py` (0003's module) and move the creator onto it vs B — keep the creator's calls to `_parse`, `_claim_folder`, `_update_list`, `_marker_holder` and `_key`, and widen D-48's debt to all five
+- Chosen: B — a public claim changes a done slice's seam surface that 0010's setup walk also consumes; the five calls run under the list's own lock, as placement's do
+- Supersedes: D-48's Debt line (it named three of the five calls)
+- To reverse: add a public `claim_folder` to `scripts/repo_list.py` and call it from `claim_short_name_folder` in `scripts/create-worktree`
+- Debt: the creator calls five private `repo_list` helpers (feature-gate design review)

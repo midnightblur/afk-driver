@@ -90,6 +90,13 @@ def target(root: Path, name: str, facts: dict) -> tuple[str, str]:
     return str(root / folder / name), ""
 
 
+def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
+    path, refused = target(root, name, facts)
+    if refused:
+        return {"name": name, "path": "", "pane": pane, "error": refused}
+    return {"name": name, "path": path, "pane": pane, "marker": str(marker)}
+
+
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
     """`{"path", "name", "pane"}` of the worktree this session is being moved into."""
     common = Path(place["common"])
@@ -101,19 +108,22 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     marker_dir.mkdir(exist_ok=True)
     marker = marker_dir / f"{key}.move"
     name = f"session-{uuid.uuid4().hex[:8]}"
-    path, refused = target(root, name, facts)
-    if refused:
-        return {"name": name, "path": "", "pane": pane, "error": refused}
-    chosen = {"name": name, "path": path, "pane": pane}
-    chosen["marker"] = str(marker)
-    try:
-        with open(marker, "x", encoding="utf-8") as out:
-            json.dump(chosen, out)
-    except FileExistsError:
+    created = False
+    if not marker.exists():  # placement loads only for a move this call records
+        chosen = fresh(root, name, pane, facts, marker)
+        if chosen.get("error"):
+            return chosen
+        try:
+            with open(marker, "x", encoding="utf-8") as out:
+                json.dump(chosen, out)
+            created = True
+        except FileExistsError:
+            pass  # a concurrent call recorded its move first
+    if not created:
         try:
             chosen = json.loads(marker.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            return chosen
+            return fresh(root, name, pane, facts, marker)
         if Path(chosen["path"]).exists() and owner_is_dead(common, chosen["name"]):
             marker.unlink(missing_ok=True)  # an earlier session's worktree, not this one's
             return plan(place, envelope, facts)
