@@ -416,11 +416,13 @@ def test_validate_of_a_named_personal_file_checks_paths_under_its_checkout(tmp_p
 
 def test_validate_of_the_committed_file_of_a_checkout_at_home_reads_it_as_both_layers(home):
     subprocess.run(["git", "init", "-q"], cwd=str(home), check=True)
-    file = machine(home, "schema: 1\ntracker: jira\nnotes: obsidian\n")
+    file = machine(home, "schema: 1\ntracker: jira\nnotes: obsidian\ndeveloper:\n  mrReviewer: me\n"
+                         "jira:\n  credentials-env:\n    - JIRA_BASE_URL\n")
     for args in (["validate", str(file)], ["validate"]):
         done = run(args, home, home)
         assert done.returncode == 0, done.stderr
         assert "is ignored" not in done.stdout, args
+        assert done.stdout.count("jira.credentials-env was removed") == 1, args
 
 
 def test_validate_of_a_file_under_a_folder_named_git_that_is_not_one_reads_it_whole(

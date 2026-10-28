@@ -483,7 +483,7 @@ def layer_reads(kind: str, committed: bool) -> set[str] | None:
 
 
 def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
-                  ignored: list[tuple[str, str, str]]) -> dict:
+                  ignored: list[tuple[str, str, str]], kept_names: set[str] | None = None) -> dict:
     """`document` without the values its file may not hold; each one dropped lands in `ignored`."""
     reads = layer_reads(kind, committed)
 
@@ -493,6 +493,8 @@ def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
             return False
         owner = OWNER_TABLE.get(setting)
         if reads is None or owner is None or owner in reads:
+            if kept_names is not None:
+                kept_names.add(setting)
             return True
         ignored.append((setting, str(path), _OWNER_RULES[owner]))
         return False
@@ -509,13 +511,6 @@ def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
     return kept
 
 
-def _settings(document: dict) -> set[str]:
-    """The dotted names of the settings `document` holds."""
-    return {key if key in OWNER_TABLE or not isinstance(value, dict) else f"{key}.{child}"
-            for key, value in document.items()
-            for child in (value if isinstance(value, dict) and key not in OWNER_TABLE else [None])}
-
-
 def _merge(root: Path | None) -> tuple[dict, list[tuple[str, str, str]]]:
     if root is None:
         root = git_root()
@@ -528,11 +523,11 @@ def _merge(root: Path | None) -> tuple[dict, list[tuple[str, str, str]]]:
         document = parse(_read(path), str(path))
         if kind in ("local", "shared") and "schema" in document:
             raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
-        layer = _owner_filter(kind, document, path, committed, ignored)
-        kept.update((setting, str(path)) for setting in _settings(layer))
-        effective = deep_merge(effective, layer)
+        names: set[str] = set()
+        effective = deep_merge(effective, _owner_filter(kind, document, path, committed, ignored, names))
+        kept.update((setting, str(path)) for setting in names)
     # A file read as two layers (a checkout at home) is ignored only where neither layer keeps it.
-    return effective, [value for value in ignored if value[:2] not in kept]
+    return effective, [value for value in dict.fromkeys(ignored) if value[:2] not in kept]
 
 
 def load(root: Path | None = None) -> dict:
