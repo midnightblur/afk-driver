@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 643,
+  "side": "new",
+  "finding": "The delta deletes `_authorship`, the only caller that passed `stdin=` to `_git`, so the `stdin` parameter and `input=stdin` at ship.py:295-297 are now dead code. Commit 831e743d added the parameter for the history-reading check that D-51 removes.",
+  "why": "skills/afk/review/checklists/delta-sweep.md:15 \"Smell introduced by the change (`class: smell`) — near-copy of an existing helper, copy-paste leaving a drifted twin, dead code, debug artifacts, ownerless TODO\"",
+  "fix": "Drop `stdin: str | None = None` from the `_git` signature and `input=stdin,` from its `subprocess.run` call at skills/afk/fix/scripts/ship.py:295-297. D-51's To reverse line then also restores the parameter with `_authorship`.",
+  "evidence": "skills/afk/fix/scripts/ship.py:295 `def _git(cwd: Path, *args: str, check: bool = True, stdin: str | None = None):`; ship.py:297 `done = subprocess.run([\"git\", *args], cwd=cwd, capture_output=True, text=True, input=stdin,`; the delta removes the only caller: `-               \"--format=%H%x00%an%x00%ae%x00%ad\", check=False, stdin=\"\\n\".join(shas) + \"\\n\").stdout` (review-0007-r10-delta.diff:287). `git grep -n \"stdin=\" e854cc40 -- skills/afk/fix/scripts/ship.py` lists only that line (650). A Grep at HEAD for `_git\\([^)]*stdin` and `ship\\._git` over scripts, skills and hooks finds no caller passing stdin; the test wrapper at scripts/tests/test_ship.py:244 `def git_then_move(cwd, *args, check=True):` takes no stdin. `git log -S \"input=stdin\"` names 831e743d as the commit that added it."
+ }
+]

@@ -173,3 +173,8 @@
 2026-10-28 19:44 | execute | 0007-ship-script | review advisory crit=0 high=0 med=4 low=4 — round 9 found 8 (f052-f059), all in land's history-reading fix check: a date-reset rebase refused a real fix, an authorship collision counted a foreign commit, and 5 test gaps
 2026-10-28 19:45 | execute | 0007-ship-script | decision(D-51) — land refuses only a HEAD with no commit past the Base commit; the history-reading fix check and its tests are removed
 2026-10-28 19:46 | execute | 0007-ship-script | developing — fixing round 9 by D-51: plain range check, 9 land tests of the old rule removed, 3 test cases added; focused ship tests 100 passed
+2026-10-28 20:10 | autopilot | 0007-ship-script | resume agent stopped mid review round 10 at c4032334 (round 9 settled under D-51; the round 10 test-veracity reviewer left no output); continuing 0007 with a fresh agent
+2026-10-28 20:21 | execute | 0007-ship-script | review clean crit=0 high=0 med=0 low=1 — round 10 found 1 (f060, low smell: `_git`'s unused `stdin` parameter), deferred to the feature gate under the lean policy; closure gate settled at c4032334
+2026-10-28 20:58 | execute | 0007-ship-script | adversary findings crit=0 high=0 med=4 low=8 — advisory: land pushes a branch whose only commit past Base is the diagnosis commit (A1), ready trusts a recorded change from another branch (A2), open reuses a change into another target (A3), proof posts credentials verbatim (A4); report plan/review/0007-ship-script-adversary.md
+2026-10-28 20:59 | execute | 0007-ship-script | wiring scan clean (exit 0); rationale receipts verified, none pending
+2026-10-28 21:00 | execute | 0007-ship-script | done — success: 10 review rounds settled at c4032334 (f060 deferred to the feature gate), adversary advisory only
