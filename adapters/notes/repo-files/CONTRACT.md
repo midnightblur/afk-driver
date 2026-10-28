@@ -4,8 +4,8 @@ Markdown files inside the consuming repository, under the directory
 `repo-files.spec-dir` renders for the work item. This is the canonical store:
 every other notes kind mirrors this tree.
 
-Entry: `notes.sh`, which states this kind's root and link form and sources the
-family implementation in [`../common.sh`](../common.sh).
+Entry: `notes.sh`, which states this kind's link form and sources the family
+implementation in [`../common.sh`](../common.sh).
 
 ## Verbs
 
@@ -35,7 +35,7 @@ item's directory.
 
 ## Configuration keys read
 
-- `notes`
+- `notes` — the developer's note-taking app, from the machine file
 - `repo-files.spec-dir` — the path template, expanded with the placeholder set
   in `CONFIG.md` "Path templates"
 

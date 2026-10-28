@@ -114,7 +114,7 @@ notes_main() {
   afk_config_load
   local template dir root name target
   template=${AFK_CFG_REPO_FILES_SPEC_DIR:-}
-  [ -n "$template" ] || notes_die 2 "no \`repo-files.spec-dir\` in .afk/config.yaml — it is the template every notes kind renders"
+  [ -n "$template" ] || notes_die 2 "no \`repo-files.spec-dir\` in the settings — it is the template every notes kind renders"
   root=$(git rev-parse --show-toplevel 2>/dev/null) || root=""
   [ -n "$root" ] || notes_die 2 "not inside a git checkout - every notes kind stores agent working files in the repository"
   dir="$root/$(notes_expand "$template" "$payload")"

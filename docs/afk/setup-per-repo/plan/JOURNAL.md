@@ -93,3 +93,6 @@
 2026-10-27 21:29 | autopilot | 0013-sync-harness | parked(waiting on 0002-settings-reader) — runs last
 2026-10-27 21:29 | autopilot | run | run end — 2/13 done, 1 parked, 10 waiting on it; smoke and preflight not run
 2026-10-27 22:29 | autopilot | run | run start — human widened 0002's file list to the five carried findings; 11 subtasks runnable, starting 0002-settings-reader (third run)
+2026-10-27 22:38 | execute | 0002-settings-reader | designing — third run started on the widened file list; the work already pushed is kept, and the code it stands on has not changed since the second run
+2026-10-27 22:39 | execute | 0002-settings-reader | developing — fixing the five review findings the widened list now covers: the commit check without Python, the notes adapter files and docs, the Jira adapter key list and the plugin's own settings file
+2026-10-27 22:52 | execute | 0002-settings-reader | decision(D-25) — the setup dependency list still names the old Obsidian vault read; the setup-walk step, which already edits that list, updates it

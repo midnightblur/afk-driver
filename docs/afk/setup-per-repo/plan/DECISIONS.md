@@ -167,3 +167,10 @@
 - Chosen: B — review key f011 found `status` naming a file whose value the reader dropped; B keeps one statement of which owners each file is read for
 - Supersedes: the Scope note "skills/afk/setup/scripts/developer_values.py — key order only" of `plan/0002-settings-reader.md`, already widened by D-22 — widened again to the source lookup in `status`
 - To reverse: restore the label-only `files` list and the source lookup in `status` of `skills/afk/setup/scripts/developer_values.py`
+
+## D-25 — Leave the dependency register's obsidian row to 0010-setup-walk
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — park the slice again, because `skills/afk/setup/MANIFEST.md` still names `adapters/notes/obsidian/notes.sh` as the reader of `AFK_CFG_OBSIDIAN_VAULT` after this slice deletes that read vs B — delete the dead read inside Scope and leave that one register row to 0010-setup-walk, whose Scope lists `skills/afk/setup/MANIFEST.md`
+- Chosen: B — the row is one table cell in a file a later slice of this plan already edits; a third park for it costs more than the stale cell, and the reader still exports the variable, so no caller breaks
+- Supersedes: `FRESHNESS.md` same-commit rule for the `AFK_CFG_OBSIDIAN_VAULT` row of `skills/afk/setup/MANIFEST.md` — deferred to 0010-setup-walk
+- To reverse: edit that row (drop the obsidian consumer, or delete the row) in the commit that removes the read

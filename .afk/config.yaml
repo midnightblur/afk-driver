@@ -5,15 +5,12 @@ schema: 1
 toolkit-version: "1.16.0"
 tracker: github-issues
 forge: github
-notes: repo-files
 github-issues:
   repo: midnightblur/afk-driver
   state-labels:
     dev-pending: "status:dev-pending"
     in-review: "status:in-review"
     done: "status:done"
-github:
-  remote: origin
 git:
   base-branch: origin/main
   branch-pattern: '^[a-z0-9][a-z0-9/._-]*$'

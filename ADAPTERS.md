@@ -133,12 +133,14 @@ resolving the wrong one.
 | Kind | Notes |
 |---|---|
 | [`repo-files`](adapters/notes/repo-files/CONTRACT.md) | Markdown under `repo-files.spec-dir`; the canonical store |
-| [`obsidian`](adapters/notes/obsidian/CONTRACT.md) | the same tree inside `obsidian.vault`, plus a wikilink index |
+| [`obsidian`](adapters/notes/obsidian/CONTRACT.md) | the same tree in the spec folder, linked with wikilinks |
 | [`notion`](adapters/notes/notion/CONTRACT.md) | pages under `notion.parent-page-id` through the Notion MCP; local files stay canonical |
 
-`repo-files` and `obsidian` store the same tree and differ only in where it is
-rooted and how a link is written, so both state those two things and source the
+`repo-files` and `obsidian` store the same tree in the checkout's spec folder
+and differ only in how a link is written, so both state that and source the
 family implementation in [`adapters/notes/common.sh`](adapters/notes/common.sh).
+Every notes kind keeps agent working files in the repository; the note-taking
+app holds only the developer's own notes.
 
 `notion` is the one kind whose runner type is `instruction` rather than `cli`:
 its tools live in an agent session, not in a script. Dispatch answers

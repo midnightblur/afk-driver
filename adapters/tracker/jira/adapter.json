@@ -19,10 +19,10 @@
   },
   "configKeys": [
     "tracker",
+    "jira.site",
     "jira.project",
     "jira.issue-types",
-    "jira.transitions",
-    "jira.credentials-env"
+    "jira.transitions"
   ],
   "register": [
     "H2",

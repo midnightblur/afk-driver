@@ -148,6 +148,7 @@ def test_the_adoption_test_needs_no_python(plugin, tmp_path, layout):
 def _declare_hooks(tmp_path: Path, checkout: Path, where: str) -> None:
     files = {"personal": tmp_path / "main" / ".git" / "afk" / "config.yaml",
              "local": checkout / ".afk" / "config.local.yaml",
+             "committed": checkout / ".afk" / "config.yaml",
              "machine": tmp_path / "home" / ".afk" / "config.yaml"}
     files[where].parent.mkdir(parents=True, exist_ok=True)
     with files[where].open("a", encoding="utf-8") as stream:
@@ -158,10 +159,19 @@ def _declare_hooks(tmp_path: Path, checkout: Path, where: str) -> None:
     ("personal", "personal", True),
     ("folder", "local", True),
     ("folder", "machine", False),
+    ("committed", "committed", True),
+    ("committed", "personal", False),
+    ("committed", "local", False),
+    ("committed", "machine", False),
 ])
-def test_without_the_launcher_the_machine_file_never_declares_hooks(
-        plugin, tmp_path, layout, where, blocked):
+def test_without_the_launcher_only_a_file_the_reader_takes_repo_hooks_from_declares_hooks(
+        plugin, tmp_path, monkeypatch, layout, where, blocked):
     checkout = _layout(tmp_path, layout)
     _declare_hooks(tmp_path, checkout, where)
     done, _ = _run_gates(plugin, tmp_path, checkout, NO_LAUNCHER)
     assert done.returncode == (2 if blocked else 0), done.stdout + done.stderr
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    assert (cfg.load(checkout).get("repo-hooks") is not None) is blocked
