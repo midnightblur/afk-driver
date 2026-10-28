@@ -427,3 +427,23 @@
 - Chosen: A — each edit follows from this slice's own change: the H6 probe called the removed `resolve worktreeBasePath` (D-56) and its prose and `AFK_WORKTREE_FOLDER` row describe the old placement; the two test files run the creator and the move helper, which now read `~/.afk` through placement, so they get the same empty sandbox home as this slice's own tests; B leaves suites red or reading the real home until those slices run
 - Supersedes: 0005-worktree-creator `## Scope`, for these three files only; 0010-setup-walk still owns the rest of H6, including adding `worktreeRoot` to the probe's `keys` (D-56)
 - To reverse: revert this slice's hunks in those three files
+
+## D-61 — Only the out-of-Scope edits a binding rule forces stay; the test fixtures go to 0006-worktree-guard
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep D-60's three edits vs B — withdraw the sandbox-home fixtures from `scripts/tests/test_protected_branch_acceptance.py` and `scripts/tests/test_protected_branch_guard.py` and keep only the edits a binding rule forces vs C — park every out-of-Scope edit for the human
+- Chosen: B — root `DECISIONS.md` condition 3 puts Scope reshaping outside agent authority, so an edit stays only where a rule leaves no option: the `skills/afk/setup/MANIFEST.md` hunks follow `FRESHNESS.md` rule 1 ("a commit that adds, removes, or changes how any skill/script/hook invokes an external tool, MCP server, env var, secret, or sibling path updates `skills/afk/setup/MANIFEST.md` in the same commit") and this contract's "every caller (the creator, skills/afk/bug) moved in the same commit"; D-50's `hooks/genericity-allow.txt` line follows the genericity gate, which refuses the `INV-025` id the Seams rows must name; no rule forces the fixtures, and 0006-worktree-guard's Scope lists both files. The final report names the kept edits for the human. Duty for 0006-worktree-guard: give both test files an empty sandbox home per test, because the creator and the move helper now read `~/.afk` through placement
+- Supersedes: D-60, whole; and, adding to D-59, SDD §3 `create-worktree --branch <b> --dir <d> [--parent <p>]` row's cell "`--parent` outside the folder for an agent: exit 3, `ERROR=parent <path> is outside <root>/<short name>` plus the fixing command", which also covers an agent's `--dir` that climbs out of the short-name folder (D-47, D-52)
+- To reverse: re-apply round 6's `sandbox_home` fixtures in the two test files
+
+## D-62 — Three earlier entries are corrected by quotation, since the ledger is append-only
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — edit D-44, D-55 and D-59 in place vs B — quote and correct each here
+- Chosen: B — root `DECISIONS.md` makes the ledger append-only, and a later entry's Supersedes line is how an earlier one changes
+- Supersedes: D-44's list item "`plugin-source-gates.sh` and its four gates" — the dispatcher stays a case, and `skill-registry-gate.sh`, `native-contract-gate.sh`, `genericity-gate.sh` and `behavior-registry-gate.sh` join its Exclusions: they judge only the plugin's own repository and return at once in any other; D-55's "the five calls run under the list's own lock" — `_parse`, `_claim_folder` and `_update_list` run under the lock, while the marker read (`_marker_holder`, `_key`) is the lock-free check that skips the claim (D-53); D-59's `VERIFICATION-PLAN.md` "A18/A19" — A19 (repository list module) only, since A18 is the settings writer
+- To reverse: drop this entry; the three earlier wordings stand
+
+## D-63 — The review ledger runs from a scratch copy of the plugin whose GitHub thread listing reads its review-thread JSON from a file
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — edit `adapters/forge/github/forge.sh` on the branch vs B — park `needs_decision` vs C — run `forge_ledger.py` from `C:/t/p5judge` (a `git archive` of 1551d586) whose `thread-list` passes the review-thread JSON as a file path instead of an argument
+- Chosen: C — change #145 now has enough review threads that `thread-list` exceeds the Windows command-line limit ("Argument list too long"), so every gate call fails; A edits a file outside Scope that no binding rule forces (D-61), B stops the slice over a transport defect, while C changes nothing on the branch and only how the same JSON reaches the same code; the defect goes to the report as a plugin issue candidate
+- To reverse: drop the scratch copy and run the ledger from the worktree again; nothing on the branch changes

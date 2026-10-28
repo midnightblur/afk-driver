@@ -102,3 +102,9 @@ def test_an_unreadable_machine_file_exits_2(home):
 def test_resolve_worktree_base_path_is_gone(home):
     done = resolve(home, "worktreeBasePath")
     assert done.returncode == 2 and "resolve worktreeRoot" in done.stderr and done.stdout == ""
+
+
+def test_an_unknown_key_is_not_offered_the_removed_key(home):
+    done = resolve(home, "noSuchKey")
+    assert done.returncode == 2 and "expected one of " in done.stderr and "worktreeRoot" in done.stderr
+    assert "worktreeBasePath" not in done.stderr

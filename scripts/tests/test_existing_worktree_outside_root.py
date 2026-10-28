@@ -59,7 +59,7 @@ EXCLUDED = {
     "adapters/tracker/github-issues/api.py": "every operation calls the GitHub API; config-root resolution is "
                                              "covered through tracker none",
     **{f"hooks/{gate}-gate.sh": "judges only the plugin's own repository and returns at once in any other "
-                                "(afk_plugin_dir); the dispatcher case runs it"
+                                "(afk_plugin_dir); a sandbox repository is never the plugin's"
        for gate in ("skill-registry", "native-contract", "genericity", "behavior-registry")},
 }
 
@@ -531,6 +531,7 @@ def _(f, s):
 
 @case("hooks/plugin-source-gates.sh")
 def _(f, s):
+    """Outside the plugin it stops after finding the worktree's root and HEAD; that lookup is what runs."""
     return outcome(f, s, sh(f, "hooks/plugin-source-gates.sh", "--staged", cwd=s.path))
 
 

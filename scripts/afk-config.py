@@ -1501,7 +1501,7 @@ def main(argv: list[str]) -> int:
             if key not in DEVELOPER_KEYS:
                 sys.stderr.write(
                     f"afk-config: {key!r} is not a developer key; expected one of "
-                    f"{', '.join(sorted(DEVELOPER_KEYS))}\n"
+                    f"{', '.join(sorted(DEVELOPER_KEYS - {'worktreeBasePath'}))}\n"
                 )
                 return 2
             resolved = developer_value(config, key, root)

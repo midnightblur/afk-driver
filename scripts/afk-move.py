@@ -34,6 +34,7 @@ HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
 SGR = re.compile(r"\x1b\[[0-9;]*m")
 DIM = re.compile(r"^(?:\x1b\[0?m| )*\x1b\[2m")
+REPLACE_TRIES = 5  # a marker read takes milliseconds, so half a second outlasts it
 UI: dict = {}  # the harness's move_ui facts, from hooks/lib/providers/<provider>.json
 DONE = REFUSED = COMPOSER = GLYPH = None
 ATTEMPTS, WAIT_IDLE, SETTLE = 3, 600.0, 2.0
@@ -120,19 +121,24 @@ def record(marker: str, **outcome: str) -> None:
     """Write the creation outcome into the pane's move marker."""
     if not marker:
         return
+    target = Path(marker)
+    whole = target.with_name(f"{target.name}.outcome")
     try:
-        target = Path(marker)
         body = json.loads(target.read_text(encoding="utf-8"))
         body.pop("error", None)
         body.update(outcome)
-        whole = target.with_name(f"{target.name}.outcome")
         whole.write_text(json.dumps(body), encoding="utf-8")
-        try:
-            os.replace(whole, target)  # a reader never sees a half-written marker
-        except OSError:
-            whole.unlink(missing_ok=True)
-            target.write_text(json.dumps(body), encoding="utf-8")
+        for _ in range(REPLACE_TRIES):
+            try:
+                os.replace(whole, target)  # whole or not at all: a failed swap keeps the old marker
+                return
+            except PermissionError:
+                time.sleep(0.1)  # on Windows a reader holding the marker open blocks the swap
     except (OSError, ValueError):
+        pass
+    try:
+        whole.unlink(missing_ok=True)
+    except OSError:
         pass
 
 

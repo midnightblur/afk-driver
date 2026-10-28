@@ -636,12 +636,50 @@ def _marker(repo: Path, session: str) -> Path:
     return folder / f"{session}.move"
 
 
+def test_a_marker_still_being_written_is_kept_and_starts_nothing(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    marker = _marker(repo, "s-young")
+    marker.write_text("{\"name\": ", encoding="utf-8")
+    spawned: list = []
+    module = _h2_module()
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-young", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("move record: another call is still writing it") and chosen["path"] == "", chosen
+    assert marker.read_text(encoding="utf-8") == "{\"name\": " and not spawned
+
+
+def test_a_marker_dropped_before_it_is_read_is_planned_again(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    marker = _marker(repo, "s-gone")
+    marker.write_text(json.dumps({"name": "session-gone", "path": "x", "pane": ""}), encoding="utf-8")
+    spawned: list = []
+    module = _h2_module()
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    real = Path.read_text
+
+    def vanishing(self, *args, **kwargs):
+        if self == marker and not getattr(vanishing, "done", False):
+            vanishing.done = True
+            self.unlink()  # another call dropped it between the existence check and the read
+            raise FileNotFoundError(str(self))
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", vanishing)
+    chosen = module.plan(_place(repo), {"session_id": "s-gone", "cwd": str(repo)}, {})
+    assert "error" not in chosen and chosen["name"] != "session-gone", chosen
+    assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == chosen["name"], spawned
+
+
 def test_a_corrupt_marker_is_replaced_and_its_new_move_is_started(listed_repo, monkeypatch):
     repo, home, root = listed_repo
     marker = _marker(repo, "s-torn")
     marker.write_text("{not json", encoding="utf-8")
     spawned: list = []
     module = _h2_module()
+    old = time.time() - module.WRITING - 60
+    os.utime(marker, (old, old))
     monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
     monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
     chosen = module.plan(_place(repo), {"session_id": "s-torn", "cwd": str(repo)}, {})
@@ -663,6 +701,26 @@ def test_the_helper_writes_its_outcome_into_the_marker_whole(tmp_path, monkeypat
     module.record(str(marker), created="p")
     assert json.loads(marker.read_text(encoding="utf-8")) == {"name": "n", "path": "p", "created": "p"}
     assert replaced == [marker] and [p.name for p in folder.iterdir()] == ["s.move"]
+
+
+def test_a_swap_a_reader_keeps_blocking_leaves_the_old_marker_whole(tmp_path, monkeypatch):
+    folder = tmp_path / "afk-session"
+    folder.mkdir()
+    marker = folder / "s.move"
+    before = json.dumps({"name": "n", "path": "p"})
+    marker.write_text(before, encoding="utf-8")
+    module = load_move()
+    tries: list = []
+
+    def blocked(a, b):
+        tries.append(b)
+        raise PermissionError("the marker is open in another process")
+
+    monkeypatch.setattr(module.os, "replace", blocked)
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: None)
+    module.record(str(marker), created="p")
+    assert marker.read_text(encoding="utf-8") == before and len(tries) == module.REPLACE_TRIES
+    assert [p.name for p in folder.iterdir()] == ["s.move"]
 
 
 def test_a_marker_that_cannot_be_read_returns_an_error_and_starts_nothing(listed_repo, monkeypatch):

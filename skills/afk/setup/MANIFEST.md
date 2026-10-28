@@ -50,7 +50,7 @@ a token value — not even partially.
   `none`; values in `CONFIG.md`), then re-probe. A resolved non-`none` value is
   a choice and probes normally, whichever layer supplied it (machine file,
   local overlay, `$AFK_CONFIG`); `H0` itself still fails until the repository
-  file exists. Every other leg (the `O7` catalog, `H6` K3) keeps its own probe.
+  file exists. Every other leg (the `O7` catalog, `H6`) keeps its own probe.
 
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).

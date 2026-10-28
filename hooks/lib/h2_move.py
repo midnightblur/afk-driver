@@ -22,6 +22,7 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[2])
 RETRY_AFTER = 180  # seconds a recorded creation may stay unfinished before it is started again
+WRITING = 10  # seconds an unparsable marker may still be mid-write (one small JSON write)
 
 
 def owner_env() -> dict:
@@ -98,16 +99,21 @@ def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
 
 
 def record(marker: Path, chosen: dict) -> bool:
-    """Write the marker whole or not at all; False when another call recorded its move first."""
-    whole = marker.with_name(f"{marker.name}.{chosen['name']}")
-    whole.write_text(json.dumps(chosen), encoding="utf-8")
+    """Create the marker; False when another call recorded its move first."""
     try:
-        os.link(whole, marker)
+        with open(marker, "x", encoding="utf-8") as out:
+            json.dump(chosen, out)
         return True
     except FileExistsError:
         return False
-    finally:
-        whole.unlink(missing_ok=True)
+
+
+def age_of(marker: Path) -> float | None:
+    """Seconds since the marker was last written; None once it is gone."""
+    try:
+        return time.time() - marker.stat().st_mtime
+    except FileNotFoundError:
+        return None
 
 
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
@@ -130,15 +136,24 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     if not created:
         try:
             chosen = json.loads(marker.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return plan(place, envelope, facts)  # dropped since the check above
         except OSError as problem:
             return {"name": name, "path": "", "pane": pane, "error": f"move record: {problem}"}
         except ValueError:
-            marker.unlink(missing_ok=True)  # markers are written whole, so this one is corrupt
+            age = age_of(marker)
+            if age is not None and age < WRITING:
+                return {"name": name, "path": "", "pane": pane,
+                        "error": "move record: another call is still writing it - try the command again"}
+            marker.unlink(missing_ok=True)  # unreadable long after its write: corrupt
+            return plan(place, envelope, facts)
+        age = age_of(marker)
+        if age is None:
             return plan(place, envelope, facts)
         if Path(chosen["path"]).exists() and owner_is_dead(common, chosen["name"]):
             marker.unlink(missing_ok=True)  # an earlier session's worktree, not this one's
             return plan(place, envelope, facts)
-        if Path(chosen["path"]).exists() or time.time() - marker.stat().st_mtime < RETRY_AFTER:
+        if Path(chosen["path"]).exists() or age < RETRY_AFTER:
             return chosen
         marker.touch()
     if os.environ.get("AFK_MOVE_SPAWN") == "0":  # a test knob: name the path, cut nothing
