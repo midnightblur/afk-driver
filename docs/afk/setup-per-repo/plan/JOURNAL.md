@@ -143,3 +143,11 @@
 2026-10-28 05:04 | execute | 0004-placement | pushed a900962..1449751 (1 commits) — round 5 fixes and the round 5 report; two fixes recorded and their threads closed
 2026-10-28 05:05 | execute | 0004-placement | reviewing — round 6 checks only the round 5 fixes, with two fresh reviewers
 2026-10-28 05:16 | execute | 0004-placement | review r6 advisory — crit=0 high=0 med=0 low=1; fixed: the dangling-link test now states the folder it expects for each entry point
+2026-10-28 05:18 | execute | 0004-placement | pushed 1449751..320fcf6 (1 commits) — round 6 fix and the round 6 report; fix recorded and its thread closed
+2026-10-28 05:24 | execute | 0004-placement | review r7 clean — no findings; closure gate settled at round 7, ten design findings wait for the feature review
+2026-10-28 05:25 | execute | 0004-placement | smoke tier re-run after the review fixes — all green
+2026-10-28 05:25 | execute | 0004-placement | adversary gate started — fresh blind subagent probes the placement module at runtime (D-2)
+2026-10-28 05:38 | execute | 0004-placement | adversary gate — verdict findings crit=0 high=0 med=0 low=5 (probed 219); advisory only, noted on the change, proceeding
+2026-10-28 05:39 | execute | 0004-placement | wiring gate advisory — placement's consumers (0005, 0006, 0010) are anchored IOUs; the gate's IOU ticks were reverted
+2026-10-28 05:40 | execute | 0004-placement | done — review settled at round 7, adversary advisory only, rationale durable; tracker row set done
+2026-10-28 05:40 | execute | 0004-placement | outcome success — review settled at round 7, adversary advisory (5 low), PR checklist ticked
