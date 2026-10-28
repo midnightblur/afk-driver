@@ -89,6 +89,7 @@ class Verdict(NamedTuple):
 class _Ask(NamedTuple):
     root: object
     entry: object | None = None
+    folder: str | None = None
 
 
 class Rule(NamedTuple):
@@ -158,7 +159,7 @@ def _short_name_free(ask: _Ask) -> str | None:
 
 
 def _short_name_folder(ask: _Ask) -> str | None:
-    folder = os.path.join(ask.root, ask.entry.short_name)
+    folder = ask.folder or os.path.join(ask.root, ask.entry.short_name)
     if not os.path.lexists(folder):
         return None
     if not os.path.isdir(folder):
@@ -259,14 +260,14 @@ def _place(folder, environ, target: str | None, name: str | None) -> Verdict:
     entry = _entry_for(os.fspath(folder), environ, root.path if rooted else None)
     if entry is None:
         return Verdict(NOT_LISTED, target)
-    # A new target or a refused root keeps the root as written (a subst drive stays); a check resolves it.
-    shown = root.path if name is not None or root.state == REFUSED else os.path.realpath(root.path)
-    base = os.path.join(shown, entry.short_name) if rooted else None
+    base = os.path.join(root.path, entry.short_name) if rooted else None
     if name is not None:
         target = os.path.normpath(os.path.join(base, name)) if base is not None else None
     if root.state == REFUSED:
         return Verdict(REFUSED, target, base, root.rule, root.reason, root.warnings)
-    failed, _ = _run([rule for rule in ROOT_RULES if rule.scope == "short name"], _Ask(shown, entry))
+    if name is None:  # a new target keeps the folder as written (a subst drive stays); a check resolves it
+        base = os.path.realpath(base)
+    failed, _ = _run([rule for rule in ROOT_RULES if rule.scope == "short name"], _Ask(root.path, entry, base))
     if failed is not None:
         return Verdict(REFUSED, target, base, failed.rule, failed.reason, root.warnings)
     if not _below(target, base):

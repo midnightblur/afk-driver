@@ -473,7 +473,7 @@ def linked_root_with_a_file_at_the_short_name(home, tmp_path):
     return repo, real
 
 
-def test_a_new_target_keeps_a_linked_root_as_written_in_folder_and_reason(
+def test_guard_a_new_target_keeps_a_linked_root_as_written_in_folder_and_reason(
         linked_root_with_a_file_at_the_short_name, tmp_path):
     repo, _ = linked_root_with_a_file_at_the_short_name
     folder = os.path.normpath(tmp_path / "root-link" / "proj")
@@ -490,6 +490,43 @@ def test_a_checked_target_names_a_linked_root_resolved_in_folder_and_reason(
     verdict = pl.check_target(real / "proj" / "wt1", repo)
     assert verdict.rule == "R-06" and verdict.folder == folder
     assert verdict.reason == f"{folder} is not a folder; pick another short name"
+
+
+def test_a_checked_target_keeps_a_refused_root_as_written_in_its_folder(home, tmp_path):
+    inner = make_repo(tmp_path / "inner")
+    link(inner / "sub", tmp_path / "root-link")
+    set_root(home, tmp_path / "root-link")
+    repo = make_repo(tmp_path / "src")
+    write_list(home, [(rl.normalize(repo), "proj")])
+    verdict = pl.check_target(tmp_path / "away" / "wt1", repo)
+    assert verdict.rule == "R-02"
+    assert verdict.folder == os.path.join(str(tmp_path / "root-link"), "proj")
+
+
+@pytest.fixture
+def linked_short_name_folder(root, home, tmp_path):
+    repo = make_repo(tmp_path / "src")
+    write_list(home, [(rl.normalize(repo), "proj")])
+    (tmp_path / "elsewhere").mkdir()
+    link(tmp_path / "elsewhere", root / "proj")
+    return repo, tmp_path / "elsewhere"
+
+
+def test_a_checked_target_shows_a_linked_short_name_folder_resolved(linked_short_name_folder, root):
+    repo, elsewhere = linked_short_name_folder
+    verdict = pl.check_target(root / "proj" / "wt1", repo)
+    assert verdict.state == pl.INSIDE
+    assert verdict.folder == os.path.realpath(elsewhere)
+    assert verdict.target == os.path.join(os.path.realpath(elsewhere), "wt1")
+
+
+def test_a_short_name_refusal_names_a_linked_folder_as_the_check_shows_it(linked_short_name_folder, root):
+    repo, elsewhere = linked_short_name_folder
+    (elsewhere / "stray.txt").write_text("x", encoding="utf-8")
+    verdict = pl.check_target(root / "proj" / "wt1", repo)
+    folder = os.path.realpath(elsewhere)
+    assert verdict.rule == "R-06" and verdict.folder == folder
+    assert verdict.reason == f"{folder} was not made by setup for {rl.normalize(repo)}; pick another short name"
 
 
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")

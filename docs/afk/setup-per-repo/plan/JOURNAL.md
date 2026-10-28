@@ -134,3 +134,6 @@
 2026-10-28 04:12 | execute | 0004-placement | pushed 02a274f..9ab63e3 (1 commits) — round 2 fixes and the round 2 report; two fixes recorded and their threads closed
 2026-10-28 04:15 | execute | 0004-placement | reviewing — round 3 checks only the round 2 fixes, with two fresh reviewers
 2026-10-28 04:30 | execute | 0004-placement | review r3 advisory — crit=0 high=0 med=0 low=1; fixed: a checked target now names its folder in the same spelling in every reason, and a new target keeps the root as written
+2026-10-28 04:33 | execute | 0004-placement | pushed 9ab63e3..a74bfa1 (1 commits) — round 3 fix and the round 3 report; fix recorded and its thread closed
+2026-10-28 04:34 | execute | 0004-placement | reviewing — round 4 checks only the round 3 fix, with two fresh reviewers
+2026-10-28 04:45 | execute | 0004-placement | review r4 advisory — crit=0 high=0 med=1 low=2; all fixed: a check resolves the whole folder, a refused root and a linked short-name folder are now tested, and the new-target test is named as a guard
