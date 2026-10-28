@@ -2,13 +2,12 @@
 
 `plan()` returns the path at once and never waits for the checkout: `scripts/afk-move.py`
 cuts the worktree and, inside a terminal workspace, types the `/cd` line into the pane.
-One creation per session, keyed by the pane id when there is one (the H-2 session id
-changes on `/cd`), else by the session id. The helper writes its outcome into the marker:
-`created` on success, `error` (create-worktree's `ERROR=` text) on failure. The path comes
-from the creator's own placement call (`target`), loaded only when a move is planned; a
-refused root or short name returns `error` at once and starts nothing. Every read and write
-of the marker runs under the safe writer's lock, so no call sees it half-written and only
-one call records, replaces or restarts a move.
+One creation per session, keyed by the session id, else by the pane id. The helper writes
+its outcome into the marker: `created` on success, `error` (create-worktree's `ERROR=` text)
+on failure. The path comes from the creator's own placement call (`target`), run outside the
+lock only when a move must be placed; a refused root or short name returns `error` at once
+and starts nothing. `plan()` and the helper read and write the marker under the safe
+writer's lock, so only one call records, replaces or restarts a move.
 """
 from __future__ import annotations
 
@@ -93,20 +92,21 @@ def target(root: Path, name: str, facts: dict) -> tuple[str, str]:
     return str(root / folder / name), ""
 
 
-def failed(name: str, pane: str, why: str) -> dict:
+def error_move(name: str, pane: str, why: str) -> dict:
     """The result for a move that is not under way: no path, and why."""
     return {"name": name, "path": "", "pane": pane, "error": why}
 
 
-def fresh(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
+def new_move(root: Path, name: str, pane: str, facts: dict, marker: Path) -> dict:
+    """The move record for worktree `name`, placed as the creator would place it, or `error_move()`."""
     path, refused = target(root, name, facts)
     if refused:
-        return failed(name, pane, refused)
+        return error_move(name, pane, refused)
     return {"name": name, "path": path, "pane": pane, "marker": str(marker)}
 
 
 def plan(place: dict, envelope: dict, facts: dict) -> dict:
-    """The move record `{"name", "path", "pane", "marker"}` this session is moved into, or `failed()`."""
+    """The move record `{"name", "path", "pane", "marker"}` this session is moved into, or `error_move()`."""
     common = Path(place["common"])
     root = common.parent if common.name == ".git" else Path(place["root"])
     pane = os.environ.get("HERDR_PANE_ID", "") if os.environ.get("HERDR_ENV") else ""
@@ -116,41 +116,48 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     marker_dir.mkdir(exist_ok=True)
     marker = marker_dir / f"{key}.move"
     name = f"session-{uuid.uuid4().hex[:8]}"
-    decided: dict = {}
+    decided: dict = {}  # what settle chose: `chosen`, and `start` or `need` (a new move must be placed)
 
-    def settle(text: str) -> str:
-        """Under the marker's lock: keep the recorded move, or record a new or restarted one."""
-        decided.clear()
+    def begin(chosen: dict) -> str:
+        decided.update(chosen=chosen, start=True)
+        return json.dumps(dict(chosen, started=time.time()))
+
+    def settle(text: str, new: dict | None) -> str:
+        """Under the marker's lock: keep or restart the recorded move, or record `new`."""
         try:
             chosen = json.loads(text) if text else None
         except ValueError:
             chosen = None  # every write is whole under the lock, so this marker is corrupt
         if isinstance(chosen, dict) and chosen.get("path"):
-            started = chosen.get("started")
             if Path(chosen["path"]).exists():
                 if not owner_is_dead(common, chosen["name"]):  # else an earlier session's worktree
                     chosen.pop("error", None)
                     decided["chosen"] = chosen
                     return text
-            elif isinstance(started, (int, float)) and time.time() - started < RETRY_AFTER:
-                decided["chosen"] = chosen
-                return text
-            else:
+            elif not chosen.get("created"):  # a created worktree since removed has spent its name
+                started = chosen.get("started")
+                age = time.time() - (started if isinstance(started, (int, float)) else marker.stat().st_mtime)
+                if age < RETRY_AFTER:
+                    decided["chosen"] = chosen
+                    return text
                 chosen.pop("error", None)
-                decided.update(chosen=chosen, start=True)
-                return json.dumps(dict(chosen, started=time.time()))
-        chosen = fresh(root, name, pane, facts, marker)  # placement loads only for a move this call records
-        if chosen.get("error"):
-            decided["chosen"] = chosen
+                return begin(chosen)
+        if new is None:
+            decided["need"] = True
             return text
-        decided.update(chosen=chosen, start=True)
-        return json.dumps(dict(chosen, started=time.time()))
+        return begin(new)
 
     try:
         safe_write = _load("afk_safe_write_for_move", "safe_write.py")
-        safe_write.update_locked(marker, settle)
+        safe_write.update_locked(marker, lambda text: settle(text, None))
+        if decided.get("need"):  # placement runs outside the lock, so a waiting call is never kept past its wait
+            new = new_move(root, name, pane, facts, marker)
+            if new.get("error"):
+                return new
+            decided.clear()
+            safe_write.update_locked(marker, lambda text: settle(text, new))
     except Exception as problem:  # a held lock, an unreadable marker, a failed write
-        return failed(name, pane, f"move record: {problem}")
+        return error_move(name, pane, f"move record: {problem}")
     chosen = {k: v for k, v in decided["chosen"].items() if k != "started"}  # the clock is the marker's own
     if not decided.get("start") or os.environ.get("AFK_MOVE_SPAWN") == "0":  # a test knob: name the path, cut nothing
         return chosen
@@ -165,5 +172,5 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
             safe_write.update_locked(marker, lambda text: json.dumps(dict(json.loads(text), error=why)))
         except Exception:
             pass  # the move stays recorded as unfinished and is started again after RETRY_AFTER
-        return failed(chosen["name"], chosen["pane"], why)
+        return error_move(chosen["name"], chosen["pane"], why)
     return chosen

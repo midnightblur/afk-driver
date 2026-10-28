@@ -92,11 +92,16 @@ def log_path(repo: str, name: str) -> Path | None:
         return None
 
 
-def bash() -> str | None:
-    spec = importlib.util.spec_from_file_location("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py")
+def _load(name: str, path: Path):
+    """The plugin file at `path`, loaded as module `name`."""
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    found = module.find_bash()
+    return module
+
+
+def bash() -> str | None:
+    found = _load("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py").find_bash()
     return str(found) if found else shutil.which("bash")
 
 
@@ -130,10 +135,7 @@ def record(marker: str, **outcome: str) -> None:
         return json.dumps(body)
 
     try:
-        spec = importlib.util.spec_from_file_location("afk_safe_write_for_move", HERE / "safe_write.py")
-        safe_write = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(safe_write)
-        safe_write.update_locked(Path(marker), merge)
+        _load("afk_safe_write_for_move", HERE / "safe_write.py").update_locked(Path(marker), merge)
     except Exception as problem:  # a held lock, a busy swap, an unreadable marker
         log(f"outcome {outcome} not recorded in {marker}: {problem!r}")
 
@@ -263,7 +265,10 @@ def main(argv: list[str]) -> int:
 def run(args) -> int:
     binary = os.environ.get("HERDR_BIN_PATH") or shutil.which("herdr")
     log(f"start: pid {os.getpid()} pane {args.pane!r} herdr {binary!r} provider {args.provider!r}")
-    path, error = create(args)
+    try:
+        path, error = create(args)
+    except Exception as problem:  # a timeout or a missing folder still leaves its outcome in the marker
+        path, error = None, f"create-worktree did not finish: {problem}"
     log(f"create: {path}" if path is not None else f"create failed: {error}")
     record(args.marker, **({"created": str(path)} if path is not None else {"error": error}))
     if path is not None and args.pane and binary:

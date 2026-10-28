@@ -665,8 +665,8 @@ def test_two_calls_at_once_record_one_move_and_start_it_once(listed_repo, monkey
     monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
     spawned: list = []
     monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
-    real_fresh = module.fresh
-    monkeypatch.setattr(module, "fresh", lambda *a: (time.sleep(0.5), real_fresh(*a))[1])  # hold the lock a while
+    real_new = module.new_move
+    monkeypatch.setattr(module, "new_move", lambda *a: (time.sleep(0.5), real_new(*a))[1])  # both calls place a move
     results: list = []
 
     def call():
@@ -696,7 +696,7 @@ def test_two_calls_at_once_replace_a_dead_sessions_move_once(listed_repo, monkey
     spawned: list = []
     monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
     real_dead = module.owner_is_dead
-    monkeypatch.setattr(module, "owner_is_dead", lambda *a: (time.sleep(0.3), real_dead(*a))[1])  # widen the race
+    monkeypatch.setattr(module, "owner_is_dead", lambda *a: (time.sleep(0.2), real_dead(*a))[1])  # widen the race
     results: list = []
     threads = [threading.Thread(target=lambda: results.append(
         module.plan(_place(repo), {"session_id": "s-twice", "cwd": str(repo)}, {}))) for _ in range(2)]
@@ -793,7 +793,10 @@ def test_a_helper_that_does_not_start_is_reported_and_recorded(listed_repo, monk
     module = _h2_module()
     monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
 
+    tries: list = []
+
     def broken(argv, env):
+        tries.append(argv)
         raise OSError("no such interpreter")
 
     monkeypatch.setattr(module, "spawn", broken)
@@ -802,4 +805,86 @@ def test_a_helper_that_does_not_start_is_reported_and_recorded(listed_repo, monk
     written = json.loads(_marker(repo, "s-nostart").read_text(encoding="utf-8"))
     assert written["error"] == chosen["error"]
     again = module.plan(_place(repo), {"session_id": "s-nostart", "cwd": str(repo)}, {})
-    assert again["error"] == chosen["error"]
+    assert again["error"] == chosen["error"] and len(tries) == 1, tries
+
+
+def test_placement_runs_while_the_marker_is_not_locked(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
+    marker = _marker(repo, "s-free")
+    real_new = module.new_move
+    seen: list = []
+
+    def placing(*args):
+        writer = module._load("afk_safe_write_probe", "safe_write.py")
+        monkeypatch.setattr(writer, "LOCK_WAIT_SECONDS", 0.0)
+        writer.update_locked(marker, lambda text: text)  # raises "is locked" if plan still held the lock
+        seen.append(True)
+        return real_new(*args)
+
+    monkeypatch.setattr(module, "new_move", placing)
+    chosen = module.plan(_place(repo), {"session_id": "s-free", "cwd": str(repo)}, {})
+    assert seen and "error" not in chosen, chosen
+
+
+def test_a_marker_from_older_code_without_started_is_aged_by_its_file_time(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-older")
+    recorded = {"name": "session-o", "path": str(root / "my-repo" / "session-o"), "pane": "", "marker": str(marker)}
+    marker.write_text(json.dumps(recorded), encoding="utf-8")
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    assert module.plan(_place(repo), {"session_id": "s-older", "cwd": str(repo)}, {}) == recorded and not spawned
+    old = time.time() - module.RETRY_AFTER - 60
+    os.utime(marker, (old, old))
+    assert module.plan(_place(repo), {"session_id": "s-older", "cwd": str(repo)}, {}) == recorded
+    assert len(spawned) == 1 and json.loads(marker.read_text(encoding="utf-8"))["started"] > old + 30
+
+
+@pytest.mark.parametrize("body", ["{}", "[]", '{"name": "session-x"}', '"text"'])
+def test_a_marker_naming_no_path_is_replaced_by_a_new_move(listed_repo, monkeypatch, body):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-empty")
+    marker.write_text(body, encoding="utf-8")
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-empty", "cwd": str(repo)}, {})
+    assert "error" not in chosen and Path(chosen["path"]).parent == root / "my-repo", chosen
+    assert len(spawned) == 1 and json.loads(marker.read_text(encoding="utf-8"))["name"] == chosen["name"]
+
+
+def test_a_created_worktree_removed_later_gets_a_new_name(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    module = _h2_module()
+    marker = _marker(repo, "s-spent")
+    gone = str(root / "my-repo" / "session-spent")
+    marker.write_text(json.dumps({"name": "session-spent", "path": gone, "pane": "", "marker": str(marker),
+                                  "started": time.time() - module.RETRY_AFTER - 60, "created": gone}), encoding="utf-8")
+    spawned: list = []
+    monkeypatch.delenv("AFK_MOVE_SPAWN", raising=False)
+    monkeypatch.setattr(module, "spawn", lambda argv, env: spawned.append(argv))
+    chosen = module.plan(_place(repo), {"session_id": "s-spent", "cwd": str(repo)}, {})
+    assert "error" not in chosen and chosen["name"] != "session-spent", chosen
+    assert len(spawned) == 1 and spawned[0][spawned[0].index("--name") + 1] == chosen["name"], spawned
+
+
+def test_a_creation_that_raises_still_records_its_error(tmp_path, monkeypatch):
+    folder = tmp_path / "afk-session"
+    folder.mkdir()
+    marker = folder / "s.move"
+    marker.write_text(json.dumps({"name": "n", "path": "p", "started": 1}), encoding="utf-8")
+    module = load_move()
+
+    def timed_out(args):
+        raise subprocess.TimeoutExpired("create-worktree", 900)
+
+    monkeypatch.setattr(module, "create", timed_out)
+    args = type("Args", (), {"pane": "", "marker": str(marker), "repo": str(tmp_path), "cwd": str(tmp_path),
+                           "provider": ""})()
+    assert module.run(args) == 1
+    assert json.loads(marker.read_text(encoding="utf-8"))["error"].startswith("create-worktree did not finish: ")
