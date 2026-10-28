@@ -181,3 +181,4 @@
 2026-10-28 21:30 | autopilot | 0007-ship-script | 6/13 done, starting 0006-fix-procedure (resume at review round 5 replies); adversary A1 on D-51 (land would push a diagnosis branch holding only its failing test) goes to the human
 2026-10-28 21:04 | execute | 0006-fix-procedure | reviewing — resumed at the round 5 replies after the rebase onto main: f065 marked fixed and its thread resolved (f064 was already resolved); round 5 summary posted with 12 keys, all fixed
 2026-10-28 21:04 | execute | 0006-fix-procedure | decision(D-52) — the round 5 summary names the commits the round reviewed before the rebase, because the ledger script accepts only those; round 6 reads the rebased commits
+2026-10-28 21:35 | execute | 0006-fix-procedure | reviewing — round 6 (scope-escalated delta): 2 medium, 4 low; 5 fixed, 1 low wording issue left for the feature-level review; the fix skill no longer records the same lesson twice, and its decision branch now reaches the fix

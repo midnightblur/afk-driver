@@ -1,14 +1,14 @@
 # Workflow feedback (AFK-delivered features only)
 
-Procedure step 7 (a step of the shared fix procedure,
-[IN-PLACE-FIX.md](IN-PLACE-FIX.md)) recorded *this feature's* stale artifacts.
+The record of the shared fix procedure ([IN-PLACE-FIX.md](IN-PLACE-FIX.md))
+holds *this feature's* stale artifacts.
 This step asks the next question: **which AFK stage let the bug through, and
 what should change so the next feature doesn't repeat it.** Run **only** for
 a fix on an unreleased feature built with AFK assistance (signals:
 [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature"). Ad-hoc/maintenance
-bugs have no AFK workflow to improve → skip. Skip also when
-procedure steps 1 and 6 named no miss class and procedure step 7 recorded no
-stale artifact: there is no miss to trace.
+bugs have no AFK workflow to improve → skip. Skip also when the
+procedure's record holds no miss class and no stale artifact: there is no
+miss to trace.
 
 The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
@@ -18,7 +18,7 @@ itself routes per `skills/afk/lessons/CAPTURE.md` "A plugin defect is an
 issue".
 
 1. **Trace the miss to a stage.** Map the miss class from procedure step 1 or 6
-   (or the stale artifact from procedure step 7) to the AFK stage that
+   (or a stale artifact the record holds) to the AFK stage that
    under-specified the guard:
 
    | Miss class / stale artifact | Stage that under-specified it | Skill(s) to revisit |

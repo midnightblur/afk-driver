@@ -44,6 +44,7 @@
 | 0006-fix-procedure-5693ac2-r3 | crit=0 high=0 med=5 low=1 | [0006-fix-procedure-5693ac2-r3.md](0006-fix-procedure-5693ac2-r3.md) |
 | 0006-fix-procedure-e3718b2-r4 | crit=0 high=0 med=6 low=7 | [0006-fix-procedure-e3718b2-r4.md](0006-fix-procedure-e3718b2-r4.md) |
 | 0006-fix-procedure-63c4b00-r5 | crit=0 high=0 med=6 low=5 | [0006-fix-procedure-63c4b00-r5.md](0006-fix-procedure-63c4b00-r5.md) |
+| 0006-fix-procedure-6661feb-r6 | crit=0 high=0 med=2 low=4 | [0006-fix-procedure-6661feb-r6.md](0006-fix-procedure-6661feb-r6.md) |
 | 0007-ship-script-2cfd96b-r1 | crit=0 high=1 med=10 low=2 | [0007-ship-script-2cfd96b-r1.md](0007-ship-script-2cfd96b-r1.md) |
 | 0013-config-contract-98e54f1-r1 | crit=0 high=0 med=2 low=6 | [0013-config-contract-98e54f1-r1.md](0013-config-contract-98e54f1-r1.md) |
 | 0013-config-contract-e5b86be-r2 | crit=0 high=0 med=0 low=1 | [0013-config-contract-e5b86be-r2.md](0013-config-contract-e5b86be-r2.md) |

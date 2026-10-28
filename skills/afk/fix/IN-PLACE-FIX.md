@@ -31,7 +31,7 @@ The caller hands over:
 - **AGENTS.md chain.** The target repository's `AGENTS.md` chain binds here,
   notably its database-migration and commit rules.
 - **Ownership.** Edit no PRD, SDD, ADR, `VERIFICATION-PLAN.md` or `PLAN.md`
-  across an ownership boundary; step 7 records each stale one.
+  across an ownership boundary; steps 3 and 7 record each stale one.
 - **Lesson.** Record a workflow lesson in the lesson ledger when step 8
   applies. Edit no AFK skill during a fix.
 - **Tier match.** Match the test tier to the bug class (step 4).
@@ -99,9 +99,10 @@ watch it fail for the recorded reason; a test that does not → return
 - Before you change a public contract:
   `${AFK_PLUGIN_ROOT}/VERIFICATION.md` § Verification loop item 5.
 - Classify each fork by `DECISIONS.md` (plugin root). A two-way door is decided,
-  recorded, and the fix goes on. A one-way door or a tie → return
-  `design_conflict` when it changes a binding SDD or ADR decision, else
-  `needs_decision`.
+  recorded, and the fix goes on. A one-way door or a tie that changes a binding
+  SDD or ADR decision → put that SDD or ADR into the record as a stale artifact
+  (owning skill: step 7's table), run step 8, then return `design_conflict`.
+  Any other one-way door or tie → return `needs_decision`.
 - A comment the fix adds is classified per `RATIONALE.md` § Classification
   test; record each moved reason per § Write path.
 
@@ -114,7 +115,8 @@ right home**. Proportionality is the rule: spend what the case requires. Watch
 each test this step adds fail with the step 3 fix reverted, then pass with it
 restored; the record holds both runs. A live-tier test follows "Live
 tiers" for each of the two runs. An added test that passes with the fix
-reverted, or fails with it restored → return `blocked`, naming it.
+reverted, or fails with it restored → restore the step 3 fix, then return
+`blocked`, naming the test.
 
 | Bug class | Add a test? | Where |
 |-----------|-------------|-------|
@@ -152,7 +154,7 @@ token, drive the app again), not only at the test seam.
 Name why the existing guard missed the bug: [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)
 holds the procedure and when it applies. Put the miss class into the record.
 A scenario escape analysis fixes in place that does not go red, then green →
-return `blocked`, naming it.
+restore the step 3 fix, then return `blocked`, naming the scenario.
 
 ### 7. Find stale artifacts
 
@@ -205,7 +207,7 @@ The caller keeps the record in its own report.
 | Edits | steps 3, 4, 6 | each file the fix changed |
 | Tiers | step 5 | each tier run, with its result |
 | Miss class | steps 1, 6 | the escape-analysis class, when one was named |
-| Stale artifacts | step 7 | each stale artifact with its owning skill |
+| Stale artifacts | steps 3, 7 | each stale artifact with its owning skill |
 | Lesson | step 8 | the lesson id, when one was recorded |
 | Rationale | steps 3–4 | the pending `rationale-add` operation ids, and each one a revert dropped |
 | Reason | any return but `fixed` and `flaky` | the blocker, the red check or reproduction, or the fork with its options and your recommendation |

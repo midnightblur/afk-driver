@@ -88,7 +88,7 @@ names a **miss class** (set owned by
 | `disabled/flaky` | `missed-instruction` |
 | `dodged-failure` | `test-dodge` |
 
-A lesson from a stale artifact alone (procedure step 7) names no miss class
+A lesson from a stale artifact alone (procedure step 3 or 7) names no miss class
 and takes the lesson `class` `wrong-design`.
 
 ## Escalation ladder

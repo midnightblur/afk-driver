@@ -44,6 +44,21 @@ def test_workflow_feedback_traces_every_miss_class():
     assert all(f"`{name}`" in text for name in _escape_classes())
 
 
+STALE_TRACE = {"`PRD.md`": "PRD asserted the wrong behavior",
+               "`SDD.md`": "A frozen SDD decision was wrong or infeasible",
+               "`VERIFICATION-PLAN.md`": "No verification scenario would catch the bug",
+               "`plan/NNNN-slug.md`": "An in-flight subtask contract shifted"}
+
+
+def test_workflow_feedback_traces_every_stale_artifact():
+    step7 = _section(PROCEDURE.read_text(encoding="utf-8"), "### 7. Find stale artifacts").split("\n### ")[0]
+    rows = [line.split("|")[2] for line in step7.splitlines() if line.startswith("| ") and "---" not in line][1:]
+    artifacts = {re.match(r"\s*(`[^`]+`)", cell).group(1) for cell in rows}
+    trace = _section((FIX / "WORKFLOW-FEEDBACK.md").read_text(encoding="utf-8"), "| Miss class / stale artifact |")
+    assert artifacts == set(STALE_TRACE)
+    assert all(f"| {STALE_TRACE[name]} |" in trace for name in artifacts)
+
+
 POINTERS = [
     "skills/afk/fix/SKILL.md",
     "skills/afk/fix/ESCAPE-ANALYSIS.md",
