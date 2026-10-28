@@ -257,6 +257,14 @@ def test_a_refusal_names_the_checkout_the_server_read(tmp_path):
     assert Path(answer["config_root"]).resolve() == a.resolve()
 
 
+def test_tracker_attach_reaches_the_configured_kind(load_server, monkeypatch, tmp_path):
+    root = repo(tmp_path / "repo", "none")
+    monkeypatch.chdir(root)
+    answer = load_server().tracker_attach("1", ["a.png", "b.log"], "proof")
+    assert answer["unsupported"] is True and answer["operation"] == "tracker_attach"
+    assert [u["file"] for u in answer["unsupported_files"]] == ["a.png", "b.log"]
+
+
 def test_an_error_answer_names_the_checkout_too(load_server, monkeypatch, tmp_path):
     root = repo(tmp_path / "repo", "jira")
     monkeypatch.chdir(root)

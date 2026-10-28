@@ -39,15 +39,39 @@ absent answers `unavailable` — never a silent skip.
 
 ## tracker
 
-Nine operations, the same nine on every kind: `tracker_get`, `tracker_search`,
+Ten operations, the same ten on every kind: `tracker_get`, `tracker_search`,
 `tracker_create`, `tracker_edit`, `tracker_comment`, `tracker_transition`,
-`tracker_transitions`, `tracker_attachments`, `tracker_changelog`.
+`tracker_transitions`, `tracker_attachments`, `tracker_changelog`,
+`tracker_attach`.
 `mcp-servers/tracker/server.py` registers exactly these and routes each to the
 selected kind's `api.py` `call(operation, payload)`. The registration lives in
 `.mcp.json` / `.mcp.codex.json` under the server name `tracker`, and passes the
 plugin root rather than searching for it.
 
-A publishing script that needs more than the nine — the ADF body machinery, the
+`tracker_attach` takes `ticket_key`, `files` (local paths) and an optional
+Markdown `text`, and posts one comment carrying them. It answers `attached`
+(one object per file, carrying `file`; Jira adds the stored `id`, `filename` and
+`mimeType`, the last two null when they were not read back), `unsupported_files` (each file the kind could not take, with the
+reason, also named in the comment) and, on Jira, `mismatches` (each with a
+`reason`: `stored differently`, with the `sent` and `stored` name and type, or
+`not in the upload answer` or `not in the read-back`, with `stored: null`) and `read_back` (false when
+the stored names could not be read, so none was checked).
+A missing file is refused before any write. When Jira stores the files but the
+comment fails, the answer carries `error`, `comment_error` and the `attached`
+list, so the caller knows the files are on the ticket.
+
+A value the tracker does not know is refused before any write: the answer
+carries `error` and `refused: true`. `tracker_transition` takes a transition name, an id or a key of the
+kind's state map (`jira.transitions`, `github-issues.state-labels`; the
+in-review key is `in-review` on both) and refuses one the work item does not
+offer. Jira refuses an unknown fix version on `tracker_create` and
+`tracker_edit`; when the project or its versions cannot be read it writes and
+adds `fix_version_warning`. GitHub Issues refuses an unknown `status` on
+`tracker_create`. Jira lists transitions per issue, so its `tracker_create`
+`status` is checked after the create: an unknown one leaves the issue in its
+first state and answers `status_warning`.
+
+A publishing script that needs more than the ten — the ADF body machinery, the
 attachment upload — reaches the selected kind through `scripts/tracker_api.py`,
 which fails with the missing names and the configuration key when the configured
 tracker does not carry them.
@@ -55,7 +79,7 @@ tracker does not carry them.
 | Kind | Notes |
 |---|---|
 | [`jira`](adapters/tracker/jira/CONTRACT.md) | REST + ADF bodies + the media-services round trip for inline images |
-| [`github-issues`](adapters/tracker/github-issues/CONTRACT.md) | `gh api`; states are labels, parent is a tracking issue, attachments are comment URLs |
+| [`github-issues`](adapters/tracker/github-issues/CONTRACT.md) | `gh api`; states are labels, parent is a tracking issue, attachments are comment URLs; `tracker_attach` needs gh 2.99.0 or newer |
 | [`none`](adapters/tracker/none/CONTRACT.md) | every operation `unsupported`; skills write through `notes` instead |
 
 ## forge

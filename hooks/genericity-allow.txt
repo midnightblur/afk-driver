@@ -16,3 +16,41 @@ SEC-4
 SEC-5
 SEC-6
 Z0-9       # character class of the tracker-key regex [A-Z][A-Z0-9]+-\d+ (skills/utils/settle-change/SKILL.md)
+INV-001    # investigation ids: the plugin's own ledger notation (skills/utils/investigate/LEDGER-FORMAT.md), cited by spec folders under docs/afk/
+INV-002
+INV-003
+INV-004
+INV-005
+INV-006
+INV-007
+INV-008
+INV-009
+INV-010
+INV-011
+INV-012
+INV-013
+INV-014
+INV-015
+INV-016
+INV-017
+INV-018
+INV-019
+INV-020
+INV-021
+INV-022
+INV-023
+INV-024
+INV-025
+INV-026
+GAP-1      # gap and scenario ids in docs/afk/small-lane/GRILL-LOG.md: spec-local notation, not tickets
+GAP-2
+GAP-3
+GAP-4
+GAP-5
+GAP-6
+GAP-7
+GAP-8
+SC-6
+SC-10
+JRACLOUD-80252 # upstream Jira issue the small-lane SDD cites as evidence for a tracker limit
+ADV-1 # made-up ticket key the small-lane adversary stand-in tracker uses in its repros

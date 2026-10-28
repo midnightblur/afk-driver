@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "reworked control flow in an existing method (behaviour-preservation risk)",
+  "severity": "high",
+  "class": "correctness",
+  "file": "skills/afk/fix/SKILL.md",
+  "line": 39,
+  "side": "new",
+  "finding": "The new rule 'the one in `git worktree list` whose folder holds the `DIAGNOSIS.md` path' matches two worktrees on the default layout: diagnose's `--name` cut lands under `<main checkout>/.claude/worktrees/<name>`, so the main checkout (listed first) also holds that path.",
+  "why": "The replaced `git -C <folder> rev-parse --show-toplevel` returned the innermost worktree; the list rule names no tie-break, so fix can pick the main checkout and either stop `blocked` on the guard or edit the wrong tree, on every in-repository diagnosis.",
+  "fix": "Pick the listed worktree with the longest folder that holds the path (or keep `rev-parse --show-toplevel` and require its result to appear in `git worktree list`); mirror the wording in D-21.",
+  "evidence": "fix/SKILL.md:39 \"in the diagnosis worktree: the one in `git worktree list` whose folder holds the `DIAGNOSIS.md` path\"; scripts/create-worktree:267-269 \"FOLDER=\\\"${FOLDER:-.claude/worktrees}\\\" ... WORKTREE_PARENT=\\\"$REPO_DIR/${FOLDER%/}\\\"\"; `git worktree list` here: \"C:/Users/{user}/PersonalProjects/afk-driver 3c6bd7c [main]\" then \"C:/Users/{user}/PersonalProjects/afk-driver/.claude/worktrees/feat-small-lane 9fab050\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep,refactor-safety",
+  "criterion": "New defect in the change",
+  "severity": "high",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "A record-only re-run takes HEAD as the Base commit on the premise that only diagnose's --name cut writes an owner record, but the harness WorktreeCreate hook writes one for every session worktree, so a person's session worktree named for the ticket key is taken as a re-run, its HEAD becomes Base, and Phase 7 commits on that person's branch. The Base it records also mixes sources: the old HEAD with today's starting-branch answer, so the branch need not hold the commit.",
+  "why": "D-20 rejected folder-name detection because diagnose 'would then commit onto a branch it does not own'; the owner record carries the same risk because hooks/worktree-create.sh calls create-worktree --name and the record is written for every --name cut.",
+  "fix": "Require the record-only re-run's spec folder to hold this Work id's DIAGNOSIS.md, or make the record mark its creator (diagnose) and accept only that; correct D-20's premise.",
+  "evidence": "+3. ... a worktree record `<git common dir>/afk-worktrees/<work id, lower-cased>.json` ... makes this a re-run. ... with no `DIAGNOSIS.md` there, its branch is the Diagnosis branch, its HEAD commit the Base commit; DECISIONS.md:139 'The owner record still marks a re-run on its own, since only diagnose's `--name` cut writes it.'; hooks/worktree-create.sh:26 `bash \"$AFK_ROOT_DIR/scripts/create-worktree\" --name \"$name\" --session \"$session\"`; live .git/afk-worktrees holds feat-small-lane.json, session-58ecaa40.json (harness session worktrees)",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 35,
+  "side": "new",
+  "finding": "The delta gives a re-run with no DIAGNOSIS.md a Base (HEAD plus the answer) at step 3, but the sibling path at step 4 (branch exists, worktree gone) still discards the answer because 'step 5 keeps the recorded Base', which does not exist when no DIAGNOSIS.md was committed; it also treats a bare existing branch name as diagnose's own, which D-20 rejected for a bare folder name.",
+  "why": "A first run that cut its worktree and ended before Phase 7's commit leaves a branch with no diagnosis on it, so after the worktree is removed the re-run reaches step 5 with no Base, and a person's same-named branch gets diagnose's commit.",
+  "fix": "In step 4's branch-exists case, apply step 3's rule: with no DIAGNOSIS.md on the branch, Base commit = the branch tip and Base branch = the answer; and treat the branch as a re-run only when it holds this Work id's DIAGNOSIS.md or the failing test.",
+  "evidence": "diagnose/SKILL.md:35 'A refusal naming the branch as existing makes this a re-run whose worktree is gone: cut one onto that branch ...; the starting-branch answer goes unused, since step 5 keeps the recorded Base.'; DECISIONS.md:139 'a folder name alone can be a person's own worktree, and diagnose would then commit onto a branch it does not own'",
+  "id": "r-003"
+ }
+]

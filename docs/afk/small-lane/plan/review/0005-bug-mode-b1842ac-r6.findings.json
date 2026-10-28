@@ -1,0 +1,44 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_publish_bug_mode.py",
+  "line": 959,
+  "side": "new",
+  "finding": "The other-case test cannot fail on any CI platform: on Windows resolve() already returns the stored case, on Linux it skips",
+  "why": "D-35 adds _stored_name because resolve() keeps typed case on macOS only, but CI runs ubuntu+windows, so wiring _stored_name into _preflight (publish_bug_mode.py:382) is guarded only by the direct unit test of the helper.",
+  "fix": "In this test, monkeypatch mode.Path.resolve to `lambda self, strict=False: self.absolute()` (simulates macOS) before the run with `other`, so the marker assertion depends on the folder-listing lookup.",
+  "evidence": "Mutant A (publish_bug_mode.py:382 reverted to `folder, name = real.parent.name, real.name`) on Windows/Python 3.14: full test file 83 passed, the only failure test_load_goes_through_tracker_api... was a missing-copy artefact. `Path('.../afk/TO-TICKET/bug-mode.md').resolve()` printed `...\\afk\\to-ticket\\BUG-MODE.md`. A probe with resolve patched to absolute() passes on head and kills mutant A: `assert 'afk-evidence export_description-e09bf8f8 ticket' in '...afk-evidence export_description-4c46329d ticket'`. tests.yml matrix: `ubuntu-latest`, `windows-latest`."
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_publish_bug_mode.py",
+  "line": 984,
+  "side": "new",
+  "finding": "No test covers _stored_name's no-match fallthrough when the folder exists but lists no matching entry",
+  "why": "Every assertion either finds a match or hits the scandir OSError branch, so the final `return path.name` (publish_bug_mode.py:594) can change without any test noticing.",
+  "fix": "Add `assert mode._stored_name(tmp_path / \"Export\" / \"missing.md\") == \"missing.md\"`.",
+  "evidence": "Mutant B (line 594 `return path.name` -> `return names[0] if names else path.name`): `-k \"description or stored_name\"` 11 passed."
+ },
+ {
+  "id": "r-003",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/afk/to-ticket/scripts/publish_bug_mode.py",
+  "line": 590,
+  "side": "new",
+  "finding": "_stored_name's fallback matches by same file (inode), so a hard-linked sibling can be returned instead of the case-variant name, giving one file two work ids",
+  "why": "When the typed name is not listed (case-blind FS where resolve() keeps typed case, i.e. macOS per D-35), the first listed entry that is the same file wins, and a hard link with a different name is the same file, so `A.md` can hash as `0.md` while `a.md` hashes as `a.md` - the exact one-file-two-ids outcome D-35 says it closes.",
+  "fix": "Before the samefile loop, prefer a listed name whose casefold()/unicodedata NFC form equals path.name's; use samefile only as the last resort.",
+  "evidence": "Code: `for name in names: ... if os.path.samefile(path.parent / name, path): return name`. Fake run (Windows, calling _stored_name directly to stand in for macOS where resolve() keeps typed case): folder holds `a.md` and hard link `0.md`; `_stored_name(d/'a.md') -> a.md`, `_stored_name(d/'A.md') -> 0.md`. On Windows _preflight is shielded because `(d/'A.md').resolve()` already yields `a.md`."
+ }
+]

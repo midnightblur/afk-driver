@@ -66,7 +66,7 @@
 # Per-dev config (a `developer:` block, normally in ~/.afk/config.yaml) supplies
 # worktreeBasePath + ideBinary. Both are optional: worktreeBasePath is derived
 # when unset, and no IDE is launched without ideBinary.
-# (key names owned by skills/afk/bug/CONFIG.md); a CLI flag always overrides the config value.
+# (key names owned by CONFIG.md "Developer settings (K1-K5)"); a CLI flag always overrides the config value.
 
 set -u
 
@@ -224,7 +224,7 @@ read_config_key() {
     return 0
   }
   # `resolve`, not `get`: it applies the whole chain — the developer's own
-  # value, then the repository's committed default, then the derived one —
+  # value from the checkout, repository or machine layer, then the derived one —
   # so this script never learns the order.
   ( cd "$repo" && "$PY_BIN" "$script" resolve "$key" 2>/dev/null ) || true
 }
@@ -281,7 +281,7 @@ if [[ -z "$WORKTREE_PARENT" ]]; then
   WORKTREE_SOURCE="developer.worktreeBasePath (or its derived default)"
   if [[ -z "$WORKTREE_PARENT" ]]; then
     # Only reachable when the resolver could not derive one either — a bare
-    # clone, or a git dir outside the tree. Say where it landed rather than
+    # clone, or a git dir not named .git. Say where it landed rather than
     # creating worktrees somewhere the human never named.
     WORKTREE_PARENT="${HOME}/repo-worktrees"
     WORKTREE_SOURCE="last-resort default (set developer.worktreeBasePath or pass --parent)"

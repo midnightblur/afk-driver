@@ -337,7 +337,7 @@ suggests your own account for both assignees — the tracker account email, the
 forge user the CLI is logged in as — so you confirm or name someone else;
 leaving one unset means no assignee. An agent that needs a missing value asks
 you the same way. The worktree base is derived
-from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
+from git when you set none. `CONFIG.md` "Developer settings (K1–K5)" is the full contract.
 
 ### Shared setup and development
 
@@ -678,7 +678,7 @@ skill's own `SKILL.md` (+ siblings); nothing here restates them.
 - **`/afk:to-prd`** — synthesize the conversation into `PRD.md` + requirement
   ADRs; local only. Details: `skills/afk/to-prd/SKILL.md`.
 - **`/afk:to-ticket`** — publish the finished PRD into the existing Jira parent
-  as a requirements-level description; also meeting + spinoff modes. The design
+  as a requirements-level description; also meeting, spinoff, bug and ad-hoc modes. The design
   chain's only Jira writer ([§2 ④](#2-the-mental-model)). Details:
   `skills/afk/to-ticket/SKILL.md`.
 - **`/afk:to-subtasks`** — slice the PRD (+ SDD/ADRs when present) into the

@@ -22,6 +22,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Staples: {staple} → in|out — {one-clause why}
 - Settled: {decision, one line each, as they lock}{agent tail — grammar below}
 - Spinoffs: {spinoff row — grammar below}
+- Size call: {size-call row — grammar below; only when handed a diagnosis}
 - Open: {what's still unsettled — the resume point}{steer and escape lines — grammar below}
 
 ### Settled row — the agent tail
@@ -60,6 +61,7 @@ is applied, so a crash between poll and apply loses no human words.
 - Seams (L9): one locked-seam row per seam, in the six-column grammar `skills/afk/grill-solution/L9-SEAM-GRILL.md` states
 - Signoff: {signoff row — grammar below}
 - Spinoffs: {spinoff row — grammar below}
+- Size call: {size-call row — grammar below; only when handed a diagnosis}
 - Open: {the layer under discussion + the live question}
 
 ## Verification grill
@@ -90,6 +92,22 @@ Only a human's own words fill the quote; an agent never writes a `signed` row
 for a signature it did not receive. A signed row is void the moment the aspect's
 design changes — set it back to `pending` and re-sign rather than leaving a row
 describing a design that moved.
+
+## Size-call row
+
+The size call of a grill handed a `DIAGNOSIS.md` (procedure:
+`skills/afk/grill-requirements/SIZE-CALL.md`). One row per diagnosis, under
+the recording grill's own section, written once the call is accepted:
+
+```
+- Size call: {work id} → still small {YYYY-MM-DD HH:MM} — settled: {the fix option or spec answer, one clause} — diagnosis: {path to DIAGNOSIS.md}
+- Size call: {work id} → too big {YYYY-MM-DD HH:MM} — why: {one clause} — diagnosis: {path to DIAGNOSIS.md}
+```
+
+`{work id}` is the diagnosis's Work id. A `still small` row is the record that
+returns the bug to a fix; its `settled:` clause is the answer that fix
+applies. A later call on the same diagnosis overwrites the row in its
+section; across both grill sections, the row with the latest time wins.
 
 ## Spinoff row
 

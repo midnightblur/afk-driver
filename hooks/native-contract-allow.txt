@@ -75,3 +75,5 @@ hooks/native-contract-gate.sh	repo-scan	plugin\.rglob\(|fixture_dir\.rglob\(	Plu
 # Live surfaces naming an interpreter that is not one (check J).
 skills/afk/setup/scripts/bootstrap.sh	interpreter	^"\$uv" python install "\$cpython"	uv's own `python install` subcommand, not an interpreter.
 skills/afk/setup/scripts/bootstrap.ps1	interpreter	^Invoke-Step 'uv python install' \{ & \$uv python install \$python 	uv's own `python install` subcommand, not an interpreter.
+docs/afk/small-lane/investigations/INV-025-close-forge-worktree-seams/REPORT.md	harness-name	^- Codex registers no WorktreeCreate/WorktreeRemove	Investigation finding about one harness's hook registration; the harness name is the fact.
+docs/afk/small-lane/plan/JOURNAL.md	harness-name	^2026-10-27 21:39 \| autopilot \| 0006-fix-procedure \| parked — blocked: Claude Code killed the PR-reply job	Run journal line recording a harness event; the harness name is the fact, and the journal is append-only.

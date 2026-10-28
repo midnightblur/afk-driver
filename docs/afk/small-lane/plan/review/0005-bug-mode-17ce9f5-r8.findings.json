@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_publish_bug_mode.py",
+  "line": 1018,
+  "side": "new",
+  "finding": "No test lists a fold-matching name that is a different file, so the same-file check in _stored_name is unpinned",
+  "why": "Mutants `os.path.samefile(path, path)` and `if _fold(name) == fold or os.path.samefile(...)` at publish_bug_mode.py:592 pass all 88 tests, yet on this machine's NTFS (case-blind, normalization-sensitive) they return a different file's spelling, which changes the work id D-35 says must stay one per file.",
+  "fix": "Add a case whose listing holds a fold-matching decoy that is a different file (e.g. listed ('e\\u0301.md', '\\u00e9.md'), typed '\\u00c9.md', samefile true only for '\\u00e9.md') and assert the result is '\\u00e9.md'.",
+  "evidence": "test line 1018: `monkeypatch.setattr(mode.os.path, \"samefile\", lambda a, b: True)  # every entry is one file`; the only other samefile stubs are name-lowercase equality (line 981) and always-False (line 990). Full-suite mutation run: `samefile-self SURVIVED | 88 passed`, `fold-return-no-samefile SURVIVED | 88 passed`. Real NTFS probe: dir holds 'e\\u0301.md' (other file) and '\\u00e9.md' (typed file), typed '\\u00c9.md': original returns '\\xe9.md', both mutants return 'e\\u0301.md'."
+ }
+]

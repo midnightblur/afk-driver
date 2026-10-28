@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The blocked reason names only the worktree path, yet the new clearing recipe ends with `git branch -D <branch>` run after the worktree and its owner record are gone, so the person has no named source for <branch> at that point.",
+  "why": "remove-worktree.py deletes the record that holds the branch name (drop_record) and keeps the branch when it has commits of its own (drop_branch requires own_commits == 0), and `git worktree remove` drops the folder, so once the clearing steps run in the stated order the branch name can no longer be found from the record or the worktree, and the retry dead-ends at step 4 `blocked` (branch exists).",
+  "fix": "Have the blocked reason name the worktree's branch (from `git worktree list`) next to its path, or have the person read the branch before clearing.",
+  "evidence": "SKILL.md:34 \"naming its path for the person to hand over (step 2) or to clear ... `afk-python ${AFK_PLUGIN_ROOT}/scripts/remove-worktree.py --path <path> --force` where the record exists, else `git worktree remove --force <path>`; then `git branch -D <branch>` while that branch is still there\"; scripts/remove-worktree.py drop_branch: \"Delete the branch the record names when it holds no commit of its own.\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "refactor-safety",
+  "criterion": "behaviour-preservation risk (changed defaults in pre-existing step text)",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The rewrite replaces the script's safe branch drop (only when the branch holds no commit of its own) with an unconditional `git branch -D <branch>` of the worktree's own branch, and claims a retry needs that branch gone. For a worktree with no owner record (the 'someone else's work' case), that branch can be any branch; the retry only needs the branch `create-worktree --name` would fill.",
+  "why": "create-worktree refuses only on `refs/heads/$BRANCH` where BRANCH=branch_for_name(NAME), so the blocked reason sends the person to force-delete a branch the retry never checks, and it may hold unpushed commits, while a leftover template-filled branch under another name would still end the retry `blocked` (branch exists).",
+  "fix": "In the no-record case, name the branch step 4 would create (git.branch-template filled with the work id) as the one to delete, and only when it exists. Keep `git branch -D` of the worktree's branch for the record case, where the record's branch is that same template-filled branch.",
+  "evidence": "SKILL.md:34 'A retry needs that folder, that record and the worktree's branch gone ... else `git worktree remove --force <path>`; then `git branch -D <branch>` while that branch is still there'; scripts/create-worktree:474 '! git -C \"$REPO_DIR\" rev-parse --verify -q \"refs/heads/$BRANCH\" ... || error_exit \"branch '$BRANCH' already exists\"' with BRANCH=\"$(branch_for_name \"$NAME\")\"; remove-worktree.py drop_branch 'own_commits(main, branch) == 0'",
+  "id": "r-002"
+ }
+]

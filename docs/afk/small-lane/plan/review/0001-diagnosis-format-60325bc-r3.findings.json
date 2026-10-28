@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change (sibling path keeps old behaviour)",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/scripts/diagnosis_file.py",
+  "line": 33,
+  "side": "new",
+  "finding": "The appender splits lines at \\n only, but the checker side (diagnosis_file.py:33 and :44) still uses str.splitlines(), which also breaks on \\x0c, \\x85, \\u2028 and a lone \\r.",
+  "why": "A form feed or Unicode line separator inside an entry is one line to append_outside_write and listed, but two lines to the checker, so the checker can flag or miss an entry the writer just appended.",
+  "fix": "Share one line-splitting helper in diagnosis_file.py and call it from both modules.",
+  "evidence": "lines = text.removeprefix(BOM).splitlines()"
+ }
+]

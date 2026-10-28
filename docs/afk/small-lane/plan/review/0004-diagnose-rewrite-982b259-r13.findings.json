@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "spec",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 35,
+  "side": "new",
+  "finding": "Step 4 now records the Diagnosis branch as the branch the new worktree is on, but the field's owning definition in DIAGNOSIS-FORMAT.md and SDD 4 still say 'from the branch template', and D-37's Supersedes line quotes only D-36, not those passages.",
+  "why": "With no `git.branch-template`, or one whose only placeholder is `{user}`, `create-worktree --name` makes `worktree-<work id>`, so the format row the Phase 7 writer follows and the acceptance bullet now disagree with step 4, and the ledger protocol overrides only 'the exact spec passage it quotes'.",
+  "fix": "Append a decision entry whose Supersedes line quotes the SDD 4 'Diagnosis branch' row and the DIAGNOSIS-FORMAT.md row ('branch name from the branch template, made from the Base tip') for the `--name` cut, or point that format row at diagnose Phase 0.",
+  "evidence": "SKILL.md:35 \"The branch the new worktree is on, read from `git worktree list`, is the Diagnosis branch.\"; DIAGNOSIS-FORMAT.md:17 \"| Diagnosis branch | branch name from the branch template, made from the Base tip |\"; contract Acceptance \"keeps the failing test on a local lower-cased branch from the branch template (SDD §4 row \\\"Diagnosis branch\\\")\"; scripts/create-worktree:253-257 `else printf 'worktree-%s\\n' \"$name\"`; DECISIONS.md D-37 \"Supersedes: D-36 \\\"(`git.branch-template` filled with the work id), and only when that branch exists\\\"\"; root DECISIONS.md \"A `Supersedes:` line overrides the exact spec passage it quotes\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "docs/afk/small-lane/plan/DECISIONS.md",
+  "line": 260,
+  "side": "new",
+  "finding": "D-37's To reverse says to restore 'the D-36 wording' in step 4, but D-36 holds no step 4 wording; step 4's prior text was 'The worktree's branch, filled from `git.branch-template`, is the Diagnosis branch.'",
+  "why": "A person reversing (c) from the ledger finds no D-36 passage for step 4 and cannot tell what text to restore.",
+  "fix": "Quote the step 4 sentence to restore: 'The worktree's branch, filled from `git.branch-template`, is the Diagnosis branch.'",
+  "evidence": "DECISIONS.md:260 \"- To reverse: restore the D-36 wording in diagnose Phase 0 steps 3 and 4\"; D-36 Chosen names only step 3 behaviour (\"the blocked reason names the worktree's path and the branch a retry needs gone\"); delta removed line \"The worktree's branch, filled from `git.branch-template`, is the Diagnosis branch.\"",
+  "id": "r-002"
+ }
+]

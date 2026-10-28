@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "refactor-safety",
+  "criterion": "reworked control flow in an existing method (behaviour-preservation risk)",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "Widened re-run trigger (any linked worktree whose folder is named for the work id) skips step 4, yet Base and Diagnosis branch on a re-run come only from a prior DIAGNOSIS.md; a matched worktree holding none (a stopped earlier run, or an unrelated worktree a person named for the ticket with --dir) leaves both required parts unset, and diagnose then commits its failing test onto that foreign branch.",
+  "why": "Step 5 keeps Base and Diagnosis branch only from an existing DIAGNOSIS.md, and every verdict row of DIAGNOSIS-FORMAT.md requires both, so the folder-name path has no defined source for them and no guard that the matched worktree is a diagnosis worktree.",
+  "fix": "On a re-run with no DIAGNOSIS.md, set Diagnosis branch to the matched worktree's branch and Base from the record or merge-base, or treat a folder match without a record or DIAGNOSIS.md as not a re-run (fall through to step 4).",
+  "evidence": "SKILL.md:34 \"+3. **Re-run** — a worktree record ..., or a linked worktree whose folder is named `<work id, lower-cased>` (`git worktree list`), makes this a re-run. Work in that worktree. ... Go to step 5.\"; SKILL.md:36 \"A `DIAGNOSIS.md` already there: keep ... its Base and Diagnosis branch unless step 2 set them\"; DIAGNOSIS-FORMAT.md:33 \"V-1 | obvious fix | Work id, Verdict, Base, Diagnosis branch, ...\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "reworked control flow in an existing method (behaviour-preservation risk)",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/SKILL.md",
+  "line": 39,
+  "side": "new",
+  "finding": "Fix step 3 now leaves the linked worktree it runs in whenever that branch lacks the Base commit and works in (or cuts) the Diagnosis-branch worktree, reversing D-14 (a)/D-17's rule with no ledger entry; for a handed diagnosis given by path, the Diagnosis-branch worktree is the invoker's own worktree, so fix would edit another session's worktree. If that worktree is gone, fix cuts one onto the invoker's branch before it finds the files missing.",
+  "why": "D-17 chose that fix cuts or moves to the Diagnosis worktree only when it runs outside any linked worktree, and D-18 supersedes nothing about fix, so the changed condition is an unrecorded behaviour change whose new path reaches a worktree fix does not own.",
+  "fix": "Record a ledger entry superseding D-17's fix-worktree clause, and for a handed diagnosis (Diagnosis branch not from the template) stop `blocked` naming the invoker's worktree instead of working in it.",
+  "evidence": "fix/SKILL.md:39 \"+3. **Fix test-first** (`/afk:tdd`) in the linked worktree fix runs in when its branch is the Diagnosis branch or holds the Base commit ...; otherwise in the worktree on the Diagnosis branch\"; DECISIONS.md:118 \"fix cuts a worktree onto the Diagnosis branch only when fix runs outside any linked worktree, which a handed case never does\"",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/afk/fix/SKILL.md",
+  "line": 39,
+  "side": "new",
+  "finding": "The two new `blocked` exits (test not on the Diagnosis branch; test passes or does not build) do not exempt a diagnosis that has no failing test because no correct seam exists. The exit gate accepts that case, but step 3 now reads as stopping it.",
+  "why": "DIAGNOSIS-FORMAT.md lets a full diagnosis record a missing seam in Root cause, with no failing test. Read literally, the added 'not on that branch either → stop blocked' then fires for a legitimate diagnosis.",
+  "fix": "Add '(a diagnosis that records a seam absence in Root cause has no test to bring in: skip to the Fix proposal)' beside the light-diagnosis sentence.",
+  "evidence": "fix:39 \"Bring in the diagnosis's failing test ... not on that branch either ... → stop `blocked`\"; fix:43 \"the diagnosis's failing test green (or the seam absence the diagnosis records in Root cause)\"; DIAGNOSIS-FORMAT.md:61 \"If no correct seam exists, that itself is a finding: record it in Root cause, and the Reproduction names the loop that did reproduce the bug.\"",
+  "id": "r-003"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The new folder-name check reads `git worktree list`, which still lists a worktree whose folder was deleted (marked prunable). Step 3 then treats it as a live re-run and says to work in a folder that does not exist, so step 4's recut for a gone worktree is never reached.",
+  "why": "create-worktree runs `git worktree prune` only after its own checks, and step 3 runs before any prune. The recut path the delta relies on for a gone worktree is therefore bypassed when the folder was removed by hand.",
+  "fix": "Count only entries whose folder exists (skip `prunable` entries in `git worktree list --porcelain`), or run `git worktree prune` before step 3.",
+  "evidence": "diagnose:34 \"or a linked worktree whose folder is named `<work id, lower-cased>` (`git worktree list`), makes this a re-run. Work in that worktree.\"; create-worktree:476-477 \"Pruning stale worktrees...\" / `git -C \"$REPO_DIR\" worktree prune`",
+  "id": "r-004"
+ }
+]

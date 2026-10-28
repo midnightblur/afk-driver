@@ -1,6 +1,6 @@
 ---
 name: grill-requirements
-description: Grills a raw feature idea against the domain glossary and staples before it becomes a PRD, updating GLOSSARY.md inline. Use to stress-test an idea/plan or sharpen terms.
+description: Grills a raw feature idea against the domain glossary and staples before it becomes a PRD, updating GLOSSARY.md inline. Use to stress-test an idea/plan, settle a diagnosed spec gap (a DIAGNOSIS.md), or sharpen terms.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -12,6 +12,8 @@ Interview the user relentlessly about every aspect of the plan until shared unde
 Work the group first, then present one round per [ROUND.md](ROUND.md): ground the premises, weigh the alternatives, decide what the rule there allows, and bring the whole layer at once — decisions to audit, calls that are the user's, and the indecisions with the condition that failed. The wait for feedback is per round, not per question.
 
 If a question is answerable by exploring the codebase, explore instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
+
+**Handed a `DIAGNOSIS.md`** (a diagnosed bug, not an idea), grill the bug per [SIZE-CALL.md](SIZE-CALL.md) and end with its size call. A `too big` call carries on as a full grill of the bug, to the exit gate under Next.
 
 **Open with a pre-brief.** Before the first question, spawn one parallel set of `afk-reader` digests (per `DELEGATION.md`): the plan/idea sources, root `GLOSSARY-MAP.md` + the owning service's `GLOSSARY.md`, `{service}/STAPLES.md`, and any existing `GRILL-LOG.md` (the resume point). Grill from the digests; open a source mid-session only when a walk needs wording a digest doesn't settle.
 
@@ -89,6 +91,8 @@ This skill builds *understanding*; it does not emit decision records. When a dec
 - **Solution-level** decisions (algorithm, pattern, technology) → recorded by **`/afk:to-sdd`** as a design ADR.
 
 ## Next
+
+A diagnosis grill whose size call is `still small`, or that ends with no size call, stops there ([SIZE-CALL.md](SIZE-CALL.md)); everything below binds every other grill.
 
 Only declare the requirements decision tree exhausted when ALL hold:
 

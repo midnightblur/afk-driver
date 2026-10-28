@@ -1,19 +1,20 @@
 ---
 name: to-ticket
-description: Publishes a finished PRD.md into its Jira parent as a requirements-level native-ADF ticket; also posts meeting summaries onto tickets and mints stub Enhancements for grill spinoffs. Use when PRD.md exists and the parent key is known.
+description: Publishes a finished PRD.md into its Jira parent as a requirements-level native-ADF ticket; also posts meeting summaries onto tickets, mints stub Enhancements for grill spinoffs, and files a bug or ad-hoc ticket from a diagnosis or a description. Use when PRD.md exists and the parent key is known, or a diagnosis needs a ticket.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:to-ticket — publish into the Jira ticket
 
-Three independent modes writing to the configured tracker:
+Four independent modes writing to the configured tracker:
 
 - **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Story/Bug as native **ADF**; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 - **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible ADF `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
 - **Spinoff mode** ([jump](#spinoff-mode--mint-a-stub-for-deferred-work)) — mint a **new** stub Enhancement for work a grill deferred out of scope; no engine — the `tracker_create` MCP tool.
+- **Bug and ad-hoc mode** ([BUG-MODE.md](BUG-MODE.md)) — create or update a ticket from a `DIAGNOSIS.md` or a description file, with evidence comments, proof files, the in-review move and the Jira fix version; engine [`scripts/publish_bug_mode.py`](./scripts/publish_bug_mode.py).
 
-PRD and meeting mode both write **ADF** into an existing issue's description, are **idempotent** (re-run updates in place, never duplicates), and own **disjoint regions** so they never collide; their engines share creds + the Markdown→ADF mapping. Spinoff mode instead **creates** an issue — no description-region ownership, guarded against duplicates by the grill log (below).
+PRD and meeting mode both write **ADF** into an existing issue's description, are **idempotent** (re-run updates in place, never duplicates), and own **disjoint regions** so they never collide; their engines share creds + the Markdown→ADF mapping. Spinoff mode instead **creates** an issue — no description-region ownership, guarded against duplicates by the grill log (below). Bug and ad-hoc mode writes a description only on a ticket it creates and never edits an existing one's description; its evidence markers guard against duplicates.
 
 ## What it does / does not do (binding)
 
@@ -22,7 +23,7 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 - **Idempotent.** The published description lives inside an AFK-managed sentinel block; re-runs replace it and its figures in place (merge model: [REFERENCE.md](REFERENCE.md)). History lives in comments — a re-publish posts the requirements delta as an issue comment (step 3).
 - **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: a barebone/low-value existing description is absorbed — the managed block becomes the whole description (full heuristic: [REFERENCE.md](REFERENCE.md), "Description merge model"). Borderline barebone call → default to preserving and surface it to the human.
 - **Requirements level only.** Never publishes SDD content, ADR documents, or any technical depth — the distill step strips them. (The SDD and Design Brief are disk-only — neither ever reaches the ticket.)
-- **Requires an existing parent (PRD mode).** No parent key → stop; tell the human to create the Enhancement/Story/Bug first — PRD mode never creates it. Sets no labels, creates no branch. (Spinoff mode is the one create path — a *new* stub for deferred work, never the PRD's parent.)
+- **Requires an existing parent (PRD mode).** No parent key → stop; tell the human to create the Enhancement/Story/Bug first — PRD mode never creates it. Sets no labels, creates no branch. (Spinoff mode and bug and ad-hoc mode create tickets — a *new* stub for deferred work, or a bug or ad-hoc ticket — never the PRD's parent.)
 
 ## Prerequisites
 
@@ -87,13 +88,13 @@ The description grows a plain `Meeting Summaries` heading (created once, at the 
 
 A third, standalone capability — **not** part of the PRD design chain. During a grill, work surfaces that's real but out of the current ticket's scope; the grill records it as a spinoff **candidate row** and, when the human directs it, hands the candidate here to file. Protocol, candidate-row fields, link-debt, and dedup are one-homed in `SPINOFF-TICKET.md` (plugin root) — this mode is only its **create mechanism**.
 
-Creating an issue has a first-class MCP tool, so spinoff mode uses it directly — no REST engine, no ADF (a stub is plain text).
+Creating an issue has a first-class MCP tool, so spinoff mode uses it directly — no REST engine. On Jira, `tracker_create` sends the description as formatted text and refuses an unknown fix version before it creates.
 
 ### How to run
 
 1. **Read the candidate** from the grill's `GRILL-LOG.md` spinoff row — kind, summary, pain, why-out, intended links.
 2. **Dedup.** Row already reads `filed {KEY}` → stop; the stub exists (`SPINOFF-TICKET.md`, dedup on resume).
-3. **Create** via `tracker_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, a plain-text `description` carrying the pain + why-deferred/what-unblocks, and `assignee` from `afk-config.py resolve trackerAssignee` when it resolves (unset → no assignee, unchanged). Requirements-level, no repo-artifact references (ticket readers have no repo access).
+3. **Create** via `tracker_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, a Markdown `description` (Jira receives it as formatted text) carrying the pain + why-deferred/what-unblocks, and `assignee` from `afk-config.py resolve trackerAssignee` when it resolves (unset → no assignee, unchanged). Requirements-level, no repo-artifact references (ticket readers have no repo access). An answer with `refused: true` names an unknown fix version and created nothing: ask the human for a known one and retry.
 4. **Record + link-debt.** The instant create returns, write `{KEY}` back onto the candidate row. `tracker_create` (and `tracker_edit`) **cannot set `issuelinks`**, so every intended `blocked-by`/`relates` link is **link-debt**: mark the row `filed {KEY} · link-debt` and tell the human which links to set by hand.
 
 **Done when:** the issue exists, its key is on the candidate row, and any unset links are surfaced as link-debt. **Human-present + user-directed only** (`SPINOFF-TICKET.md`) — never mint in a driven run.

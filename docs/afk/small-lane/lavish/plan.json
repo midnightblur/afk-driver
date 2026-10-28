@@ -1,0 +1,234 @@
+{
+ "schema": 1,
+ "purpose": "Plan approval",
+ "feature": "small-lane",
+ "stage": "plan",
+ "spec_dir": "docs/afk/small-lane",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "POL",
+     "group": "policy",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Lean review roster for the whole plan.",
+     "evidence": "You chose lean."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0001",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0001-diagnosis-format: plan roster plus design quality and resilience.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0002",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0002-developer-settings: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0003",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0003-tracker-attach: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0004",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0004-diagnose-rewrite: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0005",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0005-bug-mode: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0006",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0006-fix-procedure: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0007",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0007-ship-script: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0008",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0008-standalone-fix: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0009",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0009-in-place-callers: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0010",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0010-out-of-slice: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0011",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0011-bug-removal-release: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-0012",
+     "group": "slices",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "0012-sync-harness: plan roster.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "GATE",
+     "group": "gate",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Minimal end-of-feature check: plugin-source gates over the branch, both suites on Windows and WSL.",
+     "evidence": "You accepted the recommendation."
+    }
+   ],
+   "header": {
+    "round": 1,
+    "settled_last_round": [
+     "Design document and eleven decision records written; every gate passed"
+    ],
+    "unlocks": [
+     "running the slices with the executor or autopilot"
+    ],
+    "parked": [
+     "medium and large lanes (#108)"
+    ],
+    "fork": "The design is cut into twelve slices in build order. Pick the review roster, keep or change each slice's roster, and accept the end check. Nothing runs until you send.",
+    "touches": [
+     {
+      "name": "the plan index",
+      "anchor": "docs/afk/small-lane/plan/PLAN.md"
+     }
+    ],
+    "links": [
+     {
+      "label": "Plan index",
+      "href": "../plan/PLAN.md"
+     },
+     {
+      "label": "Design (SDD)",
+      "href": "../SDD.md"
+     }
+    ],
+    "groups": [
+     {
+      "id": "policy",
+      "title": "The plan's review roster"
+     },
+     {
+      "id": "slices",
+      "title": "Twelve slices, in build order",
+      "after": [
+       "policy"
+      ]
+     },
+     {
+      "id": "gate",
+      "title": "The end-of-feature check",
+      "after": [
+       "slices"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "round": 2,
+   "state": "current",
+   "items": [],
+   "header": {
+    "round": 2,
+    "settled_last_round": [
+     "Plan approved as sliced: lean roster, every slice as recommended, minimal end check"
+    ],
+    "unlocks": [
+     "running the slices with the executor or autopilot"
+    ],
+    "parked": [
+     "medium and large lanes (#108)"
+    ],
+    "fork": "The plan is approved. Nothing on this page waits for you; the slices run next.",
+    "touches": [
+     {
+      "name": "the plan index",
+      "anchor": "docs/afk/small-lane/plan/PLAN.md"
+     }
+    ],
+    "links": [
+     {
+      "label": "Plan index",
+      "href": "../plan/PLAN.md"
+     }
+    ]
+   }
+  }
+ ]
+}

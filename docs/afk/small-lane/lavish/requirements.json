@@ -1,0 +1,747 @@
+{
+ "schema": 1,
+ "purpose": "Requirements grill",
+ "feature": "small-lane",
+ "stage": "requirements",
+ "spec_dir": "docs/afk/small-lane",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "S-1",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnose skill never fixes. It takes in the bug, checks that it is real, compares it with the specs, reproduces it, finds the root cause and ends with a proposed fix. It stays usable on its own.",
+     "evidence": "Your words: \"afk:diagnose should not fix, all of that intake, verify the bug, reproduce, specs check, etc should be part of diagnose ... and propose a fix\" and \"confirm afk:diagnose could be used standalone\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-2",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The fix skill does the fix: it runs diagnose, gets approval, fixes, verifies (re-testing after the fix is part of this), takes proof, creates and writes the merge request, and updates the ticket.",
+     "evidence": "Your words: \"afk:fix do the fix, which include afk:diagnose, verification, take proof, create + write MR, update JIRA\" and \"re-testing after the fix is the verification step which should be done in afk:fix\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-3",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Behaviour shared between skills lives in one markdown file that skills point at. A new skill is created only when a human must be able to run it.",
+     "evidence": "Your words: \"do not create a skill if not needed (eg don't need it to be invocable). create just a markdown and refer to it only instead\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-4",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The bug skill retires. The to-ticket skill publishes bug and ad-hoc tickets instead, adjusted for that use.",
+     "evidence": "Your words: \"afk:bug I think we can retire\" and \"instead of afk:bug, afk:to-ticket can publish the tickets, so we need adjustments here\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-5",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The fix asks for human approval before it changes anything, unless an explicit instruction or approval was given beforehand.",
+     "evidence": "Your words: \"seeking approval is the default behavior, unless explicit instruction or approval was given beforehand\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-6",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A complex bug, one with no obvious fix, or one that needs a product owner's call goes to a grilling session instead of a direct fix.",
+     "evidence": "Your words: \"for a more complex one, not obvious solution, or require product owner call, etc, then grilling would be needed\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-7",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "This feature builds only the small lane. Medium and large lanes, and the multi-session decision map, come later.",
+     "evidence": "Your words: \"we will explore the lanes after. for now, let's add support for the small lane first\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-8",
+     "round": 1,
+     "by": "human",
+     "audit": "silent",
+     "decision": "Diagnose leaves a test that fails because of the bug, as proof that it reproduced the bug. The fix makes that test pass.",
+     "evidence": "Proposed on 2026-10-09; you did not object, under your standing rule \"if I don't mention something, it means I agree with you\". Reopen it here if that reading is wrong."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-9",
+     "round": 1,
+     "by": "human",
+     "audit": "silent",
+     "decision": "Diagnose ends with one of five verdicts: a real bug with an obvious fix, a real bug with several possible fixes, a gap in the specs, works as specified, or cannot reproduce.",
+     "evidence": "Proposed on 2026-10-09; not objected to, under your standing rule. Reopen it here if that reading is wrong."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-10",
+     "round": 1,
+     "by": "human",
+     "audit": "silent",
+     "decision": "The fix has two modes: in place, when another skill calls it inside its own branch and that skill ships the change; and standalone, when it ships the change itself.",
+     "evidence": "Proposed on 2026-10-09; not objected to, under your standing rule. Reopen it here if that reading is wrong."
+    },
+    {
+     "component": "settled_card",
+     "id": "S-11",
+     "round": 1,
+     "by": "human",
+     "audit": "silent",
+     "decision": "Starting a hands-off run counts as approval given beforehand. Inside such a run the fix follows the decision protocol: it goes ahead on a change that is easy to undo and stops for the human otherwise.",
+     "evidence": "Proposed on 2026-10-09; consistent with your rule on approval given beforehand. Reopen it here if that reading is wrong."
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "Q-1",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnose and fix path covers bugs only; to-ticket also files ad-hoc enhancement tickets. Bugs can be of any size; an enhancement is never small and always goes through a proper grill.",
+     "evidence": "Your answer: B, with the note \"bugs can be of any size. enhancement can never be small, it is at least medium and always need careful consideration, so proper grilling is always necessary\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A grill that a bug was sent to ends with a size call: back to the fix skill when the bug is still small, into the full chain when it is not.",
+     "evidence": "Your answer: C."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-1",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Each diagnosis is a file in the ticket's spec folder, published to the ticket and linked from the merge request.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnosis file reuses the evidence bundle's sections, marked by how sure each fact is, plus the spec comparison, the verdict and the fix proposal.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnose run on its own ends with the diagnosis file, the verdict and the proposal, offers the fix, and writes no ticket.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-1",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "Diagnose reproduces the bug on a clean copy of the base branch before it blames the code.",
+     "evidence": "You accepted the agent's decision; the bug fixer does this today (skills/afk/bug/FIXER-PROMPT.md)."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-2",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "Diagnose writes the diagnosis file to disk before any tracker or forge call.",
+     "evidence": "You accepted the agent's decision; the bug pipeline's never-lost rule (skills/afk/bug/SKILL.md:24-30)."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-4",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Approval is asked once, on the proposal; one answer covers the code change, the ticket writes and the merge request; a steer sends the proposal back to diagnose.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-5",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Proof is the test that failed before and passes after with its output, every verification tier the fix ran, and a before-and-after capture from the running app, or the request and response for an API bug.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-6",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A standalone fix creates the ticket after approval and before the fix when none exists, then posts the merge request link and the proof and moves the ticket to in review.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-7",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A standalone fix ends at a merge request with tests passing, flipped to ready with a reviewer when one is configured, and never merged.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-3",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "An in-place fix never commits, pushes, opens a merge request or writes a ticket; its caller does.",
+     "evidence": "You accepted the agent's decision; execute ships after the fix (skills/afk/execute/SKILL.md:67)."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Running a fix in the background is dropped; the fix runs in the current session.",
+     "evidence": "Your answer: A."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-4",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The bug skill is removed now, with no alias, in a major release.",
+     "evidence": "Your answer: A."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-4",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "The shortcut that merged a fix branch locally to re-test it goes away.",
+     "evidence": "You accepted the agent's decision; the safety rules forbid local merges (SAFETY.md)."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-8",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The rule that only one bug fix may run at a time is dropped.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-9",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Push notifications were kept only for background fixes.",
+     "evidence": "You accepted the recommendation; with background fixes dropped it has nothing left to cover, see this round."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-10",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "to-ticket gains one mode that creates or updates a bug or ad-hoc ticket from a diagnosis file, moves it through configured states, and posts evidence comments, on Jira and GitHub Issues, with a human present.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-11",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "to-ticket becomes the only skill that writes to the tracker.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-12",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The fix-version question and its backfill move into the to-ticket bug mode, for Jira only.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-5",
+     "round": 2,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "Ticket state changes use the states and transitions in the repository's configuration, never a fixed number.",
+     "evidence": "You accepted the agent's decision; the tracker adapter reads transitions from configuration (adapters/tracker/jira/CONTRACT.md:23-29)."
+    },
+    {
+     "component": "settled_card",
+     "id": "A-1",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Who approves a fix proposal: re-asked this round in the form you wrote.",
+     "evidence": "Your write-in: \"the caller of the skill. if the fix is inside a bigger job (eg implementing a new feature), then the agents implementing the feature can approve the fix\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "A-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A tracker write happens only from a human-present to-ticket run; hands-off runs and in-place fixes never write.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "A-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Data scope is unscoped: one repository and its one configured tracker project.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "A-4",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The fix refuses to change code without a diagnosis that found a real bug and an approval; diagnose refuses a verdict without a reproduction or a recorded failed attempt; works as specified stops the fix.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-1",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Small lane: the lightweight path for a small bug, from diagnosis through approval, fix and proof to a merge request, without a requirements document, design document or plan.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnosis: the file diagnose writes, holding the checked symptom, the spec comparison, the reproduction, the root cause, the verdict and the proposed fix.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnosis verdict: the one-line outcome of a diagnosis, one of the five verdicts settled in round 1.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-4",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Fix proposal: the change a diagnosis recommends, with its options when there is more than one, waiting for approval.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-5",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Proof: the evidence that a bug existed and is gone, made of the kinds of proof settled in this round.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-6",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Prior approval: an explicit human instruction or approval given before a step, such as starting a hands-off run, which stands in for asking at that step.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-7",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "In-place fix and standalone fix: the two modes of the fix skill, inside a caller's branch or shipping on its own.",
+     "evidence": "You accepted the definition; it is now in GLOSSARY.md under Small lane."
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "C-13",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The caller approves the fix proposal; an agent caller approves under the decision protocol and stops for you when the fix is not easy to undo or has no clear winner; the fix never approves itself.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-5",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A fix running on prior approval may write to the tracker when that approval covers ticket writes; one consent rule for code and tickets.",
+     "evidence": "Your answer: A."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-6",
+     "round": 3,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "The small lane sends no push notifications.",
+     "evidence": "You accepted the agent's decision."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-16",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Verdict routes for a human caller: obvious fix to approval; several fixes or a spec gap to a grill; works as specified stops and, with approval, posts the diagnosis; cannot reproduce posts what was tried, with approval.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-18",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A bug that grows too large after its grill goes into the full chain until a medium lane exists; the limit is recorded on a ticket.",
+     "evidence": "You accepted, with the note \"a ticket must exist or be created to record the known limit, otherwise it will be lost\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-19",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A standalone diagnosis runs in its own worktree off the base branch and keeps the failing test there on a local branch named in the diagnosis file.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-20",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Mid-task capture is a ticket filed with to-ticket from a written description; diagnosis and fix run later.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-10",
+     "round": 3,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "The fix keeps escape analysis, spec reconciliation and the workflow lesson.",
+     "evidence": "You accepted the agent's decision."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-11",
+     "round": 3,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "The removal is complete only when no reference to the bug skill remains outside the changelog and the setup audit passes.",
+     "evidence": "You accepted the agent's decision."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-7",
+     "round": 3,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "A ticket filed by the old pipeline is fixed by passing its key to the fix; no migration.",
+     "evidence": "You accepted the agent's decision."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-8",
+     "round": 3,
+     "by": "agent",
+     "audit": "explicit",
+     "decision": "The developer settings the bug skill documents keep their names and meaning; only their documentation moves.",
+     "evidence": "You accepted the agent's decision."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-14",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Bugs left in flight by the old pipeline get a way out through the release notes.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-1",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer, I run diagnose with a ticket key or a description and get a diagnosis file with a verdict and a fix proposal; no product code changes.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-2",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer, I run fix on a bug: it diagnoses, I approve or steer the proposal, it fixes test-first, runs every tier, collects proof, files or updates the ticket and opens a ready merge request with a reviewer.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-3",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer whose diagnosis finds several possible fixes or a spec gap, I am sent to a grill that ends with a size call: back to the fix, or into the full chain.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-5",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer whose diagnosis finds the behaviour works as specified, the fix stops; to change the behaviour I file an enhancement ticket with to-ticket, which then needs a grill.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-6",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer whose diagnosis cannot reproduce the bug, I get what was tried and what is needed, and with my approval it is posted on the ticket.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-7",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer, I file a bug or an ad-hoc enhancement ticket with to-ticket from a diagnosis file or a written description, including mid-task.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-8",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As a developer upgrading the plugin, the release notes tell me the bug skill is gone, diagnose no longer fixes, and how to clean up what the old pipeline left.",
+     "evidence": "You accepted the recommendation."
+    }
+   ]
+  },
+  {
+   "round": 4,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "Q-6",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A bug found inside a bigger job gets no diagnosis; the caller fixes it inline, as today.",
+     "evidence": "Your answer: C."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-1",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A check that fails on code the run just wrote is fixed inside the build loop with today's one targeted retry.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-7",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A failure that passes on re-run is reported as flaky with both runs and never fixed by changing product code.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-8",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A bug reported by a human testing the feature branch gets the full diagnosis, lands in place on the feature branch, and that human approves it.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-21",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "One spinoff ticket covers the medium and large lanes and carries the known limit; filed at the end of this grill.",
+     "evidence": "You accepted the recommendation."
+    }
+   ]
+  },
+  {
+   "round": 5,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "SC-2",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Still red after the retry: an in-place fix with no diagnosis step; regression test, tiers, escape analysis and the workflow lesson still run.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-3",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A review finding naming a defect: an in-place fix with no diagnosis step; a wrong finding is disputed in the settle loop.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-4",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "An adversary finding: an in-place fix with no diagnosis step; its reproduction becomes the permanent test.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-5",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A red feature smoke gate: an in-place fix per failing scenario, with no diagnosis step.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-17",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "An in-place fix returns today's outcomes and no diagnosis verdict; the works-as-specified outcome is dropped.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "US-4",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "As an agent implementing a feature, I fix a stubborn red check or a defect finding in place with no diagnosis, approve it under the decision protocol, and ship it with the feature.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-6",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A defect outside the slice that blocks it gets a diagnosis, full or light, so its ticket stands alone with evidence and proof; it is fixed on its own branch and merge request linked to that ticket, the same fix goes on the feature branch, and both merges stay with the human.",
+     "evidence": "You accepted, with the note \"a full or light diagnosis is needed in this case, so the bug ticket has evidence & proof and is good as a standalone ticket, even without the new feature's context\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "SC-9",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A defect outside the slice that does not block it is filed as a ticket and not fixed.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "PA-1",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Starting a hands-off run is prior approval for these ticket writes and separate merge requests; the merges stay with the human.",
+     "evidence": "You accepted the recommendation."
+    }
+   ]
+  },
+  {
+   "round": 6,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "SC-10",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A non-blocking defect outside the slice gets a diagnosis, light when the run already holds a reproduction, before its ticket is filed, so the ticket stands alone; it is not fixed.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "T-8",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Light diagnosis: reuses a reproduction the caller already holds and skips the clean copy of the base branch; still compares with the specs, finds the root cause and writes the diagnosis.",
+     "evidence": "You accepted the recommendation."
+    }
+   ]
+  }
+ ]
+}

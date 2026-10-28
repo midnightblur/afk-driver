@@ -60,7 +60,8 @@ the commit does, never the rationale.
    must also be resolved. It exits 2 otherwise.
    Only a passing verify allows the words "rationale is durable".
 6. Withdraw: `… rationale-drop --op <id> --reason <text>`. Use it for an entry whose
-   line a later commit rewrote or deleted. Verify passes without a dropped entry
+   line a later commit rewrote or deleted, or whose uncommitted line a revert
+   removed for good. Verify passes without a dropped entry
    and lists it under `dropped`. Re-record the reason with `rationale-add` when the line moved.
 
 `rationale-post` and `rationale-verify` exit 2 with the blocker (`push`,

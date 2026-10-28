@@ -1,6 +1,6 @@
-"""tracker MCP server — the nine tracker operations, routed to the configured kind.
+"""tracker MCP server — the ten tracker operations, routed to the configured kind.
 
-The server registers the same nine tools whatever the repository uses, so a
+The server registers the same ten tools whatever the repository uses, so a
 skill's prose never changes with the tracker. `tracker:` in `.afk/config.yaml`
 picks the adapter under `adapters/tracker/<kind>/`, and each kind's `api.py`
 answers `call(operation, payload)` (ADAPTERS.md).
@@ -123,7 +123,10 @@ def tracker_transitions(ticket_key: str) -> Any:
 
 @mcp.tool()
 def tracker_transition(ticket_key: str, transition_id: str) -> Any:
-    """Move a work item to a new state by transition id (from tracker_transitions)."""
+    """Move a work item to a new state. `transition_id` is a transition id or
+    name (from tracker_transitions) or a key of the configured state map, such
+    as `in-review`; one the work item does not offer answers `refused: true`
+    and nothing is written."""
     return _call("tracker_transition", ticket_key=ticket_key, transition_id=transition_id)
 
 
@@ -135,7 +138,8 @@ def tracker_changelog(ticket_key: str) -> Any:
 
 @mcp.tool()
 def tracker_comment(ticket_key: str, text: str) -> Any:
-    """Add a plain-text comment to a work item."""
+    """Add a comment to a work item. `text` is Markdown; Jira receives it as
+    formatted text."""
     return _call("tracker_comment", ticket_key=ticket_key, text=text)
 
 
@@ -143,6 +147,20 @@ def tracker_comment(ticket_key: str, text: str) -> Any:
 def tracker_attachments(ticket_key: str) -> Any:
     """List the files attached to a work item (id, filename, mimeType, size)."""
     return _call("tracker_attachments", ticket_key=ticket_key)
+
+
+@mcp.tool()
+def tracker_attach(ticket_key: str, files: list[str], text: str = "") -> Any:
+    """Post one comment carrying `text` (Markdown) and the files at the local
+    paths in `files`. A file the tracker cannot take is listed in
+    `unsupported_files` with the reason and named in the comment; on Jira each
+    stored name and type is read back, and a difference is listed in
+    `mismatches` (each with a `reason`) and named in the comment. `attached`
+    holds one object per file with its `file`; a Jira `filename` or `mimeType`
+    is null when it was not read back. A missing file answers
+    `refused: true`; files stored but a failed comment answer `error` with
+    `comment_error`."""
+    return _call("tracker_attach", ticket_key=ticket_key, files=files, text=text)
 
 
 @mcp.tool()
@@ -161,7 +179,11 @@ def tracker_create(
     `issue_type` and `status` are the tracker's own names — take them from the
     tracker kind's own block in `.afk/config.yaml` (`jira.issue-types` and
     `jira.transitions`, `github-issues.state-labels`) rather than inventing
-    them. `parent` is the parent work item's key.
+    them. `parent` is the parent work item's key. `description` is Markdown.
+    An unknown `fix_version` (Jira) or `status` (GitHub Issues) answers
+    `refused: true` and nothing is created. A success can carry
+    `fix_version_warning` (versions unreadable, not checked) or, on Jira,
+    `status_warning` (created but not moved to `status`).
     """
     return _call("tracker_create", summary=summary, issue_type=issue_type,
                  project=project, description=description, parent=parent,
@@ -171,7 +193,9 @@ def tracker_create(
 @mcp.tool()
 def tracker_edit(ticket_key: str, fields: dict[str, Any]) -> Any:
     """Update fields on a work item. `fields` is in the tracker's native shape,
-    e.g. {"priority": {"name": "High"}, "labels": ["a","b"]} for Jira."""
+    e.g. {"priority": {"name": "High"}, "labels": ["a","b"]} for Jira. An
+    unknown Jira fix version answers `refused: true`; when the project or its
+    versions cannot be read the write goes ahead with `fix_version_warning`."""
     return _call("tracker_edit", ticket_key=ticket_key, fields=fields)
 
 

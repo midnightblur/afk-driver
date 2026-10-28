@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep,refactor-safety",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "A diagnose run that stopped after its own --name cut but before Phase 7 (e.g. step 5 'spec folder unresolved', or any blocked end, which prints only a status line) leaves its worktree, owner record and branch with no DIAGNOSIS.md; every retry now skips step 3 and step 4's --name cut is always refused 'worktree name ... is already taken', so the work id can never be diagnosed again without manual worktree removal.",
+  "why": "D-22 says such a worktree 'goes on to a fresh cut', but create-worktree refuses the cut whenever the folder or record for that name exists (create-worktree:296 and :473, checked before the branch), and SDD §4 keeps a stopped diagnosis's worktree, so the retry case the previous step 3 handled is now a dead end that the blocked reason does not explain.",
+  "fix": "When step 4's cut is refused as 'name already taken' for a worktree whose owner record diagnose's own cut wrote and that holds no DIAGNOSIS.md, end blocked naming that worktree path and the remove-worktree step (or cut under a distinct name), and correct D-22's 'goes on to a fresh cut'.",
+  "evidence": "SKILL.md:34 \"Such a worktree with no `DIAGNOSIS.md` is not diagnose's to reuse: go on to step 4, whose refusals settle a name clash.\"; SKILL.md:162 DIAGNOSIS.md is written only at Phase 7 step 2; create-worktree:473 `[[ ! -e \"$DEST\" && ! -e \"$COMMON_DIR/afk-worktrees/$NAME.json\" ]] || error_exit \"worktree name '$NAME' is already taken\"`; DECISIONS.md D-22 \"A matching worktree with no diagnosis goes on to a fresh cut\"; SDD §4 \"a stopped diagnosis keeps its worktree and names it\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "refactor-safety,delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 35,
+  "side": "new",
+  "finding": "The new branch-exists test in step 4 needs `<spec folder path>` and whether the spec folder is outside the repository, but the spec folder is only resolved in step 5, 'from inside the diagnosis worktree', which does not exist when step 4's refusal fires",
+  "why": "Step order leaves the re-run check with no defined way to get the path it reads, so the agent improvises the resolve location or ends `blocked (branch exists)` on a real re-run.",
+  "fix": "Say where step 4 resolves the spec folder for this check (e.g. `afk_adapter notes resolve <work id>` from the current checkout, taking its repository-relative path for `git show`).",
+  "evidence": "+... committed on it (`git show <branch>:<spec folder path>/DIAGNOSIS.md`) or in a spec folder outside the repository ... / 5. **Spec folder** — run `afk_adapter notes resolve <work id>` from inside the diagnosis worktree.",
+  "id": "r-002"
+ }
+]

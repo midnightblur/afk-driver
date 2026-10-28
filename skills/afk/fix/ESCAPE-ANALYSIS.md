@@ -1,13 +1,14 @@
-# Phase 2.5 — Escape analysis (why did the existing tests miss it?)
+# Escape analysis (why did the existing tests miss it?)
 
 A bug that reached the verification phase means a guard that *should* have stopped
-it didn't — or was never there. Phase 2 added the missing guard; this step
-interrogates the **existing** one that whiffed — a sibling next to a weak assertion
-just grows the suite without closing the hole.
+it didn't — or was never there. Procedure step 4 (a step of the shared fix
+procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md)) added the missing guard; this
+analysis interrogates the **existing** one that whiffed — a sibling next to a
+weak assertion just grows the suite without closing the hole.
 
 Run only for **standing-suite tier** bugs — a user-visible flow (`e2e/browser`)
 or a backend contract (`api`). Skip a pure unit/logic bug that never had a
-higher-tier scenario (Phase 2 already homed it).
+higher-tier scenario (procedure step 4 already homed it).
 
 1. **Find the scenario that *should* have caught it.** Grep the catalogs for the
    flow/endpoint the bug lives on — the repository's `e2e/browser` suite
@@ -21,18 +22,19 @@ higher-tier scenario (Phase 2 already homed it).
 
    | Miss class | What it means | Right response |
    |-----------|---------------|----------------|
-   | `no-scenario` | No existing test exercised this path at all | Keep the Phase 2 sibling — it's the right add. This is a **gate gap** → Phase 3 + 3.5 |
+   | `no-scenario` | No existing test exercised this path at all | Keep the procedure step 4 sibling — it's the right add. This is a **gate gap** → procedure steps 7 and 8 |
    | `weak-assertion` | A scenario walks the path but asserts too little (happy-path only, missing field/negative/edge) | **Strengthen that scenario** — don't add a sibling that repeats the weak check |
    | `wrong-path` | A scenario exercises a *near* path, not the one that broke (wrong fixture, wrong branch, mocked-away seam) | Fix the fixture/branch so the real path is covered |
-   | `excluded` | A scenario exists but is `@sap`/env-tagged out of the green gate, so it never ran | Note for Phase 3.5 — the gate's exclusion let a real regression through |
-   | `disabled/flaky` | Skipped, quarantined, or silently green on a swallowed error | Re-enable + de-flake; a skipped guard is no guard |
+   | `excluded` | A scenario exists but is `@sap`/env-tagged out of the green gate, so it never ran | Note for procedure step 8 — the gate's exclusion let a real regression through |
+   | `disabled/flaky` | Skipped, quarantined, passing only on a re-run, or silently green on a swallowed error | Re-enable + de-flake; a skipped guard is no guard |
    | `dodged-failure` | The test's author hit a real failure while writing it and reshaped the input/steps to avoid it (payload diverges from the real client's shape; often an in-test comment admits it) | Restore the faithful interaction so the test goes red on the defect; the dodge is itself a reportable finding — the failure it hid was a bug at authoring time |
 
-3. **Act on the class — and revise Phase 2 if needed.** For `weak-assertion` /
+3. **Act on the class — and revise procedure step 4 if needed.** For `weak-assertion` /
    `wrong-path` / `disabled/flaky`, prefer **fixing the existing scenario in place** over
-   the new Phase 2 sibling (a redundant sibling asserting the same weak thing is
+   the new procedure step 4 sibling (a redundant sibling asserting the same weak thing is
    gold-plating — drop it). Re-run that scenario **red-then-green** to prove it now
    catches this exact bug.
 
 4. **Record the miss class.** The lesson — names which guard failed and,
-   in Phase 3.5, which AFK stage under-specified it. Carry into Phase 4's report.
+   in procedure step 8, which AFK stage under-specified it. Put it into the
+   procedure's record.

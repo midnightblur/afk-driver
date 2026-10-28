@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 import pathlib
+import json
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -87,3 +89,34 @@ def test_a_toggle_with_a_bash_like_prefix_still_blocks(tmp_path: pathlib.Path, n
     result = run_gate(plugin)
     assert result.returncode == 2
     assert name in result.stderr
+
+
+# ---- check E: a CONTRACT.md names each verb whole ----------------------------
+CHECK_E = ROOT / "hooks" / "lib" / "adapter_registry_check.py"
+
+
+def check_e(tmp_path: pathlib.Path, operations: list[str], contract_verbs: list[str]) -> str:
+    kind = tmp_path / "adapters" / "fam" / "one"
+    kind.mkdir(parents=True)
+    (kind / "api.py").write_text("", encoding="utf-8")
+    (kind / "adapter.json").write_text(json.dumps(
+        {"operations": operations, "runner": {"type": "cli", "entry": "api.py"}}), encoding="utf-8")
+    (kind / "CONTRACT.md").write_text(
+        "## Verbs\n\n" + "".join(f"- `{v}`\n" for v in contract_verbs), encoding="utf-8")
+    (tmp_path / "CONFIG.md").write_text("| `fam` | `one` | x |\n", encoding="utf-8")
+    done = subprocess.run([sys.executable, str(CHECK_E), str(tmp_path)],
+                          capture_output=True, text=True, check=True)
+    return done.stdout
+
+
+@pytest.mark.parametrize("declared, listed", [
+    (["tracker_attach"], ["tracker_attachments"]),
+    (["tracker_attachments"], ["tracker_attach"]),
+])
+def test_check_e_matches_a_verb_name_whole(tmp_path: pathlib.Path, declared, listed) -> None:
+    assert f"CONTRACT.md never names {declared[0]}" in check_e(tmp_path, declared, listed)
+
+
+def test_check_e_passes_when_both_verbs_are_named(tmp_path: pathlib.Path) -> None:
+    both = ["tracker_attach", "tracker_attachments"]
+    assert check_e(tmp_path, both, both) == ""

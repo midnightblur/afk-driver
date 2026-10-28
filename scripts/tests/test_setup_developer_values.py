@@ -51,6 +51,23 @@ def cli(cwd, *args):
                           capture_output=True, text=True, timeout=120)
 
 
+@pytest.mark.parametrize("key, kinds", [("mrReviewer", {"forge": "github"}),
+                                         ("trackerAssignee", {"tracker": "jira"})])
+def test_a_recorded_none_person_is_answered_not_missing(tmp_path, key, kinds):
+    repo = make_repo(tmp_path, "a", **kinds)
+    assert cli(repo, "set", f"{key}=none").returncode == 0
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["keys"][key]["value"] is None
+    assert report["keys"][key]["source"] == "repository"
+    assert key not in report["missing"]
+
+
+def test_a_blank_reviewer_is_still_missing(tmp_path):
+    repo = make_repo(tmp_path, "a", forge="github")
+    dv.write_block(repo / ".git" / "afk" / "config.yaml", {"mrReviewer": "  "})
+    assert "mrReviewer" in json.loads(cli(repo, "status").stdout)["missing"]
+
+
 def test_a_repository_without_a_forge_keeps_the_machine_reviewer(tmp_path, home):
     a = make_repo(tmp_path, "a", forge="github")
     assert cli(a, "set", "mrReviewer=rev", "mrAssignee=me", "--machine").returncode == 0
@@ -186,3 +203,43 @@ def test_a_written_value_reads_back_as_the_same_string(tmp_path, value):
     config = dv.ac.parse(path.read_text(encoding="utf-8"), str(path))
     assert dv.ac.developer_value(config, "mrReviewer") == value
     assert not dv.ac.validate({"schema": 1, **config})
+
+
+def test_status_never_takes_a_value_from_the_committed_file(tmp_path):
+    repo = make_repo(tmp_path, "a", forge="github")
+    committed = repo / ".afk" / "config.yaml"
+    committed.write_text(committed.read_text(encoding="utf-8")
+                         + "developer:\n  mrReviewer: lead\n  worktreeBasePath: D:/team\n",
+                         encoding="utf-8")
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["keys"]["mrReviewer"]["value"] is None
+    assert "mrReviewer" in report["missing"]
+    assert report["keys"]["worktreeBasePath"]["source"] == "derived"
+    assert report["keys"]["worktreeBasePath"]["value"] != "D:/team"
+    assert any("committed file holds no developer" in p and str(committed) in p
+               for p in report["problems"])
+
+
+def test_status_names_a_misspelled_developer_key(tmp_path):
+    repo = make_repo(tmp_path, "a", forge="github")
+    shared = repo / ".git" / "afk" / "config.yaml"
+    shared.parent.mkdir(parents=True)
+    shared.write_text("developer:\n  mrReviwer: lead\n", encoding="utf-8")
+    report = json.loads(cli(repo, "status").stdout)
+    assert any("developer.mrReviwer" in p and str(shared) in p for p in report["problems"])
+
+
+def test_a_clean_repository_reports_no_problems(tmp_path):
+    repo = make_repo(tmp_path, "a")
+    assert json.loads(cli(repo, "status").stdout)["problems"] == []
+
+
+@pytest.mark.parametrize("narrow", ["developer:\n", "developer:\n  mrReviewer:\n"])
+def test_an_empty_checkout_block_keeps_the_machine_value_and_is_not_missing(tmp_path, narrow):
+    repo = make_repo(tmp_path, "a", forge="github")
+    assert cli(repo, "set", "mrReviewer=rev", "--machine").returncode == 0
+    (repo / ".afk" / "config.local.yaml").write_text(narrow, encoding="utf-8")
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["keys"]["mrReviewer"]["value"] == "rev"
+    assert "mrReviewer" not in report["missing"]
+    assert report["inherited"] == ["mrReviewer"]

@@ -9,74 +9,56 @@ description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportion
 
 Run when a bug surfaces — typically a feature's **verification phase** (agent- or human-found), or ad-hoc on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the follow-up to a red feature smoke gate.
 
-`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
+`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → failing test → spec comparison → root cause → verdict → fix proposal, and changes no product code. `fix` wraps that with **context intake**, **the test-first fix the proposal describes**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
-`fix` does **not** commit, push, or merge — see Hard rules.
+Phases 2 to 3.5 run steps 4 to 8 of the shared fix procedure, [IN-PLACE-FIX.md](IN-PLACE-FIX.md), with this skill as its caller. Its paths are any the fix needs. Its tiers are those whose tests the fix touched. Its working tree is the diagnosis worktree Phase 1 step 3 picks. Its spec folder is the one Phase 0 step 2 locates. Its running instance and restart command are the ones Phase 0 step 5 takes; with none after that step's asks, a live tier ends the procedure `blocked`. Hard rules lists which procedure rules bind.
 
 ## Argument
 
-A Jira bug key, free-text bug description, or nothing (infer the finding from conversation — e.g. a verification result just came back red).
+A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (infer the finding from conversation — e.g. a verification result just came back red).
 
 ## Phase 0 — Intake & classify
 
 1. **Source of the finding.**
    - **Jira bug** (key in arg or derivable from branch): `tracker_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (matching `git.branch-pattern`) (`{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
-3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+2. **Locate artifacts**, when the bug belongs to a feature: `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+3. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
+5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve, and whenever a live check (Phase 1 step 3, or procedure step 4, 5 or 6) is about to run while either one is still missing.
 
-## Phase 1 — Diagnose (delegate, do not duplicate)
+## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
-Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop (failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked hypotheses, instrumentation, the fix, the **seam-level regression test**, cleanup + post-mortem.
-
-- Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
-- Diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
+1. **Get the diagnosis.** A `DIAGNOSIS.md` path → run `afk-python ${AFK_PLUGIN_ROOT}/skills/utils/diagnose/scripts/check_diagnosis.py <path>`; a refusal → `blocked`; an accepted file is the diagnosis, used without running diagnose again. Otherwise run **`/afk:diagnose`**, handing it the ticket key when there is one, else the description, with everything from intake (repro steps, env, exact captured symptom) as context. A finding already in hand — a red tier, a review or adversary finding — asks for a light diagnosis that reuses it as the reproduction. Running in a linked worktree (`git rev-parse --git-dir` differs from `--git-common-dir`), hand diagnose that worktree and the starting-branch answer `branch tip`.
+   - Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
+2. **Route** on diagnose's status line (`DIAGNOSIS: <verdict> <path>`, its last line) or on a handed diagnosis's Verdict part:
+   - V-1 obvious fix → step 3.
+   - V-2 several fixes or V-3 spec gap whose latest size-call row for its Work id, across both grill sections of the `GRILL-LOG.md` beside it, is `still small` (`${AFK_PLUGIN_ROOT}/skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` "Size-call row") → step 3, applying the row's `settled:` answer as the Fix proposal.
+   - Any other V-2 or V-3, or V-4 works as specified, whose cause is a wrong binding SDD/ADR decision in a feature session → classify the change by `DECISIONS.md` (plugin root). A two-way door → record it per `DECISIONS.md` and go to step 3, with the recorded decision as the Fix proposal. A one-way door or a tie → stop with no code change: put that SDD or ADR into the procedure's record as a stale artifact, run Phase 3.5, then report `design_conflict`, naming the decision; a superseding ADR comes from `/afk:grill-solution` → `/afk:to-sdd`.
+   - Any other V-2, V-3 or V-4 → stop with no code change; report `blocked`, naming the verdict and the diagnosis path.
+   - V-5 cannot reproduce → stop; report `cannot_reproduce` with the diagnosis's Attempts.
+   - `DIAGNOSIS: blocked — <reason>` → stop; report `blocked` with that reason.
+3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: of the worktrees in `git worktree list` whose folder holds the `DIAGNOSIS.md` path, the one with the longest folder path (linked worktrees can sit inside the main checkout), else the one on the Diagnosis branch. Neither → cut one onto that branch (`${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`) when the branch holds the failing test (`git cat-file -e <Diagnosis branch>:<test path>`) or the diagnosis has none; else stop `blocked`, since a handed-over worktree kept the test uncommitted. A worktree fix may not edit (another session holds it) → stop `blocked`, naming it. Watch the failing test fail (it passes or does not build → stop `blocked`, naming the branch and the Base), apply the Fix proposal, watch it pass. A failing test that runs against the running instance follows [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Live tiers" for both runs; a result it returns → stop `blocked`, naming the check and the restart output. A light diagnosis's reused check, or a seam absence recorded in Root cause, plays the failing test's part. The failing test and `DIAGNOSIS.md` stay beside the fix for whoever commits it: the test becomes the regression test, and the diagnosis ships with the fix. A worktree fix did not start in stays for the human to commit from; the report names its path.
 
 Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
-Exit gate: root cause known, fix applied, seam regression test green (or seam-absence explicitly documented per diagnose Phase 5).
+Exit gate: verdict V-1, a V-2/V-3 whose latest size-call row is `still small`, or a wrong binding decision recorded as a two-way door (step 2); the Fix proposal applied, the diagnosis's failing test green (or the seam absence the diagnosis records in Root cause).
 
 ## Phase 2 — Broaden coverage (proportional)
 
-Diagnose gave you the seam regression test. Decide whether a **higher tier** is warranted. Add the **lowest tier that reproduces the bug pattern at its right home** — don't gold-plate.
-
-| Bug class | Add a test? | Where |
-|-----------|-------------|-------|
-| Cosmetic / copy / caption / one-off layout | No new e2e/api — rely on the seam unit test or static check | — |
-| Logic / calculation / mapping / null-handling | Yes, at the seam | `unit` / `integration` |
-| Contract / envelope / authz / status-code | Yes — it's a backend contract | `api` → the repository's `api` suite per `…/api/AUTHORING.md` |
-| User-visible flow that **escaped to the verification phase** | Yes — the journey had no guard | `e2e/browser` → the repository's `e2e/browser` suite per `…/ui-e2e/AUTHORING.md` |
-
-Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
-
-**Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). Standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
-
-**Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then procedure step 5, with the diagnosis's reproduction as the failure of procedure step 1. A check or reproduction still red there, or a `fail` or `blocked` return → report `blocked`, naming it.
 
 ## Phase 2.5 — Escape analysis
 
-Interrogate why the existing guard missed the bug and name the miss class — procedure + applicability: [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md). Carry the miss class into Phase 4's report.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 6. A `blocked` return → report `blocked`, naming it. Carry the miss class, when step 6 named one, into Phase 4's report.
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
-A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance). The reads that only locate which artifacts need reconciling (PRD / SDD / ADRs / VERIFICATION-PLAN) go through an `afk-reader` returning a cited digest of what each asserts vs the fix, per `DELEGATION.md` (plugin root); triage and routing stay here.
-
-| What the fix revealed | Stale artifact | Route to |
-|-----------------------|----------------|----------|
-| A behavior the PRD specifies was wrong / changed | `PRD.md` + requirement ADR | `/afk:to-prd` → `/afk:to-ticket` (republish) |
-| A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk:grill-solution` → `/afk:to-sdd` (superseding ADR under `adr/design/`) — this is a `design_conflict` |
-| The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
-| An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
-| The bug could not be reproduced (diagnose built no loop) | none — nothing to reconcile yet | back to the reporter/human with the repro-attempt evidence (what was tried, what's needed); report `cannot_reproduce` |
-
-Where a coverage ledger covers this bug's path, read its B13 rows for the statements the fix now contradicts (class semantics: `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`), and route each by the table above.
-
-Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. Can't reach truth this session → record the divergence and report `needs_artifact_sync`.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 7, then route each stale artifact it records to its owning skill; a shifted subtask contract is only named in the report. Its `design_conflict` → keep the fix in the tree (skip the procedure's revert), skip Phase 3.5 (procedure step 7 already ran procedure step 8), and report `design_conflict`, naming the kept fix and the lesson id step 8 recorded: nobody commits the fix before the superseding ADR lands. A stale artifact this session cannot reconcile → report `needs_artifact_sync`, naming it and its owning skill.
 
 ## Phase 3.5 — Workflow feedback
 
-Trace the miss to the AFK stage that under-specified the guard and **record** a structured workflow lesson in the lesson ledger (never self-applied) — procedure + applicability: [WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). Report the lesson id in Phase 4.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 8. Report the lesson id, when step 8 recorded one, in Phase 4.
 
 ## Phase 4 — Report
 
@@ -92,11 +74,11 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `fixed` | Root cause found, fix applied, regression test + any added tier green. |
 | `fixed_no_test` | Fix applied, no new test, naming the proportionality reason (e.g. caption fix) or the absent-seam finding from diagnose. |
 | `cannot_reproduce` | Diagnose couldn't build a loop; list what was tried and what's needed (env / artifact / instrumentation). |
-| `design_conflict` | Fix requires changing a frozen SDD/ADR decision; routed to `/afk:grill-solution`. |
+| `design_conflict` | The fix needs a frozen SDD/ADR decision changed, and that change is a one-way door or a tie; routed to `/afk:grill-solution`. A fix kept in Phase 3 stays uncommitted until the superseding ADR lands. |
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
-Phase 2.5 ran → add the **miss class** to the summary; Phase 3.5 ran → append the **lesson id** so the workflow-improvement lesson isn't lost:
+The record holds a miss class → add the **miss class** to the summary; procedure step 8 recorded a lesson → append the **lesson id** so the workflow-improvement lesson isn't lost:
 
 ```
 OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
@@ -104,9 +86,5 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 
 ## Hard rules
 
-- **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
-- **The target repo's AGENTS.md chain binds here** — notably its DB-migration and commit rules.
-- **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
-- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
-- **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).
-- Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted (diagnose Phase 6).
+- **[IN-PLACE-FIX.md](IN-PLACE-FIX.md) hard rules Uncommitted, AGENTS.md chain, Ownership, Lesson, Tier match and Cleanup bind every run of this skill.** The human commits, or the run that invoked this skill does.
+- Its rules No ticket, One result and Caller's paths do not: this skill writes the diagnosis's `DIAGNOSIS.md`, reports the Phase 4 statuses, changes any path the fix needs, and in Phase 3 runs the owning skill of a stale artifact.

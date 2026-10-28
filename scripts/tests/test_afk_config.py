@@ -213,6 +213,23 @@ def test_every_worktree_reads_the_same_shared_overlay(tmp_path, monkeypatch):
     assert cfg.developer_value(cfg.load(linked), "mrReviewer") == "someone"
 
 
+@pytest.mark.parametrize("key", ["trackerAssignee", "mrReviewer", "mrAssignee"])
+def test_a_repository_none_overrides_a_machine_person(tmp_path, key):
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True)
+    (home / ".afk" / "config.yaml").write_text(f"developer:\n  {key}: someone\n", encoding="utf-8")
+    root = repo(tmp_path)
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True, exist_ok=True)
+    shared.write_text(f"developer:\n  {key}: none\n", encoding="utf-8")
+    env = {"HOME": str(home), "USERPROFILE": str(home)}
+
+    out = run(["resolve", key], root, env)
+    assert (out.returncode, out.stdout) == (1, ""), out.stderr
+    shared.unlink()
+    assert run(["resolve", key], root, env).stdout.strip() == "someone"
+
+
 def test_shared_overlay_may_not_change_schema(tmp_path, monkeypatch):
     monkeypatch.delenv("AFK_CONFIG", raising=False)
     root = repo(tmp_path)
@@ -345,9 +362,11 @@ TYPOS = {
 @pytest.mark.parametrize("name,typo", sorted(TYPOS.items()))
 def test_an_unknown_child_key_is_refused_with_its_dotted_path(tmp_path, name, typo):
     root = repo(tmp_path, f"typo-{name}")
-    (root / ".afk" / "config.yaml").write_text(
-        f"schema: 1\n{name}:\n  {typo}: value\n", encoding="utf-8"
-    )
+    (root / ".afk" / "config.yaml").write_text("schema: 1\n", encoding="utf-8")
+    # The committed file may hold no developer block, so that typo sits in the checkout file.
+    target = "config.local.yaml" if name == "developer" else "config.yaml"
+    with (root / ".afk" / target).open("a", encoding="utf-8") as handle:
+        handle.write(f"{name}:\n  {typo}: value\n")
     done = run(["validate"], root)
     assert done.returncode == 2
     assert f"{name}.{typo}: unknown key" in done.stderr
@@ -487,3 +506,197 @@ def test_path_warnings_unit(tmp_path):
     assert cfg.path_warnings(config, None) == []
     assert cfg.path_warnings(config, tmp_path) == [
         "setup.extra: gone.md does not exist under the repository root"]
+
+
+# ---- developer settings contract (CONFIG.md "Developer settings (K1–K5)") ----
+
+def _home(tmp_path: Path, developer: str | None = None) -> dict:
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True, exist_ok=True)
+    (home / ".afk" / "config.yaml").unlink(missing_ok=True)
+    if developer is not None:
+        (home / ".afk" / "config.yaml").write_text(developer, encoding="utf-8")
+    return {"HOME": str(home), "USERPROFILE": str(home)}
+
+
+def _committed(tmp_path: Path, developer: str) -> Path:
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text("schema: 1\n" + developer, encoding="utf-8")
+    _commit(root)
+    return root
+
+
+def test_validate_refuses_a_developer_block_in_the_committed_file(tmp_path):
+    root = _committed(tmp_path, "developer:\n  mrReviewer: lead\n")
+    env = _home(tmp_path)
+    for args in (["validate"], ["validate", str(root / ".afk" / "config.yaml")]):
+        out = run(args, root, env)
+        assert out.returncode == 2, out.stderr
+        assert "committed file holds no developer" in out.stderr
+        assert str(root / ".afk" / "config.yaml") in out.stderr
+
+
+def test_an_empty_committed_developer_block_is_refused_too(tmp_path):
+    root = _committed(tmp_path, "developer:\n")
+    out = run(["validate"], root, _home(tmp_path))
+    assert out.returncode == 2 and "committed file holds no developer" in out.stderr
+
+
+def test_validate_accepts_a_developer_block_in_every_developer_layer(tmp_path):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path, "developer:\n  mrReviewer: mine\n")
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text("developer:\n  mrAssignee: me\n", encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text("developer:\n  ideBinary: x\n",
+                                                     encoding="utf-8")
+    out = run(["validate"], root, env)
+    assert out.returncode == 0, out.stderr
+    home_file = Path(env["HOME"]) / ".afk" / "config.yaml"
+    for path in (home_file, shared, root / ".afk" / "config.local.yaml"):
+        out = run(["validate", str(path)], root, env)
+        assert out.returncode == 0, (path, out.stderr)
+
+
+COMMITTED_TEAM = "developer:\n  mrReviewer: lead\n  worktreeBasePath: D:/team\n"
+
+
+def test_resolve_names_and_skips_a_committed_person(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
+    out = run(["resolve", "mrReviewer"], root, _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+    assert "committed file holds no developer" in out.stderr
+
+
+def test_the_machine_value_wins_over_a_committed_one(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
+    out = run(["resolve", "mrReviewer"], root, _home(tmp_path, "developer:\n  mrReviewer: mine\n"))
+    assert (out.returncode, out.stdout.strip()) == (0, "mine")
+
+
+def test_a_committed_worktree_base_is_not_read(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
+    derived = run(["resolve", "worktreeBasePath"], root, _home(tmp_path))
+    assert Path(derived.stdout.strip()).resolve() == (tmp_path / "repo-worktrees").resolve()
+    effective = run(["effective", "--json"], root, _home(tmp_path))
+    assert "developer" not in json.loads(effective.stdout)
+
+
+def test_afk_config_naming_the_committed_file_reads_no_developer(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
+    env = {**_home(tmp_path), "AFK_CONFIG": str(root / ".afk" / "config.yaml")}
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout) == (1, "")
+    assert out.stderr.count("committed file holds no developer") == 1
+
+
+def _separate_checkout(tmp_path: Path, name: str) -> Path:
+    checkout, store = tmp_path / "checkout", tmp_path / "store"
+    checkout.mkdir()
+    store.mkdir()
+    done = subprocess.run(["git", "init", "-q", "--separate-git-dir", str(store / name)],
+                          cwd=str(checkout), capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    return checkout
+
+
+def _separate_layout(tmp_path: Path, name: str, where: str) -> Path:
+    checkout = _separate_checkout(tmp_path, name)
+    linked = _linked_worktree(checkout, tmp_path / "linked")
+    return {"main": checkout, "linked": linked}[where]
+
+
+@pytest.mark.parametrize("where", ["main", "linked"])
+def test_a_separate_git_directory_not_named_git_derives_no_worktree_base(tmp_path, where):
+    out = run(["resolve", "worktreeBasePath"], _separate_layout(tmp_path, "x.git", where),
+              _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+
+
+@pytest.mark.parametrize("where", ["main", "linked"])
+def test_a_separate_git_directory_named_git_derives_beside_gits_main_worktree(tmp_path, where):
+    start = _separate_layout(tmp_path, ".git", where)
+    out = run(["resolve", "worktreeBasePath"], start, _home(tmp_path))
+    assert out.returncode == 0, out.stderr
+    listed = subprocess.run(["git", "-C", str(start), "worktree", "list", "--porcelain"],
+                            capture_output=True, text=True, check=True).stdout
+    main = Path(listed.splitlines()[0].removeprefix("worktree "))
+    assert Path(out.stdout.strip()).resolve() == (main.parent / (main.name + "-worktrees")).resolve()
+    assert main.resolve() == (tmp_path / "store").resolve()
+
+
+def _linked_worktree(checkout: Path, where: Path) -> Path:
+    git = ["git", "-C", str(checkout), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "x"], check=True)
+    subprocess.run(git + ["worktree", "add", "-q", str(where)], check=True)
+    return where
+
+
+def test_a_linked_worktree_derives_the_main_checkouts_base(tmp_path):
+    root = _committed(tmp_path, "")
+    linked = _linked_worktree(root, tmp_path / "linked")
+    paths = [run(["resolve", "worktreeBasePath"], where, _home(tmp_path)) for where in (root, linked)]
+    assert [p.returncode for p in paths] == [0, 0], [p.stderr for p in paths]
+    assert {Path(p.stdout.strip()).resolve() for p in paths} == {(tmp_path / "repo-worktrees").resolve()}
+
+
+def test_validate_names_a_blank_misspelled_key(tmp_path):
+    root = _committed(tmp_path, "")
+    (root / ".afk" / "config.local.yaml").write_text("developer:\n  mrReviwer:\n",
+                                                     encoding="utf-8")
+    out = run(["validate"], root, _home(tmp_path))
+    assert out.returncode == 2 and "developer.mrReviwer: unknown key" in out.stderr
+
+
+def test_a_bare_clone_derives_no_worktree_base(tmp_path):
+    root = _committed(tmp_path, "")
+    bare = tmp_path / "bare.git"
+    subprocess.run(["git", "clone", "-q", "--bare", str(root), str(bare)], check=True,
+                   capture_output=True)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(bare), "worktree", "add", "-q", str(linked)], check=True,
+                   capture_output=True)
+    for cwd in (bare, linked):
+        out = run(["resolve", "worktreeBasePath"], cwd, _home(tmp_path))
+        assert (out.returncode, out.stdout) == (1, ""), (cwd, out.stdout)
+
+
+def test_a_bare_repository_named_dot_git_derives_nothing_either(tmp_path):
+    root = _committed(tmp_path, "")
+    holder = tmp_path / "holder"
+    holder.mkdir()
+    subprocess.run(["git", "clone", "-q", "--bare", str(root), str(holder / ".git")],
+                   check=True, capture_output=True)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(holder / ".git"), "worktree", "add", "-q", str(linked)],
+                   check=True, capture_output=True)
+    out = run(["resolve", "worktreeBasePath"], linked, _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+
+
+@pytest.mark.parametrize("layer", ["home", "shared", "local"])
+def test_resolve_names_a_misspelled_developer_key_in_any_layer(tmp_path, layer):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path)
+    path = {"home": Path(env["HOME"]) / ".afk" / "config.yaml",
+            "shared": cfg.shared_overlay(root),
+            "local": root / ".afk" / "config.local.yaml"}[layer]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("developer:\n  mrReviwer: lead\n", encoding="utf-8")
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout) == (1, "")
+    assert "developer.mrReviwer" in out.stderr and str(path) in out.stderr
+
+
+@pytest.mark.parametrize("narrow", ["developer:\n", "developer:\n  mrReviewer:\n",
+                                    "developer:\n  mrReviewer: ''\n"])
+def test_an_empty_narrower_developer_block_erases_nothing(tmp_path, narrow):
+    root = _committed(tmp_path, "")
+    env = _home(tmp_path, "developer:\n  mrReviewer: mine\n")
+    (root / ".afk" / "config.local.yaml").write_text(narrow, encoding="utf-8")
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text(narrow, encoding="utf-8")
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout.strip()) == (0, "mine"), out.stderr
+    assert run(["validate"], root, env).returncode == 0

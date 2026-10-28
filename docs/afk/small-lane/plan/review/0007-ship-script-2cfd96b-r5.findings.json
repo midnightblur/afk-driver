@@ -1,0 +1,72 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros)",
+  "severity": "high",
+  "class": "test",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 664,
+  "side": "new",
+  "finding": "The new rebase clause counts a rebase result as made only when the fetched tip does not hold it, and no test re-runs land after such a push took effect. A probe shows land refuses its own rebased fix on a re-run where the push landed but the Outside writes line was not written, while the same re-run for a plain fix answers `found`.",
+  "why": "ADR-0003 says a run can stop between writes and be re-run, and re-runs must be safe: \"A run can stop between writes and be re-run\" (docs/afk/small-lane/adr/design/0003-outside-writes-run-as-named-steps-with-read-back.md:10); \"re-runs are safe\" (same file:51). The fast-forward tests cover this for a plain fix (scripts/tests/test_ship.py `test_fast_forward_land_finds_its_push_under_a_later_commit`) but not for the rebase path this delta adds.",
+  "fix": "Add a test: land_case, moved_feature, rebase onto origin/FEATURE, push HEAD to FEATURE by hand, run land, and assert status `done` with how `found` and the push listed. Then change the rebase test in _carries_a_fix so a rebase result already on the fetched tip still counts when it is HEAD's own push (for example, judge a rebase by its replayed commits, not by the tip).",
+  "evidence": "skills/afk/fix/scripts/ship.py:663-664 `if action in MADE_HERE or (\"rebase\" in action and action.endswith(\"(finish)\") and _git(` / `cwd, \"merge-base\", \"--is-ancestor\", sha, tip, check=False).returncode == 1):`; ship.py:619 `_carries_a_fix(cwd, d, head, _git(cwd, \"rev-parse\", \"FETCH_HEAD\").stdout.strip())`. Probe (committed ship.py at da6bbcab, copied under the scratch folder, test `test_probe_rerun_after_a_rebased_fix_was_pushed`: land_case; moved_feature; git rebase origin/feat/export; git push HEAD:refs/heads/feat/export; run land) answered `{'step': 'land', 'status': 'refused', 'reason': 'none of the 2 commits past the Base commit e57de0136278c2454aae65a971039113d7b172d9 was made on fix/bug-export-drops-row, so land would ship no fix'}`; the same probe without the rebase (`test_probe_rerun_after_a_plain_fix_was_pushed`) passed with how `found`."
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 619,
+  "side": "new",
+  "finding": "A re-run of land after a rebased fix was already pushed (the push took effect but its entry was never written) now refuses instead of answering done/found. The fix check now runs against the fetched tip, and that tip already holds the rebase result, so the one reflog entry that made the fix is dropped. The previous code counted every `rebase (finish)` entry, so this recovery path worked before the delta.",
+  "why": "SDD.md:365 makes the rebase the designed path for a moved tip (\"A moved tip -> one rebase, every tier again, push\"), and SDD.md:97 says a re-run \"skips listed outside writes\" and reads back before writing; the `contained=True` read-back in `_push` (ship.py:378) exists to answer `found` for a push that already landed.",
+  "fix": "Decide whether a rebase result is the branch's own work from the reflog subject, not from the fetched tip: count a `rebase ... (finish): refs/heads/{branch} onto {sha}` entry when its commit differs from the `onto` commit (a rebase that replayed commits), and drop the `tip` argument. Add a test: land_case, moved_feature, rebase, push HEAD to the feature branch by hand, run land, expect done with how=found.",
+  "evidence": "ship.py:619 `_carries_a_fix(cwd, d, head, _git(cwd, \"rev-parse\", \"FETCH_HEAD\").stdout.strip())`; ship.py:663-664 `if action in MADE_HERE or (\"rebase\" in action and action.endswith(\"(finish)\") and _git(cwd, \"merge-base\", \"--is-ancestor\", sha, tip, check=False).returncode == 1):`. Probe (scratch r5ds-probe/test_r5ds_probe.py::test_probe1_rerun_after_rebased_fix_was_pushed, copy of the test helpers, worktree untouched): land_case + moved_feature + `git rebase origin/feat/export` + `git push origin HEAD:refs/heads/feat/export`, then land -> `{'step': 'land', 'status': 'refused', 'reason': 'none of the 2 commits past the Base commit bbfda08d... was made on fix/bug-export-drops-row, so land would ship no fix'}`. Control probe with a plain (not rebased) fix commit -> done. Old line removed by the delta: `if not subject.startswith((\"reset:\", \"branch:\")) and \"Fast-forward\" not in subject}` counted `rebase (finish)`."
+ },
+ {
+  "id": "r-003",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 663,
+  "side": "new",
+  "finding": "A Diagnosis branch with no fix commit that is rebased onto another branch (one that descends from the Base commit) passes the fix check, and land pushes that other branch's commits onto the feature branch. The rebase only fast-forwards, but its result is not in the fetched feature tip, so the new rule counts it as a fix. The delta closed this hole for a fast-forward onto the feature tip (test_fast_forward_land_refuses_a_branch_rebased_onto_a_newer_tip_with_no_fix) but not for a fast-forward onto any other branch.",
+  "why": "The delta's own contract for the check, ship.py:645-646: \"Refuse a land with no commit past the Base commit that the Diagnosis branch made\"; ADR 0006 line 14: \"`/afk:fix` commits on the diagnosis branch made from its tip\" and lands that fix, not another branch's commits.",
+  "fix": "Same change as delta-sweep-001: count a rebase-finish entry only when its commit differs from the `onto` commit in the subject (`rebase (finish): refs/heads/{branch} onto {sha}`); a fast-forward rebase has commit == onto. Add a test that rebases a branch with no fix onto a second branch built from the Base commit and expects `refused`.",
+  "evidence": "ship.py:663-665 `if action in MADE_HERE or (\"rebase\" in action and action.endswith(\"(finish)\") and _git(cwd, \"merge-base\", \"--is-ancestor\", sha, tip, check=False).returncode == 1): made.add(sha)`. Probe (scratch r5ds-probe/test_r5ds_probe.py::test_probe2_rebase_with_no_fix_onto_another_branch): branch reset to origin/feat/export, stranger pushes one commit to feat/other from that tip, `git rebase origin/feat/other`, land -> `{'step': 'land', 'status': 'done', 'push': 'feat/export@2f84b0e3...', 'how': 'pushed'}`. Branch reflog after the rebase: `2f84b0e3... rebase (finish): refs/heads/fix/bug-export-drops-row onto 2f84b0e3...`; `git rev-parse origin/feat/other` -> `2f84b0e3...` (commit equals onto: no commit replayed)."
+ },
+ {
+  "id": "r-004",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros)",
+  "severity": "medium",
+  "class": "test",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 77,
+  "side": "new",
+  "finding": "MADE_HERE lists 6 reflog actions, but the tests exercise only `commit`. A mutant that cuts MADE_HERE to {\"commit\"} passes all 30 land tests, so an amended, cherry-picked or reverted fix commit can stop landing with no test failing.",
+  "why": "The docstring this delta writes promises these paths: \"a commit, cherry-pick or revert in its reflog\" (skills/afk/fix/scripts/ship.py:646-647). Checklist: \"multi-branch acceptance logic with one sunny test ... add the boundary/negative cases\" (skills/afk/review/checklists/test-veracity.md:10).",
+  "fix": "Add a parametrized land test over the fix commit's origin: plain commit, `commit --amend` of the fix, `cherry-pick` of a fix from another branch, and `revert` of a bad commit; each asserts status `done` and the push listed.",
+  "evidence": "skills/afk/fix/scripts/ship.py:77-78 `MADE_HERE = {\"commit\", \"commit (amend)\", \"commit (merge)\", \"commit (initial)\", \"cherry-pick\",` / `\"revert\"}`. Mutation probe: copy of ship.py at da6bbcab with `MADE_HERE = {\"commit\"}`, test file run with `-k land`: `30 passed, 65 deselected`. Reflog check in a scratch repository shows git writes these actions: `revert: Revert \"b\"`, `cherry-pick: b`, `commit (amend): c2`, `commit: c`. With the mutant, an amended fix leaves only the pre-amend sha (not in Base..HEAD) as made, so land refuses."
+ },
+ {
+  "id": "r-005",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_ship.py",
+  "line": 943,
+  "side": "new",
+  "finding": "The new Base commit floor test pins only the refused side (6 characters); no test lands with a commit id of exactly 7 characters. A mutant that raises the floor to 8 passes all 30 land tests.",
+  "why": "Checklist: \"no off-boundary values around new comparisons → add the boundary/negative cases\" (skills/afk/review/checklists/test-veracity.md:10). The delta commit names the floor as tested: \"tests pin auto, the Base commit floor\" (commit da6bbcab subject).",
+  "fix": "Parametrize the test over the id length: `start[:6]` refused with \"names no commit\", `start[:7]` landed with status `done`.",
+  "evidence": "scripts/tests/test_ship.py:943 `path = diagnosis(tmp_path, Base=f\"{FEATURE}@{start[:6]}\")`; skills/afk/fix/scripts/ship.py:286 `commit = re.search(r\"\\b[0-9a-fA-F]{7,40}\\b\", rest[0]) if rest else None`. Mutation probe: copy of ship.py at da6bbcab with `{8,40}`, test file run with `-k land`: `30 passed, 65 deselected`."
+ }
+]

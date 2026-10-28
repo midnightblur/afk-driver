@@ -1,0 +1,72 @@
+[
+ {
+  "concern": "scope-and-impact",
+  "criterion": "every changed path matches a ## Scope glob",
+  "severity": "medium",
+  "class": "scope",
+  "file": "docs/afk/small-lane/SDD.md",
+  "line": 117,
+  "side": "new",
+  "finding": "The delta edits docs/afk/small-lane/SDD.md (lines 117 and 133), but no glob in contract 0004 ## Scope names SDD.md, and D-39 widens Scope only for DIAGNOSIS-FORMAT.md.",
+  "why": "/afk:execute hard rule: 'Stay inside Scope globs. If work requires going outside, stop with detail' (skills/afk/execute/SKILL.md:147). D-39 Chosen names 'the two SDD §4 \"Diagnosis branch\" rows' as text to edit, but its Supersedes line records a Scope addition only for the format file. Every earlier out-of-Scope edit in this plan got its own Scope entry in a Supersedes line (D-2 line 42, D-3 line 56, D-17 line 119, D-28 line 196, D-30 line 210). SDD.md is the /afk:to-sdd artifact and had no edit after it was created (git log: 8bd1d496 and then only 5781d42b), so later slices that cite SDD §4 now read text that no Scope entry covers. Inferred: the human authorized the content of the edit through D-39 Chosen; the gap is in the Scope record, not in the decision.",
+  "fix": "Have the human add SDD.md (rows 'Diagnosis branch' in §4) to D-39's Scope widening, in a new ledger entry because the ledger is append-only, or revert the two SDD rows and keep the D-38-style override for the SDD.",
+  "evidence": "SDD.md:117 '| Diagnosis branch | local git branch of the diagnosis worktree, read from `git worktree list`, made from the Base tip |'; SDD.md:133 '| Diagnosis branch | branch name | no | the diagnosis worktree's branch, read from `git worktree list`, made from the Base tip |'; DECISIONS.md:273 'contract 0004 \"## Scope\" list — adds `skills/utils/diagnose/DIAGNOSIS-FORMAT.md`' (no SDD.md); 0004-diagnose-rewrite.md:14-26 Scope list has no SDD.md",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/DIAGNOSIS-FORMAT.md",
+  "line": 17,
+  "side": "new",
+  "finding": "The edited format row still says the Diagnosis branch is 'made from the Base tip'. D-39 states the row now holds for a worktree that step 2 receives. For that worktree, diagnose makes no branch, and the exception lives only in the ledger (D-18), which D-39 itself rejects as a home.",
+  "why": "D-39 moves the rule for a cut worktree into the shipped format file because 'the ledger is deleted with plan/ after merge, and readers of the format file never see it'. The handed-worktree exception to the same row stays ledger-only: D-18 'Supersedes: ... DIAGNOSIS-FORMAT.md \"branch name from the branch template, made from the Base tip\" — not for a worktree the invoker hands over'. D-39 also retargets that exception to the edited text ('D-17's and D-18's quotes of these passages now name the edited text') while it says the row 'holds ... for one step 2 receives'. These two statements conflict. After merge, a reader of the format row cannot see that a handed branch is the invoker's own branch, which diagnose does not make (SKILL.md:33 'its branch is the Diagnosis branch, and Base is that branch and its tip commit').",
+  "fix": "Put the handed case into the row, for example: 'branch name of the diagnosis worktree, read from `git worktree list`; made from the Base tip when diagnose cuts the worktree, the handed branch itself otherwise'. Then add a D-39 Supersedes clause that lifts D-18's narrowing of this row, in place of the Chosen-line retarget.",
+  "evidence": "DIAGNOSIS-FORMAT.md:17 '| Diagnosis branch | branch name of the diagnosis worktree, read from `git worktree list`, made from the Base tip |'; DECISIONS.md:272 'That holds for a worktree step 4 cuts and for one step 2 receives. D-17's and D-18's quotes of these passages now name the edited text.'; DECISIONS.md:126 (D-18) '... — not for a worktree the invoker hands over'",
+  "id": "r-002"
+ },
+ {
+  "concern": "scope-and-impact",
+  "criterion": "no unrelated churn; Scope record consistent",
+  "severity": "low",
+  "class": "scope",
+  "file": "docs/afk/small-lane/plan/0004-diagnose-rewrite.md",
+  "line": 26,
+  "side": "new",
+  "finding": "The delta adds DIAGNOSIS-FORMAT.md to the contract's ## Scope list in place, while D-17's earlier Scope addition (skills/afk/fix/WORKFLOW-FEEDBACK.md, which this slice edits) stays only in the ledger. The list now looks complete but omits 1 of the 2 widened files.",
+  "why": "Every earlier Scope widening in this plan (D-2, D-3, D-17, D-28, D-30) was recorded only as a ledger Supersedes line and the contract list was left alone. D-39 both edits the list and records the same addition as a Supersedes line, so the plan now has two homes for the Scope with different contents. A reviewer or an execute run that reads ## Scope alone counts WORKFLOW-FEEDBACK.md as out of Scope. The full slice diff edits that file (full diff header 'diff --git a/skills/afk/fix/WORKFLOW-FEEDBACK.md').",
+  "fix": "Keep one home: either revert line 26 and rely on D-39's Supersedes line, as for the other widenings, or (by human decision) also list skills/afk/fix/WORKFLOW-FEEDBACK.md in ## Scope.",
+  "evidence": "0004-diagnose-rewrite.md:26 '- skills/utils/diagnose/DIAGNOSIS-FORMAT.md'; no WORKFLOW-FEEDBACK.md line in 0004-diagnose-rewrite.md:14-26; DECISIONS.md:119 'contract 0004 \"## Scope\" list — adds `skills/afk/fix/WORKFLOW-FEEDBACK.md`'; DECISIONS.md:273 'contract 0004 \"## Scope\" list — adds `skills/utils/diagnose/DIAGNOSIS-FORMAT.md`'",
+  "id": "r-003"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "docs/afk/small-lane/plan/DECISIONS.md",
+  "line": 272,
+  "side": "new",
+  "finding": "D-39 changes what D-17's and D-18's Supersedes lines quote in its Chosen line, not in a Supersedes line. Their quoted passages no longer exist in the SDD or the format file.",
+  "why": "The protocol says a Supersedes line overrides the exact passage it quotes (root DECISIONS.md:52). D-17 and D-18 quote 'from the branch template' text that the delta removed. Their exact-match overrides now resolve to nothing. The retarget lives in D-39's Chosen prose, which the protocol gives no override effect.",
+  "fix": "List D-17's and D-18's Supersedes lines in D-39's Supersedes line, each with its new quote. Or drop the retarget if the format row carries the handed case (see the medium finding).",
+  "evidence": "DECISIONS.md:272 'D-17's and D-18's quotes of these passages now name the edited text.'; DECISIONS.md:273 Supersedes lists D-38 lines, contract 0004 Scope and D-37 'To reverse', but not D-17 or D-18; root DECISIONS.md:52 'A `Supersedes:` line overrides the exact spec passage it quotes'",
+  "id": "r-004"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "docs/afk/small-lane/plan/DECISIONS.md",
+  "line": 274,
+  "side": "new",
+  "finding": "D-39's undo line restores the 'from the branch template' clauses but does not restore D-38's Supersedes and To reverse lines. D-39 supersedes those lines whole.",
+  "why": "After the undo, the format, SDD and contract text again says 'from the branch template'. Step 4 still reads the branch from `git worktree list` (SKILL.md:35), and no ledger line overrides the old text, because D-38's override stays superseded. The conflict that D-38 settled comes back with nothing to settle it.",
+  "fix": "Extend the undo line: '...; D-38's Supersedes and To reverse lines then govern again'.",
+  "evidence": "DECISIONS.md:273 'Supersedes: D-38 \"Supersedes:\" and \"To reverse:\" lines, whole'; DECISIONS.md:274 'To reverse: restore the \"from the branch template\" clause in each passage this entry edits, and remove `skills/utils/diagnose/DIAGNOSIS-FORMAT.md` from contract 0004 \"## Scope\"'",
+  "id": "r-005"
+ }
+]

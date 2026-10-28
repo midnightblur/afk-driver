@@ -37,6 +37,84 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- A tenth tracker verb, `tracker_attach`, on every tracker kind and on the
+  `tracker` MCP server. It posts one comment with the given files. Jira
+  uploads each file with its real content type, reads back each stored name
+  and type, and names a difference in the comment. GitHub Issues shows each
+  image or video inline through `gh issue comment --attach`; another file
+  type, GitHub Enterprise Server, gh older than 2.99.0 and a login without
+  write access leave the file named in the comment. `/afk:setup` checks the gh
+  floor (register row C3c). The dependency set changed.
+- `/afk:to-ticket` bug and ad-hoc mode (`BUG-MODE.md`,
+  `scripts/publish_bug_mode.py`). It creates or updates a bug or ad-hoc ticket
+  on Jira or GitHub Issues from a `DIAGNOSIS.md` or a description file, posts
+  evidence comments and proof files, moves the ticket to the configured
+  in-review state and backfills the Jira fix version. It checks the type, the
+  key, the fix version and an existing ticket's in-review state before any
+  write, and a created ticket's in-review state right after the create. It
+  runs only with a person present or a prior approval, lists each write but
+  the fix version in the diagnosis's Outside writes, and finds an earlier
+  write by its evidence marker instead of repeating it.
+- A ship script beside `/afk:fix` (`skills/afk/fix/scripts/ship.py`), one
+  named step per run over a `DIAGNOSIS.md`. `open` pushes the Diagnosis branch,
+  opens one Draft change onto the Base branch (or reuses the one the branch
+  already has) and posts the change's reasons. `proof` posts one comment with
+  P-1, P-2 and a link to the ticket's evidence comment. `ready` waits for CI
+  (`ci-wait`, every 180 s for at most 90 minutes) and marks the change ready
+  and adds the `mrReviewer` only when CI is green; red, timeout, unreadable and
+  no CI leave it Draft with the reason. `land` pushes a fix onto the feature
+  branch it started from, only as a fast-forward and never forced. Each write
+  is listed in the diagnosis's Outside writes, a re-run skips it, a failed
+  write is read back before its retry, and a protected push target or an empty
+  change id is refused, as is `land` onto the repository's base branch.
+
+### Changed
+
+- GitLab `change-reviewers` adds the reviewer to the merge request's list
+  instead of replacing the list, as GitHub already did.
+- GitLab `change-view` no longer reports a project the token cannot read
+  (`404 Project Not Found`) as a missing change; it is a failed lookup.
+
+- `/afk:diagnose` no longer fixes. It reproduces the bug with a failing test,
+  compares it with the specs, names the root cause and writes `DIAGNOSIS.md`
+  with a verdict and a fix proposal, working in its own worktree on a local
+  branch it never pushes, or in the worktree its invoker hands over. It ends
+  with `DIAGNOSIS: <verdict> <path>` and, run alone, offers the next step.
+  `/afk:fix` now applies the proposal test-first and also takes a
+  `DIAGNOSIS.md` path.
+  Migration: a caller that relied on diagnose to fix runs `/afk:fix` instead.
+- `/afk:grill-requirements` and `/afk:grill-solution` accept a `DIAGNOSIS.md`
+  and end with a size call (`skills/afk/grill-requirements/SIZE-CALL.md`),
+  recorded as a size-call row in their grill-log section: a still-small bug
+  goes back to `/afk:fix`, a bigger one into the full chain.
+- Jira `tracker_create` and `tracker_comment` send Markdown as formatted text
+  (Atlassian Document Format headings, lists, code blocks and links), not one
+  plain paragraph.
+- A value the tracker does not know is refused before any write.
+  `tracker_transition` takes a transition name, an id, or a key of
+  `jira.transitions` / `github-issues.state-labels`, and refuses one the work
+  item does not offer. Jira refuses an unknown fix version on create and edit;
+  when the project or its versions cannot be read it writes and answers
+  `fix_version_warning`.
+  GitHub Issues refuses an unknown `status` on create, which it ignored before.
+- The `afk-config.py init` scaffold names the Jira in-review transition
+  `in-review`, the key GitHub Issues already uses. Migration: a repository
+  that copied `ready-for-review` under `jira.transitions` renames it to
+  `in-review`.
+- The adapter registry check matches verb names whole: `tracker_attach` no
+  longer counts as named by a contract that names only `tracker_attachments`.
+
+- The developer settings K1–K5 (`trackerAssignee`, `mrReviewer`,
+  `worktreeBasePath`, `ideBinary`, `mrAssignee`) are documented in `CONFIG.md`
+  "Developer settings (K1–K5)", with the same ids, names and meanings. A
+  literal `none` now reads as unset for `trackerAssignee` and `mrReviewer` too,
+  not only for `mrAssignee`, and still counts as an answer for `/afk:setup`. A
+  missing assignee or reviewer is asked for when you are in the session; a
+  hands-off run leaves it unset and names it in its report. `/afk:bug` keeps
+  its own stricter stop rules on its page.
+
 ### Fixed
 
 - Concurrent worktree creation now uses a conditional Git-ref lock. A waiter
@@ -48,6 +126,19 @@ release page from its section here. Nobody tags by hand.
 - `/afk:adversary` fakes outside services with in-process fakes, local servers
   or script stubs, and never builds an executable that endpoint security
   quarantines.
+- A `developer:` block in the committed `.afk/config.yaml` is no longer read:
+  `afk-config.py validate` refuses it and names the file, and `resolve`,
+  `developer_values.py status` and the `/afk:setup` H6 probe ignore its
+  values. Migration: move such a block to `<git common dir>/afk/config.yaml`
+  or `~/.afk/config.yaml`.
+- A bare clone, or a repository whose git directory is not a folder named
+  `.git` (a submodule, most separate git directories), no longer derives
+  `worktreeBasePath`; set the key.
+- A misspelled key under `developer:` is named, with its file, by `resolve`
+  on stderr, by `developer_values.py status` and by the H6 probe, not only by
+  `validate`.
+- An empty `developer:` block, or a blank key, in a narrower layer no longer
+  erases the broader layers' values.
 
 ## [1.16.1] - 2026-10-27
 
@@ -74,6 +165,20 @@ release page from its section here. Nobody tags by hand.
   and a `find` value after another predicate's value are now refused.
 - Inline rationale comments now resolve before their batch receipt is recorded.
   A failed resolution stays pending and retries without another comment.
+- A review round whose merged finding names its concerns as a list can be
+  summarized again. `forge_ledger.py post` stores the list as one
+  comma-joined string, reads a list already on the change the same way, and
+  refuses a concern that names nothing.
+- A settled review whose fix commit left out its `Settles:` trailer can close.
+  `forge_ledger.py gate --phase closure` accepts the trailer on the fix commit
+  or on a later commit between it and the head, so the missing trailer is
+  added by committing it, without rewriting pushed history.
+- A settled review closes after the branch is rebased. When a recorded fix
+  commit is no longer in the head's history, `gate --phase closure` accepts a
+  commit in that history whose message carries the key's `Settles:` line.
+- On Windows, the GitHub Issues tracker sends issue and comment bodies to `gh`
+  as UTF-8. A character outside the Windows code page no longer hangs
+  `tracker_comment`, `tracker_create` or `tracker_attach`.
 
 ## [1.16.0] - 2026-10-20
 

@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep,refactor-safety",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/utils/diagnose/SKILL.md",
+  "line": 34,
+  "side": "new",
+  "finding": "The new 'worktree without a diagnosis' block tells the person only to 'remove' the worktree, but a stopped run also leaves its owner record and its branch, and a plain removal (`git worktree remove`) clears neither, so the retry still dead-ends at step 4.",
+  "why": "create-worktree refuses `--name` while the record exists (scripts/create-worktree:473 'worktree name ... is already taken') and while the branch exists (:474). The session-start prune drops a record whose folder is gone without deleting its branch (scripts/remove-worktree.py prune: `if not path.is_dir(): drop_record(record_file)`). After a plain removal the next run therefore ends `blocked` (branch exists): no DIAGNOSIS.md was ever committed on that branch, because Phase 7 commits only after writing the file.",
+  "fix": "Name the removal that clears all three in the blocked reason, e.g. `${AFK_PLUGIN_ROOT}/scripts/remove-worktree.py --path <path> --force` (it drops the record and the branch when the branch holds no commit of its own), and add it to D-23's Chosen.",
+  "evidence": "+Such a worktree with no `DIAGNOSIS.md` (a run that stopped before writing it, or someone else's work) → `blocked` (worktree without a diagnosis), naming its path for the person to remove or hand over (step 2).",
+  "id": "r-001"
+ }
+]

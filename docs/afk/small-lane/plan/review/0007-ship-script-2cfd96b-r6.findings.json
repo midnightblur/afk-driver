@@ -1,0 +1,30 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity,delta-sweep",
+  "criterion": "Happy-path-only (Meszaros) — no off-boundary case around the new `onto != sha` comparison (open question)",
+  "severity": "high",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 664,
+  "side": "new",
+  "finding": "A rebase that drops the fix commit still counts as a fix: its result differs from its onto commit, so the commit it lands on (a stranger commit already on the branch) joins `made` and land pushes it to the feature branch with status done. A probe test on a scratch copy of 98b56d00 proved it; no delta test covers a rebase whose result is a commit the branch already held.",
+  "why": "skills/afk/fix/scripts/ship.py:646-647: \"Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit, cherry-pick or revert in its reflog, or a rebase that replayed commits (result != onto).\" A rebase that only dropped commits replayed nothing, yet the check accepts it.",
+  "fix": "Count a `rebase (finish)` result only when it is neither the onto commit nor an ancestor of the branch's previous reflog entry (`git merge-base --is-ancestor <result> <previous>` exits 1), and add a test: feature tip -> ff-merge a commit from another branch -> commit the fix -> `git -c \"sequence.editor=sed -i /fix.txt/d\" rebase -i <start>` -> land must be refused with `was made on` and the remote tip unchanged.",
+  "evidence": "skills/afk/fix/scripts/ship.py:663-666: `        onto = re.search(r\" onto ([0-9a-f]{40,64})\\b\", rest)` / `        if action in MADE_HERE or (\"rebase\" in action and action.endswith(\"(finish)\")` / `                                   and onto is not None and onto.group(1) != sha):` / `            made.add(sha)`. Probe (scratch copy of 98b56d00, test `test_tv_probe_rebase_that_drops_the_fix_is_not_a_fix`): reflog `7e7192957e27 rebase (finish): refs/heads/fix/bug-export-drops-row onto ab4ecfc64476` after `7e7192957e27 merge other-work: Fast-forward`; result `{'step': 'land', 'status': 'done', 'push': 'feat/export@7e7192957e27e845040cc859a51c11079fb11725', 'how': 'pushed'}` — the pushed commit is the other-work commit, with no fix. || also (delta-sweep, medium): A rebase whose result is a commit the branch already held (for example `rebase -i` that drops the developer's own fix and leaves a stranger's commit on top) now counts as a fix, because result != onto holds for any reused commit. Probe (scratch r6ds-probe/test_probe.py, git 2.53.0.windows.2): branch reset to the feature tip, `merge --ff-only` of a stranger's newer feature commit, own fix commit, then `rebase -i HEAD~2` dropping the fix; land at 98b56d00 returns `{'status': 'done', 'how': 'found'}` and writes `push: feat/export@<stranger commit>`, while the previous code (da6bbcab) refused with 'none of the 1 commits past the Base commit ... was made on fix/bug-export-drops-row'."
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic (Meszaros)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_ship.py",
+  "line": 947,
+  "side": "new",
+  "finding": "The reshaped 7-character test picks its asserts with `if status == \"refused\"` / `else`, and the refused branch no longer checks that nothing was written to the diagnosis (the replaced test asserted `entries(path) == []`); the done branch never checks the push entry.",
+  "why": "skills/afk/review/checklists/test-veracity.md: \"**Conditional test logic** (Meszaros) — `if`/loops/`try` steering the asserts inside a test body → split or parameterize.\"",
+  "fix": "Parametrize the expected outcome instead of branching: e.g. `(6, \"refused\", before, [])` and `(7, \"done\", head, [f\"push: {FEATURE}@{head}\"])`, then assert status, `remote_tip(repo, FEATURE) == tip` and `entries(path) == expected` unconditionally (plus the reason fragment for the refused row), or split into two tests.",
+  "evidence": "scripts/tests/test_ship.py:946-950: `    assert result[\"status\"] == status, result` / `    if status == \"refused\":` / `        assert \"names no commit\" in result[\"reason\"] and remote_tip(repo, FEATURE) == before` / `    else:` / `        assert remote_tip(repo, FEATURE) == head`; removed line in the delta: `-    assert remote_tip(repo, FEATURE) == before and entries(path) == []`"
+ }
+]

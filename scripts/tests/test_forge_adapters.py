@@ -744,6 +744,33 @@ def test_change_create_draft_omits_the_assignee_when_unset(tmp_path, kind):
     assert "--assignee" not in args_file.read_text(encoding="utf-8")
 
 
+# ---- change-reviewers adds, on both forges ----------------------------------
+
+REVIEWERS_STUB = 'printf "%s\\n" "$*" >> "$AFK_ARGS"\n'
+REVIEWERS_FLAG = {"gitlab": "--reviewer +alice,+bob", "github": "--add-reviewer alice,bob"}
+
+
+@pytest.mark.parametrize("kind,reviewers", [
+    ("gitlab", '"alice,bob"'), ("gitlab", '["alice", "+bob"]'), ("github", '"alice,bob"')])
+def test_change_reviewers_adds_rather_than_replaces(tmp_path, kind, reviewers):
+    """glab replaces the list unless each name carries `+`; gh's --add-reviewer adds."""
+    environ = stub(tmp_path, kind, REVIEWERS_STUB)
+    args_file = tmp_path / "reviewers-args.txt"
+    environ["AFK_ARGS"] = str(args_file)
+    done = forge(kind, environ, "change-reviewers", '{"id":"7","reviewers":%s}' % reviewers, cwd=tmp_path)
+    answer = json.loads(done.stdout)
+    assert answer["ok"] is True, done.stdout
+    assert REVIEWERS_FLAG[kind] in args_file.read_text(encoding="utf-8")
+
+
+def test_gitlab_change_reviewers_refuses_a_list_of_no_names(tmp_path):
+    environ = stub(tmp_path, "gitlab", REVIEWERS_STUB)
+    environ["AFK_ARGS"] = str(tmp_path / "reviewers-args.txt")
+    done = forge("gitlab", environ, "change-reviewers", '{"id":"7","reviewers":" , +"}', cwd=tmp_path)
+    assert json.loads(done.stdout)["error"] is True
+    assert not (tmp_path / "reviewers-args.txt").exists()
+
+
 # ---- the family's own exits still hold -------------------------------------
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -871,6 +898,13 @@ def test_change_view_names_a_change_the_forge_says_is_missing(tmp_path, kind, me
     environ = stub(tmp_path, kind, f"echo '{message}' >&2\nexit 1\n")
     answer = json.loads(forge(kind, environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
     assert answer["error"] is True and answer["missing"] is True
+
+
+def test_gitlab_change_view_does_not_call_an_unreadable_project_a_missing_change(tmp_path):
+    environ = stub(tmp_path, "gitlab", "echo '404 Project Not Found' >&2\nexit 1\n")
+    answer = json.loads(forge("gitlab", environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is False
+    assert "Project Not Found" in answer["reason"]
 
 
 @pytest.mark.parametrize("kind", KINDS)

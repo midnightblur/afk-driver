@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "api-contract",
+  "criterion": "Null in the contract (Effective Java item 54)",
+  "severity": "low",
+  "class": "design",
+  "file": "adapters/tracker/jira/api.py",
+  "line": 796,
+  "side": "new",
+  "finding": "attached entries carry filename/mimeType null when read_back is false or the id is absent from the read-back, undocumented; an id absent from a successful read-back is mislabelled `stored differently`.",
+  "why": "A consumer reading attached[i].filename gets null with no stated contract, and the `stored differently` reason is wrong when nothing was listed under that id.",
+  "fix": "Document the null case in ADAPTERS.md, CONTRACT.md and the tool docstring; give an id missing from a successful read-back its own reason such as `not in the read-back`.",
+  "evidence": "found = by_id.get(att_id) or {} ... attached.append({\"file\": path, \"id\": att_id, **got}) ... if read_back and got != sent: ... \"reason\": \"stored differently\"",
+  "id": "r-001"
+ }
+]

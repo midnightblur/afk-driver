@@ -139,6 +139,20 @@ def validate_finding(item):
         raise UsageError("invalid finding class")
     if not isinstance(item["line"], int) or item["line"] < 1:
         raise UsageError("finding line must be a positive integer")
+    names = item["concern"] if isinstance(item["concern"], list) else [item["concern"]]
+    if not names or not all(isinstance(name, str) and name for name in names):
+        raise UsageError("finding concern must be a name or a list of names")
+
+
+def concern_text(value):
+    """A merged finding's concern list, as the one string a round's history carries."""
+    return ",".join(value) if isinstance(value, list) else value
+
+
+def reviewer_finding(item):
+    """A reviewer's finding, validated, with its concern in the form post stores."""
+    validate_finding(item)
+    return {**item, "concern": concern_text(item["concern"])}
 
 
 def fingerprints(unit, head, finding, locator):
@@ -946,7 +960,7 @@ def reconstruct_state(adapter, change, trust=(), reject=()):
             "fix": fix, "verdict": verdict, "disposition": disposition,
             "deferred_gate": outcome_attrs.get("gate") if outcome_rec and outcome_rec.get("kind") == "deferred" else None,
             "ever_deferred_to": list(dict.fromkeys(r.get("gate") for r in recs if r.get("kind") == "deferred")),
-            "routing": {"concern": routing_data.get("concern"), "severity": severity,
+            "routing": {"concern": concern_text(routing_data.get("concern")), "severity": severity,
                         "class": routing_data.get("class"), "blocks_ship": severity in {"critical", "high"}},
             "finding": finding, "locator_current": locator_current,
             "threads": list(threads_seen.values()), "records": recs,
@@ -1298,8 +1312,7 @@ def command_post(args, adapter):
     findings = _load_json(args.findings)
     if not isinstance(findings, list):
         raise UsageError("findings file must contain a JSON list")
-    for finding in findings:
-        validate_finding(finding)
+    findings = [reviewer_finding(finding) for finding in findings]
     diff = parse_diff(Path(args.diff).read_text(encoding="utf-8"))
     hints = _load_json(args.hints) if args.hints else {}
     mapping = _load_json(args.map) if args.map else {}
@@ -1505,8 +1518,7 @@ def command_gate(args, adapter):
                     if "feature" in value.get("ever_deferred_to", []):
                         keys[key] = value
         missing = []
-        for finding in expected:
-            validate_finding(finding)
+        for finding in map(reviewer_finding, expected):
             locator = resolved_locator(finding, diff)
             if not any(_progress_match(key, value, finding, locator, diff, args.head)
                        for key, value in keys.items()):
@@ -1547,11 +1559,22 @@ def command_gate(args, adapter):
             sha = value["fix"].get("sha")
             ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", sha, args.head], cwd=adapter.cwd)
             if ancestor.returncode:
-                raise LedgerError(f"fix commit is not reachable: {key}")
+                rewritten = subprocess.run(["git", "log", "--format=%B", "--fixed-strings",
+                                            f"--grep=Settles: {key}", args.head],
+                                           cwd=adapter.cwd, text=True, capture_output=True)
+                lines = {line.strip() for line in rewritten.stdout.splitlines()}
+                if rewritten.returncode or f"Settles: {key}" not in lines:
+                    raise LedgerError(f"fix commit is not reachable: {key}")
+                continue
             message = subprocess.run(["git", "show", "-s", "--format=%B", sha], cwd=adapter.cwd,
                                      text=True, capture_output=True)
-            if message.returncode or f"Settles: {key}" not in message.stdout:
+            if message.returncode:
                 raise LedgerError(f"fix commit lacks trailer: {key}")
+            if f"Settles: {key}" not in message.stdout:
+                later = subprocess.run(["git", "log", "--format=%B", "--ancestry-path", f"{sha}..{args.head}"],
+                                       cwd=adapter.cwd, text=True, capture_output=True)
+                if later.returncode or f"Settles: {key}" not in later.stdout:
+                    raise LedgerError(f"fix commit lacks trailer: {key}")
     return {"ok": True, "settled": True, "unit": args.unit, "round": args.round}
 
 

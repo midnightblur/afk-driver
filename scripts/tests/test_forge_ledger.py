@@ -464,6 +464,66 @@ def test_summary_is_new_note_and_history_reconstructs(tmp_path):
     assert unit["history"] == [entry]
 
 
+def test_a_posted_concern_list_is_stored_as_one_string(tmp_path):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps([finding(concern=["logic-correctness", "resilience"])]),
+                        encoding="utf-8")
+    diff = tmp_path / "change.diff"
+    diff.write_text("", encoding="utf-8")
+    ledger.command_post(args(change="1", unit="slice", findings=str(findings), diff=str(diff),
+                             head="abc", hints=None, map=None, state=None), adapter)
+    key = ledger.reconstruct_state(adapter, "1")["units"]["slice"]["keys"]["slice/f001"]
+    assert key["finding"]["concern"] == "logic-correctness,resilience"
+    assert key["routing"]["concern"] == "logic-correctness,resilience"
+
+
+def test_progress_gate_accepts_a_posted_concern_list(tmp_path):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps([finding(concern=["logic-correctness", "resilience"])]),
+                        encoding="utf-8")
+    diff = tmp_path / "change.diff"
+    diff.write_text("", encoding="utf-8")
+    ledger.command_post(args(change="1", unit="slice", findings=str(findings), diff=str(diff),
+                             head="abc", hints=None, map=None, state=None), adapter)
+    assert ledger.command_gate(args(change="1", unit="slice", phase="progress", head="abc",
+                                    expected=str(findings), round=None), adapter)["ok"]
+
+
+@pytest.mark.parametrize("concern", [[], [""], ["a", 3], "", None])
+def test_a_concern_that_names_nothing_is_refused(concern):
+    ledger = load_module()
+    with pytest.raises(ledger.UsageError, match="concern"):
+        ledger.validate_finding(finding(concern=concern))
+
+
+def test_a_stored_concern_list_still_summarizes(tmp_path):
+    ledger = load_module()
+    ledger.changed_paths = lambda cwd, start, end: []
+    adapter = FakeAdapter()
+    listed = finding(concern=["test-veracity"], line=99)
+    adapter.notes.append(adapter._note(ledger.make_finding_marker(
+        "slice/f001", "slice", "abc", listed, ledger.normalize_locator(listed)), "n1"))
+    text = tmp_path / "summary.txt"
+    text.write_text("Round accounting.", encoding="utf-8")
+    history = tmp_path / "history.json"
+    observed = [{"key": "slice/f001", "concern": "test-veracity", "severity": "high",
+                 "class": "correctness"}]
+    history.write_text(json.dumps({
+        "round": 1, "reviewed_head": "abc", "start_head": "base", "observed": observed,
+        "scope_shape_keys": [], "agents_md_chain_new": [], "scope_escalated": False,
+        "ledger_only": False, "code_changed": False, "keys_new": ["slice/f001"],
+        "keys_remediated": []}), encoding="utf-8")
+    result = ledger.command_summary(args(change="1", unit="slice", round=1, head="abc",
+                                         clean=False, ledger_only=False, text_file=str(text),
+                                         history_file=str(history)), adapter)
+    assert result["ok"]
+    assert ledger.reconstruct_state(adapter, "1")["units"]["slice"]["history"][0]["observed"] == observed
+
+
 def test_summary_rejects_caller_truncation_and_wrong_start_head(tmp_path):
     ledger = load_module()
     ledger.changed_paths = lambda cwd, start, end: []
@@ -972,11 +1032,64 @@ def test_fixed_closure_requires_reachable_sha_and_trailer(tmp_path, monkeypatch)
         ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
                                  expected=None, round=1), adapter)
     calls = iter([type("Run", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
-                  type("Run", (), {"returncode": 0, "stdout": "No trailer", "stderr": ""})()])
+                  type("Run", (), {"returncode": 0, "stdout": "No trailer", "stderr": ""})(),
+                  type("Run", (), {"returncode": 0, "stdout": "Settles: slice/f002", "stderr": ""})()])
     monkeypatch.setattr(ledger.subprocess, "run", lambda *a, **k: next(calls))
     with pytest.raises(ledger.LedgerError, match="lacks trailer"):
         ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
                                  expected=None, round=1), adapter)
+
+
+def test_fixed_closure_accepts_a_trailer_on_a_later_commit(tmp_path, monkeypatch):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    _post_one(ledger, adapter, tmp_path)
+    ledger.command_reply(args(change="1", key="slice/f001", kind="fixed", attr=[],
+                              sha="fixsha", path="src/new.py", line="2", side="new", text="Fixed."), adapter)
+    ledger.command_resolve(args(change="1", key="slice/f001", reopen=False), adapter)
+    _summarize(ledger, adapter, tmp_path)
+    seen = []
+    answers = iter(["", "No trailer", "Later\n\nSettles: slice/f001\n"])
+
+    def run(cmd, **kwargs):
+        seen.append(cmd)
+        return type("Run", (), {"returncode": 0, "stdout": next(answers), "stderr": ""})()
+
+    monkeypatch.setattr(ledger.subprocess, "run", run)
+    assert ledger.command_gate(args(change="1", unit="slice", phase="closure", head="abc",
+                                    expected=None, round=1), adapter)["settled"]
+    assert seen[-1] == ["git", "log", "--format=%B", "--ancestry-path", "fixsha..abc"]
+
+
+@pytest.mark.parametrize("history, settled", [
+    ("Rebased fix\n\nSettles: slice/f001\n", True),
+    ("Rebased fix\n\nSettles: slice/f0010\n", False),
+    ("", False),
+])
+def test_fixed_closure_accepts_a_rebased_fix_by_its_trailer(tmp_path, monkeypatch, history, settled):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    _post_one(ledger, adapter, tmp_path)
+    ledger.command_reply(args(change="1", key="slice/f001", kind="fixed", attr=[],
+                              sha="oldsha", path="src/new.py", line="2", side="new", text="Fixed."), adapter)
+    ledger.command_resolve(args(change="1", key="slice/f001", reopen=False), adapter)
+    _summarize(ledger, adapter, tmp_path)
+    seen = []
+    answers = iter([(1, ""), (0, history)])
+
+    def run(cmd, **kwargs):
+        seen.append(cmd)
+        code, out = next(answers)
+        return type("Run", (), {"returncode": code, "stdout": out, "stderr": ""})()
+
+    monkeypatch.setattr(ledger.subprocess, "run", run)
+    gate = args(change="1", unit="slice", phase="closure", head="abc", expected=None, round=1)
+    if settled:
+        assert ledger.command_gate(gate, adapter)["settled"]
+    else:
+        with pytest.raises(ledger.LedgerError, match="not reachable"):
+            ledger.command_gate(gate, adapter)
+    assert seen[-1] == ["git", "log", "--format=%B", "--fixed-strings", "--grep=Settles: slice/f001", "abc"]
 
 
 def test_product_debt_home_missing_then_present(tmp_path):
