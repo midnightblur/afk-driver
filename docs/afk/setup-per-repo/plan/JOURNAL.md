@@ -151,3 +151,4 @@
 2026-10-28 05:39 | execute | 0004-placement | wiring gate advisory — placement's consumers (0005, 0006, 0010) are anchored IOUs; the gate's IOU ticks were reverted
 2026-10-28 05:40 | execute | 0004-placement | done — review settled at round 7, adversary advisory only, rationale durable; tracker row set done
 2026-10-28 05:40 | execute | 0004-placement | outcome success — review settled at round 7, adversary advisory (5 low), PR checklist ticked
+2026-10-28 05:43 | autopilot | run | heartbeat 4/13 done, starting 0005-worktree-creator — the placement rules exist; the worktree creator can now ask them where a worktree goes
