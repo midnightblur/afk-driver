@@ -642,20 +642,20 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
     return found | {"main", "master"}
 
 
-def _patch_ids(cwd: Path, shas) -> dict[str, str]:
-    """Commit id -> stable patch id; a merge or an empty commit has none."""
+def _authorship(cwd: Path, shas) -> dict[str, str]:
+    """Commit id -> author name, e-mail and date: what a rebase, squash or fixup keeps."""
     if not shas:
         return {}
-    shown = _git(cwd, "log", "--no-walk=unsorted", "--stdin", "--diff-merges=off", "-p",
-                 "--format=commit %H", check=False, stdin="\n".join(shas) + "\n").stdout
-    ids = _git(cwd, "patch-id", "--stable", check=False, stdin=shown).stdout
-    return {c: p for p, c in (line.split() for line in ids.splitlines() if len(line.split()) == 2)}
+    out = _git(cwd, "log", "--no-walk=unsorted", "--stdin", "--date=raw",
+               "--format=%H%x00%an%x00%ae%x00%ad", check=False, stdin="\n".join(shas) + "\n").stdout
+    return {sha: key for sha, _, key in (line.partition("\0") for line in out.splitlines())}
 
 
 def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
     """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
     cherry-pick or revert in its reflog, or a commit a later rebase or rebasing pull replayed from
-    one of those (same patch id); a replayed commit the branch never made counts for nothing."""
+    one of those (same author and author date); a replayed commit the branch never made counts
+    for nothing."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -669,15 +669,19 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
                      "nothing to land")
     log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
     made: set[str] = set()
+    own: set[str] = set()
+    fresh: list[str] = []
     for sha, _, subject in reversed([line.partition(" ") for line in log.splitlines()]):
         action, _, rest = subject.partition(": ")
         onto = re.search(r" onto ([0-9a-f]{40,64})\b", rest)
         if action in MADE_HERE:
             made.add(sha)
+            fresh.append(sha)
         elif action.endswith("(finish)") and onto is not None and made:
+            own |= set(_authorship(cwd, fresh).values())
+            fresh = []
             replayed = _git(cwd, "rev-list", f"{onto.group(1)}..{sha}", check=False).stdout.split()
-            own = set(_patch_ids(cwd, made).values())
-            made |= {c for c, p in _patch_ids(cwd, replayed).items() if p in own}
+            made |= {c for c, key in _authorship(cwd, replayed).items() if key in own}
     if not commits & made:
         raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
                      f"was made on {d.branch}, so land would ship no fix")

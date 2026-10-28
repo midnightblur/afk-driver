@@ -1047,6 +1047,63 @@ def test_fast_forward_land_refuses_a_rebase_that_drops_the_only_fix(tmp_path, re
     assert remote_tip(repo, FEATURE) == before and entries(path) == []
 
 
+@pytest.mark.parametrize("shape", ["resolved conflict", "autosquash"])
+def test_fast_forward_land_pushes_a_fix_whose_patch_a_rebase_changed(tmp_path, repo, shape):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    commit(repo, "shared.txt", "mine\n")
+    other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
+    if shape == "resolved conflict":
+        commit(other, "shared.txt", "theirs\n")
+    else:
+        commit(other, "later.txt")
+        (repo / "shared.txt").write_text("mine, fixed up\n", encoding="utf-8")
+        git(repo, "commit", "-q", "-a", "--fixup", "HEAD")
+    git(other, "push", "-q", "origin", FEATURE)
+    git(repo, "fetch", "-q", "origin")
+    rebase = subprocess.run(["git", "-c", "sequence.editor=true", "rebase", "-q", "-i",
+                             "--autosquash", f"origin/{FEATURE}"], cwd=repo, capture_output=True)
+    assert (rebase.returncode != 0) == (shape == "resolved conflict"), rebase
+    if shape == "resolved conflict":
+        (repo / "shared.txt").write_text("mine and theirs\n", encoding="utf-8")
+        git(repo, "add", "shared.txt")
+        git(repo, "-c", "core.editor=true", "rebase", "--continue")
+    head = git(repo, "rev-parse", "HEAD")
+    assert git(repo, "rev-list", "--count", f"origin/{FEATURE}..HEAD") == "1"
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done", result
+    assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+def test_fast_forward_land_pushes_a_fix_taken_onto_a_newer_tip_by_a_rebasing_pull(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    commit(repo, "fix.txt", "fixed\n")
+    moved_feature(tmp_path, repo)
+    git(repo, "pull", "-q", "--rebase", "origin", FEATURE)
+    assert "pull" in git(repo, "reflog", "show", "-1", "--format=%gs", f"refs/heads/{BRANCH}")
+    head = git(repo, "rev-parse", "HEAD")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done", result
+    assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+def test_fast_forward_land_refuses_a_rebase_that_drops_a_merge_made_on_the_branch(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    moved_feature(tmp_path, repo)
+    git(repo, "merge", "-q", "--no-ff", "--no-commit", f"origin/{FEATURE}")
+    git(repo, "commit", "-q", "-m", "take the newer tip")
+    git(repo, "rebase", "-q", f"origin/{FEATURE}")
+    before = remote_tip(repo, FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
 def drop_by_rebase(repo, dropped, onto):
     """Rebase HEAD onto `onto` with the todo line of commit `dropped` deleted."""
     git(repo, "-c", f"sequence.editor=sed -i '/ {dropped[:7]}/d'", "rebase", "-q", "-i", onto)

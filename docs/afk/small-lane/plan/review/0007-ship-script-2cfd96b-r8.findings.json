@@ -1,0 +1,58 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "high",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 680,
+  "side": "new",
+  "finding": "A rebased fix now counts as made only when its stable patch id equals a commit the branch made, so any rebase that changes the fix's patch refuses land with the false reason that no commit was made on the branch. Probed against real git: a rebase onto a moved feature tip with a conflict the developer resolves, the same through `git pull --rebase`, a squash of two own commits in `rebase -i`, and a `--fixup` commit folded by `rebase -i --autosquash` are all refused by 831e743d; the pre-delta function (4d21bcaa) accepted all four.",
+  "why": "The designed path for a moved tip is a rebase: \"A moved tip → one rebase, every tier again, push\" (docs/afk/small-lane/SDD.md:365) and \"Fixed --> Rebased: tip moved\" (docs/afk/small-lane/adr/design/0006-feature-branch-fix-lands-by-fast-forward-push.md:20). A rebase onto a tip that touched the same lines conflicts, and resolving it changes the patch id, so the designed path now ends in a refusal whose reason (\"was made on\") is untrue.",
+  "fix": "Identify a replayed own commit by something a rebase keeps: author name, e-mail and author date (`git log --no-walk=unsorted --stdin --format=%H%x00%an%x00%ae%x00%ad`), which survive conflict resolution, reword, squash and fixup (squash keeps the first commit's author), while replayed foreign commits keep their own authors' dates. Keep the patch-id match as a second way in, or drop it. Add tests for a rebase with a resolved conflict and for a fixup folded by --autosquash.",
+  "evidence": "skills/afk/fix/scripts/ship.py:679-680 `own = set(_patch_ids(cwd, made).values())` / `made |= {c for c, p in _patch_ids(cwd, replayed).items() if p in own}`. Probe <scratch>/r8ds-probe/test_probe8.py, output <scratch>/r8ds-probe/out8.txt: \"=== C rebase with conflict resolved by developer ... reflog: 94356318... rebase (finish): refs/heads/fix/bug-export-drops-row onto 11d683e7... / 43943da7... commit: add fix.txt ... result={'step': 'land', 'status': 'refused', 'reason': 'none of the 2 commits past the Base commit 285cb4c2... was made on fix/bug-export-drops-row, so land would ship no fix'}\"; same refusal for \"C2 pull --rebase with conflict resolved\", \"F squash two own commits in rebase -i\", \"F2 fixup + rebase -i --autosquash\". Same four cases with the 4d21bcaa function (<scratch>/r8ds-probe/out8-old.txt): \"=== C rebase with conflict resolved by developer / result={'step': 'land', 'status': 'done', ...}\", and 'done' for C2, F and F2."
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) / mutation probe: survived mutant on a delta line",
+  "severity": "medium",
+  "class": "test",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 649,
+  "side": "new",
+  "finding": "No test pins the rule that a merge commit has no patch id. A mutant that gives merges their first-parent diff (`--diff-merges=first-parent` in place of `--diff-merges=off`) passes all 16 rebase and land-kind tests, and with it land answers `done` for a branch whose only made commit was a hand-finished merge that a later rebase dropped, so land ships no fix.",
+  "why": "skills/afk/fix/scripts/ship.py:646 \"Commit id -> stable patch id; a merge or an empty commit has none.\"; ship.py:656-658 \"a replayed commit the branch never made counts for nothing.\" The only merge test (test_ship.py:1060) uses `git merge --no-ff -m`, whose reflog action is not in MADE_HERE, so no merge ever reaches `_patch_ids`.",
+  "fix": "Add a test where the branch's only made commit is a merge: checkout -B at the feature tip, moved_feature, `git merge -q --no-ff --no-commit origin/{FEATURE}`, `git commit -q -m ...` (reflog `commit (merge)`), `git rebase -q {start}`; assert HEAD == moved, land refused with \"was made on\", remote tip unchanged, entries == []. Probe-verified: passes on 831e743d, fails on the first-parent mutant.",
+  "evidence": "skills/afk/fix/scripts/ship.py:649 `shown = _git(cwd, \"log\", \"--no-walk=unsorted\", \"--stdin\", \"--diff-merges=off\", \"-p\",`; probe <scratch>/r8tv-mut/diff_merges_fp.out: `16 passed, 91 deselected`; candidate test on the same mutant (<scratch>/r8tv-mut/diff_merges_fp-x.out): `AssertionError: {'step': 'land', 'status': 'done', 'push': 'feat/export@34ece4f9cb3c5edcfbaf082389fca04707b5e229', 'how': 'found'}`. Dropping `--diff-merges=off` outright is an equivalent mutant on git 2.53 (`log -p` shows no merge diff by default; probe no_diff_merges_off: 16 passed, candidate passed too)."
+ },
+ {
+  "id": "r-003",
+  "concern": "delta-sweep",
+  "criterion": "Open question (PRECEDENCE.md rule 5)",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 679,
+  "side": "new",
+  "finding": "Each `(finish)` entry re-runs `git log -p` and `git patch-id` over every commit in `made`, and `made` grows by every replayed generation, so the cost grows with commits times rebases. On a branch with 150 commits and 15 rebases the check took 48.4 s (30 `git log` calls, the largest 5.2 s on about 92 KB of commit ids) against 6.3 s for the pre-delta function on the same repository.",
+  "why": "Each call is bounded by `GIT_TIMEOUT = 300` (skills/afk/fix/scripts/ship.py:74) but nothing bounds their number, so a long-lived branch reflog makes land slower with every rebase while the answer only needs patch ids of commits not yet hashed.",
+  "fix": "Hash each commit once: keep a dict sha -> patch id across the loop and pass `_patch_ids` only the shas not yet in it, or add only the newly made commits' ids to `own`. The author-identity match proposed in delta-sweep-001 removes the patch-id calls altogether.",
+  "evidence": "skills/afk/fix/scripts/ship.py:677-679 `elif action.endswith(\"(finish)\") and onto is not None and made:` / `replayed = _git(cwd, \"rev-list\", f\"{onto.group(1)}..{sha}\", check=False).stdout.split()` / `own = set(_patch_ids(cwd, made).values())`. Timing probe <scratch>/r8ds-probe/time_g.py on <scratch>/r8dsp/test_g_many_entries0/work: \"new accepted 48.39s {'rev-list': (16, 4.53, 0.71, 0), 'reflog': (1, 0.44, 0.44, 0), 'log': (30, 35.62, 5.2, 92291), 'patch-id': (30, 7.77, 0.8, 385069)}\" / \"old accepted 6.31s {'rev-list': (1, 0.17, 0.17, 0), 'reflog': (1, 0.17, 0.17, 0), 'merge-base': (15, 5.97, 0.53, 0)}\"."
+ },
+ {
+  "id": "r-004",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) / mutation probe: survived mutant on a delta line",
+  "severity": "low",
+  "class": "test",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 677,
+  "side": "new",
+  "finding": "The delta's docstring says a commit replayed by a rebasing pull counts, but no test runs `git pull --rebase`. A mutant narrowing the match to `action == \"rebase (finish)\"` passes all 107 ship tests, and with it land refuses a fix taken onto a newer tip by `git pull --rebase` (reflog subject `pull -q --rebase origin feat/export (finish): ... onto ...`).",
+  "why": "skills/afk/fix/scripts/ship.py:657 \"cherry-pick or revert in its reflog, or a commit a later rebase or rebasing pull replayed from\"; every rebase test uses `git rebase` (test_ship.py:991, 1001, 1011, 1085) or `rebase -i` via drop_by_rebase.",
+  "fix": "Add a test: land_case, moved_feature, `git(repo, \"pull\", \"-q\", \"--rebase\", \"origin\", FEATURE)`; assert land `done`, remote tip == HEAD, entries == [f\"push: {FEATURE}@{head}\"]. Probe-verified: passes on 831e743d, fails on the mutant with `refused ... none of the 2 commits past the Base commit ... was made on fix/bug-export-drops-row`.",
+  "evidence": "skills/afk/fix/scripts/ship.py:677 `elif action.endswith(\"(finish)\") and onto is not None and made:`; probe <scratch>/r8tv-mut/rebase_only.out: `107 passed`; candidate on the mutant (<scratch>/r8tv-mut/rebase_only-x.out): `AssertionError: {'step': 'land', 'status': 'refused', 'reason': 'none of the 2 commits past the Base commit ba37c432... was made on fix/bug-export-drops-row, so land would ship no fix'}`."
+ }
+]
