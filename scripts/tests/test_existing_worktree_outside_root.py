@@ -2,7 +2,8 @@
 
 Each member runs on real outside worktrees (cut while the repository was unlisted) and on twins
 cut the same way under the root; outputs are normalised and compared, and the worktree folder must
-not change. Temporary home and repositories only; members that cannot run in a sandbox are in EXCLUDED.
+not change; a crash under the root fails even when both twins match. Temporary home and repositories
+only; members that cannot run in a sandbox are in EXCLUDED, whose files a test checks exist.
 """
 from __future__ import annotations
 
@@ -321,7 +322,7 @@ class Case:
     writes: bool = False      # the member writes into the worktree by design: compare the change sets
     serial: bool = False      # shared state: run the sites one after another
     kinds: tuple = ("name", "dir")
-    expect: Callable | None = None   # expected outside value from (forest, outside site, inside value)
+    expect: Callable = lambda f, site, inside: inside  # expected outside value from the inside one
 
 
 CASES: list[Case] = []
@@ -888,20 +889,48 @@ def observe(forest: Forest, item: Case, site: Site):
     return value, changes(before, after)
 
 
-@pytest.mark.parametrize("item", CASES, ids=lambda c: c.member)
-def test_a_member_behaves_on_an_outside_worktree_as_on_its_twin_under_the_root(forest, item):
+CRASHES = ("Traceback (most recent call last)", ": command not found", "SyntaxError", "unexpected failure near line")
+
+
+def crash_in(value) -> str | None:
+    """A crash text inside an observed value: a member broken on both twins must not pass as parity."""
+    text = repr(value)
+    return next((mark for mark in CRASHES if mark in text), None)
+
+
+def observe_pairs(forest: Forest, item: Case) -> list[tuple]:
     sites = [site for kind in item.kinds for site in forest.pairs[kind]]
     jobs = [lambda s=s: observe(forest, item, s) for s in sites]
     seen = dict(zip([s.label for s in sites], [job() for job in jobs] if item.serial else parallel(jobs)))
+    pairs = []
     for kind in item.kinds:
         outside, inside = forest.pairs[kind]
         (out_value, out_changes), (in_value, in_changes) = seen[outside.label], seen[inside.label]
-        expected = item.expect(forest, outside, in_value) if item.expect else in_value
+        assert crash_in(in_value) is None, f"{kind}: the member crashed under the root\n{in_value!r}"
+        expected = item.expect(forest, outside, in_value)
         assert out_value == expected, f"{kind}: outside {outside.path}\n{out_value!r}\n!= inside\n{in_value!r}"
-        if item.writes:
-            assert out_changes == in_changes, f"{kind}: {sorted(out_changes)} != {sorted(in_changes)}"
-        else:
-            assert not out_changes and not in_changes, f"{kind}: {sorted(out_changes)} / {sorted(in_changes)}"
+        pairs.append((kind, out_changes, in_changes))
+    return pairs
+
+
+@pytest.mark.parametrize("item", [c for c in CASES if not c.writes], ids=lambda c: c.member)
+def test_a_reading_member_behaves_on_an_outside_worktree_as_on_its_twin_and_changes_neither(forest, item):
+    for kind, out_changes, in_changes in observe_pairs(forest, item):
+        assert not out_changes and not in_changes, f"{kind}: {sorted(out_changes)} / {sorted(in_changes)}"
+
+
+@pytest.mark.parametrize("item", [c for c in CASES if c.writes], ids=lambda c: c.member)
+def test_a_writing_member_makes_the_same_changes_in_an_outside_worktree_as_in_its_twin(forest, item):
+    for kind, out_changes, in_changes in observe_pairs(forest, item):
+        assert out_changes == in_changes, f"{kind}: {sorted(out_changes)} != {sorted(in_changes)}"
+
+
+def test_every_excluded_member_names_a_plugin_file_and_no_case_covers_it_whole():
+    members = {case.member for case in CASES}
+    for key in EXCLUDED:
+        path = key.split(" (")[0]
+        assert (PLUGIN_ROOT / path).is_file(), key
+        assert key not in members, key
 
 
 # --- cleanup removes an outside worktree as it removes one under the root -------------------------

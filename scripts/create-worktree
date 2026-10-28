@@ -33,7 +33,8 @@
 #
 # Placement (scripts/placement.py) picks the folder before anything is made. A repository
 # in the repository list gets `<root>/<short name>/<name or dir>`; a root or short name
-# that fails a catalog R rule refuses. A repository not in the list gets, for --name, the
+# that fails a catalog R rule refuses; a missing short-name folder is made again with its
+# marker. A repository not in the list gets, for --name, the
 # current harness's folder inside the main checkout (hidden through the clone's local
 # exclude file), and for --branch/--dir, the sibling `<main-checkout>-worktrees`.
 #
@@ -69,7 +70,8 @@
 #   success  -> WORKTREE_PATH=<absolute path>, exit 0
 #   refusal  -> exit 3: ERROR=worktree root: <rule> <reason> - run /afk:setup, or
 #               ERROR=parent <path> is outside <root>/<short name> - <fix>, or
-#               ERROR=parent <path> is inside the main checkout <path> - <fix>
+#               ERROR=parent <path> is inside the main checkout <path> - <fix>, or
+#               ERROR=worktree folder: <target> is outside <folder> - <fix> (a --dir with `..`)
 #   failure  -> ERROR=<reason>, exit 1 (never a bare set-e death)
 # A refusal comes before any folder, branch or worktree is made.
 #
@@ -307,7 +309,7 @@ def answer():
             return "refused", target, main, "main", ""
         if agent != "1":
             return placement.NOT_LISTED, target, None, None, None
-        return placement.check_target(value, folder)
+        return placement.check_target(value, folder)[:5]
     verdict = placement.target_for(folder, value)
     if mode == "dir" and verdict.state == placement.NOT_LISTED:
         return verdict.state, None, placement.afk_config.worktree_base(placement.pathlib.Path(folder)), None, None
@@ -333,6 +335,31 @@ place() {
     refuse_exit "worktree root: $P_RULE $P_REASON - run /afk:setup"
 }
 
+# A short-name folder removed by hand is made again with its marker, under the list's lock.
+claim_short_name_folder() {
+  "$PY_BIN" - "$(native_path "$AFK_ROOT_DIR/scripts/repo_list.py")" "$(native_path "$WORKTREE_PARENT")" <<'PY' \
+    || error_exit "worktree folder $WORKTREE_PARENT could not be made with its marker - run /afk:setup"
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location("afk_repo_list_for_creator", sys.argv[1])
+repo_list = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = repo_list
+spec.loader.exec_module(repo_list)
+folder = pathlib.Path(sys.argv[2])
+
+def claim(text):
+    entry = next((e for e in repo_list._parse(text) if e.short_name == folder.name), None)
+    if entry is None:
+        raise repo_list.RepositoryListError("is no longer listed", folder.name)
+    repo_list._claim_folder(folder.parent, entry.short_name, entry.path)
+    return text
+
+try:
+    repo_list._update_list(claim)
+except repo_list.RepositoryListError as error:
+    sys.exit(f"{folder}: {error}")
+PY
+}
+
 PLACED=false
 if [[ -z "$NAME" && -n "$WORKTREE_PARENT" ]]; then
   parent_given="$WORKTREE_PARENT" relative=0
@@ -354,6 +381,8 @@ if [[ -z "$NAME" && -n "$WORKTREE_PARENT" ]]; then
     refuse_exit "parent $WORKTREE_PARENT is outside $P_FOLDER - pass --parent $P_FOLDER, or leave --parent out"
 else
   place "$([[ -n "$NAME" ]] && echo name || echo dir)" "$DIR_NAME"
+  [[ "$P_STATE" != refused ]] || \
+    refuse_exit "worktree folder: $P_REASON - pass a plain folder name as --dir"
   if [[ "$P_STATE" == inside ]]; then
     PLACED=true
     WORKTREE_PARENT="$P_FOLDER"
@@ -573,6 +602,7 @@ echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
 git -C "$REPO_DIR" worktree prune
 
 echo -e "${YELLOW}Creating worktree at $DEST...${NC}" >&2
+[[ "$PLACED" != true || -d "$WORKTREE_PARENT" ]] || claim_short_name_folder
 mkdir -p "$WORKTREE_PARENT"
 
 if [[ "$BRANCH_EXISTS" == true ]]; then

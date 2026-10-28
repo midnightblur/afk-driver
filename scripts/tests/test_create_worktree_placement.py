@@ -311,3 +311,43 @@ def test_an_absolute_parent_inside_another_repository_is_refused_before_creation
                              "--parent", str(parent), "--no-open", agent=False), 1)
     assert "different Git repository" in reason
     assert_nothing_made(repo, "feat/f", parent)
+
+
+def test_an_agent_parent_under_a_broken_root_gives_one_clean_refusal_line(tmp_path, listed, root, home):
+    set_root(home, "relative/root")
+    reason = error_of(create(listed, home, "--branch", "feat/pr", "--dir", "pr", "--base", "dev",
+                             "--parent", str(tmp_path / "anywhere"), "--no-open"), 3)
+    assert reason.startswith("worktree root: R-01 ") and reason.endswith(" - run /afk:setup"), reason
+    assert "\x1f" not in reason, reason
+    assert_nothing_made(listed, "feat/pr", tmp_path / "anywhere")
+
+
+def test_a_name_ignores_parent_and_lands_under_the_root(tmp_path, listed, root, home):
+    outside = tmp_path / "elsewhere"
+    path = path_of(create(listed, home, "--name", "np", "--parent", str(outside)))
+    assert same(path, root / "proj" / "np")
+    assert not outside.exists()
+
+
+def test_a_dir_that_climbs_out_of_the_folder_refuses_with_exit_3(listed, root, home):
+    reason = error_of(create(listed, home, "--branch", "feat/up", "--dir", "../up", "--base", "dev", "--no-open"), 3)
+    assert reason.startswith("worktree folder: ") and " is outside " in reason, reason
+    assert_nothing_made(listed, "feat/up", root / "up", root / "proj" / "up")
+
+
+def test_a_file_at_the_destination_exits_1_and_makes_nothing(listed, root, home):
+    (root / "proj" / "afile").write_text("x", encoding="utf-8")
+    reason = error_of(create(listed, home, "--name", "afile"), 1)
+    assert "already exists" in reason
+    assert_nothing_made(listed, "worktree-afile")
+
+
+def test_a_removed_short_name_folder_is_made_again_with_its_marker(listed, root, home):
+    for item in (root / "proj").iterdir():
+        item.unlink()
+    (root / "proj").rmdir()
+    first = path_of(create(listed, home, "--name", "again"))
+    assert same(first, root / "proj" / "again")
+    marker = json.loads((root / "proj" / rl.MARKER_NAME).read_text(encoding="utf-8"))
+    assert same(marker["path"], listed)
+    assert same(path_of(create(listed, home, "--name", "next")), root / "proj" / "next")

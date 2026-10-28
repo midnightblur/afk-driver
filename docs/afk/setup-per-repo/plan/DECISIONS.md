@@ -318,3 +318,48 @@
 - Chosen: B — INV-025 found the write steps ran before the base checks at HEAD; ADR-0002 (design) "the creator runs every check before anything is made"; the `--name` taken-name and branch checks stay under the lock, which makes them race-free
 - Supersedes: none
 - To reverse: move the two base checks in `scripts/create-worktree` back into the `else` branch before `git worktree add`
+
+## D-46 — Setup's H6 probe and its K3 sentences move to `worktreeRoot` in 0010-setup-walk; the K3 need in `developer_values.py` in 0009-settings-writer
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep `resolve worktreeBasePath` answering until 0010 lands (reverse D-40) vs B — keep D-40 and hand the two readers to the slices whose Scope holds them
+- Chosen: B — the contract says `resolve worktreeBasePath` "is gone"; `skills/afk/setup/MANIFEST.md` is in 0010's Scope and `developer_values.py` in 0009's; the branch ships as one change, so the interim H6 miss never reaches a developer
+- For 0010-setup-walk: in `skills/afk/setup/MANIFEST.md` H6, replace `worktreeBasePath` in the probe's `keys` with `worktreeRoot`, and rewrite the K3 sentences (the machine `worktreeBasePath` derived-value step, the `--machine` refusal, and "`worktreeBasePath` normally resolves without anyone setting it … a bare clone") to the root: one machine value, checked by catalog R, no derived value
+- For 0009-settings-writer: in `developer_values.py`, `need` makes `worktreeRoot` required and `worktreeBasePath` n/a, and the `derived` field goes with it
+- Supersedes: none
+- To reverse: restore the derived answer for `worktreeBasePath` in `main` of `scripts/afk-config.py` and drop these duties
+
+## D-47 — A `--dir` that climbs out of the short-name folder is refused with exit 3
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — check `--dir` with the `--name` rule (1-64 safe characters) vs B — act on placement's `outside` verdict: exit 3 with `worktree folder: <reason> - pass a plain folder name as --dir`
+- Chosen: B — placement already judges the target (ADR-0002); A would also narrow `--dir` for unlisted repositories, which keep today's behaviour
+- Supersedes: none
+- To reverse: drop the `refused` check after `place` in the name/dir branch of `scripts/create-worktree`
+
+## D-48 — A short-name folder removed by hand is made again with its marker
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — refuse with `run /afk:setup` when the folder is missing vs B — make the folder through the repository list's own claim, under its lock, then cut the worktree
+- Chosen: B — R-06 lets an absent folder pass (PRD §Catalog R), and a plain `mkdir` left an unmarked folder that R-06 refused on the next creation; at HEAD nothing outside `scripts/repo_list.py` claims a folder (grep of `skills`, `scripts`, `hooks`), so no setup step remakes it
+- Supersedes: none
+- To reverse: drop `claim_short_name_folder` and its call in `scripts/create-worktree`
+- Debt: the creator calls `repo_list`'s private `_parse`, `_claim_folder` and `_update_list`, as placement does (feature-gate design review)
+
+## D-49 — Any existing file at the destination stops the creator, not only a folder
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep the `-d` test vs B — `-e`, so a plain file stops the run before `git worktree prune` and `mkdir`
+- Chosen: B — ADR-0002 (design) "the creator runs every check before anything is made"; git refuses that path anyway, but only after the write steps
+- Supersedes: none
+- To reverse: put `-d` back in the destination check of `scripts/create-worktree`
+
+## D-50 — `hooks/genericity-allow.txt` takes `INV-025` outside Scope
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — leave the investigation id out of committed prose vs B — allow it, as INV-001 to INV-024 already are
+- Chosen: B — the Seams rows must name the investigation that closed each seam, and the genericity gate refuses an unlisted id
+- Supersedes: none
+- To reverse: delete the `INV-025` line from `hooks/genericity-allow.txt`
+
+## D-51 — INV-025's B1 exclusion of `docs/afk/*/investigations/**` is an accepted frontier
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — re-run B1 over a partitioned universe vs B — accept the exclusion
+- Chosen: B — the 52 excluded files are 26 `.json` and 26 `.md` ledgers and reports (`git ls-files 'docs/afk/*/investigations/**'`), which no code runs; a mention there cannot call the creator; the review re-checked the live callers by hand and found none broken
+- Supersedes: none
+- To reverse: run `/afk:investigate` again with B1 partitioned over that folder

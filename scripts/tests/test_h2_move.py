@@ -581,19 +581,29 @@ def test_a_refused_root_returns_the_refusal_and_starts_nothing(listed_repo, monk
     assert not spawned and not list((repo / ".git" / "afk-session").glob("*.move"))
 
 
-def test_placement_is_loaded_only_when_a_move_is_planned(repo, monkeypatch):
-    loaded: list[str] = []
-    real = importlib.util.spec_from_file_location
-
-    def record(name, path, *rest, **options):
-        loaded.append(Path(path).name)
-        return real(name, path, *rest, **options)
-
+def test_an_unreadable_machine_file_returns_the_placement_error_and_starts_nothing(listed_repo, monkeypatch):
+    repo, home, root = listed_repo
+    (home / ".afk" / "config.yaml").write_text("developer: text\n", encoding="utf-8")
+    spawned: list = []
     module = _h2_module()
-    monkeypatch.setattr(importlib.util, "spec_from_file_location", record)
-    module.owner_env()
-    module.owner_is_dead(repo / ".git", "none")
-    assert "placement.py" not in loaded
+    monkeypatch.setattr(module, "spawn", lambda *a, **k: spawned.append(a))
+    chosen = module.plan(_place(repo), {"session_id": "s-bad", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("placement: ") and chosen["path"] == "", chosen
+    assert not spawned and not list((repo / ".git" / "afk-session").glob("*.move"))
+
+
+def test_the_owner_calls_work_without_placement_and_a_move_needs_it(repo, tmp_path, monkeypatch):
+    bare = tmp_path / "plugin-without-placement"
+    (bare / "scripts").mkdir(parents=True)
+    (bare / "scripts" / "worktree_owner.py").write_bytes((PLUGIN_ROOT / "scripts" / "worktree_owner.py").read_bytes())
+    module = _h2_module()
+    monkeypatch.setattr(module, "PLUGIN_ROOT", bare)
+    monkeypatch.setenv("AFK_WORKTREE_OWNER", "4242:1")
+    assert module.owner_env() == {"AFK_WORKTREE_OWNER": "4242:1"}
+    (repo / ".git" / "afk-worktrees").mkdir()
+    (repo / ".git" / "afk-worktrees" / "gone.json").write_text(
+        json.dumps({"owner": {"pid": 2147483000, "ctime": "1"}}), encoding="utf-8")
+    assert module.owner_is_dead(repo / ".git", "gone") is True
     monkeypatch.setenv("AFK_MOVE_SPAWN", "0")
-    module.plan(_place(repo), {"session_id": "s-load", "cwd": str(repo)}, {})
-    assert "placement.py" in loaded
+    chosen = module.plan(_place(repo), {"session_id": "s-load", "cwd": str(repo)}, {})
+    assert chosen["error"].startswith("placement: "), chosen
