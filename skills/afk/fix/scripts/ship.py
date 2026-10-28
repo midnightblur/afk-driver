@@ -294,9 +294,9 @@ def read_diagnosis(path) -> Diagnosis:
 
 # ---- git -------------------------------------------------------------------
 
-def _git(cwd: Path, *args: str, check: bool = True):
+def _git(cwd: Path, *args: str, check: bool = True, stdin: str | None = None):
     try:
-        done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True,
+        done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, input=stdin,
                               encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT)
     except subprocess.TimeoutExpired:
         raise block(f"git {args[0]} gave no answer within {GIT_TIMEOUT} s") from None
@@ -642,10 +642,20 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
     return found | {"main", "master"}
 
 
+def _patch_ids(cwd: Path, shas) -> dict[str, str]:
+    """Commit id -> stable patch id; a merge or an empty commit has none."""
+    if not shas:
+        return {}
+    shown = _git(cwd, "log", "--no-walk=unsorted", "--stdin", "--diff-merges=off", "-p",
+                 "--format=commit %H", check=False, stdin="\n".join(shas) + "\n").stdout
+    ids = _git(cwd, "patch-id", "--stable", check=False, stdin=shown).stdout
+    return {c: p for p, c in (line.split() for line in ids.splitlines() if len(line.split()) == 2)}
+
+
 def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
     """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
-    cherry-pick or revert in its reflog, or a rebase whose result is neither its onto commit nor a
-    commit the branch held before it (a rebase that drops the fix makes nothing)."""
+    cherry-pick or revert in its reflog, or a commit a later rebase or rebasing pull replayed from
+    one of those (same patch id); a replayed commit the branch never made counts for nothing."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -658,17 +668,16 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
         raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
                      "nothing to land")
     log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
-    rows = [line.partition(" ") for line in log.splitlines()]
-    made = set()
-    for i, (sha, _, subject) in enumerate(rows):
+    made: set[str] = set()
+    for sha, _, subject in reversed([line.partition(" ") for line in log.splitlines()]):
         action, _, rest = subject.partition(": ")
         onto = re.search(r" onto ([0-9a-f]{40,64})\b", rest)
-        before = rows[i + 1][0] if i + 1 < len(rows) else ""
-        if action in MADE_HERE or ("rebase" in action and action.endswith("(finish)")
-                                   and onto is not None and onto.group(1) != sha and not (
-                before and _git(cwd, "merge-base", "--is-ancestor", sha, before,
-                                check=False).returncode == 0)):
+        if action in MADE_HERE:
             made.add(sha)
+        elif action.endswith("(finish)") and onto is not None and made:
+            replayed = _git(cwd, "rev-list", f"{onto.group(1)}..{sha}", check=False).stdout.split()
+            own = set(_patch_ids(cwd, made).values())
+            made |= {c for c, p in _patch_ids(cwd, replayed).items() if p in own}
     if not commits & made:
         raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
                      f"was made on {d.branch}, so land would ship no fix")

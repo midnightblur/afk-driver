@@ -1,0 +1,72 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 668,
+  "side": "new",
+  "finding": "The narrowed rebase rule still counts a rebase that replays only commits the Diagnosis branch never made: reset (or fast-forward merge) the branch to another local branch holding a stranger commit, then rebase onto the newer feature tip, and land pushes that commit as the fix. The delta closed the drop-the-fix shape of the same rule but left this sibling shape on the old behaviour.",
+  "why": "The function's own contract: \"Refuse a land with no commit past the Base commit that the Diagnosis branch made\" (skills/afk/fix/scripts/ship.py:646); its refusal says land \"would ship no fix\" (skills/afk/fix/scripts/ship.py:674). The sibling test pins the same intent for a direct rebase onto another branch: test_fast_forward_land_refuses_a_branch_rebased_onto_another_branch_with_no_fix (scripts/tests/test_ship.py:1014).",
+  "fix": "Count a rebase only when the commits it replayed include one the branch made: walk the reflog oldest-first so `made` holds the earlier entries, and require `git rev-list {onto}..{before}` to intersect `made` in addition to the current not-onto and not-ancestor-of-before checks; add a test that resets to a branch holding a stranger commit, rebases onto a newer feature tip, and expects `refused` with no push and no entry.",
+  "evidence": "skills/afk/fix/scripts/ship.py:667-670: `if action in MADE_HERE or (\"rebase\" in action and action.endswith(\"(finish)\")` / `and onto is not None and onto.group(1) != sha and not (` / `before and _git(cwd, \"merge-base\", \"--is-ancestor\", sha, before,` / `check=False).returncode == 0)):`. Probe <scratch>/r7ds-probe/test_probe7.py::test_e_rebase_after_reset (output <scratch>/r7ds-probe/out7.txt, section E): reflog `4ca3ff32... rebase (finish): refs/heads/fix/bug-export-drops-row onto 02bba2d7...` / `9964c168... reset: moving to other-work` / `7733320c... branch: Reset to origin/feat/export` (no commit made after the Base commit 7733320c); result `{'step': 'land', 'status': 'done', 'push': 'feat/export@4ca3ff32...', 'how': 'pushed'}`, remote moved from 02bba2d7 to 4ca3ff32. Same outcome with `merge --ff-only other-work` in place of the reset (section E2: `'status': 'done' ... 'how': 'pushed'`)."
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "skills/afk/fix/scripts/ship.py",
+  "line": 669,
+  "side": "new",
+  "finding": "When the rebase is the oldest reflog entry, `before` is empty and the new held-before check is skipped, so a rebase that dropped the only fix counts as a fix again: land answers done and lists a push entry for a head with no fix. Everywhere else the function refuses when it cannot tell (no Base commit, Base commit not in the checkout, an empty reflog), so an unknown pre-rebase head fails open only here.",
+  "why": "skills/afk/fix/scripts/ship.py:650-651 and 655-656 refuse because land \"cannot tell whether {d.branch} carries a fix commit\"; skills/afk/fix/scripts/ship.py:648 states \"a rebase that drops the fix makes nothing\".",
+  "fix": "Treat an unknown pre-rebase head as not proven: replace `before and _git(...).returncode == 0` with `not before or _git(...).returncode == 0` so a rebase with no older reflog line is not counted (a fix commit still counts through its own `commit` entry).",
+  "evidence": "skills/afk/fix/scripts/ship.py:666: `before = rows[i + 1][0] if i + 1 < len(rows) else \"\"`; :669: `before and _git(cwd, \"merge-base\", \"--is-ancestor\", sha, before,`. Probe <scratch>/r7ds-probe/test_probe7.py::test_a_rebase_is_oldest_entry (the delta's own drop-the-only-fix sequence, then `git reflog delete` of every older entry; out7.txt section A): reflog is the single line `f2df9e7f... rebase (finish): refs/heads/fix/bug-export-drops-row onto 7733320c...`; result `{'step': 'land', 'status': 'done', 'push': 'feat/export@f2df9e7f...', 'how': 'found'}`, entries `['push: feat/export@f2df9e7f...']`. With the same reflog trimmed by `reflog expire --expire-unreachable=now` (section B) or emptied (section B2) land refuses, so only the oldest-entry shape escapes."
+ },
+ {
+  "id": "r-003",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) / mutation probe: survived mutant on a delta line",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_ship.py",
+  "line": 1032,
+  "side": "new",
+  "finding": "The new drop test cannot tell the reflog row just before the rebase from older rows: its fast-forward merge leaves the kept commit at both the row before the rebase and two rows back. A mutant reading `rows[i + 2]` instead of `rows[i + 1]` in `_carries_a_fix` passes all 15 land tests, and with that mutant land answers `done` (how=found) for a branch whose only fix was dropped.",
+  "why": "ship.py:647-649 docstring: \"a rebase whose result is neither its onto commit nor a commit the branch held before it (a rebase that drops the fix makes nothing)\"; the delta's rule reads the row just before the rebase (ship.py:666), and no test pins that row.",
+  "fix": "Add a case where the row two back does not hold the rebase result, e.g. checkout -B at the feature tip, moved_feature, commit the fix, `merge --no-ff origin/{FEATURE}`, then `rebase -i {start}` with `sequence.editor=sed -i '/add fix.txt/s/^pick/drop/'`; assert HEAD == moved, refused with \"was made on\", entries == []. Probe-verified: passes on 4d21bcaa, fails on the rows[i + 2] mutant with {'status': 'done', 'how': 'found'}.",
+  "evidence": "scripts/tests/test_ship.py:1032 `git(repo, \"merge\", \"-q\", \"--ff-only\", f\"origin/{FEATURE}\")`; skills/afk/fix/scripts/ship.py:666 `before = rows[i + 1][0] if i + 1 < len(rows) else \"\"`. Probe <scratch>/r7tv-mut/before_is_two_back.out: `15 passed, 88 deselected`; extra test on the same mutant: `AssertionError: {'step': 'land', 'status': 'done', 'push': 'feat/export@f5499ed7...', 'how': 'found'}`."
+ },
+ {
+  "id": "r-004",
+  "concern": "test-veracity",
+  "criterion": "Fragile test (Meszaros): environment assumptions",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_ship.py",
+  "line": 1034,
+  "side": "new",
+  "finding": "Possible fragile test: the sequence editor matches only the long `pick` word, so a developer whose global git config sets `rebase.abbreviateCommands=true` gets `p` lines, nothing is dropped, and the test fails at the HEAD == moved check (a false red, not a false pass). Reproduced on WSL Ubuntu git 2.43: `NOT DROPPED: HEAD=d6185620... moved=89748748...`. CI sets no such key, so CI is unaffected.",
+  "why": "test-veracity checklist, Fragile test: \"asserts coupled to shared/seeded data; time/locale/ordering assumptions\" — the test leans on the runner's global git config, which the fixture does not isolate.",
+  "fix": "Pin the todo format in the same call: `git(repo, \"-c\", \"rebase.abbreviateCommands=false\", \"-c\", \"sequence.editor=sed -i '2s/^pick/drop/'\", \"rebase\", ...)`, or match either form with `sed -i '2s/^p\\(ick\\)\\{0,1\\} /drop /'`.",
+  "evidence": "scripts/tests/test_ship.py:1034 `git(repo, \"-c\", \"sequence.editor=sed -i '2s/^pick/drop/'\", \"rebase\", \"-q\", \"-i\", \"HEAD~2\")`; scripts/tests/test_ship.py:1035 `assert git(repo, \"rev-parse\", \"HEAD\") == moved`."
+ },
+ {
+  "id": "r-005",
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic (Meszaros)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_ship.py",
+  "line": 948,
+  "side": "new",
+  "finding": "Possible conditional test logic: the reshape replaced the if/else with a `landed` flag that steers three asserts through `or` and two ternaries, so each parameter row still runs a different assertion path. Both outcomes are now checked (the round-6 gap is closed); the residue is structural only.",
+  "why": "skills/afk/review/checklists/test-veracity.md:15 \"Conditional test logic (Meszaros) — `if`/loops/`try` steering the asserts inside a test body → split or parameterize.\"",
+  "fix": "Parametrize the expected outcome as data, e.g. `(6, \"refused\", \"names no commit\", False)` and `(7, \"done\", None, True)`, or split into a 6-character refusal test and a 7-character land test, each with straight-line asserts.",
+  "evidence": "scripts/tests/test_ship.py:946-950 `landed = status == \"done\"` / `assert landed or \"names no commit\" in result[\"reason\"], result` / `assert remote_tip(repo, FEATURE) == (head if landed else before)` / `assert entries(path) == ([f\"push: {FEATURE}@{head}\"] if landed else [])`."
+ }
+]

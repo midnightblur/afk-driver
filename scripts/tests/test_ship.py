@@ -937,17 +937,22 @@ def test_fast_forward_land_reads_a_base_commit_written_after_a_word(tmp_path, re
     assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
 
 
-@pytest.mark.parametrize("length,status", [(6, "refused"), (7, "done")])
-def test_fast_forward_land_reads_a_base_commit_of_7_characters_or_more(tmp_path, repo, length, status):
-    _, head = land_case(tmp_path, repo)
+def test_fast_forward_land_refuses_a_base_commit_of_6_characters(tmp_path, repo):
+    land_case(tmp_path, repo)
     before, start = remote_tip(repo, FEATURE), git(repo, "rev-parse", f"origin/{FEATURE}")
-    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:length]}")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:6]}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
-    landed = status == "done"
-    assert result["status"] == status, result
-    assert landed or "names no commit" in result["reason"], result
-    assert remote_tip(repo, FEATURE) == (head if landed else before)
-    assert entries(path) == ([f"push: {FEATURE}@{head}"] if landed else [])
+    assert result["status"] == "refused" and "names no commit" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def test_fast_forward_land_reads_a_base_commit_of_7_characters(tmp_path, repo):
+    _, head = land_case(tmp_path, repo)
+    start = git(repo, "rev-parse", f"origin/{FEATURE}")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:7]}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done", result
+    assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
 
 
 @pytest.mark.parametrize("take_tip", [
@@ -1025,14 +1030,36 @@ def test_fast_forward_land_refuses_a_branch_rebased_onto_another_branch_with_no_
     assert remote_tip(repo, FEATURE) == before and entries(path) == []
 
 
-def test_fast_forward_land_refuses_a_rebase_that_drops_the_only_fix(tmp_path, repo):
+@pytest.mark.parametrize("trim", [False, True])
+def test_fast_forward_land_refuses_a_rebase_that_drops_the_only_fix(tmp_path, repo, trim):
     git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
     start = git(repo, "rev-parse", "HEAD")
     moved = moved_feature(tmp_path, repo)
     git(repo, "merge", "-q", "--ff-only", f"origin/{FEATURE}")
-    commit(repo, "fix.txt", "fixed\n")
-    git(repo, "-c", "sequence.editor=sed -i '2s/^pick/drop/'", "rebase", "-q", "-i", "HEAD~2")
+    drop_by_rebase(repo, commit(repo, "fix.txt", "fixed\n"), start)
     assert git(repo, "rev-parse", "HEAD") == moved
+    while trim and len(git(repo, "reflog", "show", f"refs/heads/{BRANCH}").splitlines()) > 1:
+        git(repo, "reflog", "delete", f"refs/heads/{BRANCH}@{{1}}")
+    before = remote_tip(repo, FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def drop_by_rebase(repo, dropped, onto):
+    """Rebase HEAD onto `onto` with the todo line of commit `dropped` deleted."""
+    git(repo, "-c", f"sequence.editor=sed -i '/ {dropped[:7]}/d'", "rebase", "-q", "-i", onto)
+
+
+def test_fast_forward_land_refuses_a_rebase_that_drops_the_fix_behind_a_merge(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    fix = commit(repo, "fix.txt", "fixed\n")
+    moved_feature(tmp_path, repo)
+    git(repo, "merge", "-q", "--no-ff", "-m", "take the newer tip", f"origin/{FEATURE}")
+    drop_by_rebase(repo, fix, start)
+    assert fix not in git(repo, "rev-list", "HEAD").split()
     before = remote_tip(repo, FEATURE)
     path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
@@ -1046,6 +1073,21 @@ def side_commit(repo, name):
     made = commit(repo, name)
     git(repo, "checkout", "-q", BRANCH)
     return made
+
+
+@pytest.mark.parametrize("take", [("reset", "-q", "--hard"), ("merge", "-q", "--ff-only")])
+def test_fast_forward_land_refuses_a_rebase_that_replays_only_commits_made_elsewhere(
+        tmp_path, repo, take):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    git(repo, *take, side_commit(repo, "other.txt"))
+    moved_feature(tmp_path, repo)
+    git(repo, "rebase", "-q", f"origin/{FEATURE}")
+    before = remote_tip(repo, FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
 
 
 @pytest.mark.parametrize("kind", ["commit", "amend", "cherry-pick", "revert"])

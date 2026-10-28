@@ -164,3 +164,5 @@
 2026-10-28 14:40 | execute | 0007-ship-script | developing — fixing round 5: a rebase counts as a fix only when its result differs from the commit it replayed onto; focused ship tests 102 passed
 2026-10-28 15:20 | execute | 0007-ship-script | review blocking crit=0 high=1 med=0 low=1 — round 6 found 2 (f041-f042): a rebase that drops the fix counted as a fix, and the 7-character test checked its outcome only on one branch
 2026-10-28 15:20 | execute | 0007-ship-script | developing — fixing round 6: a rebase result the branch already held before the rebase is not a fix; focused ship tests 103 passed
+2026-10-28 16:40 | execute | 0007-ship-script | review advisory crit=0 high=0 med=1 low=4 — round 7 found 5 (f043-f047): a rebase replaying only commits made elsewhere counted as a fix, the oldest-entry rebase skipped the check, and 3 test gaps
+2026-10-28 16:40 | execute | 0007-ship-script | developing — fixing round 7: a rebased commit counts only when its patch id matches a commit the branch made; focused ship tests 107 passed
