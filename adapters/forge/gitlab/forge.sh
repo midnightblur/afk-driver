@@ -285,6 +285,8 @@ change-view)
     reason=$(head -c 300 "$VIEW_ERR"); rm -f "$VIEW_ERR"
     missing=false
     printf '%s' "$reason" | grep -qiE 'no open merge requests?|merge request .*not found|404|not found' && missing=true
+    # A project the token cannot read also answers 404; that is a failed lookup, not a missing change.
+    printf '%s' "$reason" | grep -qi 'project not found' && missing=false
     "$PY" -c 'import json, sys
 print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] == "true",
                   "reason": sys.argv[2] or "change lookup failed"}))' "$missing" "$reason"

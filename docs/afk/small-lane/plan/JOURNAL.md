@@ -114,3 +114,7 @@
 2026-10-27 21:50 | execute | 0007-ship-script | designing — consumed contracts pass; reading the design record, the forge adapters and the outside-writes helper before writing the ship script
 2026-10-27 22:19 | execute | 0007-ship-script | decision(D-45) — the ground for the ship seams held by re-reading the lines INV-025 cites; the ship script's proof comment is marked change-proof so it never collides with the bug mode's proof step
 2026-10-27 22:19 | execute | 0007-ship-script | developing — the ship script (open, proof, ready, land) and its tests are written; GitLab change-reviewers now adds a reviewer; SAFETY.md carries the feature-branch sentence
+2026-10-27 22:24 | execute | 0007-ship-script | pushed 2cfd96b..e5dff91 (1 commits) — the ship script, its tests, the GitLab reviewer fix and the SAFETY sentence are on the pull request
+2026-10-27 22:27 | execute | 0007-ship-script | verifying — plugin-source gates pass, the declared function is in place, 48 ship tests and 117 forge adapter tests pass on Windows; the full suites run in the pull request's checks
+2026-10-27 22:32 | execute | 0007-ship-script | reviewing — round 1, full slice
+2026-10-27 23:15 | execute | 0007-ship-script | review round 1 — 13 findings (1 high: no test proved the push is never forced), all fixed in place; decision(D-47) records the proof step's inputs, the tracked-job duty on 0008 and the GitLab conformance note

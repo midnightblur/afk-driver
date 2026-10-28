@@ -900,6 +900,13 @@ def test_change_view_names_a_change_the_forge_says_is_missing(tmp_path, kind, me
     assert answer["error"] is True and answer["missing"] is True
 
 
+def test_gitlab_change_view_does_not_call_an_unreadable_project_a_missing_change(tmp_path):
+    environ = stub(tmp_path, "gitlab", "echo '404 Project Not Found' >&2\nexit 1\n")
+    answer = json.loads(forge("gitlab", environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is False
+    assert "Project Not Found" in answer["reason"]
+
+
 @pytest.mark.parametrize("kind", KINDS)
 def test_change_view_does_not_call_a_timeout_a_missing_change(tmp_path, kind):
     environ = stub(tmp_path, kind, "echo 'dial tcp: i/o timeout' >&2\nexit 1\n")

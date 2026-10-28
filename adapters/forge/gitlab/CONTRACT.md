@@ -64,7 +64,7 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
   does. `glab mr update --reviewer` replaces the list unless each name carries
   `+`, so the adapter sends every name with a `+`.
 - `commit-changes` reads the merge requests that contain one commit (`sha`), paginated. A failing `glab`, a non-list answer, or an entry with no `iid` is an error.
-- `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference.
+- `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference. A `404 Project Not Found` (a project the token cannot read) is a failed lookup and answers `missing: false`.
 - `note-list` reads paginated merge-request notes. It removes system and inline
   notes and sorts the result oldest first. Each note carries `edited` from
   GraphQL `Note.lastEditedBy`, which is non-null exactly when GitLab calls the

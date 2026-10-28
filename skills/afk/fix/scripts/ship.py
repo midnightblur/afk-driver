@@ -21,18 +21,20 @@ Run it in the diagnosis worktree, with a diagnosis the check script accepts.
   change ready, then adds the `mrReviewer` when one is configured.
 - land: on the Diagnosis branch, fetch the Base branch, check the push is a
   fast-forward, and push HEAD onto it with plain git and upstream set, never
-  forced. Listed as `push: {branch}@{commit}`.
+  forced. Listed as `push: {branch}@{commit}`. Refused when Base is the
+  repository's base branch: a fix for it ships through open, never land.
 
 A step whose entry is listed is skipped. Every other write is read back first
 and retried at most twice, each time after a read-back shows it left nothing
 (`outside_writes.py`). A protected push target and an empty change id are
-refused before any write.
+refused before any write, as is a diagnosis with no Outside writes part.
 
 Prints one JSON object: `step`, `status`, `reason` and the step's details.
 Status: done; skipped (already listed); draft (CI not green, the change stays
 Draft); no-change (no open change for the proof: put `text` in the run report);
 refused (nothing written); not-fast-forward (the Base branch moved: rebase
-once, run every tier, then land again); blocked. Exit 0 for done, skipped,
+once, run every tier, then land again); blocked (a write may have taken
+effect: re-run the step, which reads back first). Exit 0 for done, skipped,
 draft and no-change, 1 for refused, 2 for not-fast-forward and blocked.
 """
 from __future__ import annotations
@@ -56,7 +58,7 @@ if str(DIAGNOSE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(DIAGNOSE_SCRIPTS))
 
 from check_diagnosis import check_diagnosis  # noqa: E402
-from diagnosis_file import sections  # noqa: E402
+from diagnosis_file import entry_problem, load_format, outside_write_kinds, sections  # noqa: E402
 from outside_writes import append_outside_write, failed, listed, retry_with_read_back  # noqa: E402
 
 STEPS = ("open", "proof", "ready", "land")
@@ -184,6 +186,7 @@ class Tools:
     protected: Callable[[str], bool] | None = None
     setting: Callable[[str], str] | None = None
     post_reasons: Callable[[str], dict] | None = None
+    base_branch: Callable[[], str] | None = None
     sleep: Callable[[float], None] = time.sleep
 
 
@@ -193,6 +196,7 @@ def _bind(tools: Tools, cwd: Path) -> Tools:
         protected=tools.protected or (lambda branch: _lookup_protected(branch, cwd)),
         setting=tools.setting or (lambda key: _resolve_setting(key, cwd)),
         post_reasons=tools.post_reasons or (lambda change: _rationale_post(change, cwd)),
+        base_branch=tools.base_branch or (lambda: _base_branch(cwd)),
         sleep=tools.sleep,
     )
 
@@ -207,6 +211,14 @@ def _resolve_setting(key: str, cwd: Path) -> str:
     done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-config.py"), "resolve", key],
                           cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           timeout=FORGE_TIMEOUT)
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+def _base_branch(cwd: Path) -> str:
+    """The repository's `git.base-branch` through `afk-config.py get` (`auto` resolved), or ""."""
+    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-config.py"), "get",
+                           "git.base-branch"], cwd=cwd, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", timeout=FORGE_TIMEOUT)
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
@@ -250,6 +262,8 @@ def read_diagnosis(path) -> Diagnosis:
         raise refuse("the diagnosis check refuses the file: "
                      + "; ".join([f"missing {m}" for m in checked.missing] + checked.problems))
     found = sections(path.read_text(encoding="utf-8"))
+    if "outside writes" not in found:
+        raise refuse("the diagnosis has no `## Outside writes` part, so no write could be listed")
 
     def first(name: str) -> str:
         return next((line.strip() for line in found.get(name, []) if line.strip()), "")
@@ -307,6 +321,19 @@ def _branch_name(cwd: Path, ref: str) -> str:
     return ref
 
 
+def _base_names(cwd: Path, base: str) -> set[str]:
+    """`base` as written and without a leading `<remote>/`, fetched or not."""
+    remotes = _git(cwd, "remote", check=False).stdout.split()
+    return {base, *(base.removeprefix(f"{r}/") for r in remotes if base.startswith(f"{r}/"))}
+
+
+def _check_entry(entry: str):
+    """Refuse, before the write, an Outside writes entry the format would reject after it."""
+    problem = entry_problem(entry, outside_write_kinds(load_format()))
+    if problem:
+        raise refuse(f"the step could not list its write: {problem}")
+
+
 def _guard_target(tools: Tools, branch: str):
     try:
         hit = tools.protected(branch)
@@ -337,6 +364,8 @@ def _push(cwd: Path, tools: Tools, remote: str, target: str, head: str):
         known = _git(cwd, "cat-file", "-e", f"{tip}^{{commit}}", check=False).returncode == 0
         if not known and _git(cwd, "fetch", "--quiet", remote, ref, check=False).returncode:
             return {"error": True, "reason": f"cannot fetch {remote}/{target} to compare its tip"}
+        if _git(cwd, "merge-base", "--is-ancestor", head, tip, check=False).returncode == 0:
+            return {"ok": True, "commit": head, "contained_in": tip}
         if _git(cwd, "merge-base", "--is-ancestor", tip, head, check=False).returncode == 0:
             return None
         return {"error": True, "moved": True, "tip": tip,
@@ -360,15 +389,23 @@ def _writable(answer: dict, what: str) -> dict:
     return answer
 
 
-def _change_by_branch(forge, branch: str):
-    """The change for `branch`, or None when the forge confirms there is none."""
-    answer = forge.call("change-view", {"id": branch})
+def _open_or_none(answer):
+    """A by-branch change-view answer: None when the forge confirms no open change
+    (missing, or only a closed or merged one), else the answer as it came."""
     if isinstance(answer, dict) and answer.get("error") and answer.get("missing"):
         return None
-    if failed(answer):
+    if not failed(answer) and str(answer.get("state") or "").lower() in NOT_WRITABLE:
+        return None
+    return answer
+
+
+def _change_by_branch(forge, branch: str):
+    """The open change for `branch`, or None when the forge confirms there is none."""
+    answer = _open_or_none(forge.call("change-view", {"id": branch}))
+    if answer is not None and failed(answer):
         raise block(f"the change lookup by branch {branch} failed, so no change opens (several "
                     f"changes on one branch end here too; pick one by hand): {_why(answer)}")
-    return _writable(answer, f"for {branch}")
+    return answer
 
 
 def _change_by_number(forge, number: str) -> dict:
@@ -443,10 +480,7 @@ def _create(d: Diagnosis, tools: Tools, cwd: Path, assignee: str) -> tuple[str, 
         payload["assignee"] = assignee
 
     def read_back():
-        answer = tools.forge.call("change-view", {"id": d.branch})
-        if isinstance(answer, dict) and answer.get("error") and answer.get("missing"):
-            return None
-        return answer
+        return _open_or_none(tools.forge.call("change-view", {"id": d.branch}))
 
     outcome = retry_with_read_back(lambda: tools.forge.call("change-create-draft", payload),
                                    read_back, key="id", sleep=tools.sleep)
@@ -460,6 +494,7 @@ def step_proof(d: Diagnosis, tools: Tools, cwd: Path, proof: dict, evidence_link
     entry = f"evidence: {marker}"
     if listed(d.path, entry):
         return {"status": "skipped", "reason": f"`{entry}` is listed"}
+    _check_entry(entry)
     texts = _proof_texts(proof)
     if d.ticket and not evidence_link:
         raise refuse(f"the diagnosis names ticket {d.ticket}: pass --evidence-link, the link to "
@@ -552,9 +587,17 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     head = _on_branch(cwd, d)
     target = _branch_name(cwd, d.base)
     _guard_target(tools, target)
+    base = tools.base_branch()
+    if not base:
+        raise refuse("cannot tell the repository's base branch (`git.base-branch`), so land "
+                     "cannot rule it out")
+    if target in _base_names(cwd, base):
+        raise refuse(f"{target} is the repository's base branch; a fix for it ships through "
+                     "open, never land")
     entry = f"push: {target}@{head}"
     if listed(d.path, entry):
         return {"status": "skipped", "reason": f"`{entry}` is listed"}
+    _check_entry(entry)
     remote = _remote(cwd, target)
     fetched = _git(cwd, "fetch", "--quiet", remote, f"refs/heads/{target}", check=False)
     if fetched.returncode:
@@ -587,6 +630,9 @@ def run_ship_step(step: str, diagnosis, *, proof: dict | None = None, evidence_l
             result = {"open": step_open, "ready": step_ready, "land": step_land}[step](d, bound, cwd)
     except Stop as stop:
         result = {"status": stop.status, "reason": stop.reason, **stop.details}
+    except Exception as error:  # a write may already have taken effect: never exit as refused
+        result = {"status": "blocked", "reason": f"{type(error).__name__}: {error}; a write may "
+                  "have taken effect, so re-run the step, which reads back first"}
     return {"step": step, **result}
 
 

@@ -211,12 +211,12 @@ class Recorder:
         return self.answer
 
 
-def tools(forge, *, protected=("main",), settings=None, reasons=None, sleeps=None):
+def tools(forge, *, protected=("main",), settings=None, reasons=None, sleeps=None, base="origin/main"):
     settings = {"mrAssignee": "dev.one", "mrReviewer": "rev.two"} if settings is None else settings
     sleeps = [] if sleeps is None else sleeps
     return ship.Tools(forge=forge, protected=lambda branch: branch in protected,
                       setting=lambda key: settings.get(key, ""),
-                      post_reasons=reasons or Recorder(), sleep=sleeps.append)
+                      post_reasons=reasons or Recorder(), base_branch=lambda: base, sleep=sleeps.append)
 
 
 def proof_files(tmp_path):
@@ -224,6 +224,31 @@ def proof_files(tmp_path):
     one.write_text("test_last_row: failed before, passed after", encoding="utf-8")
     two.write_text("static green; unit green", encoding="utf-8")
     return {"P-1": str(one), "P-2": str(two)}
+
+
+def stranger_clone(tmp_path, branch, start):
+    """A second clone on `branch` from `start`, to push commits the worktree does not hold."""
+    other = tmp_path / "other"
+    git(tmp_path, "clone", "-q", str(tmp_path / "remote.git"), str(other))
+    git(other, "config", "user.name", "Other")
+    git(other, "config", "user.email", "other@example.invalid")
+    git(other, "checkout", "-q", "-B", branch, start)
+    return other
+
+
+def move_before_first_push(monkeypatch, other, branch):
+    """Push a stranger commit onto `branch` just before the step's own first push runs,
+    after its read-first saw the old tip; returns the list the stranger commit lands in."""
+    real, moved = ship._git, []
+
+    def git_then_move(cwd, *args, check=True):
+        if args[0] == "push" and not moved:
+            moved.append(commit(other, "stranger.txt"))
+            git(other, "push", "-q", "origin", f"HEAD:refs/heads/{branch}")
+        return real(cwd, *args, check=check)
+
+    monkeypatch.setattr(ship, "_git", git_then_move)
+    return moved
 
 
 def remote_tip(repo, branch):
@@ -456,6 +481,13 @@ CI_ANSWERS = {
     "dispatch": (2, ""),
     "unavailable": (4, {"unavailable": True, "verb": "ci-wait", "reason": "glab is not on PATH"}),
     "mismatch": (0, {"status": "failed"}),
+    "green_on_a_red_exit": (1, {"status": "success"}),
+}
+CI_REASONS = {
+    "red": "CI failed", "canceled": "CI canceled", "timeout": "CI still running",
+    "unreadable": "CI status unreadable", "no_ci": "no CI", "dispatch": "ci-wait answer not understood",
+    "unavailable": "ci-wait answer not understood", "mismatch": "ci-wait answer not understood",
+    "green_on_a_red_exit": "ci-wait answer not understood",
 }
 
 
@@ -485,8 +517,7 @@ def test_ci_wait_anything_but_green_leaves_the_change_draft_with_the_reason(tmp_
     forge, result = ready_case(tmp_path, repo, CI_ANSWERS[case])
     assert result["status"] == "draft" and "stays Draft" in result["reason"], result
     assert forge.writes() == [] and forge.changes["1"]["draft"] is True
-    if case == "no_ci":
-        assert result["reason"].startswith("no CI")
+    assert result["reason"].startswith(CI_REASONS[case]), result
 
 
 def test_ci_wait_polls_every_180_s_for_at_most_5400_s(tmp_path, repo):
@@ -556,11 +587,12 @@ esac
 
 
 @needs_bash
-@pytest.mark.parametrize("pipeline,status,ready", [
-    ("success", "done", True), ("failed", "draft", False),
-    ("running", "draft", False), ("unreadable", "draft", False),
+@pytest.mark.parametrize("pipeline,status,ready,reason", [
+    ("success", "done", True, "CI green"), ("failed", "draft", False, "CI failed"),
+    ("running", "draft", False, "CI still running"), ("unreadable", "draft", False, "CI status unreadable"),
 ])
-def test_ci_wait_through_the_gitlab_adapter_routes_each_answer(tmp_path, monkeypatch, pipeline, status, ready):
+def test_ci_wait_through_the_gitlab_adapter_routes_each_answer(tmp_path, monkeypatch, pipeline, status,
+                                                               ready, reason):
     forge_config(tmp_path, monkeypatch, "gitlab")
     binaries = tmp_path / "bin"
     binaries.mkdir()
@@ -578,7 +610,7 @@ def test_ci_wait_through_the_gitlab_adapter_routes_each_answer(tmp_path, monkeyp
     if pipeline == "unreadable":
         kit.forge = FakeViewThenRealForge(tmp_path)
     result = ship.run_ship_step("ready", path, cwd=tmp_path, tools=kit)
-    assert result["status"] == status, result
+    assert result["status"] == status and result["reason"].startswith(reason), result
     calls = log.read_text(encoding="utf-8")
     assert ("mr update 7 --ready" in calls) is ready
     assert ("--reviewer +rev.two" in calls) is ready
@@ -655,8 +687,127 @@ def test_fast_forward_land_refuses_a_protected_target(tmp_path, repo):
     assert result["status"] == "refused" and remote_tip(repo, FEATURE) == before
 
 
-def test_command_line_prints_one_json_result_and_exits_by_status(tmp_path, repo):
+def test_command_line_prints_one_json_result(tmp_path, repo):
     done = subprocess.run([sys.executable, str(ROOT / "skills" / "afk" / "fix" / "scripts" / "ship.py"),
                            "ready", str(diagnosis(tmp_path))], cwd=repo, capture_output=True, text=True)
     assert done.returncode == 1
     assert json.loads(done.stdout)["status"] == "refused"
+
+
+@pytest.mark.parametrize("status,code", [
+    ("done", 0), ("skipped", 0), ("draft", 0), ("no-change", 0), ("refused", 1),
+    ("not-fast-forward", 2), ("blocked", 2), ("anything-else", 2),
+])
+def test_command_line_exits_by_status(monkeypatch, capsys, status, code):
+    monkeypatch.setattr(ship, "run_ship_step", lambda step, path, **kw: {"step": step, "status": status})
+    assert ship.main(["land", "DIAGNOSIS.md"]) == code
+    assert json.loads(capsys.readouterr().out)["status"] == status
+
+
+# ---- round 1 review: pushes never forced, base branch, closed changes, failures after a write
+
+def test_open_never_forces_when_the_fix_branch_appears_after_the_read_first(tmp_path, repo, monkeypatch):
+    other = stranger_clone(tmp_path, BRANCH, "origin/main")
+    moved = move_before_first_push(monkeypatch, other, BRANCH)
+    path, forge = diagnosis(tmp_path), FakeForge(repo)
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge))
+    assert result["status"] == "blocked" and "does not contain" in result["reason"], result
+    assert remote_tip(repo, BRANCH) == moved[0] and forge.writes() == [] and entries(path) == []
+
+
+def test_fast_forward_land_never_forces_over_a_tip_that_moved_before_the_push(tmp_path, repo, monkeypatch):
+    path, head = land_case(tmp_path, repo)
+    other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
+    moved = move_before_first_push(monkeypatch, other, FEATURE)
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "not-fast-forward" and result["tip"] == moved[0], result
+    assert remote_tip(repo, FEATURE) == moved[0] and entries(path) == []
+
+
+def test_fast_forward_land_finds_its_push_under_a_later_commit(tmp_path, repo):
+    path, head = land_case(tmp_path, repo)
+    git(repo, "push", "-q", "origin", f"HEAD:refs/heads/{FEATURE}")
+    other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
+    later = commit(other, "later.txt")
+    git(other, "push", "-q", "origin", FEATURE)
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done" and result["how"] == "found", result
+    assert remote_tip(repo, FEATURE) == later and entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+@pytest.mark.parametrize("base", [FEATURE, f"origin/{FEATURE}"])
+def test_fast_forward_land_refuses_the_repository_base_branch(tmp_path, repo, base):
+    path, _ = land_case(tmp_path, repo)
+    before = remote_tip(repo, FEATURE)
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo), protected=(), base=base))
+    assert result["status"] == "refused" and "base branch" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def test_fast_forward_land_refuses_when_the_base_branch_is_unknown(tmp_path, repo):
+    path, _ = land_case(tmp_path, repo)
+    before = remote_tip(repo, FEATURE)
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo), base=""))
+    assert result["status"] == "refused" and remote_tip(repo, FEATURE) == before
+
+
+def test_base_branch_default_reads_the_repository_setting(tmp_path, repo, monkeypatch):
+    config = tmp_path / "afk-config.yaml"
+    config.write_text(f"schema: 1\ngit:\n  base-branch: {FEATURE}\n", encoding="utf-8")
+    monkeypatch.setenv("AFK_CONFIG", str(config))
+    assert ship._base_branch(repo) == FEATURE
+
+
+@pytest.mark.parametrize("step", ["proof", "ready"])
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_listed_change_that_is_closed_or_merged_blocks_with_no_write(tmp_path, repo, step, state):
+    forge = FakeForge(repo)
+    forge.add(BRANCH, state=state)
+    path = diagnosis(tmp_path, **{"Outside writes": f"- change: {FORGE_URL}/1"})
+    proof = proof_files(tmp_path) if step == "proof" else None
+    result = ship.run_ship_step(step, path, proof=proof, cwd=repo, tools=tools(forge))
+    assert result["status"] == "blocked" and state in result["reason"], result
+    assert forge.writes() == [] and entries(path) == [f"change: {FORGE_URL}/1"]
+
+
+def test_open_opens_a_new_change_when_the_branch_has_only_a_merged_one(tmp_path, repo):
+    path, forge = diagnosis(tmp_path), FakeForge(repo)
+    forge.add(BRANCH, state="merged")
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge))
+    assert result["status"] == "done" and result["change_step"] == "opened", result
+    assert entries(path) == [f"change: {FORGE_URL}/2"]
+
+
+def test_proof_after_a_land_with_only_a_merged_feature_change_hands_back_the_text(tmp_path, repo):
+    forge = FakeForge(repo)
+    forge.add(FEATURE, state="merged")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@0123abc", **{"Outside writes": f"- push: {FEATURE}@abc123"})
+    result = ship.run_ship_step("proof", path, proof=proof_files(tmp_path), cwd=repo, tools=tools(forge))
+    assert result["status"] == "no-change" and forge.writes() == [], result
+
+
+def test_a_diagnosis_without_outside_writes_is_refused_before_any_write(tmp_path, repo):
+    path, forge = diagnosis(tmp_path, **{"Outside writes": None}), FakeForge(repo)
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge))
+    assert result["status"] == "refused" and "Outside writes" in result["reason"], result
+    assert forge.calls == [] and remote_tip(repo, BRANCH) == ""
+
+
+def test_proof_refuses_a_marker_the_format_would_not_list_before_posting(tmp_path, repo):
+    forge = FakeForge(repo)
+    forge.add(BRANCH)
+    path = diagnosis(tmp_path, **{"Work id": "bug two words", "Outside writes": f"- change: {FORGE_URL}/1"})
+    result = ship.run_ship_step("proof", path, proof=proof_files(tmp_path), cwd=repo, tools=tools(forge))
+    assert result["status"] == "refused" and "could not list" in result["reason"], result
+    assert forge.writes() == []
+
+
+def test_a_failure_after_a_write_is_blocked_never_refused(tmp_path, repo):
+    path, forge = diagnosis(tmp_path), FakeForge(repo)
+
+    def broken(change):
+        raise PermissionError("the diagnosis is locked")
+
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge, reasons=broken))
+    assert result["status"] == "blocked" and "PermissionError" in result["reason"], result
+    assert forge.writes() == ["change-create-draft"]

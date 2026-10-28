@@ -68,12 +68,14 @@ release page from its section here. Nobody tags by hand.
   branch it started from, only as a fast-forward and never forced. Each write
   is listed in the diagnosis's Outside writes, a re-run skips it, a failed
   write is read back before its retry, and a protected push target or an empty
-  change id is refused.
+  change id is refused, as is `land` onto the repository's base branch.
 
 ### Changed
 
 - GitLab `change-reviewers` adds the reviewer to the merge request's list
   instead of replacing the list, as GitHub already did.
+- GitLab `change-view` no longer reports a project the token cannot read
+  (`404 Project Not Found`) as a missing change; it is a failed lookup.
 
 - `/afk:diagnose` no longer fixes. It reproduces the bug with a failing test,
   compares it with the specs, names the root cause and writes `DIAGNOSIS.md`
