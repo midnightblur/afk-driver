@@ -24,7 +24,7 @@ Run it in the diagnosis worktree, with a diagnosis the check script accepts.
   forced. Listed as `push: {branch}@{commit}`. Refused when Base is the
   repository's base branch (`auto` reads as the remote's default branch, main
   and master): a fix for it ships through open, never land. Refused too when
-  no commit past the Base commit was made on the Diagnosis branch.
+  HEAD has no commit past the Base commit.
 
 A step whose entry is listed is skipped. Every other write is read back first
 and retried at most twice, each time after a read-back shows it left nothing
@@ -74,8 +74,6 @@ FORGE_TIMEOUT = 120
 GIT_TIMEOUT = 300
 LEDGER_TIMEOUT = 900
 NOT_WRITABLE = {"closed", "merged", "locked"}
-MADE_HERE = {"commit", "commit (amend)", "commit (merge)", "commit (initial)", "cherry-pick",
-             "revert"}
 EXIT = {"done": 0, "skipped": 0, "draft": 0, "no-change": 0, "refused": 1,
         "not-fast-forward": 2, "blocked": 2}
 
@@ -642,20 +640,8 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
     return found | {"main", "master"}
 
 
-def _authorship(cwd: Path, shas) -> dict[str, str]:
-    """Commit id -> author name, e-mail and date: what a rebase, squash or fixup keeps."""
-    if not shas:
-        return {}
-    out = _git(cwd, "log", "--no-walk=unsorted", "--stdin", "--date=raw",
-               "--format=%H%x00%an%x00%ae%x00%ad", check=False, stdin="\n".join(shas) + "\n").stdout
-    return {sha: key for sha, _, key in (line.partition("\0") for line in out.splitlines())}
-
-
 def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
-    """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
-    cherry-pick or revert in its reflog, or a commit a later rebase or rebasing pull replayed from
-    one of those (same author and author date); a replayed commit the branch never made counts
-    for nothing."""
+    """Refuse a land whose HEAD has no commit past the Diagnosis's Base commit."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -663,28 +649,9 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
     if ahead.returncode:
         raise refuse(f"the Base commit {d.base_commit} is not in this checkout, so land cannot "
                      f"tell whether {d.branch} carries a fix commit")
-    commits = set(ahead.stdout.split())
-    if not commits:
+    if not ahead.stdout.split():
         raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
                      "nothing to land")
-    log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
-    made: set[str] = set()
-    own: set[str] = set()
-    fresh: list[str] = []
-    for sha, _, subject in reversed([line.partition(" ") for line in log.splitlines()]):
-        action, _, rest = subject.partition(": ")
-        onto = re.search(r" onto ([0-9a-f]{40,64})\b", rest)
-        if action in MADE_HERE:
-            made.add(sha)
-            fresh.append(sha)
-        elif action.endswith("(finish)") and onto is not None and made:
-            own |= set(_authorship(cwd, fresh).values())
-            fresh = []
-            replayed = _git(cwd, "rev-list", f"{onto.group(1)}..{sha}", check=False).stdout.split()
-            made |= {c for c, key in _authorship(cwd, replayed).items() if key in own}
-    if not commits & made:
-        raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
-                     f"was made on {d.branch}, so land would ship no fix")
 
 
 def run_ship_step(step: str, diagnosis, *, proof: dict | None = None, evidence_link: str = "",
