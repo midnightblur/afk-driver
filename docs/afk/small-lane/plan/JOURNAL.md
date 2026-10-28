@@ -148,3 +148,9 @@
 2026-10-28 10:31 | execute | 0007-ship-script | review r2 — 8 findings posted as f014-f021 (3 high, 3 medium, 2 low); publication proven
 2026-10-28 10:44 | execute | 0007-ship-script | decision(D-50) — contract 0008 holds the duty to run the ready step as a tracked background job; the wiring IOU keeps only the consumer pointer
 2026-10-28 10:44 | execute | 0007-ship-script | developing — fixing round 2: land refuses main under the default base branch and a branch with no fix commit; open no longer takes a remote branch ahead of it as its push
+2026-10-28 11:12 | execute | 0007-ship-script | pushed 54881c8..33e4cd4 (2 commits) — the resume note and the round 2 fix are on the pull request
+2026-10-28 11:12 | execute | 0007-ship-script | review r2 — 8 findings, all fixed in 33e4cd4; focused ship tests 79 passed; summary note posted
+2026-10-28 11:12 | execute | 0007-ship-script | reviewing — review round 3 on the round 2 fix
+2026-10-28 12:02 | execute | 0007-ship-script | review findings crit=0 high=3 med=3 low=2 — corrects the two 'review r2' lines above to the event grammar: round 2 found 8, all fixed in 33e4cd4
+2026-10-28 12:02 | execute | 0007-ship-script | review findings crit=0 high=0 med=3 low=3 — round 3 found 6 (posted as f022-f027): land under `auto` misses a default branch other than main or master, the Base commit parse is narrow, a reset branch with no own commit lands, 2 refusals and master have no test
+2026-10-28 12:02 | execute | 0007-ship-script | developing — fixing round 3: `auto` adds the remote's default branch, the Base commit is found anywhere after the branch, land needs a commit the Diagnosis branch made

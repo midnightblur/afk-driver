@@ -22,9 +22,9 @@ Run it in the diagnosis worktree, with a diagnosis the check script accepts.
 - land: on the Diagnosis branch, fetch the Base branch, check the push is a
   fast-forward, and push HEAD onto it with plain git and upstream set, never
   forced. Listed as `push: {branch}@{commit}`. Refused when Base is the
-  repository's base branch (`auto` reads as main and master): a fix for it
-  ships through open, never land. Refused too when HEAD carries no commit past
-  the Base commit.
+  repository's base branch (`auto` reads as the remote's default branch, main
+  and master): a fix for it ships through open, never land. Refused too when
+  no commit past the Base commit was made on the Diagnosis branch.
 
 A step whose entry is listed is skipped. Every other write is read back first
 and retried at most twice, each time after a read-back shows it left nothing
@@ -281,7 +281,7 @@ def read_diagnosis(path) -> Diagnosis:
         if value.strip():
             entries.append((kind.strip(), value.strip()))
     base, *rest = re.split(r"[@\s]+", first("base").replace("`", "").strip(), maxsplit=1)
-    commit = re.match(r"[0-9a-fA-F]{4,40}\b", rest[0]) if rest else None
+    commit = re.search(r"\b[0-9a-fA-F]{7,40}\b", rest[0]) if rest else None
     symptom = re.sub(r"^[-*]\s+(\[[a-z]+\]\s*)?", "", first("symptom"))
     diagnosis = Diagnosis(path, first("work id"), first("ticket key"), base,
                           first("diagnosis branch").replace("`", ""), symptom, entries,
@@ -603,7 +603,8 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     if not base:
         raise refuse("cannot tell the repository's base branch (`git.base-branch`), so land "
                      "cannot rule it out")
-    if target in ({"main", "master"} if base == "auto" else _base_names(cwd, base)):
+    remote = _remote(cwd, target)
+    if target in (_auto_base_names(cwd, remote) if base == "auto" else _base_names(cwd, base)):
         raise refuse(f"{target} is the repository's base branch; a fix for it ships through "
                      "open, never land")
     _carries_a_fix(cwd, d, head)
@@ -611,7 +612,6 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     if listed(d.path, entry):
         return {"status": "skipped", "reason": f"`{entry}` is listed"}
     _check_entry(entry)
-    remote = _remote(cwd, target)
     fetched = _git(cwd, "fetch", "--quiet", remote, f"refs/heads/{target}", check=False)
     if fetched.returncode:
         raise block(f"cannot fetch {target} from {remote}: {_tail(fetched.stderr)}")
@@ -626,18 +626,40 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
             "how": "found" if pushed.found else "pushed"}
 
 
+def _auto_base_names(cwd: Path, remote: str) -> set[str]:
+    """`auto` as afk-config.py `detect_base_branch` reads it: the remote's default branch, main
+    and master; refused when the remote names none of them."""
+    prefix = f"refs/remotes/{remote}/"
+    head = _git(cwd, "symbolic-ref", "--quiet", f"{prefix}HEAD", check=False).stdout.strip()
+    found = {head.removeprefix(prefix)} if head.startswith(prefix) else set()
+    found |= {name for name in ("main", "master") if _git(
+        cwd, "rev-parse", "--verify", "--quiet", f"{prefix}{name}", check=False).returncode == 0}
+    if not found:
+        raise refuse(f"`git.base-branch` is `auto` and {remote} names no default branch, main or "
+                     "master, so land cannot rule out the base branch")
+    return found | {"main", "master"}
+
+
 def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
-    """Refuse a land whose HEAD is the Base commit or behind it: no fix commit to push."""
+    """Refuse a land with no commit past the Base commit that the Diagnosis branch made itself
+    (a branch reflog entry other than a reset, a branch move or a fast-forward)."""
     if not d.base_commit:
-        raise refuse("the diagnosis Base names no commit, so land cannot tell whether "
-                     f"{d.branch} carries a fix commit")
-    behind = _git(cwd, "merge-base", "--is-ancestor", head, d.base_commit, check=False).returncode
-    if behind == 0:
-        raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
-                     "nothing to land")
-    if behind != 1:
+        raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
+                     f"land cannot tell whether {d.branch} carries a fix commit")
+    ahead = _git(cwd, "rev-list", f"{d.base_commit}..{head}", check=False)
+    if ahead.returncode:
         raise refuse(f"the Base commit {d.base_commit} is not in this checkout, so land cannot "
                      f"tell whether {d.branch} carries a fix commit")
+    commits = set(ahead.stdout.split())
+    if not commits:
+        raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
+                     "nothing to land")
+    log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
+    made = {sha for sha, _, subject in (line.partition(" ") for line in log.splitlines())
+            if not subject.startswith(("reset:", "branch:")) and "Fast-forward" not in subject}
+    if not commits & made:
+        raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "
+                     f"was made on {d.branch}, so land would ship no fix")
 
 
 def run_ship_step(step: str, diagnosis, *, proof: dict | None = None, evidence_link: str = "",
