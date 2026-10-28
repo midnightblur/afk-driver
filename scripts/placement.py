@@ -159,10 +159,10 @@ def _short_name_free(ask: _Ask) -> str | None:
 
 
 def _short_name_folder(ask: _Ask) -> str | None:
-    folder = ask.folder or os.path.join(ask.root, ask.entry.short_name)
-    if not os.path.lexists(folder):
+    folder, written = ask.folder, os.path.join(ask.root, ask.entry.short_name)
+    if not os.path.lexists(written):
         return None
-    if not os.path.isdir(folder):
+    if not os.path.isdir(written):
         return f"{folder} is not a folder; pick another short name"
     held = repo_list._marker_holder(pathlib.Path(folder) / repo_list.MARKER_NAME)
     if held is None:

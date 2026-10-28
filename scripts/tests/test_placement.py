@@ -529,6 +529,16 @@ def test_a_short_name_refusal_names_a_linked_folder_as_the_check_shows_it(linked
     assert verdict.reason == f"{folder} was not made by setup for {rl.normalize(repo)}; pick another short name"
 
 
+@pytest.mark.parametrize("ask", [lambda repo, root: pl.target_for(repo, "wt1"),
+                                 lambda repo, root: pl.check_target(root / "proj" / "wt1", repo)],
+                         ids=["new target", "checked target"])
+def test_a_dangling_link_at_the_short_name_is_refused(linked_short_name_folder, root, ask):
+    repo, elsewhere = linked_short_name_folder
+    elsewhere.rmdir()
+    verdict = ask(repo, root)
+    assert verdict.rule == "R-06" and verdict.reason == f"{verdict.folder} is not a folder; pick another short name"
+
+
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")
 def test_drive_letter_case_is_resolved_on_both_sides(listed, root):
     text = str(root / "proj" / "x")

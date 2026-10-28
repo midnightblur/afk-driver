@@ -137,3 +137,6 @@
 2026-10-28 04:33 | execute | 0004-placement | pushed 9ab63e3..a74bfa1 (1 commits) — round 3 fix and the round 3 report; fix recorded and its thread closed
 2026-10-28 04:34 | execute | 0004-placement | reviewing — round 4 checks only the round 3 fix, with two fresh reviewers
 2026-10-28 04:45 | execute | 0004-placement | review r4 advisory — crit=0 high=0 med=1 low=2; all fixed: a check resolves the whole folder, a refused root and a linked short-name folder are now tested, and the new-target test is named as a guard
+2026-10-28 04:48 | execute | 0004-placement | pushed a74bfa1..a900962 (1 commits) — round 4 fixes and the round 4 report; three fixes recorded and their threads closed
+2026-10-28 04:49 | execute | 0004-placement | reviewing — round 5 checks only the round 4 fixes, with two fresh reviewers
+2026-10-28 05:02 | execute | 0004-placement | review r5 advisory — crit=0 high=0 med=1 low=1; both fixed: a dangling link at the short name is refused by a check too, and a dead fallback is gone
