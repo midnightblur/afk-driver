@@ -160,3 +160,5 @@
 2026-10-28 13:31 | execute | 0007-ship-script | review advisory crit=0 high=0 med=3 low=3 — corrects the 'review findings' line for round 3: 6 found, all fixed in 9fef686
 2026-10-28 13:31 | execute | 0007-ship-script | review advisory crit=0 high=0 med=4 low=4 — round 4 found 8 (f028-f035): land counted a rebase or a commit message as a fix commit, 5 test gaps, a docstring source and the journal grammar
 2026-10-28 13:31 | execute | 0007-ship-script | developing — fixing round 4: land counts only commits, cherry-picks, reverts and new rebase results; focused ship tests 95 passed
+2026-10-28 14:40 | execute | 0007-ship-script | review blocking crit=0 high=1 med=3 low=1 — round 5 found 5 (f036-f040): a rebased fix pushed before was refused on re-run, a rebase onto another branch with no fix passed, and 3 test gaps
+2026-10-28 14:40 | execute | 0007-ship-script | developing — fixing round 5: a rebase counts as a fix only when its result differs from the commit it replayed onto; focused ship tests 102 passed

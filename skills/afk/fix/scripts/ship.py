@@ -616,7 +616,7 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     fetched = _git(cwd, "fetch", "--quiet", remote, f"refs/heads/{target}", check=False)
     if fetched.returncode:
         raise block(f"cannot fetch {target} from {remote}: {_tail(fetched.stderr)}")
-    _carries_a_fix(cwd, d, head, _git(cwd, "rev-parse", "FETCH_HEAD").stdout.strip())
+    _carries_a_fix(cwd, d, head)
     pushed = _push(cwd, tools, remote, target, head, contained=True)
     if not pushed.ok:
         if isinstance(pushed.answer, dict) and pushed.answer.get("moved"):
@@ -642,9 +642,9 @@ def _auto_base_names(cwd: Path, remote: str) -> set[str]:
     return found | {"main", "master"}
 
 
-def _carries_a_fix(cwd: Path, d: Diagnosis, head: str, tip: str):
+def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
     """Refuse a land with no commit past the Base commit that the Diagnosis branch made: a commit,
-    cherry-pick or revert in its reflog, or a rebase result the fetched `tip` does not hold."""
+    cherry-pick or revert in its reflog, or a rebase that replayed commits (result != onto)."""
     if not d.base_commit:
         raise refuse("the diagnosis Base names no commit (write it as `{branch}@{commit id}`), so "
                      f"land cannot tell whether {d.branch} carries a fix commit")
@@ -659,9 +659,10 @@ def _carries_a_fix(cwd: Path, d: Diagnosis, head: str, tip: str):
     log = _git(cwd, "reflog", "show", "--format=%H %gs", f"refs/heads/{d.branch}", check=False).stdout
     made = set()
     for sha, _, subject in (line.partition(" ") for line in log.splitlines()):
-        action = subject.partition(": ")[0]
-        if action in MADE_HERE or ("rebase" in action and action.endswith("(finish)") and _git(
-                cwd, "merge-base", "--is-ancestor", sha, tip, check=False).returncode == 1):
+        action, _, rest = subject.partition(": ")
+        onto = re.search(r" onto ([0-9a-f]{40,64})\b", rest)
+        if action in MADE_HERE or ("rebase" in action and action.endswith("(finish)")
+                                   and onto is not None and onto.group(1) != sha):
             made.add(sha)
     if not commits & made:
         raise refuse(f"none of the {len(commits)} commits past the Base commit {d.base_commit} "

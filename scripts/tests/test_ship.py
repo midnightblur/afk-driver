@@ -937,13 +937,17 @@ def test_fast_forward_land_reads_a_base_commit_written_after_a_word(tmp_path, re
     assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
 
 
-def test_fast_forward_land_refuses_a_base_commit_shorter_than_7_characters(tmp_path, repo):
-    land_case(tmp_path, repo)
+@pytest.mark.parametrize("length,status", [(6, "refused"), (7, "done")])
+def test_fast_forward_land_reads_a_base_commit_of_7_characters_or_more(tmp_path, repo, length, status):
+    _, head = land_case(tmp_path, repo)
     before, start = remote_tip(repo, FEATURE), git(repo, "rev-parse", f"origin/{FEATURE}")
-    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:6]}")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start[:length]}")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
-    assert result["status"] == "refused" and "names no commit" in result["reason"], result
-    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+    assert result["status"] == status, result
+    if status == "refused":
+        assert "names no commit" in result["reason"] and remote_tip(repo, FEATURE) == before
+    else:
+        assert remote_tip(repo, FEATURE) == head
 
 
 @pytest.mark.parametrize("take_tip", [
@@ -993,6 +997,59 @@ def test_fast_forward_land_pushes_a_fix_rebased_onto_a_newer_tip(tmp_path, repo)
     head = git(repo, "rev-parse", "HEAD")
     result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
     assert result["status"] == "done" and result["how"] == "pushed", result
+    assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+def test_fast_forward_land_finds_a_rebased_fix_it_pushed_before(tmp_path, repo):
+    path, _ = land_case(tmp_path, repo)
+    moved_feature(tmp_path, repo)
+    git(repo, "rebase", "-q", f"origin/{FEATURE}")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "push", "-q", "origin", f"HEAD:refs/heads/{FEATURE}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done" and result["how"] == "found", result
+    assert entries(path) == [f"push: {FEATURE}@{head}"]
+
+
+def test_fast_forward_land_refuses_a_branch_rebased_onto_another_branch_with_no_fix(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "-b", "other-work")
+    commit(repo, "other.txt")
+    git(repo, "checkout", "-q", BRANCH)
+    git(repo, "rebase", "-q", "other-work")
+    before = remote_tip(repo, FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "was made on" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def side_commit(repo, name):
+    """A commit made on a side branch from HEAD, leaving HEAD where it was; returns its id."""
+    git(repo, "checkout", "-q", "-b", f"side-{name}")
+    made = commit(repo, name)
+    git(repo, "checkout", "-q", BRANCH)
+    return made
+
+
+@pytest.mark.parametrize("kind", ["commit", "amend", "cherry-pick", "revert"])
+def test_fast_forward_land_pushes_a_fix_made_by_each_kind_of_commit(tmp_path, repo, kind):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    if kind in ("commit", "amend"):
+        commit(repo, "fix.txt", "fixed\n")
+    if kind == "amend":
+        git(repo, "commit", "-q", "--amend", "-m", "fix the last row")
+    if kind == "cherry-pick":
+        git(repo, "cherry-pick", side_commit(repo, "fix.txt"))
+    if kind == "revert":
+        git(repo, "merge", "-q", "--ff-only", side_commit(repo, "bad.txt"))
+        git(repo, "revert", "--no-edit", "HEAD")
+    head = git(repo, "rev-parse", "HEAD")
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "done", result
     assert remote_tip(repo, FEATURE) == head and entries(path) == [f"push: {FEATURE}@{head}"]
 
 
