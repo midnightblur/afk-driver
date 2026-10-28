@@ -90,10 +90,11 @@ def forge_user(kind: str) -> str | None:
     """The username the forge CLI is logged in as, or None when it cannot say."""
     cli, args = {"gitlab": ("glab", ["api", "user"]),
                  "github": ("gh", ["api", "user", "--jq", ".login"])}.get(kind, (None, None))
-    if not cli or not shutil.which(cli):
+    exe = shutil.which(cli) if cli else None
+    if not exe:
         return None
     try:
-        out = subprocess.run([cli, *args], capture_output=True, text=True, timeout=30,
+        out = subprocess.run([exe, *args], capture_output=True, text=True, timeout=30,
                              stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError):
         return None
