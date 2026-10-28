@@ -382,20 +382,21 @@ def layers(root: Path | None) -> list[tuple[str, Path]]:
         path = Path(named)
         if not path.is_file():
             raise ConfigError(f"AFK_CONFIG names a file that does not exist: {named}")
-        found.append(("env", path))
+        committed = root is not None and path.resolve() == (root / ".afk" / "config.yaml").resolve()
+        found.append(("repo" if committed else "env", path))
     return found
 
 
 def _developer_layer(kind: str, document: dict) -> dict:
     """`document` as it may speak for a developer: the committed file never does,
-    and a blank `developer:` block or key overrides no broader layer."""
+    and a blank `developer:` block or known key overrides no broader layer."""
     block = document.get("developer", {})
     if kind == "repo" or block is None:
         return {k: v for k, v in document.items() if k != "developer"}
     if not isinstance(block, dict):
         return document
-    kept = {k: v for k, v in block.items()
-            if v is not None and not (isinstance(v, str) and not v.strip())}
+    kept = {k: v for k, v in block.items() if k not in DEVELOPER_KEYS
+            or (v is not None and not (isinstance(v, str) and not v.strip()))}
     rest = {k: v for k, v in document.items() if k != "developer"}
     return {**rest, "developer": kept} if kept else rest
 
@@ -435,7 +436,7 @@ def developer_problems(root: Path | None) -> list[str]:
             problems += [f"{path}: developer.{key}: unknown key; expected one of "
                          f"{', '.join(sorted(DEVELOPER_KEYS))}"
                          for key in sorted(set(block) - DEVELOPER_KEYS)]
-    return problems
+    return list(dict.fromkeys(problems))     # AFK_CONFIG may name the committed file again
 
 
 # --------------------------------------------------------------------------
@@ -846,8 +847,8 @@ def worktree_base(root: Path | None = None) -> Path | None:
 
     `--git-common-dir` answers with the MAIN checkout's `.git` even from inside
     a worktree, which is the whole point: every worktree of one repository then
-    derives the same directory. A repository whose git dir is elsewhere entirely
-    (a bare clone, a `GIT_DIR` pointing outside the tree) gets `None`, and the
+    derives the same directory. A bare repository, or one whose git dir is not a
+    folder named `.git` (a separate git dir, a submodule), gets `None`, and the
     caller asks for the key instead of guessing.
     """
     start = root or git_root() or Path.cwd()

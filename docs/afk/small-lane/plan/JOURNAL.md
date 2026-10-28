@@ -125,3 +125,8 @@
 2026-10-28 00:08 | autopilot | run | 5/13 done, starting 0013-config-contract
 2026-10-28 00:10 | execute | 0013-config-contract | designing — the reader that resolves developer settings is being changed to keep the promises the settings documentation makes
 2026-10-28 00:18 | execute | 0013-config-contract | developing — ground re-read instead of re-scripted (the scripted search stops at its hit cap, as D-4 and D-26 record): since INV-026 the reader, the setup script and the H6 probe changed only through 0002 and 0003, and every reader of the five keys still resolves through the one reader; tests first
+2026-10-28 00:37 | execute | 0013-config-contract | pushed 98e54f17..e5b86bea (1 commits) — the reader change, its setup and probe counterparts, the documentation and tests are on the branch
+2026-10-28 00:37 | execute | 0013-config-contract | verifying — plugin-source gates pass, the declared refusal is in place, 193 focused tests pass on Windows; the full suites run in the pull request's checks
+2026-10-28 00:37 | execute | 0013-config-contract | reviewing — round 1, full slice
+2026-10-28 00:46 | execute | 0013-config-contract | review advisory crit=0 high=0 med=2 low=6 — round 1: the separate-git-folder promise is wider than the code and untested, a blank misspelled key escapes validate, and five smaller gaps; all posted on the pull request, fixing in place
+2026-10-28 00:51 | execute | 0013-config-contract | decision(D-48) — one stale comment line in the worktree script joins this slice so its review finding can be fixed and closed

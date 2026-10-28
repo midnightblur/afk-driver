@@ -328,3 +328,10 @@
 - Chosen: (a) take them: the proof files have no name before upload that the script could find (SDD §4 names only the folder), and the diagnosis lists the ticket's evidence marker, not its link; the bug-mode script takes its proof files the same way. (b) block: a tracked background job is the caller's mechanism (its exit is the event that wakes it), and the IOU anchors the duty on 0008, whose `## Consumes` names `run_ship_step`. (c) mark it: this run may not contact GitLab, and the row's own convention marks a verb changed after the live run as stub-tested only.
 - Supersedes: SDD §8 row "ship script (beside fix)" cell "step name + diagnosis path in → step result" — the proof step also takes the P-1 and P-2 files and, when the diagnosis names a ticket, the link to its evidence comment (by (a)); contract 0007 "## Scope" list — adds `providers/CONFORMANCE.md` and `.claude/wiring-ious.md` (by (b), (c))
 - To reverse: (a) none needed; (b) delete the `skills/afk/fix/scripts/ship.py` line from `.claude/wiring-ious.md`; (c) delete the `change-reviewers` clause from the `forge / gitlab` row of `providers/CONFORMANCE.md`
+
+## D-48 — one stale comment line in `scripts/create-worktree` joins the config-contract slice
+- 2026-10-28 · decided by execute (0013-config-contract, Step 10 round 1, finding 0013-config-contract/f005)
+- Options: stop `blocked` for a re-slice vs edit the one comment line in the remediation commit
+- Chosen: edit it. This slice made `resolve` skip the committed file, and the `read_config_key` comment still said the chain reads "the repository's committed default"; the review finding on it has no inline location until the line changes. The edit is one comment line and changes no behaviour.
+- Supersedes: 0013-config-contract ## Scope, for line 227 of `scripts/create-worktree` only
+- To reverse: restore "# value, then the repository's committed default, then the derived one —" on that line

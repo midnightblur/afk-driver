@@ -224,7 +224,7 @@ read_config_key() {
     return 0
   }
   # `resolve`, not `get`: it applies the whole chain — the developer's own
-  # value, then the repository's committed default, then the derived one —
+  # value from the checkout, repository or machine layer, then the derived one —
   # so this script never learns the order.
   ( cd "$repo" && "$PY_BIN" "$script" resolve "$key" 2>/dev/null ) || true
 }

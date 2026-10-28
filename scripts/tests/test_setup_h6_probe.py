@@ -150,11 +150,12 @@ def test_a_recorded_none_person_is_an_answer(repo, home):
 
 def test_a_committed_developer_block_is_never_ok(repo, home):
     committed = repo / ".afk" / "config.yaml"
-    write(committed, NONE + DEV)
+    write(committed, "schema: 1\ntracker: jira\nforge: none\n" + DEV)
     out = run(repo, home)
     assert out.returncode == 1
     lines = out.stdout.splitlines()
-    assert lines[0] == "resolved: tracker=none forge=none"
+    assert lines[0] == "resolved: tracker=jira forge=none"
+    assert "unresolved: trackerAssignee" in lines     # the committed `me` is not taken
     assert any(line.startswith("edit by hand: ") and "committed file holds no developer" in line
                for line in lines), out.stdout
 

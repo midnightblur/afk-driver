@@ -187,7 +187,9 @@ a token value — not even partially.
      is skipped and named in the summary: run `/afk:setup` in it first.
   1. Run `afk-python "$DV" status --repo <path>`.
      It reports each key's `need`, resolved `value`, `source` layer and
-     `suggestion`, and lists `missing` and `inherited`.
+     `suggestion`, and lists `missing`, `inherited` and `problems`. Show the
+     human each `problems` line: `set` cannot fix it, so the human moves the
+     committed block or corrects the key in the named file, then step 4 re-runs.
   2. Ask the human for every `missing` key, offering its `suggestion` as the
      first option. Offer the optional keys too, unless they already resolve.
      The reviewer has no suggestion: nobody else picks who reviews the

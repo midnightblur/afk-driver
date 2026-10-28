@@ -309,7 +309,7 @@ workflow doctor (`skills/afk/setup/MANIFEST.md` · H6).
 
 The committed `.afk/config.yaml` holds none of these keys: K1, K2 and K5 name a
 person, and a committed file never names a person. `validate` refuses a
-`developer:` block there, and nothing reads one. Resolution, highest first:
+`developer:` block there, and nothing reads one, even through `$AFK_CONFIG`. Resolution, highest first:
 the `developer:` value from any layer (checkout beats repository beats
 machine), then — for `worktreeBasePath` alone — a derived value, then nothing.
 An empty `developer:` block, or a key left blank, overrides nothing.
@@ -324,8 +324,9 @@ An empty `developer:` block, or a key left blank, overrides nothing.
 
 K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
 main checkout even from inside a worktree, so every worktree of one repository
-agrees on the directory. A bare clone, or a checkout whose git directory lies
-outside it, derives nothing and needs the key.
+agrees on the directory. A bare clone, or a repository whose git directory is
+not a folder named `.git` (a separate git directory, a submodule), derives
+nothing and needs the key.
 
 **A missing value.** The literal `none` for K1, K2 or K5 reads exactly as an
 unset key, and overrides a broader layer's value — it records "nobody". When an

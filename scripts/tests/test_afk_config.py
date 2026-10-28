@@ -558,17 +558,55 @@ def test_validate_accepts_a_developer_block_in_every_developer_layer(tmp_path):
         assert out.returncode == 0, (path, out.stderr)
 
 
-def test_resolve_never_takes_a_value_from_the_committed_file(tmp_path):
-    root = _committed(tmp_path, "developer:\n  mrReviewer: lead\n  worktreeBasePath: D:/team\n")
+COMMITTED_TEAM = "developer:\n  mrReviewer: lead\n  worktreeBasePath: D:/team\n"
+
+
+def test_resolve_names_and_skips_a_committed_person(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
     out = run(["resolve", "mrReviewer"], root, _home(tmp_path))
     assert (out.returncode, out.stdout) == (1, "")
     assert "committed file holds no developer" in out.stderr
+
+
+def test_the_machine_value_wins_over_a_committed_one(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
     out = run(["resolve", "mrReviewer"], root, _home(tmp_path, "developer:\n  mrReviewer: mine\n"))
     assert (out.returncode, out.stdout.strip()) == (0, "mine")
+
+
+def test_a_committed_worktree_base_is_not_read(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
     derived = run(["resolve", "worktreeBasePath"], root, _home(tmp_path))
-    assert derived.stdout.strip() == str(tmp_path / "repo-worktrees").replace("\\", "/")
+    assert Path(derived.stdout.strip()).resolve() == (tmp_path / "repo-worktrees").resolve()
     effective = run(["effective", "--json"], root, _home(tmp_path))
     assert "developer" not in json.loads(effective.stdout)
+
+
+def test_afk_config_naming_the_committed_file_reads_no_developer(tmp_path):
+    root = _committed(tmp_path, COMMITTED_TEAM)
+    env = {**_home(tmp_path), "AFK_CONFIG": str(root / ".afk" / "config.yaml")}
+    out = run(["resolve", "mrReviewer"], root, env)
+    assert (out.returncode, out.stdout) == (1, "")
+    assert out.stderr.count("committed file holds no developer") == 1
+
+
+def test_a_separate_git_directory_derives_no_worktree_base(tmp_path):
+    checkout, store = tmp_path / "checkout", tmp_path / "store"
+    checkout.mkdir()
+    store.mkdir()
+    done = subprocess.run(["git", "init", "-q", "--separate-git-dir", str(store / "x.git")],
+                          cwd=str(checkout), capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    out = run(["resolve", "worktreeBasePath"], checkout, _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+
+
+def test_validate_names_a_blank_misspelled_key(tmp_path):
+    root = _committed(tmp_path, "")
+    (root / ".afk" / "config.local.yaml").write_text("developer:\n  mrReviwer:\n",
+                                                     encoding="utf-8")
+    out = run(["validate"], root, _home(tmp_path))
+    assert out.returncode == 2 and "developer.mrReviwer: unknown key" in out.stderr
 
 
 def test_a_bare_clone_derives_no_worktree_base(tmp_path):
