@@ -44,10 +44,10 @@ def test_workflow_feedback_traces_every_miss_class():
     assert all(f"`{name}`" in text for name in _escape_classes())
 
 
-STALE_TRACE = {"`PRD.md`": "PRD asserted the wrong behavior",
-               "`SDD.md`": "A frozen SDD decision was wrong or infeasible",
-               "`VERIFICATION-PLAN.md`": "No verification scenario would catch the bug",
-               "`plan/NNNN-slug.md`": "An in-flight subtask contract shifted"}
+STALE_TRACE = {"`PRD.md`": "PRD asserted the wrong behavior | requirements",
+               "`SDD.md`": "A frozen SDD decision was wrong or infeasible | architecture",
+               "`VERIFICATION-PLAN.md`": "No verification scenario would catch the bug | verification design",
+               "`plan/NNNN-slug.md`": "An in-flight subtask contract shifted | slicing"}
 
 
 def test_workflow_feedback_traces_every_stale_artifact():
@@ -125,13 +125,17 @@ def test_the_procedure_re_runs_a_failure_once_before_any_diagnosis():
 
 
 def test_the_procedure_returns_exactly_the_seven_results():
-    table = _section(PROCEDURE.read_text(encoding="utf-8"), "## In-place fix results")
+    text = PROCEDURE.read_text(encoding="utf-8")
+    table = _section(text, "## In-place fix results")
     assert set(re.findall(r"^\| `([a-z_]+)` \|", table, re.MULTILINE)) == RESULTS
+    returned = set(re.findall(r"return\s+`([a-z_]+)`", text[:text.index("## Record")]))
+    assert returned and returned <= RESULTS
 
 
 def test_the_procedure_names_none_of_its_callers():
     text = PROCEDURE.read_text(encoding="utf-8")
     assert [name for name in CALLERS if name in text] == []
+    assert re.findall(r"\b(?:execute|preflight|autopilot|smoke-test)\b", text, re.IGNORECASE) == []
 
 
 def _mapping() -> dict[str, str]:

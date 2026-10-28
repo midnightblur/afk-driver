@@ -116,7 +116,7 @@ Per-skill mechanics, refusal conditions, and formats live in each skill's own `S
 | `/afk:review` | independent multi-concern review gate; read-only, settle-loop driven | `skills/afk/review/SKILL.md` |
 | `/afk:adversary` | adversarial live-app probe from contract + specs, blind to the diff | `skills/afk/adversary/SKILL.md` |
 | `tdd` *(agent)* | red-green-refactor doctrine for implementors | `skills/afk/tdd/SKILL.md` |
-| `/afk:fix` | bug-fix orchestration: diagnose, then the shared fix procedure (`IN-PLACE-FIX.md`, read in place by agent callers) for coverage, escape analysis and the workflow lesson, then spec reconciliation | `skills/afk/fix/SKILL.md` |
+| `/afk:fix` | bug-fix orchestration: diagnose, then the shared fix procedure (`IN-PLACE-FIX.md`, read in place by agent callers) for coverage and escape analysis, spec reconciliation of the stale artifacts it records, then the workflow lesson | `skills/afk/fix/SKILL.md` |
 | `/afk:bug` | mid-task bug capture → Jira Bug → autonomous fixer worktree → retest; interactive-only | `skills/afk/bug/SKILL.md` |
 | `/afk:setup` | dependency doctor; `base` toolchain tier; `audit` drift catcher | `skills/afk/setup/SKILL.md` |
 | `/afk:agents-md` | steward: AGENTS.md harness, `.claude/rules`, `STAPLES.md` | `skills/afk/agents-md/SKILL.md` |

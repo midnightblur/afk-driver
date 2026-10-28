@@ -25,7 +25,7 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
 2. **Locate artifacts**, when the bug belongs to a feature: `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 3. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**, by the signals in [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Unreleased feature". Ad-hoc → **skip Phase 3**.
 4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
-5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve, and when procedure step 4 or 5 is about to run a live check the invoker named neither for.
+5. **Running instance.** A bug a live tier must prove (`api`, `e2e/browser`, or a check in the running UI) needs the running instance and a command that restarts it on the fix's working tree. Take both from the invoker and ask for each one the invoker did not name. Ask again when Phase 1 step 3 puts the fix in a worktree the named command does not serve, and whenever a live check (Phase 1 step 3, or procedure step 4, 5 or 6) is about to run while either one is still missing.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate), then fix test-first
 
@@ -38,7 +38,7 @@ A Jira bug key, free-text bug description, a `DIAGNOSIS.md` path, or nothing (in
    - Any other V-2, V-3 or V-4 → stop with no code change; report `blocked`, naming the verdict and the diagnosis path.
    - V-5 cannot reproduce → stop; report `cannot_reproduce` with the diagnosis's Attempts.
    - `DIAGNOSIS: blocked — <reason>` → stop; report `blocked` with that reason.
-3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: of the worktrees in `git worktree list` whose folder holds the `DIAGNOSIS.md` path, the one with the longest folder path (linked worktrees can sit inside the main checkout), else the one on the Diagnosis branch. Neither → cut one onto that branch (`${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`) when the branch holds the failing test (`git cat-file -e <Diagnosis branch>:<test path>`) or the diagnosis has none; else stop `blocked`, since a handed-over worktree kept the test uncommitted. A worktree fix may not edit (another session holds it) → stop `blocked`, naming it. Watch the failing test fail (it passes or does not build → stop `blocked`, naming the branch and the Base), apply the Fix proposal, watch it pass. A failing test that runs against the running instance follows [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Live tiers" for both runs. A light diagnosis's reused check, or a seam absence recorded in Root cause, plays the failing test's part. The failing test and `DIAGNOSIS.md` stay beside the fix for whoever commits it: the test becomes the regression test, and the diagnosis ships with the fix. A worktree fix did not start in stays for the human to commit from; the report names its path.
+3. **Fix test-first** (`/afk:tdd`) in the diagnosis worktree: of the worktrees in `git worktree list` whose folder holds the `DIAGNOSIS.md` path, the one with the longest folder path (linked worktrees can sit inside the main checkout), else the one on the Diagnosis branch. Neither → cut one onto that branch (`${AFK_PLUGIN_ROOT}/scripts/create-worktree --branch <Diagnosis branch> --dir <work id, lower-cased> --no-open`) when the branch holds the failing test (`git cat-file -e <Diagnosis branch>:<test path>`) or the diagnosis has none; else stop `blocked`, since a handed-over worktree kept the test uncommitted. A worktree fix may not edit (another session holds it) → stop `blocked`, naming it. Watch the failing test fail (it passes or does not build → stop `blocked`, naming the branch and the Base), apply the Fix proposal, watch it pass. A failing test that runs against the running instance follows [IN-PLACE-FIX.md](IN-PLACE-FIX.md) "Live tiers" for both runs; a result it returns → stop `blocked`, naming the check and the restart output. A light diagnosis's reused check, or a seam absence recorded in Root cause, plays the failing test's part. The failing test and `DIAGNOSIS.md` stay beside the fix for whoever commits it: the test becomes the regression test, and the diagnosis ships with the fix. A worktree fix did not start in stays for the human to commit from; the report names its path.
 
 Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
@@ -46,11 +46,11 @@ Exit gate: verdict V-1, a V-2/V-3 whose latest size-call row is `still small`, o
 
 ## Phase 2 — Broaden coverage (proportional)
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then procedure step 5, with the diagnosis's reproduction as the failure of procedure step 1. A check or reproduction still red there, or a `blocked` return → report `blocked`, naming it.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 4, with the diagnosis's failing test as the seam regression test, then procedure step 5, with the diagnosis's reproduction as the failure of procedure step 1. A check or reproduction still red there, or a `fail` or `blocked` return → report `blocked`, naming it.
 
 ## Phase 2.5 — Escape analysis
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 6. A `blocked` return → report `blocked`, naming it. Carry the miss class into Phase 4's report.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 6. A `blocked` return → report `blocked`, naming it. Carry the miss class, when step 6 named one, into Phase 4's report.
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
@@ -58,7 +58,7 @@ Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 7, then route each stale artifact it
 
 ## Phase 3.5 — Workflow feedback
 
-Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 8. Report the lesson id in Phase 4.
+Run [IN-PLACE-FIX.md](IN-PLACE-FIX.md) step 8. Report the lesson id, when step 8 recorded one, in Phase 4.
 
 ## Phase 4 — Report
 
