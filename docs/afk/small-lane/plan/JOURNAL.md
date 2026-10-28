@@ -135,3 +135,5 @@
 2026-10-28 01:58 | execute | 0013-config-contract | review advisory crit=0 high=0 med=2 low=0 — round 3: CONFIG.md named the wrong mechanism for a linked worktree, and linked worktrees had no test; fixed in f004ed4 and pushed
 2026-10-28 02:20 | execute | 0013-config-contract | review advisory crit=0 high=0 med=1 low=2 — round 4: the round-2 guard made one repository's worktrees disagree and its test branched on the case; guard removed, docs say where a .git-named separate folder derives, tests split; fixed in 13b21d8 and pushed
 2026-10-28 02:35 | execute | 0013-config-contract | decision(D-49) — a second stale comment line in the worktree script joins this slice so its review finding can be fixed and closed
+2026-10-28 02:40 | execute | 0013-config-contract | review advisory crit=0 high=0 med=0 low=2 — round 5: a stale comment in the worktree script and loop-shaped tests; fixed in 1cfdabd and pushed
+2026-10-28 02:50 | execute | 0013-config-contract | review clean — round 6: delta sweep, test veracity and scope found nothing; this commit adds the Settles trailers the round 2-5 fix commits lacked
