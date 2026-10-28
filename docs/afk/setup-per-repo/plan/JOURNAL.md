@@ -92,3 +92,4 @@
 2026-10-27 21:29 | autopilot | 0012-smoke-api | parked(waiting on 0002-settings-reader) — runs after every build step
 2026-10-27 21:29 | autopilot | 0013-sync-harness | parked(waiting on 0002-settings-reader) — runs last
 2026-10-27 21:29 | autopilot | run | run end — 2/13 done, 1 parked, 10 waiting on it; smoke and preflight not run
+2026-10-27 22:29 | autopilot | run | run start — human widened 0002's file list to the five carried findings; 11 subtasks runnable, starting 0002-settings-reader (third run)
