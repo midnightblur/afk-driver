@@ -106,7 +106,7 @@ def test_github_attach_passes_one_attach_per_image_or_video_and_none_for_others(
     answer = api.call("tracker_attach", {"ticket_key": "7", "files": [png, mp4, log], "text": "Proof"})
     [comment] = gh.comments()
     assert attach_values(comment["argv"]) == [png, mp4]
-    assert comment["argv"][:6] == ["gh", "issue", "comment", "7", "--repo", "o/r"]
+    assert comment["argv"][:6] == ["/usr/bin/gh", "issue", "comment", "7", "--repo", "o/r"]
     assert "Proof" in comment["input"] and "c.log" in comment["input"]
     assert answer["ok"] is True and answer["attached"] == [{"file": png}, {"file": mp4}]
     assert [u["file"] for u in answer["unsupported_files"]] == [log]
