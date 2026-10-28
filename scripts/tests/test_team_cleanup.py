@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -24,6 +25,7 @@ import process  # noqa: E402
 RUN = "agent-team-topology"
 WINDOWS = sys.platform == "win32"
 OLD = "2001-01-01T00:00:00Z"
+KEPT = "the message area, the knowledge store, the resolved pattern and the manifest are kept for the next cleanup"
 
 
 class Transport:
@@ -134,7 +136,7 @@ def test_an_unkillable_process_is_reported_by_agent_name_and_process_id_and_ever
     assert [(u["agent_name"], u["pid"]) for u in report["unkillable"]] == [("goal-a1", child.pid)]
     assert "identity unknown" in report["unkillable"][0]["reason"] and team.state("a1") == "unkillable"
     assert all(path.exists() for path in made) and manifest.manifest_path(team.root, RUN).exists()
-    assert report["kept"] == cleanup.KEPT and report["deleted"] == []
+    assert report["kept"] == KEPT and report["deleted"] == [] and KEPT in report["says"]
     assert any("goal-a1" in line and str(child.pid) in line for line in report["says"])
 
 
@@ -158,9 +160,47 @@ def test_a_matching_live_process_is_killed_and_its_entry_removed(team):
         assert code == 0 and proc.wait(timeout=15) is not None
         assert report["stopped"] == [{"pid": proc.pid, "label": "inbox wait", "owner": "contact",
                                       "method": "killed the process tree"}]
+        assert manifest.read_manifest(team.root, RUN) is None, "the entry went, and the finished run with it"
     finally:
         proc.kill()
         proc.wait()
+
+
+def spy_moves(monkeypatch) -> list:
+    moves = []
+    real = manifest.move_entry
+    monkeypatch.setattr(manifest, "move_entry", lambda root, run, agent_id, to: (moves.append((agent_id, to)),
+                                                                                 real(root, run, agent_id, to))[1])
+    return moves
+
+
+def test_a_matching_live_agent_process_is_killed_and_its_entry_cleaned(team, monkeypatch):
+    proc = sleeper()
+    try:
+        team.agent("a1", pid=proc.pid, started_at=process.creation_time(proc.pid))
+        moves = spy_moves(monkeypatch)
+        code, report = team.clean()
+        assert code == 0 and proc.wait(timeout=15) is not None
+        assert report["stopped"] == [{"agent_id": "a1", "agent_name": "goal-a1", "pid": proc.pid,
+                                      "method": "killed the process tree"}]
+        assert moves == [("a1", "cleaned")]
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_a_process_entry_that_cannot_be_removed_after_its_kill_is_named(team, child, monkeypatch):
+    team.process(child.pid, "a1 supervisor", process.creation_time(child.pid))
+
+    def refuse(root, run, pid):
+        raise manifest.ManifestError("the manifest lock is held")
+
+    monkeypatch.setattr(manifest, "remove_process", refuse)
+    code, report = team.clean()
+    assert code == 1 and child.wait(timeout=15) is not None
+    assert [(p["pid"], p["reason"]) for p in report["processes_left"]] == \
+        [(child.pid, "stopped, but its entry could not be removed: the manifest lock is held")]
+    assert team.dir.exists()
 
 
 def test_a_failed_kill_of_a_process_entry_keeps_its_entry_names_it_and_holds_the_files(team, child, monkeypatch):
@@ -168,7 +208,7 @@ def test_a_failed_kill_of_a_process_entry_keeps_its_entry_names_it_and_holds_the
     monkeypatch.setattr(entry.process, "stop", lambda pid, **k: {"stopped": False, "reason": "1 survived",
                                                                   "survivors": [pid]})
     code, report = team.clean()
-    assert code == 1 and report["kept"] == cleanup.KEPT
+    assert code == 1 and report["kept"] == KEPT
     assert [(p["label"], p["pid"], p["survivors"]) for p in report["processes_left"]] == \
         [("a1 supervisor", child.pid, [child.pid])]
     assert manifest.read_manifest(team.root, RUN)["processes"][0]["pid"] == child.pid
@@ -191,6 +231,23 @@ def test_a_terminal_close_that_fails_is_named_by_its_terminal_identifier(team):
     code, report = team.clean()
     assert stops(team)[0]["terminal_id"] == "T-7"
     assert code == 1 and report["panes_open"] == [{"agent_id": "a1", "agent_name": "goal-a1", "terminal_id": "T-7"}]
+    assert team.state("a1") == "unkillable"
+    assert "terminal T-7 of goal-a1 is still open; close it by hand" in report["says"]
+
+
+def test_a_refused_move_to_cleaned_is_named_and_the_entry_held(team, monkeypatch):
+    team.agent("a1")
+    real = manifest.move_entry
+
+    def refuse_cleaned(root, run, agent_id, to):
+        if to == "cleaned":
+            raise manifest.ManifestError("the manifest lock is held")
+        return real(root, run, agent_id, to)
+
+    monkeypatch.setattr(manifest, "move_entry", refuse_cleaned)
+    code, report = team.clean()
+    assert code == 1 and team.state("a1") == "working"
+    assert [(u["agent_id"], u["reason"]) for u in report["unkillable"]] == [("a1", "the manifest lock is held")]
 
 
 def test_a_failed_agent_stop_call_marks_the_entry_unkillable(team):
@@ -207,11 +264,11 @@ def test_an_entry_with_nothing_recorded_moves_to_cleaned_and_is_named_by_agent_i
     assert code == 0 and report["nothing_recorded"] == [{"agent_id": "a1", "agent_name": "goal-a1"}]
 
 
-def test_a_starting_entry_moves_through_lost_to_cleaned(team, child):
+def test_a_starting_entry_moves_through_lost_to_cleaned(team, monkeypatch):
     team.agent("a1", state="starting")
-    team.agent("a2", pid=child.pid)
+    moves = spy_moves(monkeypatch)
     code, report = team.clean()
-    assert code == 1 and team.state("a1") == "cleaned"
+    assert code == 0 and moves == [("a1", "lost"), ("a1", "cleaned")]
     assert report["nothing_recorded"] == [{"agent_id": "a1", "agent_name": "goal-a1"}]
 
 
@@ -254,7 +311,8 @@ def test_strays_are_listed_by_name_and_pane_and_never_stopped(team):
 def test_agent_list_exit_3_is_reported_and_the_cleanup_finishes(team):
     team.transport.answers["agent-list"] = (3, {"unsupported": True, "reason": "no pane ids"})
     code, report = team.clean()
-    assert code == 0 and report["strays_note"] == cleanup.NO_LIST and cleanup.NO_LIST in report["says"]
+    note = "the transport kind cannot list agents, so cleanup listed no strays"
+    assert code == 0 and report["strays_note"] == note and note in report["says"]
 
 
 def test_an_agent_list_failure_is_named_and_holds_nothing(team):
@@ -302,6 +360,31 @@ def test_an_interrupted_cleanup_keeps_the_manifest_and_the_next_one_finishes_it(
     monkeypatch.setattr(cleanup, "_remove", real)
     code, report = team.clean()
     assert code == 0 and not team.dir.exists()
+
+
+def test_read_only_files_in_the_run_directory_are_deleted(team):
+    team.files()
+    for path in (team.dir / "permission.json", team.dir / "inbox" / "a1-1.json"):
+        os.chmod(path, stat.S_IREAD)
+    assert team.clean()[0] == 0 and not team.dir.exists()
+
+
+def test_a_failed_delete_of_the_empty_run_directory_says_the_manifest_went(team, monkeypatch):
+    team.files()
+    real = cleanup._remove
+
+    def refuse_the_folder(path):
+        if path == team.dir:
+            raise PermissionError("in use")
+        real(path)
+
+    monkeypatch.setattr(cleanup, "_remove", refuse_the_folder)
+    code, report = team.clean()
+    assert code == 1 and report["deleted"] == ["message area", "knowledge store", "resolved pattern", "manifest"]
+    assert not manifest.manifest_path(team.root, RUN).exists() and list(team.dir.iterdir()) == []
+    assert report["kept"] == f"the empty run directory {team.dir} is kept for the next cleanup"
+    monkeypatch.setattr(cleanup, "_remove", real)
+    assert team.clean()[0] == 0 and not team.dir.exists()
 
 
 def test_a_link_in_the_run_directory_is_removed_and_its_target_kept(team):
@@ -352,6 +435,18 @@ def test_the_command_line_prints_the_report_and_its_exit_code(team, monkeypatch,
     monkeypatch.setattr(entry.Host, "discover", classmethod(lambda cls, *a, **k: team.host))
     assert cleanup.main([json.dumps({"run": RUN})]) == 0
     assert json.loads(capsys.readouterr().out)["finished"] is True
+
+
+def test_the_command_line_answers_a_raised_answer_and_an_error_in_the_house_shape(monkeypatch, capsys):
+    def answer(feature):
+        raise entry.contract.Answer(4, {"unavailable": True, "reason": "no git repository"})
+
+    monkeypatch.setattr(cleanup, "run_cleanup", answer)
+    assert cleanup.main([json.dumps({"run": RUN})]) == 4
+    assert json.loads(capsys.readouterr().out) == {"unavailable": True, "reason": "no git repository"}
+    monkeypatch.setattr(cleanup, "run_cleanup", lambda feature: 1 / 0)
+    assert cleanup.main([json.dumps({"run": RUN})]) == 4
+    assert json.loads(capsys.readouterr().out)["reason"] == "cleanup failed: ZeroDivisionError: division by zero"
 
 
 # ---- integration: the operating-system job and the wait job ------------------------------------------------
@@ -429,8 +524,7 @@ def test_closing_the_job_owner_ends_every_process_of_the_agents_tree(tmp_path):
 def test_a_process_started_through_wmi_survives_the_job_and_cleanup_kills_it_only_when_registered(team, tmp_path):
     script = tmp_path / "wmi_sleep.py"
     script.write_text("import time\ntime.sleep(300)\n", encoding="utf-8")
-    assert " " not in sys.executable + str(script), "the WMI command line is quoted without spaces"
-    owner, agent, child_pid, grand, wmi = _job_tree(tmp_path, f"{sys.executable} {script}")
+    owner, agent, child_pid, grand, wmi = _job_tree(tmp_path, f'"{sys.executable}" "{script}"')
     try:
         assert wmi is not None and process.alive(wmi), "a job member started a process through WMI"
         owner.kill()
@@ -459,8 +553,10 @@ def test_a_wait_job_ended_with_its_session_is_found_gone_removed_and_reported(te
         while not manifest.read_manifest(team.root, RUN)["processes"] and time.monotonic() < end:
             time.sleep(0.2)
         assert [p["label"] for p in manifest.read_manifest(team.root, RUN)["processes"]] == [entry.WAIT_LABEL]
-        time.sleep(1)               # the job has started the inbox wait under it
+        while len(process.tree(job.pid)) < 2 and time.monotonic() < end:
+            time.sleep(0.1)         # the job starts the inbox wait under it
         orphans = process.tree(job.pid)[1:]
+        assert orphans, "the wait job started its inbox wait"
         job.kill()                  # the session ends: the job is killed, so its last command never runs
         job.wait()
         assert manifest.read_manifest(team.root, RUN)["processes"], "its entry stays in the manifest"

@@ -133,9 +133,11 @@ def _remove(path: Path) -> None:
                 try:
                     os.unlink(path)
                 except (IsADirectoryError, PermissionError):
-                    if not (path.is_symlink() or path.is_junction()):
-                        raise
-                    os.rmdir(path)
+                    if path.is_symlink() or path.is_junction():
+                        os.rmdir(path)
+                    else:
+                        os.chmod(path, stat.S_IWRITE)   # a read-only file
+                        os.unlink(path)
             else:
                 shutil.rmtree(path, onexc=_writable)
             return
@@ -154,14 +156,15 @@ def _delete(host: entry.Host, feature: str, report: dict) -> bool:
     sheet = manifest.manifest_path(host.root, feature)
     family = f"{sheet.stem}."
     try:
-        area = sorted(p for p in run_dir.iterdir() if p.name not in (store.name, pattern.name)
-                      and not p.name.startswith(family))
+        children = sorted(run_dir.iterdir())
     except FileNotFoundError:
-        area = []
+        children = []
     except OSError as problem:
         report["says"].append(f"cleanup could not read the run directory {run_dir}: {problem}")
         return False
-    for step, paths in zip(STEPS, (area, [store], [pattern], [sheet, run_dir])):
+    area = [p for p in children if p.name not in (store.name, pattern.name) and not p.name.startswith(family)]
+    lock = [p for p in children if p.name.startswith(family) and p.name != sheet.name]
+    for step, paths in zip(STEPS, (area, [store], [pattern], [*lock, sheet])):
         for path in paths:
             try:
                 _remove(path)
@@ -169,6 +172,11 @@ def _delete(host: entry.Host, feature: str, report: dict) -> bool:
                 report["says"].append(f"the {step} step could not delete {path}: {problem}")
                 return False
         report["deleted"].append(step)
+    try:
+        _remove(run_dir)
+    except OSError as problem:
+        report["says"].append(f"cleanup could not delete the empty run directory {run_dir}: {problem}")
+        return False
     return True
 
 
@@ -225,8 +233,10 @@ def run_cleanup(feature: str, host: entry.Host | None = None) -> tuple[int, dict
     held = _left(data, report, why)
     _say(report)
     if held or not _delete(host, feature, report):
+        missing = [s for s in STEPS if s not in report["deleted"]]
         report["kept"] = KEPT if not report["deleted"] else (
-            f"the {', '.join(s for s in STEPS if s not in report['deleted'])} are kept for the next cleanup")
+            f"the {', '.join(missing)} are kept for the next cleanup" if missing
+            else f"the empty run directory {host.root / feature} is kept for the next cleanup")
         report["says"].append(report["kept"])
         return 1, report
     report["finished"] = True
