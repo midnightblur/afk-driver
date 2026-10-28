@@ -177,6 +177,15 @@ def test_the_root_and_the_forge_account_are_reported_but_never_asked_for(tmp_pat
     assert not {"worktreeRoot", "forgeAccount"} & set(report["missing"] + report["inherited"])
 
 
+def test_the_source_is_a_file_the_owner_rule_reads(tmp_path, home):
+    repo = make_repo(tmp_path, "a", forge="github")
+    dv.write_block(home / ".afk" / "config.yaml", {"worktreeRoot": "/wt"})
+    dv.write_block(repo / ".afk" / "config.local.yaml", {"worktreeRoot": "/ignored"})
+    dv.write_block(repo / ".git" / "afk" / "config.yaml", {"worktreeRoot": "/ignored"})
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["keys"]["worktreeRoot"] == {"need": "n/a", "value": "/wt", "source": "machine"}
+
+
 def test_other_lines_of_the_file_survive_a_write(tmp_path):
     path = tmp_path / "config.yaml"
     path.write_text("tracker: jira\n# note\ndeveloper:\n  mrReviewer: old\nforge: gitlab\n",

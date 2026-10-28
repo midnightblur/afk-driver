@@ -73,3 +73,8 @@
 2026-10-27 18:42 | execute | 0002-settings-reader | designing — restarted after the human widened the slice to the five test and key-order files the rule broke; the earlier work is kept
 2026-10-27 18:45 | execute | 0002-settings-reader | developing — moving the copy-list settings in five tests to the developer's own settings file and adding the two new keys to the setup key order
 2026-10-27 19:00 | execute | 0002-settings-reader | decision(D-22) — setup now reports the two new developer settings but does not ask for them yet; later steps add the questions
+2026-10-27 19:12 | execute | 0002-settings-reader | pushed 09444b0..71297eb (1 commits) — the settings-file rule, its tests and the moved test settings are on the shared branch; the pull request checklist marks this step
+2026-10-27 19:18 | execute | 0002-settings-reader | static gates green and every Produces symbol found; the end-to-end hook run is green on Windows
+2026-10-27 19:53 | execute | 0002-settings-reader | reviewing — six independent reviewers read the change; the Windows and Linux test runs continue alongside
+2026-10-27 20:19 | execute | 0002-settings-reader | review blocking crit=0 high=1 med=9 low=7 (round 1) — a code-search config check now refuses the removed Jira key, and four stale files outside this step's list still read or name settings the new rule ignores
+2026-10-27 20:52 | execute | 0002-settings-reader | decision(D-23, D-24) — without Python the commit check no longer reads the machine file; setup names a value's source only from a file the rule reads

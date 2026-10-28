@@ -153,3 +153,17 @@
 - Chosen: B — the Acceptance bullet needs `ORDER` to cover both keys, and `status` reads one need and one suggestion per key in `ORDER`; `n/a` keeps the setup walk unchanged until 0004-placement, 0007-forge-account and 0010-setup-walk give each key its question; `set` accepts both keys as for every key in `ORDER`, and 0009-settings-writer makes it refuse a key sent to a file its owner does not read
 - Supersedes: the Scope note "skills/afk/setup/scripts/developer_values.py — key order only" of `plan/0002-settings-reader.md` — widened to the two `status` table rows the key order needs
 - To reverse: drop the `worktreeRoot` and `forgeAccount` rows from `ORDER`, `need` and `suggest` in `skills/afk/setup/scripts/developer_values.py`
+
+## D-23 — Without Python, stop reading the machine file for repo-hooks and leave the rest of the narrowing to the human
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — make the no-Python commit check read only the files the owner rule reads for a team setting, which breaks `test_without_the_launcher_a_repo_hooks_key_in_the_local_layer_blocks` in `scripts/tests/test_precommit_order.py`, outside Scope vs B — drop only the machine file from that check, so it still blocks on a local overlay or personal file beside a committed file, and carry the rest of review key f002
+- Chosen: B — the Scope hard rule forbids editing the out-of-scope test; B can only block more often than the reader would, never let a declared hook go unrun
+- Supersedes: none
+- To reverse: put `"${HOME:-/nonexistent}/.afk/config.yaml"` back in the layer loop of the no-launcher branch of `hooks/precommit-gates.sh`
+
+## D-24 — Report a developer value's source only from a file the owner rule reads
+- 2026-10-27 · decided by /afk:execute (0002-settings-reader)
+- Options: A — leave `status` naming the first file that holds the key, even when the reader ignored it there vs B — name the source by the new `layer_reads` of `scripts/afk-config.py`, which `_owner_filter` also uses
+- Chosen: B — review key f011 found `status` naming a file whose value the reader dropped; B keeps one statement of which owners each file is read for
+- Supersedes: the Scope note "skills/afk/setup/scripts/developer_values.py — key order only" of `plan/0002-settings-reader.md`, already widened by D-22 — widened again to the source lookup in `status`
+- To reverse: restore the label-only `files` list and the source lookup in `status` of `skills/afk/setup/scripts/developer_values.py`

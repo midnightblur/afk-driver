@@ -189,8 +189,8 @@ else
   declared=""
   [ -e .afk/hooks.json ] && declared=1
   common=$(git rev-parse --git-common-dir 2>/dev/null) || declared=1
-  for layer in "${AFK_CONFIG:-}" .afk/config.local.yaml "$common/afk/config.yaml" .afk/config.yaml \
-    "${HOME:-/nonexistent}/.afk/config.yaml"; do
+  # repo-hooks is a team key, so the machine file never declares it.
+  for layer in "${AFK_CONFIG:-}" .afk/config.local.yaml "$common/afk/config.yaml" .afk/config.yaml; do
     [ -n "$layer" ] && { [ -e "$layer" ] || [ "$layer" = "${AFK_CONFIG:-}" ]; } || continue
     grep -qs repo-hooks "$layer"; [ "$?" -eq 1 ] || declared=1
   done

@@ -474,12 +474,18 @@ def is_set_up(root: Path | None = None) -> bool:
     return shared is not None and shared.is_file()
 
 
-def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
-                  ignored: list[tuple[str, str, str]]) -> dict:
-    """`document` without the values its file may not hold; each one dropped lands in `ignored`."""
+def layer_reads(kind: str, committed: bool) -> set[str] | None:
+    """Owners a layer of `kind` is read for; None reads every owner (`$AFK_CONFIG`)."""
     reads = _READS.get(kind)
     if reads is not None and committed and kind in ("shared", "local"):
         reads = reads - {TEAM}
+    return reads
+
+
+def _owner_filter(kind: str, document: dict, path: Path, committed: bool,
+                  ignored: list[tuple[str, str, str]]) -> dict:
+    """`document` without the values its file may not hold; each one dropped lands in `ignored`."""
+    reads = layer_reads(kind, committed)
 
     def keep(setting: str) -> bool:
         if setting in REMOVED_KEYS:
@@ -538,16 +544,19 @@ def ignored_line(setting: str, file: str, rule: str) -> str:
 def _validate_one(path: Path, root: Path | None) -> tuple[dict, list[tuple[str, str, str]]]:
     """One named file merged over the defaults, filtered as the layer its path names."""
     document = parse(_read(path), str(path))
-    kind = "env"
+    known = {(Path.home() / ".afk" / "config.yaml"): "home"}
     if root is not None:
-        known = {(root / ".afk" / "config.yaml"): "repo",
-                 (root / ".afk" / "config.local.yaml"): "local",
-                 (Path.home() / ".afk" / "config.yaml"): "home"}
+        known[root / ".afk" / "config.yaml"] = "repo"
+        known[root / ".afk" / "config.local.yaml"] = "local"
         shared = shared_overlay(root)
         if shared is not None:
             known[shared] = "shared"
-        kind = next((name for where, name in known.items()
-                     if where.resolve() == path.resolve()), "env")
+    kind = next((name for where, name in known.items()
+                 if where.resolve() == path.resolve()), "env")
+    common = path.resolve().parent.parent
+    if (kind == "env" and path.parent.name == "afk" and common.name == ".git"
+            and (common / "HEAD").is_file()):
+        kind, root = "shared", common.parent   # another checkout's personal file
     if kind in ("local", "shared") and "schema" in document:
         raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
     committed = root is not None and (root / ".afk" / "config.yaml").is_file()
@@ -790,6 +799,8 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
             problems.append(f"{name}: must be a mapping")
             continue
         for key in sorted(set(block_value) - allowed):
+            if f"{name}.{key}" in REMOVED_KEYS:
+                continue
             problems.append(
                 f"{name}.{key}: unknown key; expected one of "
                 f"{', '.join(sorted(allowed))}"
@@ -813,7 +824,7 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                     _relative_path(problems, where, entry)
 
     site = config["jira"].get("site") if isinstance(config.get("jira"), dict) else None
-    if site is not None and not (isinstance(site, str) and re.match(r"^https?://[^/\s]+", site)):
+    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+/?", site)):
         problems.append("jira.site: must be the site address, e.g. https://example.atlassian.net")
 
     worktree = config.get("worktree")
@@ -1159,7 +1170,6 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
         "",
         *(_inherited_line("tracker", tracker, inherited, left)),
         *(_inherited_line("forge", forge, inherited, left)),
-        "notes: repo-files",
     ]
 
     if gates:
@@ -1189,10 +1199,7 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
             "#     bug: Bug",
             "#   transitions:",
             "#     ready-for-review: Ready for Review",
-            "#   credentials-env:          # variable NAMES; never a secret",
-            "#     - JIRA_BASE_URL",
-            "#     - JIRA_EMAIL",
-            "#     - JIRA_API_TOKEN",
+            "#   site: https://TODO.atlassian.net",
         ]
     else:
         if not slug:
@@ -1208,9 +1215,6 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
             '    done: "status:done"',
         ]
     lines.append("")
-
-    if forge in ("gitlab", "github"):
-        lines += [f"{forge}:", f"  remote: {remote or 'origin'}", ""]
 
     lines += ["git:", f"  base-branch: {base}"]
     lines += [

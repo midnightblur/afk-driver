@@ -34,7 +34,7 @@ def _module():
 cfg = _module()
 
 
-NO_HOME = Path(tempfile.gettempdir()) / "afk-config-test-no-home"
+NO_HOME = Path(tempfile.mkdtemp(prefix="afk-config-no-home-"))   # empty, private to this run
 
 
 def run(args, cwd, env=None):

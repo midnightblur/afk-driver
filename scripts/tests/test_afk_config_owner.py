@@ -234,9 +234,22 @@ def test_the_new_keys_are_accepted_with_their_owners(tmp_path, home):
     assert effective["developer"] == {"forgeAccount": "someone", "worktreeRoot": "/work/trees"}
 
 
-def test_a_jira_site_that_is_not_an_address_is_refused():
-    problems = cfg.validate({"schema": 1, "jira": {"site": "example.atlassian.net"}})
+@pytest.mark.parametrize("site", ["example.atlassian.net", "https://a b",
+                                  "https://example.net/any/path", "ftp://example.net"])
+def test_a_jira_site_that_is_not_an_address_is_refused(site):
+    problems = cfg.validate({"schema": 1, "jira": {"site": site}})
     assert any(p.startswith("jira.site:") for p in problems)
+
+
+@pytest.mark.parametrize("site", ["https://x.atlassian.net", "https://x.atlassian.net/",
+                                  "http://jira.example.net"])
+def test_a_jira_site_address_is_accepted(site):
+    assert cfg.validate({"schema": 1, "jira": {"site": site}}) == []
+
+
+def test_validate_accepts_a_parsed_file_holding_the_removed_key():
+    document = cfg.parse("schema: 1\njira:\n  project: ABC\n  credentials-env:\n    - X\n", "x")
+    assert cfg.validate(cfg.deep_merge(dict(cfg.DEFAULTS), document)) == []
 
 
 @pytest.mark.parametrize("where", ["committed", "personal", "explicit"])
@@ -364,6 +377,31 @@ def test_validate_of_one_named_file_filters_it_as_its_layer(tmp_path, home):
     done = run(["validate", str(file)], root, home)
     assert done.returncode == 0, done.stderr
     assert f"developer.mrReviewer in {file} is ignored" in done.stdout
+
+
+@pytest.mark.parametrize("layer, text, setting, outside", [
+    ("personal", "notes: obsidian\n", "notes", False),
+    ("personal", "notes: obsidian\n", "notes", True),
+    ("local", "notes: obsidian\n", "notes", False),
+    ("machine", "tracker: jira\n", "tracker", False),
+])
+def test_validate_of_one_named_file_filters_every_layer(tmp_path, home, layer, text, setting,
+                                                        outside):
+    root = _repo(tmp_path)
+    file = machine(home, text) if layer == "machine" else {"personal": personal,
+                                                           "local": local}[layer](root, text)
+    done = run(["validate", str(file)], tmp_path if outside else root, home)
+    assert done.returncode == 0, done.stderr
+    assert f"{setting} in {file} is ignored" in done.stdout
+
+
+def test_validate_of_a_named_personal_file_refuses_schema_from_outside_the_checkout(
+        tmp_path, home):
+    root = _repo(tmp_path)
+    file = personal(root, "schema: 1\nnotes: obsidian\n")
+    done = run(["validate", str(file)], tmp_path, home)
+    assert done.returncode == 2
+    assert "may not set `schema`" in done.stderr
 
 
 def test_every_reader_view_leaves_an_ignored_value_out(tmp_path, home):

@@ -74,7 +74,17 @@ def test_github_repo_with_package_json(tmp_path):
     assert config["tracker"] == "github-issues"
     assert config["build-gates"] == ["npm"]
     assert config["npm"]["workspace-root"] == "."
-    assert config["github"]["remote"] == "origin"
+    assert "github" not in config            # the remote is a personal setting
+
+
+@pytest.mark.parametrize("remote", ["https://github.com/acme/widget.git",
+                                    "git@gitlab.com:acme/widget.git", None])
+def test_the_scaffold_writes_only_values_the_committed_file_may_hold(tmp_path, remote):
+    text, _ = scaffold_of(make_repo(tmp_path, "r", remote, [("pom.xml", "<project/>\n")]))
+    ignored = []
+    ac._owner_filter("repo", ac.parse(text, "<scaffold>"), Path("<scaffold>"), True, ignored)
+    assert ignored == []
+    assert "credentials-env" not in text
 
 
 def test_gitlab_repo_with_pom(tmp_path):
