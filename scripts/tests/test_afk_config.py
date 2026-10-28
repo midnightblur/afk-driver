@@ -600,21 +600,29 @@ def _separate_checkout(tmp_path: Path, name: str) -> Path:
     return checkout
 
 
-def test_a_separate_git_directory_not_named_git_derives_no_worktree_base(tmp_path):
-    checkout = _separate_checkout(tmp_path, "x.git")
+def _separate_layout(tmp_path: Path, name: str, where: str) -> Path:
+    checkout = _separate_checkout(tmp_path, name)
     linked = _linked_worktree(checkout, tmp_path / "linked")
-    for where in (checkout, linked):
-        out = run(["resolve", "worktreeBasePath"], where, _home(tmp_path))
-        assert (out.returncode, out.stdout) == (1, ""), where
+    return {"main": checkout, "linked": linked}[where]
 
 
-def test_a_separate_git_directory_named_git_derives_beside_it_from_every_worktree(tmp_path):
-    checkout = _separate_checkout(tmp_path, ".git")
-    linked = _linked_worktree(checkout, tmp_path / "linked")
-    for where in (checkout, linked):
-        out = run(["resolve", "worktreeBasePath"], where, _home(tmp_path))
-        assert out.returncode == 0, (where, out.stderr)
-        assert Path(out.stdout.strip()).resolve() == (tmp_path / "store-worktrees").resolve()
+@pytest.mark.parametrize("where", ["main", "linked"])
+def test_a_separate_git_directory_not_named_git_derives_no_worktree_base(tmp_path, where):
+    out = run(["resolve", "worktreeBasePath"], _separate_layout(tmp_path, "x.git", where),
+              _home(tmp_path))
+    assert (out.returncode, out.stdout) == (1, "")
+
+
+@pytest.mark.parametrize("where", ["main", "linked"])
+def test_a_separate_git_directory_named_git_derives_beside_gits_main_worktree(tmp_path, where):
+    start = _separate_layout(tmp_path, ".git", where)
+    out = run(["resolve", "worktreeBasePath"], start, _home(tmp_path))
+    assert out.returncode == 0, out.stderr
+    listed = subprocess.run(["git", "-C", str(start), "worktree", "list", "--porcelain"],
+                            capture_output=True, text=True, check=True).stdout
+    main = Path(listed.splitlines()[0].removeprefix("worktree "))
+    assert Path(out.stdout.strip()).resolve() == (main.parent / (main.name + "-worktrees")).resolve()
+    assert main.resolve() == (tmp_path / "store").resolve()
 
 
 def _linked_worktree(checkout: Path, where: Path) -> Path:

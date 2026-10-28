@@ -335,3 +335,10 @@
 - Chosen: edit it. This slice made `resolve` skip the committed file, and the `read_config_key` comment still said the chain reads "the repository's committed default"; the review finding on it has no inline location until the line changes. The edit is one comment line and changes no behaviour.
 - Supersedes: 0013-config-contract ## Scope, for line 227 of `scripts/create-worktree` only
 - To reverse: restore "# value, then the repository's committed default, then the derived one —" on that line
+
+## D-49 — a second stale comment line in `scripts/create-worktree` joins the config-contract slice
+- 2026-10-28 · decided by execute (0013-config-contract, Step 10 round 5, finding 0013-config-contract/f015)
+- Options: stop `blocked` for a re-slice vs edit the one comment line in the remediation commit
+- Chosen: edit it. This slice changed which layouts derive a worktree base, and the last-resort comment still named "a git dir outside the tree"; a separate git dir named `.git` now derives. The edit is one comment line and changes no behaviour.
+- Supersedes: 0013-config-contract ## Scope, for line 284 of `scripts/create-worktree` only
+- To reverse: restore "    # clone, or a git dir outside the tree. Say where it landed rather than" on that line

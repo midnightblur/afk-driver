@@ -48,3 +48,4 @@
 | 0013-config-contract-98e54f1-r1 | crit=0 high=0 med=2 low=6 | [0013-config-contract-98e54f1-r1.md](0013-config-contract-98e54f1-r1.md) |
 | 0013-config-contract-e5b86be-r2 | crit=0 high=0 med=0 low=1 | [0013-config-contract-e5b86be-r2.md](0013-config-contract-e5b86be-r2.md) |
 | 0013-config-contract-51bf4ae-r3 | crit=0 high=0 med=2 low=0 | [0013-config-contract-51bf4ae-r3.md](0013-config-contract-51bf4ae-r3.md) |
+| 0013-config-contract-7b432e5-r4 | crit=0 high=0 med=1 low=2 | [0013-config-contract-7b432e5-r4.md](0013-config-contract-7b432e5-r4.md) |

@@ -281,7 +281,7 @@ if [[ -z "$WORKTREE_PARENT" ]]; then
   WORKTREE_SOURCE="developer.worktreeBasePath (or its derived default)"
   if [[ -z "$WORKTREE_PARENT" ]]; then
     # Only reachable when the resolver could not derive one either — a bare
-    # clone, or a git dir outside the tree. Say where it landed rather than
+    # clone, or a git dir not named .git. Say where it landed rather than
     # creating worktrees somewhere the human never named.
     WORKTREE_PARENT="${HOME}/repo-worktrees"
     WORKTREE_SOURCE="last-resort default (set developer.worktreeBasePath or pass --parent)"
