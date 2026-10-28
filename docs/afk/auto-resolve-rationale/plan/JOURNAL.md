@@ -3,3 +3,12 @@
 2026-10-26 11:43 | execute | 0001-resolve-rationale-threads | developing — adding failing tests before the rationale writer changes
 2026-10-26 14:11 | execute | 0001-resolve-rationale-threads | parked(test_fail) — the required Windows suite is red on a browser-helper test, so repository policy prevents the push
 2026-10-26 19:02 | execute | 0001-resolve-rationale-threads | done — fixed the elevated Windows browser launch; the browser file and clean rerun of the sole environmental gate are green
+2026-10-26 23:29 | execute | 0002-sync-harness | designing — `/afk:agents-md` found no non-duplicate steering note and no staple candidate; preparing the trace matrix
+2026-10-26 23:31 | execute | 0002-sync-harness | developing — wrote the trace matrix with every acceptance criterion mapped to its commit and proving test
+2026-10-26 23:36 | execute | 0002-sync-harness | verifying — trace rows, proving test anchors, plan validation, and diff checks are green
+2026-10-26 23:40 | execute | 0002-sync-harness | reviewing — independent lean-policy review started for specification, scope, and test evidence
+2026-10-26 23:46 | execute | 0002-sync-harness | decision(D-1) — accepted the `/afk:agents-md` no-op because no non-duplicate, permitted steering target exists
+2026-10-26 23:52 | execute | 0002-sync-harness | review(clean) — scope finding withdrawn and the steward-output finding settled by D-1; delta review found nothing actionable
+2026-10-27 15:40 | execute | 0002-sync-harness | adversary skipped(human waiver) — the human waived the live check because this documentation-only slice has no running application target
+2026-10-27 15:42 | execute | 0002-sync-harness | done — the review, verification, rationale receipt, and human-approved live-check waiver are complete
+2026-10-27 15:49 | smoke-test | gate | smoke pass (2/2 scenarios) — both minimal checks passed, and every acceptance criterion has complete evidence

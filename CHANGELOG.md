@@ -37,6 +37,11 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- Concurrent worktree creation now uses a conditional Git-ref lock. A waiter
+  cannot delete a replacement lock or append duplicate local exclude entries.
+
 ## [1.16.1] - 2026-10-27
 
 ### Fixed

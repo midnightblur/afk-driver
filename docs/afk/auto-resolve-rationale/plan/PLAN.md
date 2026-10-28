@@ -3,8 +3,8 @@
 > Parent ticket: auto-resolve-rationale   Mode: uncited
 > Sources: [PRD](../PRD.md)
 > Branch (for /afk:execute): feat/session-b1f2ca52
-> Last updated: 2026-10-26 (status column maintained by /afk:execute)
-> Feature: in-progress
+> Last updated: 2026-10-27 (status column maintained by /afk:execute)
+> Feature: complete (minimal gate, 2026-10-27)
 > Review policy: lean
 
 ## Solution map
@@ -21,7 +21,7 @@ flowchart LR
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-resolve-rationale-threads | Resolve rationale threads | done | — | static, unit | — |
-| 2 | 0002-sync-harness | Sync harness | pending | 0001-resolve-rationale-threads | static | — |
+| 2 | 0002-sync-harness | Sync harness | done | 0001-resolve-rationale-threads | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`.
@@ -32,7 +32,11 @@ the date in the header; everything else in PLAN.md is yours to edit.
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `afk-python -m py_compile skills/afk/review/scripts/forge_ledger.py` | |
-| 2 | regression | `afk-python -m pytest -q scripts/tests/test_rationale_ledger.py` | |
+| 1 | compile | `afk-python -m py_compile skills/afk/review/scripts/forge_ledger.py` | pass |
+| 2 | regression | `afk-python -m pytest -q scripts/tests/test_rationale_ledger.py` | pass |
 
-Last run: —
+Last run: 2026-10-27 local
+
+Run history:
+
+- 2026-10-27 local — pass, failing: none
