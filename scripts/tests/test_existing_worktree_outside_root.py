@@ -387,9 +387,11 @@ def _(f, s):
 @case("hooks/lib/shell_mutations.py", kinds=PROT)
 def _(f, s):
     here, away = s.path.as_posix(), (f.base / f"moved-{s.label}").as_posix()
-    return [guard(f, s, "Bash", {"command": f"git worktree remove {here}"}, cwd=f.main),
+    seen = [guard(f, s, "Bash", {"command": f"git worktree remove {here}"}, cwd=f.main),
             guard(f, s, "Bash", {"command": f"git worktree move {here} {away}"}, cwd=f.main),
             guard(f, s, "Bash", {"command": f"git -C {here} commit --allow-empty -m x"}, cwd=f.main)]
+    # The guard cuts the echoed command at 80 characters, and the twins' paths differ in length.
+    return [(code, verdict, re.sub(r"run `[^`]*`", "run `<CMD>`", text)) for code, verdict, text in seen]
 
 
 @case("hooks/lib/read_only.py", kinds=PROT)
