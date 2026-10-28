@@ -847,9 +847,10 @@ def worktree_base(root: Path | None = None) -> Path | None:
 
     `--git-common-dir` answers with the MAIN checkout's `.git` even from inside
     a worktree, which is the whole point: every worktree of one repository then
-    derives the same directory. A bare repository, or one whose git dir is not a
-    folder named `.git` (a separate git dir, a submodule), gets `None`, and the
-    caller asks for the key instead of guessing.
+    derives the same directory. A bare repository, a git dir not named `.git`
+    (a submodule), or a main checkout whose git dir lives outside it gets `None`,
+    and the caller asks for the key instead of guessing. A linked worktree cannot
+    see where its main checkout is, so it trusts `<git dir>/..` as git does.
     """
     start = root or git_root() or Path.cwd()
     common = _git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
@@ -860,6 +861,11 @@ def worktree_base(root: Path | None = None) -> Path | None:
             start, "config", "--file", str(git_dir / "config"), "--bool", "core.bare") == "true":
         return None
     main_checkout = git_dir.parent
+    own = _git(start, "rev-parse", "--path-format=absolute", "--git-dir")
+    top = _git(start, "rev-parse", "--show-toplevel")
+    if own and Path(own).resolve() == git_dir.resolve() and (
+            not top or Path(top).resolve() != main_checkout.resolve()):
+        return None      # the main checkout keeps its git dir elsewhere
     if main_checkout.name in ("", "/") or not main_checkout.name:
         return None
     return main_checkout.parent / (main_checkout.name + "-worktrees")

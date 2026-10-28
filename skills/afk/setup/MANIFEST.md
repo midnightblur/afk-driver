@@ -215,7 +215,7 @@ a token value — not even partially.
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
   probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
   resolves without anyone setting it (it derives beside the main checkout), so an unresolved K3
-  means git could not answer — a bare clone. K4 `ideBinary` and K5 `mrAssignee`
+  means the layout has no safe default — `CONFIG.md` K3 names which. K4 `ideBinary` and K5 `mrAssignee`
   are optional and not probed — an unset `mrAssignee` means no assignee, never a
   failure.
 

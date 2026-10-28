@@ -590,11 +590,12 @@ def test_afk_config_naming_the_committed_file_reads_no_developer(tmp_path):
     assert out.stderr.count("committed file holds no developer") == 1
 
 
-def test_a_separate_git_directory_derives_no_worktree_base(tmp_path):
+@pytest.mark.parametrize("name", ["x.git", ".git"])
+def test_a_separate_git_directory_derives_no_worktree_base(tmp_path, name):
     checkout, store = tmp_path / "checkout", tmp_path / "store"
     checkout.mkdir()
     store.mkdir()
-    done = subprocess.run(["git", "init", "-q", "--separate-git-dir", str(store / "x.git")],
+    done = subprocess.run(["git", "init", "-q", "--separate-git-dir", str(store / name)],
                           cwd=str(checkout), capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     out = run(["resolve", "worktreeBasePath"], checkout, _home(tmp_path))
