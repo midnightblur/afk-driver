@@ -168,3 +168,4 @@
 2026-10-28 16:40 | execute | 0007-ship-script | developing — fixing round 7: a rebased commit counts only when its patch id matches a commit the branch made; focused ship tests 107 passed
 2026-10-28 18:05 | execute | 0007-ship-script | review blocking crit=0 high=1 med=1 low=2 — round 8 found 4 (f048-f051): matching by patch id refused a fix whose patch a rebase changed, merges could get a patch id, the check grew with commits times rebases, and a rebasing pull had no test
 2026-10-28 18:05 | execute | 0007-ship-script | developing — fixing round 8: a rebased commit counts when its author and author date match a commit the branch made, each read once; focused ship tests 111 passed
+2026-10-28 18:30 | autopilot | 0007-ship-script | resume agent handed back mid review round 9 at e854cc40 (rounds 5-8 settled, closure and adversary gates not run); continuing 0007 with a fresh agent once the round 9 reviewers report

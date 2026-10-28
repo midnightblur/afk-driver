@@ -149,6 +149,12 @@ def concern_text(value):
     return ",".join(value) if isinstance(value, list) else value
 
 
+def reviewer_finding(item):
+    """A reviewer's finding, validated, with its concern in the form post stores."""
+    validate_finding(item)
+    return {**item, "concern": concern_text(item["concern"])}
+
+
 def fingerprints(unit, head, finding, locator):
     routing = {
         "unit": unit, "reviewed_head": head,
@@ -1306,9 +1312,7 @@ def command_post(args, adapter):
     findings = _load_json(args.findings)
     if not isinstance(findings, list):
         raise UsageError("findings file must contain a JSON list")
-    for finding in findings:
-        validate_finding(finding)
-        finding["concern"] = concern_text(finding["concern"])
+    findings = [reviewer_finding(finding) for finding in findings]
     diff = parse_diff(Path(args.diff).read_text(encoding="utf-8"))
     hints = _load_json(args.hints) if args.hints else {}
     mapping = _load_json(args.map) if args.map else {}
@@ -1514,8 +1518,7 @@ def command_gate(args, adapter):
                     if "feature" in value.get("ever_deferred_to", []):
                         keys[key] = value
         missing = []
-        for finding in expected:
-            validate_finding(finding)
+        for finding in map(reviewer_finding, expected):
             locator = resolved_locator(finding, diff)
             if not any(_progress_match(key, value, finding, locator, diff, args.head)
                        for key, value in keys.items()):

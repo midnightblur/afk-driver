@@ -479,6 +479,20 @@ def test_a_posted_concern_list_is_stored_as_one_string(tmp_path):
     assert key["routing"]["concern"] == "logic-correctness,resilience"
 
 
+def test_progress_gate_accepts_a_posted_concern_list(tmp_path):
+    ledger = load_module()
+    adapter = FakeAdapter()
+    findings = tmp_path / "findings.json"
+    findings.write_text(json.dumps([finding(concern=["logic-correctness", "resilience"])]),
+                        encoding="utf-8")
+    diff = tmp_path / "change.diff"
+    diff.write_text("", encoding="utf-8")
+    ledger.command_post(args(change="1", unit="slice", findings=str(findings), diff=str(diff),
+                             head="abc", hints=None, map=None, state=None), adapter)
+    assert ledger.command_gate(args(change="1", unit="slice", phase="progress", head="abc",
+                                    expected=str(findings), round=None), adapter)["ok"]
+
+
 @pytest.mark.parametrize("concern", [[], [""], ["a", 3], "", None])
 def test_a_concern_that_names_nothing_is_refused(concern):
     ledger = load_module()
