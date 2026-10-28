@@ -545,15 +545,14 @@ def _validate_one(path: Path, root: Path | None
                   ) -> tuple[dict, list[tuple[str, str, str]], Path | None]:
     """One named file merged over the defaults, filtered as the layer its path names; and its checkout."""
     document = parse(_read(path), str(path))
-    known = {(Path.home() / ".afk" / "config.yaml"): "home"}   # first: the root guess may be the home folder
-    if root is not None:
-        known.setdefault(root / ".afk" / "config.yaml", "repo")
-        known.setdefault(root / ".afk" / "config.local.yaml", "local")
+    known = [(Path.home() / ".afk" / "config.yaml", "home")]
+    if root is not None and (root / ".git").exists():   # a root guessed outside any checkout is none
+        known += [(root / ".afk" / "config.yaml", "repo"), (root / ".afk" / "config.local.yaml", "local")]
         shared = shared_overlay(root)
         if shared is not None:
-            known.setdefault(shared, "shared")
-    kind = next((name for where, name in known.items()
-                 if where.resolve() == path.resolve()), "env")
+            known.append((shared, "shared"))
+    matches = {name for where, name in known if where.resolve() == path.resolve()}
+    kind = "env" if matches == {"home", "repo"} else next(iter(matches), "env")   # as load(): both layers
     common = path.resolve().parent.parent
     if (kind == "env" and path.parent.name == "afk" and common.name == ".git"
             and (common / "HEAD").is_file()):
@@ -825,7 +824,7 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                     _relative_path(problems, where, entry)
 
     site = config["jira"].get("site") if isinstance(config.get("jira"), dict) else None
-    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+(/\S*)?", site)):
+    if site is not None and not (isinstance(site, str) and re.fullmatch(r"https?://[^/\s]+/?", site)):
         problems.append("jira.site: must be the site address, e.g. https://example.atlassian.net")
 
     worktree = config.get("worktree")

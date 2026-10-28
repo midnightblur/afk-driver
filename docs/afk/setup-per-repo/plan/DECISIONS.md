@@ -188,3 +188,18 @@
 - Chosen: B — review key f020: one statement of the read rule is the reason D-24 gave; the name is plugin-internal, so renaming it later is cheap
 - Supersedes: the Acceptance bullet "Implements the public interface in SDD §8 row \"settings reader (changed)\" unmodified" of `plan/0002-settings-reader.md` — widened by `layer_reads(kind, committed)`
 - To reverse: rename it `_layer_reads` and give `status` its own copy of the read rule
+
+## D-28 — 0010-setup-walk also rewords the dependency register's commit-gate sentence; no IOU carries either edit
+- 2026-10-28 · decided by /afk:execute (0002-settings-reader)
+- Options: A — park the slice a third time for two sentences of `skills/afk/setup/MANIFEST.md`, outside Scope vs B — leave both to 0010-setup-walk, which every executor reaches through this ledger, and drop the IOU line, which the wiring gate never matches for an existing file
+- Chosen: B — review keys f027 and f030; executors read `plan/DECISIONS.md` before working a slice (root `DECISIONS.md`), so this entry is where 0010-setup-walk meets the duty
+- For 0010-setup-walk: in `skills/afk/setup/MANIFEST.md`, drop `adapters/notes/obsidian/notes.sh` from the `AFK_CFG_OBSIDIAN_VAULT` row (or delete the row), and reword P1's "any configuration layer mentions `repo-hooks`" to the files `CONFIG.md` names: the `$AFK_CONFIG` file, and the committed file, else the repository personal file and the local overlay
+- Supersedes: D-25's carrier — the IOU of review key f018 is withdrawn; `FRESHNESS.md` same-commit rule for P1 of `skills/afk/setup/MANIFEST.md` — deferred to 0010-setup-walk
+- To reverse: edit both sentences in the commit that narrows the check, and drop this entry's duty
+
+## D-29 — `jira.site` stays scheme plus host
+- 2026-10-28 · decided by /afk:execute (0002-settings-reader)
+- Options: A — accept a context path such as `https://host/jira` vs B — accept only scheme plus host, with an optional trailing slash
+- Chosen: B — review key f028: INV-016 records that the sign-in load hands Jira a base of scheme plus host, and ADR-0004 (design) derives the per-site key from the host, so two paths on one host would share one sign-in; a context path is a non-goal of this feature
+- Supersedes: the fix of review key f021, which allowed a path
+- To reverse: allow `(/\S*)?` in the `jira.site` check of `scripts/afk-config.py` and define the per-site key for a path in ADR-0004

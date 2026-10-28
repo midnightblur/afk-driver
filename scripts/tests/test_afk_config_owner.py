@@ -235,14 +235,14 @@ def test_the_new_keys_are_accepted_with_their_owners(tmp_path, home):
 
 
 @pytest.mark.parametrize("site", ["example.atlassian.net", "https://a b",
-                                  "https://example.net/a b", "ftp://example.net"])
+                                  "https://example.net/jira", "ftp://example.net"])
 def test_a_jira_site_that_is_not_an_address_is_refused(site):
     problems = cfg.validate({"schema": 1, "jira": {"site": site}})
     assert any(p.startswith("jira.site:") for p in problems)
 
 
 @pytest.mark.parametrize("site", ["https://x.atlassian.net", "https://x.atlassian.net/",
-                                  "http://jira.example.net", "https://example.net/jira"])
+                                  "http://jira.example.net"])
 def test_a_jira_site_address_is_accepted(site):
     assert cfg.validate({"schema": 1, "jira": {"site": site}}) == []
 
@@ -412,6 +412,14 @@ def test_validate_of_a_named_personal_file_checks_paths_under_its_checkout(tmp_p
     done = run(["validate", str(file)], tmp_path, home)
     assert done.returncode == 0, done.stderr
     assert "does not exist" not in done.stderr
+
+
+def test_validate_of_the_committed_file_of_a_checkout_at_home_reads_it_as_both_layers(home):
+    subprocess.run(["git", "init", "-q"], cwd=str(home), check=True)
+    file = machine(home, "schema: 1\ntracker: jira\nnotes: obsidian\n")
+    done = run(["validate", str(file)], home, home)
+    assert done.returncode == 0, done.stderr
+    assert "is ignored" not in done.stdout
 
 
 def test_validate_of_a_file_under_a_folder_named_git_that_is_not_one_reads_it_whole(
