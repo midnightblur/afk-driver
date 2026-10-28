@@ -390,3 +390,31 @@ def test_a_folder_claim_that_cannot_take_the_list_lock_exits_1_and_makes_nothing
     assert reason.endswith("could not be made with its marker - run /afk:setup"), reason
     assert "Traceback" not in done.stderr, done.stderr
     assert_nothing_made(listed, "worktree-locked", root / "proj")
+
+
+def test_a_developer_dir_that_climbs_out_prints_a_clean_path_and_makes_no_short_name_folder(listed, root, home):
+    (root / "proj" / rl.MARKER_NAME).unlink()
+    (root / "proj").rmdir()
+    done = create(listed, home, "--branch", "feat/dc", "--dir", "../dc", "--base", "dev", "--no-open", agent=False)
+    path = path_of(done)
+    assert ".." not in path.as_posix() and same(path, root / "dc"), done.stdout
+    assert not (root / "proj").exists()
+
+
+def test_a_marked_short_name_folder_is_used_while_another_writer_holds_the_list_lock(listed, root, home):
+    with rl.safe_write._file_lock(rl.list_file()):
+        path = path_of(create(listed, home, "--name", "busy"))
+    assert same(path, root / "proj" / "busy")
+
+
+def test_an_agent_parent_through_a_linked_short_name_folder_keeps_its_marker(tmp_path, listed, root, home):
+    real = tmp_path / "real-proj"
+    (root / "proj").rename(real)
+    try:
+        os.symlink(real, root / "proj", target_is_directory=True)
+    except OSError as error:
+        pytest.skip(f"this machine cannot make a folder link: {error}")
+    path = path_of(create(listed, home, "--branch", "feat/ln", "--dir", "ln", "--base", "dev",
+                          "--parent", str(root / "proj"), "--no-open"))
+    assert same(path, real / "ln")
+    assert same(json.loads((real / rl.MARKER_NAME).read_text(encoding="utf-8"))["path"], listed)

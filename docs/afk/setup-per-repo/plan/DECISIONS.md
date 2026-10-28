@@ -377,3 +377,10 @@
 - Chosen: B — R-06 also lets an empty unmarked folder pass, and an agent's `--parent` inside the folder made it with plain `mkdir`; both left a folder the next creation refused
 - Supersedes: D-48's "removed by hand" scope
 - To reverse: claim only when `$WORKTREE_PARENT` is missing, as D-48 first did
+
+## D-54 — Where the folder claim learns the repository's short name
+- 2026-10-28 · decided by /afk:execute (0005-worktree-creator)
+- Options: A — keep `repo_list.all_entries()` in the claim and widen its "setup only" rule in the 0003 and 0010 contracts and the module header vs B — look the repository up with `find_entry` and build the folder as `<root>/<short name>` from `root_state`, not from placement's resolved folder
+- Chosen: B — the seam rule stays as two contracts already state it, and a folder reached through a link keeps the listed short name instead of the link target's basename
+- Supersedes: none
+- To reverse: restore the `all_entries()` scan in `claim_short_name_folder` and amend the "setup only" lines in `scripts/repo_list.py`, `plan/0003-repository-list.md` and `plan/0010-setup-walk.md`

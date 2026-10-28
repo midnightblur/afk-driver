@@ -33,9 +33,10 @@
 #
 # Placement (scripts/placement.py) picks the folder before anything is made. A repository
 # in the repository list gets `<root>/<short name>/<name or dir>`; a root or short name
-# that fails a catalog R rule refuses; a short-name folder without its marker gets it. A repository not in the list gets, for --name, the
-# current harness's folder inside the main checkout (hidden through the clone's local
-# exclude file), and for --branch/--dir, the sibling `<main-checkout>-worktrees`.
+# that fails a catalog R rule refuses; a short-name folder without its marker gets it.
+# A repository not in the list gets, for --name, the current harness's folder inside the
+# main checkout (hidden through the clone's local exclude file), and for --branch/--dir,
+# the sibling `<main-checkout>-worktrees`.
 #
 # Options:
 #   --base <branch>   Base branch to branch from when --branch doesn't exist yet.
@@ -336,23 +337,24 @@ place() {
 
 # A short-name folder without its marker (removed by hand, or made empty) gets it, under the list's lock.
 claim_short_name_folder() {
-  "$PY_BIN" - "$(native_path "$AFK_ROOT_DIR/scripts/repo_list.py")" "$(native_path "$1")" <<'PY' \
-    || error_exit "worktree folder $1 could not be made with its marker - run /afk:setup"
+  "$PY_BIN" - "$(native_path "$AFK_ROOT_DIR/scripts/placement.py")" "$(native_path "$REPO_DIR")" <<'PY' \
+    || error_exit "worktree folder $P_FOLDER could not be made with its marker - run /afk:setup"
 import importlib.util, pathlib, sys
-spec = importlib.util.spec_from_file_location("afk_repo_list_for_creator", sys.argv[1])
-repo_list = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = repo_list
-spec.loader.exec_module(repo_list)
-folder = pathlib.Path(sys.argv[2])
+spec = importlib.util.spec_from_file_location("afk_placement_for_claim", sys.argv[1])
+placement = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(placement)
+repo_list = placement.repo_list
+entry = repo_list.find_entry(sys.argv[2])
+if entry is None:
+    sys.exit(f"{sys.argv[2]}: is no longer listed")
+folder = pathlib.Path(placement.root_state().path) / entry.short_name
 held = repo_list._marker_holder(folder / repo_list.MARKER_NAME)
-if held and any(e.short_name == folder.name and repo_list._key(e.path) == repo_list._key(held)
-                for e in repo_list.all_entries()):
+if held and repo_list._key(held) == repo_list._key(entry.path):
     sys.exit(0)
 
 def claim(text):
-    entry = next((e for e in repo_list._parse(text) if e.short_name == folder.name), None)
-    if entry is None:
-        raise repo_list.RepositoryListError("is no longer listed", folder.name)
+    if not any(repo_list._key(e.path) == repo_list._key(entry.path) for e in repo_list._parse(text)):
+        raise repo_list.RepositoryListError("is no longer listed", entry.path)
     repo_list._claim_folder(folder.parent, entry.short_name, entry.path)
     return text
 
@@ -386,8 +388,9 @@ else
   place "$([[ -n "$NAME" ]] && echo name || echo dir)" "$DIR_NAME"
   if [[ "$P_STATE" == refused ]]; then
     ! afk_agent_session || refuse_exit "worktree folder: $P_REASON - pass a plain folder name as --dir"
-    WORKTREE_PARENT="$P_FOLDER"
-    echo -e "  ${YELLOW}Worktree parent: $WORKTREE_PARENT — --dir '$DIR_NAME' leaves it (allowed outside an agent session)${NC}" >&2
+    PLACED=true
+    WORKTREE_PARENT="$(dirname "$P_TARGET")"
+    echo -e "  ${YELLOW}Worktree folder: $P_TARGET — --dir '$DIR_NAME' leaves $P_FOLDER (allowed outside an agent session)${NC}" >&2
   elif [[ "$P_STATE" == inside ]]; then
     PLACED=true
     WORKTREE_PARENT="$P_FOLDER"
@@ -406,8 +409,6 @@ else
     echo -e "  ${YELLOW}Worktree parent: $WORKTREE_PARENT — $WORKTREE_SOURCE${NC}" >&2
   fi
 fi
-CLAIM_FOLDER=""
-[[ "$P_STATE" != inside ]] || CLAIM_FOLDER="$P_FOLDER"
 if [[ -z "$IDEA_BIN" ]]; then
   IDEA_BIN="$(read_config_key ideBinary "$REPO_DIR")"
 fi
@@ -609,7 +610,7 @@ echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
 git -C "$REPO_DIR" worktree prune
 
 echo -e "${YELLOW}Creating worktree at $DEST...${NC}" >&2
-[[ -z "$CLAIM_FOLDER" ]] || claim_short_name_folder "$CLAIM_FOLDER"
+[[ "$P_STATE" != inside ]] || claim_short_name_folder
 mkdir -p "$WORKTREE_PARENT"
 
 if [[ "$BRANCH_EXISTS" == true ]]; then

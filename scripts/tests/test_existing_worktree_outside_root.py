@@ -290,8 +290,12 @@ def snippet(f, site: Site, code: str, cwd: Path | None = None, **extra):
     return f.norm(done.stdout, site)
 
 
+class Code(int):
+    """A member's exit code inside an observed value; observe_pairs checks each against the case's codes."""
+
+
 def outcome(f, site, done, streams="oe") -> tuple:
-    return (done.returncode, *(f.norm(done.stdout if s == "o" else done.stderr, site).strip() for s in streams))
+    return (Code(done.returncode), *(f.norm(done.stdout if s == "o" else done.stderr, site).strip() for s in streams))
 
 
 def gitdir(site: Site) -> str:
@@ -323,6 +327,8 @@ class Case:
     serial: bool = False      # shared state: run the sites one after another
     kinds: tuple = ("name", "dir")
     expect: Callable = lambda f, site, inside: inside  # expected outside value from the inside one
+    codes: dict = field(default_factory=dict)  # kind or "*" -> the inside value's exit codes in order; else all 0
+    setup: Callable | None = None  # makes the probe's input before the snapshot; removed afterwards
 
 
 CASES: list[Case] = []
@@ -353,7 +359,7 @@ def _(f, s):
     owners = None
     if record.is_file():
         owners = [f"{o['pid']}:{o['ctime']}" for o in OWNER.owners_of(json.loads(record.read_text("utf-8")))]
-    return done.returncode, f.norm(done.stdout, s), s.path.is_dir(), owners and f.owner in owners
+    return Code(done.returncode), f.norm(done.stdout, s), s.path.is_dir(), owners and f.owner in owners
 
 
 @case("hooks/protected-branch-occupancy.py+hooks/lib/occupancy.py")
@@ -374,7 +380,7 @@ def guard(f, s, tool: str, tool_input: dict, cwd: Path | None = None):
     reason = ""
     if '"permissionDecision": "deny"' in done.stdout:
         reason = json.loads(done.stdout)["hookSpecificOutput"].get("permissionDecisionReason", "deny")
-    return done.returncode, "deny" if reason else "allow", f.norm(reason, s)
+    return Code(done.returncode), "deny" if reason else "allow", f.norm(reason, s)
 
 
 @case("hooks/protected-branch-guard.py+hooks/lib/protected_branch_guard.py", kinds=PROT)
@@ -443,7 +449,7 @@ def _(f, s):
     return outcome(f, s, sh(f, "hooks/agents-md-config-check.sh", cwd=s.path))
 
 
-@case("hooks/branch-name-gate.sh", kinds=PROT)
+@case("hooks/branch-name-gate.sh", kinds=PROT, codes={"*": (1, 0, 0, 0), "prot": (1, 0, 1, 0)})
 def _(f, s):
     head = git(s.path, "rev-parse", "HEAD")
     runs = []
@@ -456,7 +462,7 @@ def _(f, s):
     return runs
 
 
-@case("hooks/git-backstop.py", kinds=PROT)
+@case("hooks/git-backstop.py", kinds=PROT, codes={"prot": (3, 3)})
 def _(f, s):
     head = git(s.path, "rev-parse", "HEAD")
     return [outcome(f, s, py(f, "hooks/git-backstop.py", "pre-commit", cwd=s.path)),
@@ -464,7 +470,7 @@ def _(f, s):
                              stdin=f"{head} {'1' * 40} refs/heads/{s.branch}\n"))]
 
 
-@case("hooks/precommit-gates.sh", kinds=PROT)
+@case("hooks/precommit-gates.sh", kinds=PROT, codes={"prot": (1,)})
 def _(f, s):
     return outcome(f, s, sh(f, "hooks/precommit-gates.sh", cwd=s.path))
 
@@ -503,7 +509,7 @@ bash "$P/hooks/gate-metrics-report.sh" | grep 'probe-{s.label}' | sed 's/p50=.*/
 COMMENTED = "# one\n# two\n# three\ndef probe():\n    return 1\n"
 
 
-@case("hooks/comment-gate.sh+hooks/lib/comment_gate.py", serial=True)
+@case("hooks/comment-gate.sh+hooks/lib/comment_gate.py", serial=True, codes={"*": (0, 2)})
 def _(f, s):
     """The staged blob lives in the worktree's index, never in its folder."""
     clean = sh(f, "hooks/comment-gate.sh", cwd=s.path)
@@ -619,7 +625,7 @@ print(json.dumps(server._call("tracker_get", ticket_key="X-1")))
 @case("scripts/create-worktree", kinds=CREATOR)
 def _(f, s):
     done = sh(f, "scripts/create-worktree", "--name", f"cw-{s.label}", "--no-open", cwd=s.path)
-    return done.returncode, f.norm(done.stdout.strip().splitlines()[-1], s)
+    return Code(done.returncode), f.norm(done.stdout.strip().splitlines()[-1], s)
 
 
 @case("scripts/worktree-provision")
@@ -648,14 +654,14 @@ def _(f, s):
     marker.write_text("{}", encoding="utf-8")
     done = py(f, "scripts/afk-move.py", "--repo", str(f.main), "--name", f"mv-{s.label}", "--session", "s-mv",
               "--provider", "claude", "--cwd", str(s.path), "--marker", str(marker), cwd=s.path)
-    return done.returncode, f.norm(marker.read_text("utf-8"), s)
+    return Code(done.returncode), f.norm(marker.read_text("utf-8"), s)
 
 
 @case("scripts/afk-launch.py", kinds=PROT)
 def _(f, s):
     """From a protected worktree it cuts a session worktree under the root, runs there, then removes it."""
     done = py(f, "scripts/afk-launch.py", sys.executable, "-c", "import os; print(os.getcwd())", cwd=s.path)
-    return done.returncode, re.sub(r"session-[0-9a-f]{8}", "session-<ID>", f.norm(done.stdout, s).strip())
+    return Code(done.returncode), re.sub(r"session-[0-9a-f]{8}", "session-<ID>", f.norm(done.stdout, s).strip())
 
 
 @case("scripts/placement.py")
@@ -687,7 +693,7 @@ def _(f, s):
                              str(s.path), cwd=s.path))]
 
 
-@case("scripts/afk-config.py")
+@case("scripts/afk-config.py", codes={"*": (0, 0, 0, 2)})
 def _(f, s):
     config = "scripts/afk-config.py"
     return [outcome(f, s, py(f, config, "get", "git.branch-pattern", cwd=s.path)),
@@ -708,7 +714,7 @@ def _(f, s):
     """Inside the main checkout the main checkout's AGENTS.md really is above the worktree: a true report."""
     done = py(f, "skills/afk/setup/scripts/ancestor_instruction_files.py", str(s.path), cwd=s.path)
     strays = [line.strip().split("  (")[0] for line in done.stdout.splitlines() if line.startswith("  ")]
-    return done.returncode, f.norm(";".join(Path(p).as_posix() for p in strays), s)
+    return Code(done.returncode), f.norm(";".join(Path(p).as_posix() for p in strays), s)
 
 
 @case("skills/afk/setup/scripts/background_git_hooks.py")
@@ -765,7 +771,7 @@ print(understanding._repo_relative(spec, spec / "UNDERSTANDING.html"))
 """)
 
 
-@case("skills/afk/to-subtasks/scripts/validate_plan.py")
+@case("skills/afk/to-subtasks/scripts/validate_plan.py", codes={"*": (1,)})
 def _(f, s):
     return outcome(f, s, py(f, "skills/afk/to-subtasks/scripts/validate_plan.py",
                             str(s.path / "docs" / "specs" / "feat" / "plan"), cwd=s.path))
@@ -779,9 +785,7 @@ print(json.dumps([str(ledger.cache_root(str(S)).parent), str(ledger.pending_dir(
 """, AFK_RATIONALE_CACHE=str(f.base / "rationale-cache"))
 
 
-@case("skills/utils/investigate/scripts/write_report.py", writes=True)
-def _(f, s):
-    """Writes REPORT.md beside the ledger, inside the worktree, by design."""
+def closed_ledger(f, s):
     sys.path.insert(0, str(TESTS))
     from test_validate_coverage import ledger
     document = ledger()
@@ -789,6 +793,12 @@ def _(f, s):
     folder = s.path / "docs" / "inv" / "INV-001-probe"
     folder.mkdir(parents=True)
     (folder / "COVERAGE.json").write_text(json.dumps(document), encoding="utf-8")
+
+
+@case("skills/utils/investigate/scripts/write_report.py", writes=True, setup=closed_ledger)
+def _(f, s):
+    """Writes REPORT.md beside the ledger, inside the worktree, by design."""
+    folder = s.path / "docs" / "inv" / "INV-001-probe"
     done = py(f, "skills/utils/investigate/scripts/write_report.py", "--ledger", str(folder / "COVERAGE.json"),
               cwd=s.path, stdin="## Answer\n\nprobe\n")
     return outcome(f, s, done) + (f.norm((folder / "REPORT.md").read_text("utf-8").splitlines()[0], s),)
@@ -805,7 +815,7 @@ def _(f, s):
               "probe", cwd=s.path)
     ledger = f.main / ".claude" / "lessons" / "LEDGER.jsonl"
     last = json.loads(ledger.read_text("utf-8").splitlines()[-1])
-    return done.returncode, re.sub(r"L-\d+", "L-<N>", done.stdout.strip()), last.get("target")
+    return Code(done.returncode), re.sub(r"L-\d+", "L-<N>", done.stdout.strip()), last.get("target")
 
 
 @case("hooks/lesson-digest.sh")
@@ -814,17 +824,21 @@ def _(f, s):
             outcome(f, s, sh(f, "hooks/lesson-digest.sh", "--all", cwd=s.path))]
 
 
-@case("hooks/stall-watchdog.sh")
+@case("hooks/stall-watchdog.sh", codes={"*": (3,)})
 def _(f, s):
     return outcome(f, s, sh(f, "hooks/stall-watchdog.sh", "--path", gitdir(s), "--stale-min", "0", "--cap-min", "1",
                             "--poll-sec", "1", "--label", "probe", cwd=s.path))
 
 
-@case("scripts/lavish/inject.py", writes=True)
+def bare_page(f, s):
+    page = s.path / "docs" / "specs" / "feat" / "probe-page.html"
+    page.write_text("<html><head></head><body>Zorblax</body></html>\n", encoding="utf-8")
+
+
+@case("scripts/lavish/inject.py", writes=True, setup=bare_page)
 def _(f, s):
     """Rewrites the page it injects, inside the worktree, by design."""
     page = s.path / "docs" / "specs" / "feat" / "probe-page.html"
-    page.write_text("<html><head></head><body>Zorblax</body></html>\n", encoding="utf-8")
     changed = snippet(f, s, """
 inject = load("afk_inject_probe", "scripts/lavish/inject.py")
 print(json.dumps(inject.inject_file(str(S / "docs" / "specs" / "feat" / "probe-page.html"))))
@@ -839,7 +853,7 @@ def _(f, s):
               "--type", "Q1", "--out", str(out), cwd=s.path)
     found = json.loads(out.read_text("utf-8")) if out.is_file() else {}
     run_block = {k: v for k, v in (found.get("run") or {}).items() if k not in ("started", "finished", "at")}
-    return done.returncode, f.norm(json.dumps([run_block, sorted(found)], sort_keys=True), s)
+    return Code(done.returncode), f.norm(json.dumps([run_block, sorted(found)], sort_keys=True), s)
 
 
 # --- comparing an outside worktree with its twin under the root -----------------------------------
@@ -878,11 +892,16 @@ _LOCK = threading.Lock()
 
 
 def observe(forest: Forest, item: Case, site: Site):
+    bare = snapshot(site.path)
+    if item.setup:
+        item.setup(forest, site)
     before = snapshot(site.path)
     value = item.probe(forest, site)
     after = snapshot(site.path)
     if item.writes:
         restore(site.path, before, after)
+    if item.setup:
+        restore(site.path, bare, snapshot(site.path))
     if os.environ.get("OUTSIDE_DUMP"):  # debugging aid: write each observed value to this file
         with _LOCK, open(os.environ["OUTSIDE_DUMP"], "a", encoding="utf-8") as out:
             out.write(f"{item.member} {site.label}: {value!r}\n")
@@ -899,6 +918,14 @@ def crash_in(value) -> str | None:
     return next((mark for mark in CRASHES if mark in text), None)
 
 
+def codes_in(value) -> list[int]:
+    if isinstance(value, Code):
+        return [int(value)]
+    if isinstance(value, (tuple, list)):
+        return [code for part in value for code in codes_in(part)]
+    return []
+
+
 def observe_pairs(forest: Forest, item: Case) -> list[tuple]:
     sites = [site for kind in item.kinds for site in forest.pairs[kind]]
     jobs = [lambda s=s: observe(forest, item, s) for s in sites]
@@ -908,6 +935,9 @@ def observe_pairs(forest: Forest, item: Case) -> list[tuple]:
         outside, inside = forest.pairs[kind]
         (out_value, out_changes), (in_value, in_changes) = seen[outside.label], seen[inside.label]
         assert crash_in(in_value) is None, f"{kind}: the member crashed under the root\n{in_value!r}"
+        codes = codes_in(in_value)
+        wanted = list(item.codes.get(kind, item.codes.get("*", [0] * len(codes))))
+        assert codes == wanted, f"{kind}: exit codes {codes} under the root, not {wanted}\n{in_value!r}"
         expected = item.expect(forest, outside, in_value)
         assert out_value == expected, f"{kind}: outside {outside.path}\n{out_value!r}\n!= inside\n{in_value!r}"
         pairs.append((kind, out_changes, in_changes))
