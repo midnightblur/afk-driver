@@ -145,3 +145,6 @@
 2026-10-28 02:37 | autopilot | — | run end — 5/13 done (the two '5/13 done, starting' lines above counted 4), 3 parked (0004, 0006, 0007), 5 parked by inheritance (0008-0012); smoke and preflight not run; PR 126 conflicts with main
 2026-10-28 10:15 | autopilot | — | rebased onto origin/main fb15eef and force-pushed with lease (human approved); human settles 0004 (Scope list + format row, review without the plan ledger) and resumes 0007 then 0006; resuming 0007-ship-script at review round 2
 2026-10-28 10:18 | execute | 0007-ship-script | reviewing — resumed at review round 2 after the rebase; the slice commit is now ae7c09b and the round 1 fix commit c283e0f
+2026-10-28 10:31 | execute | 0007-ship-script | review r2 — 8 findings posted as f014-f021 (3 high, 3 medium, 2 low); publication proven
+2026-10-28 10:44 | execute | 0007-ship-script | decision(D-50) — contract 0008 holds the duty to run the ready step as a tracked background job; the wiring IOU keeps only the consumer pointer
+2026-10-28 10:44 | execute | 0007-ship-script | developing — fixing round 2: land refuses main under the default base branch and a branch with no fix commit; open no longer takes a remote branch ahead of it as its push

@@ -630,8 +630,9 @@ class FakeViewThenRealForge(ship.Forge):
 
 def land_case(tmp_path, repo):
     git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
     head = commit(repo, "fix.txt", "fixed\n")
-    return diagnosis(tmp_path, Base=f"{FEATURE}@0123abc"), head
+    return diagnosis(tmp_path, Base=f"{FEATURE}@{start}"), head
 
 
 def test_fast_forward_land_pushes_with_upstream_and_lists_the_push(tmp_path, repo):
@@ -811,3 +812,68 @@ def test_a_failure_after_a_write_is_blocked_never_refused(tmp_path, repo):
     result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge, reasons=broken))
     assert result["status"] == "blocked" and "PermissionError" in result["reason"], result
     assert forge.writes() == ["change-create-draft"]
+
+
+# ---- round 2 review: the default base branch, a land with no fix, open's read-back
+
+@pytest.mark.parametrize("config_text", ["schema: 1\n", "schema: 1\ngit:\n  base-branch: auto\n"])
+def test_fast_forward_land_refuses_main_under_the_default_auto_base_branch(tmp_path, repo, monkeypatch,
+                                                                         config_text):
+    config = tmp_path / "afk-config.yaml"
+    config.write_text(config_text, encoding="utf-8")
+    monkeypatch.setenv("AFK_CONFIG", str(config))
+    assert ship._base_branch(repo) == "auto"
+    main = git(repo, "rev-parse", "origin/main")
+    path = diagnosis(tmp_path, Base=f"main@{main}")
+    real = tools(FakeForge(repo), protected=())
+    real.base_branch = None
+    result = ship.run_ship_step("land", path, cwd=repo, tools=real)
+    assert result["status"] == "refused" and "base branch" in result["reason"], result
+    assert remote_tip(repo, "main") == main and entries(path) == []
+
+
+def test_fast_forward_land_refuses_when_the_base_branch_lookup_fails(tmp_path, repo):
+    path, _ = land_case(tmp_path, repo)
+    before = remote_tip(repo, FEATURE)
+
+    def timed_out():
+        raise subprocess.TimeoutExpired("afk-config.py", 30)
+
+    lookup = tools(FakeForge(repo))
+    lookup.base_branch = timed_out
+    result = ship.run_ship_step("land", path, cwd=repo, tools=lookup)
+    assert result["status"] == "refused" and "base branch" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == before and entries(path) == []
+
+
+def test_fast_forward_land_refuses_a_diagnosis_branch_with_no_fix_commit(tmp_path, repo):
+    git(repo, "checkout", "-q", "-B", BRANCH, f"origin/{FEATURE}")
+    start = git(repo, "rev-parse", "HEAD")
+    other = stranger_clone(tmp_path, FEATURE, f"origin/{FEATURE}")
+    moved = commit(other, "later.txt")
+    git(other, "push", "-q", "origin", FEATURE)
+    path = diagnosis(tmp_path, Base=f"{FEATURE}@{start}")
+    result = ship.run_ship_step("land", path, cwd=repo, tools=tools(FakeForge(repo)))
+    assert result["status"] == "refused" and "no commit past the Base commit" in result["reason"], result
+    assert remote_tip(repo, FEATURE) == moved and entries(path) == []
+
+
+def test_open_never_takes_a_remote_fix_branch_ahead_of_head_as_its_push(tmp_path, repo):
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "push", "-q", "origin", f"HEAD:refs/heads/{BRANCH}")
+    other = stranger_clone(tmp_path, BRANCH, f"origin/{BRANCH}")
+    ahead = commit(other, "other.txt")
+    git(other, "push", "-q", "origin", BRANCH)
+    path, forge = diagnosis(tmp_path), FakeForge(repo)
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge))
+    assert result["status"] == "blocked" and f"{head[:12]} does not contain" in result["reason"], result
+    assert remote_tip(repo, BRANCH) == ahead and forge.writes() == [] and entries(path) == []
+
+
+def test_a_lost_open_on_a_branch_with_only_a_merged_change_opens_a_new_one(tmp_path, repo):
+    path, forge, sleeps = diagnosis(tmp_path), FakeForge(repo), []
+    forge.add(BRANCH, state="merged")
+    forge.script["change-create-draft"] = [Lost({"error": True, "reason": "502"})]
+    result = ship.run_ship_step("open", path, cwd=repo, tools=tools(forge, sleeps=sleeps))
+    assert result["status"] == "done" and result["change_step"] == "opened", result
+    assert entries(path) == [f"change: {FORGE_URL}/2"] and sleeps == [5]

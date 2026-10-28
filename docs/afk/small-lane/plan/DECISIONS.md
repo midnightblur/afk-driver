@@ -342,3 +342,10 @@
 - Chosen: edit it. This slice changed which layouts derive a worktree base, and the last-resort comment still named "a git dir outside the tree"; a separate git dir named `.git` now derives. The edit is one comment line and changes no behaviour.
 - Supersedes: 0013-config-contract ## Scope, for line 284 of `scripts/create-worktree` only
 - To reverse: restore "    # clone, or a git dir outside the tree. Say where it landed rather than" on that line
+
+## D-50 — contract 0008 holds the duty to run `ship.py ready` as a tracked background job
+- 2026-10-28 · decided by execute (0007-ship-script, Step 10 round 2, findings 0007-ship-script/f017, 0007-ship-script/f020)
+- Options: keep the duty in the `skills/afk/fix/scripts/ship.py` line of `.claude/wiring-ious.md` vs record it here as an Acceptance bullet of contract 0008
+- Chosen: record it here. `hooks/wiring-gate.sh` closes an IOU line once another file names the artifact, and `scripts/tests/test_ship.py` already does, so the line cannot hold a duty; the 0008 executor reads this ledger before it works the slice. The IOU line keeps only the consumer pointer.
+- Supersedes: D-47 (b) "the IOU anchors the duty on 0008" and its To reverse (b); contract 0007 ## Acceptance "Ready runs `ci-wait` as a tracked background job polling every 180 s for at most 5400 s" — `ship.py ready` blocks while `ci-wait` polls every 180 s for at most 5400 s, and its caller runs the step as the tracked background job; SDD §5 row "CI wait (`ci-wait`)" cell "1 tracked background job" — held by the caller of `ship.py ready`; contract 0008 ## Acceptance gains "- [ ] The standalone fix runs `ship.py ready` as a tracked background job and routes on the step's answer when the job exits (SDD §5 row "CI wait (`ci-wait`)")"
+- To reverse: drop the added 0008 Acceptance bullet and make `ship.py ready` start `ci-wait` as its own tracked background job

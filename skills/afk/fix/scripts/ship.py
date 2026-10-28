@@ -22,7 +22,9 @@ Run it in the diagnosis worktree, with a diagnosis the check script accepts.
 - land: on the Diagnosis branch, fetch the Base branch, check the push is a
   fast-forward, and push HEAD onto it with plain git and upstream set, never
   forced. Listed as `push: {branch}@{commit}`. Refused when Base is the
-  repository's base branch: a fix for it ships through open, never land.
+  repository's base branch (`auto` reads as main and master): a fix for it
+  ships through open, never land. Refused too when HEAD carries no commit past
+  the Base commit.
 
 A step whose entry is listed is skipped. Every other write is read back first
 and retried at most twice, each time after a read-back shows it left nothing
@@ -215,10 +217,14 @@ def _resolve_setting(key: str, cwd: Path) -> str:
 
 
 def _base_branch(cwd: Path) -> str:
-    """The repository's `git.base-branch` through `afk-config.py get` (`auto` resolved), or ""."""
-    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-config.py"), "get",
-                           "git.base-branch"], cwd=cwd, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=FORGE_TIMEOUT)
+    """The repository's `git.base-branch` through `afk-config.py get`, as written (`auto` stays
+    `auto`), or "" when the lookup fails."""
+    try:
+        done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "afk-config.py"), "get",
+                               "git.base-branch"], cwd=cwd, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=FORGE_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
@@ -247,6 +253,7 @@ class Diagnosis:
     branch: str
     symptom: str
     entries: list[tuple[str, str]]
+    base_commit: str = ""
 
     def value(self, kind: str) -> str:
         """The first listed entry of `kind`, or ""."""
@@ -273,10 +280,12 @@ def read_diagnosis(path) -> Diagnosis:
         kind, _, value = line.strip().removeprefix("- ").partition(":")
         if value.strip():
             entries.append((kind.strip(), value.strip()))
-    base = re.split(r"[@\s]", first("base").replace("`", ""), maxsplit=1)[0]
+    base, *rest = re.split(r"[@\s]+", first("base").replace("`", "").strip(), maxsplit=1)
+    commit = re.match(r"[0-9a-fA-F]{4,40}\b", rest[0]) if rest else None
     symptom = re.sub(r"^[-*]\s+(\[[a-z]+\]\s*)?", "", first("symptom"))
     diagnosis = Diagnosis(path, first("work id"), first("ticket key"), base,
-                          first("diagnosis branch").replace("`", ""), symptom, entries)
+                          first("diagnosis branch").replace("`", ""), symptom, entries,
+                          commit.group(0) if commit else "")
     diagnosis.ticket = diagnosis.ticket or diagnosis.value("ticket")
     return diagnosis
 
@@ -343,9 +352,9 @@ def _guard_target(tools: Tools, branch: str):
         raise refuse(f"{branch} is a protected branch; the ship script never pushes to one")
 
 
-def _push(cwd: Path, tools: Tools, remote: str, target: str, head: str):
-    """Plain `git push --set-upstream` of HEAD onto `target`, read back from the remote
-    first and before each retry; a remote tip HEAD does not contain answers `moved`."""
+def _push(cwd: Path, tools: Tools, remote: str, target: str, head: str, *, contained: bool = False):
+    """Plain `git push --set-upstream` of HEAD onto `target`, read back first and before each retry;
+    a tip HEAD does not reach answers `moved`, unless `contained` is set and the tip holds HEAD."""
     ref = f"refs/heads/{target}"
 
     def write():
@@ -364,7 +373,7 @@ def _push(cwd: Path, tools: Tools, remote: str, target: str, head: str):
         known = _git(cwd, "cat-file", "-e", f"{tip}^{{commit}}", check=False).returncode == 0
         if not known and _git(cwd, "fetch", "--quiet", remote, ref, check=False).returncode:
             return {"error": True, "reason": f"cannot fetch {remote}/{target} to compare its tip"}
-        if _git(cwd, "merge-base", "--is-ancestor", head, tip, check=False).returncode == 0:
+        if contained and _git(cwd, "merge-base", "--is-ancestor", head, tip, check=False).returncode == 0:
             return {"ok": True, "commit": head, "contained_in": tip}
         if _git(cwd, "merge-base", "--is-ancestor", tip, head, check=False).returncode == 0:
             return None
@@ -587,13 +596,17 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     head = _on_branch(cwd, d)
     target = _branch_name(cwd, d.base)
     _guard_target(tools, target)
-    base = tools.base_branch()
+    try:
+        base = tools.base_branch()
+    except Exception as error:
+        raise refuse(f"cannot tell the repository's base branch: {error}") from None
     if not base:
         raise refuse("cannot tell the repository's base branch (`git.base-branch`), so land "
                      "cannot rule it out")
-    if target in _base_names(cwd, base):
+    if target in ({"main", "master"} if base == "auto" else _base_names(cwd, base)):
         raise refuse(f"{target} is the repository's base branch; a fix for it ships through "
                      "open, never land")
+    _carries_a_fix(cwd, d, head)
     entry = f"push: {target}@{head}"
     if listed(d.path, entry):
         return {"status": "skipped", "reason": f"`{entry}` is listed"}
@@ -602,7 +615,7 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     fetched = _git(cwd, "fetch", "--quiet", remote, f"refs/heads/{target}", check=False)
     if fetched.returncode:
         raise block(f"cannot fetch {target} from {remote}: {_tail(fetched.stderr)}")
-    pushed = _push(cwd, tools, remote, target, head)
+    pushed = _push(cwd, tools, remote, target, head, contained=True)
     if not pushed.ok:
         if isinstance(pushed.answer, dict) and pushed.answer.get("moved"):
             return {"status": "not-fast-forward", "tip": pushed.answer["tip"],
@@ -611,6 +624,20 @@ def step_land(d: Diagnosis, tools: Tools, cwd: Path) -> dict:
     append_outside_write(d.path, entry)
     return {"status": "done", "push": entry.removeprefix("push: "),
             "how": "found" if pushed.found else "pushed"}
+
+
+def _carries_a_fix(cwd: Path, d: Diagnosis, head: str):
+    """Refuse a land whose HEAD is the Base commit or behind it: no fix commit to push."""
+    if not d.base_commit:
+        raise refuse("the diagnosis Base names no commit, so land cannot tell whether "
+                     f"{d.branch} carries a fix commit")
+    behind = _git(cwd, "merge-base", "--is-ancestor", head, d.base_commit, check=False).returncode
+    if behind == 0:
+        raise refuse(f"{d.branch} carries no commit past the Base commit {d.base_commit}; "
+                     "nothing to land")
+    if behind != 1:
+        raise refuse(f"the Base commit {d.base_commit} is not in this checkout, so land cannot "
+                     f"tell whether {d.branch} carries a fix commit")
 
 
 def run_ship_step(step: str, diagnosis, *, proof: dict | None = None, evidence_link: str = "",
