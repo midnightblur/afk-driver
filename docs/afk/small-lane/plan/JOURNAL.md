@@ -141,3 +141,5 @@
 2026-10-28 03:20 | execute | 0013-config-contract | adversary — findings, crit=0 high=0 med=3 low=3 (D-3 runtime probe, 592 checks, local fakes); gate passes; advisory, noted on the change
 2026-10-28 03:20 | execute | 0013-config-contract | wiring scan exit 0
 2026-10-28 03:21 | execute | 0013-config-contract | outcome success — review settled at round 7 (16 findings, all fixed), adversary passes with 3 medium and 3 low advisory; CI ran green on 51bf4ae, later heads not run (PR conflicting with main)
+2026-10-28 02:37 | autopilot | 0013-config-contract | done — 2/10 done this run; review settled at round 7 (16 fixed), adversary passes with 3 medium and 3 low advisory
+2026-10-28 02:37 | autopilot | — | run end — 5/13 done (the two '5/13 done, starting' lines above counted 4), 3 parked (0004, 0006, 0007), 5 parked by inheritance (0008-0012); smoke and preflight not run; PR 126 conflicts with main
