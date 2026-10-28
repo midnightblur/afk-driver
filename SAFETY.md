@@ -18,7 +18,8 @@ owns it. Leave an active or uncertain lock unchanged and report the blocker.
 ## Change landing
 
 Use one branch and one Draft change by default. Split only for independent
-delivery or review. Do not merge the target branch locally.
+delivery or review. Do not merge the target branch locally. A fix landed on a
+feature branch is covered by that feature's one Draft change.
 
 ## Worktree per session
 

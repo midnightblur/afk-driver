@@ -57,8 +57,23 @@ release page from its section here. Nobody tags by hand.
   runs only with a person present or a prior approval, lists each write but
   the fix version in the diagnosis's Outside writes, and finds an earlier
   write by its evidence marker instead of repeating it.
+- A ship script beside `/afk:fix` (`skills/afk/fix/scripts/ship.py`), one
+  named step per run over a `DIAGNOSIS.md`. `open` pushes the Diagnosis branch,
+  opens one Draft change onto the Base branch (or reuses the one the branch
+  already has) and posts the change's reasons. `proof` posts one comment with
+  P-1, P-2 and a link to the ticket's evidence comment. `ready` waits for CI
+  (`ci-wait`, every 180 s for at most 90 minutes) and marks the change ready
+  and adds the `mrReviewer` only when CI is green; red, timeout, unreadable and
+  no CI leave it Draft with the reason. `land` pushes a fix onto the feature
+  branch it started from, only as a fast-forward and never forced. Each write
+  is listed in the diagnosis's Outside writes, a re-run skips it, a failed
+  write is read back before its retry, and a protected push target or an empty
+  change id is refused.
 
 ### Changed
+
+- GitLab `change-reviewers` adds the reviewer to the merge request's list
+  instead of replacing the list, as GitHub already did.
 
 - `/afk:diagnose` no longer fixes. It reproduces the bug with a failing test,
   compares it with the specs, names the root cause and writes `DIAGNOSIS.md`

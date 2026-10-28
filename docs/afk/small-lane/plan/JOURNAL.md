@@ -108,3 +108,9 @@
 2026-10-27 19:22 | execute | 0006-fix-procedure | reviewing — round 3 (delta): 5 medium, 1 low; all 6 fixed; the restart rule now lives in one place for every step; round 4 widens to the whole touched surface because two rounds in a row left a sibling passage stale
 2026-10-27 20:20 | execute | 0006-fix-procedure | reviewing — round 4 (scope-escalated delta): 6 medium, 7 low; all 13 fixed; D-43 records the wider hand-over, stale-artifact routing and three corrected lines
 2026-10-27 21:20 | execute | 0006-fix-procedure | reviewing — round 5 (scope-escalated delta): 6 medium, 5 low; all 11 fixed; D-44 adds the capture trigger and glossary line to Scope; the forge adapter hit the Windows argument limit, worked around with a scratch copy
+2026-10-27 21:39 | autopilot | 0006-fix-procedure | parked — blocked: Claude Code killed the PR-reply job for low memory mid round 5 (f064 resolve, f065 reply, round 5 summary pending); review loop not settled; fixes through 2cfd96b pushed
+2026-10-27 21:39 | autopilot | 0009-in-place-callers | parked(waiting on 0006-fix-procedure)
+2026-10-27 21:39 | autopilot | run | 5/13 done, starting 0007-ship-script
+2026-10-27 21:50 | execute | 0007-ship-script | designing — consumed contracts pass; reading the design record, the forge adapters and the outside-writes helper before writing the ship script
+2026-10-27 22:19 | execute | 0007-ship-script | decision(D-45) — the ground for the ship seams held by re-reading the lines INV-025 cites; the ship script's proof comment is marked change-proof so it never collides with the bug mode's proof step
+2026-10-27 22:19 | execute | 0007-ship-script | developing — the ship script (open, proof, ready, land) and its tests are written; GitLab change-reviewers now adds a reviewer; SAFETY.md carries the feature-branch sentence
