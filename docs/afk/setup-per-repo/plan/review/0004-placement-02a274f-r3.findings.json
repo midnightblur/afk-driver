@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/placement.py",
+  "line": 266,
+  "side": "new",
+  "finding": "Possible mixed spellings: base resolved only for check_target, so Verdict.folder differs from reason text and from target_for",
+  "why": "With a linked root, check_target returns folder=realpath(base) while R-02/R-03/R-05/R-06 reasons (built from root.path) and every target_for verdict keep the unresolved spelling, so one refused verdict can show two spellings and the two entry points disagree on folder.",
+  "fix": "Resolve base once for both name branches (or resolve root.path at the source) so folder and reason text share one spelling; assert it on a refused verdict in the new test.",
+  "evidence": "elif base is not None:\n        base = os.path.realpath(base)"
+ }
+]

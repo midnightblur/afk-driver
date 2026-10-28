@@ -259,14 +259,14 @@ def _place(folder, environ, target: str | None, name: str | None) -> Verdict:
     entry = _entry_for(os.fspath(folder), environ, root.path if rooted else None)
     if entry is None:
         return Verdict(NOT_LISTED, target)
-    base = os.path.join(root.path, entry.short_name) if rooted else None
+    # A new target or a refused root keeps the root as written (a subst drive stays); a check resolves it.
+    shown = root.path if name is not None or root.state == REFUSED else os.path.realpath(root.path)
+    base = os.path.join(shown, entry.short_name) if rooted else None
     if name is not None:
         target = os.path.normpath(os.path.join(base, name)) if base is not None else None
-    elif base is not None:
-        base = os.path.realpath(base)
     if root.state == REFUSED:
         return Verdict(REFUSED, target, base, root.rule, root.reason, root.warnings)
-    failed, _ = _run([rule for rule in ROOT_RULES if rule.scope == "short name"], _Ask(root.path, entry))
+    failed, _ = _run([rule for rule in ROOT_RULES if rule.scope == "short name"], _Ask(shown, entry))
     if failed is not None:
         return Verdict(REFUSED, target, base, failed.rule, failed.reason, root.warnings)
     if not _below(target, base):

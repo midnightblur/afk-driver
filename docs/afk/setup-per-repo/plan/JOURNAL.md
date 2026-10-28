@@ -131,3 +131,6 @@
 2026-10-28 04:01 | execute | 0004-placement | pushed 540a7d9..02a274f (1 commits) — round 1 fixes and the round 1 report; ten fixes recorded and their threads closed on the pull request
 2026-10-28 04:01 | execute | 0004-placement | reviewing — round 2 checks only the fixes, with four fresh reviewers
 2026-10-28 04:09 | execute | 0004-placement | review r2 advisory — crit=0 high=0 med=0 low=3; two fixed (one spelling for a checked target and its folder, a test split), one test finding withdrawn after a dispute
+2026-10-28 04:12 | execute | 0004-placement | pushed 02a274f..9ab63e3 (1 commits) — round 2 fixes and the round 2 report; two fixes recorded and their threads closed
+2026-10-28 04:15 | execute | 0004-placement | reviewing — round 3 checks only the round 2 fixes, with two fresh reviewers
+2026-10-28 04:30 | execute | 0004-placement | review r3 advisory — crit=0 high=0 med=0 low=1; fixed: a checked target now names its folder in the same spelling in every reason, and a new target keeps the root as written

@@ -461,6 +461,37 @@ def test_a_target_under_a_linked_root_is_shown_with_its_folder_in_one_spelling(h
     assert verdict.target == os.path.realpath(tmp_path / "away" / "x")
 
 
+@pytest.fixture
+def linked_root_with_a_file_at_the_short_name(home, tmp_path):
+    real = tmp_path / "real-root"
+    real.mkdir()
+    link(real, tmp_path / "root-link")
+    set_root(home, tmp_path / "root-link")
+    repo = make_repo(tmp_path / "src")
+    write_list(home, [(rl.normalize(repo), "proj")])
+    (real / "proj").write_text("x", encoding="utf-8")
+    return repo, real
+
+
+def test_a_new_target_keeps_a_linked_root_as_written_in_folder_and_reason(
+        linked_root_with_a_file_at_the_short_name, tmp_path):
+    repo, _ = linked_root_with_a_file_at_the_short_name
+    folder = os.path.normpath(tmp_path / "root-link" / "proj")
+    verdict = pl.target_for(repo, "wt1")
+    assert verdict.rule == "R-06" and verdict.folder == folder
+    assert verdict.target == os.path.join(folder, "wt1")
+    assert verdict.reason == f"{folder} is not a folder; pick another short name"
+
+
+def test_a_checked_target_names_a_linked_root_resolved_in_folder_and_reason(
+        linked_root_with_a_file_at_the_short_name):
+    repo, real = linked_root_with_a_file_at_the_short_name
+    folder = os.path.realpath(real / "proj")
+    verdict = pl.check_target(real / "proj" / "wt1", repo)
+    assert verdict.rule == "R-06" and verdict.folder == folder
+    assert verdict.reason == f"{folder} is not a folder; pick another short name"
+
+
 @pytest.mark.skipif(not IS_WINDOWS, reason="drive letters exist only on Windows")
 def test_drive_letter_case_is_resolved_on_both_sides(listed, root):
     text = str(root / "proj" / "x")
