@@ -538,3 +538,10 @@
 - Chosen: B — rounds 3 to 6 each found a new operand spelling (arrays, parentheses, `;` and newline lists, `env:` location) that writes the variable past the positional reading; the parser splits those spellings into other segments, so no positional rule is complete. A command that only reads the variable through a writer (`Set-Content out.txt $env:NAME`) is refused and needs rewording; this reverses the read exemptions of f043, f049, f054 and f058
 - Supersedes: none
 - To reverse: restore `_item_sets`, `_operands`, `_arrays` and `_parts` in `hooks/lib/worktree_placement_rule.py` from 8b8cad05 and move the read rows back to the passing list
+
+## D-77 — Review round 7: a PowerShell writer named anywhere beside a rule variable is refused
+- 2026-10-29 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — find the writer among each segment's words (after `$x =`, `return`, a pipeline) vs B — search the command text for a writer name, as D-74 and D-75 do for the .NET call
+- Chosen: B — round 7 showed an assignment or `return` in front of the writer hides it from a word-position test; a text search has no position to miss. The cmdlet names (`Set-Item`… `Rename-Item`) and the provider and `PSVariable` calls count in any shell; their short aliases (`sc`, `cp`, `mv`…) count only when PowerShell reads the command or the text names `pwsh`/`powershell`, so a Bash `cp` or `mv` beside a rule-variable name passes
+- Supersedes: D-76 (its "as a segment's program" clause)
+- To reverse: restore the `writer` test on `program[0]` in `hooks/lib/worktree_placement_rule.py` from 8cfc8d8c

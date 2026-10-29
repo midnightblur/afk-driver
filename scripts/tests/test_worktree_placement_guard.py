@@ -209,6 +209,21 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "$ENV -i -S 'git worktree add ../../out'",
     "$ENV A=1 B=2 -S 'git worktree add ../../out'",
     "${ENV} -u A --split-string='git worktree add ../../out'",
+    "env -a x -S 'git worktree add ../../out'",
+    "env -P /bin -S 'git worktree add ../../out'",
+    "env -iS 'git worktree add ../../out'",
+    "env -vS 'git worktree add ../../out'",
+    "env -uA -S 'git worktree add ../../out'",
+    "env --split='git worktree add ../../out'",
+    "env --split-s 'git worktree add ../../out'",
+    "$ENV -vS 'git worktree add ../../out'",
+    "$ENV --split-string 'git worktree add ../../out'",
+    "$ENV -S'git worktree add ../../out'",
+    "$ENV -C d -S 'git worktree add ../../out'",
+    "$ENV --unset A -S 'git worktree add ../../out'",
+    "$ENV --chdir=d -S 'git worktree add ../../out'",
+    "$ENV --chdir d -S 'git worktree add ../../out'",
+    "$ENV --argv0 x -S 'git worktree add ../../out'",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -551,6 +566,26 @@ SETTING_FORMS = [
     ("PowerShell", "Set-Content Env:OTHER ,Env:{n} 1"),
     ("PowerShell", "Set-Content $('Env:OTHER','Env:{n}') 1"),
     ("PowerShell", "Set-Content -Path $('Env:OTHER','Env:{n}') 1"),
+    ("PowerShell", "si env:{n} 1"),
+    ("PowerShell", "$r = New-Item env:{n} -Value 1"),
+    ("PowerShell", "$null = Set-Content env:{n} 1"),
+    ("PowerShell", "$x=New-Item env:{n} -Value 1"),
+    ("PowerShell", "$x += Set-Content env:{n} 1"),
+    ("PowerShell", "return Set-Item env:{n} 1"),
+    ("PowerShell", "foreach ($i in 1) {{ $x = New-Item env:{n} -Value 1 }}"),
+    ("PowerShell", "$x = ni env:{n} -Value 1"),
+    ("PowerShell", "Write-Output {n} | % {{ Set-Item \"env:$_\" 1 }}"),
+    ("PowerShell", "$x = $env:{n} = '1'"),
+    ("PowerShell", "$env:{n} *= 2"),
+    ("PowerShell", "$ExecutionContext.SessionState.InvokeProvider.Item.New('env:', '{n}', $null, '1')"),
+    ("PowerShell", "$ExecutionContext.SessionState.PSVariable.Set('env:{n}', '1')"),
+    ("PowerShell", "Microsoft.PowerShell.Management\\Set-Item env:{n} 1"),
+    ("Bash", "pwsh -c 'sc env:{n} 1'"),
+    ("Bash", "pwsh -Command '$x = ni env:{n} -Value 1'"),
+    ("PowerShell", "$env:{n}, $b = '1', '2'"),
+    ("PowerShell", "$env:{n} , $b = '1', '2'"),
+    ("PowerShell", "$env:{n}++"),
+    ("PowerShell", "++$env:{n}"),
 ]
 
 
@@ -569,6 +604,8 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("PowerShell", "Remove-Item env:{n}"), ("PowerShell", "Write-Output $env:{n}"),
     ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"), ("PowerShell", "Get-Content env:{n}"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
+    ("PowerShell", "if ($env:{n} -eq '1') {{ Write-Output y }}"),
+    ("Bash", "cp a b; grep -n {n} README.md"), ("Bash", "mv notes/{n}.md notes/old.md"), ("Bash", "sc query {n}"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
     reason, _ = guard(world, world["agent"], form.format(n=name), tool=tool)
