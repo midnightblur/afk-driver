@@ -3,7 +3,8 @@
 `refusal(command, cwd, ...)` names why the command must not run, or returns None:
 - it sets `AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED` (an assignment in front of a
   command, `env`, `export`/`declare`-style words, `setx`, a PowerShell `env:` assignment,
-  also inside `bash -c` / `pwsh -Command` / `$(…)` / `eval`), or names one beside a
+  also inside `bash -c` / `pwsh -Command` / `$(…)` / `eval`), names one on the `env:` drive
+  in text PowerShell reads (`$env:NAME`, `${env:NAME}`, `env:NAME`, reads included), or names one beside a
   PowerShell writer (`Set-Content`, `New-Item`, `Copy-Item`… and their aliases, a provider
   or `PSVariable` call) or `SetEnvironmentVariable`; only the developer sets them;
 - it is `git worktree add`, the destination of `git worktree move`, or a worktree creator
@@ -44,10 +45,9 @@ SET_ENV = re.compile(r"setenvironmentvariable\s*\(\s*([^,)\s]*)")  # over the lo
 WRITERS = re.compile(r"set-item|set-content|add-content|new-item|copy-item|(?<!re)move-item|rename-item|invokeprovider|"
                      r"psvariable")  # each can write `env:`, searched over the lowered, unquoted text
 ALIASES = re.compile(r"(?<![\w$:.-])(?:si|sc|ac|ni|cpi|cp|copy|mi|mv|move|rni|ren)(?![\w:.-])")  # PowerShell's only
-PWSH = re.compile(r"(?<![\w-])(?:pwsh|powershell)(?![\w-])")
+PWSH = re.compile(r"(?<![\w-])(?:pwsh|powershell)(?:-preview)?(?![\w-])")  # over the text, `\` made `/`
 ENV_SHORT_VALUED = "aCPu"  # GNU and BSD env short options that take a value
 ENV_LONG_VALUED = ("argv0", "chdir", "unset")
-ASSIGNS = ("=", "+=", "-=", "*=", "/=", "%=", "??=")
 EXPRESSION = ("eval", "iex", "invoke-expression")  # each runs its joined arguments as a script
 UNQUOTE = re.compile(r"""[\\'"`]""")  # quote and escape characters, which hide no word from a text search
 MARKS = re.compile(r"worktree|afk_allow_protected", re.I)  # every command the rule judges holds one
@@ -59,22 +59,11 @@ class Unknown(Exception):
 
 # ---------------------------------------------------------------- inline variables
 
-def _env_ref(name: str) -> re.Pattern:
-    return re.compile(r"^(?:\+\+|--)?(?:\$\{env:" + name + r"\}|(?:\$env:|env:)" + name + r")(?!\w)(.*)$", re.I | re.S)
-
-
 def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     """`words` set `name` for what they run: the variable rule's forms (`lavish_direct._sets_host`)."""
     prefix = words[:len(words) - len(program)]
     if any(ASSIGN.match(w.text) and w.text.split("=", 1)[0] == name for w in prefix):
         return True
-    ref = _env_ref(name)
-    for i, word in enumerate(words):  # `$x = $env:NAME = 1`, `$env:NAME, $b = 1, 2` and `$env:NAME++` assign too
-        found = ref.match(word.text.replace("`", ""))
-        rest = found.group(1).lstrip() if found else ""
-        if found and (word.text.startswith(("++", "--")) or rest.startswith(ASSIGNS + ("++", "--"))
-                      or any(w.text.startswith(ASSIGNS) or w.text in ("++", "--") for w in words[i + 1:])):
-            return True
     if not program:
         return False
     prog, args = program_of(program[0]), [w.text.replace("\\", "") for w in program[1:]]  # Bash drops the escapes
@@ -114,8 +103,12 @@ def variable_refusal(command: str, powershell: bool = False, depth: int = 0) -> 
     flat = UNQUOTE.sub("", command).lower()
     firsts = SET_ENV.findall(flat)  # the .NET call splits into several segments
     named = flat.count("setenvironmentvariable")  # a mention that is no direct call may be `.Invoke` or reflection
-    writes = WRITERS.search(flat) or (powershell or PWSH.search(flat)) and ALIASES.search(flat)
+    paths = UNQUOTE.sub("", command.lower().replace("\\", "/"))  # `C:\...\pwsh.exe` keeps its folder marks
+    pwsh = powershell or PWSH.search(paths)
+    writes = WRITERS.search(flat) or pwsh and ALIASES.search(flat)
     for name in NAMES:
+        if pwsh and re.search(r"env:" + name.lower() + r"(?!\w)", flat):  # the env: drive, reads too (D-78)
+            return _variable_text(name)
         if named and name.lower() in flat and (len(firsts) < named or any(
                 name.lower() in first or not re.fullmatch(r"\w+", first) for first in firsts)):
             return _variable_text(name)
@@ -165,7 +158,7 @@ def _split_string(program: list[Word], start: int) -> set[int]:
             if "split-string".startswith(name):
                 return {j} if eq else {j + 1}
             j += 1 if eq or not any(n.startswith(name) for n in ENV_LONG_VALUED) else 2
-        elif text.startswith("-") and len(text) > 1 and text != "--":  # a short cluster such as -iS or -uA
+        elif text.startswith("-") and text != "--":  # a short cluster such as -iS or -uA, or `-` (`-i`)
             for k, letter in enumerate(text[1:], 2):
                 if letter == "S":
                     return {j} if k < len(text) else {j + 1}
@@ -352,8 +345,8 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
     if "git" in prog and not program[0].opaque:
         return _git_targets(segment, program, spot, effects.get("git_env", []))
     full = segment.words  # with the `env` options the parser read before the program
-    for start in (i for i, w in enumerate(full) if not w.opaque and program_of(w) == "env"):
-        for j in _split_string(full, start):
+    for start in (i for i, w in enumerate(full) if not w.opaque and program_of(w) == "env" and _in_chain(full[:i])):
+        for j in (j for j in _split_string(full, start) if j < len(full)):
             split = _bare(full[j]).lower().split()
             if _verb(split) or any(program_of(Word(t, False)) == "create-worktree" for t in split):
                 return [(None, spot, None)]  # a worktree command inside the string `env -S` runs
@@ -372,6 +365,22 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
     elif verb and (plain[0] == "worktree" or plain[0].startswith("-")):  # git behind `$(which git)`
         return [(None, spot, None)]
     return []
+
+
+def _in_chain(before: list[Word]) -> bool:
+    """`before` holds only wrappers, control words, options, their values and assignments."""
+    after_option = False
+    for word in before:
+        text = _bare(word)
+        if word.opaque:
+            return False
+        if program_of(word) in shell_mutations.WRAPPERS or text in KEYWORDS or ASSIGN.match(text) or text[:1] == "-":
+            after_option = text[:1] == "-"
+        elif after_option:
+            after_option = False  # the value of an option such as `sudo -u root`
+        else:
+            return False
+    return True
 
 
 def _verb(plain: list[str]) -> bool:

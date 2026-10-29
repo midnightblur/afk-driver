@@ -224,6 +224,13 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "$ENV --chdir=d -S 'git worktree add ../../out'",
     "$ENV --chdir d -S 'git worktree add ../../out'",
     "$ENV --argv0 x -S 'git worktree add ../../out'",
+    "sudo env -S 'git worktree add ../../out'",
+    "sudo -u root env -S 'git worktree add ../../out'",
+    "env -S './scripts/create-worktree --parent ../../out --dir x'",
+    "env --ch d -S 'git worktree add ../../out'",
+    "env --un A -S 'git worktree add ../../out'",
+    "$X $Y -S 'git worktree add ../../out'",
+    "env - -S 'git worktree add ../../out'",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -242,7 +249,11 @@ def test_a_split_string_behind_an_unreadable_powershell_program_is_refused(world
 
 
 @pytest.mark.parametrize("command", ["$GIT log --grep 'worktree add'", "$GIT commit -m 'docs: worktree add flow'",
-                                     "$GIT log -S 'worktree add'", "env $X git log \"-s worktree add\""])
+                                     "$GIT log -S 'worktree add'", "env $X git log \"-s worktree add\"",
+                                     "echo env -S 'worktree add'", "grep env -S 'worktree add x'",
+                                     "ls worktree; env -S", "env -- 'worktree add x'",
+                                     "$GIT log \"$X\" -S 'worktree add'", "$GIT worktree list",
+                                     "$GIT remote add origin worktree"])
 def test_a_quoted_worktree_phrase_behind_an_unreadable_program_passes(world, command):
     assert guard(world, world["agent"], command)[0] is None
 
@@ -586,6 +597,13 @@ SETTING_FORMS = [
     ("PowerShell", "$env:{n} , $b = '1', '2'"),
     ("PowerShell", "$env:{n}++"),
     ("PowerShell", "++$env:{n}"),
+    ("Bash", "'C:\\Program Files\\PowerShell\\7\\pwsh.exe' -c 'cd env:; sc {n} 1'"),
+    ("Bash", "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -Command \"cd env:; ni {n} -Value 1\""),
+    ("Bash", "pwsh-preview -c 'cd env:; sc {n} 1'"),
+    ("Bash", "powershell -c 'cp env:{n} env:OTHER'"),
+    ("PowerShell", "$env:{n} -= 1"), ("PowerShell", "$env:{n} /= 1"), ("PowerShell", "$env:{n} %= 1"),
+    ("PowerShell", "$Env:{n} = '1'"), ("PowerShell", "${{ENV:{n}}} = '1'"), ("PowerShell", "--$env:{n}"),
+    ("PowerShell", "$env:{n}--"), ("PowerShell", "$env:{n} ++"), ("PowerShell", "$env:{n} --"),
 ]
 
 
@@ -601,10 +619,12 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
 @pytest.mark.parametrize("tool, form", [
     ("Bash", "grep -rn {n} hooks"), ("Bash", "echo ${n}"), ("Bash", "unset {n}"), ("Bash", "env -u {n} ls"),
     ("Bash", "printenv {n}"), ("Bash", "declare -p {n}"), ("Bash", "export -n {n}"),
-    ("PowerShell", "Remove-Item env:{n}"), ("PowerShell", "Write-Output $env:{n}"),
-    ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"), ("PowerShell", "Get-Content env:{n}"),
-    ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
-    ("PowerShell", "if ($env:{n} -eq '1') {{ Write-Output y }}"),
+    ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"), ("PowerShell", "$env:{n}_OLD = '1'"),
+    ("PowerShell", "Write-Output xcp {n}"), ("PowerShell", "Write-Output cpx {n}"), ("PowerShell", "Write-Output cp-x {n}"),
+    ("PowerShell", "Write-Output $cp {n}"), ("PowerShell", "Write-Output x-cp {n}"), ("PowerShell", "Write-Output a.cp {n}"),
+    ("PowerShell", "Write-Output cp.txt {n}"), ("PowerShell", "Write-Output x:cp {n}"), ("PowerShell", "Write-Output cp:x {n}"),
+    ("Bash", "cp a b; grep -n {n} pwsh-notes.md"), ("Bash", "grep -n 'env:{n}' hooks"),
     ("Bash", "cp a b; grep -n {n} README.md"), ("Bash", "mv notes/{n}.md notes/old.md"), ("Bash", "sc query {n}"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
@@ -623,6 +643,18 @@ def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
 ])
 def test_an_item_writer_beside_a_rule_variable_is_refused_even_when_it_reads(world, name, form):
     """D-76: an item writer and the name in one command count as a write, whatever the operand spelling."""
+    reason, _ = guard(world, world["agent"], form.format(n=name), tool="PowerShell")
+    assert reason is not None and reason.startswith(f"refused to set {name} in an agent command. Cause: ")
+
+
+@pytest.mark.parametrize("name", ["AFK_WORKTREE_FOLDER", "AFK_ALLOW_PROTECTED"])
+@pytest.mark.parametrize("form", [
+    "Remove-Item env:{n}", "Write-Output $env:{n}", "Get-Content env:{n}", "if ($env:{n} -eq '1') {{ Write-Output y }}",
+    "ls $env:{n} -- README.md", "$b,$env:{n} = 1,2", "$b,$env:{n}=1,2", "($b,$env:{n}) = 1,2",
+    "$null,${{env:{n}}} = 1,2", "[int]$env:{n}=1", "[string]$env:{n} = '1'", "foreach ($env:{n} in 1,2) {{ }}",
+])
+def test_the_env_drive_spelling_of_a_rule_variable_is_refused_even_when_it_reads(world, name, form):
+    """D-78: `$env:NAME`, `${env:NAME}` and `env:NAME` refuse the command, whatever surrounds them."""
     reason, _ = guard(world, world["agent"], form.format(n=name), tool="PowerShell")
     assert reason is not None and reason.startswith(f"refused to set {name} in an agent command. Cause: ")
 
