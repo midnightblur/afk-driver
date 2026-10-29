@@ -14,6 +14,8 @@ identified mutation is a refusal that names the fault.
 
 First, in the same process, the lavish rule (`lavish_direct`) refuses a shell call that runs
 `lavish-axi` itself or sets `LAVISH_AXI_HOST`; `AFK_ALLOW_PROTECTED=1` does not lift it.
+Then, for an agent only, the worktree placement rule (`worktree_placement_rule`) refuses a
+worktree outside the worktree root and an inline `AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED`.
 
 Placement is read from the file layout (`.git` directory or `gitdir:` file, then
 HEAD; a `gitdir:` file that points nowhere is skipped for the next enclosing one); one `git rev-parse` answers the unusual layouts (submodule, `core.worktree`,
@@ -828,6 +830,13 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     except Exception:  # only the hint reads it
         here = None
     command = command_of(tool_input)
+    if kind == "shell" and facts:  # the agent detector: the worktree placement rule binds agents only
+        import worktree_placement_rule
+        for powershell in readings(tool, facts):
+            found = worktree_placement_rule.refusal(command, cwd, powershell, toplevel)
+            if found:
+                state["identified"] = True
+                return deny(found)
     if kind == "shell":
         gated = next(filter(None, (unproven(judge, command, cwd, powershell, state)
                                    for powershell in readings(tool, facts))), None)

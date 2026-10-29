@@ -29,6 +29,16 @@ RUN_HOOK = ROOT / "hooks" / "run-hook.py"
 PY = sys.executable
 
 
+@pytest.fixture(autouse=True)
+def sandbox_home(tmp_path, monkeypatch):
+    """The creator, the move helper and the placement rule read ~/.afk: every test gets an empty home."""
+    home = tmp_path / "sandbox-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    return home
+
+
 def _bash() -> str:
     """The launcher's own resolution: never the System32 (WSL) bash on Windows."""
     spec = importlib.util.spec_from_file_location("afk_run_hook", RUN_HOOK)

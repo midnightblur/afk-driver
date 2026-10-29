@@ -461,3 +461,52 @@
 - Chosen: B — a two-way door reshapes no plan structure (root `DECISIONS.md`), and D-59 and D-64 already correct the same claim in SDD §3 and the verification plan
 - Supersedes: this contract's Acceptance bullet "every other failure exits 1 with `ERROR=<reason>`" and its Context excerpt's "every other failure: exit 1, `ERROR=<reason>`" — any placement refusal exits 3, the root rules, a catalog R refusal (D-39) and an agent's `--dir` that climbs out of the short-name folder (D-47, D-52); every other failure exits 1; the Acceptance bullet "with `<p>` outside `<root>/<short name>` exits 3" and its excerpt's "`--parent` outside the folder for an agent: exit 3" — an agent's climbing `--dir` exits 3 the same way; SDD §14 row "`create-worktree` `--name`, `--branch`, `--dir`, `--parent`" cell "refusal exit 3 through its own exit path; an agent `--parent` outside the folder refused" (also quoted in this contract's Context excerpts) — any placement refusal exits 3, and an agent `--parent` or climbing `--dir` outside the folder is refused
 - To reverse: drop this entry; the contract and SDD wordings stand
+
+## D-66 — The worktree placement rule binds only an agent, and its variable half binds in every repository
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — run the rule for every guard call vs B — run it only when the agent detector is on (provider facts present), first in the shell branch of `decide`, the variable refusal in every repository and the worktree refusal only for a listed one
+- Chosen: B — VERIFICATION-PLAN A6-A8 pass "the detector off" and name the developer as the detector switched off; SDD §3 row "Δ command guard on inline variables" names "an agent command" with no listed-repository condition; `main()` still returns before `decide` on the launch flag, so the flag lifts both halves (SDD §14)
+- Supersedes: none
+- To reverse: drop the `facts` condition in `decide`, or add a listed-repository check to `variable_refusal`
+
+## D-67 — No guard test pins "a plain add passes"; the reversed and kept pins are new guard tests
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — edit the two module-level pins vs B — keep them and pin the guard verdict in the new test file
+- Chosen: B — INV-026 found no test feeding the guard `git worktree add`; `scripts/tests/test_shell_mutations.py:33,44` pin the parser (outside Scope, still true) and `scripts/tests/test_protected_branch_acceptance.py:1035` runs git against the backstop; `test_a_listed_repository_reverses_the_plain_add_pin` and `test_an_unlisted_repository_keeps_a_plain_add_passing` in `scripts/tests/test_worktree_placement_guard.py` are the guard-level pair
+- Supersedes: this contract's Acceptance bullet "The two existing tests pinning "a plain `git worktree add` passes the guard" are reversed for listed repositories and kept for unlisted ones", and the same claim at PRD.md:200, SDD.md:132 and :711, `adr/design/0002-one-placement-guardian.md`:43 and VERIFICATION-PLAN.md:211 — no guard test pinned it; the pair is new
+- To reverse: drop the two new tests
+
+## D-68 — Refusal wording for a target the guard cannot work out, a root-rule failure and a placement error
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — one fixed text for every refusal vs B — the contract's exact text for an outside target, and the same head and Move with a different Cause otherwise
+- Chosen: B — the contract fixes only the outside text; an unknown target (a variable, a word that splits, an opaque `-C` folder, an unknown or ambiguous option, an opaque subcommand, a `-c alias.*` naming worktree, an opaque program before `worktree add|move`) says "the guard cannot work out this command's worktree target, so it may be outside <root>/<short name>"; a root or short-name rule says "worktree root: <rule> <reason>" with "run /afk:setup"; a `PlacementError` says "placement has no answer (<error>)". An unknown folder falls back to the segment's folder, then the envelope's. A quoted variable as a branch name is no path and passes
+- Supersedes: none
+- To reverse: change the texts in `hooks/lib/worktree_placement_rule.py` `_verdict`
+
+## D-69 — "0 new file reads" counts what the rule itself opens or starts
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — count every file open of the guard process vs B — count the opens and process starts made inside `worktree_placement_rule.py`, plus any load of `scripts/placement.py`
+- Chosen: B — the existing protected-branch lookup reads `~/.afk/config.yaml` on every mutation (a pre-existing read, not new); loading the guard's own rule module is code loading, as for `lavish_direct.py`; the rule's text test (`concerns`) reads nothing, so a command naming no worktree and neither variable makes no read and starts no process
+- Supersedes: none
+- To reverse: compare whole-process open counts against a guard run without the rule
+
+## D-70 — The setter forms reuse `lavish_direct.py` by import and a name-parametrized copy
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — generalize `lavish_direct._sets_host` to take the name vs B — import `_nested`, `DECLARE`, `PRINT_ONLY` and `MAX_DEPTH` and copy the setter test for the two names
+- Chosen: B — `hooks/lib/lavish_direct.py` is outside Scope and no binding rule forces an edit; recorded as debt: a later change folds `_sets` and `_sets_host` into one name-parametrized check. Added forms beyond the lavish rule: `[Environment]::SetEnvironmentVariable` naming either variable, cmd's `set NAME=`, and backslash-escaped names after `export`-style words
+- Supersedes: none
+- To reverse: generalize `lavish_direct._sets_host` and call it for each name
+
+## D-71 — Freshness-forced edits outside Scope, and the ones left
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — leave every document for 0010 and 0013 vs B — make the edits `FRESHNESS.md` rows 58 and 70 force in this commit, one sentence each
+- Chosen: B — the same-commit rule binds a verdict-rule change: `hooks/README.md` (guard bullet), `SAFETY.md` "Worktree per session", `AGENTS.md` Reference hooks bullet, `docs/afk/protected-branch-guard/PRD.md` A-5, the `FRESHNESS.md` row 58 file list (the new module), and `hooks/genericity-allow.txt` `INV-026` (D-50's reason); left: `PROVIDERS.md` (its "lifts every worktree-protection refusal" stays true), `CAPABILITIES.md` and the `BEHAVIORS.md` row (no stated rule changes), ADR-0014 (an accepted decision record; this feature's ADR-0002 supersedes its creator line), `README.md` (makes no claim the rule falsifies)
+- Supersedes: none
+- To reverse: revert those hunks; 0010 and 0013 own the documents
+
+## D-72 — f128 confirmed, outside Scope; the guard suites run under a temporary home
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — edit `hooks/tests/hook-smoke.sh` vs B — report it
+- Chosen: B — INV-026 confirms `hook-smoke.sh:348-365` runs the H-2 refusal with the real home and no `AFK_MOVE_SPAWN=0`, so under codex `h2_move.plan` reads the real `~/.afk` and can start `afk-move.py` detached; the file is outside Scope and the rule does not change its verdict. D-61's fixture duty is met: both protected-branch test files carry `sandbox_home` again; `test_main_sync.py` and `test_lavish_direct.py` (outside Scope, D-64) run with HOME and USERPROFILE set to a temporary folder for the whole pytest process
+- Supersedes: none
+- To reverse: none needed; the smoke file stays as it was

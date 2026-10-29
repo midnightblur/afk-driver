@@ -14,7 +14,8 @@ Tool and compaction scenarios run in `--project` (default: the repository the cu
 is in). Lifecycle scenarios (session start and end, worktree create and remove) run in a
 disposable shallow clone of it with a temporary home folder, so no hook installs, prunes,
 creates or opens anything outside the scratch folder; worktree removal times a worktree the
-creation handler made, untimed, before each run.
+creation handler made, untimed, before each run. `bash-worktree-add` lists that clone in the
+temporary home and times the guard refusing an add outside the worktree root (informational).
 
 Handlers run one at a time; the event wall time is the slowest handler of a run, because
 the harness runs same-event handlers in parallel. One warm-up run per scenario is not
@@ -63,9 +64,10 @@ BUDGET_MS = {
 
 class Scenario:
     def __init__(self, event: str, subject: str, fields: dict, lifecycle: bool = False,
-                 needs_worktree: bool = False, per_run_name: str = ""):
+                 needs_worktree: bool = False, per_run_name: str = "", listed: bool = False):
         self.event, self.subject, self.fields = event, subject, fields
         self.lifecycle, self.needs_worktree, self.per_run_name = lifecycle, needs_worktree, per_run_name
+        self.listed = listed  # the clone is in the temporary home's repository list
 
 
 def scenarios(project: Path, scratch: Path) -> dict[str, Scenario]:
@@ -86,7 +88,20 @@ def scenarios(project: Path, scratch: Path) -> dict[str, Scenario]:
         "worktree-create": Scenario("WorktreeCreate", "", {}, lifecycle=True, per_run_name="bench-new"),
         "worktree-remove": Scenario("WorktreeRemove", "", {}, lifecycle=True, needs_worktree=True),
         "session-end": Scenario("SessionEnd", "other", {"reason": "other"}, lifecycle=True),
+        "bash-worktree-add": Scenario("PreToolUse", "Bash", {"tool_name": "Bash", "tool_input": {
+            "command": f"git worktree add {(scratch / 'outside').as_posix()}"}}, lifecycle=True, listed=True),
     }
+
+
+def list_clone(clone: Path, home: Path, root: Path) -> None:
+    """A machine file naming `root` and a repository list holding `clone`, both in the temporary `home`."""
+    root.mkdir(exist_ok=True)
+    (home / ".afk").mkdir(exist_ok=True)
+    (home / ".afk" / "config.yaml").write_text(f"developer:\n  worktreeRoot: '{root.as_posix()}'\n",
+                                               encoding="utf-8")
+    entry = {"path": os.path.realpath(clone), "shortName": "bench"}
+    (home / ".afk" / "repositories.json").write_text(json.dumps({"schema": 1, "repositories": [entry]}),
+                                                     encoding="utf-8")
 
 
 def handlers(manifest: dict, event: str, subject: str) -> list[dict]:
@@ -194,6 +209,8 @@ def main(argv: list[str]) -> int:
                 continue
             if scenario.lifecycle and clone is None:
                 clone = clone_of(project, scratch)
+            if scenario.listed:
+                list_clone(clone, scratch / "home", scratch / "wt-root")
             where = clone if scenario.lifecycle else project
             env = harness_env(args.manifest, where, scratch / "data", scratch / "home" if scenario.lifecycle else None)
             base = {"session_id": "bench", "cwd": where.as_posix(), "hook_event_name": scenario.event,

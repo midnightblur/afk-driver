@@ -32,7 +32,11 @@ and scripts from your worktree. Elsewhere, the guard refuses a mutation
 by the resource it changes (ADR-0010). Guarded resources: the main checkout on
 every branch, a worktree of a protected branch, and a worktree that another
 live session outside your group holds (ADR-0013). The main checkout may
-fast-forward its base branch with `git pull --ff-only` (ADR-0011).
+fast-forward its base branch with `git pull --ff-only` (ADR-0011). For a
+repository in the repository list, the guard refuses an agent's `git worktree
+add`, `git worktree move` destination or creator `--parent`/`--dir` outside
+`<root>/<short name>`. In every repository it refuses an agent command that sets
+`AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED`.
 
 A branch is protected when the forge says so (a protection setting or a
 ruleset); when the forge does not answer, the remote's default branch, `main`

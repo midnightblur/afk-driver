@@ -200,3 +200,5 @@
 2026-10-28 20:46 | autopilot | 0012-smoke-api | parked(waiting on 0005-worktree-creator) — runs after every build step
 2026-10-28 20:46 | autopilot | 0013-sync-harness | parked(waiting on 0005-worktree-creator) — runs last
 2026-10-28 20:46 | autopilot | run | heartbeat 4/13 done, starting 0006-worktree-guard — it needs only placement, so it runs while 0005 waits
+2026-10-28 20:55 | execute | 0006-worktree-guard | designing — started the guard slice; the guard code changed since its design study, so a fresh study of the guard runs first
+2026-10-28 21:26 | execute | 0006-worktree-guard | developing — the fresh study (INV-026, partial: one name-form check open) found no guard test of a plain add and four stale documents; decisions D-66 to D-72 recorded; the rule and its 97 tests are written

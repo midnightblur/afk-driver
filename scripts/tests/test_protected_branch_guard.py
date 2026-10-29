@@ -27,6 +27,16 @@ LIB = PLUGIN_ROOT / "hooks" / "lib"
 PATCH = "*** Begin Patch\n*** Update File: {path}\n@@\n-a\n+b\n*** End Patch\n"
 
 
+@pytest.fixture(autouse=True)
+def sandbox_home(tmp_path, monkeypatch):
+    """The move helper and the placement rule read ~/.afk: every test gets an empty home of its own."""
+    home = tmp_path / "sandbox-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    return home
+
+
 def git(cwd: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(cwd), *args], check=True,
                           capture_output=True, text=True).stdout.strip()

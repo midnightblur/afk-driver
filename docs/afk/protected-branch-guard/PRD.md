@@ -57,7 +57,7 @@ A guarded action is an identified mutation (catalog `A`). The verdict applies to
 | A-2 | shell command with an identified mutation: a recognized git verb or file writer with a literal target | judged at the resource |
 | A-3 | shell command the allow-list proves read-only: a read, a composition of reads, a redirect to the null device, a forge read, a herdr command | allowed in every placement |
 | A-4 | built-in file read and search tools; a tool with no path-like key | allowed |
-| A-5 | the harness's native worktree tool (H-1) and the plugin's `scripts/create-worktree` | allowed |
+| A-5 | the harness's native worktree tool (H-1) and the plugin's `scripts/create-worktree` | allowed; for a listed repository an agent's `--parent`/`--dir` outside the worktree root is refused (`docs/afk/setup-per-repo/SDD.md` §3) |
 | A-6 | shell command with a segment the allow-list cannot prove read-only (an unlisted program, a write flag, an opaque target) that runs in a P-1..P-3 resource | refused before it runs (AC-033); outside those resources an unrecognized program is allowed |
 
 ### S — where the protected-branch list comes from
