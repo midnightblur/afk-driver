@@ -195,3 +195,8 @@
 2026-10-28 20:30 | execute | 0005-worktree-creator | review advisory crit=0 high=0 med=4 low=17 — round 9 over the whole slice: 18 findings fixed in c251507 and 3 code-smell findings deferred to the feature gate: the move helper places a new move outside the marker lock, a created-then-removed worktree gets a new name, and a creation that raises records its error; round 10 stays on the whole slice
 2026-10-28 20:45 | execute | 0005-worktree-creator | review advisory crit=0 high=0 med=2 low=11 — round 10 over the whole slice, none fixed: the tenth round ends with findings open, so the settle loop stops in stalemate; f123-f128 are open and f129-f135 are smell or pattern-debt findings
 2026-10-28 20:45 | execute | 0005-worktree-creator | parked(review_fail) — review stalemate at round 10; a human must look at f123-f128; the adversarial gate did not run
+2026-10-28 20:46 | autopilot | 0005-worktree-creator | parked(review_fail) — the review used all 10 rounds and still found 13 problems, none serious; a person decides what to fix; the run took 15 hours after three 3-hour extensions granted while it kept making progress
+2026-10-28 20:46 | autopilot | 0011-smoke-e2e | parked(waiting on 0005-worktree-creator) — runs after every build step
+2026-10-28 20:46 | autopilot | 0012-smoke-api | parked(waiting on 0005-worktree-creator) — runs after every build step
+2026-10-28 20:46 | autopilot | 0013-sync-harness | parked(waiting on 0005-worktree-creator) — runs last
+2026-10-28 20:46 | autopilot | run | heartbeat 4/13 done, starting 0006-worktree-guard — it needs only placement, so it runs while 0005 waits
