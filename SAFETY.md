@@ -42,8 +42,9 @@ A branch is protected when the forge says so (a protection setting or a
 ruleset); when the forge does not answer, the remote's default branch, `main`
 and `master` count. A forge answer for any other branch is reused for at most
 5 minutes. A detached or unborn HEAD in a linked worktree passes; a
-folder outside Git passes every rule but the variable refusal above, and
-`AFK_ALLOW_PROTECTED=1` set by a human at launch passes everywhere.
+folder outside Git passes every rule but the two above, which judge the
+variable and the repository a command names, and `AFK_ALLOW_PROTECTED=1` set
+by a human at launch passes everywhere.
 
 Move a refused session with the harness's worktree tool, else
 `${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <name>`.

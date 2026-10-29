@@ -205,3 +205,4 @@
 2026-10-29 07:10 | execute | 0006-worktree-guard | verifying — the guard tests pass on Windows (1525) and on Linux match the base run's 42 harness failures; the hook smoke run and the static gates pass
 2026-10-29 07:12 | execute | 0006-worktree-guard | pushed 7d97011 to the change; the subtask is ticked in its checklist; two rationale notes posted
 2026-10-29 07:13 | execute | 0006-worktree-guard | reviewing — round 1 found 22 problems (1 high), fixes for 21 are written, 1 design note goes to the feature gate
+2026-10-29 10:40 | execute | 0006-worktree-guard | reviewing — round 1 closed: 21 fixes pushed in b00e47d, 1 design note waits for the feature gate; round 2 found 12 more ways past the rule (1 high), fixes written

@@ -193,6 +193,10 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "git worktree add --detach=x ../x",
     "git -c alias.wt=worktree wt add ../../out",
     "GIT_DIR=$X git worktree add ../../out",
+    "env $X git worktree add ../x",
+    "env -S 'git worktree add ../x'",
+    "sudo $X git worktree add ../x",
+    "git 'worktree add' ../../out",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -209,6 +213,7 @@ def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     "while true; do git worktree add ../../out; done",
     "! git worktree add ../../out",
     "eval 'git worktree add ../../out'",
+    "eval -- 'git worktree add ../../out'",
     "if true; then bash -c 'git worktree add ../../out'; fi",
 ])
 def test_nested_and_quoted_forms_are_refused(world, command):
@@ -226,6 +231,14 @@ def test_an_unlisted_repository_keeps_a_plain_add_passing(world):
     """The kept half of the "plain add passes" pin: an unlisted repository is unchanged."""
     reason, _ = guard(world, world["z_agent"], "git worktree add ../../../beside")
     assert reason is None
+
+
+def test_a_folder_outside_git_meets_the_rule_only_for_a_named_listed_repository(world):
+    plain = world["tmp"] / "plain"
+    plain.mkdir()
+    assert guard(world, plain, "git worktree add ../beside")[0] is None
+    reason, _ = guard(world, plain, f"git -C {world['a'].as_posix()} worktree add ../beside")
+    assert_outside(reason, world["a"].parent / "beside", world["base"])
 
 
 def test_a_listed_repository_reverses_the_plain_add_pin(world):
@@ -257,6 +270,16 @@ def test_a_git_dir_naming_an_unlisted_repository_leaves_the_rule_silent(world):
     """The rest of the guard may still refuse a write to Z's main checkout; this rule judges Z, not A."""
     reason, _ = guard(world, world["agent"], f"GIT_DIR={(world['z'] / '.git').as_posix()} git worktree add ../../out")
     assert reason is None or HEAD not in reason
+
+
+def test_git_settings_behind_a_control_word_reach_the_rule(world):
+    """`env GIT_DIR=` and `env -C` behind `then` change the repository and folder the rule judges."""
+    z_git = (world["z"] / ".git").as_posix()
+    reason, _ = guard(world, world["agent"], f"if true; then env GIT_DIR={z_git} git worktree add ../../out; fi")
+    assert reason is None or HEAD not in reason
+    reason, _ = guard(world, world["agent"],
+                      f"if true; then env -C {world['a'].as_posix()} git worktree add ../beside; fi")
+    assert_outside(reason, world["a"].parent / "beside", world["base"])
 
 
 @pytest.mark.parametrize("config, start", [
@@ -411,6 +434,9 @@ SETTING_FORMS = [
     ("PowerShell", "Set-Item -Path env:{n} -Value 1"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable('{n}', '1')"),
     ("PowerShell", "$v = '{n}'; [Environment]::SetEnvironmentVariable($v, '1')"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable([string]'{n}', '1')"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable('{n}' + '', '1')"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable('{n}'.Trim(), '1')"),
     ("PowerShell", "${{env:{n}}} = '1'"),
     ("PowerShell", "$env:{n} += '1'"),
     ("PowerShell", "Set-Content Env:{n} 1"),
@@ -420,6 +446,18 @@ SETTING_FORMS = [
     ("Bash", "set {n}=1"),
     ("PowerShell", "set {n}=1"),
     ("Bash", "export {n}"),
+    ("PowerShell", "iex '$env:{n} = 1'"),
+    ("PowerShell", "sc Env:{n} 1"),
+    ("PowerShell", "ac Env:{n} 1"),
+    ("PowerShell", "$env:{n}+='1'"),
+    ("PowerShell", "$v = '{n}'; [Environment]::SetEnvironmentVariable(($v), '1')"),
+    ("PowerShell", "$env:{n} ??= '1'"),
+    ("PowerShell", "Copy-Item env:PATH env:{n}"),
+    ("PowerShell", "Rename-Item -Path env:FOO -NewName {n}"),
+    ("PowerShell", "New-Item -Path env: -Name {n} -Value 1"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable.Invoke('{n}', '1')"),
+    ("PowerShell", "[Environment].GetMethod('SetEnvironmentVariable', [type[]]@([string], [string])).Invoke($null, @('{n}', '1'))"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable(@('{n}')[0], '1')"),
 ]
 
 
@@ -439,10 +477,33 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("Bash", "git commit --allow-empty -m 'document SetEnvironmentVariable and {n}'"),
     ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"), ("PowerShell", "Get-Content env:{n}"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
+    ("PowerShell", "Set-Content -Path out.txt -Value $env:{n}"), ("PowerShell", "Add-Content log.txt \"$env:{n}\""),
+    ("PowerShell", "Add-Content log.txt $env:{n}"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
     reason, _ = guard(world, world["agent"], form.format(n=name), tool=tool)
     assert reason is None
+
+
+def test_eval_drops_the_escapes_bash_drops(world):
+    reason, _ = guard(world, world["agent"], "eval AFK_ALLOW_\\PROTECTED=1 ls")
+    assert reason is not None and reason.startswith("refused to set AFK_ALLOW_PROTECTED")
+
+
+@pytest.mark.parametrize("command", ["iex 'git worktree add ../../out'",
+                                     "Invoke-Expression \"git worktree add ../../out\""])
+def test_invoke_expression_is_read_like_eval(world, command):
+    reason, _ = guard(world, world["agent"], command, tool="PowerShell")
+    assert_outside(reason, world["root"] / "out", world["base"])
+
+
+def test_the_bench_times_the_refusal_path_it_names(tmp_path):
+    """The bench exits 1 when a scenario answers from another path; its guard scenarios answer from the refusal."""
+    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "hooks" / "tests" / "bench-hooks.py"), "--runs", "1",
+                           "--only", "bash-listed", "bash-worktree-add", "bash-worktree-move"], cwd=PLUGIN_ROOT,
+                          capture_output=True, text=True, timeout=600)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert done.stdout.count("added over bash-listed:") == 2, done.stdout
 
 
 def test_setting_a_rule_variable_in_an_unlisted_repository_is_refused(world):

@@ -38,7 +38,12 @@ MOVE_SHORT = {"f": False}
 CREATOR_VALUE = {"--branch", "--dir", "--base", "--repo", "--parent", "--name", "--session", "--idea-bin",
                  "--skip-build-gate", "--finish", "--m2-seed"}
 SET_ENV = re.compile(r"setenvironmentvariable\s*\(\s*([^,)\s]*)")  # over the lowered, unquoted text
-DRIVE_SETTERS = ("set-item", "si", "new-item", "ni", "set-content", "sc", "add-content", "ac")
+SET_ENV_INDIRECT = re.compile(r"setenvironmentvariable\s*[.,)]")
+PATH_SETTERS = ("set-item", "si", "set-content", "sc", "add-content", "ac")  # the path operand is set
+ITEM_SETTERS = ("new-item", "ni", "copy-item", "cpi", "move-item", "mi", "rename-item", "rni", "ren")
+PATH_OPTIONS = ("-path", "-literalpath", "-pspath", "-lp")
+VALUED_OPTIONS = ("-value", "-encoding", "-filter", "-include", "-exclude", "-credential", "-stream", "-delimiter")
+EXPRESSION = ("eval", "iex", "invoke-expression")  # each runs its joined arguments as a script
 UNQUOTE = re.compile(r"""[\\'"`]""")  # quote and escape characters, which hide no word from a text search
 MARKS = re.compile(r"worktree|afk_allow_protected", re.I)  # every command the rule judges holds one
 
@@ -50,7 +55,7 @@ class Unknown(Exception):
 # ---------------------------------------------------------------- inline variables
 
 def _env_drive(name: str) -> re.Pattern:
-    return re.compile(r"^(?:\$\{env:" + name + r"\}|(?:\$env:|env:)" + name + r")(?:\s*\+?=.*)?$", re.I)
+    return re.compile(r"^(?:\$\{env:" + name + r"\}|(?:\$env:|env:)" + name + r")(?:\s*(?:\?\?|\+)?=.*)?$", re.I)
 
 
 def _sets(words: list[Word], program: list[Word], name: str) -> bool:
@@ -59,13 +64,16 @@ def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     if any(ASSIGN.match(w.text) and w.text.split("=", 1)[0] == name for w in prefix):
         return True
     drive = _env_drive(name)
-    if drive.match(words[0].text) and ("=" in words[0].text or words[1:2] and words[1].text.startswith(("=", "+="))):
+    if drive.match(words[0].text) and ("=" in words[0].text or words[1:2] and words[1].text.startswith(("=", "+=", "??="))):
         return True
     if not program:
         return False
     prog, args = program_of(program[0]), [w.text.replace("\\", "") for w in program[1:]]  # Bash drops the escapes
-    if prog in DRIVE_SETTERS:
-        return any(drive.match(a) for a in args)
+    if prog in PATH_SETTERS:
+        return bool(drive.match(_path_operand(args)))
+    if prog in ITEM_SETTERS:  # a destination or new name under `env:` sets the variable
+        under_env = any(a.lower().startswith("env:") for a in args)
+        return any(drive.match(a) or (under_env and a.upper() == name) for a in args)
     if prog == "set":  # cmd's `set NAME=value`
         return any(a.upper().startswith(name + "=") for a in args)
     if prog not in DECLARE:
@@ -76,26 +84,48 @@ def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     return name in args and (prog == "setx" or not (set(options) & PRINT_ONLY or any(a[:1] == "+" for a in args)))
 
 
+def _path_operand(args: list[str]) -> str:
+    """The item a `Set-Content`-style call writes: its `-Path` value, else its first positional argument."""
+    i, first = 0, ""
+    while i < len(args):
+        low = args[i].lower()
+        if low in PATH_OPTIONS:
+            return args[i + 1] if i + 1 < len(args) else ""
+        if low.startswith("-"):
+            i += 2 if low in VALUED_OPTIONS else 1
+            continue
+        first = first or args[i]
+        i += 1
+    return first
+
+
 def _variable_text(name: str) -> str:
     return (f"refused to set {name} in an agent command. Cause: {CAUSES[name]}, and only the "
             f"developer sets it. Move: run the command without {name}, or ask the developer.")
 
 
 def _inner(words: list[Word], program: list[Word]) -> list[str]:
-    """Scripts a command runs: the lavish rule's nested forms, and the joined arguments of `eval`."""
+    """Scripts a command runs: the lavish rule's nested forms, and the joined arguments of `eval` or `iex`."""
     found = _nested(words, program)
-    if program and not program[0].opaque and program_of(program[0]) == "eval":
-        found.append(" ".join(w.text for w in program[1:]))
+    if program and not program[0].opaque and program_of(program[0]) in EXPRESSION:
+        args = program[1:]
+        if program_of(program[0]) == "eval":  # Bash's first parse drops the escapes and an end-of-options mark
+            args = args[1:] if args and args[0].text == "--" else args
+            found.append(" ".join(_bare(w) for w in args))
+        else:
+            found.append(" ".join(w.text for w in args))
     return found
 
 
 def variable_refusal(command: str, powershell: bool = False, depth: int = 0) -> str | None:
     """Why an agent command must not set one of `NAMES`, or None."""
     flat = UNQUOTE.sub("", command).lower()
-    for first in SET_ENV.findall(flat):  # the .NET call splits into several segments
-        for name in NAMES:  # a name the call takes from a variable is one of the two when the command names it
-            if first == name.lower() or (first[:1] in ("$", "(", "") and name.lower() in flat):
-                return _variable_text(name)
+    firsts = SET_ENV.findall(flat)  # the .NET call splits into several segments
+    called = firsts or SET_ENV_INDIRECT.search(flat)  # `.Invoke(` or a reflection lookup names no argument
+    for name in NAMES:
+        if called and name.lower() in flat and (not firsts or any(
+                name.lower() in first or not re.fullmatch(r"\w+", first) for first in firsts)):
+            return _variable_text(name)
     for segment in shell_mutations.segments(command, powershell):
         words = segment.words
         if not words:
@@ -275,7 +305,7 @@ def _creator_targets(words: list[Word], spot: Path | None) -> list[tuple]:
 
 def _program(segment, words: list[Word], effects: dict | None = None) -> list[Word]:
     """The program words after `then`/`do`/`!`-style control words, also when the program is opaque."""
-    program = strip_prefixes(words, effects, keywords=True)
+    program = strip_prefixes(words or segment.words, effects, keywords=True)
     if program:
         return program
     rest = list(words or segment.words)
@@ -300,9 +330,9 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
         return _creator_targets(program, spot)
     if "git" in prog and not program[0].opaque:
         return _git_targets(segment, program, spot, effects.get("git_env", []))
-    if program[0].opaque:
-        texts = [_bare(w) for w in program[1:] if not w.opaque]
-        if "worktree" in texts and {"add", "move"} & set(texts[texts.index("worktree") + 1:][:1]):
+    if program[0].opaque or effects.get("opaque"):  # a program the guard cannot read, e.g. behind `env $X`
+        joined = " ".join(_bare(w) for w in program if not w.opaque).lower()
+        if re.search(r"\bworktree\s+(?:add|move)\b", joined) or "create-worktree" in joined:
             return [(None, spot, None)]
     return []
 
