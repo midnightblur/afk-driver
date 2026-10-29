@@ -205,6 +205,10 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "$(which git) -c core.x=1 worktree add ../../out",
     "$ENV -S 'git worktree add ../x'",
     "${ENV} --split-string='git worktree add ../x'",
+    "$ENV -u A -S 'git worktree add ../../out'",
+    "$ENV -i -S 'git worktree add ../../out'",
+    "$ENV A=1 B=2 -S 'git worktree add ../../out'",
+    "${ENV} -u A --split-string='git worktree add ../../out'",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -537,6 +541,16 @@ SETTING_FORMS = [
     ("PowerShell", "Set-Location -Path:env:; Set-Content {n} 1"),
     ("PowerShell", "Set-Content -Bogus x Env:{n} 1 -Force"),
     ("PowerShell", "Rename-Item -Path OTHER, env:FOO -NewName {n}"),
+    ("PowerShell", "Set-Content -Path ('Env:{n}') -Value 1"),
+    ("PowerShell", "Set-Content -Path:('Env:{n}') x"),
+    ("PowerShell", "Set-Content ('Env:{n}') 1"),
+    ("PowerShell", "New-Item -Path ('Env:{n}') -Value 1"),
+    ("PowerShell", "Set-Content @('Env:OTHER'; 'Env:{n}') 1"),
+    ("PowerShell", "Set-Content @(\n'Env:OTHER'\n'Env:{n}') 1"),
+    ("PowerShell", "Set-Content Env:OTHER , Env:{n} 1"),
+    ("PowerShell", "Set-Content Env:OTHER ,Env:{n} 1"),
+    ("PowerShell", "Set-Content $('Env:OTHER','Env:{n}') 1"),
+    ("PowerShell", "Set-Content -Path $('Env:OTHER','Env:{n}') 1"),
 ]
 
 
@@ -555,18 +569,25 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("PowerShell", "Remove-Item env:{n}"), ("PowerShell", "Write-Output $env:{n}"),
     ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"), ("PowerShell", "Get-Content env:{n}"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
-    ("PowerShell", "Set-Content -Path out.txt -Value $env:{n}"), ("PowerShell", "Add-Content log.txt \"$env:{n}\""),
-    ("PowerShell", "Add-Content log.txt $env:{n}"),
-    ("PowerShell", "Set-Content -Value $env:{n} out.txt"), ("PowerShell", "Copy-Item env:{n} out.txt"),
-    ("PowerShell", "Copy-Item env:{n} env:OTHER"), ("PowerShell", "Rename-Item env:{n} OTHER"),
-    ("PowerShell", "Move-Item env:{n} env:OTHER"), ("PowerShell", "New-Item env:OTHER -Value $env:{n}"),
-    ("PowerShell", "Set-Content -NoNewline out.txt $env:{n}"), ("PowerShell", "Add-Content -Force log.txt \"$env:{n}\""),
-    ("PowerShell", "Set-Content out.txt $env:{n} -NoNewline"),
-    ("PowerShell", "Set-Location env:; Set-Location C:\\; Set-Content {n} 1"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
     reason, _ = guard(world, world["agent"], form.format(n=name), tool=tool)
     assert reason is None
+
+
+@pytest.mark.parametrize("name", ["AFK_WORKTREE_FOLDER", "AFK_ALLOW_PROTECTED"])
+@pytest.mark.parametrize("form", [
+    "Set-Content -Path out.txt -Value $env:{n}", "Add-Content log.txt \"$env:{n}\"", "Add-Content log.txt $env:{n}",
+    "Set-Content -Value $env:{n} out.txt", "Copy-Item env:{n} out.txt", "Copy-Item env:{n} env:OTHER",
+    "Rename-Item env:{n} OTHER", "Move-Item env:{n} env:OTHER", "New-Item env:OTHER -Value $env:{n}",
+    "Set-Content -NoNewline out.txt $env:{n}", "Add-Content -Force log.txt \"$env:{n}\"",
+    "Set-Content out.txt $env:{n} -NoNewline", "Set-Location env:; Set-Location C:\\; Set-Content {n} 1",
+    "Add-Content log.txt $($env:{n})", "Set-Content out.txt $(Get-Content env:{n})",
+])
+def test_an_item_writer_beside_a_rule_variable_is_refused_even_when_it_reads(world, name, form):
+    """D-76: an item writer and the name in one command count as a write, whatever the operand spelling."""
+    reason, _ = guard(world, world["agent"], form.format(n=name), tool="PowerShell")
+    assert reason is not None and reason.startswith(f"refused to set {name} in an agent command. Cause: ")
 
 
 def test_eval_drops_the_escapes_bash_drops(world):

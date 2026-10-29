@@ -3,7 +3,9 @@
 `refusal(command, cwd, ...)` names why the command must not run, or returns None:
 - it sets `AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED` (an assignment in front of a
   command, `env`, `export`/`declare`-style words, `setx`, a PowerShell `env:` assignment,
-  also inside `bash -c` / `pwsh -Command` / `$(…)` / `eval`); only the developer sets them;
+  also inside `bash -c` / `pwsh -Command` / `$(…)` / `eval`), or names one beside a
+  PowerShell item writer (`Set-Content`, `New-Item`, `Copy-Item`… and their aliases) or
+  `SetEnvironmentVariable`; only the developer sets them;
 - it is `git worktree add`, the destination of `git worktree move`, or a worktree creator
   call (`create-worktree --parent/--dir`) whose target placement (`scripts/placement.py`)
   does not put inside `<root>/<short name>` for a listed repository, also behind `then`/`do`/`!`.
@@ -11,7 +13,8 @@
   option) counts as outside.
 Placement gives every verdict; this module only finds the target and the folder. A command
 with no word naming a worktree makes no file read and starts no process.
-Known frontier: git aliases from config files, scripts in files, `xargs`/`find -exec` runs.
+Known frontier: git aliases from config files, scripts in files, `xargs`/`find -exec` runs,
+a variable name built from parts.
 """
 from __future__ import annotations
 
@@ -38,18 +41,9 @@ MOVE_SHORT = {"f": False}
 CREATOR_VALUE = {"--branch", "--dir", "--base", "--repo", "--parent", "--name", "--session", "--idea-bin",
                  "--skip-build-gate", "--finish", "--m2-seed"}
 SET_ENV = re.compile(r"setenvironmentvariable\s*\(\s*([^,)\s]*)")  # over the lowered, unquoted text
-PATH_SETTERS = ("set-item", "si", "set-content", "sc", "add-content", "ac")  # the path operand is set
-NEW_ITEM, RENAME = ("new-item", "ni"), ("rename-item", "rni", "ren")
-COPY_MOVE = ("copy-item", "cpi", "cp", "copy", "move-item", "mi", "mv", "move")
-ITEM_SETTERS = NEW_ITEM + RENAME + COPY_MOVE
-ROLES = {"path": ("path", "literalpath", "pspath", "lp"), "dest": ("destination",), "name": ("name", "newname")}
-SWITCHES = ("force", "nonewline", "passthru", "whatif", "confirm", "recurse", "container", "asbytestream",
-            "verbose", "debug", "noclobber", "append")
-LOCATION = ("set-location", "sl", "cd", "chdir", "push-location", "pushd")
-VALUED = ("value", "encoding", "filter", "include", "exclude", "credential", "stream", "delimiter", "itemtype",
-          "type", "erroraction", "ea", "warningaction", "wa", "informationaction", "infa", "errorvariable", "ev",
-          "warningvariable", "wv", "informationvariable", "iv", "outvariable", "ov", "outbuffer", "ob",
-          "pipelinevariable", "pv")
+ITEM_WRITERS = ("set-item", "si", "set-content", "sc", "add-content", "ac", "new-item", "ni", "copy-item", "cpi",
+                "cp", "copy", "move-item", "mi", "mv", "move", "rename-item", "rni", "ren")  # each can write `env:`
+ENV_VALUED = ("-u", "--unset", "-C", "--chdir")  # env options that take the next word
 EXPRESSION = ("eval", "iex", "invoke-expression")  # each runs its joined arguments as a script
 UNQUOTE = re.compile(r"""[\\'"`]""")  # quote and escape characters, which hide no word from a text search
 MARKS = re.compile(r"worktree|afk_allow_protected", re.I)  # every command the rule judges holds one
@@ -65,7 +59,7 @@ def _env_drive(name: str) -> re.Pattern:
     return re.compile(r"^(?:\$\{env:" + name + r"\}|(?:\$env:|env:)" + name + r")(?:\s*(?:\?\?|\+)?=.*)?$", re.I)
 
 
-def _sets(words: list[Word], program: list[Word], name: str, in_env: bool = False) -> bool:
+def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     """`words` set `name` for what they run: the variable rule's forms (`lavish_direct._sets_host`)."""
     prefix = words[:len(words) - len(program)]
     if any(ASSIGN.match(w.text) and w.text.split("=", 1)[0] == name for w in prefix):
@@ -76,8 +70,6 @@ def _sets(words: list[Word], program: list[Word], name: str, in_env: bool = Fals
     if not program:
         return False
     prog, args = program_of(program[0]), [w.text.replace("\\", "") for w in program[1:]]  # Bash drops the escapes
-    if prog in PATH_SETTERS or prog in ITEM_SETTERS:
-        return _item_sets(prog, args, drive, name, in_env)
     if prog == "set":  # cmd's `set NAME=value`
         return any(a.upper().startswith(name + "=") for a in args)
     if prog not in DECLARE:
@@ -86,59 +78,6 @@ def _sets(words: list[Word], program: list[Word], name: str, in_env: bool = Fals
         return True
     options = "".join(a[1:] for a in args if a[:1] in "-+")
     return name in args and (prog == "setx" or not (set(options) & PRINT_ONLY or any(a[:1] == "+" for a in args)))
-
-
-def _operands(args: list[str], allowed: tuple) -> tuple[dict, list[str], bool]:
-    """(values per role, positional arguments, whether an option is unknown) of a PowerShell item call."""
-    roles: dict[str, list[str]] = {}
-    positionals, unknown, i = [], False, 0
-    while i < len(args):
-        word, i = args[i], i + 1
-        if len(word) < 2 or not word.startswith("-"):
-            positionals.append(word)
-            continue
-        name, colon, attached = word[1:].lower().partition(":")  # PowerShell takes any unique prefix
-        role = next((r for r in allowed if any(n.startswith(name) for n in ROLES[r])), None)
-        if role is None and not any(n.startswith(name) for n in VALUED):
-            unknown = unknown or not any(n.startswith(name) for n in SWITCHES)
-            continue
-        value = attached if colon else (args[i] if i < len(args) else "")
-        i += 0 if colon else 1
-        if role:
-            roles.setdefault(role, []).append(value)
-    return roles, positionals, unknown
-
-
-def _arrays(args: list[str]) -> list[str]:
-    """The words with each PowerShell array (`a, b`, `@(a, b)`) joined into one."""
-    joined: list[str] = []
-    for word in args:
-        if joined and (joined[-1].endswith(",") or word.startswith(",")):
-            joined[-1] += word
-        else:
-            joined.append(word)
-    return joined
-
-
-def _parts(word: str) -> list[str]:
-    return [part.strip("@() ") for part in word.split(",")]
-
-
-def _item_sets(prog: str, args: list[str], drive: re.Pattern, name: str, in_env: bool) -> bool:
-    """A `Set-Content`/`Copy-Item`-style call writes `name`: only its written operand is judged."""
-    allowed = ("path",) if prog in PATH_SETTERS else ("path", "dest") if prog in COPY_MOVE else ("path", "name")
-    roles, positionals, unknown = _operands(_arrays(args), allowed)
-    paths = roles.get("path", [])
-    if prog in PATH_SETTERS:
-        written = paths or (positionals if unknown else positionals[:1])
-    elif prog in NEW_ITEM:
-        written = paths + roles.get("name", []) + positionals
-    else:  # the destination or new name: the first positional when -Path is given, else the second
-        rest = positionals if paths else positionals[1:]
-        written = roles.get("dest", []) + roles.get("name", []) + (positionals if unknown else rest[:1])
-    written = [part for a in written for part in _parts(a)]
-    under_env = in_env or any(part.lower().startswith("env:") for a in paths + positionals for part in _parts(a))
-    return any(drive.match(a) or (under_env and a.upper() == name) for a in written)
 
 
 def _variable_text(name: str) -> str:
@@ -171,24 +110,15 @@ def variable_refusal(command: str, powershell: bool = False, depth: int = 0) -> 
         if named and name.lower() in flat and (len(firsts) < named or any(
                 name.lower() in first or not re.fullmatch(r"\w+", first) for first in firsts)):
             return _variable_text(name)
-    in_env = operand = False
     for segment in shell_mutations.segments(command, powershell):
         words = segment.words
         if not words:
             continue
-        if operand:  # the words inside a setter's `@(…)` or `$(…)` operand
-            for name in NAMES:
-                if any(_env_drive(name).match(part) for w in words for part in _parts(w.text)):
-                    return _variable_text(name)
         program = strip_prefixes(words, keywords=True)
-        operand = bool(program) and not program[0].opaque and program_of(program[0]) in PATH_SETTERS + ITEM_SETTERS \
-            and words[-1].text in ("@", "$")
+        writer = bool(program) and not program[0].opaque and program_of(program[0]) in ITEM_WRITERS
         for name in NAMES:
-            if _sets(words, program, name, in_env):
+            if _sets(words, program, name) or writer and name.lower() in flat:  # an item writer beside the name
                 return _variable_text(name)
-        if program and not program[0].opaque and program_of(program[0]) in LOCATION:
-            values = [w.text.lower().split(":", 1)[-1] if w.text[:1] == "-" else w.text.lower() for w in program[1:]]
-            in_env = any(v.startswith("env:") for v in values)  # later names live in env:
         if depth < MAX_DEPTH:
             for inner in _inner(words, program):
                 found = variable_refusal(inner, powershell, depth + 1)
@@ -213,6 +143,19 @@ def _long(text: str, table: dict[str, bool]) -> tuple[str, bool]:
         raise Unknown(text)
     chosen = found[0]
     return chosen, not chosen.startswith("no-") and table[chosen]
+
+
+def _split_string(program: list[Word], start: int) -> set[int]:
+    """The index of the word `env -S` splits when `program[start]` is env, or may be."""
+    j = start + 1
+    while j < len(program) and not program[j].opaque:
+        text = _bare(program[j])
+        if text in ("-S", "--split-string"):
+            return {j + 1}
+        if text.startswith(("-S", "--split-string=")):
+            return {j}
+        j += 2 if text in ENV_VALUED else 1 if text.startswith("-") or ASSIGN.match(text) else len(program)
+    return set()
 
 
 def _positionals(words: list[Word], long: dict[str, bool], short: dict[str, bool]) -> list[Word]:
@@ -386,17 +329,13 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
     if "git" in prog and not program[0].opaque:
         return _git_targets(segment, program, spot, effects.get("git_env", []))
     readable = [w for w in program if not w.opaque]
-    envish = any(program_of(w) == "env" for w in readable)
-    hidden = next((i for i, w in enumerate(program[:2]) if w.opaque), None)  # an unreadable program may be env
-    plain, split = [], False
+    starts = [i for i, w in enumerate(program) if (w.opaque and i < 2) or (not w.opaque and program_of(w) == "env")]
+    splits = {j for start in starts for j in _split_string(program, start)}  # an unreadable program may be env
+    plain = []
     for i, word in enumerate(program):
-        if word.opaque:
-            continue
-        text = _bare(word)
-        lead = envish or (hidden is not None and i <= hidden + 2)
-        splits = lead and (split or text.startswith(("-S", "--split-string")))  # `env -S` splits its string
-        plain += text.lower().split() if splits else [text.lower()]
-        split = text in ("-S", "--split-string")
+        if not word.opaque:
+            text = _bare(word).lower()
+            plain += text.split() if i in splits else [text]
     verb = any(a == "worktree" and b in ("add", "move") for a, b in zip(plain, plain[1:]))
     if program[0].opaque or effects.get("opaque"):  # a program the guard cannot read, e.g. behind `env $X`
         if verb or any(program_of(Word(w.text.replace("\\", "/"), False)) == "create-worktree" for w in readable):

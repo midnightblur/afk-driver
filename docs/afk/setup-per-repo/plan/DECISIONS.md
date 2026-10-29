@@ -531,3 +531,10 @@
 - Chosen: B — round 5 showed one direct call hides an indirect one beside it, and a regex search such as `SetEnvironmentVariable.*NAME` reads like a call; counting mentions against direct calls closes both without parsing PowerShell. A commit message or search naming both is refused and needs rewording (`document SetEnvironmentVariable and NAME` included)
 - Supersedes: D-74 (its "prose without call punctuation still passes" clause)
 - To reverse: restore the `SET_ENV_INDIRECT` test in `hooks/lib/worktree_placement_rule.py` and move the prose rows back to the passing list
+
+## D-76 — Review round 6: a PowerShell item writer beside a rule variable is refused, reads included
+- 2026-10-29 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — keep judging the written operand of `Set-Content`, `New-Item`, `Copy-Item`… by position, arrays and `@(…)`/`$(…)` operands vs B — refuse a command whose segment runs an item writer (or its alias) when the command names a rule variable anywhere
+- Chosen: B — rounds 3 to 6 each found a new operand spelling (arrays, parentheses, `;` and newline lists, `env:` location) that writes the variable past the positional reading; the parser splits those spellings into other segments, so no positional rule is complete. A command that only reads the variable through a writer (`Set-Content out.txt $env:NAME`) is refused and needs rewording; this reverses the read exemptions of f043, f049, f054 and f058
+- Supersedes: none
+- To reverse: restore `_item_sets`, `_operands`, `_arrays` and `_parts` in `hooks/lib/worktree_placement_rule.py` from 8b8cad05 and move the read rows back to the passing list
