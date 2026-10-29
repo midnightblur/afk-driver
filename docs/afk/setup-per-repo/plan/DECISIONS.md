@@ -517,3 +517,10 @@
 - Chosen: B — each line states a guard verdict the rule changed, so the same-commit rule (`FRESHNESS.md`) binds them; the contract's `## Scope` list is superseded for these doc paths only: `hooks/README.md`, `SAFETY.md`, `AGENTS.md`, `PROVIDERS.md`, `docs/afk/protected-branch-guard/PRD.md`, `FRESHNESS.md`, `hooks/genericity-allow.txt`; D-71's "left: `PROVIDERS.md`" no longer holds
 - Supersedes: D-71 (its `PROVIDERS.md` clause only)
 - To reverse: revert those hunks; 0010 and 0013 own the documents
+
+## D-74 — Review round 4: the variable rule refuses prose that names the .NET call and a rule variable
+- 2026-10-29 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — keep round 3's `[Environment]` anchor so prose passes vs B — drop the anchor; refuse when the command calls `SetEnvironmentVariable` with a computed first argument, by `.Invoke`, or by reflection and names a rule variable
+- Chosen: B — round 4 showed the type name can be built from parts, so no text anchor separates a real call from prose; a refused commit message or search costs one rewording, a missed set lifts the guard. Prose without call punctuation (`document SetEnvironmentVariable and NAME`) still passes; this reverses f044's fix
+- Supersedes: none
+- To reverse: restore `ENV_TYPE` in `hooks/lib/worktree_placement_rule.py` and move the three prose rows back to the passing list
