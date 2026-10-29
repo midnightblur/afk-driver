@@ -58,7 +58,11 @@ target; an unreadable folder change refuses every later unproven segment. A `.gi
 `gitdir:` points nowhere is skipped for the next enclosing repository. Elsewhere the guard
 judges the resource a call mutates, not the command's shape (ADR-0010): each
 literal path or repository a mutation names is judged, and an opaque target
-(variable, substitution, glob) and an unknown program pass. A tool with no
+(variable, substitution, glob) and an unknown program pass. One exception: for a
+listed repository, an agent's worktree add, move or creator call whose target is
+opaque or outside the worktree root is refused, and an agent command that sets
+`AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED` is refused everywhere (`SAFETY.md`
+"Worktree per session"). A tool with no
 path-like key passes. An exact provider declaration overrides the fallback
 tool-name classifier.
 

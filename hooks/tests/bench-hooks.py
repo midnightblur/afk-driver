@@ -14,8 +14,11 @@ Tool and compaction scenarios run in `--project` (default: the repository the cu
 is in). Lifecycle scenarios (session start and end, worktree create and remove) run in a
 disposable shallow clone of it with a temporary home folder, so no hook installs, prunes,
 creates or opens anything outside the scratch folder; worktree removal times a worktree the
-creation handler made, untimed, before each run. `bash-worktree-add` lists that clone in the
-temporary home and times the guard refusing an add outside the worktree root (informational).
+creation handler made, untimed, before each run. `bash-listed`, `bash-worktree-add` and
+`bash-worktree-move` list that clone in the temporary home; the last two time the guard refusing
+an add and a move outside the worktree root and print the added time over `bash-listed`
+against a 50 ms reference (informational). A scenario whose answer lacks its expected text
+exits 1: it timed another path.
 
 Handlers run one at a time; the event wall time is the slowest handler of a run, because
 the harness runs same-event handlers in parallel. One warm-up run per scenario is not
@@ -60,14 +63,19 @@ BUDGET_MS = {
     ("hooks.codex.json", "session-start", "repo-list SessionStart"): 350,
     ("hooks.codex.json", "session-start", "plugin agents-md-config-check.sh"): 250,
 }
+ADDED_REFERENCE_MS = 50  # the guard's added time on worktree add and move (informational, never gated)
+GUARD_REFUSAL = ("protected-branch-guard.py", "refused to create a worktree outside the worktree root")
 
 
 class Scenario:
     def __init__(self, event: str, subject: str, fields: dict, lifecycle: bool = False,
-                 needs_worktree: bool = False, per_run_name: str = "", listed: bool = False):
+                 needs_worktree: bool = False, per_run_name: str = "", listed: bool = False, expect: tuple[str, str] = ("", ""),
+                 baseline: str = ""):
         self.event, self.subject, self.fields = event, subject, fields
         self.lifecycle, self.needs_worktree, self.per_run_name = lifecycle, needs_worktree, per_run_name
         self.listed = listed  # the clone is in the temporary home's repository list
+        self.expect = expect  # (handler label, text its answer holds), so the scenario times the path it names
+        self.baseline = baseline  # the scenario the expected handler's added time is measured over
 
 
 def scenarios(project: Path, scratch: Path) -> dict[str, Scenario]:
@@ -88,8 +96,14 @@ def scenarios(project: Path, scratch: Path) -> dict[str, Scenario]:
         "worktree-create": Scenario("WorktreeCreate", "", {}, lifecycle=True, per_run_name="bench-new"),
         "worktree-remove": Scenario("WorktreeRemove", "", {}, lifecycle=True, needs_worktree=True),
         "session-end": Scenario("SessionEnd", "other", {"reason": "other"}, lifecycle=True),
+        "bash-listed": Scenario("PreToolUse", "Bash", {"tool_name": "Bash", "tool_input": {"command": "ls"}},
+                                lifecycle=True, listed=True),
         "bash-worktree-add": Scenario("PreToolUse", "Bash", {"tool_name": "Bash", "tool_input": {
-            "command": f"git worktree add {(scratch / 'outside').as_posix()}"}}, lifecycle=True, listed=True),
+            "command": f"git worktree add {(scratch / 'outside').as_posix()}"}}, lifecycle=True, listed=True,
+            expect=GUARD_REFUSAL, baseline="bash-listed"),
+        "bash-worktree-move": Scenario("PreToolUse", "Bash", {"tool_name": "Bash", "tool_input": {
+            "command": f"git worktree move {(scratch / 'movable').as_posix()} {(scratch / 'moved').as_posix()}"}},
+            lifecycle=True, listed=True, expect=GUARD_REFUSAL, baseline="bash-listed"),
     }
 
 
@@ -194,6 +208,8 @@ def main(argv: list[str]) -> int:
     manifest = json.loads((PLUGIN_ROOT / "hooks" / args.manifest).read_text(encoding="utf-8"))
     creators = handlers(manifest, "WorktreeCreate", "")
     over: list[str] = []
+    wrong: list[str] = []
+    medians: dict[tuple[str, str], float] = {}
 
     with tempfile.TemporaryDirectory(prefix="afk-bench-", ignore_cleanup_errors=True) as scratch_dir:
         scratch = Path(scratch_dir)
@@ -217,6 +233,7 @@ def main(argv: list[str]) -> int:
                     "transcript_path": (scratch / "t.jsonl").as_posix(), **scenario.fields}
             times: dict[int, list[float]] = {i: [] for i in range(len(entries))}
             codes: dict[int, int] = {}
+            missing: set[int] = set()
             for run in range(args.runs + 1):
                 envelope = dict(base)
                 if scenario.per_run_name:
@@ -230,6 +247,9 @@ def main(argv: list[str]) -> int:
                     start = time.perf_counter()
                     done = call(entry, envelope, where, env)
                     codes[i] = done.returncode if done else -1
+                    if label_of(entry["command"]) == scenario.expect[0] and (
+                            done is None or scenario.expect[1].encode() not in done.stdout):
+                        missing.add(i)
                     if run:  # run 0 warms caches and stamps
                         times[i].append((time.perf_counter() - start) * 1000)
             walls = [max(times[i][r] for i in times) for r in range(args.runs)]
@@ -242,6 +262,16 @@ def main(argv: list[str]) -> int:
                 if ceiling is not None and p50 > ceiling:
                     over.append(f"{name} / {label}: p50 {p50:.0f} > {ceiling}")
                 print(f"  {label:<50} {p50:>7.0f} {percentile(times[i], .95):>7.0f}  {codes.get(i)}{verdict}")
+                medians[(name, label)] = p50
+                under = medians.get((scenario.baseline, label))
+                if under is not None and label == scenario.expect[0]:
+                    print(f"    added over {scenario.baseline}: {p50 - under:.0f} ms "
+                          f"(reference {ADDED_REFERENCE_MS}, informational)")
+                if i in missing:
+                    wrong.append(f"{name} / {label}: answer lacks \"{scenario.expect[1]}\"")
+    if wrong:  # the scenario timed some other path than the one it names
+        print("\nwrong path:\n  " + "\n  ".join(wrong))
+        return 1
     if args.budgets and over:
         print("\nover budget:\n  " + "\n  ".join(over))
         return 1

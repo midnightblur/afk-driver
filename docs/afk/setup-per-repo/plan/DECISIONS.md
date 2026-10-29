@@ -510,3 +510,10 @@
 - Chosen: B — INV-026 confirms `hook-smoke.sh:348-365` runs the H-2 refusal with the real home and no `AFK_MOVE_SPAWN=0`, so under codex `h2_move.plan` reads the real `~/.afk` and can start `afk-move.py` detached; the file is outside Scope and the rule does not change its verdict. D-61's fixture duty is met: both protected-branch test files carry `sandbox_home` again; `test_main_sync.py` and `test_lavish_direct.py` (outside Scope, D-64) run with HOME and USERPROFILE set to a temporary folder for the whole pytest process
 - Supersedes: none
 - To reverse: none needed; the smoke file stays as it was
+
+## D-73 — Review round 1 widens the freshness edits; the contract's Scope list counts them
+- 2026-10-28 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — leave `AGENTS.md` line 201, `PROVIDERS.md` "Protected-branch guard" and the `SAFETY.md` outside-Git line for 0010 and 0013 vs B — make the one-clause edits now and count every D-71 and D-73 path as in Scope for this slice
+- Chosen: B — each line states a guard verdict the rule changed, so the same-commit rule (`FRESHNESS.md`) binds them; the contract's `## Scope` list is superseded for these doc paths only: `hooks/README.md`, `SAFETY.md`, `AGENTS.md`, `PROVIDERS.md`, `docs/afk/protected-branch-guard/PRD.md`, `FRESHNESS.md`, `hooks/genericity-allow.txt`; D-71's "left: `PROVIDERS.md`" no longer holds
+- Supersedes: D-71 (its `PROVIDERS.md` clause only)
+- To reverse: revert those hunks; 0010 and 0013 own the documents

@@ -202,3 +202,6 @@
 2026-10-28 20:46 | autopilot | run | heartbeat 4/13 done, starting 0006-worktree-guard — it needs only placement, so it runs while 0005 waits
 2026-10-28 20:55 | execute | 0006-worktree-guard | designing — started the guard slice; the guard code changed since its design study, so a fresh study of the guard runs first
 2026-10-28 21:26 | execute | 0006-worktree-guard | developing — the fresh study (INV-026, partial: one name-form check open) found no guard test of a plain add and four stale documents; decisions D-66 to D-72 recorded; the rule and its 97 tests are written
+2026-10-29 07:10 | execute | 0006-worktree-guard | verifying — the guard tests pass on Windows (1525) and on Linux match the base run's 42 harness failures; the hook smoke run and the static gates pass
+2026-10-29 07:12 | execute | 0006-worktree-guard | pushed 7d97011 to the change; the subtask is ticked in its checklist; two rationale notes posted
+2026-10-29 07:13 | execute | 0006-worktree-guard | reviewing — round 1 found 22 problems (1 high), fixes for 21 are written, 1 design note goes to the feature gate

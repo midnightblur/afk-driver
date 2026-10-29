@@ -129,6 +129,8 @@ ADD_FORMS = [
     "git worktree add --reason why --lock {t} dev",
     "git worktree add --detach -- {t}",
     "git worktree add --lo {t}",
+    "git worktree add --no-checkout {t}",
+    "git worktree add --end-of-options {t}",
 ]
 
 
@@ -186,6 +188,11 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "git worktree \"$SUB\" ../x",
     "git worktree add --unknown-flag ../x",
     "git -C \"$D\" worktree add ../x",
+    "V='worktree add ../x'; git $V",
+    "git $(echo worktree) add ../x",
+    "git worktree add --detach=x ../x",
+    "git -c alias.wt=worktree wt add ../../out",
+    "GIT_DIR=$X git worktree add ../../out",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -197,6 +204,12 @@ def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     "bash -c 'git worktree add ../../out'",
     "git work\\tree add ../../out",
     "git 'worktree' \"add\" ../../out",
+    "if true; then git worktree add ../../out; fi",
+    "for n in a; do git worktree add ../../out; done",
+    "while true; do git worktree add ../../out; done",
+    "! git worktree add ../../out",
+    "eval 'git worktree add ../../out'",
+    "if true; then bash -c 'git worktree add ../../out'; fi",
 ])
 def test_nested_and_quoted_forms_are_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -234,8 +247,42 @@ def test_the_launch_flag_lifts_the_rule(world):
 
 def test_the_developer_runs_a_plain_add_anywhere(world):
     target = world["tmp"] / "dev-own"
-    git(world["a"], "worktree", "add", "-q", "-b", "devown", str(target))
+    command = f"git worktree add -q -b devown {target.as_posix()}"
+    assert guard(world, world["agent"], command, detector=False)[0] is None
+    git(world["agent"], "worktree", "add", "-q", "-b", "devown", str(target))
     assert target.is_dir()
+
+
+def test_a_git_dir_naming_an_unlisted_repository_leaves_the_rule_silent(world):
+    """The rest of the guard may still refuse a write to Z's main checkout; this rule judges Z, not A."""
+    reason, _ = guard(world, world["agent"], f"GIT_DIR={(world['z'] / '.git').as_posix()} git worktree add ../../out")
+    assert reason is None or HEAD not in reason
+
+
+@pytest.mark.parametrize("config, start", [
+    ("developer:\n  worktreeRoot: 'relative/root'\n", f"{HEAD}. Cause: worktree root: "),
+    ("developer: x\n", f"{HEAD}. Cause: placement has no answer ("),
+])
+def test_an_unsound_root_or_placement_error_is_refused(world, config, start):
+    (world["home"] / ".afk" / "config.yaml").write_text(config, encoding="utf-8")
+    reason, _ = guard(world, world["agent"], "git worktree add ../inside")
+    assert reason is not None and reason.startswith(start)
+    assert reason.endswith("Move: run /afk:setup, or ask the developer.")
+
+
+def test_a_fault_inside_the_rule_refuses_a_worktree_command(world, monkeypatch):
+    sys.path.insert(0, str(PLUGIN_ROOT / "hooks" / "lib"))
+    try:
+        rule = load(PLUGIN_ROOT / "hooks" / "lib" / "worktree_placement_rule.py", "afk_placement_rule_fault")
+    finally:
+        sys.path.remove(str(PLUGIN_ROOT / "hooks" / "lib"))
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(rule, "worktree_refusal", broken)
+    reason = rule.refusal("git worktree add ../x", world["agent"])
+    assert reason == f"{HEAD}. Cause: the guard could not read this command (boom). Move: ask the developer."
 
 
 # ------------------------------------------------------------------ git worktree move
@@ -257,6 +304,16 @@ def test_move_into_an_existing_folder_lands_under_the_source_name(world):
     assert_outside(reason, into / "movable", world["base"])
 
 
+def test_a_move_inside_still_meets_the_older_move_rules(world):
+    """An inside destination leaves the verdict to the rest of the guard: its forced-move refusal still runs."""
+    moved = world["base"] / "movable"
+    git(world["a"], "worktree", "add", "-q", "-b", "mv1", str(moved))
+    reason, _ = guard(world, world["agent"],
+                      f"git worktree move --force {moved.as_posix()} {(world['base'] / 'm3').as_posix()}")
+    assert reason is not None and "forced worktree moves can override a worktree lock" in reason
+    assert HEAD not in reason
+
+
 def test_move_inside_passes(world):
     moved = world["base"] / "movable"
     git(world["a"], "worktree", "add", "-q", "-b", "mv1", str(moved))
@@ -264,11 +321,56 @@ def test_move_inside_passes(world):
     assert reason is None
 
 
+@pytest.mark.parametrize("form", [
+    "git worktree add {t}",
+    "Set-Location {a}; git worktree add {t}",
+    "git worktree add `\n  {t}",
+])
+def test_the_powershell_tool_reading_is_refused_too(world, form):
+    target = world["tmp"] / "outside"
+    command = form.format(t=target.as_posix(), a=world["agent"].as_posix())
+    reason, _ = guard(world, world["agent"], command, tool="PowerShell")
+    assert_outside(reason, target, world["base"])
+
+
+def test_the_powershell_tool_move_and_creator_are_refused(world):
+    moved = world["base"] / "movable"
+    git(world["a"], "worktree", "add", "-q", "-b", "mv1", str(moved))
+    target = world["tmp"] / "moved-out"
+    reason, _ = guard(world, world["agent"], f"git worktree move {moved.as_posix()} {target.as_posix()}",
+                      tool="PowerShell")
+    assert_outside(reason, target, world["base"])
+    parent = world["tmp"] / "par"
+    reason, _ = guard(world, world["agent"], f"bash {CREATOR} --branch x --dir d --parent {parent.as_posix()}",
+                      tool="PowerShell")
+    assert_outside(reason, parent / "d", world["base"])
+
+
 # ------------------------------------------------------------------ the creator call
 
 def test_creator_parent_outside_is_refused(world):
     parent = world["tmp"] / "par"
     reason, _ = guard(world, world["agent"], f"bash {CREATOR} --branch x --dir d --parent {parent.as_posix()}")
+    assert_outside(reason, parent / "d", world["base"])
+
+
+def test_creator_behind_a_loop_word_is_refused(world):
+    parent = world["tmp"] / "par"
+    reason, _ = guard(world, world["agent"],
+                      f"for n in a; do bash {CREATOR} --branch x --dir d --parent {parent.as_posix()}; done")
+    assert_outside(reason, parent / "d", world["base"])
+
+
+def test_creator_with_a_variable_name_and_a_parent_is_refused(world):
+    reason, _ = guard(world, world["agent"],
+                      f"bash {CREATOR} --name \"$N\" --parent {(world['tmp'] / 'par').as_posix()}")
+    assert reason is not None and reason.startswith(f"{HEAD}. Cause: the guard cannot work out")
+
+
+def test_creator_repo_flag_judges_the_named_repository(world):
+    parent = world["tmp"] / "par"
+    reason, _ = guard(world, world["z_agent"],
+                      f"bash {CREATOR} --repo {world['a'].as_posix()} --branch x --dir d --parent {parent.as_posix()}")
     assert_outside(reason, parent / "d", world["base"])
 
 
@@ -308,6 +410,16 @@ SETTING_FORMS = [
     ("PowerShell", "$env:{n}='1'"),
     ("PowerShell", "Set-Item -Path env:{n} -Value 1"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable('{n}', '1')"),
+    ("PowerShell", "$v = '{n}'; [Environment]::SetEnvironmentVariable($v, '1')"),
+    ("PowerShell", "${{env:{n}}} = '1'"),
+    ("PowerShell", "$env:{n} += '1'"),
+    ("PowerShell", "Set-Content Env:{n} 1"),
+    ("PowerShell", "Add-Content -Path env:{n} -Value 1"),
+    ("Bash", "eval 'export {n}=1'"),
+    ("Bash", "if true; then export {n}=1; fi"),
+    ("Bash", "set {n}=1"),
+    ("PowerShell", "set {n}=1"),
+    ("Bash", "export {n}"),
 ]
 
 
@@ -324,6 +436,9 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("Bash", "grep -rn {n} hooks"), ("Bash", "echo ${n}"), ("Bash", "unset {n}"), ("Bash", "env -u {n} ls"),
     ("Bash", "printenv {n}"), ("Bash", "declare -p {n}"), ("Bash", "export -n {n}"),
     ("PowerShell", "Remove-Item env:{n}"), ("PowerShell", "Write-Output $env:{n}"),
+    ("Bash", "git commit --allow-empty -m 'document SetEnvironmentVariable and {n}'"),
+    ("PowerShell", "[Environment]::GetEnvironmentVariable('{n}')"), ("PowerShell", "Get-Content env:{n}"),
+    ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
     reason, _ = guard(world, world["agent"], form.format(n=name), tool=tool)
