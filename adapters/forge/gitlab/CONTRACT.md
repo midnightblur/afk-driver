@@ -24,14 +24,24 @@ absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 - `forge`
 - `gitlab.remote`
 - `git.base-branch`
+- `developer.forgeAccount`
 
 No credential is configured for this kind: authentication is whatever the forge
-CLI already established, and no configuration file holds a token.
+CLI already established, and no configuration file holds a token. With
+`developer.forgeAccount` set, every `glab` call runs with `GITLAB_HOST` set to
+the forge remote's host (`scripts/forge_account.py`). glab holds one sign-in per
+host, so the account is checked, not selected.
 
 ## Notes that bite
 
 The adapter tests use a stub command-line tool. They do not contact GitLab.
 
+- `auth-status` answers `{"authenticated": true, "user", "accounts"}`. With an
+  account set it asks `glab api --hostname <host> user`, because `glab auth status`
+  ignores `GITLAB_HOST`; a missing sign-in or a login that differs from the
+  account answers `authenticated: false` with a reason starting
+  `account not available` that names the signed-in login, and exits 1. Settings
+  that cannot be read also exit 1.
 - A paginated read (`glab api --paginate`) prints one JSON document per page,
   not one document holding every page. `thread-list` decodes the documents in
   order and joins the arrays; a caller driving `glab` directly does the same, or

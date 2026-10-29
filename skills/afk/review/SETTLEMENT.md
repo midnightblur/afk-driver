@@ -16,7 +16,7 @@ The review pass stays read-only and single-shot. The caller owns the loop, remed
 
 Run `${AFK_PLUGIN_ROOT}/skills/afk/review/scripts/forge_ledger.py` from the consuming repository. It owns marker emission, parsing, trust checks, transitions, anchoring, and gate checks. Run `reconstruct` before every stateful command.
 
-Pass the authenticated forge user with `--trust`. On a cross-identity resume, add each accepted earlier writer with another `--trust`. Classify every other marker author with `--reject`. An unclassified author or an edited marker causes exit 2 before any write or resolution.
+The tool trusts every account the forge tool holds on the host, as `auth-status` reports it. A failing sign-in check exits 2. On a cross-identity resume, add each accepted earlier writer with another `--trust`. Classify every other marker author with `--reject`. An unclassified author or an edited marker causes exit 2 before any write or resolution.
 
 ### Commands
 

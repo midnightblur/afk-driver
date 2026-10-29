@@ -109,10 +109,13 @@ beside a visible `author`: GitLab nulls both when the token cannot read users. `
 not an edit. A verb that cannot read the signal answers `error`; it never guesses
 `false`, and a caller refuses a note without the field.
 
-`ci-wait` is the one verb with an exit-code contract, because a caller routes on
+`ci-wait` has the one four-value exit-code contract, because a caller routes on
 it rather than on a body: 0 the pipeline succeeded, 1 it failed or was cancelled,
 2 the budget ran out while it kept running (parking is not cancelling), 3 the
 status was unreadable three times running — a fault, never a verdict.
+`auth-status` exits 1 when the repository's forge account is set and not
+available (`account not available`), so a caller reading only the exit code
+still refuses.
 
 The three `thread-*` verbs carry a review conversation: list the threads, reply
 inside one, resolve one. A kind that cannot resolve answers `unsupported` with

@@ -14,7 +14,8 @@
 # would break the moment the repository moved to GitHub.
 #
 # Authentication is whatever `glab auth login` established. Nothing here reads a
-# token, and no configuration file holds one.
+# token, and no configuration file holds one. With a forge account set for the
+# repository (`scripts/forge_account.py`), every call names that account's host.
 
 set -u
 
@@ -92,8 +93,30 @@ command -v glab >/dev/null 2>&1 || unavailable "forge: gitlab — the \`glab\` C
 # limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
 _forge_limit=
 timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+_glab_bin=$(type -P glab)
+_glab_run() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$_glab_bin" "$@"; else "$_glab_bin" "$@"; fi
+}
+
+FORGE_HOST= FORGE_ACCOUNT= FORGE_ACCOUNT_ERROR=
+if _account=$("$PY" "$PLUGIN_ROOT/scripts/forge_account.py" 2>/dev/null); then
+  { read -r FORGE_HOST; read -r FORGE_ACCOUNT; } <<<"$(printf '%s\n' "$_account" | tr -d '\r')"
+else
+  FORGE_ACCOUNT_ERROR=$("$PY" "$PLUGIN_ROOT/scripts/forge_account.py" 2>&1 >/dev/null | tr -d '\r' | head -c 300)
+  FORGE_ACCOUNT_ERROR=${FORGE_ACCOUNT_ERROR:-the forge account helper failed}
+fi
+
+# glab holds one login per host, so an account selects only the host; setup refuses a differing login.
 glab() {
-  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P glab)" "$@"; else command glab "$@"; fi
+  if [ -n "$FORGE_ACCOUNT_ERROR" ]; then
+    printf 'forge: gitlab — %s\n' "$FORGE_ACCOUNT_ERROR" >&2
+    return 1
+  fi
+  if [ -n "$FORGE_ACCOUNT" ] && [ -n "$FORGE_HOST" ]; then
+    GITLAB_HOST="$FORGE_HOST" _glab_run "$@"
+  else
+    _glab_run "$@"
+  fi
 }
 
 # arg <key> [default] — one value out of the JSON payload, as text.
@@ -376,9 +399,31 @@ print(json.dumps({"status": p.get("status") or "", "url": p.get("web_url") or ""
   ;;
 
 auth-status)
+  if [ -n "$FORGE_ACCOUNT_ERROR" ]; then
+    "$PY" -c 'import json,sys;print(json.dumps({"authenticated": False, "reason": "forge: gitlab — " + sys.argv[1]}))' \
+      "$FORGE_ACCOUNT_ERROR"
+    exit 1
+  fi
+  if [ -n "$FORGE_ACCOUNT" ]; then
+    # `glab auth status` ignores GITLAB_HOST, so the host is asked who its login is.
+    user=$(glab api --hostname "${FORGE_HOST:-gitlab.com}" user 2>/dev/null \
+      | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("username",""))' 2>/dev/null | tr -d '\r\n')
+    "$PY" -c '
+import json, sys
+user, account, host = sys.argv[1:4]
+if user and user.lower() == account.lower():
+    print(json.dumps({"authenticated": True, "user": user, "account": account, "host": host, "accounts": [user]}))
+    raise SystemExit(0)
+why = f"glab is signed in to {host} as {user}" if user else f"glab has no sign-in that {host} accepts"
+print(json.dumps({"authenticated": False, "account": account, "host": host,
+                  "reason": f"account not available: {account} on {host} ({why}); run `glab auth login --hostname {host}`"}))
+raise SystemExit(1)' "$user" "$FORGE_ACCOUNT" "${FORGE_HOST:-gitlab.com}"
+    exit $?
+  fi
   if glab auth status >/dev/null 2>&1; then
-    user=$(glab api user 2>/dev/null | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("username",""))' 2>/dev/null)
-    printf '{"authenticated":true,"user":"%s"}\n' "$user"
+    user=$(glab api user 2>/dev/null | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("username",""))' 2>/dev/null | tr -d '\r\n')
+    "$PY" -c 'import json,sys;print(json.dumps({"authenticated": True, "user": sys.argv[1],
+  "accounts": [sys.argv[1]] if sys.argv[1] else []}))' "$user"
   else
     printf '{"authenticated":false,"reason":"forge: gitlab — not logged in; run `glab auth login`"}\n'
   fi
@@ -395,7 +440,8 @@ change-create-draft)
   [ -n "$target" ] && create+=(--target-branch "$target")
   [ -n "$source" ] && create+=(--source-branch "$source")
   reviewer=$(arg reviewer); [ -n "$reviewer" ] && create+=(--reviewer "$reviewer")
-  assignee=$(arg assignee); [ -n "$assignee" ] && create+=(--assignee "$assignee")
+  assignee=$(arg assignee); [ "${assignee,,}" = none ] && assignee=
+  [ -n "$assignee" ] && create+=(--assignee "$assignee")
   out=$("${create[@]}" 2>&1) || {
     printf '{"error":true,"verb":"change-create-draft","reason":%s}\n' \
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"

@@ -218,3 +218,14 @@
 2026-10-29 14:04 | autopilot | 0006-worktree-guard | parked review_fail — ten review rounds left five findings open, one high: a tool option whose value looks like a harmless program can hide a worktree command from the guard
 2026-10-29 14:04 | autopilot | 0011-smoke-e2e | parked(waiting on 0005-worktree-creator, 0006-worktree-guard) — journey tests need every earlier slice done
 2026-10-29 14:04 | autopilot | run | heartbeat 4/13 done, 2 parked, starting 0007-forge-account
+2026-10-29 14:14 | execute | 0007-forge-account | designing — started the forge account slice; the forge code changed since its two design studies, so a fresh study of it runs first
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-80) — the slice also edits eight small files outside its list, because the cache, the key lists and the setup register would go stale otherwise
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-81) — settings that cannot be read stop every forge call instead of acting as the default login
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-82) — with no forge account set, forge calls behave exactly as before
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-83) — the sign-in check lists every account on the host, and the review ledger trusts all of them
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-84) — only the account check can save a forge account
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-85) — the account check gets one 20-second try in total and warns about a mismatched push sign-in or commit email
+2026-10-29 15:40 | execute | 0007-forge-account | decision(D-86) — the issue tracker uses the same host as the forge remote
+2026-10-29 15:41 | execute | 0007-forge-account | designing — the fresh study (INV-027) closed every question except how gh and glab behave when run for real
+2026-10-29 15:41 | execute | 0007-forge-account | developing — forge account helper, both forge wrappers, branch protection, the issue tracker, the review ledger and the setup account check are written with their tests
+2026-10-29 15:09 | execute | 0007-forge-account | note — the nine lines above stamped 15:40 and 15:41 were written at 15:09; the clock was misread

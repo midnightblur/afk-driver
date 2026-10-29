@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -2021,3 +2023,95 @@ def test_command_post_rejects_malformed_git_paths_before_adapter_write(
 
     assert not [verb for verb, _ in adapter.calls
                 if verb in {"change-comment", "thread-reply", "thread-resolve"}]
+
+
+# ---- the forge account ----------------------------------------------------------
+
+class AccountsAdapter(FakeAdapter):
+    """auth-status names the current login and every account gh holds on the host."""
+
+    def call(self, verb, payload, mode="read"):
+        if verb == "auth-status":
+            self.calls.append((verb, payload))
+            return {"authenticated": True, "user": "alice", "accounts": ["alice", "bob"]}
+        return super().call(verb, payload, mode)
+
+
+def test_trusted_set_holds_every_account_on_the_host_plus_trust():
+    ledger = load_module()
+    adapter = AccountsAdapter(author="alice")
+    trusted, _ = ledger._trusted_set(adapter, ["carol"], [])
+    assert trusted == {"alice", "bob", "carol"}
+    marker = ledger.make_finding_marker("slice/f001", "slice", "abc", finding(),
+                                        ledger.normalize_locator(finding()))
+    note = adapter._note(marker, "1")
+    adapter.notes.append(note)
+    note["author"] = "bob"
+    ledger.reconstruct_state(adapter, "1")
+    note["author"] = "carol"
+    ledger.reconstruct_state(adapter, "1", trust=["carol"])
+    with pytest.raises(ledger.LedgerError, match="unclassified_authors"):
+        ledger.reconstruct_state(adapter, "1")
+
+
+class FailingSignIn(FakeAdapter):
+    def __init__(self, ledger):
+        super().__init__()
+        self.ledger = ledger
+
+    def call(self, verb, payload, mode="read"):
+        if verb == "auth-status":
+            raise self.ledger.LedgerError("account not available: alice on github.com")
+        return super().call(verb, payload, mode)
+
+
+@pytest.mark.parametrize("command", [
+    ["reconstruct", "--change", "1"],
+    ["reply", "--change", "1", "--key", "slice/f001", "--kind", "carried", "--text", "Carry."],
+    ["gate", "--change", "1", "--unit", "slice", "--phase", "closure", "--head", "abc", "--round", "1"],
+])
+def test_a_failing_login_lookup_makes_review_commands_exit_2(monkeypatch, capsys, command):
+    ledger = load_module()
+    adapter = FailingSignIn(ledger)
+    monkeypatch.setattr(ledger, "Adapter", lambda: adapter)
+    assert ledger.main(command) == 2
+    assert not [verb for verb, _ in adapter.calls if verb in {"change-comment", "thread-reply"}]
+    capsys.readouterr()
+
+
+def test_a_failing_sign_in_check_through_the_adapter_seam_exits_2(tmp_path, monkeypatch, capsys):
+    ledger = load_module()
+    seam = tmp_path / "adapter.py"
+    seam.write_text(
+        "import json, sys\n"
+        "if sys.argv[1] == 'auth-status':\n"
+        "    print(json.dumps({'authenticated': False, 'reason': 'account not available: alice on github.com'}))\n"
+        "    sys.exit(1)\n"
+        "print('{}')\n", encoding="utf-8")
+    monkeypatch.setenv("AFK_LEDGER_ADAPTER_CMD", f'"{Path(sys.executable).as_posix()}" "{seam.as_posix()}"')
+    assert ledger.main(["reconstruct", "--change", "1"]) == 2
+    capsys.readouterr()
+
+
+def test_the_rationale_cache_is_keyed_by_the_forge_account(tmp_path, monkeypatch):
+    ledger = load_module()
+    home = tmp_path / "home"
+    home.mkdir()
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(home))
+    for name in ("AFK_CONFIG", "CLAUDE_PROJECT_DIR"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AFK_RATIONALE_CACHE", str(tmp_path / "cache"))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for argv in (["init", "-q"], ["remote", "add", "origin", "https://github.com/acme/widget.git"]):
+        subprocess.run(["git", "-C", str(repo), *argv], check=True, capture_output=True)
+    personal = repo / ".git" / "afk" / "config.yaml"
+    personal.parent.mkdir(parents=True)
+    roots = []
+    for account in ("alice", "bob"):
+        personal.write_text(f"developer:\n  forgeAccount: {account}\n", encoding="utf-8")
+        roots.append(ledger.cache_root(str(repo)))
+    personal.unlink()
+    roots.append(ledger.cache_root(str(repo)))
+    assert len(set(roots)) == 3

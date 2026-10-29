@@ -12,7 +12,8 @@
 # against one forge runs unchanged on the other. "Pipeline" here is the combined
 # status of the head commit's checks.
 #
-# Authentication is whatever `gh auth login` established.
+# Authentication is whatever `gh auth login` established; with a forge account set
+# (`scripts/forge_account.py`), each call carries that account's token, never the default login.
 
 set -u
 
@@ -85,8 +86,47 @@ command -v gh >/dev/null 2>&1 || unavailable "forge: github — the \`gh\` CLI i
 # limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
 _forge_limit=
 timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+_gh_bin=$(type -P gh)
+_gh_run() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$_gh_bin" "$@"; else "$_gh_bin" "$@"; fi
+}
+
+FORGE_HOST= FORGE_ACCOUNT= FORGE_TOKEN_VAR=GH_TOKEN FORGE_ACCOUNT_ERROR=
+if _account=$("$PY" "$PLUGIN_ROOT/scripts/forge_account.py" 2>/dev/null); then
+  { read -r FORGE_HOST; read -r FORGE_ACCOUNT; read -r FORGE_TOKEN_VAR; } <<<"$(printf '%s\n' "$_account" | tr -d '\r')"
+  FORGE_HOST=${FORGE_HOST:-github.com}
+  [ "$FORGE_TOKEN_VAR" = GH_ENTERPRISE_TOKEN ] || FORGE_TOKEN_VAR=GH_TOKEN
+else
+  FORGE_ACCOUNT_ERROR=$("$PY" "$PLUGIN_ROOT/scripts/forge_account.py" 2>&1 >/dev/null | tr -d '\r' | head -c 300)
+  FORGE_ACCOUNT_ERROR=${FORGE_ACCOUNT_ERROR:-the forge account helper failed}
+fi
+
+# Prints the repository account's token for this one call; fails with `account not available`.
+account_token() {
+  local token
+  token=$(unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+          _gh_run auth token --hostname "$FORGE_HOST" --user "$FORGE_ACCOUNT" 2>/dev/null | tr -d '\r\n')
+  if [ -z "$token" ]; then
+    printf 'forge: github — account not available: %s on %s; run `gh auth login --hostname %s`\n' \
+      "$FORGE_ACCOUNT" "$FORGE_HOST" "$FORGE_HOST" >&2
+    return 1
+  fi
+  printf '%s' "$token"
+}
+
 gh() {
-  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P gh)" "$@"; else command gh "$@"; fi
+  if [ -n "$FORGE_ACCOUNT_ERROR" ]; then
+    printf 'forge: github — %s\n' "$FORGE_ACCOUNT_ERROR" >&2
+    return 1
+  fi
+  [ -n "$FORGE_ACCOUNT" ] || { _gh_run "$@"; return; }
+  local token
+  token=$(account_token) || return 1
+  (
+    unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+    export GH_HOST="$FORGE_HOST" "$FORGE_TOKEN_VAR=$token"
+    _gh_run "$@"
+  )
 }
 
 arg() {
@@ -384,9 +424,40 @@ print(json.dumps({"status": (d.get("pipeline") or {}).get("status", ""), "url": 
   ;;
 
 auth-status)
-  if gh auth status >/dev/null 2>&1; then
-    user=$(gh api user --jq .login 2>/dev/null)
-    printf '{"authenticated":true,"user":"%s"}\n' "$user"
+  # `accounts`: every login gh holds on the host, read by name only (never a token).
+  host_accounts() {
+    (unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+     _gh_run auth status --hostname "$FORGE_HOST" --json hosts --jq '.hosts[]?[]? | .login' 2>/dev/null) \
+      | tr -d '\r' | "$PY" -c 'import json,sys;print(json.dumps(sorted({l.strip() for l in sys.stdin if l.strip()})))'
+  }
+  if [ -n "$FORGE_ACCOUNT_ERROR" ]; then
+    "$PY" -c 'import json,sys;print(json.dumps({"authenticated": False, "reason": "forge: github — " + sys.argv[1]}))' \
+      "$FORGE_ACCOUNT_ERROR"
+    exit 1
+  fi
+  if [ -n "$FORGE_ACCOUNT" ]; then
+    if ! account_token >/dev/null 2>&1; then
+      "$PY" -c 'import json,sys;print(json.dumps({"authenticated": False, "account": sys.argv[1], "host": sys.argv[2],
+  "reason": "account not available: %s on %s; run `gh auth login --hostname %s`" % (sys.argv[1], sys.argv[2], sys.argv[2])}))' \
+        "$FORGE_ACCOUNT" "$FORGE_HOST"
+      exit 1
+    fi
+    user=$(gh api user --jq .login 2>/dev/null) || user=
+    user=$(printf '%s' "$user" | tr -d '\r\n')
+    if [ -z "$user" ]; then
+      "$PY" -c 'import json,sys;print(json.dumps({"authenticated": False, "account": sys.argv[1], "host": sys.argv[2],
+  "reason": "account not available: %s did not answer for %s" % (sys.argv[2], sys.argv[1])}))' \
+        "$FORGE_ACCOUNT" "$FORGE_HOST"
+      exit 1
+    fi
+    "$PY" -c 'import json,sys;print(json.dumps({"authenticated": True, "user": sys.argv[1], "account": sys.argv[2],
+  "host": sys.argv[3], "accounts": sorted(set(json.loads(sys.argv[4])) | {sys.argv[1]})}))' \
+      "$user" "$FORGE_ACCOUNT" "$FORGE_HOST" "$(host_accounts)"
+  elif gh auth status >/dev/null 2>&1; then
+    user=$(gh api user --jq .login 2>/dev/null | tr -d '\r\n')
+    "$PY" -c 'import json,sys;print(json.dumps({"authenticated": True, "user": sys.argv[1],
+  "accounts": sorted(set(json.loads(sys.argv[2])) | ({sys.argv[1]} if sys.argv[1] else set()))}))' \
+      "$user" "$(host_accounts)"
   else
     printf '{"authenticated":false,"reason":"forge: github — not logged in; run `gh auth login`"}\n'
   fi
@@ -398,7 +469,8 @@ change-create-draft)
   [ -n "$target" ] && create+=(--base "$target")
   [ -n "$source" ] && create+=(--head "$source")
   reviewer=$(arg reviewer); [ -n "$reviewer" ] && create+=(--reviewer "$reviewer")
-  assignee=$(arg assignee); [ -n "$assignee" ] && create+=(--assignee "$assignee")
+  assignee=$(arg assignee); [ "${assignee,,}" = none ] && assignee=
+  [ -n "$assignee" ] && create+=(--assignee "$assignee")
   out=$("${create[@]}" 2>&1) || {
     printf '{"error":true,"verb":"change-create-draft","reason":%s}\n' \
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"

@@ -421,7 +421,9 @@ a token value — not even partially.
   host this repository pushes to>` — the token lives in glab's own store, never in
   this plugin. `skills/afk/setup/scripts/setup_secrets.py` drives that login as
   one of its steps (it shells out to `glab`; the token still never touches this
-  plugin).
+  plugin). With `developer.forgeAccount` set, every call sets `GITLAB_HOST` to the
+  forge remote's host, and `skills/afk/setup/scripts/forge_account_check.py`
+  checks the account with `glab api --hostname <host> user` before saving it.
 
 ### C3b · gh (GitHub CLI), logged in — **secret** *(only when `forge: github` or `tracker: github-issues`)*
 - **Needed by:** `adapters/forge/github/forge.sh` — every forge verb, so
@@ -440,7 +442,14 @@ a token value — not even partially.
 - **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
   drives that login when `forge: github` is configured (it shells out to `gh`;
-  the token still never touches this plugin).
+  the token still never touches this plugin). With `developer.forgeAccount`
+  set, the forge adapter, branch protection and the GitHub Issues tracker run
+  `gh auth token --hostname <host> --user <account>` (gh 2.92.0) before each
+  call and pass the token to that call alone, in `GH_TOKEN` or, for an
+  Enterprise Server host, `GH_ENTERPRISE_TOKEN`; the account needs
+  `gh auth login --hostname <host>` as that account.
+  `skills/afk/setup/scripts/forge_account_check.py` checks it with `gh api user`
+  before saving it. The report-issue leg keeps the default login.
 
 ### C4 · Maven wrapper + JDK *(only when `maven` is in `build-gates:`)*
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's

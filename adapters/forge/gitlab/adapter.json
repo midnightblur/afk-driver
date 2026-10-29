@@ -29,7 +29,8 @@
   "configKeys": [
     "forge",
     "gitlab.remote",
-    "git.base-branch"
+    "git.base-branch",
+    "developer.forgeAccount"
   ],
   "register": [
     "C3"

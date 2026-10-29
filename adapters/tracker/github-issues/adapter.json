@@ -20,7 +20,8 @@
   "configKeys": [
     "tracker",
     "github-issues.repo",
-    "github-issues.state-labels"
+    "github-issues.state-labels",
+    "developer.forgeAccount"
   ],
   "register": [
     "C3b"

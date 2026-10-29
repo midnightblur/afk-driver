@@ -9,7 +9,7 @@ one the branch's remote host implies. `adapters/forge/branch_protection.py` read
 the one branch (`ADAPTERS.md`); it runs in this process, and no shell starts.
 
 A definite forge answer is cached in `<git common dir>/afk/protection-cache.json`
-per forge, host, repository, API root and branch for `AFK_PROTECTION_CACHE_TTL`
+per forge, host, repository, API root, forge account and branch for `AFK_PROTECTION_CACHE_TTL`
 seconds (default and maximum 300; `0` asks the forge every time). The remote's
 default branch, `main` and `master` are always asked live, and so is every branch
 while the default branch is unknown (no `refs/remotes/<remote>/HEAD`). A fallback
@@ -117,7 +117,7 @@ def _configured(checkout: Path, common: Path) -> dict:
 
 
 def facts(checkout: Path, common: Path, branch: str) -> dict:
-    """`forge`, `repo` (owner/name or ""), `host` and `remote` of the branch's remote."""
+    """`forge`, `repo` (owner/name or ""), `host` and `remote` of the branch's remote; `account`."""
     config = read_config(common)
     settings = _configured(checkout, common)
     forge = settings.get("forge") or "none"
@@ -138,7 +138,9 @@ def facts(checkout: Path, common: Path, branch: str) -> dict:
     if forge not in ("github", "gitlab"):
         forge = "gitlab" if "gitlab" in host else "github" if "github" in host else "none"
     repo = _load("afk_project_for_lookup", ROOT / "adapters" / "forge" / "project_from_remote.py").project(url) if url else ""
-    return {"forge": forge, "repo": repo, "host": host, "remote": remote}
+    account = (settings.get("developer") or {}).get("forgeAccount")
+    account = account.strip() if isinstance(account, str) else ""
+    return {"forge": forge, "repo": repo, "host": host, "remote": remote, "account": account}
 
 
 def default_branch(common: Path, remote: str) -> str:
@@ -220,11 +222,11 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     default = default_branch(common, found["remote"])
     cacheable = ttl > 0 and bool(found["repo"]) and bool(default) and branch not in {"main", "master", default}
     cache = common / "afk" / "protection-cache.json"
-    key = json.dumps([forge, found["host"], found["repo"], api, branch])
+    key = json.dumps([forge, found["host"], found["repo"], api, found["account"], branch])
     if cacheable and key in (entries := _read_cache(cache, ttl)):
         return {"protected": entries[key]["protected"], "source": forge}
     answer = _load("afk_branch_protection", ROOT / "adapters" / "forge" / "branch_protection.py").protection(
-        forge, branch, found["repo"], str(checkout), limit, api, found["host"])
+        forge, branch, found["repo"], str(checkout), limit, api, found["host"], found["account"])
     if answer.get("error") or not isinstance(answer.get("protected"), bool):
         return fallback(branch, common, found["remote"], answer.get("reason") or f"the {forge} forge did not answer")
     if cacheable:

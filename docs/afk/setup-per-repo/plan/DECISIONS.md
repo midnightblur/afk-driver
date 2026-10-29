@@ -559,3 +559,52 @@
 - Chosen: B — round 9 showed `${env:/NAME} = 1`, `${Environment::NAME} = 1` and a drive alias made by `New-PSDrive` all set the variable, a PowerShell host named `$P` passed, and `nice`, `timeout`, `setsid`, `stdbuf`, `xargs` and an unreadable word before `env -S` hid the split string. The bare `env:NAME` spelling in Bash text (`grep 'env:NAME'`) still passes. Bash text holding `$env:NAME` is now refused and needs rewording
 - Supersedes: D-78 "refuse a command PowerShell reads (the PowerShell tool, or text that names `pwsh`/`powershell`) whose text names a rule variable on the `env:` drive"
 - To reverse: restore `variable_refusal`, `_in_chain`, `WRITERS` and `ALIASES` in `hooks/lib/worktree_placement_rule.py` from c70071de and drop the round 9 rows from `scripts/tests/test_worktree_placement_guard.py`
+
+## D-80 — Files outside 0007's Scope that the forge account forces
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — park blocked(scope) vs B — make the smallest edit each needs and record it
+- Chosen: B — `scripts/protected-lookup.py` holds the protection cache the Acceptance says is keyed by account; the three `adapter.json` files and `adapters/tracker/github-issues/CONTRACT.md` list the keys each adapter reads; `ADAPTERS.md` said `ci-wait` was the one verb with an exit code; `skills/afk/setup/MANIFEST.md` C3/C3b name the new gh and glab calls (FRESHNESS rule 1); `RATIONALE.md` names the cache scope; `hooks/genericity-allow.txt` lists INV-027. Precedent D-50, D-61, D-73
+- Supersedes: none
+- To reverse: revert those lines; the slice then fails its cache, freshness and genericity checks
+
+## D-81 — Unreadable settings fail closed; the helper also names the token variable
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — an unreadable settings file reads as "no account" vs B — the helper raises `AccountError` (exit 2) and both forge wrappers and the GitHub Issues tracker refuse every call
+- Chosen: B — A would act as the default login, which ADR-0003 forbids. `token_variable(host)` and the three-line CLI answer are added beside the SDD §8 `host_and_account` (unchanged), so the shell wrappers and Python callers share one host-kind rule. The guard's protection read keeps its existing fail-open settings read: it only reads, and a guard must not crash
+- Supersedes: none
+- To reverse: make `host_and_account` return `("", "")` on `ConfigError`
+
+## D-82 — Without an account nothing changes; the forge remote derives the project as before
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — always pass `GH_HOST`/`GITLAB_HOST` from the remote vs B — set host and token only when `developer.forgeAccount` is set
+- Chosen: B — the Acceptance says unset is unchanged. `project_from_remote.py` stays as it is: with one remote the CLI already derives the project from the checkout (AC-026), and a `--repo` added for every call would break an Enterprise Server clone without an account. A `none` assignee on `change-create-draft` is dropped in both wrappers (AC-033)
+- Supersedes: none
+- To reverse: export the host in `gh()`/`glab()` unconditionally
+
+## D-83 — `auth-status` lists the host's accounts; the ledger trusts them all
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — the ledger asks gh itself for the host's accounts vs B — `auth-status` answers `accounts` (names from `gh auth status --json hosts`, never a token; glab: the one login) plus `account` and `host`, and every trust site in `forge_ledger.py` adds them to `--trust` and the current login
+- Chosen: B — the ledger reaches the forge only through the adapter, and the field is additive. With an account set and no token, `auth-status` exits 1, so the ledger's adapter call raises and review commands exit 2. The rationale cache scope adds the helper's host and account lines when an account is set; a repository without one keeps its old scope and cache
+- Supersedes: none
+- To reverse: drop `accounts` from both adapters and `_logins` from `forge_ledger.py`
+
+## D-84 — A forge account is saved only by the account check
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — `developer_values.py set forgeAccount=X` keeps writing it vs B — `set` only removes it, and `save_forge_account(root, account)` writes it after `check_forge_account` hears the host accept it
+- Chosen: B — SDD §5 lets nobody save an account the host has not accepted. `forge_user` returns the saved account, so assignee suggestions name it rather than the default login. Setup's `need` for `forgeAccount` stays `n/a`; the setup walk (0010) asks for it
+- Supersedes: none
+- To reverse: drop the `forgeAccount` refusal in `record`
+
+## D-85 — How the account check asks, and what it compares
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — a 20 s limit per call vs B — one 20 s deadline across the token fetch and `gh api user` (glab: one `glab api --hostname <h> user`)
+- Chosen: B — SDD §5 sets one try with 20000 ms for the check. The push sign-in is the push URL's user, else `credential.<url>.username`/`credential.username`, else gh's active login when gh is git's credential helper; an SSH remote names no account. The commit email is compared with the emails the host shows and the no-reply forms; `users.noreply.<host>` for an Enterprise or GitLab host is unverified: GitHub documents only github.com's form. Warnings come only with an accepted account
+- Supersedes: none
+- To reverse: give each call its own `TIMEOUT`
+
+## D-86 — The GitHub Issues tracker uses the forge remote's host
+- 2026-10-29 · decided by /afk:execute (0007-forge-account)
+- Options: A — derive the host from `github-issues.repo` vs B — use the forge account helper's host, as the forge wrappers do
+- Chosen: B — `github-issues.repo` is `owner/name` with no host, and ADR-0003 names one helper for every forge call. A tracker repository on another host than the forge remote would get the wrong token (inferred from INV-027; no repository is known to do this)
+- Supersedes: none
+- To reverse: add a host key to `github-issues:` and pass it to `_account_env`

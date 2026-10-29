@@ -3,7 +3,9 @@
 
 Answers the nine `tracker_*` operations through the `gh` CLI, so authentication
 is whatever `gh auth login` already established and no token lives in a
-configuration file.
+configuration file. With `developer.forgeAccount` set, each call acts as that
+account (`scripts/forge_account.py`): its token is fetched right before the call
+and passed to that call alone.
 
 GitHub Issues has no workflow engine, so two things are modelled rather than
 mapped one to one (`CONTRACT.md` states the same):
@@ -88,6 +90,45 @@ def state_labels():
 # ---------------------------------------------------------------------------
 # gh
 # ---------------------------------------------------------------------------
+TOKEN_VARIABLES = ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+_ACCOUNT = None
+
+
+def _forge_account():
+    global _ACCOUNT
+    if _ACCOUNT is None:
+        spec = importlib.util.spec_from_file_location(
+            "afk_forge_account_for_tracker", PLUGIN_ROOT / "scripts" / "forge_account.py")
+        _ACCOUNT = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_ACCOUNT)
+    return _ACCOUNT
+
+
+def _account_env():
+    """The environment for one `gh` call as the repository's forge account:
+    None with no account set, else an env dict, else a described error."""
+    helper = _forge_account()
+    try:
+        host, account = helper.host_and_account()
+    except helper.AccountError as problem:
+        return {"error": True, "reason": f"tracker: github-issues — the settings cannot be read: {problem}"}
+    if not account:
+        return None
+    host = host or "github.com"
+    clean = {k: v for k, v in os.environ.items() if k not in TOKEN_VARIABLES}
+    try:
+        done = subprocess.run(["gh", "auth", "token", "--hostname", host, "--user", account],
+                              capture_output=True, text=True, timeout=60,
+                              stdin=subprocess.DEVNULL, env=clean)
+        token = done.stdout.strip() if done.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        token = ""
+    if not token:
+        return {"error": True, "reason": f"tracker: github-issues — account not available: "
+                                         f"{account} on {host}; run `gh auth login --hostname {host}`"}
+    return {**clean, "GH_HOST": host, helper.token_variable(host): token}
+
+
 def _gh(*args, stdin=None):
     """Run `gh` and answer parsed JSON, or a described error. Never raises: an
     operation that throws tells the caller nothing about the far side."""
@@ -96,9 +137,12 @@ def _gh(*args, stdin=None):
                 "reason": "tracker: github-issues — the `gh` CLI is not on PATH"}
     argv = ["gh", *args]
     try:
+        env = _account_env()
+        if env is not None and env.get("error") is True:
+            return env
         # A child inheriting the server's stdin pipe hangs on Windows.
         feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
-        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, **feed)
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, env=env, **feed)
     except Exception as e:
         return {"error": True, "reason": f"{type(e).__name__}: {e}"}
     if done.returncode != 0:

@@ -23,14 +23,27 @@ absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 - `forge`
 - `github.remote`
 - `git.base-branch`
+- `developer.forgeAccount`
 
 No credential is configured for this kind: authentication is whatever the forge
-CLI already established, and no configuration file holds a token.
+CLI already established, and no configuration file holds a token. With
+`developer.forgeAccount` set, every `gh` call acts as that account on the forge
+remote's host (`scripts/forge_account.py`): the adapter runs
+`gh auth token --hostname <host> --user <account>` right before the call and
+passes the token to that call alone, in `GH_TOKEN` for `github.com` or a
+`ghe.com` host and in `GH_ENTERPRISE_TOKEN` for an Enterprise Server host, with
+`GH_HOST` set to the host.
 
 ## Notes that bite
 
 The adapter tests use a stub command-line tool. They do not contact GitHub.
 
+- `auth-status` answers `{"authenticated": true, "user", "accounts"}`, plus
+  `account` and `host` with an account set; `accounts` lists every login `gh`
+  holds on the host. With an account set and its token not available it answers
+  `authenticated: false` with a reason starting `account not available`, exits 1,
+  and no call falls back to the default login. Settings that cannot be read also
+  exit 1: the account is unknown, so every call refuses.
 - A paginated read (`gh api --paginate`) prints one JSON document per page, not
   one document holding every page. `thread-list` decodes the documents in order
   and joins the arrays; a caller driving `gh` directly does the same, or it sees

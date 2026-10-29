@@ -18,11 +18,16 @@ wildcard entry (`*` spans `/`) among the paginated protected branches.
 Credentials: with `api` given and `GH_TOKEN`/`GITHUB_TOKEN` (GitLab: `GITLAB_TOKEN`)
 set, the reads go straight over HTTPS (plain http only to loopback; otherwise the CLI path). GitHub without one, and only for the public API
 (`https://api.github.com`), asks `gh auth token` once (glab has no such command) and does the same; if that fails, both reads go through `gh api` / `glab api`.
+With a forge `account` given, GitHub reads act as it alone: its token comes from
+`gh auth token --hostname <h> --user <account>`, goes to the public API or to the
+`gh api` call in the variable gh reads for the host, and a missing token is an error,
+never the default login. glab holds one login per host, so a GitLab account selects nothing.
 The token lives in memory only: nothing is written to disk.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -56,14 +61,14 @@ def _kill_tree(process: subprocess.Popen) -> None:
             process.kill()
 
 
-def _run(argv: list[str], cwd: str, deadline: float) -> tuple[int, str, str] | None:
+def _run(argv: list[str], cwd: str, deadline: float, env: dict | None = None) -> tuple[int, str, str] | None:
     """`(exit code, stdout, stderr)`, or None when the deadline passed or the CLI is missing."""
     exe = shutil.which(argv[0])
     if exe is None:
         return None
     try:
         process = subprocess.Popen([exe, *argv[1:]], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   stdin=subprocess.DEVNULL, start_new_session=(os.name != "nt"))
+                                   stdin=subprocess.DEVNULL, start_new_session=(os.name != "nt"), env=env)
     except OSError:
         return None
     try:
@@ -78,9 +83,9 @@ def _run(argv: list[str], cwd: str, deadline: float) -> tuple[int, str, str] | N
     return process.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
 
 
-def _cli_get(argv: list[str], cwd: str, deadline: float):
+def _cli_get(argv: list[str], cwd: str, deadline: float, env: dict | None = None):
     """`(status, body)`: 200, 404, or 0 for any other failure; None when unanswered."""
-    done = _run(argv, cwd, deadline)
+    done = _run(argv, cwd, deadline, env)
     if done is None:
         return None
     code, out, err = done
@@ -174,21 +179,52 @@ def _hostname(forge: str, host: str, cwd: str, deadline: float) -> list[str] | N
     return ["--hostname", host] if host in known else None
 
 
-def _login_token(cwd: str, deadline: float) -> str:
-    """The CLI's own login token for the public API, asked once; "" falls back to the CLI reads.
+TOKEN_VARIABLES = ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+
+
+def _without_tokens() -> dict:
+    return {key: value for key, value in os.environ.items() if key not in TOKEN_VARIABLES}
+
+
+def _login_token(cwd: str, deadline: float, host: str = "github.com", account: str = "") -> str:
+    """The CLI's own login token for `host` (of `account` when given), asked once; "" when it has none.
 
     Only the public API is ever given it: an override host gets the CLI path, which resolves
     that host's own credentials, so a github.com login never travels to another address.
     """
-    done = _run(["gh", "auth", "token", "--hostname", "github.com"], cwd, deadline)
+    argv = ["gh", "auth", "token", "--hostname", host, *(["--user", account] if account else [])]
+    done = _run(argv, cwd, deadline, _without_tokens())
     return done[1].strip() if done is not None and done[0] == 0 else ""
 
 
-def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: str = "") -> dict:
+def _account_env(host: str, token: str) -> dict:
+    """The environment of one `gh api` call acting as an account: its token and host, no other token."""
+    spec = importlib.util.spec_from_file_location(
+        "afk_forge_account_for_protection", Path(__file__).resolve().parents[2] / "scripts" / "forge_account.py")
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    return {**_without_tokens(), helper.token_variable(host): token, "GH_HOST": host}
+
+
+def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: str = "",
+            account: str = "") -> dict:
     enc = urllib.parse.quote(branch, safe="/")
-    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
-    if api == PUBLIC_GITHUB_API and repo and not token and deadline - time.monotonic() > 0.3:
-        token = _login_token(cwd, deadline)  # with the budget nearly spent a spawn cannot pay for itself
+    cli_env = None
+    if account:
+        target = _hostname("github", host, cwd, deadline)
+        if target is None:
+            return _error(f"the CLI is not logged in to {host}")
+        name = target[1] if target else PUBLIC_HOSTS["github"]
+        token = _login_token(cwd, deadline, name, account)
+        if not token:
+            return _error(f"account not available: {account} on {name}")
+        cli_env = _account_env(name, token)
+        if name != PUBLIC_HOSTS["github"] or api != PUBLIC_GITHUB_API:
+            token = ""  # this login's token goes only to the public API, else to its own `gh api` call
+    else:
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+        if api == PUBLIC_GITHUB_API and repo and not token and deadline - time.monotonic() > 0.3:
+            token = _login_token(cwd, deadline)  # with the budget nearly spent a spawn cannot pay for itself
     answers = None
     if _may_send_token(api) and token and repo:
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
@@ -209,7 +245,7 @@ def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
             return _error(f"the CLI is not logged in to {host}")
 
         def by_cli(path: str):
-            return _cli_get(["gh", "api", *target, f"{base}/{path}/{enc}"], cwd, deadline)
+            return _cli_get(["gh", "api", *target, f"{base}/{path}/{enc}"], cwd, deadline, cli_env)
 
         answers = _together({"branch": lambda: by_cli("branches"), "rules": lambda: by_cli("rules/branches")},
                             deadline)
@@ -292,16 +328,17 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
 
 
 def protection(forge: str, branch: str, repo: str = "", cwd: str = ".", limit: float = 30.0,
-               api: str = "", host: str = "") -> dict:
+               api: str = "", host: str = "", account: str = "") -> dict:
     """`api` is the forge's HTTPS API root: with a token in the environment it replaces the CLI.
 
     `host` is the remote's host name; a CLI read names it only when the CLI is logged in to it.
+    `account` is the repository's forge account; GitHub reads then act as it alone.
     """
     if not branch:
         return _error("branch is required")
     deadline = time.monotonic() + limit
     if forge == "github":
-        return _github(branch, repo, cwd, deadline, api, host)
+        return _github(branch, repo, cwd, deadline, api, host, account)
     if forge == "gitlab":
         return _gitlab(branch, repo, cwd, deadline, api, host)
     return _error(f"forge {forge!r} has no branch-protection read")

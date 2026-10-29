@@ -793,6 +793,13 @@ def _author(value):
     return str(value or "")
 
 
+def _logins(auth):
+    """(current login, every login `auth-status` names: the current one plus its `accounts`)."""
+    current = _author(auth.get("user") or auth.get("username") or auth.get("login"))
+    held = auth.get("accounts") if isinstance(auth.get("accounts"), list) else []
+    return current, {name for name in [current, *map(_author, held)] if name}
+
+
 def dedupe_notes(notes):
     by_id = {}
     order = []
@@ -827,11 +834,8 @@ def _entries(notes, threads):
 
 
 def reconstruct_state(adapter, change, trust=(), reject=()):
-    auth = adapter.call("auth-status", {})
-    current = _author(auth.get("user") or auth.get("username") or auth.get("login"))
-    trusted, rejected = set(trust), set(reject)
-    if current:
-        trusted.add(current)
+    current, held = _logins(adapter.call("auth-status", {}))
+    trusted, rejected = set(trust) | held, set(reject)
     validate_trust(trusted, rejected)
     view = adapter.call("change-view", {"id": change})
     notes = adapter.call("note-list", {"id": change})
@@ -1799,11 +1803,8 @@ def command_rationale_drop(args):
 
 
 def _trusted_set(adapter, trust, reject):
-    trusted, rejected = set(trust), set(reject)
-    auth = adapter.call("auth-status", {})
-    current = _author(auth.get("user") or auth.get("username") or auth.get("login"))
-    if current:
-        trusted.add(current)
+    _, held = _logins(adapter.call("auth-status", {}))
+    trusted, rejected = set(trust) | held, set(reject)
     validate_trust(trusted, rejected)
     return trusted, rejected
 
@@ -2125,8 +2126,19 @@ def line_history(cwd, path, line, head):
     return [row.strip() for row in out.splitlines() if re.fullmatch(r"[0-9a-f]{40}", row.strip())]
 
 
+def forge_account_scope(cwd):
+    """`host` and `account` lines from the forge account helper; "" when it cannot answer."""
+    try:
+        run = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "forge_account.py")],
+                             cwd=cwd, text=True, capture_output=True, timeout=60,
+                             stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return "\n".join(run.stdout.splitlines()[:2]) if run.returncode == 0 else ""
+
+
 def cache_root(cwd):
-    """Per-repository, per-forge cache directory; a base inside the repository is refused."""
+    """Per-repository, per-forge, per-account cache directory; a base inside the repository is refused."""
     if os.environ.get("AFK_RATIONALE_CACHE"):
         source, base = "AFK_RATIONALE_CACHE", os.environ["AFK_RATIONALE_CACHE"]
     elif os.environ.get("XDG_CACHE_HOME"):
@@ -2142,6 +2154,9 @@ def cache_root(cwd):
         raise LedgerError(f"cache path is inside the repository ({source}): {root}")
     remote = _git(cwd, "config", "--get", "remote.origin.url", check=False).strip()
     scope = "\n".join((str(common), os.environ.get("AFK_CFG_FORGE", ""), remote))
+    account = forge_account_scope(cwd)
+    if account.split("\n")[-1]:
+        scope += "\n" + account
     return root / digest(scope)[:16]
 
 
@@ -2203,8 +2218,7 @@ class RationaleReader:
         self.trusted = set(args.trust)
         self.base_problems = ["offline: requested"] if self.offline else []
         self.identity = self._identity()
-        if self.identity["user"]:
-            self.trusted.add(self.identity["user"])
+        self.trusted |= {name for name in [self.identity["user"], *self.identity["accounts"]] if name}
         validate_trust(self.trusted, self.rejected)
         self._commits, self._changes, self._scans = {}, {}, {}
         self._active = self._active_change()
@@ -2213,16 +2227,17 @@ class RationaleReader:
         cached = _cache_read(self.root, "identity.json") if self.use_cache else None
         if not self.offline:
             try:
-                auth = self.adapter.call("auth-status", {})
-                user = _author(auth.get("user") or auth.get("username") or auth.get("login"))
+                user, held = _logins(self.adapter.call("auth-status", {}))
+                accounts = sorted(held)
                 if user and self.use_cache:
-                    _cache_write(self.root, "identity.json", {"user": user})
-                return {"user": user, "source": "live"}
+                    _cache_write(self.root, "identity.json", {"user": user, "accounts": accounts})
+                return {"user": user, "accounts": accounts, "source": "live"}
             except LedgerError as error:
                 self.base_problems.append(f"offline: {error}")
         if cached and cached.get("user"):
-            return {"user": cached["user"], "source": "cache"}
-        return {"user": "", "source": "none"}
+            held = cached.get("accounts") if isinstance(cached.get("accounts"), list) else []
+            return {"user": cached["user"], "accounts": [str(name) for name in held], "source": "cache"}
+        return {"user": "", "accounts": [], "source": "none"}
 
     def _active_change(self):
         branch, tracked = _branch_state(self.cwd)

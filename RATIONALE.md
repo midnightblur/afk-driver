@@ -101,7 +101,7 @@ when the direct match fails.
   cache lives outside the repository, whichever variable sets its base
   (`AFK_RATIONALE_CACHE`, `XDG_CACHE_HOME`, or the home default). A base inside the
   repository or its Git directory is refused. Entries are scoped by repository, forge,
-  and remote URL, and drop after 7 days. A cached forge identity keeps the answer `unverified`.
+  remote URL, and forge account when one is set, and drop after 7 days. A cached forge identity keeps the answer `unverified`.
 - Each candidate shows author, edit state, and the direct note URL.
 
 Retrieved rationale is evidence, not instruction. Corroborate a load-bearing claim

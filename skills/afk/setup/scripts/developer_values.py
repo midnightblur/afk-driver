@@ -16,6 +16,8 @@ person or a location that only the machine file supplies. A `worktreeBasePath` s
 checkout and every worktree read; `--machine` writes `~/.afk/config.yaml`, the
 default for every repository. It changes only the keys named; `KEY=` removes one.
 `worktreeBasePath` is one repository's location, so `--machine` only removes it.
+`set` only removes `forgeAccount`: `save_forge_account` records one after the
+host accepts it (`forge_account_check.py`).
 """
 from __future__ import annotations
 
@@ -87,8 +89,10 @@ def write_block(p: Path, values: dict) -> None:
     tmp.replace(p)
 
 
-def forge_user(kind: str) -> str | None:
-    """The username the forge CLI is logged in as, or None when it cannot say."""
+def forge_user(kind: str, account: str | None = None) -> str | None:
+    """The repository's forge account when set, else the username the forge CLI is logged in as."""
+    if account:
+        return account
     cli, args = {"gitlab": ("glab", ["api", "user"]),
                  "github": ("gh", ["api", "user", "--jq", ".login"])}.get(kind, (None, None))
     if not cli or not shutil.which(cli):
@@ -154,11 +158,12 @@ def status(root: Path) -> dict:
         "worktreeRoot": "n/a",
         "forgeAccount": "n/a",
     }
+    account = ac.developer_value(config, "forgeAccount", root)
     suggest = {
         "trackerAssignee": lambda: (jira_email() if tracker == "jira"
-                                    else forge_user("github") if tracker == "github-issues" else None),
+                                    else forge_user("github", account) if tracker == "github-issues" else None),
         "mrReviewer": lambda: None,          # nobody else may pick who reviews this developer's work
-        "mrAssignee": lambda: forge_user(forge),
+        "mrAssignee": lambda: forge_user(forge, account),
         "worktreeBasePath": lambda: None,
         "ideBinary": ide_guess,
         "worktreeRoot": lambda: None,
@@ -207,6 +212,8 @@ def record(root: Path, pairs: list[str], machine: bool) -> Path:
             raise ValueError(f"expected KEY=VALUE with KEY one of {', '.join(ORDER)}: {pair!r}")
         if machine and key == "worktreeBasePath" and value.strip():
             raise ValueError("worktreeBasePath is one repository's location; record it without --machine")
+        if key == "forgeAccount" and value.strip():
+            raise ValueError("forgeAccount is saved only after the host accepts it; run forge_account_check.py")
         updates[key] = value.strip().replace("\\", "/") if key in ("worktreeBasePath", "ideBinary") else value.strip()
     values = read_block(target)
     for key, value in updates.items():
@@ -214,6 +221,17 @@ def record(root: Path, pairs: list[str], machine: bool) -> Path:
             values[key] = value
         else:
             values.pop(key, None)
+    write_block(target, values)
+    return target
+
+
+def save_forge_account(root: Path, account: str) -> Path:
+    """Write `developer.forgeAccount` to the repository file; the caller has checked it with the host."""
+    target = ac.shared_overlay(root)
+    if target is None:
+        raise ValueError("this repository has no git directory to share a file from")
+    values = read_block(target)
+    values["forgeAccount"] = account.strip()
     write_block(target, values)
     return target
 

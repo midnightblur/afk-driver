@@ -26,9 +26,12 @@ absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 - `tracker`
 - `github-issues.repo`
 - `github-issues.state-labels`
+- `developer.forgeAccount`
 
 No credential is configured for this kind: it runs `gh`, so authentication is
-whatever `gh auth login` established.
+whatever `gh auth login` established. With `developer.forgeAccount` set, each
+call acts as that account on the forge remote's host (`scripts/forge_account.py`),
+and a missing token answers an error naming `account not available`.
 
 ## What is modelled, not mapped
 
