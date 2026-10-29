@@ -75,7 +75,7 @@ SDD §14 rows each subtask implements: 0001 safe writer; 0002 reader merge, comm
 | 3 | 0003-repository-list | repository list and short-name markers | done | 0001 | static, unit | use §14 safe writer |
 | 4 | 0004-placement | one placement module: root rules, worktree folder | done | 0002, 0003 | static, unit | use §14 reader merge |
 | 5 | 0005-worktree-creator | creator, worktree-create hook, move helper ask placement | blocked(review_fail: round-10 stalemate, f123-f128 open, f129-f135 smell) | 0004 | static, unit, smoke | impl §5, use §6 |
-| 6 | 0006-worktree-guard | guard refuses an agent's worktree outside the root | reviewing | 0004 | static, unit, smoke | §14 guard `decide` |
+| 6 | 0006-worktree-guard | guard refuses an agent's worktree outside the root | blocked(review_fail: 10-round stalemate, f100 high open) | 0004 | static, unit, smoke | §14 guard `decide` |
 | 7 | 0007-forge-account | every forge call acts as the repository's account | pending | 0002 | static, unit, smoke | impl §1–§4 |
 | 8 | 0008-jira-sign-in | one Jira sign-in per site; secret step from the terminal | pending | 0001, 0002 | static, unit, smoke | impl §9, §10 |
 | 9 | 0009-settings-writer | one key to its owner's file; init; copy deletion | pending | 0001, 0002 | static, unit, smoke | §14 settings writer, init |
