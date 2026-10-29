@@ -212,3 +212,4 @@
 2026-10-29 06:49 | execute | 0006-worktree-guard | reviewing — round 5 closed: 9 fixes pushed in 8b8cad0; round 6 found 5 more (1 high: parenthesised and listed operands set the variable), fixes written
 2026-10-29 07:59 | execute | 0006-worktree-guard | reviewing — round 6 closed: 5 fixes pushed in 8cfc8d8; round 7 found 6 more (1 high: a writer behind an assignment set the variable), fixes written
 2026-10-29 10:14 | execute | 0006-worktree-guard | reviewing — round 7 closed: 6 fixes pushed in c278c60; round 8 found 16 more (5 high: a cast or list target set the variable, and untested operators), fixes written
+2026-10-29 12:39 | execute | 0006-worktree-guard | reviewing — round 8 closed: 16 fixes pushed in c70071d; round 9 found 8 more (2 high: env -S behind an unknown program or an unreadable word hid the worktree command again), fixes written

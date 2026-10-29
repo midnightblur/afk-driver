@@ -231,6 +231,21 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "env --un A -S 'git worktree add ../../out'",
     "$X $Y -S 'git worktree add ../../out'",
     "env - -S 'git worktree add ../../out'",
+    "nice env -S 'git worktree add ../../out'",
+    "nice -n 5 env -S 'git worktree add ../../out'",
+    "timeout 5 env -S 'git worktree add ../../out'",
+    "setsid env -S 'git worktree add ../../out'",
+    "stdbuf -oL env -S 'git worktree add ../../out'",
+    "xargs env -S 'git worktree add ../../out'",
+    "FOO=$X env -S 'git worktree add ../../out'",
+    "sudo -u $USER env -S 'git worktree add ../../out'",
+    "env $X env -S 'git worktree add ../../out'",
+    "sudo $U env -S 'git worktree add ../../out'",
+    "sudo -u root -g wheel env -S 'git worktree add ../../out'",
+    "FOO=1 env -S 'git worktree add ../../out'",
+    "FOO=1 BAR=2 env -S 'git worktree add ../../out'",
+    "! env -S 'git worktree add ../../out'",
+    "if true; then env -S 'git worktree add ../../out'; fi",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
@@ -253,7 +268,9 @@ def test_a_split_string_behind_an_unreadable_powershell_program_is_refused(world
                                      "echo env -S 'worktree add'", "grep env -S 'worktree add x'",
                                      "ls worktree; env -S", "env -- 'worktree add x'",
                                      "$GIT log \"$X\" -S 'worktree add'", "$GIT worktree list",
-                                     "$GIT remote add origin worktree"])
+                                     "$GIT remote add origin worktree", "printf '%s' env -S 'worktree add'",
+                                     "sudo -u root echo env -S 'worktree add'", "sudo echo env -S 'worktree add x'",
+                                     "env -- -S 'worktree add x'", "env -i -- -S 'git worktree add ../../out'"])
 def test_a_quoted_worktree_phrase_behind_an_unreadable_program_passes(world, command):
     assert guard(world, world["agent"], command)[0] is None
 
@@ -604,6 +621,13 @@ SETTING_FORMS = [
     ("PowerShell", "$env:{n} -= 1"), ("PowerShell", "$env:{n} /= 1"), ("PowerShell", "$env:{n} %= 1"),
     ("PowerShell", "$Env:{n} = '1'"), ("PowerShell", "${{ENV:{n}}} = '1'"), ("PowerShell", "--$env:{n}"),
     ("PowerShell", "$env:{n}--"), ("PowerShell", "$env:{n} ++"), ("PowerShell", "$env:{n} --"),
+    ("PowerShell", "${{env:/{n}}} = '1'"), ("PowerShell", "${{env:./{n}}} = '1'"),
+    ("PowerShell", "${{Environment::{n}}} = '1'"), ("PowerShell", "${{Microsoft.PowerShell.Core\\Environment::{n}}} = '1'"),
+    ("PowerShell", "Set-Item Environment::{n} 1"),
+    ("PowerShell", "New-PSDrive -Name e9 -PSProvider Environment -Root ''; $e9:{n} = '1'"),
+    ("PowerShell", "ndr e9 Environment ''; $e9:{n} = '1'"),
+    ("Bash", "$P -c '$env:{n}=1'"), ("Bash", "ps -c '${{env:{n}}}=1'"), ("Bash", "PowerShell -c 'sc {n} 1'"),
+    ("Bash", "PWSH.EXE -c 'sc {n} 1'"), ("Bash", "p'w'sh -c 'sc {n} 1'"),
 ]
 
 
@@ -624,7 +648,7 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("PowerShell", "Write-Output xcp {n}"), ("PowerShell", "Write-Output cpx {n}"), ("PowerShell", "Write-Output cp-x {n}"),
     ("PowerShell", "Write-Output $cp {n}"), ("PowerShell", "Write-Output x-cp {n}"), ("PowerShell", "Write-Output a.cp {n}"),
     ("PowerShell", "Write-Output cp.txt {n}"), ("PowerShell", "Write-Output x:cp {n}"), ("PowerShell", "Write-Output cp:x {n}"),
-    ("Bash", "cp a b; grep -n {n} pwsh-notes.md"), ("Bash", "grep -n 'env:{n}' hooks"),
+    ("Bash", "cp a b; grep -n {n} pwsh-notes.md"), ("Bash", "grep -n 'env:{n}' hooks"), ("Bash", "mount | grep {n}"),
     ("Bash", "cp a b; grep -n {n} README.md"), ("Bash", "mv notes/{n}.md notes/old.md"), ("Bash", "sc query {n}"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):

@@ -4,9 +4,10 @@
 - it sets `AFK_WORKTREE_FOLDER` or `AFK_ALLOW_PROTECTED` (an assignment in front of a
   command, `env`, `export`/`declare`-style words, `setx`, a PowerShell `env:` assignment,
   also inside `bash -c` / `pwsh -Command` / `$(…)` / `eval`), names one on the `env:` drive
-  in text PowerShell reads (`$env:NAME`, `${env:NAME}`, `env:NAME`, reads included), or names one beside a
-  PowerShell writer (`Set-Content`, `New-Item`, `Copy-Item`… and their aliases, a provider
-  or `PSVariable` call) or `SetEnvironmentVariable`; only the developer sets them;
+  or its provider path (`$env:NAME` or `${env:NAME}` in any shell, `env:NAME` or
+  `Environment::NAME` in text PowerShell reads, reads included), or names one beside a
+  PowerShell writer (`Set-Content`, `New-Item`, `Copy-Item`, `New-PSDrive`… and their aliases,
+  a provider or `PSVariable` call) or `SetEnvironmentVariable`; only the developer sets them;
 - it is `git worktree add`, the destination of `git worktree move`, or a worktree creator
   call (`create-worktree --parent/--dir`) whose target placement (`scripts/placement.py`)
   does not put inside `<root>/<short name>` for a listed repository, also behind `then`/`do`/`!`.
@@ -43,9 +44,11 @@ CREATOR_VALUE = {"--branch", "--dir", "--base", "--repo", "--parent", "--name", 
                  "--skip-build-gate", "--finish", "--m2-seed"}
 SET_ENV = re.compile(r"setenvironmentvariable\s*\(\s*([^,)\s]*)")  # over the lowered, unquoted text
 WRITERS = re.compile(r"set-item|set-content|add-content|new-item|copy-item|(?<!re)move-item|rename-item|invokeprovider|"
-                     r"psvariable")  # each can write `env:`, searched over the lowered, unquoted text
-ALIASES = re.compile(r"(?<![\w$:.-])(?:si|sc|ac|ni|cpi|cp|copy|mi|mv|move|rni|ren)(?![\w:.-])")  # PowerShell's only
+                     r"psvariable|psdrive")  # each can write `env:`, searched over the lowered, unquoted text
+ALIASES = re.compile(r"(?<![\w$:.-])(?:si|sc|ac|ni|cpi|cp|copy|mi|mv|move|rni|ren|ndr|mount)(?![\w:.-])")  # pwsh only
 PWSH = re.compile(r"(?<![\w-])(?:pwsh|powershell)(?:-preview)?(?![\w-])")  # over the text, `\` made `/`
+DRIVE = r"(?:env:|[\w.]*environment::)[/.]*"  # the env: drive or its provider path, then `/` or `.` steps
+READERS = ("echo", "printf", "grep", "egrep", "fgrep", "rg", "cat", "ls")  # print or search operands, never run them
 ENV_SHORT_VALUED = "aCPu"  # GNU and BSD env short options that take a value
 ENV_LONG_VALUED = ("argv0", "chdir", "unset")
 EXPRESSION = ("eval", "iex", "invoke-expression")  # each runs its joined arguments as a script
@@ -107,7 +110,8 @@ def variable_refusal(command: str, powershell: bool = False, depth: int = 0) -> 
     pwsh = powershell or PWSH.search(paths)
     writes = WRITERS.search(flat) or pwsh and ALIASES.search(flat)
     for name in NAMES:
-        if pwsh and re.search(r"env:" + name.lower() + r"(?!\w)", flat):  # the env: drive, reads too (D-78)
+        drive = DRIVE + name.lower() + r"(?!\w)"
+        if re.search(r"\$\{?" + drive, flat) or pwsh and re.search(drive, flat):  # reads too (D-78, D-79)
             return _variable_text(name)
         if named and name.lower() in flat and (len(firsts) < named or any(
                 name.lower() in first or not re.fullmatch(r"\w+", first) for first in firsts)):
@@ -368,19 +372,8 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
 
 
 def _in_chain(before: list[Word]) -> bool:
-    """`before` holds only wrappers, control words, options, their values and assignments."""
-    after_option = False
-    for word in before:
-        text = _bare(word)
-        if word.opaque:
-            return False
-        if program_of(word) in shell_mutations.WRAPPERS or text in KEYWORDS or ASSIGN.match(text) or text[:1] == "-":
-            after_option = text[:1] == "-"
-        elif after_option:
-            after_option = False  # the value of an option such as `sudo -u root`
-        else:
-            return False
-    return True
+    """No readable word in `before` names a program that only prints or searches its operands (D-79)."""
+    return not any(not w.opaque and program_of(w) in READERS for w in before)
 
 
 def _verb(plain: list[str]) -> bool:
