@@ -524,3 +524,10 @@
 - Chosen: B — round 4 showed the type name can be built from parts, so no text anchor separates a real call from prose; a refused commit message or search costs one rewording, a missed set lifts the guard. Prose without call punctuation (`document SetEnvironmentVariable and NAME`) still passes; this reverses f044's fix
 - Supersedes: none
 - To reverse: restore `ENV_TYPE` in `hooks/lib/worktree_placement_rule.py` and move the three prose rows back to the passing list
+
+## D-75 — Review round 5: any mention of the .NET call beside a rule variable is refused
+- 2026-10-29 · decided by /afk:execute (0006-worktree-guard)
+- Options: A — tell a call from prose by the punctuation after `SetEnvironmentVariable` vs B — refuse a command that names `SetEnvironmentVariable` and a rule variable, unless every mention is a direct call whose first argument is another plain name
+- Chosen: B — round 5 showed one direct call hides an indirect one beside it, and a regex search such as `SetEnvironmentVariable.*NAME` reads like a call; counting mentions against direct calls closes both without parsing PowerShell. A commit message or search naming both is refused and needs rewording (`document SetEnvironmentVariable and NAME` included)
+- Supersedes: D-74 (its "prose without call punctuation still passes" clause)
+- To reverse: restore the `SET_ENV_INDIRECT` test in `hooks/lib/worktree_placement_rule.py` and move the prose rows back to the passing list

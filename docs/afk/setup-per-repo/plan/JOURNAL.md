@@ -208,3 +208,4 @@
 2026-10-29 10:40 | execute | 0006-worktree-guard | reviewing — round 1 closed: 21 fixes pushed in b00e47d, 1 design note waits for the feature gate; round 2 found 12 more ways past the rule (1 high), fixes written
 2026-10-29 03:37 | execute | 0006-worktree-guard | reviewing — round 2 closed: 12 fixes pushed in 062db01; round 3 found 11 more gaps (none high, 6 medium), fixes written
 2026-10-29 04:34 | execute | 0006-worktree-guard | reviewing — round 3 closed: 11 fixes pushed in c034dd6; round 4 found 10 more (1 high: a type name built from parts slipped past round 3's prose exemption), fixes written
+2026-10-29 05:38 | execute | 0006-worktree-guard | reviewing — round 4 closed: 10 fixes pushed in fe66dc0; round 5 found 9 more (1 high: a direct call hid an indirect one), fixes written
