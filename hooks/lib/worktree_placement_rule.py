@@ -39,10 +39,14 @@ CREATOR_VALUE = {"--branch", "--dir", "--base", "--repo", "--parent", "--name", 
                  "--skip-build-gate", "--finish", "--m2-seed"}
 SET_ENV = re.compile(r"setenvironmentvariable\s*\(\s*([^,)\s]*)")  # over the lowered, unquoted text
 SET_ENV_INDIRECT = re.compile(r"setenvironmentvariable\s*[.,)]")
+ENV_TYPE = re.compile(r"\[(?:system\.)?environment\]|system\.environment")  # a real .NET call names its type
 PATH_SETTERS = ("set-item", "si", "set-content", "sc", "add-content", "ac")  # the path operand is set
 ITEM_SETTERS = ("new-item", "ni", "copy-item", "cpi", "move-item", "mi", "rename-item", "rni", "ren")
-PATH_OPTIONS = ("-path", "-literalpath", "-pspath", "-lp")
-VALUED_OPTIONS = ("-value", "-encoding", "-filter", "-include", "-exclude", "-credential", "-stream", "-delimiter")
+ROLES = {"path": ("path", "literalpath", "pspath", "lp"), "dest": ("destination",), "name": ("name", "newname")}
+VALUED = ("value", "encoding", "filter", "include", "exclude", "credential", "stream", "delimiter", "itemtype",
+          "type", "erroraction", "ea", "warningaction", "wa", "informationaction", "infa", "errorvariable", "ev",
+          "warningvariable", "wv", "informationvariable", "iv", "outvariable", "ov", "outbuffer", "ob",
+          "pipelinevariable", "pv")
 EXPRESSION = ("eval", "iex", "invoke-expression")  # each runs its joined arguments as a script
 UNQUOTE = re.compile(r"""[\\'"`]""")  # quote and escape characters, which hide no word from a text search
 MARKS = re.compile(r"worktree|afk_allow_protected", re.I)  # every command the rule judges holds one
@@ -69,11 +73,8 @@ def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     if not program:
         return False
     prog, args = program_of(program[0]), [w.text.replace("\\", "") for w in program[1:]]  # Bash drops the escapes
-    if prog in PATH_SETTERS:
-        return bool(drive.match(_path_operand(args)))
-    if prog in ITEM_SETTERS:  # a destination or new name under `env:` sets the variable
-        under_env = any(a.lower().startswith("env:") for a in args)
-        return any(drive.match(a) or (under_env and a.upper() == name) for a in args)
+    if prog in PATH_SETTERS or prog in ITEM_SETTERS:
+        return _item_sets(prog, args, drive, name)
     if prog == "set":  # cmd's `set NAME=value`
         return any(a.upper().startswith(name + "=") for a in args)
     if prog not in DECLARE:
@@ -84,19 +85,40 @@ def _sets(words: list[Word], program: list[Word], name: str) -> bool:
     return name in args and (prog == "setx" or not (set(options) & PRINT_ONLY or any(a[:1] == "+" for a in args)))
 
 
-def _path_operand(args: list[str]) -> str:
-    """The item a `Set-Content`-style call writes: its `-Path` value, else its first positional argument."""
-    i, first = 0, ""
+def _operands(args: list[str]) -> tuple[dict, list[str], bool]:
+    """(values per role, positional arguments, whether an option is unknown) of a PowerShell item call."""
+    roles: dict[str, list[str]] = {}
+    positionals, unknown, i = [], False, 0
     while i < len(args):
-        low = args[i].lower()
-        if low in PATH_OPTIONS:
-            return args[i + 1] if i + 1 < len(args) else ""
-        if low.startswith("-"):
-            i += 2 if low in VALUED_OPTIONS else 1
+        word, i = args[i], i + 1
+        if len(word) < 2 or not word.startswith("-"):
+            positionals.append(word)
             continue
-        first = first or args[i]
-        i += 1
-    return first
+        name, colon, attached = word[1:].lower().partition(":")  # PowerShell takes any unique prefix
+        role = next((r for r, names in ROLES.items() if any(n.startswith(name) for n in names)), None)
+        if role is None and not any(n.startswith(name) for n in VALUED):
+            unknown = True
+            continue
+        value = attached if colon else (args[i] if i < len(args) else "")
+        i += 0 if colon else 1
+        if role:
+            roles.setdefault(role, []).append(value)
+    return roles, positionals, unknown
+
+
+def _item_sets(prog: str, args: list[str], drive: re.Pattern, name: str) -> bool:
+    """A `Set-Content`/`Copy-Item`-style call writes `name`: only its written operand is judged."""
+    roles, positionals, unknown = _operands(args)
+    paths = roles.get("path", [])
+    if prog in PATH_SETTERS:
+        written = paths or (positionals if unknown else positionals[:1])
+    elif prog in ("new-item", "ni"):
+        written = paths + roles.get("name", []) + positionals
+    else:  # the destination or new name: the first positional when -Path is given, else the second
+        rest = positionals if paths else positionals[1:]
+        written = roles.get("dest", []) + roles.get("name", []) + (positionals if unknown else rest[:1])
+    under_env = any(a.lower().startswith("env:") for a in paths + positionals)
+    return any(drive.match(a) or (under_env and a.upper() == name) for a in written)
 
 
 def _variable_text(name: str) -> str:
@@ -112,7 +134,10 @@ def _inner(words: list[Word], program: list[Word]) -> list[str]:
         if program_of(program[0]) == "eval":  # Bash's first parse drops the escapes and an end-of-options mark
             args = args[1:] if args and args[0].text == "--" else args
             found.append(" ".join(_bare(w) for w in args))
-        else:
+        else:  # Invoke-Expression's one parameter, -Command, may be named
+            head = args[0].text.lower().partition(":") if args else ("", "", "")
+            if len(head[0]) > 1 and "-command".startswith(head[0]):
+                args = ([Word(args[0].text[len(head[0]) + 1:], False)] if head[1] else []) + args[1:]
             found.append(" ".join(w.text for w in args))
     return found
 
@@ -121,10 +146,10 @@ def variable_refusal(command: str, powershell: bool = False, depth: int = 0) -> 
     """Why an agent command must not set one of `NAMES`, or None."""
     flat = UNQUOTE.sub("", command).lower()
     firsts = SET_ENV.findall(flat)  # the .NET call splits into several segments
-    called = firsts or SET_ENV_INDIRECT.search(flat)  # `.Invoke(` or a reflection lookup names no argument
+    hidden = ENV_TYPE.search(flat) and (SET_ENV_INDIRECT.search(flat) or any(
+        not re.fullmatch(r"\w+", first) for first in firsts))  # `.Invoke(`, reflection, a computed name
     for name in NAMES:
-        if called and name.lower() in flat and (not firsts or any(
-                name.lower() in first or not re.fullmatch(r"\w+", first) for first in firsts)):
+        if name.lower() in flat and (hidden or name.lower() in firsts):
             return _variable_text(name)
     for segment in shell_mutations.segments(command, powershell):
         words = segment.words
@@ -319,7 +344,7 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
     program = _program(segment, words, effects)
     if not program:
         return []
-    if effects.get("chdir"):  # an `env -C` behind a control word
+    if effects.get("chdir") and words:  # an `env -C` behind a control word; steps applied any other
         spot = shell_mutations.resolve(effects["chdir"], spot)
     if len(program) > 1 and not program[0].opaque and program_of(program[0]) in ("bash", "sh"):
         program = program[1:]
@@ -330,10 +355,17 @@ def _targets(segment, words: list[Word], spot: Path | None) -> list[tuple]:
         return _creator_targets(program, spot)
     if "git" in prog and not program[0].opaque:
         return _git_targets(segment, program, spot, effects.get("git_env", []))
+    plain, split = [], False
+    for word in (w for w in program if not w.opaque):
+        text = _bare(word).lower()
+        plain += text.split() if split or text.startswith(("-s", "--split-string")) else [text]  # `env -S` splits
+        split = text in ("-s", "--split-string")
+    verb = any(a == "worktree" and b in ("add", "move") for a, b in zip(plain, plain[1:]))
     if program[0].opaque or effects.get("opaque"):  # a program the guard cannot read, e.g. behind `env $X`
-        joined = " ".join(_bare(w) for w in program if not w.opaque).lower()
-        if re.search(r"\bworktree\s+(?:add|move)\b", joined) or "create-worktree" in joined:
+        if verb or any(program_of(Word(p, False)) == "create-worktree" for p in plain):
             return [(None, spot, None)]
+    elif verb and plain[0] == "worktree":  # a substitution's output as the program: `$(which git) worktree add`
+        return [(None, spot, None)]
     return []
 
 

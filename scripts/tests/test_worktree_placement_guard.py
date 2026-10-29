@@ -197,11 +197,27 @@ def test_add_inside_with_other_drive_letter_case_passes(world):
     "env -S 'git worktree add ../x'",
     "sudo $X git worktree add ../x",
     "git 'worktree add' ../../out",
+    "env $X git worktree move ../x ../../y",
+    "env $X create-worktree --parent ../../out --dir x",
+    "$(which git) worktree add ../../out",
 ])
 def test_a_target_that_cannot_be_worked_out_is_refused(world, command):
     reason, _ = guard(world, world["agent"], command)
     assert reason is not None and reason.startswith(f"{HEAD}. Cause: the guard cannot work out")
     assert f"Move: create it under {real(world['base'])}, or ask the developer." in reason
+
+
+@pytest.mark.parametrize("command", ["$GIT log --grep 'worktree add'", "$GIT commit -m 'docs: worktree add flow'"])
+def test_a_quoted_worktree_phrase_behind_an_unreadable_program_passes(world, command):
+    assert guard(world, world["agent"], command)[0] is None
+
+
+def test_env_chdir_before_an_unreadable_program_moves_the_folder_once(world):
+    nested = world["agent"] / "sub" / "sub"  # an unlisted repository where a second `-C sub` would land
+    nested.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(nested)], check=True)
+    reason, _ = guard(world, world["agent"], "env -C sub $X git worktree add ../x")
+    assert reason is not None and reason.startswith(f"{HEAD}. Cause: the guard cannot work out")
 
 
 @pytest.mark.parametrize("command", [
@@ -458,6 +474,21 @@ SETTING_FORMS = [
     ("PowerShell", "[Environment]::SetEnvironmentVariable.Invoke('{n}', '1')"),
     ("PowerShell", "[Environment].GetMethod('SetEnvironmentVariable', [type[]]@([string], [string])).Invoke($null, @('{n}', '1'))"),
     ("PowerShell", "[Environment]::SetEnvironmentVariable(@('{n}')[0], '1')"),
+    ("PowerShell", "Set-Item -V 1 -Pa env:{n}"),
+    ("PowerShell", "Set-Content -ErrorAction Stop Env:{n} 1"),
+    ("PowerShell", "Set-Content -ea SilentlyContinue Env:{n} 1"),
+    ("PowerShell", "Set-Content -Path:Env:{n} 1"),
+    ("PowerShell", "Set-Content -Encoding utf8 Env:{n} 1"),
+    ("PowerShell", "Set-Content -Force Env:{n} 1"),
+    ("PowerShell", "Invoke-Expression -Command '$env:{n}=1'"),
+    ("PowerShell", "iex -c '$env:{n}=1'"),
+    ("PowerShell", "$env:{n}??='1'"),
+    ("PowerShell", "ren env:FOO {n}"),
+    ("PowerShell", "rni env:FOO {n}"),
+    ("PowerShell", "cpi env:PATH env:{n}"),
+    ("PowerShell", "mi env:PATH env:{n}"),
+    ("PowerShell", "Move-Item -Destination env:{n} -Path env:PATH"),
+    ("PowerShell", "ni env:{n} -Value 1"),
 ]
 
 
@@ -479,6 +510,12 @@ def test_setting_a_rule_variable_is_refused_naming_it(world, name, tool, form):
     ("PowerShell", "[Environment]::SetEnvironmentVariable('OTHER', '{n}')"),
     ("PowerShell", "Set-Content -Path out.txt -Value $env:{n}"), ("PowerShell", "Add-Content log.txt \"$env:{n}\""),
     ("PowerShell", "Add-Content log.txt $env:{n}"),
+    ("PowerShell", "Set-Content -Value $env:{n} out.txt"), ("PowerShell", "Copy-Item env:{n} out.txt"),
+    ("PowerShell", "Copy-Item env:{n} env:OTHER"), ("PowerShell", "Rename-Item env:{n} OTHER"),
+    ("PowerShell", "Move-Item env:{n} env:OTHER"), ("PowerShell", "New-Item env:OTHER -Value $env:{n}"),
+    ("Bash", "git commit --allow-empty -m 'refuse SetEnvironmentVariable, {n}'"),
+    ("Bash", "git commit --allow-empty -m 'refuse SetEnvironmentVariable(...) of {n}'"),
+    ("Bash", "rg -n 'SetEnvironmentVariable\\(.*{n}' hooks"),
 ])
 def test_reading_or_removing_a_rule_variable_passes(world, name, tool, form):
     reason, _ = guard(world, world["agent"], form.format(n=name), tool=tool)
