@@ -215,3 +215,6 @@
 2026-10-29 12:39 | execute | 0006-worktree-guard | reviewing — round 8 closed: 16 fixes pushed in c70071d; round 9 found 8 more (2 high: env -S behind an unknown program or an unreadable word hid the worktree command again), fixes written
 2026-10-29 14:02 | execute | 0006-worktree-guard | reviewing — round 9 closed: 8 fixes pushed in 7abc8bc; round 10 found 5 more (1 high: a reader-named option value hides env -S); settle loop stalemate at the 10-round cap
 2026-10-29 14:02 | execute | 0006-worktree-guard | outcome review_fail — 5 open findings f100-f104 after 10 rounds; adversary gate not reached
+2026-10-29 14:04 | autopilot | 0006-worktree-guard | parked review_fail — ten review rounds left five findings open, one high: a tool option whose value looks like a harmless program can hide a worktree command from the guard
+2026-10-29 14:04 | autopilot | 0011-smoke-e2e | parked(waiting on 0005-worktree-creator, 0006-worktree-guard) — journey tests need every earlier slice done
+2026-10-29 14:04 | autopilot | run | heartbeat 4/13 done, 2 parked, starting 0007-forge-account
