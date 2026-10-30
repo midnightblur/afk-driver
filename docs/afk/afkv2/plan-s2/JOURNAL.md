@@ -24,3 +24,5 @@
 2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-8) — 2 conflicting steers on one node go to the human
 2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-9) — a write-in returns as a confirm card, because a settled-by-note point needs a note id
 2026-10-30 02:52 | autopilot | run | decision(D-10) — the plan author fixed a slicing defect: subtasks 0009 and 0010 may now write the shared test fakes and fixtures their integration tests need
+2026-10-30 02:54 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=2 low=2 — round 5: the reviewers found that a signoff card and an info card could settle by a note, and that the rule test stopped short of the working clauses
+2026-10-30 02:54 | execute | 0006-visualize-skill | decision(D-11) — only decided, confirm and debate cards settle by a note; a signoff card needs a sign mark

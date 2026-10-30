@@ -69,3 +69,10 @@
 - Chosen: A — the integration rows of 0009 and 0010 need those files. 0007 and 0008 already list `fakes/*` and run first in this session, so these are sequential edits, not 2 writers at the same time. The plan check is clean after the edit
 - Supersedes: none
 - To reverse: remove the 2 paths from `## Scope` of 0009 and 0010
+
+## D-11 — a `signoff` card settles only by a `sign` mark; an `info` card never settles
+- 2026-10-30 · decided by execute (0006-visualize-skill, review findings 0006-visualize-skill/f052, f053)
+- Options: A — only `decided`, `confirm` and `debate` cards settle by a clear note; a `signoff` card returns to `open` unless a lone `sign` mark settled it, and a note on an `info` card gets a reply only vs B — every kind settles by a clear note
+- Chosen: A — a `signoff` card holds wording only a human may approve, so a note that asks for a change must not settle it (inferred from the card kind table; no spec line states it). An `info` card asks nothing, so nothing there can settle. A costs at most one more round
+- Supersedes: none
+- To reverse: edit the round pass in `components/card.md` and the rule test
