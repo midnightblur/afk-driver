@@ -109,3 +109,14 @@
 2026-10-30 09:06 | autopilot | 0013-code-review-skill | stranded — the progress table still says reviewing, but nothing is working on this slice
 2026-10-30 09:06 | autopilot | 0015-autopilot-execute | park-inherited(waiting on 0013-code-review-skill) — this slice needs the code review skill first
 2026-10-30 09:06 | autopilot | run | heartbeat 2/5 done, starting 0014-change-request-ci-watch — this slice does not depend on the parked one
+2026-10-30 09:10 | execute | 0014-change-request-ci-watch | designing — change request slice started; no seam row, so no ground diff; the forge port is present; the live-app gate is skipped: no app: repository has no build gate
+2026-10-30 09:12 | execute | 0014-change-request-ci-watch | developing — design settled: one script builds and opens the change, one script owns the watch record and the Ready gate
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-46) — review settled means the review's own report shows nothing open
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-47) — the CI watch runs as its own process and writes one result file
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-48) — any failed check, or no checks at all, stops the change from going Ready
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-49) — updating the change replaces its whole description
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-50) — the merge case is written from what git reports; one self-critique is one pass
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | decision(D-51) — Ready also needs the local commit on the change, and a new change is read back as Draft
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | gate-skip native-contract — e589212f: the same v1-layout refusal, rows on afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; no row on afkv2/skills/create-change-request or afkv2/tests/skills/test_change_request.py. Comment, registry and genericity gates passed before it
+2026-10-30 09:25 | execute | 0014-change-request-ci-watch | push — feat/afkv2-s3 at e589212f
+2026-10-30 09:27 | execute | 0014-change-request-ci-watch | verifying — static pass (compile, frontmatter by test, 3/3 anchors), unit 101 passed, integration pass on change 156: start wrote watching at e589212f and returned at once, the watch read running from the real checks and reported it; mark-ready refused review-open and the change stayed Draft; Codex live checks are owner-run, none in this slice; api, browser and adversary skipped: no app: repository has no build gate

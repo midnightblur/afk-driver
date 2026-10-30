@@ -314,3 +314,45 @@
 - Chosen: B — with A, a later round that finds only the second of 2 defects reopens the first. Known limit: 2 defects with the same words on lines that a fix moves far apart can still swap
 - Supersedes: D-44 "the rank of the line among the lines of that text in this round", and D-44's known limit
 - To reverse: `_entry_of` in `review_rounds.py`
+
+## D-46 — what "review settled" reads
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — read each `<plan>/review/<subtask>.rounds.json` vs B — run the code review's `finish` command for each contract in the plan folder
+- Chosen: B — `finish` is the review's public report (`afkv2/skills/code-review/SKILL.md` "The result"), and the state file is that script's own. Settled: `finish` answers ok on this change, `left.blocking` is empty, `left.not_posted` is empty. A subtask with no review blocks Ready, so a parked subtask blocks ship. Cost: `finish` at ship stops a review that owes no more work, and it posts what is left. The PRD does not define "settled"
+- Supersedes: none
+- To reverse: `_why_open` in `ci_watch.py`
+
+## D-47 — the watch is a process of its own, and its result is a record
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — the agent runs a blocking command as a background shell of the harness vs B — `start` starts a process and returns; the process writes one record per change in the git folder of the worktree; `status` reads it; a blocking `watch` remains for the wait at ship
+- Chosen: B — A leaves "without blocking work" to each harness, and no test can prove it. The record goes with the worktree and is never a tracked file. A newer `start` takes over: the older process stops within 600 s and writes nothing. Unverified: the Codex background shell behind the `ci-running` row, and whether a harness job that refuses breakaway ends the process with the session
+- Supersedes: none
+- To reverse: `_spawn` and the `start` verb in `ci_watch.py`
+
+## D-48 — every red CI, and no checks, refuse Ready
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — let a failure in code outside our ownership pass the gate vs B — the gate refuses `failed`, `canceled`, `running` and no checks; the developer marks Ready in those cases
+- Chosen: B — PRD AC-064 needs "CI green" and AC-065 says "Ship is refused while CI is red". The port answers one word for the whole change, so the script cannot see which check failed or who owns it. A manual job reads `running`, and the port has no verb to start one, so the developer starts it
+- Supersedes: issue #153 decision 28 "Failures outside our ownership do not block", at the Ready gate only; the skill still routes such a failure to a check of the target branch
+- To reverse: pass a per-check answer from the port and read ownership in `mark_ready_if_green`
+
+## D-49 — `open` replaces the whole description
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — add `body` to the port's `change-view` and keep text outside a marker block vs B — `open` writes the whole description; the title and the people are set only at creation
+- Chosen: B — `afkv2/ports/forge/**` is outside this slice's Scope, `change-view` answers no body, and the port has no verb that sets reviewers on an open change. Known limit: a person's edit of the description is lost at the next `open`, without a message, so the skill sends notes to a comment. A person added later sees only the mention in the text. `open` runs at most twice per run in the planned flow: first commits and ship
+- Supersedes: none
+- To reverse: add `body` to `change-view` in `github.py` and `gitlab.py`, then merge in `open_change`
+
+## D-50 — what "mergeability case" and "one self-critique" hold
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — free text only vs B — `merge-facts` gives git's answer (`git merge-tree`, ahead, behind, a fresh fetch), and the agent writes the case from it: facts, what it can break, how to undo. One self-critique is one pass and one text field
+- Chosen: B — the PRD names both and defines neither (inferred meaning). A merge claim with no git read is a guess. The gate does not read `merge-facts`: PRD AC-064 sets the Ready conditions. A list in `self_critique` is refused
+- Supersedes: issue #153 decision 31 "self-critique loop": PRD SK-14 says "one self-critique"
+- To reverse: `merge_facts` and `_text` in `change_request.py`
+
+## D-51 — 2 checks the PRD does not name
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — only review and CI vs B — also refuse `head-differs` at Ready, and `not-draft` after a create
+- Chosen: B — a green CI on the forge says nothing about a local commit that was never pushed. The port answers `draft: true` from the flag it sent, so the read-back is the only proof of AC-064 "opens as Draft". Each is one call and refuses safe: the developer can still mark Ready
+- Supersedes: none
+- To reverse: the `head-differs` check in `mark_ready_if_green`; the read-back in `_create`
