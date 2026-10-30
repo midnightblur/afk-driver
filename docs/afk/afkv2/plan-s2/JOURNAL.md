@@ -32,3 +32,6 @@
 2026-10-30 03:16 | execute | 0006-visualize-skill | decision(D-13) — a note that states a change in full can settle a point; only a note that leaves the answer open is not clear
 2026-10-30 03:30 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=2 low=2 — round 8: the reviewers found that a note changing sign-off wording could settle the card, and that a list of rule sentences could not catch an added sentence
 2026-10-30 03:30 | execute | 0006-visualize-skill | decision(D-14) — a note that changes sign-off wording returns for a sign mark, and the ingest record of a note on an older card stays open with plan-s1 0005
+2026-10-30 03:40 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=2 low=2 — round 9: the reviewers found that the record of the sign-off rule was wrong about a signed rule, and that nothing delivered the older-card follow-up
+2026-10-30 03:41 | execute | 0006-visualize-skill | decision(D-15) — the sign-off rule touches a signed rule, so it stays conservative and goes to the human as an open call
+2026-10-30 03:41 | execute | 0006-visualize-skill | decision(D-16) — the adversarial gate cannot run because there is no live app, so the slice stops for the human's ruling

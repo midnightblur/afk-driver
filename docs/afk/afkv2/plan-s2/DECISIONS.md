@@ -97,3 +97,17 @@
 - Chosen: A — the human has not signed the new wording, and the design record re-signed after a change (GRILL-LOG, sign-off rows), so the note leaves the answer open. This limits no card kind, so D-12 stands. The test-helper line in `.claude/wiring-ious.md` is dropped, because the wiring gate cannot close it. How ingest records a note on a card of a settled round stays open and not verified; plan-s1 0005 owns it (acceptance "A note on a settled item reopens it"), and `components/card.md` follows what that slice ships
 - Supersedes: none
 - To reverse: edit the round pass in `components/card.md` and `ROUND_PASS` in the test
+
+## D-15 — correction of D-14: the sign-off rule touches a signed rule, and the call is open for the human
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f070)
+- Options: A — keep the conservative rule, correct the record, and report the call to the human vs B — remove the rule and let a note that changes sign-off wording settle
+- Chosen: A — D-14 said "limits no card kind", which is wrong: the rule applies to `signoff` cards only, it narrows D-12 and D-13 for them, and it touches the signed state rule (HL-4). An agent cannot settle that. The rule stays until the human rules, because a wrong return costs one more round and a wrong settle records a signature the human did not give. The older-card follow-up now has a mechanism: `test_older_card_shape_is_replaced_once_ingest_merges` fails once plan-s1 0005 merges and names the `_note_on_an_older_card` fixture to replace
+- Supersedes: D-14, only for its record
+- To reverse: remove the `signoff` sentence from the round pass in `components/card.md` and `ROUND_PASS` in the test
+
+## D-16 — the adversarial gate does not run here, and the slice stops
+- 2026-10-30 · decided by execute (0006-visualize-skill)
+- Options: A — stop with `adversary_unrun` vs B — spawn the gate with no URL vs C — adapt the gate to a document probe and report success
+- Chosen: A — this repository has no live app and no build gate that can bring one up, and driven mode allows no waiver; only the human may rule that the gate does not apply. B can only answer "environment unreachable", and C is a waiver under another name. Dependents of this slice wait for the human's ruling
+- Supersedes: none
+- To reverse: the human rules that the gate does not apply to this plan; the row then goes to `done`
