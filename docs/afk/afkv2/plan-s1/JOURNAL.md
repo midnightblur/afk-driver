@@ -147,3 +147,8 @@
 2026-10-30 15:58 | execute | 0004-diagram-components | adversary: skipped (owner ruling R-1)
 2026-10-30 15:58 | execute | 0004-diagram-components | final checks on the tip: Produces 4/4, test_diagram_components with test_engine_core 411 passed 1 skipped, test_plugin_check 453 passed 2 xfailed, plugin check ok, wiring gate exit 0, rationale-verify ok and cleared — every check this slice declares passes
 2026-10-30 15:58 | execute | 0004-diagram-components | done — the 4 diagram types are built and tested, and known gaps are recorded in D-43 and D-44; gate-skip(R-4): the plan commit that holds this line
+2026-10-30 16:00 | autopilot | 0004-diagram-components | heartbeat 4/5 done, starting 0001-skeleton-manifests-hooks — the diagram slice is done; 0001 reopens for one small change the plan author asked for
+2026-10-30 16:00 | autopilot | 0001-skeleton-manifests-hooks | decision(D-45) — two script files with one name now fail the plugin check
+2026-10-30 16:00 | autopilot | 0001-skeleton-manifests-hooks | decision(D-46) — files that exist to name v1 things are exempt from the no-v1-name check
+2026-10-30 16:00 | autopilot | 0001-skeleton-manifests-hooks | decision(D-47) — the config reader also answers which forge the repository uses
+2026-10-30 16:00 | autopilot | 0005-notes-ingest-live-test | decision(D-48) — the notes slice now has written orders to fix notes on maps held inside cards

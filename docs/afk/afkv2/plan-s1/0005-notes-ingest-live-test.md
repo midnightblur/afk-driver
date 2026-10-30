@@ -21,7 +21,7 @@ complex
 - afkv2/engine/ingest.py
 - afkv2/engine/components/notes_*.py
 - afkv2/engine/shell/notes*
-- afkv2/engine/engine.py   # register the ingest verb
+- afkv2/engine/engine.py   # register the ingest verb; element ids and node checks cover held maps (D-43)
 - afkv2/tests/engine/test_ingest.py
 - afkv2/tests/live/test_page_live.md
 
@@ -34,6 +34,7 @@ complex
 - [ ] needs-reading goes to settled-by-note only when the agent writes its reading, and back to open when the agent finds the signals unclear or in conflict; settled-by-note shows a state that differs from settled-by-mark (PRD §AC-036)
 - [ ] A mark and a note that disagree, or 2 marks that disagree, keep the point open (PRD §AC-037; PRD §WE-02 rounds 3 and 4 as a fixture)
 - [ ] A note on a settled item reopens it, and the reopen is recorded in the next round; a note on a map node is recorded as a steer for that node (PRD §AC-038)
+- [ ] A map held in a card or a table cell counts as a map: a note on its node is accepted, an item can link to its node, 2 held maps with one node id fail the check, and a node round past the last round fails the check (PRD §AC-038)
 - [ ] The human writes, edits and deletes a note on every element: map node, card, settled item, diagram, freestyle fragment; note ids are `N-<round>-<item>`, minted by the engine; a deleted note keeps its id with `deleted` (SDD §4 item row "notes")
 - [ ] Notes and replies render newest round first, each round collapsible, with the agent's replies on top (PRD §AC-033)
 - [ ] A re-render while the human types keeps every unsent note: browser drafts are keyed by session id + round and cleared on send (PRD §AC-041)

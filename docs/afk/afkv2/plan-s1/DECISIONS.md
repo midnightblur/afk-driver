@@ -307,3 +307,31 @@
 - Chosen: A — a seeded test of 120 graphs finds no forward arrow behind a box, and no label on a box or on a label by the estimated size. D-42's words "for forward arrows and all labels" claim too much. Known gaps that stay open as medium findings on the pull request: a back arrow can run behind the next box in its stack, also with one box below (not only a tall stack); a label of many long words or wide glyphs is larger than the estimate, so it can land on a box or a label or leave the canvas; a label can cover a group title; and arrows that skip a rank at every step cost about the cube of the arrow count (28 s at 800 nodes, reviewer's timing, not re-run here)
 - Supersedes: D-42 "for forward arrows and all labels"
 - To reverse: remove the straight first leg in `_forward` and the floor on `low` in `_arrows`
+
+## D-45 — every afkv2 script module name is unique, checked by the plugin check
+- 2026-10-30 · decided by the plan author, as orchestrator; the 2 limits by autopilot
+- Options: A — count every Python file in `afkv2/` vs B — leave out `__init__.py` and `afkv2/tests/`
+- Chosen: B — SDD §7's new row says script modules. `__init__.py` is never loaded flat, and test files are not plugin modules. 0001 owns `plugin_check.py`, so its row goes back to pending for this change only. Merge of S2 or S3 fails the check while their names clash; the plan author has the list
+- Supersedes: none
+- To reverse: remove the check and its test
+
+## D-46 — the no-v1-name check exempts `*v1_facts.py` and their tests
+- 2026-10-30 · decided by the plan author, as orchestrator
+- Options: A — exempt v1-takeover code by file name vs B — no exemption
+- Chosen: A — that code must name v1 things. v1 strings live only in `*v1_facts.py` modules (S3 D-27 pattern). The test files are the ones named `test_*v1_facts*.py`; nothing else is exempt. This closes finding f054
+- Supersedes: none
+- To reverse: remove the exemption and its test
+
+## D-47 — the config reader answers `forge`
+- 2026-10-30 · decided by the plan author, as orchestrator
+- Options: A — the reader answers the `forge` key that setup writes (S3 D-22) vs B — the forge port reads it by another way
+- Chosen: A — `spec_folder` stays required. `forge` is optional, as setup writes it only for `github` or `gitlab`; `null` when absent and `bad-value` for another value (the absent and refused shapes are autopilot's call, matching `tracker`). SDD §8 names `.afkv2/config.json` and `fired-<provider>.txt` as S1's; both stay as built
+- Supersedes: none
+- To reverse: remove the key from `read_config`
+
+## D-48 — 0005 contract names the held-map gap
+- 2026-10-30 · decided by autopilot, as orchestrator (AC-072)
+- Options: A — add the gap to 0005 Acceptance and its `engine.py` Scope note vs B — leave it in D-43 only
+- Chosen: A — D-43 passed the gap to 0005, but the contract said `engine.py` was only for the ingest verb, so an executor had no instruction to fix it. Review finding f001 and the open row in `.claude/wiring-ious.md` close on this work
+- Supersedes: none
+- To reverse: remove the bullet and the Scope note

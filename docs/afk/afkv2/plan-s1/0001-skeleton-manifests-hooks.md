@@ -60,6 +60,9 @@ complex
 - [ ] The plugin check reads only the afkv2 plugin tree, never spec-folder prose (SDD §7 v1 defects)
 - [ ] Built files are LF by a `.gitattributes` rule, and the plugin check fails on a CR byte or a hash mismatch in a built file (SDD §7 v1 defects)
 - [ ] `.github/workflows/tests.yml` runs `afkv2/tests` on both OSes and skips only the live tests that need a harness login; every v1 step stays byte-identical (SDD §7 v1 defects)
+- [ ] The plugin check fails when 2 afkv2 script modules have one file name anywhere in the plugin tree. `__init__.py` and `afkv2/tests/` do not count (SDD §7 v1 defects)
+- [ ] The no-v1-name check exempts only files named `*v1_facts.py` and their test files named `test_*v1_facts*.py`; a v1 name in such a file passes and the same name in any other file fails (PRD §AC-019)
+- [ ] The config reader answers `forge` beside the required `spec_folder`: `github` or `gitlab`, `null` when the key is absent, and it refuses another value with `bad-value` (SDD §8 row "config file")
 
 ## Produces
 - afkv2/.claude-plugin/plugin.json#"name": "afkv2" — Claude manifest
