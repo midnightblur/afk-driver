@@ -202,3 +202,52 @@
 - Chosen: A — owner ruling. The 0001 contract drops the timing part of its Acceptance bullet and integration row, and the 50 ms clause of the fallback bullet. The excerpts for AC-013, SK-02 and ADR-0005 are refreshed. That bullet keeps "parses no shell command" and "extra output fails", because SK-02 and AC-013 still require both. Findings f042 and f051 close on this ruling
 - Supersedes: D-7 and D-9 in full; the timing part of D-28
 - To reverse: restore the test, the bullet and the excerpts from the commit before this entry
+
+## D-30 — engine layout: component and shell files are found by name, and banner and card are registered types
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — the registry loads every `components/*.py` and the page inlines every `shell/*.css` and `shell/*.js`, so 0004 and 0005 add files and edit no list vs B — a hand-written list that each later slice edits
+- Chosen: A. A component calls `register_component(name, schema, render, *, nested=None, check=None, inline=False, takes_html=False)`, and render takes `(props, children)` (SDD §9). `round-banner` and `card` are registered types, so the page has one way to draw a component. Slot `#afkv2-notes-replies` draws a registered type `notes-and-replies` if one exists, with props `{"document": doc}`; 0005 registers it
+- Supersedes: none
+- To reverse: replace the two scans with lists
+
+## D-31 — where each verb works, and where the saved copy lives
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — `check` works at any path with no config; `render` and `show` also need config and the home `<spec folder>/<feature>/pages/<skill>-<session id>.json`; the saved copy is `<data folder>/page-copies/<sha12>.json` vs B — every verb needs the home
+- Chosen: A, because a document can be checked before it has a home and a recorded fake test checks a temp path. `check` reports `saved_copy` as none, compared or unavailable; with no data folder it answers unavailable and `render` exits 2. `engine.save_settled_copy(document, doc)` is public: 0005 ingest calls it after a late note changes a settled round, or the next check refuses that round
+- Supersedes: none
+- To reverse: make `_require_home` run in `cmd_check`
+
+## D-32 — error codes, mark tokens and the raw grammar
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — the codes and tokens below vs B — free text reasons
+- Chosen: A. Codes: schema, unknown-schema, invariant, unreadable, usage, bad-location, duplicate-session, markdown-fallback, host-error, page-ended, page-browser-disconnected. Tokens: decided accept or reopen; confirm accept or write-in; debate a letter or write-in; signoff sign or changes; info, blocked and needs-reading items take a note only. Raw lines: `[round R-n]`, then `<id> <token> | <note>`, with `—` for no choice. A multi-line note stays raw, and the 0005 parser owns continuation lines. A response with no signal is refused, so 0005 ingest always writes at least one signal; it stamps each with `invariants.ingest_stamp`. For R-3, a sign-off card goes back through the fields that exist: state `open` in the current round, with `settled` removed. No schema change is needed
+- Supersedes: none
+- To reverse: change the tokens in `components/base_card.py` and the 0005 parser together
+
+## D-33 — launcher: exact pin, three verbs, inject on open only
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — the launcher accepts open, poll and end only, and refuses any host version other than 0.1.80 with exit 64 vs B — keep the v1 grammar with `stop` and a minimum version
+- Chosen: A. `stop` is out of the grammar because it would end the server for every session (exit 64). So `engine show` answers `markdown-fallback` on this machine until setup moves the global install from 0.1.63 to 0.1.80. Poll is not refused on Codex, which differs from v1 `lavish_poll:false`, because the Stop hook and the one-message fallback both need it. Tooltips are injected on open and not on poll, because a write during poll would reload the page the person is answering
+- Supersedes: none
+- To reverse: widen the grammar and the pin check in `launcher.run`
+
+## D-34 — Codex Stop hook: no-op on Claude, one hour, 60-second polls
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — one hook entry, an empty command on Claude and `codex_stop.py` on Codex, timeout 3610 s, internal wait 3600 s in 60 s polls vs B — a shorter wait
+- Chosen: A. The wait ends before the harness can cut it, and then the hook returns a `systemMessage` that names the one-chat-message fallback. Each poll is 60 s because a long request with no bytes hits the Node fetch header limit (inferred, 300 s). `show` writes the record only when `CODEX_THREAD_ID` is set, and the record name uses that value. That it equals the Stop event's `session_id` is unverified; live check 3 proves or disproves it (D-S-8)
+- Supersedes: none
+- To reverse: change `timeout_s` in `wait_for_answer` and `timeout` in `hooks.json` together
+
+## D-35 — the live seam test: Playwright library, local host, one kept tab
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — `playwright-core` with Edge against a scratchpad lavish-axi@0.1.80 on its own port and state folder, with one tab kept open across rounds vs B — Playwright MCP against the global install
+- Chosen: A. No Playwright MCP tool is present in this run, and the global install is 0.1.63 and must stay (brief). The contract's "Playwright MCP" row is met by the same browser steps through the library. The test is skipped unless `AFKV2_TEST_LAVISH_DIR` is set. One kept tab models the person; it reloads by itself after a re-render (observed). `afkv2/tests/live/CODEX-LIVE-CHECKS.md` is outside the Scope globs, but the contract Acceptance and the brief name it. Fixtures from the v1 round documents are sanitized, and `v0-sdd-pass.json` is derived from `v1-sdd.json`
+- Supersedes: none
+- To reverse: delete the test and record the seam result by hand
+
+## D-36 — v1 page parts this shell does not carry
+- 2026-10-30 · decided by execute (0003-engine-core-schema-show-poll)
+- Options: A — drop the side-question control and the dark-invert override vs B — port both
+- Chosen: A. Side-question text would reach ingest as an answer. The kit is dark-first, so the override has nothing to do. Draft storage is keyed `afkv2-draft:<session>:<round>` and clears after send, and the round colour comes from a golden-angle hue unless the round sets `colour`
+- Supersedes: none
+- To reverse: port the two parts from the v1 kit
