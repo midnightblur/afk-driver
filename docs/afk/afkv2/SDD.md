@@ -83,7 +83,7 @@ flowchart LR
 | Command | Verbs | Input | Success envelope | Error envelope | Exit codes |
 |---------|-------|-------|------------------|----------------|-----------|
 | page engine | check, render, show, poll, ingest | page document path; ingest also takes the raw response text | `{"ok": true, ...}` per verb | `{"ok": false, "error": {"code", "reason"}}` naming item and field | 0 ok · 1 refused · 2 unreadable input |
-| Jira tracker | issue-get, md-to-adf, attachment-list, attachment-put, attachment-delete, description-put | one JSON payload | `{"ok": true, ...}`; attachment-put returns attachment id + media id | same shape; codes from an HTTP-status table; description-put refuses `stale` and `bad-receipt` | 0 · 1 · 2 |
+| Jira tracker | issue-get, md-to-adf, attachment-list, attachment-put, attachment-delete, description-put | one JSON payload | `{"ok": true, ...}`; attachment-put returns attachment id + media id | same shape; codes from an HTTP-status table; description-put refuses `stale`, `bad-receipt` and `bad-block` | 0 · 1 · 2 |
 | GitHub issue tracker | issue-get, issue-search | one JSON payload | `{"ok": true, ...}` | same shape | 0 · 1 · 2 |
 | forge (GitHub, GitLab) | the commands the chain calls, v1 names and v1 JSON answers (ADR-0007) | v1 arguments | v1 JSON answer inside `{"ok": true, ...}` | same shape (replaces v1's `error: true` at exit 0) | 0 · 1 · 2 |
 
@@ -320,6 +320,7 @@ sequenceDiagram
 | Failure point | Detection signal | Automatic recovery | Manual recovery | Owner |
 |---------------|------------------|--------------------|-----------------|-------|
 | ticket edited after preview | description-put `stale` | none: nothing written | new preview, new yes | to-prd |
+| AFK block broken or doubled in the ticket (AC-058) | description-put `bad-block` | none: nothing written | the developer fixes the description by hand; re-run | to-prd |
 | picture upload fails | attachment-put error | none | re-run; orphan pictures are removed by the next publish's clean step | to-prd |
 | write fails after uploads | description-put error | none | re-run; same receipt is safe | to-prd |
 | read-back differs | compare fails | none; old pictures kept | report a failed publish; re-run | to-prd |
@@ -328,6 +329,14 @@ sequenceDiagram
 | `.cmd` hook refused by a harness | day-1 live check fails | none | Python hook; the 50 ms limit returns to the owner | S1 |
 | Codex Stop hook cannot wait long enough | day-1 live check fails | none | one chat message after Send; owner informed | S1 |
 | switch back to v1 | developer runs switch-back | restores the block, git hooks, settings and host version from backups | — | setup |
+
+**v1 defects afkv2 must not repeat** (INV-004; v1 itself stays unchanged).
+
+| v1 defect | afkv2 rule | Proof |
+|-----------|------------|-------|
+| a git hook file that holds v1's marker string anywhere counts as v1's own, and v1 overwrites it | afkv2 writes no git hook; afkv2 finds its own block or file only by the full begin and end lines, never by a part of a marker | plugin check: no substring or prefix marker match in afkv2 code |
+| the near-empty rule deletes a short section of the description that is not the PRD block | the Jira port removes text only between the full AFK block lines; no rule removes text by its content or size | AC-059 test ticket |
+| no block found by prefix → a second PRD is appended, and the change comment is lost | append happens only when the description has no afkv2 block and no v1 block (AC-053); a broken or doubled block is refused with `bad-block` (AC-058); the port has no comment step, so the publish result goes to the developer | AC-053, AC-058 tests |
 
 ## §8 L7 — Module Decomposition
 
@@ -526,6 +535,6 @@ Accepted findings (INV-004), with rationale:
 
 - On Claude, the plugin switch is per project, but the v1 rule block lives in the user-level files. Removing it stops v1's rules in every project where v1 is still enabled. Accepted: requirement ADR-0004 makes afkv2 take over the user instruction files; switch-back restores the block.
 - After switch-back, a v1 re-publish on a ticket that afkv2 published finds no `afk:prd` block and appends a second PRD. Accepted: v1 is off while afkv2 is on; switch-back reports the tickets afkv2 published, so the developer knows where not to run v1's publish.
-- v1 defect found on the way, not changed here: v1's near-empty rule can delete a short Meeting Summaries section of a description (INV-004). afkv2 does not port that rule.
+- v1 defects found on the way: afkv2 rules against each are in §7, "v1 defects afkv2 must not repeat".
 
 Every compatibility-audit finding from the seam walk changed the design (§3, §4, §6, §7, §8, §9b).

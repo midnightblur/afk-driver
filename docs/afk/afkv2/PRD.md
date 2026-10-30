@@ -130,6 +130,8 @@ Every component may hold others and owns its styling. Every component takes an o
 - [ ] AC-055 The publish is refused when an acceptance-criterion id or a worked-example id of the PRD is missing from the published text.
 - [ ] AC-056 The publish is refused when the ticket changed after the preview. The agent shows the new text and asks again.
 - [ ] AC-057 After the publish, a read-back of the ticket matches the published text. A mismatch is reported as a failed publish.
+- [ ] AC-058 The publish finds the AFK block only by its full begin and end lines. A begin line without an end line, an end line without a begin line, or 2 or more blocks makes the publish refuse with nothing written, and the agent names the problem.
+- [ ] AC-059 The publish never removes ticket text because of its content or its size. A test ticket with a short section before and after the block keeps both sections unchanged.
 
 ### Plan and build
 
