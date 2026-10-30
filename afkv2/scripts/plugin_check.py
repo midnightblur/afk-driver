@@ -150,7 +150,7 @@ def _check_built(root: Path, source: str) -> list[str]:
         path = built / name
         if not path.is_file():
             problems.append(f"{(BUILT_DIR / name).as_posix()}: missing; run plugin_check.py build")
-        elif _read_text(path) != text:
+        elif _read_bytes(path) != text.encode("utf-8"):
             problems.append(f"{(BUILT_DIR / name).as_posix()}: stale; run plugin_check.py build")
     if built.is_dir():
         for path in sorted(built.iterdir()):
@@ -197,6 +197,13 @@ def _read_text(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _read_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
         return None
 
 

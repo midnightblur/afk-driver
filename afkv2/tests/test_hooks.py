@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import shutil
@@ -69,6 +70,31 @@ def folder_state(folder):
     return {path: path.stat().st_mtime_ns for path in [folder, *folder.iterdir()]}
 
 
+def git(folder, *args):
+    subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True)
+
+
+def checkout_with_crlf_setting(tmp_path, with_repo_attributes):
+    """A fresh clone of the plugin tree with core.autocrlf=true, the Git for Windows default."""
+    source = tmp_path / "source"
+    shutil.copytree(PLUGIN, source / "afkv2", ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "tests"))
+    if with_repo_attributes:
+        shutil.copy(REPO / ".gitattributes", source / ".gitattributes")
+    git(source, "init", "-q")
+    git(source, "add", ".")
+    git(source, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "seed")
+    git(tmp_path, "clone", "-q", "-c", "core.autocrlf=true", str(source), "clone")
+    return tmp_path / "clone" / "afkv2"
+
+
+def tree_check(root):
+    return subprocess.run(
+        [sys.executable, str(root / "scripts" / "plugin_check.py"), "check", "--root", str(root)],
+        capture_output=True,
+        text=True,
+    )
+
+
 CASES = [
     (SESSION, "claude", PLAIN, "session-start"),
     (SESSION, "codex", PLAIN, "session-start"),
@@ -108,6 +134,27 @@ def test_printed_text_is_wrapped_in_marker_lines_with_the_hash(tmp_path):
     sha = plugin_check.marker_hash("\n".join(lines[1:-2]))
     assert lines[0] == f"{plugin_check.MARKER} begin {sha}"
     assert lines[-2] == f"{plugin_check.MARKER} end {sha}"
+
+
+@pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
+def test_crlf_setting_checkout_prints_lf_text_whose_bytes_match_the_hash(tmp_path, hook):
+    root = checkout_with_crlf_setting(tmp_path, with_repo_attributes=True)
+    done = run_hook(root / "hooks" / hook.name, "codex", tmp_path)
+    assert done.returncode == 0
+    assert b"\r" not in done.stdout
+    lines = done.stdout.split(b"\n")
+    sha = hashlib.sha256(b"\n".join(lines[1:-2])).hexdigest()[:12]
+    assert lines[0].decode() == f"{plugin_check.MARKER} begin {sha}"
+    assert lines[-2].decode() == f"{plugin_check.MARKER} end {sha}"
+    assert tree_check(root).returncode == 0
+
+
+def test_crlf_setting_checkout_without_the_rule_fails_the_check(tmp_path):
+    root = checkout_with_crlf_setting(tmp_path, with_repo_attributes=False)
+    assert b"\r" in run_hook(root / "hooks" / SESSION.name, "codex", tmp_path).stdout
+    done = tree_check(root)
+    assert done.returncode == 1
+    assert plugin_check.PLAIN_VARIANT in done.stdout and "stale" in done.stdout
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])

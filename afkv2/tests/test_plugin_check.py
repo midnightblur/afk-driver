@@ -118,10 +118,31 @@ def test_unexpected_prebuilt_file_is_refused(tree):
     assert any("extra.txt" in p for p in plugin_check.run_checks(tree))
 
 
-def test_crlf_checkout_of_prebuilt_files_is_not_stale(tree):
-    built = tree / "hooks" / "built" / plugin_check.PLAIN_VARIANT
-    built.write_bytes(built.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+@pytest.mark.parametrize("variant", [plugin_check.PLAIN_VARIANT, plugin_check.CLAUDE_SUBAGENT_VARIANT])
+def test_crlf_in_a_prebuilt_file_is_stale_and_build_repairs_it(tree, variant):
+    built = tree / "hooks" / "built" / variant
+    built.write_bytes(built.read_bytes().replace(b"\n", b"\r\n"))
+    assert any(variant in p and "stale" in p for p in plugin_check.run_checks(tree))
+    assert plugin_check.build(tree) == []
+    assert b"\r" not in built.read_bytes()
+
+
+def test_crlf_in_the_core_source_is_not_stale(tree):
+    source = tree / plugin_check.CORE_SOURCE
+    source.write_bytes(source.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     assert plugin_check.run_checks(tree) == []
+
+
+def test_prebuilt_file_that_cannot_be_opened_is_stale(tree, monkeypatch):
+    read_bytes = Path.read_bytes
+
+    def locked(self):
+        if self.name == plugin_check.PLAIN_VARIANT:
+            raise PermissionError(13, "locked by another process")
+        return read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", locked)
+    assert any(plugin_check.PLAIN_VARIANT in p and "stale" in p for p in plugin_check.run_checks(tree))
 
 
 def test_build_rewrites_stale_files(tree):
