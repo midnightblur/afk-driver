@@ -251,3 +251,10 @@
 - Chosen: A. Side-question text would reach ingest as an answer. The kit is dark-first, so the override has nothing to do. Draft storage is keyed `afkv2-draft:<session>:<round>` and clears after send, and the round colour comes from a golden-angle hue unless the round sets `colour`
 - Supersedes: none
 - To reverse: port the two parts from the v1 kit
+
+## D-37 — orchestrator ruling: 0003 Scope gains the 2 paths it edited
+- 2026-10-30 · decided by autopilot, as orchestrator (AC-072; owner's green-light rule of 2026-10-30)
+- Options: A — add `afkv2/tests/live/CODEX-LIVE-CHECKS.md` and `.claude/wiring-ious.md` to the 0003 `## Scope` vs B — revert both edits and park 0003
+- Chosen: A — the 0003 Acceptance names the live-check file; the user's global wiring rule names the IOU file for declaring a later consumer. The agent edited both before asking, and an executor never changes its own Scope, so the plan records the call here. This covers these 2 paths on 0003 only
+- Supersedes: none
+- To reverse: remove the 2 lines from the 0003 `## Scope`, and revert the edits to those paths

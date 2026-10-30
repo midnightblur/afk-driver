@@ -33,6 +33,8 @@ complex
 - afkv2/hooks/hooks.json   # add the Codex Stop hook entry
 - afkv2/tests/engine/test_engine_core.py
 - afkv2/tests/engine/fixtures/*
+- afkv2/tests/live/CODEX-LIVE-CHECKS.md   # orchestrator ruling: this contract Acceptance names it
+- .claude/wiring-ious.md   # orchestrator ruling: IOU lines only
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)

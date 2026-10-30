@@ -123,3 +123,5 @@
 2026-10-30 13:50 | execute | 0003-engine-core-schema-show-poll | rationale — 5 reasons are posted on the pull request with a receipt, and the verify passed
 2026-10-30 13:50 | execute | 0003-engine-core-schema-show-poll | gate-skip(R-4) — the plan commit that holds this line uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
 2026-10-30 13:50 | execute | 0003-engine-core-schema-show-poll | done — the page engine, its checks and the Codex wait are built and the live test passed on a local host; the machine's own host is still 0.1.63, so show falls back to Markdown until it moves; the owner runs the Codex check; the human reviews and merges
+2026-10-30 14:24 | autopilot | 0003-engine-core-schema-show-poll | decision(D-37) — the page engine slice edited two files beyond its list; I checked both are named by its own acceptance or the wiring rule, and accepted them for this slice only
+2026-10-30 14:24 | autopilot | run | heartbeat 3/5 done, starting 0004-diagram-components — the page engine is finished; the diagram parts come next
