@@ -152,3 +152,6 @@
 2026-10-30 16:00 | autopilot | 0001-skeleton-manifests-hooks | decision(D-46) — files that exist to name v1 things are exempt from the no-v1-name check
 2026-10-30 16:00 | autopilot | 0001-skeleton-manifests-hooks | decision(D-47) — the config reader also answers which forge the repository uses
 2026-10-30 16:00 | autopilot | 0005-notes-ingest-live-test | decision(D-48) — the notes slice now has written orders to fix notes on maps held inside cards
+2026-10-30 16:06 | execute | 0001-skeleton-manifests-hooks | designing — re-entry for the 3 new checks only (D-45, D-46, D-47); the rest of the slice stays as built and reviewed
+2026-10-30 16:06 | execute | 0001-skeleton-manifests-hooks | developing — tests first, then the unique-name check, the v1_facts exemption and the forge answer
+2026-10-30 16:11 | execute | 0001-skeleton-manifests-hooks | gate-skip(R-4): f14669ab, fd8b4679, 660cec9a and the plan commit that holds this line — pre-commit gates skipped under owner ruling R-4; plugin check ran by hand and passed
