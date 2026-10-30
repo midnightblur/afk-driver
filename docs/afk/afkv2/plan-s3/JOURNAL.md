@@ -18,3 +18,7 @@
 2026-10-30 01:25 | execute | 0011-setup-skill | decision(D-10) — switch-back keeps the settings file that holds the off value, and its ignore line
 2026-10-30 01:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal as the 01:17 entry on commit 0dc38a30 (plugin-source gates blocked: native-contract; rows are harness-name and interpreter on afkv2 files); comment gate passed before it
 2026-10-30 01:26 | execute | 0011-setup-skill | reviewing — independent review loop started on the slice
+2026-10-30 01:45 | execute | 0011-setup-skill | review r1 — blocking: crit=0 high=3 med=14 low=8; 3 high bugs in the restore and removal paths. One low finding deferred to the feature gate, one disputed, the rest fixed
+2026-10-30 01:50 | execute | 0011-setup-skill | decision(D-11) — the ignore line for the personal settings file has its own decision
+2026-10-30 01:50 | execute | 0011-setup-skill | decision(D-12) — switch-back keeps what the harness wrote since the takeover
+2026-10-30 01:55 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit ce4b2932 (harness-name and interpreter rows on afkv2 files)

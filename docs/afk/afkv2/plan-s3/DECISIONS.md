@@ -69,3 +69,17 @@
 - Chosen: B — exclude is repository state git needs while `.claude/settings.local.json` exists, and the file must hold `afkv2: false` to keep AC-017 where the restored state turns both plugins on; D-9's "only the afkv2 enable value differs" holds for every file the developer had, and these two are the switch's own carrier
 - Supersedes: D-9 phrase "allows only the afkv2 enable value to differ" (adds the exclude line and the local settings file that carry the value)
 - To reverse: drop `_ensure_local_ignored` from the switch-back path of `_switch_claude`
+
+## D-11 — the plugin switch keeps its settings file out of git
+- 2026-10-30 · decided by execute (0011-setup-skill)
+- Options: A — add a line to the repository's `info/exclude` when git does not already ignore `.claude/settings.local.json` vs B — write nothing and tell the developer to ignore the file
+- Chosen: A — PRD AC-017 and ADR-0008 require the switch in the personal settings file "never the shared one"; an unignored file can be committed by `git add .` and turn the plugin off for the whole team, and B leaves that to memory. The line is the switch's carrier, so it has no backup: setup records that it added the line and removes that exact line at switch-back when the settings file is gone
+- Supersedes: D-10 option B where the restored state already has only v1 on (then both the file and the line go)
+- To reverse: drop `_ensure_local_ignored` and report the file as not ignored
+
+## D-12 — switch-back keeps what the harness wrote after the takeover
+- 2026-10-30 · decided by execute (0011-setup-skill)
+- Options: A — overwrite Codex `config.toml` and the local settings with the takeover-time copy vs B — put back only the afk and afkv2 values, and write the backup's bytes when nothing else changed
+- Chosen: B — both harnesses keep writing these files (Codex project trust, Claude permission grants), and A deletes those grants without a message; B stays byte-identical in the case the integration row tests. The instruction files already follow this rule through their `appended` branch
+- Supersedes: 0011 contract `## Verification` integration row "switch-back → every file byte-identical to before", for a file changed since the takeover
+- To reverse: restore the backup bytes in `restore_claude_local` and `_restore_codex_config`
