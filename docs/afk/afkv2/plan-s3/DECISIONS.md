@@ -356,3 +356,31 @@
 - Chosen: B — a green CI on the forge says nothing about a local commit that was never pushed. The port answers `draft: true` from the flag it sent, so the read-back is the only proof of AC-064 "opens as Draft". Each is one call and refuses safe: the developer can still mark Ready
 - Supersedes: none
 - To reverse: the `head-differs` check in `mark_ready_if_green`; the read-back in `_create`
+
+## D-52 — the order of the Ready gate, and who clears an open review
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — reviews first vs B — change state and head, then reviews, then CI vs C — CI before the reviews
+- Chosen: B — `finish` stops a review, so a wrong id, a closed change or a head that differs must refuse first. The CI read stays last, because it must be the freshest read before `change-ready`. A review that a red CI stops loses nothing: `begin` already refuses a round with no new fix. Each entry of a `review-open` refusal now has `next`: `run-review`, `mark-again` (a failed post, which `finish` tries again) or `developer` (a review that has stopped and cannot clear)
+- Supersedes: none
+- To reverse: the order in `mark_ready_if_green`; `_why_open`
+
+## D-53 — limits of "settled" and of the watch that stay
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — bind settled to a commit in the review state vs B — state the limit and show it to the developer
+- Chosen: B — the review state names no commit, and the review command is in another subtask's Scope. A commit pushed after a review stopped gets no round: `begin` refuses `review-over`. The skill tells the agent to list each such commit in `proofs`. Unverified: how often this happens in a real run. Also accepted: a watch can pass its token check and then overwrite the record of a `start` that lands between the check and the write. The window is narrow, and the next push starts a new watch; a lock file costs more than this risk
+- Supersedes: D-47 "the older process writes nothing", for this narrow window
+- To reverse: add the commit to the review state and compare it in `_why_open`; add a lock around `_write_record`
+
+## D-54 — the CI answer names no commit
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — add the commit to the port's `ci-status` and `ci-wait` answers in this slice vs B — record the limit, and route it to the feature gate
+- Chosen: B — the forge port is outside this slice's Scope, and another session calls its contract. GitHub reads the rollup of the last commit. GitLab reads `head_pipeline`, which keeps the older pipeline until a new one exists (read from GitLab source by the verify pass; not tested live). So on GitLab, a mark just after a push can read the green result of an older commit. The "Wait" step of the skill narrows this, and it does not close it. The ledger key stays open for the feature gate
+- Supersedes: none
+- To reverse: add the commit to the port's answers and compare it with the head in `mark_ready_if_green` and `_end`
+
+## D-55 — the 0015 contract names the skill, not the watch verbs
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — edit the 0015 contract vs B — leave the contract, state the gap in the IOU and the report
+- Chosen: B — the plan's contracts belong to its author, and an execute run owns only its tracker cell. The skill's own sections call `start`, `status`, `watch` and `mark-ready`, so an agent that follows the skill runs them. 0015 Acceptance does not test this: the executor of 0015 must add the check, or the watch can stay unrun
+- Supersedes: none
+- To reverse: name the verbs in the 0015 Acceptance

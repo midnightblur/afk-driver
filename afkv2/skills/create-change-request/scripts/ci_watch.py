@@ -27,6 +27,8 @@ SLICE = 600
 LOST_AFTER = 3 * SLICE
 PASSED_ON = ("forge", "repo")
 CI_REFUSALS = {"failed": "ci-red", "canceled": "ci-red", "running": "ci-running", "": "ci-none"}
+REVIEW_CAN_RUN = {"no-review", "review-owed", "fix-open", "round-open"}
+FILE_TRIES, FILE_PAUSE = 20, 0.1
 SUBTASK_FILE = re.compile(r"[0-9]{4}-.+\.md")
 _NOT_A_FILE_NAME = re.compile(r"[^0-9A-Za-z._-]")
 
@@ -110,17 +112,28 @@ def _record_path(change):
     folder = _git_line("rev-parse", "--absolute-git-dir")
     if not folder:
         raise Refusal("no-repository", "the CI watch runs inside a git repository")
-    return Path(folder) / "afkv2-ci" / f"{_NOT_A_FILE_NAME.sub('_', change)}.json"
+    file_name = _NOT_A_FILE_NAME.sub("_", change)
+    return Path(folder) / "afkv2-ci" / f"{file_name}.json"
+
+
+def _with_retries(action):
+    """On Windows, a read and a replace of one file can refuse each other for a moment."""
+    for _ in range(FILE_TRIES - 1):
+        try:
+            return action()
+        except PermissionError:
+            time.sleep(FILE_PAUSE)
+    return action()
 
 
 def _read_record(path):
     try:
-        record = json.loads(path.read_text(encoding="utf-8"))
+        record = json.loads(_with_retries(lambda: path.read_text(encoding="utf-8")))
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as error:
         raise Refusal("bad-record", f"the watch record {path} is unreadable: {error}; run `start`") from None
-    if not isinstance(record, dict) or "token" not in record:
+    if not isinstance(record, dict) or "token" not in record or "state" not in record:
         raise Refusal("bad-record", f"the watch record {path} holds no watch; run `start`")
     return record
 
@@ -130,7 +143,7 @@ def _write_record(path, record):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(record, indent=1), encoding="utf-8")
-    os.replace(temporary, path)
+    _with_retries(lambda: os.replace(temporary, path))
 
 
 def _new_record(path, change, head):
@@ -163,12 +176,20 @@ def _spawn(payload):
         subprocess.Popen(argv, creationflags=flags, **kwargs)
 
 
+def _last_result(change, path):
+    """What the last watch found. A broken record is a result here, so that it cannot stop the new watch."""
+    try:
+        return _report(change, _read_record(path))
+    except Refusal as refusal:
+        return ok(id=change, state=refusal.code, status="", head_sha="", current_head=False, reason=refusal.reason)
+
+
 def start_watch(payload):
     """Start the watch of the commit just pushed and return at once, with the result of the last watch."""
     change = change_ref(payload)
     budget, interval = _seconds(payload, "budget", DEFAULT_BUDGET), _seconds(payload, "interval", None)
     path = _record_path(change)
-    previous = _report(change, _read_record(path))
+    previous = _last_result(change, path)
     record = _new_record(path, change, _local_head())
     child = {**passed_on(payload), "id": change, "token": record["token"], "budget": budget}
     if interval is not None:
@@ -178,7 +199,7 @@ def start_watch(payload):
     except OSError as error:
         _write_record(path, {**record, "state": "no-verdict", "reason": f"the watch did not start: {error}"})
         raise Refusal("watch-not-started", f"the watch did not start: {error}") from None
-    return ok(id=change, state="watching", record=str(path), previous=previous)
+    return ok(id=change, state="watching", previous=previous)
 
 
 def _is_current(path, token):
@@ -251,45 +272,51 @@ def _subtasks(plan):
     return sorted(item.stem for item in plan.iterdir() if item.is_file() and SUBTASK_FILE.fullmatch(item.name))
 
 
-def _why_open(plan, subtask, change):
-    """Why the review of this subtask is not settled; None when it is."""
+def _ids(findings):
+    return ", ".join(str(item.get("id")) for item in findings)
+
+
+def _why_open(plan, subtask, change_ids):
+    """Why the review of this subtask is not settled, and the next step; None when it is."""
     answer = call_review(plan, subtask)
     if not answer.get("ok"):
-        return error_of(answer).get("reason") or "the review command gave no reason"
+        error = error_of(answer)
+        return error.get("reason") or "the review command gave no reason", "run-review" if error.get("code") in REVIEW_CAN_RUN else "developer"
     left = answer.get("left")
     if not isinstance(left, dict) or not answer.get("stopped_by"):
-        return "the review command gave no report"
-    if str(answer.get("change")) != change:
-        return f"the review posted on change {answer.get('change')}, not {change}"
-    for key, words in (("blocking", "critical or high findings are not fixed"), ("not_posted", "findings are not on the change")):
-        if left.get(key):
-            return f"{words}: " + ", ".join(str(item.get("id")) for item in left[key])
+        return "the review command gave no report", "developer"
+    if str(answer.get("change")) not in change_ids:
+        return f"the review posted on change {answer.get('change')}, not on this change", "developer"
+    if left.get("blocking"):
+        return "critical or high findings are not fixed: " + _ids(left["blocking"]), "developer"
+    if left.get("not_posted"):
+        return "findings are not on the change: " + _ids(left["not_posted"]), "mark-again"
     return None
 
 
-def _open_reviews(plan, change):
+def _open_reviews(plan, change_ids):
     subtasks = _subtasks(plan)
     if not subtasks:
-        return [{"subtask": "(none)", "why": f"the plan folder {plan} holds no subtask contract"}]
-    reasons = [(subtask, _why_open(plan, subtask, change)) for subtask in subtasks]
-    return [{"subtask": subtask, "why": why} for subtask, why in reasons if why]
+        return [{"subtask": "(none)", "why": f"the plan folder {plan} holds no subtask contract", "next": "developer"}]
+    reasons = [(subtask, _why_open(plan, subtask, change_ids)) for subtask in subtasks]
+    return [{"subtask": subtask, "why": found[0], "next": found[1]} for subtask, found in reasons if found]
 
 
 def mark_ready_if_green(payload):
-    """Mark the change Ready only on settled reviews, the local head on the change, and green CI on that head."""
+    """Mark the change Ready on the local head of an open change, settled reviews and green CI. The CI answer names no commit: decision D-54."""
     change = change_ref(payload)
     plan = Path(str(need(payload, "plan")))
     if not plan.is_dir():
         raise _bad(f"no plan folder at {plan}")
-    open_reviews = _open_reviews(plan, change)
-    if open_reviews:
-        raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
     view = forge_answer("change-view", payload, id=change)
     if view.get("state") != "opened":
         raise Refusal("change-not-open", f"change {change} is {view.get('state')}")
     local = _local_head()
     if not local or local != view.get("head_sha"):
         raise Refusal("head-differs", f"the local head {local} is not the head {view.get('head_sha')} of the change: push, or run from the branch of the change")
+    open_reviews = _open_reviews(plan, {change, str(view.get("id"))})
+    if open_reviews:
+        raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
     ci = forge_answer("ci-status", payload, id=change)
     word = ci.get("status") or ""
     if word != "success":

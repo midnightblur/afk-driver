@@ -119,12 +119,19 @@ def _create(payload, body):
     return ok(id=created["id"], url=view.get("url") or created.get("url") or "", draft=True, created=True)
 
 
+def _refuse_another_target(payload, view):
+    """The case in the description rests on the target it was given, so a different target must not pass with no message."""
+    if payload.get("target") and view.get("target") and _branch(payload["target"], "target") != view["target"]:
+        raise Refusal("target-differs", f"change {view['id']} targets {view['target']}, not {payload['target']}")
+
+
 def open_change(payload):
     """Create the Draft change of the branch, or write the description of its open change."""
     body = build_body(payload)
     view = _existing(payload)
     if view is None:
         return _create(payload, body)
+    _refuse_another_target(payload, view)
     forge_answer("change-update-body", payload, id=view["id"], body=body)
     return ok(id=view["id"], url=view.get("url") or "", draft=bool(view.get("draft")), created=False)
 
@@ -141,10 +148,18 @@ def _count(*args):
     return int(done.stdout.strip()) if done.returncode == 0 else None
 
 
+def _fetched(name):
+    """A fetch that fails or runs past its limit leaves the facts of the last fetch, and the answer says so."""
+    try:
+        return shell.run_tool("git", ["fetch", "--quiet", "origin", name], timeout=FETCH_LIMIT).returncode == 0
+    except Refusal:
+        return False
+
+
 def merge_facts(payload):
     """What git says about merging the target into HEAD. No file and no branch changes."""
     name = _branch(need(payload, "target"), "target")
-    fetched = shell.run_tool("git", ["fetch", "--quiet", "origin", name], timeout=FETCH_LIMIT).returncode == 0
+    fetched = _fetched(name)
     target = _resolved_target(name)
     done = shell.run_tool("git", ["merge-tree", "--write-tree", "--name-only", "--no-messages", target, "HEAD"])
     if done.returncode not in (0, 1):

@@ -25,6 +25,12 @@ from forge import cli as forge_cli  # noqa: E402
 from tracker import envelope, shell  # noqa: E402
 
 
+def _real(script, verb, payload, limit=300):
+    """One command in a process of its own, as the skill runs it: the JSON on stdin, and the process exits."""
+    done = subprocess.run([sys.executable, str(SCRIPTS / script), verb], input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=limit)
+    return json.loads(done.stdout)
+
+
 def git(cwd, *args):
     done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert done.returncode == 0, done.stderr
@@ -58,10 +64,12 @@ class Forge:
 
     def __init__(self):
         self.calls = []
+        self.limits = []
         self.answers = {}
 
     def __call__(self, verb, payload, limit=None):
         self.calls.append((verb, payload))
+        self.limits.append(limit)
         answer = self.answers.get(verb, {"ok": True})
         if isinstance(answer, list):
             answer = answer.pop(0)
@@ -121,16 +129,27 @@ def without(key):
 
 
 def test_the_body_holds_every_part_in_its_own_section():
-    body = change_request.build_body(PARTS)
-    for heading in ("## What changes", "## Requests", "## Proofs", "## Why it can merge", "## Self-critique"):
-        assert heading in body
-    assert body.index("## What changes") < body.index("## Requests") < body.index("## Proofs")
-    assert "Adds the widget export." in body
-    assert "- @ana (assignee): merge after the demo" in body
-    assert "- @bo (reviewer): read the retry loop in export.py" in body
-    assert "- the export works: pytest tests/test_export.py: 12 passed" in body
-    assert "The target is merged in" in body
-    assert "The retry loop has no test" in body
+    assert change_request.build_body(PARTS) == """## What changes
+
+Adds the widget export.
+
+## Requests
+
+- @ana (assignee): merge after the demo
+- @bo (reviewer): read the retry loop in export.py
+
+## Proofs
+
+- the export works: pytest tests/test_export.py: 12 passed
+
+## Why it can merge
+
+The target is merged in and the merge has no conflict.
+
+## Self-critique
+
+The retry loop has no test for a slow server.
+"""
 
 
 @pytest.mark.parametrize("missing", ["description", "requests", "proofs", "mergeability", "self_critique"])
@@ -261,6 +280,36 @@ def test_open_on_a_detached_head_needs_an_id(repo, forge, capsys):
     assert forge.calls == []
 
 
+def test_open_on_a_detached_head_takes_a_source(repo, forge, capsys):
+    git(repo, "checkout", "-q", "--detach")
+    forge.answers = {"change-view": [NOT_FOUND, VIEW], "change-create-draft": {"ok": True, "id": "7", "url": "u", "draft": True}}
+    code, answer = run(change_request, capsys, "open", source="feat/x", **PARTS)
+    assert code == 0 and answer["created"] is True
+    assert forge.calls[0][1]["id"] == "feat/x" and forge.calls[1][1]["source"] == "feat/x"
+
+
+def test_a_source_that_is_no_branch_name_reaches_no_forge(repo, forge, capsys):
+    unreadable(change_request, capsys, "open", source="--x", **PARTS)
+    assert forge.calls == []
+
+
+def test_a_blank_title_creates_nothing(repo, forge, capsys):
+    forge.answers = {"change-view": NOT_FOUND}
+    assert "title" in unreadable(change_request, capsys, "open", **parts(title="  "))["reason"]
+    assert "change-create-draft" not in forge.verbs()
+
+
+def test_open_refuses_another_target_than_the_open_change_has(repo, forge, capsys):
+    forge.answers = {"change-view": {**VIEW, "target": "develop"}}
+    assert refused(change_request, capsys, "open", **PARTS)["code"] == "target-differs"
+    assert forge.verbs() == ["change-view"]
+
+
+def test_open_takes_the_target_of_the_open_change(repo, forge, capsys):
+    forge.answers = {"change-view": {**VIEW, "target": "main"}, "change-update-body": {"ok": True, "id": "7"}}
+    assert run(change_request, capsys, "open", **parts(target="origin/main"))[0] == 0
+
+
 def test_the_forge_and_repo_values_reach_every_call(repo, forge, capsys):
     forge.answers = {"change-view": [NOT_FOUND, VIEW], "change-create-draft": {"ok": True, "id": "7", "url": "u", "draft": True}}
     run(change_request, capsys, "open", forge="gitlab", repo="acme/widget", **PARTS)
@@ -292,6 +341,36 @@ def test_merge_facts_name_each_file_in_conflict(repo, capsys):
 def test_merge_facts_say_when_the_fetch_failed(repo, capsys):
     git(repo, "remote", "set-url", "origin", str(repo / "no-such-remote"))
     git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "main"))
+    code, answer = run(change_request, capsys, "merge-facts", target="main")
+    assert code == 0 and answer["fetched"] is False and answer["clean"] is True
+
+
+def test_merge_facts_see_a_target_commit_only_the_remote_holds(repo, tmp_path, capsys):
+    commit(repo, "a.txt", "branch\n")
+    other = tmp_path / "other"
+    git(tmp_path, "clone", "-q", "-b", "main", str(tmp_path / "remote.git"), str(other))
+    commit(other, "a.txt", "target\n")
+    git(other, "push", "-q", "origin", "main")
+    code, answer = run(change_request, capsys, "merge-facts", target="main")
+    assert code == 0 and answer["fetched"] is True
+    assert answer["behind"] == 1 and answer["conflicts"] == ["a.txt"]
+
+
+def test_merge_facts_read_a_target_that_only_this_clone_holds(repo, capsys):
+    git(repo, "branch", "only-here")
+    commit(repo, "b.txt", "two\n")
+    code, answer = run(change_request, capsys, "merge-facts", target="only-here")
+    assert code == 0 and answer["target"] == "only-here" and answer["fetched"] is False and answer["ahead"] == 1
+
+
+def test_a_fetch_past_its_limit_gives_the_facts_of_the_last_fetch(repo, capsys, monkeypatch):
+    real_run = shell.run_tool
+
+    def slow_fetch(tool, args, **options):
+        if args[0] == "fetch":
+            raise ci_watch.Refusal("timeout", "`git fetch` ran past 120 s")
+        return real_run(tool, args, **options)
+    monkeypatch.setattr(shell, "run_tool", slow_fetch)
     code, answer = run(change_request, capsys, "merge-facts", target="main")
     assert code == 0 and answer["fetched"] is False and answer["clean"] is True
 
@@ -338,6 +417,34 @@ def test_the_watch_reads_again_until_the_status_is_final(repo, forge, capsys):
     assert code == 0 and answer["status"] == "success" and forge.verbs().count("ci-wait") == 3
 
 
+def test_each_read_of_the_watch_has_its_slice_and_a_longer_limit(repo, forge, capsys):
+    forge.answers = {"ci-wait": [STILL, GREEN], "change-view": VIEW}
+    run(ci_watch, capsys, "watch", id="7")
+    reads = [(sent["budget"], limit) for (verb, sent), limit in zip(forge.calls, forge.limits) if verb == "ci-wait"]
+    assert reads == [(ci_watch.SLICE, ci_watch.SLICE + ci_watch.READ_MARGIN)] * 2
+
+
+def test_the_read_of_a_short_budget_ends_with_the_budget(repo, forge, capsys):
+    forge.answers = {"ci-wait": GREEN, "change-view": VIEW}
+    run(ci_watch, capsys, "watch", id="7", budget=100)
+    (_, sent), limit = forge.calls[0], forge.limits[0]
+    assert 99 <= sent["budget"] <= 100 and limit == sent["budget"] + ci_watch.READ_MARGIN
+
+
+def test_each_running_answer_gives_the_record_a_new_beat(repo, forge, capsys):
+    path = ci_watch._record_path("7")
+    beats = []
+
+    def read_and_age(_payload):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        beats.append(record["beat_at"])
+        path.write_text(json.dumps({**record, "beat_at": 1.0}), encoding="utf-8")
+        return STILL if len(beats) == 1 else GREEN
+    forge.answers = {"ci-wait": read_and_age, "change-view": VIEW}
+    run(ci_watch, capsys, "watch", id="7")
+    assert beats[1] > 1.0
+
+
 def test_a_watch_that_ends_its_budget_reports_no_verdict(repo, forge, capsys):
     forge.answers = {"ci-wait": STILL, "change-view": VIEW}
     code, answer = run(ci_watch, capsys, "watch", id="7", budget=0)
@@ -380,6 +487,24 @@ def test_a_superseded_watch_stops_before_its_next_read(repo, forge, capsys):
     assert answer["state"] == "superseded" and forge.verbs().count("ci-wait") == 1
 
 
+def test_a_newer_watch_during_the_last_head_read_keeps_its_record(repo, forge, capsys):
+    def newer_starts(_payload):
+        ci_watch._new_record(ci_watch._record_path("7"), "7", "newhead")
+        return VIEW
+    forge.answers = {"ci-wait": GREEN, "change-view": newer_starts}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "superseded"
+    assert record_of(repo)["state"] == "watching" and record_of(repo)["head_sha"] == "newhead"
+
+
+@pytest.mark.parametrize("has_record", [True, False])
+def test_a_child_with_an_old_token_reads_nothing(repo, forge, capsys, has_record):
+    if has_record:
+        ci_watch._new_record(ci_watch._record_path("7"), "7", "newhead")
+    code, answer = run(ci_watch, capsys, "watch", id="7", token="old")
+    assert code == 0 and answer["state"] == "superseded" and forge.calls == []
+
+
 def test_status_with_no_watch_says_none(repo, capsys):
     code, answer = run(ci_watch, capsys, "status", id="7")
     assert code == 0 and answer["state"] == "none" and answer["status"] == ""
@@ -395,14 +520,23 @@ def test_status_reports_a_finished_watch_of_an_older_commit(repo, forge, capsys)
     assert code == 0 and answer["status"] == "failed" and answer["current_head"] is False
 
 
-def test_status_reads_a_silent_watch_as_lost(repo, capsys):
+def _record_with_a_beat(seconds_ago):
     path = ci_watch._record_path("7")
     ci_watch._new_record(path, "7", "abc")
     record = json.loads(path.read_text(encoding="utf-8"))
-    record["beat_at"] = time.time() - ci_watch.LOST_AFTER - 1
+    record["beat_at"] = time.time() - seconds_ago
     path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_status_reads_a_silent_watch_as_lost(repo, capsys):
+    _record_with_a_beat(ci_watch.LOST_AFTER + 1)
     code, answer = run(ci_watch, capsys, "status", id="7")
     assert code == 0 and answer["state"] == "lost" and "start" in answer["reason"]
+
+
+def test_status_reads_a_watch_just_inside_the_limit_as_watching(repo, capsys):
+    _record_with_a_beat(ci_watch.LOST_AFTER - 60)
+    assert run(ci_watch, capsys, "status", id="7")[1]["state"] == "watching"
 
 
 def test_status_reads_a_broken_record_as_a_refusal(repo, capsys):
@@ -410,6 +544,17 @@ def test_status_reads_a_broken_record_as_a_refusal(repo, capsys):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{broken", encoding="utf-8")
     assert refused(ci_watch, capsys, "status", id="7")["code"] == "bad-record"
+
+
+@pytest.mark.parametrize("broken", ["{broken", '{"token": "a"}', "[]"])
+def test_start_on_a_broken_record_reports_it_and_starts_the_watch(repo, capsys, monkeypatch, broken):
+    path = ci_watch._record_path("7")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(broken, encoding="utf-8")
+    monkeypatch.setattr(ci_watch, "_spawn", lambda payload: None)
+    code, answer = run(ci_watch, capsys, "start", id="7")
+    assert code == 0 and answer["state"] == "watching" and answer["previous"]["state"] == "bad-record"
+    assert run(ci_watch, capsys, "status", id="7")[1]["state"] == "watching"
 
 
 def test_outside_a_repository_the_watch_refuses(tmp_path, monkeypatch, capsys):
@@ -425,7 +570,8 @@ def test_a_watch_payload_that_is_not_usable_exits_2(repo, forge, capsys, verb, p
 
 def test_a_change_url_gets_one_record_file(repo, capsys):
     path = ci_watch._record_path("https://f.test/a/pull/7")
-    assert path.parent.name == "afkv2-ci" and "/" not in path.name and ":" not in path.name
+    assert path.parent.name == ci_watch._record_path("7").parent.name
+    assert "/" not in path.name and ":" not in path.name
 
 
 # --- the background start: a real child process, the real forge port, and a .cmd stub of gh on PATH
@@ -444,9 +590,15 @@ done = os.path.exists({str(release)!r})
 print(json.dumps({{"number": 7, "state": "OPEN", "headRefOid": "from-the-forge",
                    "statusCheckRollup": [{{"conclusion": "FAILURE"}} if done else {{"status": "IN_PROGRESS"}}]}}))
 """, encoding="utf-8")
-    (tools / "gh.cmd").write_text(f'@"{sys.executable}" "{stub}" %*\n', encoding="utf-8")
+    if os.name == "nt":
+        (tools / "gh.cmd").write_text(f'@"{sys.executable}" "{stub}" %*\n', encoding="utf-8")
+    else:
+        launcher = tools / "gh"
+        launcher.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{stub}" "$@"\n', encoding="utf-8")
+        launcher.chmod(0o755)
     monkeypatch.setenv("PATH", str(tools) + os.pathsep + os.environ["PATH"])
     yield release
+    release.write_text("end the child", encoding="utf-8")
 
 
 def wait_for(check, limit=30):
@@ -458,14 +610,13 @@ def wait_for(check, limit=30):
     return False
 
 
-def test_start_returns_while_ci_runs_and_the_child_writes_the_report(repo, child_forge, capsys):
-    before = time.monotonic()
-    code, answer = run(ci_watch, capsys, "start", id="7", forge="github", interval=1)
-    assert code == 0 and answer["state"] == "watching" and time.monotonic() - before < 20
-    assert not child_forge.exists()
+def test_start_returns_while_ci_runs_and_the_watch_outlives_the_command(repo, child_forge, capsys):
+    started = _real("ci_watch.py", "start", {"id": "7", "forge": "github", "interval": 1, "budget": 60}, limit=20)
+    assert started["ok"] and started["state"] == "watching"
     assert run(ci_watch, capsys, "status", id="7")[1]["state"] == "watching"
     child_forge.write_text("go", encoding="utf-8")
-    assert wait_for(lambda: record_of(repo)["state"] == "finished"), record_of(repo)
+    path = ci_watch._record_path("7")
+    assert wait_for(lambda: ci_watch._read_record(path)["state"] == "finished"), record_of(repo)
     code, answer = run(ci_watch, capsys, "status", id="7")
     assert code == 0 and answer["status"] == "failed" and answer["head_sha"] == "from-the-forge"
 
@@ -476,6 +627,7 @@ def test_start_reports_what_the_last_watch_found(repo, forge, capsys, monkeypatc
     monkeypatch.setattr(ci_watch, "_spawn", lambda payload: None)
     code, answer = run(ci_watch, capsys, "start", id="7")
     assert code == 0 and answer["previous"]["status"] == "failed" and answer["state"] == "watching"
+    assert set(answer) == {"ok", "id", "state", "previous"}
 
 
 def test_start_passes_the_forge_values_and_its_token_to_the_child(repo, capsys, monkeypatch):
@@ -499,6 +651,7 @@ def test_a_child_that_did_not_start_is_a_refusal_and_the_record_says_so(repo, ca
 
 
 SETTLED = {"ok": True, "stopped_by": "clean", "change": "7", "left": {"blocking": [], "posted": [], "not_posted": []}}
+ORIGINAL_CALL_REVIEW = ci_watch.call_review
 
 
 @pytest.fixture
@@ -521,6 +674,12 @@ def mark(ship, capsys):
     return run(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
 
 
+def test_a_finished_review_with_a_posted_finding_allows_ready(ship, capsys):
+    ship["reviews"]["0002-b"] = {**SETTLED, "left": {"blocking": [], "posted": [{"id": "f3"}], "not_posted": []}}
+    code, answer = mark(ship, capsys)
+    assert code == 0 and answer["marked"] is True
+
+
 def test_settled_review_and_green_ci_mark_the_change_ready(ship, capsys):
     code, answer = mark(ship, capsys)
     assert code == 0 and answer["marked"] is True and answer["draft"] is False
@@ -541,21 +700,46 @@ def test_ready_is_refused_when_the_ci_read_fails(ship, capsys):
     assert "change-ready" not in ship["forge"].verbs()
 
 
-@pytest.mark.parametrize(("review", "named"), [
-    ({"ok": False, "error": {"code": "no-review", "reason": "no review has started"}}, "no review"),
-    ({"ok": False, "error": {"code": "review-owed", "reason": "a fix waits"}}, "a fix waits"),
-    ({**SETTLED, "stopped_by": "unfixed", "left": {"blocking": [{"id": "f1"}], "posted": [], "not_posted": []}}, "f1"),
-    ({**SETTLED, "left": {"blocking": [], "posted": [], "not_posted": [{"id": "f2"}]}}, "f2"),
-    ({**SETTLED, "change": "9"}, "9"),
-    ({"ok": True}, "report"),
+@pytest.mark.parametrize(("review", "named", "next_step"), [
+    ({"ok": False, "error": {"code": "no-review", "reason": "no review has started"}}, "no review", "run-review"),
+    ({"ok": False, "error": {"code": "review-owed", "reason": "a fix waits"}}, "a fix waits", "run-review"),
+    ({"ok": False, "error": {"code": "fix-open", "reason": "no outcome"}}, "no outcome", "run-review"),
+    ({"ok": False, "error": {"code": "round-open", "reason": "no findings yet"}}, "no findings", "run-review"),
+    ({"ok": False, "error": {"code": "command-failed", "reason": "no answer"}}, "no answer", "developer"),
+    ({**SETTLED, "stopped_by": "unfixed", "left": {"blocking": [{"id": "f1"}], "posted": [], "not_posted": []}}, "f1", "developer"),
+    ({**SETTLED, "left": {"blocking": [], "posted": [], "not_posted": [{"id": "f2"}]}}, "f2", "mark-again"),
+    ({**SETTLED, "change": "9"}, "9", "developer"),
+    ({"ok": True}, "report", "developer"),
 ])
-def test_ready_is_refused_while_a_review_is_open(ship, capsys, review, named):
+def test_ready_is_refused_while_a_review_is_open(ship, capsys, review, named, next_step):
     ship["reviews"]["0002-b"] = review
     error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
     assert error["code"] == "review-open"
     assert [entry["subtask"] for entry in error["reviews"]] == ["0002-b"]
-    assert named in error["reviews"][0]["why"]
-    assert ship["forge"].calls == []
+    assert named in error["reviews"][0]["why"] and error["reviews"][0]["next"] == next_step
+    assert "ci-status" not in ship["forge"].verbs() and "change-ready" not in ship["forge"].verbs()
+
+
+@pytest.mark.parametrize("changes", [{"state": "merged"}, {"head_sha": "another"}])
+def test_a_gate_refused_on_the_change_or_the_head_stops_no_review(ship, capsys, monkeypatch, changes):
+    ship["forge"].answers["change-view"] = {**ship["forge"].answers["change-view"], **changes}
+    finished = []
+    monkeypatch.setattr(ci_watch, "call_review", lambda _plan, subtask: finished.append(subtask))
+    refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
+    assert finished == []
+
+
+def test_the_ci_read_comes_after_the_reviews_and_just_before_ready(ship, capsys, monkeypatch):
+    order = []
+    monkeypatch.setattr(ci_watch, "call_review", lambda _plan, subtask: order.append("review") or SETTLED)
+    ship["forge"].answers["ci-status"] = lambda _payload: order.append("ci") or {"ok": True, "status": "success", "url": "u"}
+    mark(ship, capsys)
+    assert order == ["review", "review", "ci"] and ship["forge"].verbs()[-1] == "change-ready"
+
+
+def test_a_change_given_as_a_url_matches_the_review_of_its_number(ship, capsys):
+    code, answer = run(ci_watch, capsys, "mark-ready", id="https://f.test/7", plan=str(ship["plan"]))
+    assert code == 0 and answer["marked"] is True
 
 
 def test_every_open_review_is_named_at_once(ship, capsys):
@@ -568,8 +752,9 @@ def test_every_open_review_is_named_at_once(ship, capsys):
 def test_a_plan_with_no_subtask_is_no_settled_review(ship, capsys):
     for name in ("0001-a.md", "0002-b.md"):
         (ship["plan"] / name).unlink()
-    assert refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))["code"] == "review-open"
-    assert ship["forge"].calls == []
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
+    assert error["code"] == "review-open" and error["reviews"][0]["next"] == "developer"
+    assert "change-ready" not in ship["forge"].verbs()
 
 
 def test_a_plan_folder_that_is_not_there_is_unreadable_input(repo, forge, capsys, tmp_path):
@@ -626,6 +811,64 @@ def test_the_gate_reads_the_real_review_command(repo, forge, tmp_path, capsys):
     assert code == 0 and answer["marked"] is True
 
 
+FOUND = {"concern": "c", "finding": "wrong answer", "why": "w", "fix": "x", "file": "a.txt", "line": 1}
+
+
+@pytest.fixture
+def real_review(repo, forge, tmp_path):
+    """The real review command on one subtask, with green CI on the change. The repository has no forge, so a post fails."""
+    plan = tmp_path / "plan"
+    plan.mkdir()
+    (plan / "0001-a.md").write_text("x", encoding="utf-8")
+    forge.answers = {"change-view": {**VIEW, "head_sha": git(repo, "rev-parse", "HEAD")},
+                     "ci-status": {"ok": True, "status": "success", "url": "u"},
+                     "change-ready": {"ok": True, "id": "7", "draft": False}}
+    assert _review_command(plan, "begin", change="7", concerns=[{"name": "c", "why": "w"}])["ok"]
+    return plan
+
+
+def test_a_review_stopped_with_an_unfixed_finding_goes_to_the_developer(real_review, forge, capsys):
+    answer = _review_command(real_review, "record", findings=[{**FOUND, "severity": "high"}])
+    finding = answer["fix"][0]["id"]
+    assert _review_command(real_review, "outcome", id=finding, result="unfixed", reason="out of scope")["ok"]
+    review = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(real_review))["reviews"][0]
+    assert finding in review["why"] and review["next"] == "developer"
+    assert _review_command(real_review, "begin", change="7", concerns=[{"name": "c", "why": "w"}])["error"]["code"] == "review-over"
+    assert "change-ready" not in forge.verbs()
+
+
+def test_a_review_on_another_change_goes_to_the_developer(real_review, forge, capsys):
+    assert _review_command(real_review, "record", findings=[])["ok"]
+    forge.answers["change-view"] = {**forge.answers["change-view"], "id": "9"}
+    review = refused(ci_watch, capsys, "mark-ready", id="9", plan=str(real_review))["reviews"][0]
+    assert review["next"] == "developer" and "change 7" in review["why"]
+
+
+def test_a_finding_that_is_not_on_the_change_asks_for_another_mark(real_review, capsys):
+    answer = _review_command(real_review, "record", findings=[{**FOUND, "severity": "low"}])
+    failed = answer["post_failed"][0]["id"]
+    review = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(real_review))["reviews"][0]
+    assert failed in review["why"] and review["next"] == "mark-again"
+
+
+@pytest.mark.parametrize("source", ["", "print('[1]')", "print('{\"a\": 1}')", "print('not json')", "import time; time.sleep(30)"])
+def test_a_command_with_no_answer_object_is_the_failure_answer(tmp_path, source):
+    script = tmp_path / "command.py"
+    script.write_text(source, encoding="utf-8")
+    answer = ci_watch._call(script, "x", {}, 2)
+    assert answer["ok"] is False and answer["error"]["code"] == "command-failed"
+
+
+def test_a_review_command_that_crashes_refuses_the_gate(ship, tmp_path, capsys, monkeypatch):
+    script = tmp_path / "crash.py"
+    script.write_text("raise SystemExit(3)", encoding="utf-8")
+    monkeypatch.setattr(ci_watch, "REVIEW", script)
+    monkeypatch.setattr(ci_watch, "call_review", ORIGINAL_CALL_REVIEW)
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
+    assert error["code"] == "review-open" and error["reviews"][0]["next"] == "developer"
+    assert "change-ready" not in ship["forge"].verbs()
+
+
 # --- no merge, and the same behaviour on both forges
 
 
@@ -674,6 +917,10 @@ class Tools:
             return shell.Done(0, "https://f.test/" + ("pull" if self.kind == "github" else "-/merge_requests") + "/7\n", "")
         if args[1] == "ready" or "--ready" in args:
             self.draft = False
+        if self.kind == "gitlab" and "--description" in args:
+            self.draft = False
+        if "--draft" in args:
+            self.draft = True
         return shell.Done(0, "", "")
 
 
@@ -701,6 +948,7 @@ def test_the_whole_path_answers_the_same_on_both_forges(real_port, repo, tmp_pat
     assert code == 0 and (opened["id"], opened["created"], opened["draft"]) == ("7", True, True)
     code, updated = run(change_request, capsys, "open", **PARTS)
     assert code == 0 and (updated["id"], updated["created"]) == ("7", False)
+    assert real_port.draft is True
 
     real_port.ci = "failed"
     code, watched = run(ci_watch, capsys, "watch", id="7", interval=1)
@@ -726,22 +974,19 @@ def test_the_skill_has_its_frontmatter_and_names_every_verb():
         assert f"`{verb}`" in text, verb
 
 
-# --- the live tier: AFKV2_LIVE_CHANGE=<id of a Draft change of this repository> afk-python -m pytest ... -k live
+# --- the live tier: AFKV2_LIVE_CHANGE=<id of a Draft change of this repository> <python> -m pytest ... -k live
 
 
 LIVE = os.environ.get("AFKV2_LIVE_CHANGE")
 live = pytest.mark.skipif(not LIVE, reason="set AFKV2_LIVE_CHANGE to the id of a Draft change")
 
 
-def _real(script, verb, payload):
-    done = subprocess.run([sys.executable, str(SCRIPTS / script), verb], input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=300)
-    return json.loads(done.stdout)
-
-
 @live
 def test_live_the_watch_reads_the_real_ci_state():
     watched = _real("ci_watch.py", "watch", {"id": LIVE, "budget": 0})
     assert watched["ok"] and watched["status"] in ("success", "failed", "canceled", "running")
+    read = ci_watch.call_forge("ci-status", {"id": LIVE})
+    assert read["ok"] and watched["status"] in (read["status"], "running")
     reported = _real("ci_watch.py", "status", {"id": LIVE})
     assert reported["status"] == watched["status"] and reported["head_sha"]
 
