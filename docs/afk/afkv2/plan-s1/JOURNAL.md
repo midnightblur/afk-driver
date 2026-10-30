@@ -62,3 +62,4 @@
 2026-10-30 05:30 | autopilot | 0004-diagram-components | park-inherited(waiting on 0003-engine-core-schema-show-poll) — this slice did not start because a slice it depends on is not finished
 2026-10-30 05:30 | autopilot | 0005-notes-ingest-live-test | park-inherited(waiting on 0003-engine-core-schema-show-poll) — this slice did not start because a slice it depends on is not finished
 2026-10-30 05:30 | autopilot | run | run end (0/5 done, 5 parked) — one slice waits for a ruling on one line in one file and the other four wait on it; the smoke check did not run
+2026-10-30 10:44 | autopilot | 0001-skeleton-manifests-hooks | decision(D-17) — the owner ruled: the fix for the hash mismatch may add one line to one file outside the slice's list; the slice resumes

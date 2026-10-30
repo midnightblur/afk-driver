@@ -111,3 +111,10 @@
 - Chosen: A — that file holds commands that run. The prebuilt output is one long line of prose, and a manifest description is prose
 - Supersedes: the D-15 sentence "`.md`, `.txt`, `.json` are prose" for this one file
 - To reverse: remove `_is_prose` from `afkv2/scripts/plugin_check.py`
+
+## D-17 — ruling on adversary finding A-1: pin the prebuilt files to LF
+- 2026-10-30 · decided by the owner, in session S1
+- Options: A — add `.gitattributes` to the 0001 `## Scope` with one line, `afkv2/hooks/built/* text eol=lf` vs B — hash over LF-joined lines and readers strip CR vs C — byte compare only, inside Scope
+- Chosen: A — the orchestrator reproduced A-1 on a fresh clone with `core.autocrlf=true` (5 CR bytes on stdout, begin line ends in CR, check exits 0); with the rule set through `.git/info/attributes`, stdout has 0 CR, the span hashes to `7f976c7ee15c`, and check exits 0
+- Supersedes: none
+- To reverse: remove the line from `.gitattributes` and the path from the 0001 `## Scope`

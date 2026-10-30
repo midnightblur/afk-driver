@@ -36,6 +36,7 @@ complex
 - afkv2/core/CORE-BEHAVIORS.md   # seed only; 0002 owns the content
 - afkv2/hooks/built/afkv2-core-behaviors.txt   # seed only; 0002 owns the content
 - afkv2/hooks/built/afkv2-core-behaviors.claude-subagent.json   # seed only; 0002 owns the content
+- .gitattributes   # add one line only: afkv2/hooks/built/* text eol=lf; every other line byte-identical
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
