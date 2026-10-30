@@ -104,3 +104,10 @@
 - Chosen: A — a suffix nobody listed now fails closed. Remaining known gap: a file with a binary suffix is not read, so a text file named `.png` passes
 - Supersedes: `CODE_SUFFIXES` of D-10 and D-13; the D-10 sentence "a code file that is not UTF-8 is a problem" widens to every non-binary file
 - To reverse: restore `CODE_SUFFIXES` and `_read_lines` from commit 3051e9df in `afkv2/scripts/plugin_check.py`
+
+## D-16 — the hook registration is code, although its suffix is prose
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — `afkv2/hooks/hooks.json` takes the code rule and the marker rule; every other `.json` stays prose vs B — read every `.json` as code, which fails the prebuilt subagent output and the manifest descriptions vs C — keep it prose and record a known gap
+- Chosen: A — that file holds commands that run. The prebuilt output is one long line of prose, and a manifest description is prose
+- Supersedes: the D-15 sentence "`.md`, `.txt`, `.json` are prose" for this one file
+- To reverse: remove `_is_prose` from `afkv2/scripts/plugin_check.py`

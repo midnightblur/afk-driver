@@ -202,6 +202,9 @@ def test_v1_file_name_fails(tree, relative):
         f'fetch("https://x/"+{V1_ENV}KEY)',
         f'{{"url":"https://x.y","env":"{V1_ENV}KEY"}}',
         f'url="https://x.y";{V1}_key=1',
+        f'url = f"https://h/{{{V1_ENV}KEY}}"',
+        f"curl https://x/${V1_ENV}TOKEN",
+        f'u="https://h/a?t=${{{V1_ENV}T}}"',
     ],
 )
 @pytest.mark.parametrize("name", ["sample.py", "sample.txt"])
@@ -260,7 +263,13 @@ def test_file_that_cannot_be_opened_fails_the_tree_check(tree, name, monkeypatch
 
 
 @pytest.mark.parametrize("data", [b"\xff\xfe\x00", b"png\x00 bytes", f"x {V1_ENV}Y\x00".encode()])
-@pytest.mark.parametrize("name", ["sample.png", "sample.PNG"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "sample.png", "sample.PNG", "sample.jpg", "sample.jpeg", "sample.gif", "sample.ico", "sample.webp",
+        "sample.woff", "sample.woff2", "sample.pdf", "sample.zip",
+    ],
+)
 def test_binary_file_is_skipped(tree, name, data):
     (tree / "scripts" / name).write_bytes(data)
     assert plugin_check.check_no_v1_names(tree) == []
@@ -333,7 +342,7 @@ def test_prefix_or_substring_marker_match_fails(tree, line):
 @pytest.mark.parametrize(
     "operator",
     [
-        "startswith", "endswith", "find", "rfind", "findall", "finditer", "index", "rindex", "count", "search",
+        "startswith", "endswith", "rfind", "findall", "finditer", "index", "rindex", "count", "search",
         "match", "matchAll", "exec", "test", "sub", "subn", "split", "rsplit", "partition", "rpartition", "replace",
         "replaceAll", "removeprefix", "removesuffix", "includes", "indexOf", "lastIndexOf", "contains", "slice",
         "substring", "substr",
@@ -380,7 +389,11 @@ def test_every_method_operator_fails(tree, operator):
         ("sample.yml", f"if: \"'{MARKER}' in github.event.head_commit.message\""),
         ("sample.html", f'<script>if ("{MARKER}" in text) go()</script>'),
         ("sample.psm1", f'$line -match "{MARKER}"'),
+        ("sample.ps1", f'$line -in "{MARKER}"'),
         ("sample.CMD", f'findstr /c:"{MARKER}" x'),
+        ("sample.html", f"<p>the {MARKER} text in context</p>"),
+        ("sample.yaml", f"marker: {MARKER} in file"),
+        ("sample.py", f'for m in ["{MARKER}"]:'),
     ],
 )
 def test_marker_match_in_other_spellings_fails(tree, name, line):
@@ -402,10 +415,37 @@ def test_marker_match_in_other_spellings_fails(tree, name, line):
         ("sample.css", ".afkv2-match { color: red }"),
         ("sample.html", '<div class="afkv2-card-like"></div>'),
         ("sample.md", f'found = "{MARKER}" in text'),
+        ("sample.py", 'x = "afkv2-in-use"'),
+        ("sample.py", 'x = "afkv2-find-end"'),
+        ("sample.py", 'm = "afkv2:find:done"'),
+        ("sample.py", f'ROWS = [{{"marker": "{MARKER}"}}]'),
+        ("sample.py", f'x = ["{MARKER}", {{"a": 1}}]'),
     ],
 )
 def test_full_line_marker_match_passes(tree, name, line):
     (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
+    assert plugin_check.check_marker_matching(tree) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        f'  "command": "grep {MARKER} x",',
+        f'  "command": "findstr /c:{MARKER} x",',
+    ],
+)
+def test_marker_match_in_a_hook_command_fails(tree, line):
+    (tree / "hooks" / "hooks.json").write_text(line + "\n", encoding="utf-8")
+    assert any("hooks/hooks.json:1" in p for p in plugin_check.check_marker_matching(tree))
+
+
+def test_bare_v1_word_in_a_hook_command_fails(tree):
+    (tree / "hooks" / "hooks.json").write_text(f'  "command": "run {V1} now",\n', encoding="utf-8")
+    assert any("hooks/hooks.json:1" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+def test_marker_and_word_in_other_json_passes(tree):
+    (tree / "hooks" / "other.json").write_text(f'  "command": "grep {MARKER} x",\n', encoding="utf-8")
     assert plugin_check.check_marker_matching(tree) == []
 
 

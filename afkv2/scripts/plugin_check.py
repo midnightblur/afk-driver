@@ -35,20 +35,20 @@ V1_FILE_PART = re.compile(r"af[k](?!v2)", re.IGNORECASE)
 V1_NAME = re.compile(r"(?<![a-z0-9])af[k](?!v2)", re.IGNORECASE)
 V1_PROSE_WORD = re.compile(r"(?:^|(?<=[\s(`\"']))af[k](?=$|[\s)`,;!?]|[.:](?:\s|$))", re.IGNORECASE)
 V1_CSS_CLASS = re.compile(r"class(?:Name)?\s*=\s*[\"'][^\"']*(?<![a-z0-9-])af[k](?![a-z0-9-])", re.IGNORECASE)
-URL = re.compile(r"https?://[^\s\"'`,;()<>]+")
+URL = re.compile(r"https?://[^\s\"'`,;()<>{}$]+")
 
 MARKER_TOKEN = re.compile(r"(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
 SUBSTRING_MATCH = re.compile(
-    r"\.(?:startswith|endswith|find|rfind|findall|finditer|index|rindex|count|search|match|matchall|exec|test"
+    r"\.(?:startswith|endswith|rfind|findall|finditer|index|rindex|count|search|match|matchall|exec|test"
     r"|sub|subn|split|rsplit|partition|rpartition|replace|replaceall|removeprefix|removesuffix"
     r"|includes|indexof|lastindexof|contains|slice|substring|substr)\("
-    r"|\[(?:[^\]\"':]|\"[^\"]*\"|'[^']*')*:"
+    r"|\[(?:[^\]\"':{}]|\"[^\"]*\"|'[^']*')*:"
     r"|[%!]\w+:\S"
     r"|=~"
     r"|\$\{\w+[:#%]"
-    r"|(?<![\w-])-[ci]?(?:not)?(?:like|match|contains|replace|split)\b"
+    r"|(?<![\w-])-[ci]?(?:not)?(?:like|match|contains|replace|split|in)\b"
     r"|(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9:-]*\*"
-    r"|\b(?:select-string|in|findstr|find|grep|strstr|sed|awk|sls)\b",
+    r"|(?<![\w:-])(?:select-string|in|findstr|find|grep|strstr|sed|awk|sls)(?![\w:-])",
     re.IGNORECASE,
 )
 
@@ -83,12 +83,11 @@ def check_no_v1_names(root: Path) -> list[str]:
         relative = path.relative_to(root)
         if any(V1_FILE_PART.search(part) for part in relative.parts):
             problems.append(f"{relative.as_posix()}: file name uses a v1 name")
-        is_prose = path.suffix.lower() in PROSE_SUFFIXES
         lines, problem = _read_lines(path)
         if problem:
             problems.append(f"{relative.as_posix()}: {problem}")
         for number, line in lines:
-            if _holds_v1_name(URL.sub("", line), is_prose):
+            if _holds_v1_name(URL.sub("", line), _is_prose(relative)):
                 problems.append(f"{relative.as_posix()}:{number}: v1 name: {line.strip()}")
     return problems
 
@@ -96,13 +95,15 @@ def check_no_v1_names(root: Path) -> list[str]:
 def check_marker_matching(root: Path) -> list[str]:
     problems = []
     for path in _files(root):
-        if path.suffix.lower() in PROSE_SUFFIXES:
+        relative = path.relative_to(root)
+        if _is_prose(relative):
             continue
-        relative = path.relative_to(root).as_posix()
         lines, _ = _read_lines(path)
         for number, line in lines:
             if MARKER_TOKEN.search(line) and SUBSTRING_MATCH.search(line):
-                problems.append(f"{relative}:{number}: marker matched by prefix or substring; compare the full line")
+                problems.append(
+                    f"{relative.as_posix()}:{number}: marker matched by prefix or substring; compare the full line"
+                )
     return problems
 
 
@@ -218,6 +219,11 @@ def _read_lines(path: Path) -> tuple[list[tuple[int, str]], str | None]:
     if "\x00" in text:
         return [], NOT_TEXT
     return list(enumerate(text.splitlines(), start=1)), None
+
+
+def _is_prose(relative: Path) -> bool:
+    """The hook registration holds commands, so it is code although its suffix is prose."""
+    return relative.suffix.lower() in PROSE_SUFFIXES and relative != HOOKS_FILE
 
 
 def _holds_v1_name(line: str, is_prose: bool) -> bool:
