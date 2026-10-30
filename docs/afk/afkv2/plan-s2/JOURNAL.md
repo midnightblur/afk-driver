@@ -45,3 +45,7 @@
 2026-10-30 03:54 | autopilot | 0009-propose-solution-skill | park-inherited(waiting on 0008-to-prd-jira-publish) — not started, because the slice it builds on is not finished
 2026-10-30 03:54 | autopilot | 0010-to-subtasks-skill | park-inherited(waiting on 0009-propose-solution-skill) — not started, because the slice it builds on is not finished
 2026-10-30 03:54 | autopilot | run | run end (0/5 done, 5 parked) — no slice finished: one stopped for a human ruling and the other four wait behind it; the smoke check did not run, because it needs every slice done
+2026-10-30 11:14 | autopilot | run | decision(D-17) — the owner ruled that the live-app attack check does not run for afkv2, because there is no app
+2026-10-30 11:14 | autopilot | run | decision(D-18) — the owner limited review to 3 rounds per slice, and only critical and high findings get a fix
+2026-10-30 11:14 | autopilot | run | decision(D-19) — the owner ruled that changed sign-off wording goes back for a sign mark
+2026-10-30 11:14 | autopilot | run | decision(D-20) — the owner accepted the commit gate skip for this build, and pull request checks catch the rest

@@ -111,3 +111,31 @@
 - Chosen: A — this repository has no live app and no build gate that can bring one up, and driven mode allows no waiver; only the human may rule that the gate does not apply. B can only answer "environment unreachable", and C is a waiver under another name. Dependents of this slice wait for the human's ruling
 - Supersedes: none
 - To reverse: the human rules that the gate does not apply to this plan; the row then goes to `done`
+
+## D-17 — owner ruling R-1: skip the adversarial gate for afkv2
+- 2026-10-30 · decided by the owner (brief, section "Owner rulings")
+- Options: A — skip execute Step 10.5 for every afkv2 slice vs B — every slice stops with the gate owed
+- Chosen: A — owner: "Skip for afkv2". There is no running app to attack. Each slice writes `adversary: skipped (owner ruling R-1)` in the journal
+- Supersedes: execute Step 10.5 "Mandatory in driven mode"; D-16 "the slice stops"
+- To reverse: the owner withdraws R-1
+
+## D-18 — owner ruling R-2: at most 3 review rounds, fix only critical and high
+- 2026-10-30 · decided by the owner (brief, section "Owner rulings")
+- Options: A — at most 3 rounds per slice, and only critical and high findings get a fix vs B — the settle loop with its 10-round cap
+- Chosen: A — medium and low findings stay on the PR as advisory, with no fix and no dispute round. After round 3, an open critical or high finding parks the slice; otherwise the gate passes. For 0006 this passes the gate: findings f074 to f078 are medium or low, as the executor reported
+- Supersedes: `skills/afk/review/SETTLEMENT.md` 10-round settle loop, for this build
+- To reverse: the owner withdraws R-2
+
+## D-19 — owner ruling R-3: a note that changes sign-off wording needs a sign mark
+- 2026-10-30 · decided by the owner (brief, section "Owner rulings")
+- Options: A — the card goes back for a `sign` mark vs B — the note settles the card
+- Chosen: A — the owner chose this. `afkv2/skills/visualize/components/card.md` already states it, so no code changes. This closes the open call in D-15 and finding f074
+- Supersedes: D-15, only its open call
+- To reverse: edit `components/card.md` and the test that pins the rule
+
+## D-20 — owner ruling R-4: pre-commit gate skip accepted for afkv2
+- 2026-10-30 · decided by the owner (brief, section "Owner rulings")
+- Options: A — `AFK_SKIP_PRECOMMIT_GATES=1` on any afkv2 commit vs B — skip only on the v1 layout friction
+- Chosen: A — PR CI catches the rest, and the ship gate must be green. Skipped commits stay listed in the journal
+- Supersedes: the brief's narrower rule on v1 friction
+- To reverse: the owner withdraws R-4
