@@ -105,3 +105,7 @@
 2026-10-30 08:20 | execute | 0013-code-review-skill | review r2 — advisory: crit=0 high=0 med=1 low=2; delta roster: delta-sweep, test-veracity, logic-correctness, api-contract
 2026-10-30 08:20 | execute | 0013-code-review-skill | decision(D-45) — see plan-s3/DECISIONS.md
 2026-10-30 08:21 | execute | 0013-code-review-skill | review r2 closed — 3 fixed in 50d44790; unit 81 passed; gate-skip native-contract on that commit: same v1-layout refusal, no row on afkv2/skills/code-review or afkv2/tests/skills
+2026-10-30 09:06 | autopilot | 0013-code-review-skill | parked(timeout) — the helper building this slice stopped responding for 31 minutes after its review came back clean; its last command never started; no work is lost
+2026-10-30 09:06 | autopilot | 0013-code-review-skill | stranded — the progress table still says reviewing, but nothing is working on this slice
+2026-10-30 09:06 | autopilot | 0015-autopilot-execute | park-inherited(waiting on 0013-code-review-skill) — this slice needs the code review skill first
+2026-10-30 09:06 | autopilot | run | heartbeat 2/5 done, starting 0014-change-request-ci-watch — this slice does not depend on the parked one
