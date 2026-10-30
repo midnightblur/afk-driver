@@ -13,11 +13,11 @@
 }
 .afkv2-group-label { display: block; font-size: .78rem; line-height: 18px; color: var(--fg-dim); overflow-wrap: anywhere; }
 .afkv2-edges { position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; }
-.afkv2-edge { fill: none; stroke: var(--neutral); stroke-width: 1.5; }
+.afkv2-edge { fill: none; stroke: var(--neutral); stroke-width: 1.5; stroke-linejoin: round; }
 .afkv2-edge--back { stroke-dasharray: 5 3; }
 .afkv2-arrowhead { fill: var(--neutral); }
 .afkv2-edge-label {
-  position: absolute; z-index: 3; transform: translate(-50%, -50%); padding: 0 .25rem;
+  position: absolute; z-index: 3; transform: translate(-50%, -50%); padding: 0 .25rem; width: max-content;
   background: var(--bg); color: var(--fg-dim); font-size: .75rem; line-height: 16px;
   text-align: center; overflow-wrap: anywhere;
 }

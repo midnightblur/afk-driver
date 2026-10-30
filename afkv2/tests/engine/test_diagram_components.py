@@ -65,6 +65,10 @@ EDGE_PATH = re.compile(r'<path class="afkv2-edge[^"]*" data-afkv2-edge="([^"]*)"
 GROUP_FRAME = re.compile(r'class="afkv2-group" style="left:(\d+)px;top:(\d+)px;width:(\d+)px;height:(\d+)px"[^>]*>'
                          r'<span class="afkv2-group-label">([^<]*)</span>')
 EDGE_LABEL = re.compile(r'afkv2-edge-label" style="left:(\d+)px;top:(\d+)px')
+EDGE_LABEL_BOX = re.compile(r'afkv2-edge-label" style="left:(\d+)px;top:(\d+)px;max-width:(\d+)px">([^<]*)</span>')
+EDGE_D = re.compile(r'<path class="afkv2-edge[^"]*" data-afkv2-edge="([^"]*)" d="([^"]*)"')
+EDGE_LABEL_RULE = re.compile(r"\.afkv2-edge-label \{[^}]*width: max-content;")
+LABEL_CHAR, LABEL_LINE, LABEL_PAD = 7, 16, 8
 SEQ_TEXT = re.compile(r'<span class="afkv2-seq-n">(\d+)\.</span> ?<span class="afkv2-seq-words">([^<]*)</span>')
 SEQ_MSG = re.compile(r'class="afkv2-seq-msg afkv2-seq-msg--(\w+)" style="grid-column:(\d+) / (\d+);grid-row:(\d+)')
 RUN_LANE = re.compile(r'<div class="afkv2-run-lane"><h5 class="afkv2-run-head">(\w+)</h5>'
@@ -382,6 +386,124 @@ def test_a_back_arrow_label_stays_clear_of_the_next_band(direction):
     left, top = map(int, EDGE_LABEL.search(html).groups())
     assert not any(box[0] <= left <= box[0] + box[2] and box[1] <= top <= box[1] + box[3] for box in boxes(html))
     assert left < canvas(html)[0] and top < canvas(html)[1]
+
+
+def edge_paths(html):
+    return dict(EDGE_D.findall(html))
+
+
+def turns(curve):
+    """The corners of a straight-line path, as (x, y)."""
+    numbers = [int(number) for number in re.findall(r"\d+", curve)]
+    return list(zip(numbers[::2], numbers[1::2]))
+
+
+def crosses(start, end, box):
+    left, top, width, height = box
+    low_x, high_x = sorted((start[0], end[0]))
+    low_y, high_y = sorted((start[1], end[1]))
+    return low_x < left + width and left < high_x and low_y < top + height and top < high_y
+
+
+def label_boxes(html):
+    """Each arrow label's box as (left, top, width, height), from the size its text needs."""
+    found = []
+    for left, top, limit, words in EDGE_LABEL_BOX.findall(html):
+        length = len(words) * LABEL_CHAR
+        width = min(length + LABEL_PAD, int(limit))
+        height = LABEL_LINE * -(-length // (int(limit) - LABEL_PAD))
+        found.append((int(left) - width // 2, int(top) - height // 2, width, height))
+    return found
+
+
+def skip_graph(direction):
+    """Node order a, c, b, with one arrow from a to b that skips c."""
+    return {"direction": direction, "nodes": [{"id": n, "label": n} for n in "acb"], "edges": [
+        {"from": "a", "to": "c"}, {"from": "c", "to": "b"}, {"from": "a", "to": "b", "label": "skips a step"}]}
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+def test_an_arrow_that_skips_a_rank_goes_round_the_box_between(direction):
+    html = registry.render_component({"type": "graph", "props": skip_graph(direction)})
+    drawn = dict(zip("acb", boxes(html)))
+    corners = turns(edge_paths(html)["a b"])
+    assert not any(crosses(start, end, drawn["c"]) for start, end in zip(corners, corners[1:]))
+    source, target = drawn["a"], drawn["b"]
+    if direction == "right":
+        assert corners[0] == (source[0] + source[2], source[1] + source[3] // 2)
+        assert corners[-1][1] == target[1] + target[3] // 2 and corners[-1][0] < target[0]
+    else:
+        assert corners[0] == (source[0] + source[2] // 2, source[1] + source[3])
+        assert corners[-1][0] == target[0] + target[2] // 2 and corners[-1][1] < target[1]
+    width, height = canvas(html)
+    assert all(0 <= x <= width and 0 <= y <= height for x, y in corners)
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+def test_arrows_that_skip_the_same_box_take_separate_lanes(direction):
+    props = skip_graph(direction)
+    props["edges"].append({"from": "a", "to": "b"})
+    html = registry.render_component({"type": "graph", "props": props})
+    between = boxes(html)[1]
+    routes = [turns(curve) for name, curve in EDGE_D.findall(html) if name == "a b"]
+    assert len(routes) == 2 and routes[0][2] != routes[1][2]
+    for corners in routes:
+        assert not any(crosses(start, end, between) for start, end in zip(corners, corners[1:]))
+
+
+def test_an_arrow_that_skips_a_rank_stays_a_curve_when_no_box_is_in_its_way():
+    props = {"nodes": [{"id": n, "label": n} for n in ("p", "a", "m", "u", "t")], "edges": [
+        {"from": "p", "to": "m"}, {"from": "m", "to": "u"}, {"from": "m", "to": "t"}, {"from": "a", "to": "t"}]}
+    html = registry.render_component({"type": "graph", "props": props})
+    assert " C" in edge_paths(html)["a t"]
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+@pytest.mark.parametrize("edges, count", [
+    ([("a", "b", "read"), ("a", "b", "write")], 2),
+    ([("a", "b", "reads the order table"), ("a", "c", "writes the audit row")], 2),
+    ([("a", "b", "first long label that takes more than one line"),
+      ("a", "c", "second long label that takes more than one line"),
+      ("a", "d", "third long label that takes more than one line")], 3),
+])
+def test_arrow_labels_never_land_on_each_other(direction, edges, count):
+    props = {"direction": direction, "nodes": [{"id": n, "label": n} for n in "abcd"],
+             "edges": [{"from": start, "to": end, "label": words} for start, end, words in edges]}
+    html = registry.render_component({"type": "graph", "props": props})
+    labels = label_boxes(html)
+    assert len(labels) == count
+    for i, label in enumerate(labels):
+        assert not any(overlap(label, other) for other in labels[i + 1:])
+        assert not any(overlap(label, box) for box in boxes(html))
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+def test_a_long_arrow_label_stays_on_the_canvas(direction):
+    props = {"direction": direction, "nodes": [{"id": "a", "label": "a"}, {"id": "b", "label": "b"}],
+             "edges": [{"from": "a", "to": "b", "label": "a long label " * 20}]}
+    html = registry.render_component({"type": "graph", "props": props})
+    width, height = canvas(html)
+    (left, top, label_width, label_height), = label_boxes(html)
+    assert left >= 0 and top >= 0
+    assert left + label_width <= width and top + label_height <= height
+
+
+def test_an_arrow_label_takes_its_own_width_at_the_canvas_edge():
+    assert EDGE_LABEL_RULE.search(STYLES)
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+def test_arrow_labels_stay_clear_of_boxes_and_labels_in_a_crowded_graph(direction):
+    props = {"direction": direction, "nodes": [{"id": str(i), "label": "a node label " * (i % 3 + 1)} for i in range(12)],
+             "edges": [{"from": str(i), "to": str((i * 2 + 1) % 12), "label": "edge " * 8} for i in range(12)]}
+    html = registry.render_component({"type": "graph", "props": props})
+    drawn, labels = boxes(html), label_boxes(html)
+    width, height = canvas(html)
+    assert len(labels) == 12
+    for i, label in enumerate(labels):
+        assert label[0] >= 0 and label[1] >= 0 and label[0] + label[2] <= width and label[1] + label[3] <= height
+        assert not any(overlap(label, other) for other in labels[i + 1:])
+        assert not any(overlap(label, box) for box in drawn)
 
 
 def test_a_long_chain_draws_without_a_recursion_failure():

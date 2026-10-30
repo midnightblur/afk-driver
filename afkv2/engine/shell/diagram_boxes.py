@@ -2,6 +2,8 @@
 
 Boxes stand in ranks along the arrows. Each group is one band across the ranks, so a group frame
 never holds a box of another group. An arrow that would run against the rank order is a back arrow.
+An arrow that skips a rank runs in a free lane when a box stands in its way. An arrow label moves across
+the ranks until it touches no box and no other label.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ GROUP_LINE, GROUP_CHARS_PER_LINE = 18, 24
 EDGE_LINE, EDGE_CHAR, EDGE_CHARS_PER_LINE = 16, 7, 24
 RANK_GAP, CROSS_GAP, BAND_GAP, FRAME, START = 64, 20, 28, 12, 24
 BACK_ARC, BACK_OFFSET, HEAD, HEAD_WIDTH = 56, 12, 8, 4
+LANE_CLEAR, LANE_GAP, LABEL_PAD, LABEL_GAP, LABEL_CELL = 8, 8, 8, 4, 256
 
 
 def boxes_schema(node_fields: dict, node_required: list[str]) -> dict:
@@ -110,6 +113,40 @@ class _Place:
     main_size: int
     cross_size: int
 
+    @property
+    def centre(self) -> int:
+        return self.cross + self.cross_size // 2
+
+
+def _free_lane(between: list[tuple[int, int]], near: int, taken: set[int]) -> int:
+    """The cross position nearest `near` that clears every span and stays apart from every earlier lane."""
+    def clear(at: int) -> bool:
+        return (at >= LANE_CLEAR and not any(start < at < end for start, end in between)
+                and not any(abs(at - lane) < LANE_GAP for lane in taken))
+
+    reach = LANE_GAP * (2 * len(taken) + 1)
+    bounds = {at for span in between for at in span}
+    found = (at + step for at in bounds for step in range(-reach, reach + 1, LANE_GAP))
+    return min((at for at in found if clear(at)), key=lambda at: (abs(at - near), at))
+
+
+def _lanes(edges: list[dict], back: set[int], ranks: dict[str, int], places: dict[str, _Place]) -> dict[int, int]:
+    """The lane of each forward arrow that would otherwise pass behind a box of a rank it skips."""
+    spans: dict[int, list[tuple[int, int]]] = {}
+    for identifier, place in places.items():
+        spans.setdefault(ranks[identifier], []).append(
+            (place.cross - LANE_CLEAR, place.cross + place.cross_size + LANE_CLEAR))
+    lanes: dict[int, int] = {}
+    for index, edge in enumerate(edges):
+        low, high = ranks[edge["from"]], ranks[edge["to"]]
+        if index in back or high - low < 2:
+            continue
+        near, tip = places[edge["from"]].centre, places[edge["to"]].centre
+        between = [span for rank in range(low + 1, high) for span in spans[rank]]
+        if any(start < max(near, tip) and min(near, tip) < end for start, end in between):
+            lanes[index] = _free_lane(between, near, set(lanes.values()))
+    return lanes
+
 
 @dataclass(frozen=True)
 class _Layout:
@@ -118,6 +155,9 @@ class _Layout:
     places: dict[str, _Place]
     frames: list[tuple[str, tuple[int, int, int, int]]]
     back: set[int]
+    ranks: dict[str, int]
+    gap_middles: dict[int, int]
+    lanes: dict[int, int]
     width: int
     height: int
 
@@ -184,54 +224,103 @@ def _layout(props: dict, head: int) -> _Layout:
                     else (cross, low - FRAME - heads[group], last - cross, length + heads[group]))
             frames.append((titles[group], rect))
         cross = last + BAND_GAP + (BACK_ARC if group in arc_bands else 0)
-    cross_end = cross - BAND_GAP + START
+    lanes = _lanes(edges, back, ranks, places)
+    cross_end = max([cross - BAND_GAP + START, *(lane + START for lane in lanes.values())])
     width, height = (main_end, cross_end) if right else (cross_end, main_end)
-    return _Layout(right, gap, places, frames, back, width, height)
+    gap_middles = {rank: starts[rank] + extent[rank] + gap // 2 for rank in starts}
+    return _Layout(right, gap, places, frames, back, ranks, gap_middles, lanes, width, height)
 
 
-def _forward(layout: _Layout, start: _Place, target: _Place) -> tuple[str, str, tuple[int, int]]:
-    from_main, from_cross = start.main + start.main_size, start.cross + start.cross_size // 2
-    tip_main, tip_cross = target.main, target.cross + target.cross_size // 2
+def _forward(layout: _Layout, edge: dict, lane: int | None) -> tuple[str, str, tuple[int, int]]:
+    start, target = layout.places[edge["from"]], layout.places[edge["to"]]
+    from_main, from_cross = start.main + start.main_size, start.centre
+    tip_main, tip_cross = target.main, target.centre
     end, middle = tip_main - HEAD, (from_main + tip_main - HEAD) // 2
     at = layout.point
-    curve = (f"M{at(from_main, from_cross)} C{at(middle, from_cross)} {at(middle, tip_cross)} {at(end, tip_cross)}")
     tip = (f"M{at(tip_main, tip_cross)} L{at(end, tip_cross - HEAD_WIDTH)} L{at(end, tip_cross + HEAD_WIDTH)} Z")
-    run = tip_main - from_main
-    label_main = from_main + min(layout.gap, run) // 2
-    label_cross = from_cross + (tip_cross - from_cross) * (label_main - from_main) // run
-    return curve, tip, layout.label_left_top(label_main, label_cross)
+    first_gap = layout.gap_middles[layout.ranks[edge["from"]]]
+    if lane is not None:
+        last_gap = layout.gap_middles[layout.ranks[edge["to"]] - 1]
+        turns = ((first_gap, from_cross), (first_gap, lane), (last_gap, lane), (last_gap, tip_cross), (end, tip_cross))
+        curve = f"M{at(from_main, from_cross)} " + " ".join(f"L{at(*turn)}" for turn in turns)
+        return curve, tip, (first_gap, (from_cross + lane) // 2)
+    curve = (f"M{at(from_main, from_cross)} C{at(middle, from_cross)} {at(middle, tip_cross)} {at(end, tip_cross)}")
+    label_cross = from_cross + (tip_cross - from_cross) * (first_gap - from_main) // (tip_main - from_main)
+    return curve, tip, (first_gap, label_cross)
 
 
-def _backward(layout: _Layout, start: _Place, target: _Place) -> tuple[str, str, tuple[int, int]]:
+def _backward(layout: _Layout, edge: dict) -> tuple[str, str, tuple[int, int]]:
+    start, target = layout.places[edge["from"]], layout.places[edge["to"]]
     from_main, from_cross = start.main + start.main_size // 2 + BACK_OFFSET, start.cross + start.cross_size
     tip_main, tip_cross = target.main + target.main_size // 2 - BACK_OFFSET, target.cross + target.cross_size
     end, far = tip_cross + HEAD, max(from_cross, tip_cross) + BACK_ARC
     at = layout.point
     curve = f"M{at(from_main, from_cross)} C{at(from_main, far)} {at(tip_main, far)} {at(tip_main, end)}"
     tip = f"M{at(tip_main, tip_cross)} L{at(tip_main - HEAD_WIDTH, end)} L{at(tip_main + HEAD_WIDTH, end)} Z"
-    label = layout.label_left_top((from_main + tip_main) // 2, far - BACK_ARC // 4)
-    return curve, tip, label
+    return curve, tip, ((from_main + tip_main) // 2, far - BACK_ARC // 4)
+
+
+class _Taken:
+    """Rectangles as (main, cross, main size, cross size), found by main position so a long chain stays cheap."""
+
+    def __init__(self, rects: Iterable[tuple[int, int, int, int]]) -> None:
+        self.cells: dict[int, list[tuple[int, int, int, int]]] = {}
+        for rect in rects:
+            self.add(rect)
+
+    def add(self, rect: tuple[int, int, int, int]) -> None:
+        for cell in range(rect[0] // LABEL_CELL, (rect[0] + rect[2]) // LABEL_CELL + 1):
+            self.cells.setdefault(cell, []).append(rect)
+
+    def free_cross(self, rect: tuple[int, int, int, int]) -> int:
+        """The first cross position at or after this rectangle's own where it touches nothing."""
+        main, cross, main_size, cross_size = rect
+        cells = range(main // LABEL_CELL, (main + main_size) // LABEL_CELL + 1)
+        near = sorted({other for cell in cells for other in self.cells.get(cell, ())
+                       if other[0] < main + main_size and main < other[0] + other[2]}, key=lambda other: other[1])
+        for other in near:
+            if other[1] < cross + cross_size and cross < other[1] + other[3]:
+                cross = other[1] + other[3] + LABEL_GAP
+        return cross
+
+
+def _label_size(layout: _Layout, label: str) -> tuple[int, int]:
+    """The estimated size of an arrow label, as (main, cross)."""
+    length = len(label) * EDGE_CHAR
+    width = min(length + LABEL_PAD, layout.label_width)
+    height = EDGE_LINE * ceil(length / (layout.label_width - LABEL_PAD))
+    return (width, height) if layout.right else (height, width)
 
 
 def _rect_style(rect: tuple[int, int, int, int]) -> str:
     return f"left:{rect[0]}px;top:{rect[1]}px;width:{rect[2]}px;height:{rect[3]}px"
 
 
-def _arrows(layout: _Layout, edges: list[dict]) -> tuple[str, str]:
+def _arrows(layout: _Layout, edges: list[dict]) -> tuple[str, str, int, int]:
+    """The arrows and their labels, then the canvas width and height that hold every label."""
     paths, labels = [], []
+    taken = _Taken((place.main, place.cross, place.main_size, place.cross_size) for place in layout.places.values())
+    main_end, cross_end = (layout.width, layout.height) if layout.right else (layout.height, layout.width)
     for index, edge in enumerate(edges):
         is_back = index in layout.back
-        draw = _backward if is_back else _forward
-        curve, tip, (left, top) = draw(layout, layout.places[edge["from"]], layout.places[edge["to"]])
+        curve, tip, (main, cross) = (_backward(layout, edge) if is_back
+                                     else _forward(layout, edge, layout.lanes.get(index)))
         css = "afkv2-edge afkv2-edge--back" if is_back else "afkv2-edge"
         paths.append(f'<path class="{css}" data-afkv2-edge="{escape(edge["from"])} {escape(edge["to"])}" d="{curve}"/>'
                      f'<path class="afkv2-arrowhead" d="{tip}"/>')
         if edge.get("label"):
+            main_size, cross_size = _label_size(layout, edge["label"])
+            low = main - main_size // 2
+            rect_cross = taken.free_cross((low, max(LABEL_GAP, cross - cross_size // 2), main_size, cross_size))
+            taken.add((low, rect_cross, main_size, cross_size))
+            main_end = max(main_end, low + main_size + LABEL_GAP)
+            cross_end = max(cross_end, rect_cross + cross_size + LABEL_GAP)
+            left, top = layout.label_left_top(main, rect_cross + cross_size // 2)
             labels.append(f'<span class="afkv2-edge-label" style="left:{left}px;top:{top}px;'
                           f'max-width:{layout.label_width}px">{escape(edge["label"])}</span>')
-    svg = (f'<svg class="afkv2-edges" width="{layout.width}" height="{layout.height}" aria-hidden="true">'
-           f'{"".join(paths)}</svg>')
-    return svg, "".join(labels)
+    width, height = (main_end, cross_end) if layout.right else (cross_end, main_end)
+    svg = f'<svg class="afkv2-edges" width="{width}" height="{height}" aria-hidden="true">{"".join(paths)}</svg>'
+    return svg, "".join(labels), width, height
 
 
 def _frame(title: str, rect: tuple[int, int, int, int]) -> str:
@@ -247,12 +336,12 @@ def draw_boxes(props: dict, head: int = 0, parts: Callable[[dict], tuple[str, st
     """`parts(node)` gives a box's extra class, its extra attributes and the HTML above its label."""
     layout = _layout(props, head)
     frames = "".join(_frame(title, rect) for title, rect in layout.frames)
-    svg, labels = _arrows(layout, props.get("edges") or [])
+    svg, labels, width, height = _arrows(layout, props.get("edges") or [])
     drawn = []
     for node in props["nodes"]:
         extra_class, attrs, above = parts(node)
         css = f"afkv2-box {extra_class}" if extra_class else "afkv2-box"
         drawn.append(f'<div class="{css}"{attrs} style="{_rect_style(layout.rect(layout.places[node["id"]]))}">'
                      f'{above}{label_html(node["label"], "afkv2-box-label")}</div>')
-    return (f'<div class="afkv2-diagram-scroll"><div class="afkv2-boxes" style="width:{layout.width}px;'
-            f'height:{layout.height}px">{frames}{svg}{"".join(drawn)}{labels}</div></div>')
+    return (f'<div class="afkv2-diagram-scroll"><div class="afkv2-boxes" style="width:{width}px;'
+            f'height:{height}px">{frames}{svg}{"".join(drawn)}{labels}</div></div>')
