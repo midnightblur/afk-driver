@@ -391,3 +391,66 @@
 - Chosen: A — S3 `start_gate.py` reads a check cell that starts `not applicable:` with a reason, and refuses another form as `bad-not-applicable`. A second form would make a valid plan refuse at the autopilot start. The new bullet is in `## Acceptance` of 0010, and the plan check is clean
 - Supersedes: D-32, only its open phrase "names it not applicable", which now has this form
 - To reverse: change the bullet and `NOT_APPLICABLE` in `start_gate.py`
+
+## D-57 — the division page uses the session skill `propose-solution`
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — keep `session.skill` = `propose-solution`, with the file name `pages/propose-solution-division-<stamp>.json` vs B — add `to-subtasks` to the skill enum of SDD §4 vs C — no page
+- Chosen: A — the S1 schema enum is signed under HL-1 and names grill, propose-solution and propose-verification only; the contract requires approval on the page. The S1 engine refuses any other file name (`_require_home`: `<skill>-<session id>.json`), seen in a one-off run with that engine. The session prefix `division-` sorts before the `s-` of a design session, so `design_files._open_session` of `/afkv2:propose-solution` takes the design session. Known limit: a spec folder that has a division document and no design document at all resumes the division document in that skill; the SDD then came from outside the chain.
+- Supersedes: none
+- To reverse: add `to-subtasks` to SDD §4 and change `PAGE_SKILL` in `plan_files.py`
+
+## D-58 — the plan states the app in a `> App:` header line
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — a `> App: <address or start command>` or `> App: none` header line of PLAN.md vs B — a second argument of `check_plan.py` vs C — read the app from the repository config
+- Chosen: A — S3 D-72 fixes the call as `check_plan.py <plan folder>` with no other input, and the check has to tell whether a live tier can run. An absent line reads as no app, so the check fails closed. The S3 gate takes its own `app` value at run time, which the skill does not change.
+- Supersedes: none
+- To reverse: `_app_of` in `check_plan.py`, the template in `PLAN-FORMAT.md`
+
+## D-59 — a check path passes when the chain owns it or the file is on the feature branch
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — owned by a Scope of the chain, or already on the head of the feature branch vs B — owned by a Scope only
+- Chosen: A — D-32 names the Scope rule, and S3 D-71 sends path-named commands to this check. With B every `./mvnw` or existing script refuses. The check reads the feature branch because the run branch holds no code; a run branch with no feature branch owns nothing, so it fails closed. The answer names the `base`. Limit of the reader: a word in a code span is a path only with a `/`, and a prose code span can read as a program (seen once: 0006 of this plan, which predates the check).
+- Supersedes: none
+- To reverse: `Base` and `_row_failures` in `check_plan.py`
+
+## D-60 — the check reports a missing approval and does not fail on it
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — `division.approved` false on exit 0, and `bad-approval` only for a malformed line vs B — a failure when the line is missing
+- Chosen: A — the check must pass before the developer can approve, because the division round refuses a plan that fails it. S3 reads the line itself in `start_gate.py`. The S3 fake reports `no-approval` from the check; the extra failure does not change the S3 result.
+- Supersedes: none
+- To reverse: `division_of` and `check_plan` in `check_plan.py`
+
+## D-61 — citations resolve in a separate verb at the cut
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — `plan_files.py citations --plan --spec-dir` vs B — a rule of `check_plan.py`
+- Chosen: A — the check takes the plan folder only (S3 D-72), runs on the run branch, and the run branch holds no spec file. The contract asks for citations at the cut. The grammar is in `SUBTASK-CONTRACT.md`: PRD, SDD and ADR citations resolve; a GRILL-LOG citation does not, because the skill reads only the PRD, the SDD and the ADRs.
+- Supersedes: none
+- To reverse: move `citation_failures` into `check_plan.py` with a spec-folder input
+
+## D-62 — the approval binds to a digest of the committed plan
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — the card id holds a digest of PLAN.md and the contracts, and `approve` needs the newest division card settled on that digest vs B — any settled card approves
+- Chosen: A — a note that changes the plan returns the card, and the new digest needs a new sign mark (owner ruling R-3). A sign on an older plan does not approve a changed one. Running `division` takes back an earlier approval line. The `> Division:` and `> Last updated:` lines and the line ends do not count in the digest. A later edit with no `division` run keeps the line: autopilot reads only the line, and the contract asks no more.
+- Supersedes: none
+- To reverse: `plan_digest` and `_approved_by_developer` in `plan_files.py`
+
+## D-63 — the run branch starts empty by plumbing commands
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — `git mktree` and `git commit-tree`, then `git branch` vs B — `git checkout --orphan` vs C — `git worktree add --orphan`
+- Chosen: A — B changes the feature worktree, and C needs git 2.42. The worktree path is `<toplevel>-run`, the same as `locate` in S3 `walk.py`, so autopilot reuses it. `commit` refuses any file outside `plan/` and any spec file under it.
+- Supersedes: none
+- To reverse: `_new_run_branch` in `plan_files.py`
+
+## D-64 — the plan has no smoke gate, no sync-harness subtask, no review-policy line and no journal seed
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — leave them out of `PLAN-FORMAT.md` vs B — keep the v1 sections
+- Chosen: A — no reader exists for them in afkv2 (K-8 P0, E-3), and S3 creates JOURNAL.md and DECISIONS.md on first write. S3 reads `/afk:` in a header line as a v1 plan, so the template holds none.
+- Supersedes: none
+- To reverse: add the rows to `PLAN-FORMAT.md`
+
+## D-65 — `.claude/wiring-ious.md` gets the lines of this slice
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — add them, outside `## Scope`, as 0007, 0008 and 0009 did vs B — leave them out
+- Chosen: A — the user rule on wiring requires a line for each artifact whose consumer comes later. No code changes outside Scope.
+- Supersedes: none
+- To reverse: delete the 3 lines
