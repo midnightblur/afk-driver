@@ -85,7 +85,7 @@ uses them.*
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0011-setup-skill | setup skill | done | — | static, unit, integration | impl §14, impl §14 |
 | 2 | 0012-forge-tracker-port | forge tracker port | done | — | static, unit, integration | impl §14 |
-| 3 | 0013-code-review-skill | code review skill | reviewing | 0012-forge-tracker-port | static, unit | — |
+| 3 | 0013-code-review-skill | code review skill | done | 0012-forge-tracker-port | static, unit | — |
 | 4 | 0014-change-request-ci-watch | change request ci watch | done | 0012-forge-tracker-port | static, unit, integration | — |
 | 5 | 0015-autopilot-execute | autopilot execute | pending | 0012-forge-tracker-port, 0013-code-review-skill, 0014-change-request-ci-watch | static, unit, integration | — |
 
