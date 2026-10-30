@@ -588,7 +588,7 @@ def _note_on_an_older_card():
 
 
 def test_fake_accepts_the_unverified_shape_of_a_note_on_an_older_card():
-    """The engine-gated test decides this shape once the engine merges."""
+    """The engine-gated test checks the fields of this shape only: it holds no saved copy."""
     check_document(_note_on_an_older_card())
 
 
@@ -613,14 +613,20 @@ def test_card_page_settled_example_has_the_schema_shape():
 def test_card_page_states_the_round_pass_rules():
     text = " ".join((PAGES_DIR / "card.md").read_text("utf-8").split())
     for rule in ("Never change a card in a settled round.",
-                 "`needs_reading` on a `decided`, `confirm` or `debate` card with a clear note "
-                 "and no signal that disagrees with it: set `state` to `settled_by_note`",
-                 "`needs_reading` in any other case: set `state` to `open`",
-                 "A `signoff` card settles only by a `sign` mark",
-                 "A note on an `info` card gets a reply only",
-                 "the new card for that point is a `confirm` card",
-                 "Make one new card for each point that returns",
-                 "a `decided`, `confirm`, `debate` or `signoff` card of an earlier round",
+                 "`needs_reading` with a clear note and no signal that disagrees with it: "
+                 "set `state` to `settled_by_note`",
+                 "A note that asks for a change is not a clear note.",
+                 "A `reopen` or `changes` mark always disagrees.",
+                 "`needs_reading` in any other case: set `state` to `open`.",
+                 "A note on an `info` card answers nothing, so it gets a reply only.",
+                 "A write-in has no note id, so it cannot settle by note: the new card for "
+                 "that point is a `confirm` card that states the write-in as your reading.",
+                 "`blocked` with the point it waits on now settled: set `state` to `open`.",
+                 "Make one new card for each point that returns:",
+                 "a `decided`, `confirm`, `debate` or `signoff` card of the round you settled "
+                 "that is still `open` or `blocked`;",
+                 "a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that "
+                 "the human noted or reopened in this send.",
                  "An `info` card stays in its round."):
         assert rule in text
 
