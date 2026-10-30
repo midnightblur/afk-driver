@@ -49,7 +49,7 @@ afkv2 is built in 3 parallel sessions (S1 skeleton, hook, core behaviors, page e
 
 ## §2 L1 — System Topology
 
-Inherited: a local plugin with no server, running inside a Claude Code or Codex session on Windows. Scripts are Python; hooks are `.cmd` where the 50 ms budget needs it. Pages are shown through the same lavish host as v1 (ADR-0001).
+Inherited: a local plugin with no server, running inside a Claude Code or Codex session on Windows. Scripts are Python; hooks are `.cmd`, the fastest start on Windows; the harness hook timeout is the only time limit. Pages are shown through the same lavish host as v1 (ADR-0001).
 
 ```mermaid
 flowchart LR
@@ -326,17 +326,22 @@ sequenceDiagram
 | read-back differs | compare fails | none; old pictures kept | report a failed publish; re-run | to-prd |
 | hook did not fire | no fired record newer than the install record | setup keeps the v1 block | follow the Codex hook trust review, then re-run setup | setup |
 | core-behaviors text cut to a preview | end marker missing in context | setup keeps the v1 block | shrink the text below 8,000 characters | S1 build check |
-| `.cmd` hook refused by a harness | day-1 live check fails | none | Python hook; the 50 ms limit returns to the owner | S1 |
+| `.cmd` hook refused by a harness | day-1 live check fails | none | Python hook | S1 |
 | Codex Stop hook cannot wait long enough | day-1 live check fails | none | one chat message after Send; owner informed | S1 |
 | switch back to v1 | developer runs switch-back | restores the block, git hooks, settings and host version from backups | — | setup |
 
-**v1 defects afkv2 must not repeat** (INV-004; v1 itself stays unchanged).
+**v1 defects afkv2 must not repeat** (INV-004 and the S1-S3 build run of 2026-10-30; v1 itself stays unchanged).
 
 | v1 defect | afkv2 rule | Proof |
 |-----------|------------|-------|
 | a git hook file that holds v1's marker string anywhere counts as v1's own, and v1 overwrites it | afkv2 writes no git hook; afkv2 finds its own block or file only by the full begin and end lines, never by a part of a marker | plugin check: no substring or prefix marker match in afkv2 code |
 | the near-empty rule deletes a short section of the description that is not the PRD block | the Jira port removes text only between the full AFK block lines; no rule removes text by its content or size | AC-059 test ticket |
 | no block found by prefix → a second PRD is appended, and the change comment is lost | append happens only when the description has no afkv2 block and no v1 block (AC-053); a broken or doubled block is refused with `bad-block` (AC-058); the port has no comment step, so the publish result goes to the developer | AC-053, AC-058 tests |
+| a mandatory gate that needs a running app parks every subtask of a repository with no app, and the run finds it only after the work and the review | a gate that needs something the repository does not have is decided when the plan is cut: the plan names it not applicable, or the plan check refuses; autopilot never starts a subtask whose gates cannot run | 0010 plan-check test; 0015 start-gate test |
+| the review loop runs up to 10 rounds and reopens settled points, so one small subtask takes hours | at most 3 review rounds; only critical and high findings are fixed; the rest stay on the change request as advice | 0013 test |
+| the plan check passes a subtask whose checks need a file that neither its Scope nor a subtask it waits on creates | the plan check refuses each check path that no Scope in the subtask's chain owns | 0010 plan-check test |
+| the plugin's own commit and CI gates read the whole repository and fail on unrelated files and spec prose, so every commit skips all gates | the plugin check reads only the afkv2 plugin tree; spec-folder prose is never gate input | 0001 plugin-check test |
+| a text file the hook prints is turned to CRLF on a Windows checkout, its hash no longer matches its marker, and the check still passes | built files are LF by a `.gitattributes` rule; the plugin check fails on a CR byte or a hash mismatch | 0001 plugin-check test |
 
 ## §8 L7 — Module Decomposition
 
