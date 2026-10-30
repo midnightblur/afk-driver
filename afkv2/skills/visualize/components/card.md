@@ -23,19 +23,28 @@ another open point is `blocked`, and its body names the card it waits on.
 One card per map node or per question. Set `node` when the card belongs to a
 map node. A card stays in its round when the round settles.
 
-When the human sends a round, the engine settles each point with one mark and
-moves each point with a note to `needs_reading`. Go through that round's cards
-before you mark the round `settled`:
+When the human sends a round, the engine settles a point with one `accept`,
+`sign` or option mark. It moves a point to `needs_reading` on `reopen`,
+`changes`, a write-in, a note, a mark plus a note, or 2 marks. A note or a
+`reopen` mark on a settled card moves that card to `open`, in any round. Before
+you mark the round `settled`, go through every card the send changed, in any
+round, and every `blocked` card:
 
 - `needs_reading` with a clear note: set `state` to `settled_by_note` and write
   `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
-  The `signal` is the note id.
-- `needs_reading` with an unclear note or signals in conflict: set `state` to `open`.
+  The `signal` is the note id. A note whose `target` is a map node id is a steer
+  and settles nothing.
+- `needs_reading` with an unclear note, signals in conflict or no note: set
+  `state` to `open`.
 - `blocked` with the point it waits on now settled: set `state` to `open`.
 
-Then mark the round `settled` and append the next round. Each point that is still
-`open` or `blocked` gets a new card there, with a new id, and its body names the
-old card id. The old card stays as it is.
+Then mark the round `settled` and append the next round. Each `decided`,
+`confirm`, `debate` or `signoff` card that is still `open` or `blocked`, in any
+round, gets a new card there, unless a later card already names it. The new card
+has a new id. Its body names the old card id and shows the signals that returned
+the point, for example both the mark and the note. A carried `blocked` card names
+the current card id of the point it waits on. An `info` card stays in its round.
+The old card stays as it is.
 
 ## How it looks
 

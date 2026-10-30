@@ -50,6 +50,7 @@ ITEM_FIELDS = {"id", "kind", "node", "state", "body", "settled", "notes"}
 ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 SETTLED_FIELDS = {"by", "round", "signal", "reading"}
+NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
 COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
@@ -197,6 +198,21 @@ def _check_settled(item, iw, last_round):
     if by == "note":
         _need(isinstance(settled.get("reading"), str) and settled["reading"], f"{iw}.settled",
               "reading (required when by = note)")
+        _need(settled["signal"] in {n["id"] for n in item.get("notes", [])}, f"{iw}.settled",
+              "signal (must name a note on the item)")
+
+
+def _check_notes(item, iw, last_round):
+    for n, note in enumerate(_objects(item.get("notes", []), iw, "notes")):
+        where = f"{iw}.notes[{n}]"
+        _only(note, NOTE_FIELDS, where)
+        _need(set(note) == NOTE_FIELDS, where, "missing field")
+        rnd = note["round"]
+        _need(isinstance(rnd, int) and 1 <= rnd <= last_round, where, "round")
+        _need(note["id"] == f"N-{rnd}-{item['id']}", where, "id (N-<round>-<item>)")
+        _need(isinstance(note["target"], str), where, "target")
+        _need(isinstance(note["text"], str), where, "text")
+        _need(isinstance(note["deleted"], bool), where, "deleted")
 
 
 def _check_round(r, ids, node_ids, last_round, components):
@@ -222,7 +238,7 @@ def _check_round(r, ids, node_ids, last_round, components):
         _need(item.get("kind") in ITEM_KINDS, iw, "kind")
         _need(item.get("state", "open") in POINT_STATES, iw, "state")
         _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
-        _need(not item.get("notes"), iw, "notes (minted by the engine)")
+        _check_notes(item, iw, last_round)
         _check_settled(item, iw, last_round)
         _need("body" in item, iw, "body")
         _check_component(item["body"], f"{iw}.body", ids, last_round)
@@ -333,30 +349,53 @@ def all_fragments():
     return out
 
 
+def _example():
+    return json.loads(ALL_COMPONENTS.read_text("utf-8"))
+
+
 def all_documents():
-    docs = [("all-components.json", json.loads(ALL_COMPONENTS.read_text("utf-8")))]
+    docs = [("all-components.json", _example())]
     docs += [(f"{name}:{level}", wrap(level, frag)) for name, level, frag in all_fragments()]
     return docs
 
 
-def _example():
-    return json.loads(ALL_COMPONENTS.read_text("utf-8"))
+def _find(obj, wanted):
+    """Return the object with this id anywhere in the document, or None."""
+    if isinstance(obj, dict):
+        if obj.get("id") == wanted:
+            return obj
+        obj = list(obj.values())
+    if isinstance(obj, list):
+        for value in obj:
+            hit = _find(value, wanted)
+            if hit is not None:
+                return hit
+    return None
+
+
+def _at(wanted):
+    def locate(d):
+        hit = _find(d, wanted)
+        assert hit is not None, f"the example has no id {wanted}"
+        return hit
+    return locate
 
 
 def _round(d):
     return d["rounds"][0]
 
 
-def _item(d, n):
-    return _round(d)["items"][n]
-
-
-def _child(d, item, n):
-    return _item(d, item)["body"]["children"][n]
+def _props(wanted):
+    return lambda d: _at(wanted)(d)["props"]
 
 
 def _cell(d):
-    return _child(d, 0, 1)["props"]["rows"][0][2]
+    return _props("t-order-fields")(d)["rows"][0][2]
+
+
+def _note(item_id, rnd=1):
+    return {"id": f"N-{rnd}-{item_id}", "round": rnd, "target": item_id,
+            "text": "Accepts it.", "deleted": False}
 
 
 def _set(path_fn, key, value):
@@ -376,17 +415,35 @@ def _extra_round(d):
                         "banner": {"settled": [], "unlocks": [], "parked": []}, "items": []})
 
 
-def _note_settle_without_reading(d):
-    _item(d, 0).update(state="settled_by_note",
-                       settled={"by": "note", "round": 1, "signal": "N-1-i-data"})
+def _settle(state, **settled):
+    def mutate(d):
+        _at("i-data")(d).update(state=state, settled=settled, notes=[_note("i-data")])
+    return mutate
+
+
+def _next_round(d):
+    """Make round 1 settled and round 2 current, with one new card."""
+    _round(d)["state"] = "settled"
+    d["rounds"].append({
+        "n": 2, "state": "current",
+        "banner": {"settled": ["The data change"], "unlocks": [], "parked": []},
+        "items": [{"id": "i-format-2", "kind": "debate", "node": "n-format",
+                   "body": {"type": "text", "props": {"text": "Reopens i-format."}}}],
+    })
+    return d
+
+
+def _reuse_id_in_next_round(d):
+    _next_round(d)["rounds"][1]["items"][0]["id"] = "i-data"
 
 
 REFUSALS = [
     ("schema value", _set(lambda d: d, "schema", "afkv2.page/9"), "schema"),
     ("document field", _set(lambda d: d, "html_page", "<html>"), "unknown field"),
     ("round field", _set(_round, "extra", 1), "unknown field"),
-    ("item field", _set(lambda d: _item(d, 0), "options", []), "unknown field"),
-    ("component field in a body", _set(lambda d: _item(d, 0)["body"], "label", "x"), "unknown field"),
+    ("item field", _set(_at("i-data"), "options", []), "unknown field"),
+    ("component field in a body", _set(lambda d: _at("i-data")(d)["body"], "label", "x"),
+     "unknown field"),
     ("component field in a cell", _set(_cell, "extra", 1), "unknown field"),
     ("session skill", _set(lambda d: d["session"], "skill", "review"), "skill"),
     ("session started", _set(lambda d: d["session"], "started", "2026-01-05 09:00"), "started"),
@@ -400,39 +457,63 @@ REFUSALS = [
      "responses"),
     ("reply target", _set(lambda d: _round(d)["replies"][0], "about", ["i-missing"]),
      "must resolve"),
-    ("item id twice", _set(lambda d: _item(d, 1), "id", "i-data"), "not unique"),
-    ("component id twice", _set(lambda d: _child(d, 0, 0), "id", "t-order-fields"), "not unique"),
-    ("map node id twice", _set(lambda d: d["maps"][0]["props"]["nodes"][1], "id", "n-export"),
-     "not unique"),
-    ("item kind", _set(lambda d: _item(d, 0), "kind", "question"), "kind"),
-    ("item state", _set(lambda d: _item(d, 0), "state", "closed"), "state"),
-    ("item node", _set(lambda d: _item(d, 0), "node", "n-missing"), "node must resolve"),
-    ("item notes", _set(lambda d: _item(d, 0), "notes", [{"id": "N-1-i-data"}]), "notes"),
+    ("reply without text", _drop(lambda d: _round(d)["replies"][0], "text"), "replies[0]: text"),
+    ("item id twice", _set(_at("i-flow"), "id", "i-data"), "not unique"),
+    ("item id not text", _set(_at("i-flow"), "id", 7), "item 7: id"),
+    ("item id in a later round", _reuse_id_in_next_round, "not unique"),
+    ("component id twice", _set(_at("g-modules"), "id", "t-order-fields"), "not unique"),
+    ("component id not text", _set(_at("g-modules"), "id", 7), "children[0]: id"),
+    ("map node id twice", _set(_at("n-data"), "id", "n-export"), "not unique"),
+    ("item kind", _set(_at("i-data"), "kind", "question"), "kind"),
+    ("item state", _set(_at("i-data"), "state", "closed"), "state"),
+    ("item node", _set(_at("i-data"), "node", "n-missing"), "node must resolve"),
+    ("item without body", _drop(_at("i-data"), "body"), "body"),
+    ("note missing a field", _set(_at("i-data"), "notes", [{"id": "N-1-i-data"}]), "missing field"),
+    ("note unknown field", _set(_at("i-data"), "notes", [{**_note("i-data"), "x": 1}]),
+     "unknown field"),
+    ("note id", _set(_at("i-data"), "notes", [{**_note("i-data"), "id": "n1"}]), "id (N-"),
+    ("note round", _set(_at("i-data"), "notes", [_note("i-data", 2)]), "notes[0]: round"),
     ("settled on an open point",
-     _set(lambda d: _item(d, 0), "settled", {"by": "mark", "round": 1, "signal": "x"}),
+     _set(_at("i-data"), "settled", {"by": "mark", "round": 1, "signal": "x"}),
      "only on a settled point"),
-    ("note settle without reading", _note_settle_without_reading, "reading"),
-    ("map node round", _set(lambda d: d["maps"][0]["props"]["nodes"][0], "round", 2), "round"),
-    ("map node state", _set(lambda d: d["maps"][0]["props"]["nodes"][0], "state", "done"), "state"),
-    ("map nodes malformed", _set(lambda d: d["maps"][0]["props"], "nodes", ["x"]), "props.nodes"),
-    ("unknown type", _set(lambda d: _item(d, 0)["body"], "children", [{"type": "button"}]),
+    ("settled state without settled", _set(_at("i-data"), "state", "settled_by_mark"),
+     "is not an object"),
+    ("settled field", _settle("settled_by_mark", by="mark", round=1, signal="accept", x=1),
+     "unknown field"),
+    ("settled by differs from state", _settle("settled_by_mark", by="note", round=1, signal="accept"),
+     "by (expected mark)"),
+    ("settled round 0", _settle("settled_by_mark", by="mark", round=0, signal="accept"),
+     "settled: round"),
+    ("settled round past the last", _settle("settled_by_mark", by="mark", round=2, signal="accept"),
+     "settled: round"),
+    ("settled signal missing", _settle("settled_by_mark", by="mark", round=1), "settled: signal"),
+    ("settled signal empty", _settle("settled_by_mark", by="mark", round=1, signal=""),
+     "settled: signal"),
+    ("note settle without reading",
+     _settle("settled_by_note", by="note", round=1, signal="N-1-i-data"), "reading"),
+    ("note settle names no note",
+     _settle("settled_by_note", by="note", round=1, signal="N-1-i-flow", reading="x"),
+     "must name a note"),
+    ("map node round past the last", _set(_at("n-export"), "round", 2), "nodes[0].round"),
+    ("map node round 0", _set(_at("n-export"), "round", 0), "nodes[0].round"),
+    ("map node state", _set(_at("n-export"), "state", "done"), "state"),
+    ("map nodes malformed", _set(_props("m-scope"), "nodes", ["x"]), "props.nodes"),
+    ("unknown type", _set(lambda d: _at("i-data")(d)["body"], "children", [{"type": "button"}]),
      "unknown type"),
-    ("html outside freestyle", _set(lambda d: _child(d, 0, 2), "html", "<b>x</b>"),
-     "freestyle only"),
+    ("html outside freestyle", _set(_at("i-data-question"), "html", "<b>x</b>"), "freestyle only"),
     ("chip without tone", _drop(lambda d: _cell(d)["props"], "tone"), "props.tone"),
     ("chip tone", _set(lambda d: _cell(d)["props"], "tone", "green"), "props.tone"),
-    ("table row width", lambda d: _child(d, 0, 1)["props"]["rows"][0].pop(), "props.rows"),
-    ("graph edge", _set(lambda d: _child(d, 0, 0)["props"]["edges"][0], "to", "g-missing"),
+    ("table row width", lambda d: _props("t-order-fields")(d)["rows"][0].pop(), "props.rows"),
+    ("graph edge", _set(lambda d: _props("g-modules")(d)["edges"][0], "to", "g-missing"),
      "props.edges"),
-    ("graph group", _set(lambda d: _child(d, 0, 0)["props"]["nodes"][0], "group", "nope"), "group"),
-    ("sequence actor", _set(lambda d: _child(d, 1, 0)["props"]["messages"][0], "to", "nobody"),
+    ("graph group", _set(_at("g-controller"), "group", "nope"), "group"),
+    ("sequence actor", _set(lambda d: _props("q-export")(d)["messages"][0], "to", "nobody"),
      "props.messages"),
-    ("sequence actors malformed", _set(lambda d: _child(d, 1, 0)["props"], "actors", ["user"]),
-     "props.actors"),
-    ("run strip lanes", _set(lambda d: _child(d, 1, 1), "props", {}), "props.current"),
-    ("freestyle reason", _set(lambda d: _child(d, 3, 0), "props", {}), "props.reason"),
-    ("freestyle id", _drop(lambda d: _child(d, 3, 0), "id"), "id"),
-    ("freestyle html", _drop(lambda d: _child(d, 3, 0), "html"), "html"),
+    ("sequence actors malformed", _set(_props("q-export"), "actors", ["user"]), "props.actors"),
+    ("run strip lanes", _set(_at("r-export-run"), "props", {}), "props.current"),
+    ("freestyle reason", _set(_at("f-load-curve"), "props", {}), "props.reason"),
+    ("freestyle id", _drop(_at("f-load-curve"), "id"), "id"),
+    ("freestyle html", _drop(_at("f-load-curve"), "html"), "html"),
 ]
 
 
@@ -452,17 +533,47 @@ def test_fake_refuses_a_broken_document(mutate, field):
 ])
 def test_fake_accepts_a_settled_point(state, settled):
     doc = _example()
-    _item(doc, 0).update(state=state, settled=copy.deepcopy(settled))
+    _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=[_note("i-data")])
     check_document(doc)
+
+
+def test_fake_accepts_a_settled_round_and_a_next_round():
+    doc = _next_round(_example())
+    components = check_document(doc)
+    assert doc["rounds"][0]["state"] == "settled"
+    assert doc["rounds"][1]["state"] == "current"
+    assert any(c.get("props", {}).get("text") == "Reopens i-format." for c in components)
+
+
+def test_examples_carry_no_note_and_no_response():
+    for label, doc in all_documents():
+        for rnd in doc["rounds"]:
+            assert not rnd.get("responses"), label
+            assert not any(item.get("notes") for item in rnd["items"]), label
+
+
+def test_card_page_settled_example_has_the_schema_shape():
+    text = (PAGES_DIR / "card.md").read_text("utf-8")
+    found = re.findall(r"`(\{\"by\": .*?\})`", text)
+    assert found, "card.md has no settled example"
+    for raw in found:
+        settled = json.loads(raw)
+        assert set(settled) == SETTLED_FIELDS
+        assert settled["by"] == "note"
+        assert settled["signal"].startswith(f"N-{settled['round']}-")
+
+
+def _frontmatter(path):
+    text = path.read_text("utf-8")
+    assert text.startswith("---\n"), f"{path} has no frontmatter"
+    head = text.split("---\n", 2)[1]
+    return dict(line.split(": ", 1) for line in head.strip().splitlines())
 
 
 def test_every_skill_file_has_agent_skills_frontmatter():
     files = list(SKILL_DIR.rglob("SKILL.md"))
     assert files == [SKILL_MD]
-    text = SKILL_MD.read_text("utf-8")
-    assert text.startswith("---\n"), "SKILL.md has no frontmatter"
-    head = text.split("---\n", 2)[1]
-    meta = dict(line.split(": ", 1) for line in head.strip().splitlines())
+    meta = _frontmatter(SKILL_MD)
     assert meta.get("name") == "visualize"
     assert len(meta.get("description", "")) > 40
 

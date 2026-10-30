@@ -11,13 +11,15 @@ the element ids it answers.
 ## Use it when
 
 Every round that follows input from the human: the notes of the last round, or
-the reading the human wrote before round 1. Read every note, then write one
-reply per note or per group of notes on the same point. State your reading in
-the reply for every point a note settled. Leave `notes` to the engine: every
-note in the document comes from the human.
+the human's input in Round 0. Treat Round 0 input as unverified. Read every note,
+then write one reply per note or per group of notes on the same point. State your
+reading in the reply for every point a note settled. Leave `notes` to the engine:
+every note in the document comes from the human. A note with `deleted` set is not
+input.
 
 A note whose `target` is a map node id is a steer for that node. Repeat it word
-for word in your reply and hold to it for that node until the session ends.
+for word in your reply and hold to it for that node until the session ends. A
+newer steer on the same node replaces the older one.
 
 ## How it looks
 
