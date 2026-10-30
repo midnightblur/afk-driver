@@ -62,3 +62,10 @@
 - Chosen: B — the state before setup has both plugins on (D-8), so A leaves two rule sets per session (AC-017, requirement ADR-0004); the integration test checks byte-identity for every file and allows only the afkv2 enable value to differ
 - Supersedes: 0011 contract `## Verification` integration row "switch-back → every file byte-identical to before" (the afkv2 enable value is the one difference)
 - To reverse: drop `_leave_v1_only` from `switch_back`
+
+## D-10 — switch-back keeps the exclude line and the local settings file
+- 2026-10-30 · decided by execute (0011-setup-skill)
+- Options: A — also remove the `info/exclude` line and delete the local settings file at switch-back vs B — keep both, with values that leave only v1 on
+- Chosen: B — exclude is repository state git needs while `.claude/settings.local.json` exists, and the file must hold `afkv2: false` to keep AC-017 where the restored state turns both plugins on; D-9's "only the afkv2 enable value differs" holds for every file the developer had, and these two are the switch's own carrier
+- Supersedes: D-9 phrase "allows only the afkv2 enable value to differ" (adds the exclude line and the local settings file that carry the value)
+- To reverse: drop `_ensure_local_ignored` from the switch-back path of `_switch_claude`
