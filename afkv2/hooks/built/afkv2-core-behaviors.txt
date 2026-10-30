@@ -1,0 +1,5 @@
+afkv2-core-behaviors begin 7f976c7ee15c
+# afkv2 core behaviors
+
+Placeholder text. Subtask 0002 writes the rules.
+afkv2-core-behaviors end 7f976c7ee15c

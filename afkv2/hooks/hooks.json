@@ -1,0 +1,32 @@
+{
+  "description": "afkv2 core behaviors: printed at session start and at subagent start.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe",
+            "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\session-start.cmd", "claude"],
+            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\session-start.cmd\" codex",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe",
+            "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\subagent-start.cmd", "claude"],
+            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\subagent-start.cmd\" codex",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
