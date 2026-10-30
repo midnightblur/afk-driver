@@ -300,3 +300,10 @@
 - Chosen: A — the orchestrator's words: "D-40's gap stays as you recorded it. `afkv2/engine/engine.py` is outside your Scope, and I am passing the gap to 0005, which has that file in its Scope and builds notes. Do not fix it here." Review round 1 widens what 0005 must cover. For a map held in a card or a table cell: a note on its node is refused, an item cannot link to its node, 2 held maps with one node id pass the check, and a node round past the last round passes the check. S2's `round_document.py` accepts `map` as a card body, so this shape is reachable (read in the reviewer's evidence, not re-run here)
 - Supersedes: none
 - To reverse: walk every map with `registry.walk` in `engine._element_ids`
+
+## D-44 — D-42 narrowed: what is closed and what stays open after review round 2
+- 2026-10-30 · decided by execute (0004-diagram-components)
+- Options: A — every forward arrow runs straight to the end of its rank before it bends, and a label is also kept on the canvas along the ranks, and the rest stays as advice under owner ruling R-2 vs B — also route back arrows and measure labels word by word, which R-2 does not ask for
+- Chosen: A — a seeded test of 120 graphs finds no forward arrow behind a box, and no label on a box or on a label by the estimated size. D-42's words "for forward arrows and all labels" claim too much. Known gaps that stay open as medium findings on the pull request: a back arrow can run behind the next box in its stack, also with one box below (not only a tall stack); a label of many long words or wide glyphs is larger than the estimate, so it can land on a box or a label or leave the canvas; a label can cover a group title; and arrows that skip a rank at every step cost about the cube of the arrow count (28 s at 800 nodes, reviewer's timing, not re-run here)
+- Supersedes: D-42 "for forward arrows and all labels"
+- To reverse: remove the straight first leg in `_forward` and the floor on `low` in `_arrows`
