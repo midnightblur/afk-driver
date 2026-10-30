@@ -185,12 +185,33 @@ def test_v1_file_name_fails(tree, relative):
         f'{{"key": "draft-{V1}"}}',
         f"env: MY_{V1.upper()}",
         f"set MY_{V1.upper()}=1",
+        f'key = "{V1}_" + name',
+        f'key = "{V1}-" + name',
+        f'prefix = "{V1_ENV}"',
+        f'name = f"{V1}_{{x}}"',
+        f"localStorage.setItem('{V1}_' + key)",
+        f'{{"prefix": "{V1}:"}}',
+        f'{{"prefix": "{V1}."}}',
+        f'{{"prefix": "{V1}/"}}',
+        f"{V1_ENV}",
+        f"_{V1} = 1",
+        f"__{V1}__",
+        f"self._{V1} = 1",
+        f"set _{V1.upper()}=1",
+        f"._{V1} {{ color: red }}",
     ],
 )
 @pytest.mark.parametrize("name", ["sample.py", "sample.txt"])
 def test_v1_name_in_text_fails(tree, line, name):
     (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
     assert any(f"{name}:1" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+def test_code_suffixes_are_the_recorded_set():
+    assert plugin_check.CODE_SUFFIXES == {
+        ".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".vue",
+        ".html", ".css", ".yaml", ".yml", ".toml",
+    }
 
 
 @pytest.mark.parametrize("suffix", sorted(plugin_check.CODE_SUFFIXES))
@@ -200,10 +221,31 @@ def test_bare_v1_word_in_code_fails(tree, line, suffix):
     assert any(f"sample{suffix}:1" in p for p in plugin_check.check_no_v1_names(tree))
 
 
-@pytest.mark.parametrize("data", ["set X=1\r\nrem caf\xe9\r\n".encode("latin-1"), "set X=1\r\n".encode("utf-16")])
+@pytest.mark.parametrize(
+    "data",
+    [
+        "set X=1\r\nrem caf\xe9\r\n".encode("latin-1"),
+        "set X=1\r\n".encode("utf-16"),
+        f"set {V1_ENV}X=1\r\n".encode("utf-16-le"),
+    ],
+)
 def test_code_file_that_is_not_utf8_is_a_problem(tree, data):
     (tree / "scripts" / "sample.cmd").write_bytes(data)
     assert any("sample.cmd" in p and "UTF-8" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+@pytest.mark.parametrize("name", ["sample.py", "sample.md"])
+def test_file_that_cannot_be_opened_fails_the_tree_check(tree, name, monkeypatch):
+    (tree / "scripts" / name).write_text("x = 1\n", encoding="utf-8")
+    read_text = Path.read_text
+
+    def locked(self, *args, **kwargs):
+        if self.name == name:
+            raise PermissionError(13, "locked by another process")
+        return read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", locked)
+    assert any(name in p and "cannot read" in p for p in plugin_check.run_checks(tree))
 
 
 def test_binary_file_outside_code_is_skipped(tree):
@@ -219,6 +261,8 @@ def test_binary_file_outside_code_is_skipped(tree):
         f"see https://github.com/owner/{V1}-driver for the source",
         f"Compare with {V1.upper()}. Then go on.",
         f"Run {V1.upper()}: then stop.",
+        f"The tools ({V1.upper()}, Jira) stay.",
+        f"{V1.upper()}",
     ],
 )
 def test_prose_passes_outside_code(tree, line):
@@ -247,6 +291,18 @@ def test_afkv2_names_in_code_pass(tree, line):
         f'sed -n "/{MARKER}/p" x',
         f'line[:20] == "{MARKER}"',
         f'line.slice(0, 5) === "{MARKER}"',
+        f'"{MARKER}" == line[:20]',
+        f'"{MARKER}" === line[0:20]',
+        f'text.rsplit("{MARKER}")',
+        f'text.rpartition("{MARKER}")',
+        f'line.removeprefix("{MARKER}")',
+        f'line.removesuffix("{MARKER}")',
+        f'line.substring(0, 5) === "{MARKER}"',
+        f'line.substr(0, 5) === "{MARKER}"',
+        f'/{MARKER}/.exec(line)',
+        f'[[ "$line" == {MARKER}* ]]',
+        f'awk "/{MARKER}/" x',
+        f'grep "{MARKER}" x',
     ],
 )
 def test_prefix_or_substring_marker_match_fails(tree, line):
@@ -256,15 +312,43 @@ def test_prefix_or_substring_marker_match_fails(tree, line):
 
 
 @pytest.mark.parametrize(
-    "line",
+    "name, line",
     [
-        f'if line == "{MARKER} begin " + sha:',
-        f're.fullmatch(r"{MARKER} end ([0-9a-f]{{12}})", line)',
-        f'type "%~dp0built\\{MARKER}.txt"',
+        ("sample.js", f'line.startsWith("{MARKER}")'),
+        ("sample.js", f'line.endsWith("{MARKER}")'),
+        ("sample.js", f'line.indexOf("{MARKER}")'),
+        ("sample.ps1", f'$line.StartsWith("{MARKER}")'),
+        ("sample.ps1", f'$line.Substring(0,5) -eq "{MARKER}"'),
+        ("sample.ps1", f'$line -Match "{MARKER}"'),
+        ("sample.ps1", f'$line -cmatch "{MARKER}"'),
+        ("sample.ps1", f'$line -notmatch "{MARKER}"'),
+        ("sample.ps1", f'$line -ilike "{MARKER}*"'),
+        ("sample.ps1", f'select-string -Pattern "{MARKER}" x'),
+        ("sample.ps1", f'sls "{MARKER}" x'),
+        ("sample.cmd", f'FINDSTR /c:"{MARKER}" x'),
+        ("sample.cmd", f'if "%line:~0,20%"=="{MARKER}" echo y'),
+        ("sample.yaml", f'run: line.startswith("{MARKER}")'),
     ],
 )
-def test_full_line_marker_match_passes(tree, line):
-    (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
+def test_marker_match_in_other_spellings_fails(tree, name, line):
+    (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
+    assert any(f"{name}:1" in p for p in plugin_check.check_marker_matching(tree))
+
+
+@pytest.mark.parametrize(
+    "name, line",
+    [
+        ("sample.py", f'if line == "{MARKER} begin " + sha:'),
+        ("sample.py", f're.fullmatch(r"{MARKER} end ([0-9a-f]{{12}})", line)'),
+        ("sample.cmd", f'type "%~dp0built\\{MARKER}.txt"'),
+        ("sample.py", f'd["{PRD_START}"] == x'),
+        ("sample.py", f'd["a:b"] == "{MARKER}"'),
+        ("sample.html", f"<p>the {MARKER} text in context</p>"),
+        ("sample.yaml", f"marker: {MARKER} in file"),
+    ],
+)
+def test_full_line_marker_match_passes(tree, name, line):
+    (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
     assert plugin_check.check_marker_matching(tree) == []
 
 
@@ -289,7 +373,10 @@ def test_hooks_value_that_is_no_object_is_a_problem_not_a_crash(tree, value):
 
 
 @pytest.mark.parametrize("event", plugin_check.HOOK_EVENTS)
-@pytest.mark.parametrize("value", [None, [], "missing"])
+@pytest.mark.parametrize(
+    "value",
+    [None, [], "missing", [{}], [1], [{"matcher": "x", "hooks": []}], [{"hooks": [{"type": "command"}]}], [{"hooks": [1]}]],
+)
 def test_event_with_no_registration_is_a_problem(tree, event, value):
     path = tree / "hooks" / "hooks.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -325,6 +412,15 @@ def test_prebuilt_path_that_cannot_be_written_answers_json(tree):
     assert any("cannot write" in p for p in answer["problems"])
 
 
+def test_built_folder_that_is_a_file_answers_json(tree):
+    built = tree / "hooks" / "built"
+    shutil.rmtree(built)
+    built.write_text("not a folder\n", encoding="utf-8")
+    code, answer = run_tree_check(tree, "build")
+    assert code == 1
+    assert any("cannot write" in p for p in answer["problems"])
+
+
 @pytest.mark.xfail(strict=True, reason="known gap: the rule reads one line and traces no variable")
 def test_marker_held_in_a_variable_and_matched_on_another_line_fails(tree):
     (tree / "scripts" / "sample.py").write_text(f'MARK = "{MARKER}"\nfound = MARK in text\n', encoding="utf-8")
@@ -335,7 +431,10 @@ def test_marker_held_in_a_variable_and_matched_on_another_line_fails(tree):
 def test_every_usage_error_answers_json_with_exit_2(args):
     code, answer = run_check(*args)
     assert code == 2
-    assert answer == {"ok": False, "error": {"code": "usage", "reason": answer["error"]["reason"]}}
+    assert answer["ok"] is False
+    assert set(answer["error"]) == {"code", "reason"}
+    assert answer["error"]["code"] == "usage"
+    assert isinstance(answer["error"]["reason"], str) and answer["error"]["reason"]
 
 
 def test_check_command_answers_json_and_exits_1_on_problems(tree):
