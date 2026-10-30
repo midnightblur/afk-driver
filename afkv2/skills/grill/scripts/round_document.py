@@ -3,7 +3,6 @@
 Verbs, run from the repository root:
   build          --doc D --session S --ticket K --round-input F --ticket-file T [--replace]
   apply-readings --doc D --readings F
-  pending        --doc D
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
 the decided-card contract, the picture before a critical-aspect question, the settle-by-note
@@ -377,7 +376,7 @@ def pending(doc):
 
 def main(argv):
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=["build", "apply-readings", "pending"])
+    parser.add_argument("verb", choices=["build", "apply-readings"])
     parser.add_argument("--doc", required=True)
     parser.add_argument("--session")
     parser.add_argument("--ticket")
@@ -394,11 +393,9 @@ def main(argv):
         feature = Path(args.doc).parent.parent.name
         session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
         return build_round_document(args.doc, session, round_input, ticket, args.replace)
-    if args.verb == "apply-readings":
-        if not args.readings:
-            raise Refusal("usage", "apply-readings needs --readings", 2)
-        return apply_readings(args.doc, read_json(args.readings))
-    return {"ok": True, **pending(read_json(args.doc))}
+    if not args.readings:
+        raise Refusal("usage", "apply-readings needs --readings", 2)
+    return apply_readings(args.doc, read_json(args.readings))
 
 
 if __name__ == "__main__":

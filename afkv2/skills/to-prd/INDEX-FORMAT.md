@@ -2,7 +2,7 @@
 
 The read-first page of a ticket's spec folder: what the feature is, which artifacts exist, in what state, and in what order to read them. One line per artifact. Nothing here repeats content of another file.
 
-Each skill writes only its own rows, with `prd_files.py row`. A row for an artifact the feature never makes stays `—`. to-prd writes the summary paragraph, and seeds every row from the template below through `prd_files.py index`, so the template is the one copy.
+Each skill writes only its own rows, with `prd_files.set_row`. A row for an artifact the feature never makes stays `—`. to-prd writes the summary paragraph, and seeds every row from the template below through `prd_files.py index`, so the template is the one copy.
 
 | Row | Writer |
 |-----|--------|

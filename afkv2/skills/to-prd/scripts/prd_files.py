@@ -3,7 +3,6 @@
 `prd_files.py start --ticket KEY`: the paths of the spec folder; refuses a grill that is not settled.
 `prd_files.py check --prd FILE`: the sections and the ids of a PRD, and against its last commit.
 `prd_files.py index --index FILE --ticket KEY --summary-file FILE --adr-dir DIR`: create or update INDEX.md.
-`prd_files.py row --index FILE --artifact NAME --where TEXT --state TEXT`: upsert one row of INDEX.md.
 """
 
 from __future__ import annotations
@@ -192,16 +191,7 @@ def index(argv):
     return {"ok": True, "index": str(path), "requirement_adrs": count}
 
 
-def row(argv):
-    parser = Parser(add_help=False)
-    for name in ("--index", "--artifact", "--where", "--state"):
-        parser.add_argument(name, required=True)
-    args = parser.parse_args(argv)
-    set_row(args.index, args.artifact, args.where, args.state)
-    return {"ok": True, "index": args.index, "artifact": args.artifact}
-
-
-VERBS = {"start": start, "check": check, "index": index, "row": row}
+VERBS = {"start": start, "check": check, "index": index}
 
 
 def main(argv):
