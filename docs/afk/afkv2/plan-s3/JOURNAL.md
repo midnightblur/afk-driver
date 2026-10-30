@@ -77,3 +77,4 @@
 2026-10-30 10:05 | execute | 0012-forge-tracker-port | decision(D-38) — see plan-s3/DECISIONS.md
 2026-10-30 10:10 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r3 fix commit: the same v1-layout refusal; no row on afkv2/ports or afkv2/tests/ports
 2026-10-30 10:20 | execute | 0012-forge-tracker-port | review r3 — blocking: crit=0 high=0 med=2 low=9; 11 fixed in 984c7126; live round-trip passed
+2026-10-30 10:40 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r4 fix commit: the same v1-layout refusal; no row on afkv2/ports or afkv2/tests/ports

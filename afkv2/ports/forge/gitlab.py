@@ -77,6 +77,11 @@ def _blob_base(data):
     return f"{url}/-/blob" if url else ""
 
 
+def _draft(data):
+    title = data.get("title") or ""
+    return bool(data.get("draft") or data.get("work_in_progress") or title.lower().startswith(("draft:", "wip:")))
+
+
 def _normalize(data):
     number = data.get("iid") or data.get("id") or ""
     title = data.get("title") or ""
@@ -86,7 +91,7 @@ def _normalize(data):
         "id": str(number),
         "url": data.get("web_url") or "",
         "title": title,
-        "draft": bool(data.get("draft") or data.get("work_in_progress") or title.lower().startswith(("draft:", "wip:"))),
+        "draft": _draft(data),
         "state": data.get("state") or "",
         "source": data.get("source_branch") or "",
         "target": data.get("target_branch") or "",
@@ -129,7 +134,7 @@ def change_create_draft(payload):
 
 
 def _is_draft(change, payload):
-    return bool(_view(change, payload).get("draft"))
+    return _draft(_view(change, payload))
 
 
 def _draft_kept(change, payload):
@@ -209,7 +214,7 @@ def change_comment(payload):
     note = ((data.get("notes") or [{}])[0]) if isinstance(data, dict) else {}
     ident = common.comment_id(note)
     url = note.get("web_url") or data.get("web_url") or _note_url(change_url, ident)
-    if note.get("type") != "DiffNote":
+    if not _is_line_note(note):
         return _degraded(payload, project, iid, ident, url)
     return ok(inline=True, thread=str(data.get("id") or ""), comment=ident, url=url)
 

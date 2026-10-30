@@ -238,13 +238,32 @@ def test_github_replies_join_their_root_in_time_order(capsys, tools):
 def test_gitlab_note_list_holds_replies_and_leaves_out_line_and_system_notes(capsys, tools):
     gitlab_project(tools)
     tools.on("glab", "mr", "view", answer={"iid": 7})
-    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, 3, 4))
+    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, 3, 4, 5))
     tools.on("glab", "api", "--paginate", answer=[
         {"id": 1, "type": None, "body": "plain"},
         {"id": 2, "type": "DiscussionNote", "body": "reply"},
         {"id": 3, "type": "DiffNote", "body": "on a line"},
-        {"id": 4, "system": True, "body": "system"}])
+        {"id": 4, "system": True, "body": "system"},
+        {"id": 5, "type": None, "body": "on a line, no type", "position": POSITION}])
     assert [note["body"] for note in good(capsys, "gitlab", "note-list", id="7")["notes"]] == ["plain", "reply"]
+
+
+def test_gitlab_a_note_is_on_a_line_by_its_type_or_its_position(capsys, tools):
+    gitlab_project(tools)
+    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2))
+    tools.on("glab", "api", "--paginate", answer=[
+        {"id": "no-type", "notes": [{"id": 1, "type": None, "body": "a", "position": POSITION}]},
+        {"id": "no-position", "notes": [{"id": 2, "type": "DiffNote", "body": "b"}]}])
+    assert sorted(thread["id"] for thread in good(capsys, "gitlab", "thread-list", id="7")["threads"]) == ["no-position", "no-type"]
+
+
+def test_gitlab_a_comment_on_a_line_with_no_type_is_inline(capsys, tools):
+    gitlab_project(tools)
+    tools.on("glab", "mr", "view", answer={"iid": 7, "diff_refs": {"base_sha": "b", "start_sha": "s", "head_sha": "h"}})
+    tools.on("glab", "api", "-X", "POST", answer={"id": "d", "notes": [{"id": 55, "position": POSITION}]})
+    answer = good(capsys, "gitlab", "change-comment", id="7", text="t", file="a.py", line=3, require_inline=True)
+    assert answer["inline"] is True and answer["comment"] == "55"
+    assert not tools.calls_to("glab", "api", "-X", "DELETE")
 
 
 def test_gitlab_thread_list_leaves_out_plain_and_system_notes(capsys, tools):
@@ -540,6 +559,15 @@ def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools, extra, command)
     tools.on("glab", "mr", "update", answer=lambda args, _: (1, "", "nope") if "--draft" in args else "")
     error = refused(capsys, "gitlab", "change-update-body", id="7", body="new", **extra)
     assert error["code"] == "draft-lost" and error["id"] == "7" and command in error["reason"]
+
+
+@pytest.mark.parametrize("first", [{"work_in_progress": True}, {"title": "Draft: x"}])
+def test_gitlab_the_body_write_reads_the_draft_flag_as_change_view_does(capsys, tools, first):
+    views = iter([{"iid": 7, **first}, {"iid": 7}])
+    tools.on("glab", "mr", "view", answer=lambda *_: next(views))
+    tools.on("glab", "mr", "update", answer="")
+    assert good(capsys, "gitlab", "change-update-body", id="7", body="new") == {
+        "ok": True, "id": "7", "was_draft": "true", "draft_restored": True}
 
 
 def test_gitlab_a_kept_draft_flag_needs_no_restore(capsys, tools):
