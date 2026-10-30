@@ -47,7 +47,7 @@ complex
 - afkv2/skills/to-prd/scripts/publish.py#def publish_after_yes( — the ordered write sequence
 
 ## Consumes
-- 0007-grill-skill afkv2/skills/grill/SKILL.md#name: grill — the settled grill output to-prd reads
+- 0007-grill-skill afkv2/skills/grill/SKILL.md#description: /afkv2:grill — the settled grill output to-prd reads
 
 ## Verification
 | Tier | Check (command or method) | Proves |

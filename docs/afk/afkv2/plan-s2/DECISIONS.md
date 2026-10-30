@@ -230,3 +230,10 @@
 - Chosen: A — the plan check allows an anchor only if it greps once. The file has `/afkv2:grill` in both the description and the title, and both are correct. `name: grill` greps once and is the form 0010 uses
 - Supersedes: the anchor text in 0007 and 0008
 - To reverse: restore `/afkv2:grill` in both contracts
+
+## D-34 — correction of D-33: the 0007 anchor is `description: /afkv2:grill`
+- 2026-10-30 · decided by autopilot (orchestrator, plan check finding on D-33)
+- Options: A — `description: /afkv2:grill` vs B — `name: grill`
+- Chosen: A — the plan check refuses `name: grill` as shorter than 12 characters. I committed D-33 before I read the check result. The new anchor greps once, and the check is clean
+- Supersedes: D-33, only its anchor text
+- To reverse: restore `/afkv2:grill` in both contracts
