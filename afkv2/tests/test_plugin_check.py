@@ -638,6 +638,27 @@ def test_build_command_regenerates_and_checks(tree):
     assert json.loads(done.stdout)["ok"] is True
 
 
+def test_check_reads_only_the_plugin_tree_never_a_spec_folder_outside_it(tree, capsys):
+    assert plugin_check.PLUGIN_ROOT == PLUGIN
+    spec_folder = tree.parent / "docs" / V1 / "feature"
+    spec_folder.mkdir(parents=True)
+    spec_files = {
+        "SPEC.md": f"Use {V1}-tool here.\n{MARKER} begin 000000000000\nbody\n{MARKER} end ffffffffffff\n",
+        "sample.py": f'found = line.startswith("{MARKER} end")\n',
+    }
+    for name, text in spec_files.items():
+        (spec_folder / name).write_text(text, encoding="utf-8", newline="")
+    capsys.readouterr()
+    assert plugin_check.main(["check", "--root", str(tree)]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    for name in spec_files:
+        shutil.copy(spec_folder / name, tree / name)
+    problems = plugin_check.run_checks(tree)
+    for name in spec_files:
+        assert any(p.startswith(f"{name}:") for p in problems), problems
+
+
 def test_codex_marketplace_lists_afkv2_beside_the_v1_plugin():
     marketplace = json.loads((PLUGIN.parent / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
     entries = {entry["name"]: entry for entry in marketplace["plugins"]}

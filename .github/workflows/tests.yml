@@ -60,6 +60,20 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git --version
 
+      - name: afkv2 tests
+        # Shared runners are noisy: the hook timing test warns, it does not gate.
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "Windows" ]; then
+              choco install ripgrep -y --no-progress
+            else
+              sudo apt-get update && sudo apt-get install -y ripgrep
+            fi
+          fi
+          afk-python -m pytest afkv2/tests -q -rs -k "not median_of_7"
+          afk-python -m pytest afkv2/tests/test_hooks.py -q -rs -k median_of_7 ||
+            echo "::warning::the hook timing test failed on this runner"
+
       - name: Unit tests
         run: afk-python -m pytest scripts/tests -q
 

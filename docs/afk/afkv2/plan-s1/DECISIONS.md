@@ -188,3 +188,10 @@
 - Chosen: A — both keys are already terminal, f004 as `fixed` and f053 as `verdict withdrawn`, and their threads are resolved. skills/afk/review/SETTLEMENT.md lists no transition out of a terminal state, and forge_ledger.py raises "illegal transition from terminal". Option B adds two findings and closes nothing more. The reason text of f053 still names D-8 and is out of date; the reply says so
 - Supersedes: none
 - To reverse: post new keys for the recurrence and close them with `fixed`
+
+## D-28 — the afkv2 CI step: the timing test warns, the step runs before the v1 unit tests, and it installs ripgrep
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — one step with two commands: all tests except `test_hook_median_of_7_runs_is_under_50_ms` gate, then that test runs alone and a failure prints a warning vs B — the timing test gates on the runner vs C — deselect the timing test in CI
+- Chosen: A — D-9 measured a margin of 3 ms to 10 ms on this machine, and the same hook gave medians up to 81 ms under load, so a gate on a shared runner can fail a correct hook. Option C loses the number. The latency step in the same workflow already reports and does not gate. The local run stays the gate. The step comes before `Unit tests`: a failed step stops the later steps of the job, D-11 says the v1 unit-test job on this pull request is red, and D-26 allows no `if`. The cost is that a red afkv2 step hides the v1 steps of that leg. The step installs ripgrep when the runner has none, as `Install jq` does for jq; without it 4 search tests in `afkv2/tests/test_core_behaviors.py` skip, and D-26 allows only live-test skips. No test in `afkv2/tests` starts a harness, so the step skips none for a login
+- Supersedes: none
+- To reverse: remove the `||` warning and the `-k` filters from the `afkv2 tests` step, move the step, or remove the ripgrep install
