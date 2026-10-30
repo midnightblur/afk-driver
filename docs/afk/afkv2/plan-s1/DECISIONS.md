@@ -146,3 +146,10 @@
 - Chosen: A — owner ruling. Skipped commits stay listed in the journal
 - Supersedes: the friction-only skip rule of the session brief
 - To reverse: the owner withdraws R-4; run the gates on later commits
+
+## D-22 — plan author's ruling on A-1: scope wording, rule comment, check and test
+- 2026-10-30 · decided by the plan author (reversible), relayed in session S1
+- Options: A — `.gitattributes` in the 0001 `## Scope` for afkv2 lines only, the rule with a one-line comment, the check fails on a built file that does not hash to its marker or holds a CR byte, and a test of both on a CRLF-converted fixture vs B — the D-17 form: one line with no comment, and the existing tests
+- Chosen: A — ruling of the plan author. Its condition holds: Acceptance 4 defines the marker hash over the text between the marker lines, and Acceptance 7 says the check refuses a stale prebuilt file. A-2 to A-9 stay advisory under R-2; no new adversary run under R-1
+- Supersedes: the Scope comment and the "one line" wording of D-17 (D-17)
+- To reverse: restore the D-17 Scope comment, remove the comment line and the new test
