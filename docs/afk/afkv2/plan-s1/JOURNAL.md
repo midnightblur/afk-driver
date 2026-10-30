@@ -125,3 +125,10 @@
 2026-10-30 13:50 | execute | 0003-engine-core-schema-show-poll | done — the page engine, its checks and the Codex wait are built and the live test passed on a local host; the machine's own host is still 0.1.63, so show falls back to Markdown until it moves; the owner runs the Codex check; the human reviews and merges
 2026-10-30 14:24 | autopilot | 0003-engine-core-schema-show-poll | decision(D-37) — the page engine slice edited two files beyond its list; I checked both are named by its own acceptance or the wiring rule, and accepted them for this slice only
 2026-10-30 14:24 | autopilot | run | heartbeat 3/5 done, starting 0004-diagram-components — the page engine is finished; the diagram parts come next
+2026-10-30 14:40 | execute | 0004-diagram-components | designing — reading the registry, the page and the shapes session S2 documents for these components
+2026-10-30 14:34 | execute | 0004-diagram-components | developing — tests first, then the four diagram types
+2026-10-30 14:46 | execute | 0004-diagram-components | decision(D-38..D-40) — three reversible build choices are recorded; the one to know is that a map held in a card draws, but its nodes cannot take a note
+2026-10-30 14:46 | execute | 0004-diagram-components | gate-skip(R-4) — commit 378659fb uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
+2026-10-30 14:46 | execute | 0004-diagram-components | verifying — running each declared check
+2026-10-30 14:46 | execute | 0004-diagram-components | verify — on 378659fb: compile ok, 4 of 4 anchors found once each, 97 unit tests passed, plugin check ok, 453 check tests passed; session S2's example page passes the engine check
+2026-10-30 14:46 | execute | 0004-diagram-components | blocked — registering the real map type makes one page-order test of slice 0003 fail, and that test file is outside this slice's list, so the work stops for a ruling; nothing is pushed and no review ran

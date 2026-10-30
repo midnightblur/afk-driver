@@ -258,3 +258,24 @@
 - Chosen: A — the 0003 Acceptance names the live-check file; the user's global wiring rule names the IOU file for declaring a later consumer. The agent edited both before asking, and an executor never changes its own Scope, so the plan records the call here. This covers these 2 paths on 0003 only
 - Supersedes: none
 - To reverse: remove the 2 lines from the 0003 `## Scope`, and revert the edits to those paths
+
+## D-38 — diagram type names and props follow the pages session S2 wrote for authors
+- 2026-10-30 · decided by execute (0004-diagram-components)
+- Options: A — types `map`, `graph`, `sequence`, `run-strip`, with the props in `afkv2/skills/visualize/components/*.md` on branch feat/afkv2-s2 (read at 1a538932), and an optional `title` on all four; map node state is `settled`, `open` or `focus` vs B — own names and props, and S2 changes its pages and its `PICTURES` set
+- Chosen: A — SDD §4 fixes only "checked by the type's own schema", so the S2 pages are the one written use of these props. S2's `examples/all-components.json` passes `engine check` on this slice. Beyond the S2 pages: a label may hold a component (AC-031), and `groups` and `direction` also work on a map, because the map and the graph share one drawing
+- Supersedes: none
+- To reverse: change the schemas in `afkv2/engine/shell/diagram_boxes.py` and `afkv2/engine/components/diagram_*.py`, and the S2 pages
+
+## D-39 — computed layout, no browser script; shared code in the shell package
+- 2026-10-30 · decided by execute (0004-diagram-components)
+- Options: A — Python computes each box and arrow in pixels from an estimated label size, and a box scrolls if its label is larger than the estimate; shared code is `shell/diagram_parts.py` and `shell/diagram_boxes.py` vs B — a browser script measures the boxes and draws the arrows, which the unit tier cannot test
+- Chosen: A — same document, same bytes, and the unit tier can check box overlap and arrows. `registry.load_components` loads every `components/*.py` as a page component, so shared code stays out of that folder. The sequence diagram and the run strip are CSS grid and flex and need no estimate. Checked by eye in headless Edge on S2's example plus a down-direction graph with groups and loops. The lavish layout audit did not run on these parts (not verified); the 0005 live test is the first run. An arrow that spans ranks or a back arrow can pass behind a box, and its label can sit on a box in a stack (known gap)
+- Supersedes: none
+- To reverse: add `shell/diagram.js` and remove the arrow geometry from `diagram_boxes.py`
+
+## D-40 — a map node is a note target; a graph node is not
+- 2026-10-30 · decided by execute (0004-diagram-components)
+- Options: A — a map node carries `data-afkv2-element` with its id; a graph node id is local to its graph, and the whole graph is the target when it has an id vs B — both node kinds carry the attribute, so 2 graphs with the same node id collide, and `engine._element_ids` holds no graph node, so the check refuses a note on one
+- Chosen: A — PRD AC-035 lists map node and diagram as note targets. Known gap: `engine._element_ids` reads nodes only from the document's `maps` list, so a map held in a card or a cell draws, but a note on one of its nodes resolves to no element, and its node ids are not checked for uniqueness. `afkv2/engine/engine.py` is outside the 0004 `## Scope`. S2's page says a map goes in the `maps` list
+- Supersedes: none
+- To reverse: add the attribute in `_plain` in `diagram_boxes.py` and register graph nodes in `engine._element_ids`
