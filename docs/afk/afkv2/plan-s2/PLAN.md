@@ -4,7 +4,7 @@
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2-s2
 > Last updated: 2026-10-30 (status column maintained by /afk:execute)
-> Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Feature: complete (minimal gate, 2026-10-30)   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 This is one of 4 plan folders for afkv2 (`plan-s1`..`plan-s4`, decision D-S-4).
@@ -80,11 +80,11 @@ before it from disk.*
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0006-visualize-skill | visualize skill | pending | — | static, unit | — |
-| 2 | 0007-grill-skill | grill skill | pending | 0006-visualize-skill | static, unit, integration | — |
-| 3 | 0008-to-prd-jira-publish | to prd jira publish | pending | 0007-grill-skill | static, unit, integration | use §14 |
-| 4 | 0009-propose-solution-skill | propose solution skill | pending | 0008-to-prd-jira-publish | static, unit, integration | — |
-| 5 | 0010-to-subtasks-skill | to subtasks skill | pending | 0009-propose-solution-skill | static, unit, integration | — |
+| 1 | 0006-visualize-skill | visualize skill | done | — | static, unit | — |
+| 2 | 0007-grill-skill | grill skill | done | 0006-visualize-skill | static, unit, integration | — |
+| 3 | 0008-to-prd-jira-publish | to prd jira publish | done | 0007-grill-skill | static, unit, integration | use §14 |
+| 4 | 0009-propose-solution-skill | propose solution skill | done | 0008-to-prd-jira-publish | static, unit, integration | — |
+| 5 | 0010-to-subtasks-skill | to subtasks skill | done | 0009-propose-solution-skill | static, unit, integration | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
@@ -99,7 +99,11 @@ name the afkv2 tree directly.
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `afk-python -m compileall -q afkv2` | |
-| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | |
+| 1 | compile | `afk-python -m compileall -q afkv2` | pass |
+| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | pass |
 
-Last run: —
+Last run: 2026-10-30 local at 9f70068c — green: compile exit 0; regression 508 passed, 22 skipped
+
+Run history:
+- 2026-10-30 local — smoke_green (minimal gate), failing: none
+- 2026-10-30 local — smoke_green (minimal gate, re-run at 9f70068c after the late fixes and the merge of #157), failing: none

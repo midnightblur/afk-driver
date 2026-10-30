@@ -1,0 +1,39 @@
+{
+  "issues": {
+    "PROJ-1": {
+      "key": "PROJ-1",
+      "id": "10001",
+      "fields": {
+        "summary": "Export orders to a file",
+        "status": {"name": "To Do"},
+        "comment": {
+          "total": 2,
+          "comments": [
+            {"author": {"displayName": "Ana PO"}, "created": "2026-01-02T09:00:00.000+0000",
+             "body": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "One file per order."}]}]}},
+            {"author": {"displayName": "Quinn QA"}, "created": "2026-01-03T09:00:00.000+0000",
+             "body": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "What about cancelled orders?"}]}]}}
+          ]
+        },
+        "issuelinks": [
+          {"type": {"name": "Blocks", "inward": "is blocked by", "outward": "blocks"},
+           "inwardIssue": {"key": "PROJ-2", "fields": {"summary": "Order archive", "status": {"name": "Done"}}}}
+        ]
+      },
+      "description": {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Users need their orders in a file."}]},
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Per order."}]}]}]}
+      ]},
+      "description_hash": "abc",
+      "block": null
+    },
+    "PROJ-2": {
+      "key": "PROJ-2",
+      "id": "10002",
+      "fields": {"summary": "Order archive", "status": {"name": "Done"}, "comment": {"total": 0, "comments": []}, "issuelinks": []},
+      "description": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Archive closed orders."}]}]},
+      "description_hash": "def",
+      "block": null
+    }
+  }
+}
