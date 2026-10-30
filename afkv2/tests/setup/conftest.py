@@ -173,7 +173,8 @@ def write_codex_config(places: Places, afk_on: bool = True, new_on: bool = True)
     return text
 
 
-V1_CONFIG = b"tracker: github-issues\nforge: github\ngithub-issues:\n  repo: o/r\ngithub:\n  remote: origin\n"
+V1_CONFIG = (b"tracker: github-issues\nforge: github\ngithub-issues:\n  repo: o/r\ngithub:\n  remote: origin\n"
+             b"repo-files:\n  spec-dir: 'docs/specs/{workId}'\n")
 
 
 def make_world(places: Places, repo: Path) -> dict[Path, bytes]:

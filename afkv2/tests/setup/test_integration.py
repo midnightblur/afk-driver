@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import plugins
+import recorded_config_reader
 import setup
 import tools
 from conftest import NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
@@ -407,10 +408,30 @@ def test_prepare_records_the_python_it_found(world, env, places, repo, system, p
 def test_copy_config_verb_copies_once_and_keeps_the_v1_config(world, env, repo, system, plugin_root, capsys):
     code, copied = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
     assert code == 0 and copied["action"] == "copied"
-    assert (repo / ".afkv2" / "config.yaml").exists()
+    config = recorded_config_reader.read_config(repo / ".afkv2" / "config.json")
+    assert config["spec_folder"] == str(repo / "docs/specs")
+    assert config["tracker"] == {"kind": "github-issues", "repo": "o/r"}
     assert (repo / ".afk" / "config.yaml").read_bytes() == V1_CONFIG
     code, again = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
     assert code == 0 and again["action"] == "exists"
+
+
+def test_copy_config_with_no_spec_folder_refuses_and_writes_nothing(env, repo, system, plugin_root, capsys):
+    code, answer = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "no-spec-folder"
+    assert not (repo / ".afkv2").exists()
+
+
+def test_copy_config_takes_the_developers_spec_folder(env, repo, system, plugin_root, capsys):
+    code, answer = _cli(["copy-config", "--spec-folder", "specs"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and answer["action"] == "written" and answer["spec_folder_source"] == "developer"
+    assert recorded_config_reader.read_config(repo / ".afkv2" / "config.json")["spec_folder"] == str(repo / "specs")
+
+
+def test_copy_config_can_decline_the_v1_values(world, env, repo, system, plugin_root, capsys):
+    code, answer = _cli(["copy-config", "--no-v1-values"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and answer["action"] == "written"
+    assert json.loads((repo / ".afkv2" / "config.json").read_text(encoding="utf-8")) == {"spec_folder": "docs/specs"}
 
 
 def test_prepare_exits_1_on_a_red_shell(env, repo, runner, system, plugin_root, capsys):
@@ -427,11 +448,12 @@ def test_prepare_exits_1_with_no_python(env, repo, system, plugin_root, capsys):
 
 
 def test_ownership_verb_writes_both_grades(env, places, repo, system, plugin_root, capsys):
+    assert _cli(["copy-config", "--spec-folder", "specs"], env, system, plugin_root, repo, capsys)[0] == 0
     code, answer = _cli(["ownership", "--own", "a/**", "b/**", "--shared", "c/**"],
                         env, system, plugin_root, repo, capsys)
     assert code == 0 and answer["action"] == "written"
-    text = (repo / ".afkv2" / "config.yaml").read_text(encoding="utf-8")
-    assert "  own:\n    - 'a/**'\n    - 'b/**'\n  shared:\n    - 'c/**'\n" in text
+    config = recorded_config_reader.read_config(repo / ".afkv2" / "config.json")
+    assert config["ownership"] == {"own": ["a/**", "b/**"], "shared": ["c/**"]}
 
 
 def test_ownership_verb_records_a_skip(env, places, repo, system, plugin_root, capsys):
@@ -465,6 +487,8 @@ def test_status_reports_without_writing(world, env, places, repo, system, plugin
     assert answer["v1_blocks"]["claude"]["blocks"] == 1
     assert answer["v1_git_hooks"] == {"pre-commit": True, "reference-transaction": True}
     assert answer["ownership"] == "missing" and answer["v1_config"]["keys"]
+    assert answer["config_file"] is False
+    assert answer["spec_folder"] == {"value": "docs/specs", "source": "v1"}
     assert not places.data.exists()
 
 

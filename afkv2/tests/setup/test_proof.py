@@ -8,6 +8,10 @@ def _install(places):
     setup.write_install_record(places, {"path": "/py", "version": "3.12"}, "/rg")
 
 
+def test_the_fired_record_has_the_frozen_name(places):
+    assert places.fired_record("codex") == places.data / "fired-codex.txt"
+
+
 def test_no_install_record_refuses(places, plugin_root):
     answer = setup.prove_hook(places, "claude", end_marker(), plugin_root, ["claude"])
     assert not answer["proved"] and answer["error"]["code"] == "no-install-record"

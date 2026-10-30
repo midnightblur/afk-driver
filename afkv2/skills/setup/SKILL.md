@@ -26,9 +26,14 @@ you ask in this session; the Jira token never passes through you.
    (it asks for `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` and stores them
    where v1 keeps them), then run `status` again. Report each key's source, never
    a value.
-4. **v1 config.** `v1_config.v1_config` true and `v1_config.done` false: show the
-   developer `v1_config.keys` and offer one copy into `.afkv2`. On yes,
-   `setup.py copy-config`. The v1 file stays as it is.
+4. **Repository config.** `config_file` false: setup writes `.afkv2/config.json`
+   once, and it needs a spec folder. `spec_folder.value` set: use it, and pass no
+   flag. `spec_folder.value` null: ask the developer in this session for a folder
+   path relative to the repository root, then pass `--spec-folder <path>`.
+   `v1_config.v1_config` true: show the developer `v1_config.keys` and offer one
+   copy. On yes, `setup.py copy-config`; on no, `setup.py copy-config --no-v1-values`.
+   No v1 config: `setup.py copy-config`. The v1 file stays as it is. A refusal
+   `no-spec-folder` or `bad-spec-folder` writes nothing: report its `reason`, and ask again.
 5. **Ownership.** `ownership` is `missing`: ask once which paths the developer's
    team owns and which it shares. Answer given: `setup.py ownership --own <globs>
    --shared <globs>`. Skipped: `setup.py ownership --skip`.

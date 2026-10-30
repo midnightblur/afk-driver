@@ -5,7 +5,8 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
   status                                   read-only report
   prepare                                  Python 3, rg on every shell, install record
   secrets                                  the developer's own terminal only: Jira values
-  copy-config                              one copy of the v1 config values into .afkv2
+  copy-config [--spec-folder PATH] [--no-v1-values]
+                                           write .afkv2/config.json once, with its spec_folder
   ownership (--own GLOB... --shared GLOB... | --skip)
   takeover --provider claude|codex --end-marker LINE
   switch-back
@@ -578,8 +579,6 @@ def prepare(places: Places, system: System, env: Mapping[str, str]) -> dict:
 
 def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -> dict:
     codex_state, codex_source = _codex_state(places, system.run)
-    plan = repo_config.copy_plan(repo)
-    plan.pop("_blocks", None)
     blocks = {}
     for provider in PROVIDERS:
         target = places.instruction_file(provider)
@@ -592,7 +591,9 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "install_record": read_install_record(places),
         "fired": {p: places.fired_record(p).exists() for p in PROVIDERS},
         "jira": jira_values.status(places, env),
-        "v1_config": plan,
+        "v1_config": repo_config.copy_plan(repo),
+        "config_file": repo_config.afkv2_config(repo).exists(),
+        "spec_folder": repo_config.spec_folder_state(repo),
         "ownership": repo_config.ownership_state(repo, places),
         "v1_blocks": blocks,
         "v1_git_hooks": {h: is_v1_stub(hooks_dir / h, h) for h in setup_v1_facts.STUB_LINES},
@@ -666,6 +667,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     parser.add_argument("--own", nargs="*", default=[])
     parser.add_argument("--shared", nargs="*", default=[])
     parser.add_argument("--skip", action="store_true")
+    parser.add_argument("--spec-folder")
+    parser.add_argument("--no-v1-values", action="store_true")
     try:
         args = parser.parse_args(argv)
     except SystemExit:
@@ -689,7 +692,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         elif args.verb == "secrets":
             answer = secrets(places, system, env)
         elif args.verb == "copy-config":
-            answer = repo_config.copy_v1_config(repo)
+            answer = repo_config.write_config(repo, args.spec_folder, with_v1=not args.no_v1_values)
         elif args.verb == "ownership":
             answer = (repo_config.record_ownership_skip(repo, places) if args.skip
                       else repo_config.write_ownership(repo, places, args.own, args.shared))

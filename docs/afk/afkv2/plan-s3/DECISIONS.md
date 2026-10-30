@@ -587,3 +587,10 @@
 - Chosen: B — the tree had no such test, and S3 may not edit S1's check. It exempts `__init__.py` and `conftest.py`. It fails on the merged tree until S2 renames `skills/to-prd/scripts/v1_facts.py` and `tests/skills/fakes/v1_facts.py`, which is the intended signal. Read from `origin/feat/afkv2-s1` at ab931ae0: `check_no_v1_names` has no exemption at all, so D-35's exemption is still an IOU. Run on this tree it reports 57 lines: 13 in the 3 facts files, 42 in `afkv2/tests/setup/` and 2 in `plugins.py` docstrings. The 2 docstring lines are fixed here
 - Supersedes: none
 - To reverse: delete the test file
+
+## D-85 — where `spec_folder` comes from, and what the config file holds
+- 2026-10-30 · decided by execute (fixes after the red gate)
+- Options: A — copy every v1 block as JSON vs B — write only the keys an afkv2 reader reads: `spec_folder`, `tracker`, `forge`, `ownership`
+- Chosen: B — the source of `spec_folder` is the v1 `repo-files: spec-dir` value, else `--spec-folder` from an answer in session. No value refuses `no-spec-folder`, a bad answer refuses `bad-spec-folder`, and each writes nothing. A v1 value wins over an answer, and the answer names its source. Skills add the ticket folder to `spec_folder` (S2 `grill_start.py` line 78, `prd_files.py` line 56), so a last `{workId}` part goes; any other template field makes the v1 value unusable. A v1 `tracker` the reader refuses (`none`) is left out, because one bad kind makes the reader refuse the whole file. `forge` is written although the S1 reader ignores it today (IOU); `notes` and `git` are dropped because nothing in afkv2 reads them. `copy-config` now also serves a repository with no v1 config, and `--no-v1-values` serves a declined copy, because the reader refuses a repository with no file
+- Supersedes: D-6 file shape, as D-80 rules
+- To reverse: `write_config` and `spec_folder_state` in `repo_config.py`

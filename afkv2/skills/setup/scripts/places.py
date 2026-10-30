@@ -38,7 +38,7 @@ class Places:
         return self.data / "install.txt"
 
     def fired_record(self, provider: str) -> Path:
-        return self.data / f"hook-fired-{provider}.txt"
+        return self.data / f"fired-{provider}.txt"
 
     @property
     def backup(self) -> Path:

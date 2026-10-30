@@ -9,7 +9,7 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
 1. Enable afkv2 in Codex next to v1.
 2. Start a new Codex session in the test repository. Trust the afkv2 hooks in
    Codex's hook trust review.
-3. Expect: `%LOCALAPPDATA%\afkv2\hook-fired-codex.txt` exists, with a time
+3. Expect: `%LOCALAPPDATA%\afkv2\fired-codex.txt` exists, with a time
    after this session started.
 4. Expect: the session context holds `afkv2-core-behaviors end <sha12>`.
 
