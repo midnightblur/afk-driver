@@ -83,3 +83,10 @@
 - Chosen: A — SDD §6 says only "agent reads the note as clear" and is signed under HL-4, so B narrows a signed rule and needs the human. A only applies the signed words "clear" and "in conflict", so a `signoff` card with a `changes` mark still returns, and no decision is needed from the human
 - Supersedes: D-11
 - To reverse: edit the round pass in `components/card.md` and the rule test
+
+## D-13 — a note that states a change in full can settle a point
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f061)
+- Options: A — a note is not clear only when it leaves the answer open vs B — every note that asks for a change is not clear (part of D-12)
+- Chosen: A — the signed rule says "agent reads the note as clear", and the design interview settled owner notes that stated a change (GRILL-LOG V-2, V-7), so B narrows it. The other parts of D-12 stay
+- Supersedes: D-12, only for a note that asks for a change
+- To reverse: edit the round pass in `components/card.md` and the rule test
