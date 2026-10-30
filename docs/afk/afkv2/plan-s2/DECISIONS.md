@@ -223,3 +223,10 @@
 - Chosen: A — SDD §7 assigns both rows to the 0010 plan-check test. The check refuses a gate the repository cannot run unless the plan names it not applicable, and refuses a check path that no Scope in the subtask's chain owns. Merged origin/feat/afkv2 at b3ae5fac first, by merge and not by rebase
 - Supersedes: none
 - To reverse: remove the 2 bullets and the addition to the unit row of 0010
+
+## D-33 — the 0007 anchor becomes `name: grill`
+- 2026-10-30 · decided by autopilot (orchestrator, plan check finding on the built 0007)
+- Options: A — change the anchor in `## Produces` of 0007 and `## Consumes` of 0008 to `name: grill` vs B — remove one `/afkv2:grill` from the skill file
+- Chosen: A — the plan check allows an anchor only if it greps once. The file has `/afkv2:grill` in both the description and the title, and both are correct. `name: grill` greps once and is the form 0010 uses
+- Supersedes: the anchor text in 0007 and 0008
+- To reverse: restore `/afkv2:grill` in both contracts
