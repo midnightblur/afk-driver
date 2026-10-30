@@ -28,3 +28,5 @@
 2026-10-30 02:50 | execute | 0011-setup-skill | review r3 — blocking: crit=0 high=0 med=3 low=2; writes to a read-only file failed after the round 2 fix. All 5 are fixed in 2f8e32c7.
 2026-10-30 02:50 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 2f8e32c7 (harness-name rows and provider-helper names on spec files of this feature)
 2026-10-30 03:15 | execute | 0011-setup-skill | decision(D-14) — a settings file whose enabledPlugins is not an object stops the takeover
+2026-10-30 03:25 | execute | 0011-setup-skill | review r4 — blocking: crit=0 high=0 med=2 low=3; a read-only file could not be replaced on Windows. All 5 are fixed in 2f79aedc.
+2026-10-30 03:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 2f79aedc
