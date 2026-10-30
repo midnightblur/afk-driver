@@ -24,7 +24,7 @@ TO_FIX = SEVERITIES[:2]
 TO_POST = SEVERITIES[2:]
 SUBTASK_ID = re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]*")
 TEXT_FIELDS = ("concern", "finding", "why", "fix")
-SIDES = ("new", "old")
+SIDES = ("new", "old", "context")
 
 
 def next_round(rounds_done):
@@ -71,9 +71,9 @@ def _load(path, subtask):
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as error:
-        raise _bad(f"the state file {path} is unreadable: {error}") from None
+        raise Refusal("bad-state", f"the state file {path} is unreadable: {error}") from None
     if not isinstance(state, dict) or state.get("subtask") != subtask:
-        raise _bad(f"the state file {path} does not hold subtask {subtask}")
+        raise Refusal("bad-state", f"the state file {path} does not hold subtask {subtask}")
     return state
 
 
@@ -140,6 +140,8 @@ def begin(payload):
     deferred = _named_reasons(payload, "deferred") if payload.get("deferred") is not None else []
     state = _load(path, payload["subtask"]) or {"subtask": payload["subtask"], "rounds": [], "findings": [], "stopped_by": None}
     _refuse_unless_running(state)
+    if state.get("change", change) != change:
+        raise Refusal("change-mismatch", f"this review posts on change {state['change']}, not {change}")
     current = _open_round(state)
     resumed = current is not None
     if current is None:
@@ -166,7 +168,7 @@ def _new_round(state):
 def _checked_finding(item, index):
     if not isinstance(item, dict):
         raise _bad(f"finding {index} is not an object")
-    severity, file, line, side = item.get("severity"), item.get("file"), item.get("line"), item.get("side", "new")
+    severity, file, line, side = item.get("severity"), item.get("file"), item.get("line"), item.get("side") or "new"
     if severity not in SEVERITIES:
         raise _bad(f"finding {index}: `severity` must be one of {', '.join(SEVERITIES)}")
     for field in TEXT_FIELDS:
@@ -179,7 +181,7 @@ def _checked_finding(item, index):
     if side not in SIDES:
         raise _bad(f"finding {index}: `side` must be one of {', '.join(SIDES)}")
     file = file.replace("\\", "/") if file else None
-    return {"severity": severity, "file": file, "line": line, "side": side, **{field: item[field] for field in TEXT_FIELDS}}
+    return {"severity": severity, "file": file, "line": line, "side": "old" if side == "old" else "new", **{field: item[field] for field in TEXT_FIELDS}}
 
 
 def _key(found):
@@ -188,20 +190,30 @@ def _key(found):
     return hashlib.sha256(f"{found['file']}\n{words}".encode("utf-8")).hexdigest()
 
 
-def _merge(state, found, number):
-    key = _key(found)
+def _with_keys(checked):
+    """Pair each finding with its key. The same text at another line of one round is another defect."""
+    lines = {}
+    for found in checked:
+        key = _key(found)
+        seen = lines.setdefault(key, [])
+        if found["line"] not in seen:
+            seen.append(found["line"])
+        yield f"{key}-{seen.index(found['line'])}", found
+
+
+def _merge(state, key, found, number):
     entry = next((item for item in state["findings"] if item["key"] == key), None)
     if entry is None:
         state["findings"].append({"id": f"f{len(state['findings']) + 1}", "key": key, "first_round": number, "last_round": number,
                                   "outcome": None, "sha": None, "reason": None, "comment": None, "post_error": None,
-                                  "reopened": 0, **found})
+                                  "replaces": None, "reopened": 0, **found})
         return
     if entry["last_round"] == number and SEVERITIES.index(entry["severity"]) < SEVERITIES.index(found["severity"]):
         found["severity"] = entry["severity"]
     if entry["outcome"] == "fixed":
         entry["reopened"] += 1
-    if entry["severity"] in TO_POST and found["severity"] in TO_FIX:
-        entry["comment"] = None
+    if entry["severity"] in TO_POST and found["severity"] in TO_FIX and entry["comment"]:
+        entry.update(replaces=entry["comment"]["url"], comment=None)
     entry.update(found, last_round=number, outcome=None, sha=None, reason=None)
 
 
@@ -213,6 +225,8 @@ def _comment_text(entry):
     lines += [f"Why: {entry['why']}", f"Fix: {entry['fix']}"]
     if entry["reason"]:
         lines.append(f"Not fixed: {entry['reason']}")
+    if entry["replaces"]:
+        lines.append(f"Replaces: {entry['replaces']}")
     return "\n".join(lines)
 
 
@@ -251,18 +265,24 @@ def record(payload):
     if current is None:
         raise Refusal("no-open-round", "no round is open: run `begin`")
     number = current["round"]
-    for found in checked:
-        _merge(state, found, number)
+    for key, found in _with_keys(checked):
+        _merge(state, key, found, number)
     current["recorded"] = True
     _save(path, state)
     seen = [entry for entry in state["findings"] if entry["last_round"] == number]
     fix, post = route(seen)
     new_posts = [entry for entry in post if entry["comment"] is None]
     _post(path, state, new_posts)
-    return ok(round=number, cap=CAP, next="fix" if fix else "stop",
+    return ok(round=number, cap=CAP, next=_next_step(fix, number),
               fix=[_for_the_fixer(entry) for entry in fix],
               posted=[_posted(entry) for entry in new_posts if entry["comment"]],
               post_failed=[{"id": entry["id"], "reason": entry["post_error"]} for entry in new_posts if not entry["comment"]])
+
+
+def _next_step(fix, number):
+    if not fix:
+        return "stop"
+    return "fix" if next_round(number) else "fix-then-finish"
 
 
 def _for_the_fixer(entry):
@@ -281,7 +301,7 @@ def outcome(payload):
     ident, result = need(payload, "id"), need(payload, "result")
     entry = next((item for item in state["findings"] if item["id"] == ident), None)
     if entry is None or entry["severity"] not in TO_FIX:
-        raise _bad(f"no critical or high finding has the id {ident}")
+        raise Refusal("no-such-finding", f"no critical or high finding has the id {ident}")
     if result == "fixed":
         entry.update(outcome="fixed", sha=str(need(payload, "sha")), reason=None)
     elif result == "unfixed":
@@ -299,15 +319,17 @@ def _stop_reason(state):
         _refuse_open_fixes(state)
         if any(_is_new_fix(entry, done) for entry in state["findings"]):
             raise Refusal("review-owed", f"a fix of round {done} waits for its review: run `begin`")
-    if not any(entry["severity"] in TO_FIX and entry["last_round"] == done for entry in state["findings"]):
-        return "clean"
-    return "cap" if done >= CAP else "unfixed"
+    blocking = [entry for entry in state["findings"] if entry["severity"] in TO_FIX]
+    if done >= CAP and any(entry["last_round"] == done for entry in blocking):
+        return "cap"
+    return "unfixed" if any(entry["outcome"] == "unfixed" for entry in blocking) else "clean"
 
 
 def _summary(entry):
     comment = entry["comment"] or {}
     return {"id": entry["id"], "severity": entry["severity"], "concern": entry["concern"], "file": entry["file"], "line": entry["line"],
-            "finding": entry["finding"], "reason": entry["reason"], "url": comment.get("url"), "post_error": entry["post_error"]}
+            "finding": entry["finding"], "reason": entry["reason"], "url": comment.get("url"), "replaces": entry["replaces"],
+            "post_error": entry["post_error"]}
 
 
 def _report(state):

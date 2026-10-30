@@ -26,11 +26,11 @@ A round is: pick the concerns, review, record the findings, fix. The review stop
 2. **Open the round.** `begin` with `change`, `concerns` and optional `deferred`, each a list of `{name, why}`. The answer holds `round`.
 3. **Review.** Start one fresh read-only subagent per concern, together when the harness can. Give each one [REVIEWER.md](REVIEWER.md), its concern, the diff path and the contract path. Keep out the author's reasons, earlier findings and the round number.
 4. **Record.** Join the arrays into one, with one finding per defect. `record` with `findings`. The script posts the medium and low findings on the change through the forge port. Done when the answer arrives; `post_failed` entries stay in the state and `finish` tries them again.
-5. **Fix.** `next` is `stop`: go to step 7. `next` is `fix`: for each entry of `fix`:
+5. **Fix.** `next` is `stop`: go to step 7. `next` is `fix` or `fix-then-finish`: for each entry of `fix`:
    - Behavior defect: write a failing test first, then the fix. Stay inside the contract's `## Scope`. Commit code and tests only, and push; never force-push.
    - Fixed: `outcome` with `id`, `result: "fixed"`, `sha`.
    - Not fixed, because the fix leaves the scope, needs a human decision or does not work: `outcome` with `id`, `result: "unfixed"`, `reason`.
-6. **Next round.** Go to step 1 with the new diff; keep each concern that found a critical or high finding. A refusal below ends the rounds: go to step 7.
+6. **Next round.** `next` was `fix-then-finish`: go to step 7, because no round reads this fix. `next` was `fix`: go to step 1 with the new diff, and keep each concern that found a critical or high finding.
 7. **Finish.** `finish`. Its answer is this skill's result. Show the developer one plain sentence: why the review stopped, and what `left` holds. `not_posted` is not empty: run `finish` once more, then report the entries that remain.
 
 The review is done when `finish` answers `ok: true`.
@@ -46,14 +46,18 @@ The review is done when `finish` answers `ok: true`.
 | `round-open` | a round has no findings yet | step 3 |
 | `no-open-round`, `no-review` | no round is open | step 1 |
 | `review-over` | this subtask's review has stopped | `finish` repeats the report |
+| `change-mismatch` | this review posts on another change | stop and report both ids |
+| `no-such-finding` | no critical or high finding has this id | use an id from the `fix` list |
+| `bad-state` | the state file is broken or holds another subtask | stop and report the path; the file stays as it is |
+| `bad-payload` | exit 2: the payload or a finding is not usable; the reason names it | correct the payload and send it again |
 
 ## The result
 
 | Field of `finish` | Holds |
 |-------------------|-------|
-| `stopped_by` | `clean`: the last round found no critical or high finding. `cap`: round 3 ended with one. `unfixed`: every critical or high finding of the last round stayed unfixed |
+| `stopped_by` | `clean`: the last round found no critical or high finding. `cap`: round 3 ended with one. `unfixed`: a critical or high finding stayed unfixed, before round 3 |
 | `fixed` | each fix with its `sha`; `reviewed: false` means no later round read the fix |
-| `left.blocking` | critical and high findings not fixed, each also posted on the change |
+| `left.blocking` | critical and high findings not fixed, each also posted on the change; `replaces` is the url of its earlier medium or low comment |
 | `left.posted` | medium and low findings on the change |
 | `left.not_posted` | findings the forge did not take, with `post_error` |
 | `deferred`, `concerns` | what was deferred, and what each round ran |

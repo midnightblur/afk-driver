@@ -111,7 +111,7 @@ def test_a_broken_state_file_refuses_and_stays_as_it_is(review):
     state = review.plan / "review" / "0001-a.rounds.json"
     state.write_text("{not json", encoding="utf-8")
     code, answer = begin(review)
-    assert (code, answer["error"]["code"]) == (2, "bad-payload")
+    assert (code, answer["error"]["code"]) == (1, "bad-state")
     assert state.read_text(encoding="utf-8") == "{not json"
 
 
@@ -120,7 +120,7 @@ def test_a_state_of_another_subtask_refuses(review):
     state = review.plan / "review" / "0001-a.rounds.json"
     state.write_text(json.dumps({**json.loads(state.read_text(encoding="utf-8")), "subtask": "0002-b"}), encoding="utf-8")
     code, answer = begin(review)
-    assert (code, answer["error"]["code"]) == (2, "bad-payload")
+    assert (code, answer["error"]["code"]) == (1, "bad-state")
 
 
 def finding(severity="high", text="the loop skips the last item", **extra):
@@ -182,7 +182,7 @@ def test_a_round_with_no_finding_to_fix_says_stop(review, forge):
 
 
 @pytest.mark.parametrize("bad", [
-    {"severity": "blocker"}, {"severity": None}, {"line": 0}, {"line": "3"}, {"line": True}, {"side": "context"},
+    {"severity": "blocker"}, {"severity": None}, {"line": 0}, {"line": "3"}, {"line": True}, {"side": "left"},
     {"finding": " "}, {"why": None}, {"fix": ""}, {"concern": 1}, {"file": ""},
 ])
 def test_record_refuses_every_finding_it_cannot_route_and_posts_nothing(review, forge, bad):
@@ -252,6 +252,14 @@ def test_a_low_finding_that_comes_back_high_goes_to_fix(review, forge):
     _, second = review("record", findings=[finding("high", "x")])
     assert [item["finding"] for item in second["fix"]] == ["x"]
     assert ids(second["fix"]) != ids(first["fix"])
+    posts = len(forge.calls)
+    review("outcome", id=second["fix"][0]["id"], result="unfixed", reason="outside the scope")
+    _, report = review("finish")
+    left = report["left"]["blocking"][0]
+    assert (left["finding"], left["severity"]) == ("x", "high")
+    assert left["url"] and left["url"] != left["replaces"]
+    assert len(forge.calls) == posts + 1
+    assert left["replaces"] in forge.calls[-1][1]["text"]
 
 
 def test_a_fixed_finding_found_again_opens_again_and_counts_as_a_wrong_claim(review):
@@ -282,8 +290,8 @@ def test_outcome_refuses_what_it_cannot_record(review):
     assert review("outcome", id=item, result="fixed")[0] == 2
     assert review("outcome", id=item, result="unfixed")[0] == 2
     assert review("outcome", id=item, result="maybe", sha="a")[0] == 2
-    assert review("outcome", id="f99", result="fixed", sha="a")[0] == 2
-    assert review("outcome", id=answer["posted"][0]["id"], result="fixed", sha="a")[0] == 2
+    assert review("outcome", id="f99", result="fixed", sha="a")[1]["error"]["code"] == "no-such-finding"
+    assert review("outcome", id=answer["posted"][0]["id"], result="fixed", sha="a")[1]["error"]["code"] == "no-such-finding"
 
 
 def test_begin_refuses_a_new_round_while_a_fix_has_no_outcome(review):
@@ -536,3 +544,73 @@ def test_the_reviewer_brief_asks_for_the_fields_record_needs():
     assert review_rounds._checked_finding(sample, 0)["severity"] == "low"
     for severity in review_rounds.SEVERITIES:
         assert f"| {severity} |" in brief
+
+
+@pytest.mark.parametrize("side", ["context", None])
+def test_a_context_side_and_a_null_side_post_on_the_new_side(review, forge, side):
+    begin(review)
+    assert review("record", findings=[finding("low", side=side)])[0] == 0
+    payload = forge.calls[0][1]
+    assert payload["line"] == 3 and "side" not in payload
+
+
+def test_next_says_when_no_round_reads_the_fix(review):
+    answers = run_to_the_cap(review)
+    assert [answer["next"] for answer in answers] == ["fix", "fix", "fix-then-finish"]
+
+
+def test_the_same_text_at_another_line_of_one_round_is_another_defect(review, forge):
+    begin(review)
+    _, answer = review("record", findings=[{**finding("high", "missing null check"), "line": 10},
+                                           {**finding("high", "missing null check"), "line": 90}])
+    assert [item["line"] for item in answer["fix"]] == [10, 90]
+    assert len(set(ids(answer["fix"]))) == 2
+
+
+def test_the_same_text_at_a_moved_line_in_a_later_round_stays_one_defect(review):
+    begin(review)
+    _, first = review("record", findings=[{**finding("high", "h"), "line": 10}])
+    fix_all(review, first)
+    begin(review)
+    _, second = review("record", findings=[{**finding("high", "h"), "line": 12}])
+    assert ids(second["fix"]) == ids(first["fix"])
+    assert second["fix"][0]["line"] == 12
+
+
+def test_a_review_that_names_another_change_refuses(review):
+    begin(review)
+    code, answer = review("begin", change="8", concerns=CONCERNS)
+    assert (code, answer["error"]["code"]) == (1, "change-mismatch")
+    assert json.loads((review.plan / "review" / "0001-a.rounds.json").read_text(encoding="utf-8"))["change"] == "7"
+
+
+def test_an_earlier_unfixed_finding_is_never_reported_as_clean(review):
+    begin(review)
+    _, answer = review("record", findings=[finding("high", "a"), finding("high", "b")])
+    fix_all(review, {"fix": answer["fix"][:1]})
+    review("outcome", id=answer["fix"][1]["id"], result="unfixed", reason="outside the scope")
+    begin(review)
+    review("record", findings=[])
+    _, report = review("finish")
+    assert report["stopped_by"] == "unfixed"
+    assert ids(report["left"]["blocking"]) == [answer["fix"][1]["id"]]
+
+
+def test_a_deferred_concern_that_runs_in_a_later_round_is_not_reported_as_deferred(review):
+    deferred = [{"name": "tests", "why": "no test changed"}, {"name": "resilience", "why": "no new call"}]
+    review("begin", change="7", concerns=CONCERNS, deferred=deferred)
+    _, answer = review("record", findings=[finding("high")])
+    fix_all(review, answer)
+    review("begin", change="7", concerns=[{"name": "tests", "why": "the fix adds a test"}])
+    review("record", findings=[])
+    assert [item["name"] for item in review("finish")[1]["deferred"]] == ["resilience"]
+
+
+@pytest.mark.parametrize("text", ["[]", "{}", "1"])
+def test_a_forge_command_that_answers_no_envelope_is_a_failed_post(tmp_path, capsys, real_port, monkeypatch, text):
+    broken = tmp_path / "broken.py"
+    broken.write_text(f"print('{text}')\n", encoding="utf-8")
+    monkeypatch.setattr(review_rounds, "FORGE", broken)
+    real_review(tmp_path, capsys, "begin", change="7", concerns=CONCERNS)
+    _, answer = real_review(tmp_path, capsys, "record", findings=[finding("low")])
+    assert answer["post_failed"][0]["reason"] == "the forge command gave no answer object"

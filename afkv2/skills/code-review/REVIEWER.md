@@ -21,7 +21,7 @@ Your whole answer is one JSON array; `[]` means you found nothing.
 }]
 ```
 
-`line` is a line number in the new file, or null when no line fits. `side` is optional: use `old` for a line in the old file, when the diff removes it.
+`line` is a line number in the new file, or null when no line fits. `side` is optional: use `old` for a line in the old file, when the diff removes it. `context` reads as `new`.
 
 ## Severity
 
