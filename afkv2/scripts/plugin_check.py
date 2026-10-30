@@ -113,6 +113,21 @@ def check_marker_matching(root: Path) -> list[str]:
     return problems
 
 
+def check_unique_module_names(root: Path) -> list[str]:
+    """Two flat script modules with one file name shadow each other; `__init__.py` and `tests/` do not count."""
+    by_name: dict[str, list[str]] = {}
+    for path in _files(root):
+        relative = path.relative_to(root)
+        name = path.name.lower()
+        if path.suffix.lower() == ".py" and name != "__init__.py" and relative.parts[0] != "tests":
+            by_name.setdefault(name, []).append(relative.as_posix())
+    return [
+        f"{name}: one module name in {', '.join(paths)}; rename all but one"
+        for name, paths in by_name.items()
+        if len(paths) > 1
+    ]
+
+
 def run_checks(root: Path = PLUGIN_ROOT) -> list[str]:
     root = Path(root)
     problems = _check_manifests(root)
@@ -124,6 +139,7 @@ def run_checks(root: Path = PLUGIN_ROOT) -> list[str]:
         problems += _check_built(root, source)
     problems += check_no_v1_names(root)
     problems += check_marker_matching(root)
+    problems += check_unique_module_names(root)
     return problems
 
 

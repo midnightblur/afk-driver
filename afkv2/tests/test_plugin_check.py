@@ -536,6 +536,57 @@ def write_tree_file(root, relative, text="ok\n"):
 
 
 @pytest.mark.parametrize(
+    "first, second",
+    [
+        ("scripts/sample_mod.py", "engine/sample_mod.py"),
+        ("engine/components/sample_mod.py", "hooks/sample_mod.py"),
+        ("skills/one/scripts/sample_mod.py", "skills/two/scripts/sample_mod.py"),
+        ("scripts/sample_mod.py", "engine/tests/sample_mod.py"),
+        ("scripts/Sample_Mod.py", "engine/sample_mod.py"),
+    ],
+)
+def test_two_script_modules_with_one_file_name_fail(tree, first, second):
+    write_tree_file(tree, first)
+    write_tree_file(tree, second)
+    problems = plugin_check.check_unique_module_names(tree)
+    assert len(problems) == 1
+    assert first in problems[0] and second in problems[0]
+    assert problems[0] in plugin_check.run_checks(tree)
+
+
+def test_a_module_name_used_three_times_is_one_problem_naming_all_three(tree):
+    paths = ["scripts/sample_mod.py", "engine/sample_mod.py", "hooks/sample_mod.py"]
+    for relative in paths:
+        write_tree_file(tree, relative)
+    problems = plugin_check.check_unique_module_names(tree)
+    assert len(problems) == 1
+    assert all(relative in problems[0] for relative in paths)
+
+
+def test_check_command_fails_on_a_module_name_clash(tree):
+    write_tree_file(tree, "engine/plugin_check.py")
+    code, answer = run_tree_check(tree, "check")
+    assert code == 1
+    assert any("engine/plugin_check.py" in p and "scripts/plugin_check.py" in p for p in answer["problems"])
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [
+        ["scripts/__init__.py", "engine/__init__.py"],
+        ["tests/one/sample_mod.py", "tests/two/sample_mod.py"],
+        ["tests/plugin_check.py"],
+        ["scripts/sample_mod.md", "engine/sample_mod.md"],
+        ["scripts/sample_mod.py", "engine/sample_mod.pyi"],
+    ],
+)
+def test_init_files_tests_and_other_suffixes_do_not_count_as_a_clash(tree, paths):
+    for relative in paths:
+        write_tree_file(tree, relative)
+    assert plugin_check.check_unique_module_names(tree) == []
+
+
+@pytest.mark.parametrize(
     "relative",
     [
         "scripts/v1_facts.py",
