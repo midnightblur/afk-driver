@@ -94,3 +94,4 @@
 2026-10-30 11:51 | execute | 0002-core-behaviors | gate-skip(R-4) — the plan commit that holds this line uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
 2026-10-30 11:51 | execute | 0002-core-behaviors | done — the rule text has 4503 characters, the live session and the benchmark passed; the human reviews and merges
 2026-10-30 11:53 | autopilot | run | heartbeat 2/5 done, starting 0003-engine-core-schema-show-poll — the core rule text is finished; the page engine comes next
+2026-10-30 12:02 | autopilot | 0001-skeleton-manifests-hooks | decision(D-25) — the owner ruled that the first slice owns the Codex marketplace entry, so the entry comes back and Codex gets its install path; the slice stays done and takes this one follow-up

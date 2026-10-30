@@ -37,6 +37,7 @@ complex
 - afkv2/hooks/built/afkv2-core-behaviors.txt   # seed only; 0002 owns the content
 - afkv2/hooks/built/afkv2-core-behaviors.claude-subagent.json   # seed only; 0002 owns the content
 - .gitattributes   # afkv2 lines only; v1 lines byte-identical
+- .agents/plugins/marketplace.json   # add the afkv2 entry only; v1 entries byte-identical
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)

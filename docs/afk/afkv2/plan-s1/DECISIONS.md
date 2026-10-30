@@ -167,3 +167,10 @@
 - Chosen: A — a notice names a file and no line, so an agent cannot act on it as a hit. Measured on the benchmark repository, pattern `Transactional`: both tools have the same text lines, and `git grep --untracked` adds 1 notice for a `.jar` file that rg does not report. rg stops reading a file at the first NUL byte (inferred from that output; not verified against the rg source).
 - Supersedes: none
 - To reverse: count notices in `normalize_hits` in `afkv2/scripts/search_bench.py`
+
+## D-25 — owner ruling: 0001 owns the Codex marketplace entry
+- 2026-10-30 · decided by the owner, relayed in session S1
+- Options: A — add `.agents/plugins/marketplace.json` to the 0001 `## Scope` and restore the afkv2 entry, with v1 entries byte-identical vs B — keep D-8: the owner-run steps add the entry in a test copy
+- Chosen: A — owner ruling. It closes findings f004 and f053 on that basis. A wiring IOU is written only if the consumer of the entry is still later. The orchestrator found no later plan step that names this file (grep of plan-s1 to plan-s4, SDD and PRD); the consumer is Codex, reading the marketplace, and owner-run check 1 uses it, so no IOU is expected. The 0001 agent confirms this when it restores the entry
+- Supersedes: D-8 in full
+- To reverse: delete the afkv2 entry and the path in the 0001 `## Scope`; D-8 then applies again
