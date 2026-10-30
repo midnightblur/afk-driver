@@ -256,3 +256,26 @@ def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
         allow.write("notes/x.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
     done = gate(tree)
     assert done.returncode == 0, done.stderr + done.stdout
+
+
+def _plant_v1_findings(tree: Path, base: str) -> None:
+    """One finding each for rules A (prose), J (interpreter), I (CRLF), K (helper caller) under `base`."""
+    _write(tree, f"{base}/x.md", "Run it in Claude Code.\n")
+    _write(tree, f"{base}/x.sh", f"#!/bin/sh\n{PY} tool.py\n")
+    (tree / base / "crlf.sh").write_bytes(b"#!/bin/sh\r\necho ok\r\n")
+    _write(tree, f"{base}/y.md", "Load claude_resolve.py here.\n")
+
+
+@pytest.mark.parametrize("base", ["afkv2", "docs/afk/afkv2"])
+def test_the_afkv2_trees_are_out_of_scope(tree, base):
+    _plant_v1_findings(tree, base)
+    done = gate(tree)
+    assert done.returncode == 0, done.stderr + done.stdout
+
+
+def test_the_same_findings_under_a_v1_path_are_refused(tree):
+    _plant_v1_findings(tree, "docs/afk/other")
+    done = gate(tree)
+    for needle in ("docs/afk/other/x.md:1: forbidden harness-name", "docs/afk/other/x.sh:2: shell command",
+                   "docs/afk/other/crlf.sh: CRLF", "docs/afk/other/y.md: references provider helper"):
+        _refused(done, needle)
