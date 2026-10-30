@@ -116,8 +116,9 @@ def write_ownership(repo: Path, places: Places, own: list[str], shared: list[str
             lines += [f"    - {_quote(g)}" for g in globs]
     target = afkv2_config(repo)
     old = target.read_bytes() if target.exists() else HEADER
-    sep = b"" if old.endswith(b"\n") else b"\n"
-    write_atomic(target, old + sep + ("\n".join(lines) + "\n").encode("utf-8"))
+    eol = _eol(old)
+    sep = b"" if old.endswith(b"\n") else eol
+    write_atomic(target, old + sep + eol.join(line.encode("utf-8") for line in lines) + eol)
     return {"ok": True, "action": "written", "path": str(target)}
 
 

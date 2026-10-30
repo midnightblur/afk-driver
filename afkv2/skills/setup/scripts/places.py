@@ -79,9 +79,10 @@ def write_atomic(path: Path, data: bytes) -> None:
         path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".afkv2-tmp")
-    tmp.write_bytes(data)
+    tmp.write_bytes(b"")
     if path.exists():
-        shutil.copymode(path, tmp)
+        shutil.copymode(path, tmp)  # before the data: the file can hold a secret
+    tmp.write_bytes(data)
     os.replace(tmp, path)
 
 

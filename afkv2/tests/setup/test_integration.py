@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import stat
+from pathlib import Path
 
 import pytest
 
@@ -23,6 +24,18 @@ def _cli(argv, env, system, plugin_root, repo, capsys):
 def _takeover(env, system, plugin_root, repo, capsys):
     return _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
                 env, system, plugin_root, repo, capsys)
+
+
+def _refuse_writes(patch, module, path):
+    """The module's writes to `path` raise, as on a locked file."""
+    real = module.write_atomic
+
+    def write(target, data):
+        if Path(target) == path:
+            raise OSError(f"locked: {path}")
+        real(target, data)
+
+    patch.setattr(module, "write_atomic", write)
 
 
 @pytest.fixture
@@ -63,7 +76,9 @@ def test_a_hook_that_fired_before_the_install_record_is_no_proof(
     fire(places, "codex", later=-60)
     code, refused = _takeover(env, system, plugin_root, repo, capsys)
     assert code == 1 and refused["v1_block"] == "kept"
-    assert all("before setup's install record" in r for r in refused["proof"]["reasons"])
+    reasons = refused["proof"]["reasons"]
+    assert [r.split(":")[0] for r in reasons] == ["claude", "codex"]
+    assert all("before setup's install record" in r for r in reasons)
     assert places.instruction_file("claude").read_bytes() == world[places.instruction_file("claude")]
 
 
@@ -243,6 +258,100 @@ def test_a_failed_lavish_restore_keeps_the_install_record(
     assert places.install_record.exists() and tools.lavish_record(places).exists()
 
 
+def test_a_failed_instruction_restore_keeps_its_backup_and_a_rerun_finishes(
+        taken_over, world, env, places, repo, system, plugin_root, capsys, monkeypatch):
+    target = places.instruction_file("claude")
+    with monkeypatch.context() as patch:
+        _refuse_writes(patch, setup, target)
+        code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and places.install_record.exists()
+    failed = [b for b in back["blocks"] if b["action"] == "failed"]
+    assert [b["path"] for b in failed] == [str(target)]
+    assert Path(failed[0]["backup"], "original").read_bytes() == world[target]
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert target.read_bytes() == world[target]
+
+
+def test_a_failed_settings_restore_keeps_its_backup_and_a_rerun_finishes(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    local = repo / ".claude" / "settings.local.json"
+    written = local.read_bytes()
+    local.write_text("{", encoding="utf-8")
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and places.install_record.exists()
+    answer = back["claude_settings"][0]
+    assert answer["settings"] == "failed"
+    assert Path(answer["backup"], "settings.local.json.absent").exists()
+    local.write_bytes(written)
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+    assert not any((places.backup / "claude-settings").iterdir())
+
+
+def test_a_failed_codex_restore_keeps_its_backup_and_a_rerun_finishes(
+        taken_over, env, places, repo, system, plugin_root, capsys, monkeypatch):
+    with monkeypatch.context() as patch:
+        _refuse_writes(patch, setup, places.codex_config)
+        code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and places.install_record.exists()
+    assert back["codex_config"] == "failed" and back["backup_dir"] == str(places.backup)
+    assert (places.backup / "codex" / "config.toml").exists()
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert not (places.backup / "codex" / "config.toml").exists()
+    assert plugins.only_one_on(plugins.codex_config_state(places.codex_config.read_text(encoding="utf-8"))) == "afk"
+
+
+def test_a_git_failure_on_a_live_repository_still_restores_its_settings(
+        taken_over, env, places, repo, system, plugin_root, capsys, monkeypatch):
+    monkeypatch.setattr(setup, "_common_dir", lambda run, where: None)
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 0, back
+    assert back["claude_settings"][0]["settings"] == "removed"
+    assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+
+
+def test_a_failed_v1_only_switch_keeps_the_settings_backup_and_a_rerun_finishes(
+        taken_over, env, places, repo, system, plugin_root, capsys, monkeypatch):
+    with monkeypatch.context() as patch:
+        _refuse_writes(patch, plugins, repo / ".claude" / "settings.local.json")
+        code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and not back["plugins"]["ok"]
+    assert any((places.backup / "claude-settings").iterdir())
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+    assert not any((places.backup / "claude-settings").iterdir())
+
+
+def test_a_backup_folder_a_crash_left_empty_does_not_stop_switch_back(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    crashed = [places.backup / "claude-settings" / "crashed", places.backup / "git-hooks" / "crashed"]
+    for folder in crashed:
+        folder.mkdir(parents=True)
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 0, back
+    assert not any(folder.exists() for folder in crashed)
+
+
+@pytest.mark.parametrize("sub", ["claude-settings", "git-hooks"])
+def test_a_backup_that_cannot_be_deleted_is_reported_with_its_path(
+        taken_over, sub, env, places, repo, system, plugin_root, capsys, monkeypatch):
+    real = shutil.rmtree
+    locked = places.backup / sub
+
+    def rmtree(path, *args, **kwargs):
+        if Path(path).parent == locked:
+            raise OSError("locked")
+        real(path, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(setup.shutil, "rmtree", rmtree)
+        code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and places.install_record.exists()
+    entries = back["claude_settings"] if sub == "claude-settings" else back["git_hooks"]
+    backups = [e["backup"] for e in entries if "failed" in (e.get("settings"), e.get("action"))]
+    assert [Path(b).parent for b in backups] == [locked]
+
+
 def test_the_install_record_ends_at_switch_back(taken_over, env, places, repo, system, plugin_root, capsys):
     assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
     assert not places.install_record.exists()
@@ -251,6 +360,21 @@ def test_the_install_record_ends_at_switch_back(taken_over, env, places, repo, s
 
 
 # ------------------------------------------------------------- command line
+
+def test_prepare_records_the_python_it_found(world, env, places, repo, system, plugin_root, capsys):
+    code, prepared = _cli(["prepare"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and prepared["install_record"]["python"] == "/usr/bin/python3 3.12.4"
+    assert setup.read_install_record(places)["python"] == "/usr/bin/python3 3.12.4"
+
+
+def test_copy_config_verb_copies_once_and_keeps_the_v1_config(world, env, repo, system, plugin_root, capsys):
+    code, copied = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and copied["action"] == "copied"
+    assert (repo / ".afkv2" / "config.yaml").exists()
+    assert (repo / ".afk" / "config.yaml").read_bytes() == V1_CONFIG
+    code, again = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and again["action"] == "exists"
+
 
 def test_prepare_exits_1_on_a_red_shell(env, repo, runner, system, plugin_root, capsys):
     runner.paths["python3"] = "/usr/bin/python3"
@@ -321,6 +445,21 @@ def test_write_atomic_keeps_the_file_mode(tmp_path):
     secret.chmod(0o600)
     write_atomic(secret, b"new")
     assert stat.S_IMODE(secret.stat().st_mode) == 0o600
+
+
+def test_write_atomic_copies_the_mode_before_the_data_goes_in(tmp_path, monkeypatch):
+    secret = tmp_path / "secret"
+    secret.write_bytes(b"old")
+    real = shutil.copymode
+    temp_content = []
+
+    def copymode(source, target, **kwargs):
+        temp_content.append(Path(target).read_bytes())
+        real(source, target, **kwargs)
+
+    monkeypatch.setattr(shutil, "copymode", copymode)
+    write_atomic(secret, b"token")
+    assert temp_content == [b""] and secret.read_bytes() == b"token"
 
 
 def test_write_atomic_writes_through_a_symlink(tmp_path):

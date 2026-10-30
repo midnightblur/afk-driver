@@ -40,7 +40,7 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins", {}), dict):
+    if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins") or {}, dict):
         raise ValueError(f"{path} is not a JSON object with an enabledPlugins object")
     return data
 
@@ -79,7 +79,8 @@ def write_claude_local(repo: Path, wanted: Mapping[str, bool]) -> bool:
 
 def _without_our_values(data: dict) -> dict:
     rest = dict(data)
-    kept = {k: v for k, v in rest.pop("enabledPlugins", {}).items() if plugin_name(k) not in NAMES}
+    kept = {k: v for k, v in (rest.pop("enabledPlugins", None) or {}).items()
+            if plugin_name(k) not in NAMES}
     return {**rest, "enabledPlugins": kept} if kept else rest
 
 
@@ -93,7 +94,7 @@ def restore_claude_local(local: Path, saved: Path) -> str:
     before = _read_json(saved)
     rest = _without_our_values(_read_json(local))
     if local.exists() and rest != _without_our_values(before):
-        ours = {k: v for k, v in before.get("enabledPlugins", {}).items() if plugin_name(k) in NAMES}
+        ours = {k: v for k, v in (before.get("enabledPlugins") or {}).items() if plugin_name(k) in NAMES}
         values = {**ours, **rest.get("enabledPlugins", {})}
         merged = {**rest, "enabledPlugins": values} if values else rest
         write_atomic(local, (json.dumps(merged, indent=2) + "\n").encode("utf-8"))

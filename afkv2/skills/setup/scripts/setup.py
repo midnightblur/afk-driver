@@ -173,7 +173,8 @@ def restore_v1_block(places: Places) -> list[dict]:
             action = _restore_one_instruction_file(target, saved)
             shutil.rmtree(saved)
         except OSError as exc:
-            done.append({"path": str(target), "action": "failed", "reason": str(exc)})
+            done.append({"path": str(target), "action": "failed", "reason": str(exc),
+                         "backup": str(saved)})
             continue
         done.append({"path": str(target), "action": action})
     return done
@@ -304,14 +305,33 @@ def move_v1_git_hooks(places: Places, repo: Path, run: tools.Runner) -> dict:
     return {"ok": True, "hooks_dir": str(hooks), "hooks": moved}
 
 
+def _placed_backups(root: Path) -> list[Path]:
+    """Backup folders that name their place. `place.txt` goes in before any
+    backup does, so a folder without it holds nothing and is dropped."""
+    placed = []
+    for saved in sorted(root.iterdir()) if root.exists() else []:
+        if (saved / "place.txt").exists():
+            placed.append(saved)
+        else:
+            shutil.rmtree(saved, ignore_errors=True)
+    return placed
+
+
+def _remove_backup(saved: Path) -> dict:
+    """The fields that report a finished backup that could not be deleted."""
+    try:
+        shutil.rmtree(saved)
+    except OSError as exc:
+        return {"action": "failed", "reason": str(exc), "backup": str(saved)}
+    return {}
+
+
 def restore_v1_git_hooks(places: Places) -> list[dict]:
     done = []
-    root = places.backup / "git-hooks"
-    for saved in sorted(root.iterdir()) if root.exists() else []:
+    for saved in _placed_backups(places.backup / "git-hooks"):
         hooks = Path((saved / "place.txt").read_text(encoding="utf-8"))
         if not hooks.parent.exists():
-            done.append({"path": str(hooks), "action": "repo-missing"})
-            shutil.rmtree(saved)
+            done.append({"path": str(hooks), "action": "repo-missing", **_remove_backup(saved)})
             continue
         for hook in v1_facts.STUB_LINES:
             keep, target = saved / hook, hooks / hook
@@ -326,7 +346,9 @@ def restore_v1_git_hooks(places: Places) -> list[dict]:
             entry = {"path": str(target), "action": action}
             done.append(entry | {"backup": str(keep)} if action == "conflict" else entry)
         if not any(p.name in v1_facts.STUB_LINES for p in saved.iterdir()):
-            shutil.rmtree(saved)
+            failed = _remove_backup(saved)
+            if failed:
+                done.append({"path": str(hooks), **failed})
     return done
 
 
@@ -367,9 +389,9 @@ def _ensure_local_ignored(repo: Path, run: tools.Runner, saved: Path | None) -> 
         return False
     old = exclude.read_bytes() if exclude.exists() else b""
     sep = b"" if not old or old.endswith(b"\n") else b"\n"
-    write_atomic(exclude, old + sep + LOCAL_IGNORE_LINE + b"\n")
     if saved is not None:
         (saved / IGNORE_ADDED).write_bytes(b"")
+    write_atomic(exclude, old + sep + LOCAL_IGNORE_LINE + b"\n")
     return True
 
 
@@ -471,15 +493,16 @@ def _leave_v1_only(places: Places, repos: list[Path], run: tools.Runner) -> dict
     return {"ok": all(c["ok"] for c in claude) and codex["ok"], "claude": claude, "codex": codex}
 
 
-def _restore_repo_settings(saved: Path, run: tools.Runner) -> dict:
+def _restore_repo_settings(saved: Path) -> dict:
     repo = Path((saved / "place.txt").read_text(encoding="utf-8"))
-    if _common_dir(run, repo) is None:
+    if not repo.exists():
         return {"repo": str(repo), "settings": "repo-missing"}
     try:
         action = plugins.restore_claude_local(repo / ".claude" / "settings.local.json",
                                               saved / "settings.local.json")
     except (ValueError, OSError) as exc:
-        return {"repo": str(repo), "settings": "failed", "reason": f"{type(exc).__name__}: {exc}"}
+        return {"repo": str(repo), "settings": "failed", "reason": f"{type(exc).__name__}: {exc}",
+                "backup": str(saved)}
     return {"repo": str(repo), "settings": action}
 
 
@@ -502,20 +525,22 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
     """Restore every backup, leave only v1 on, and list the tickets afkv2 published."""
     blocks = restore_v1_block(places)
     hooks = restore_v1_git_hooks(places)
-    root = places.backup / "claude-settings"
-    saved_dirs = sorted(root.iterdir()) if root.exists() else []
-    settings = [_restore_repo_settings(saved, run) for saved in saved_dirs]
+    saved_dirs = _placed_backups(places.backup / "claude-settings")
+    settings = [_restore_repo_settings(saved) for saved in saved_dirs]
     live = [Path(s["repo"]) for s in settings if s["settings"] not in ("repo-missing", "failed")]
     codex = _restore_codex_config(places)
     lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
     one_on = _leave_v1_only(places, live, run)
+    not_switched = {c["repo"] for c in one_on["claude"] if not c["ok"]}
     for saved, answer in zip(saved_dirs, settings):
-        if answer["settings"] == "failed":
+        if answer["settings"] == "failed" or answer["repo"] in not_switched:
             continue
         repo = Path(answer["repo"])
         if (saved / IGNORE_ADDED).exists() and repo in live and not (repo / LOCAL_IGNORE_PATH).exists():
             answer["ignore_line"] = "removed" if _drop_ignore_line(repo, run) else "absent"
-        shutil.rmtree(saved)
+        failed = _remove_backup(saved)
+        if failed:
+            answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])
     ok = (lavish["ok"] and one_on["ok"] and codex != "failed"
           and not any(b["action"] == "failed" for b in blocks)
           and not any(h["action"] in ("conflict", "failed") for h in hooks)
@@ -524,7 +549,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
             "codex_config": codex, "lavish": lavish, "plugins": one_on,
-            "published_tickets": published_tickets(places)}
+            "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
 
 # ==================================================================== verbs

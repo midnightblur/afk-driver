@@ -1,6 +1,8 @@
 import json
 import os
 
+import pytest
+
 import plugins
 import setup
 from conftest import NEW_ID, V1_ID, write_codex_config
@@ -116,6 +118,36 @@ def test_a_rerun_after_a_crash_still_adds_the_ignore_line(places, repo, runner):
     assert not answer["written"] and answer["exclude_added"]
     status = runner(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all"])
     assert ".claude" not in status.out
+
+
+def test_the_ignore_marker_goes_in_before_the_line(repo, runner, tmp_path, monkeypatch):
+    def locked(path, data):
+        raise OSError(f"locked: {path}")
+
+    monkeypatch.setattr(setup, "write_atomic", locked)
+    with pytest.raises(OSError):
+        setup._ensure_local_ignored(repo, runner, tmp_path)
+    assert (tmp_path / setup.IGNORE_ADDED).exists()
+
+
+@pytest.mark.parametrize("value", [["x"], "x", 1])
+def test_a_non_object_enabled_plugins_is_refused(places, repo, value):
+    _user_settings(places, {"enabledPlugins": value})
+    with pytest.raises(ValueError, match="enabledPlugins"):
+        plugins.claude_effective(places.claude_user_settings, repo)
+
+
+def test_a_null_enabled_plugins_reads_as_empty(places, repo):
+    _user_settings(places, {"enabledPlugins": None})
+    assert plugins.claude_effective(places.claude_user_settings, repo) == {}
+
+
+def test_restore_local_settings_accepts_a_null_enabled_plugins(tmp_path):
+    saved, local = tmp_path / "saved.json", tmp_path / "local.json"
+    saved.write_text('{"enabledPlugins": null}\n', encoding="utf-8")
+    local.write_text('{"enabledPlugins": null, "model": "a"}\n', encoding="utf-8")
+    assert plugins.restore_claude_local(local, saved) == "merged"
+    assert json.loads(local.read_text(encoding="utf-8")) == {"model": "a"}
 
 
 def test_restore_local_settings_keeps_what_the_harness_wrote_since(tmp_path):

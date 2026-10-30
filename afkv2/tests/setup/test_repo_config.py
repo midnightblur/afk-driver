@@ -87,3 +87,14 @@ def test_an_unindented_list_stays_in_its_block(repo):
     path.write_bytes(b"tracker: jira\njira:\n  project: P\ngit:\n- one\n- two\n")
     repo_config.copy_v1_config(repo)
     assert b"git:\n- one\n- two\n" in repo_config.afkv2_config(repo).read_bytes()
+
+
+def test_ownership_after_a_crlf_copy_stays_crlf(repo, places):
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_bytes(V1.replace(b"\n", b"\r\n"))
+    repo_config.copy_v1_config(repo)
+    repo_config.write_ownership(repo, places, ["a/**"], [])
+    body = repo_config.afkv2_config(repo).read_bytes()
+    assert body.endswith(b"ownership:\r\n  own:\r\n    - 'a/**'\r\n")
+    assert b"\n" not in body.replace(b"\r\n", b"")
+    assert repo_config.ownership_state(repo, places) == "set"
