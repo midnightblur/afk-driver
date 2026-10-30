@@ -364,6 +364,12 @@ def test_an_order_ruling_against_the_graph_parks(run):
     assert answer["ruled"] is False and "graph" in run.status_of("0002-b")
 
 
+def test_an_order_ruling_of_a_subtask_on_itself_refuses(run):
+    answer = plan_call(run, subtask="0001-a", kinds=["subtask-order"], first="0001-a", then="0001-a")
+    assert code_of(answer) == "bad-payload"
+    assert call("next", plan=str(run.plan))["subtask"] == "0001-a"
+
+
 def test_an_order_ruling_needs_its_two_subtasks(run):
     assert code_of(plan_call(run, subtask="0001-a", kinds=["subtask-order"])) == "bad-payload"
     assert code_of(plan_call(run, subtask="0001-a", kinds=["subtask-order"], first="0004-d", then="9999-x")) == "bad-payload"

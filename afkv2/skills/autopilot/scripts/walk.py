@@ -311,6 +311,8 @@ def _order_of(payload, plan, state, statuses):
     first, then = str(need(payload, "first")), str(need(payload, "then"))
     if first not in statuses or then not in statuses:
         raise _bad(f"`first` and `then` must name tracker rows, not {first} and {then}")
+    if first == then:
+        raise _bad(f"`first` and `then` must name 2 subtasks, not {first} twice")
     keeps_graph = first not in dependents(_contracts(plan), then, _order_pairs(state))
     return (first, then), keeps_graph
 
