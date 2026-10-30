@@ -12,3 +12,6 @@
 2026-10-30 01:16 | execute | 0006-visualize-skill | review blocking crit=0 high=1 med=4 low=9 — round 1: reviewers found weak refusal tests in the guide test and gaps in the card rules for blocked and unsettled points; all 14 are posted on the pull request and being fixed
 2026-10-30 01:16 | execute | 0006-visualize-skill | decision(D-4) — a point still unsettled after a round moves to the next round as a new card that names the old one
 2026-10-30 01:18 | execute | 0006-visualize-skill | gate-skip — commit 29b7ca3b made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only; the comment gate passed first
+2026-10-30 01:46 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=7 low=10 — round 2: the reviewers found gaps in the card pass rules for a lone reopen mark, a reopened earlier card and info cards, and more missing refusal rows
+2026-10-30 01:51 | execute | 0006-visualize-skill | decision(D-5) — the carry rule covers a card returned in any round, and an info card stays in its round
+2026-10-30 01:51 | execute | 0006-visualize-skill | gate-skip — commit 85eda09e made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only (147 lines); no line in afkv2/skills or afkv2/tests

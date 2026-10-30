@@ -27,3 +27,10 @@
 - Chosen: A — SDD §6 says "a settled round is never rewritten" and SDD §4 says an item id is "never reused", so only a new card keeps both rules; B would change a settled round when the point settles later.
 - Supersedes: none
 - To reverse: change `components/card.md` when the S1 engine defines how a round chip marks a carried point
+
+## D-5 — the carry rule covers every round and only cards that ask the human
+- 2026-10-30 · decided by execute (0006-visualize-skill, review findings 0006-visualize-skill/f016, f028, f029)
+- Options: A — carry each asking card (`decided`, `confirm`, `debate`, `signoff`) still `open` or `blocked` in any round, once, and leave `info` cards in their round vs B — carry only the sent round's points, all kinds
+- Chosen: A — SDD §6 moves a settled card to `open` on a note or a `reopen` mark in any round, and PRD WE-02 requires the card to return with both signals shown; B would strand those cards and would copy every `info` card into every later round, because an `info` card never leaves `open`. This refines D-4, which still holds for the new card and the new id
+- Supersedes: none
+- To reverse: change `components/card.md` when the S1 engine defines how it returns a card
