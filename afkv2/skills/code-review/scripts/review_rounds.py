@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
-FORGE = PLUGIN / "ports" / "forge" / "cli.py"
+FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 sys.path.insert(0, str(PLUGIN / "ports"))
 
 from tracker import envelope  # noqa: E402

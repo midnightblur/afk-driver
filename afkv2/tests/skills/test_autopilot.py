@@ -22,7 +22,7 @@ import plan_contract  # noqa: E402
 import plan_fixture  # noqa: E402
 import start_gate  # noqa: E402
 import walk  # noqa: E402
-from v1_facts import V1_HEADER_MARK  # noqa: E402
+from autopilot_v1_facts import V1_HEADER_MARK  # noqa: E402
 from plan_fixture import contract_text, git  # noqa: E402
 
 FAKE = AFKV2 / "tests" / "autopilot" / "fakes" / "fake_check_plan.py"
@@ -186,7 +186,7 @@ def test_this_slices_own_contract_parses_as_a_frozen_contract():
     assert plan_contract.contract_failures(contract) == []
     assert contract.blocked_by == ["0012-forge-tracker-port", "0013-code-review-skill", "0014-change-request-ci-watch"]
     assert contract.produces[2] == ("afkv2/skills/autopilot/scripts/start_gate.py", "def check_start(")
-    assert contract.consumes[0] == ("0012-forge-tracker-port", "afkv2/ports/forge/cli.py", "def forge_main(")
+    assert contract.consumes[0] == ("0012-forge-tracker-port", "afkv2/ports/forge/forge_cli.py", "def forge_main(")
     assert [row.tier for row in contract.rows] == ["static", "unit", "unit", "integration"]
 
 

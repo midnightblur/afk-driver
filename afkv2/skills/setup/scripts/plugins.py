@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Mapping
 
 from places import write_atomic
-import v1_facts
+import setup_v1_facts
 
 NEW_NAME = "afkv2"
-NAMES = (v1_facts.PLUGIN_NAME, NEW_NAME)
+NAMES = (setup_v1_facts.PLUGIN_NAME, NEW_NAME)
 
 
 def plugin_name(plugin_id: str) -> str:
@@ -27,7 +27,7 @@ def plugin_name(plugin_id: str) -> str:
 
 
 def default_id(name: str) -> str:
-    return f"{name}@{v1_facts.MARKETPLACE}"
+    return f"{name}@{setup_v1_facts.MARKETPLACE}"
 
 
 # ------------------------------------------------------------------ Claude
@@ -46,7 +46,7 @@ def _read_json(path: Path) -> dict:
 
 
 def claude_effective(user_settings: Path, repo: Path) -> dict[str, bool]:
-    """plugin id -> enabled, for ids named afk or afkv2, highest layer wins."""
+    """plugin id -> enabled, for ids named v1 or afkv2, highest layer wins."""
     effective: dict[str, bool] = {}
     for layer in claude_layers(user_settings, repo):
         for plugin_id, on in (_read_json(layer).get("enabledPlugins") or {}).items():
@@ -123,7 +123,7 @@ _ENABLED = re.compile(r"^(\s*enabled\s*=\s*)(true|false)(\s*(#.*)?)$")
 
 
 def codex_config_state(text: str) -> dict[str, bool]:
-    """plugin id -> enabled for afk and afkv2 tables; no `enabled` line reads as on."""
+    """plugin id -> enabled for v1 and afkv2 tables; no `enabled` line reads as on."""
     state: dict[str, bool] = {}
     table = None
     for line in text.splitlines():

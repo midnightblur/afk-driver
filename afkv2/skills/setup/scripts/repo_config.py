@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 from places import Places, write_atomic
-import v1_facts
+import setup_v1_facts
 
 AFKV2_CONFIG = (".afkv2", "config.yaml")
 # Scalar keys copied; each value also names a section that is copied with it.
@@ -22,7 +22,7 @@ _TOP_KEY = re.compile(rb"^([A-Za-z0-9_.-]+):(.*)$")
 
 
 def v1_config(repo: Path) -> Path:
-    return repo.joinpath(*v1_facts.CONFIG_PATH)
+    return repo.joinpath(*setup_v1_facts.CONFIG_PATH)
 
 
 def afkv2_config(repo: Path) -> Path:

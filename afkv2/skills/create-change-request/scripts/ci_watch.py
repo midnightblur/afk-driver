@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
-FORGE = PLUGIN / "ports" / "forge" / "cli.py"
+FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 REVIEW = PLUGIN / "skills" / "code-review" / "scripts" / "review_rounds.py"
 sys.path.insert(0, str(PLUGIN / "ports"))
 

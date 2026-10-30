@@ -1,4 +1,4 @@
-"""The forge command: `cli.py <verb> [json-payload]`, or the payload on stdin."""
+"""The forge command: `forge_cli.py <verb> [json-payload]`, or the payload on stdin."""
 
 from __future__ import annotations
 

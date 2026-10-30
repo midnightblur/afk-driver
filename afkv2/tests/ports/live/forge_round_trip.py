@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-CLI = Path(__file__).resolve().parents[3] / "ports" / "forge" / "cli.py"
+CLI = Path(__file__).resolve().parents[3] / "ports" / "forge" / "forge_cli.py"
 MARKER = "afkv2 forge port round-trip, removed by the check"
 NO_SUCH_LINE = 987654
 

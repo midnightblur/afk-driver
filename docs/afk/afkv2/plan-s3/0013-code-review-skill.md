@@ -30,7 +30,7 @@ standard
 - afkv2/skills/code-review/scripts/review_rounds.py#def next_round( — round counter with the cap of 3
 
 ## Consumes
-- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — posts findings on the change
+- 0012-forge-tracker-port afkv2/ports/forge/forge_cli.py#def forge_main( — posts findings on the change
 
 ## Verification
 | Tier | Check (command or method) | Proves |

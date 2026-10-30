@@ -18,10 +18,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from plan_contract import PLUGIN, contract_failures, cycle_of, header_of, plan_file, read_contract, read_text, read_tracker  # noqa: E402
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
-from v1_facts import V1_HEADER_MARK, V1_SEAM_MARK  # noqa: E402
+from autopilot_v1_facts import V1_HEADER_MARK, V1_SEAM_MARK  # noqa: E402
 
 CHECK_PLAN = PLUGIN / "skills" / "to-subtasks" / "scripts" / "check_plan.py"
-FORGE = PLUGIN / "ports" / "forge" / "cli.py"
+FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 LIMIT = 120
 APP_LIMIT = 5
 RUN_SUFFIX = "-run"

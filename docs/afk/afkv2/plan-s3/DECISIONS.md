@@ -580,3 +580,10 @@
 - Chosen: B — SDD §7 row "the forge port pages thread lists and passes every body through a file or stdin, never an argument". This also ends the "Kept from v1" glab body on argv that 0012 reported
 - Supersedes: none
 - To reverse: revert the port change
+
+## D-84 — the proof that module names are unique, and the S1 check as it stands
+- 2026-10-30 · decided by execute (fixes after the red gate)
+- Options: A — wait for a check in S1's `plugin_check.py` vs B — add `afkv2/tests/test_module_names.py` now
+- Chosen: B — the tree had no such test, and S3 may not edit S1's check. It exempts `__init__.py` and `conftest.py`. It fails on the merged tree until S2 renames `skills/to-prd/scripts/v1_facts.py` and `tests/skills/fakes/v1_facts.py`, which is the intended signal. Read from `origin/feat/afkv2-s1` at ab931ae0: `check_no_v1_names` has no exemption at all, so D-35's exemption is still an IOU. Run on this tree it reports 57 lines: 13 in the 3 facts files, 42 in `afkv2/tests/setup/` and 2 in `plugins.py` docstrings. The 2 docstring lines are fixed here
+- Supersedes: none
+- To reverse: delete the test file

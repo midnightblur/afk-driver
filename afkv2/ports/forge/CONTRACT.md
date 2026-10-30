@@ -1,6 +1,6 @@
 # Forge port: the command contract
 
-`<python> afkv2/ports/forge/cli.py <verb> [json-payload]`, or the payload on stdin. `<python>` is the Python in the setup install record (line `python`).
+`<python> afkv2/ports/forge/forge_cli.py <verb> [json-payload]`, or the payload on stdin. `<python>` is the Python in the setup install record (line `python`).
 
 The answer envelope and the exit codes are the same as in `afkv2/ports/tracker/CONTRACT.md`. The field lists below are the fields beside `ok`. Both forges answer the same keys.
 

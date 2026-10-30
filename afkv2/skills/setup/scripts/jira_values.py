@@ -13,7 +13,7 @@ from typing import Callable, Mapping
 
 from places import Places, backup_once, write_atomic
 from tools import broadcast_environment_change
-import v1_facts
+import setup_v1_facts
 
 KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
 SECRET = "JIRA_API_TOKEN"
@@ -22,7 +22,7 @@ SECRET = "JIRA_API_TOKEN"
 def _tracker_env(obj) -> dict | None:
     """The first `tracker` server's env block, at any depth (v1's walk)."""
     if isinstance(obj, dict):
-        server = obj.get(v1_facts.TRACKER_SERVER)
+        server = obj.get(setup_v1_facts.TRACKER_SERVER)
         if isinstance(server, dict) and isinstance(server.get("env"), dict):
             return server["env"]
         for value in obj.values():

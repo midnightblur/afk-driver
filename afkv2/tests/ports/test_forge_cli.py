@@ -9,10 +9,10 @@ import sys
 import pytest
 
 from port_fakes import PORTS
-from forge import cli
+from forge import forge_cli
 from tracker import settings, shell
 
-CLI = PORTS / "forge" / "cli.py"
+CLI = PORTS / "forge" / "forge_cli.py"
 
 
 def run(*argv, stdin="", cwd=None):
@@ -21,7 +21,7 @@ def run(*argv, stdin="", cwd=None):
 
 
 def call(capsys, *argv):
-    code = cli.forge_main(list(argv))
+    code = forge_cli.forge_main(list(argv))
     return code, json.loads(capsys.readouterr().out)
 
 

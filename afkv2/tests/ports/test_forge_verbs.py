@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from forge import cli, common
+from forge import common, forge_cli
 
 KINDS = ("gitlab", "github")
 TOOL = {"gitlab": "glab", "github": "gh"}
@@ -16,7 +16,7 @@ VIEW = {"gitlab": ("mr", "view"), "github": ("pr", "view")}
 
 
 def call(capsys, kind, verb, **payload):
-    code = cli.forge_main([verb, json.dumps({"forge": kind, **payload})])
+    code = forge_cli.forge_main([verb, json.dumps({"forge": kind, **payload})])
     return code, json.loads(capsys.readouterr().out)
 
 

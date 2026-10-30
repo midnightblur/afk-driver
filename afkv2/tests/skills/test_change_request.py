@@ -21,7 +21,7 @@ sys.path.insert(0, str(AFKV2 / "ports"))
 
 import change_request  # noqa: E402
 import ci_watch  # noqa: E402
-from forge import cli as forge_cli  # noqa: E402
+from forge import forge_cli  # noqa: E402
 from tracker import envelope, shell  # noqa: E402
 
 

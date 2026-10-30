@@ -33,7 +33,7 @@ import jira_values  # noqa: E402
 import plugins  # noqa: E402
 import repo_config  # noqa: E402
 import tools  # noqa: E402
-import v1_facts  # noqa: E402
+import setup_v1_facts  # noqa: E402
 from places import (PROVIDERS, Places, backup_once, has_backup, place_key,  # noqa: E402
                     write_atomic)
 
@@ -96,8 +96,8 @@ def write_install_record(places: Places, python: dict, rg: str | None) -> dict:
 
 def find_blocks(data: bytes) -> tuple[list[tuple[int, int, str]], str | None]:
     """Byte ranges of v1 blocks, each from its full begin line through its full end line."""
-    begins = {v1_facts.block_begin(n): n for n in v1_facts.BLOCK_NAMES}
-    ends = {v1_facts.block_end(n): n for n in v1_facts.BLOCK_NAMES}
+    begins = {setup_v1_facts.block_begin(n): n for n in setup_v1_facts.BLOCK_NAMES}
+    ends = {setup_v1_facts.block_end(n): n for n in setup_v1_facts.BLOCK_NAMES}
     found, opened, at = [], None, 0
     for number, line in enumerate(data.splitlines(keepends=True), start=1):
         body = line.rstrip(b"\r\n")
@@ -224,7 +224,7 @@ def required_providers(places: Places, current: str, codex_state: Mapping[str, b
         target = places.instruction_file(provider)
         if target.exists() and find_blocks(target.read_bytes())[0]:
             needed.add(provider)
-    if any(on for i, on in codex_state.items() if plugins.plugin_name(i) == v1_facts.PLUGIN_NAME):
+    if any(on for i, on in codex_state.items() if plugins.plugin_name(i) == setup_v1_facts.PLUGIN_NAME):
         needed.add("codex")
     return [p for p in PROVIDERS if p in needed]
 
@@ -277,7 +277,7 @@ def _common_dir(run: tools.Runner, repo: Path) -> Path | None:
 def is_v1_stub(path: Path, hook: str) -> bool:
     if not path.is_file():
         return False
-    wanted = v1_facts.STUB_LINES[hook]
+    wanted = setup_v1_facts.STUB_LINES[hook]
     return any(line.rstrip(b"\r\n") == wanted for line in path.read_bytes().splitlines())
 
 
@@ -291,7 +291,7 @@ def move_v1_git_hooks(places: Places, repo: Path, run: tools.Runner) -> dict:
     hooks = common / "hooks"
     saved = places.backup / "git-hooks" / place_key(hooks)
     moved = {}
-    for hook in v1_facts.STUB_LINES:
+    for hook in setup_v1_facts.STUB_LINES:
         target, keep = hooks / hook, saved / hook
         if keep.exists():
             moved[hook] = "already-moved"
@@ -333,7 +333,7 @@ def restore_v1_git_hooks(places: Places) -> list[dict]:
         if not hooks.parent.exists():
             done.append({"path": str(hooks), "action": "repo-missing", **_remove_backup(saved)})
             continue
-        for hook in v1_facts.STUB_LINES:
+        for hook in setup_v1_facts.STUB_LINES:
             keep, target = saved / hook, hooks / hook
             if not keep.exists():
                 continue
@@ -345,7 +345,7 @@ def restore_v1_git_hooks(places: Places) -> list[dict]:
                 continue
             entry = {"path": str(target), "action": action}
             done.append(entry | {"backup": str(keep)} if action == "conflict" else entry)
-        if not any(p.name in v1_facts.STUB_LINES for p in saved.iterdir()):
+        if not any(p.name in setup_v1_facts.STUB_LINES for p in saved.iterdir()):
             failed = _remove_backup(saved)
             if failed:
                 done.append({"path": str(hooks), **failed})
@@ -488,11 +488,11 @@ def _leave_v1_only(places: Places, repos: list[Path], run: tools.Runner) -> dict
     for repo in repos:
         def switch(repo=repo):
             effective = plugins.claude_effective(places.claude_user_settings, repo)
-            if plugins.only_one_on(effective) == v1_facts.PLUGIN_NAME:
+            if plugins.only_one_on(effective) == setup_v1_facts.PLUGIN_NAME:
                 return {"ok": True, "written": False, "effective": effective}
-            return _switch_claude(places, repo, run, v1_facts.PLUGIN_NAME, with_backup=False)
+            return _switch_claude(places, repo, run, setup_v1_facts.PLUGIN_NAME, with_backup=False)
         claude.append(_attempt(switch) | {"repo": str(repo)})
-    codex = _attempt(lambda: _switch_codex(places, run, v1_facts.PLUGIN_NAME, with_backup=False))
+    codex = _attempt(lambda: _switch_codex(places, run, setup_v1_facts.PLUGIN_NAME, with_backup=False))
     return {"ok": all(c["ok"] for c in claude) and codex["ok"], "claude": claude, "codex": codex}
 
 
@@ -595,7 +595,7 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "v1_config": plan,
         "ownership": repo_config.ownership_state(repo, places),
         "v1_blocks": blocks,
-        "v1_git_hooks": {h: is_v1_stub(hooks_dir / h, h) for h in v1_facts.STUB_LINES},
+        "v1_git_hooks": {h: is_v1_stub(hooks_dir / h, h) for h in setup_v1_facts.STUB_LINES},
         "claude_plugins": plugins.claude_effective(places.claude_user_settings, repo),
         "codex_plugins": codex_state, "codex_listed_by": codex_source,
         "takeover_backups": places.backup.exists() and any(places.backup.iterdir()),

@@ -43,7 +43,7 @@ complex
 - afkv2/skills/autopilot/scripts/start_gate.py#def check_start( — plan check + approval + v1-plan refusal
 
 ## Consumes
-- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — push and change commands
+- 0012-forge-tracker-port afkv2/ports/forge/forge_cli.py#def forge_main( — push and change commands
 - 0013-code-review-skill afkv2/skills/code-review/SKILL.md#name: code-review — per-subtask review
 - 0014-change-request-ci-watch afkv2/skills/create-change-request/SKILL.md#name: create-change-request — the one Draft change
 
