@@ -413,7 +413,7 @@ flowchart TB
 | marker hash | first 12 hex characters of SHA-256 over the text between the marker lines | S1 build check | S3 setup proof |
 | config reader | `.afkv2` reader in subtask 01 | S1 | every port and skill |
 | config file | `.afkv2/config.json` with a required `spec_folder`; setup writes JSON, the reader reads only this file (orchestrator ruling 2026-10-30: the reader decides) | S3 setup | S1 config reader |
-| fired record | `%LOCALAPPDATA%fkv2ired-<provider>.txt`, written by the hook (orchestrator ruling 2026-10-30: the writer decides) | S1 hook | S3 setup proof |
+| fired record | `%LOCALAPPDATA%\afkv2\fired-<provider>.txt`, written by the hook (orchestrator ruling 2026-10-30: the writer decides) | S1 hook | S3 setup proof |
 | publish preview | a preview JSON file (`ticket_key`, `receipt`, `description_hash`, `picture_hashes`) that to-prd writes; attachment-put and description-put name it in `preview`, and the port refuses `bad-receipt` when the receipt, ticket, hash or a picture hash differs, or when the receipt computed again from the written block text differs | S2 to-prd | S3 Jira port |
 | Python | setup checks Python 3 on the path and records it; scripts start through it | S3 | every script |
 | no-v1-name rule | `afk` or `AFK_` not followed by `v2`, over file names, environment variables, markers, storage keys and CSS classes; each ported module renamed in one pass | all | plugin check |
