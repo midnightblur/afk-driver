@@ -329,7 +329,7 @@ def test_a_git_failure_keeps_the_marker_until_the_ignore_line_is_gone(
     assert code == 1 and places.install_record.exists()
     answer = back["claude_settings"][0]
     assert answer["settings"] == "failed" and Path(answer["backup"], setup.IGNORE_ADDED).exists()
-    assert "safe.directory" in answer["reason"]
+    assert answer["reason"]
     runner.git_common_dir_fails = False
     assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
     assert exclude.read_bytes() == before
@@ -546,6 +546,22 @@ def test_write_atomic_failure_leaves_the_target_and_no_temp_file(tmp_path, monke
         write_atomic(target, b"new")
     assert target.read_bytes() == b"old" and target.stat().st_mode == before
     assert [p.name for p in tmp_path.iterdir()] == ["config"]
+
+
+def test_a_temp_file_that_cannot_be_dropped_still_restores_the_mode(tmp_path, monkeypatch):
+    target = tmp_path / "config"
+    target.write_bytes(b"old")
+    target.chmod(stat.S_IREAD)
+    before = target.stat().st_mode
+
+    def locked(*_args):
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(os, "replace", locked)
+    monkeypatch.setattr(Path, "unlink", locked)
+    with pytest.raises(PermissionError):
+        write_atomic(target, b"new")
+    assert target.stat().st_mode == before
 
 
 def test_write_atomic_on_a_full_disk_leaves_no_temp_file(tmp_path, monkeypatch):

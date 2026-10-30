@@ -95,9 +95,9 @@ def write_atomic(path: Path, data: bytes) -> None:
             os.chmod(path, stat.S_IWRITE)
         os.replace(tmp, path)
     except OSError:
-        _drop_temp(tmp)
         if unlock:
             os.chmod(path, mode)
+        _drop_temp(tmp)
         raise
 
 
