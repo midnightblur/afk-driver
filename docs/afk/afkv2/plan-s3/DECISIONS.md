@@ -97,3 +97,10 @@
 - Chosen: B — the takeover writes this key, and under A it replaces a value it cannot read without a message. Null reads as empty because it holds no value to lose. A refusal stops the takeover before any change and names the file. Unverified: whether Claude itself accepts such values
 - Supersedes: none
 - To reverse: test `data.get("enabledPlugins") or {}` in `plugins._read_json`
+
+## D-15 — setup keeps its file names although the S1 branch chose others
+- 2026-10-30 · decided by execute (0011-setup-skill)
+- Options: A — change setup now to the names on the unmerged `feat/afkv2-s1` branch (`fired-<provider>.txt`, `.afkv2/config.json` with a required `spec_folder`) vs B — keep D-3 and D-6, record the mismatch, and reconcile when S1 merges
+- Chosen: B — the run rule tests against a recorded fake until the producer's pull request merges, S1 can still change, and a code change now reopens the review at round 9 of 10. The failure of the fired record is safe: setup keeps the v1 block and reports why. The config mismatch has no safe failure: the S1 reader does not see the file setup writes. Unverified: which side yields on the config format; `spec_folder` has no value source in setup.
+- Supersedes: none
+- To reverse: apply the "To reverse" lines of D-3 and D-6 after S1 merges, before S4 0016 runs

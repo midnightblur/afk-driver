@@ -38,3 +38,8 @@
 2026-10-30 04:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit e6d5987066024b2986c7d6207911369f24b1bbae
 2026-10-30 04:40 | execute | 0011-setup-skill | review r8 — blocking: crit=0 high=0 med=0 low=1; a test could pass without reaching its injected failure. Fixed in bc5d45b15f88d5f1a787267b83d2b8b71b1898c5.
 2026-10-30 04:40 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit bc5d45b15f88d5f1a787267b83d2b8b71b1898c5
+2026-10-30 05:10 | execute | 0011-setup-skill | review r9 — clean: the delta sweep and the test reviewer found nothing. Closure gate settled at c84d47b5, 9 rounds of the 10-round cap.
+2026-10-30 05:10 | execute | 0011-setup-skill | adversary skip — no app: repository has no build gate.
+2026-10-30 05:10 | execute | 0011-setup-skill | wiring-gate exit 0; a blind orphan hunt then named consumers that other sessions build. They are IOUs in .claude/wiring-ious.md. D-15 records the two names that differ from the S1 branch.
+2026-10-30 05:10 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 47b5fb81c702772e2ccb0acfbfed89c553d3c6d6 (forbidden harness-name vocabulary and interpreter name in afkv2/skills/setup/SKILL.md and afkv2/tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md).
+2026-10-30 05:10 | execute | 0011-setup-skill | done — the setup skill is built, reviewed and pushed. Rationale receipt confirmed: nothing pending.
