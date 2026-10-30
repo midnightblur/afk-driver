@@ -84,6 +84,7 @@ def forge(monkeypatch):
     fake = Forge()
     monkeypatch.setattr(ci_watch, "call_forge", fake)
     monkeypatch.setattr(change_request, "call_forge", fake)
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 0)
     return fake
 
 
@@ -416,6 +417,32 @@ def test_watch_writes_the_final_status_and_its_commit_to_the_record(repo, forge,
     assert record_of(repo)["status"] == "success"
 
 
+def test_the_result_of_the_last_commit_is_no_result_for_the_new_commit(repo, forge, capsys, monkeypatch):
+    head = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    monkeypatch.setattr(ci_watch, "HEAD_PAUSE", 0)
+    forge.answers = {"ci-wait": [RED, GREEN], "change-view": [{**VIEW, "head_sha": "last"}, {**VIEW, "head_sha": head}, {**VIEW, "head_sha": head}]}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["status"] == "success" and answer["head_sha"] == head and answer["current_head"] is True
+    assert forge.verbs().count("ci-wait") == 2
+
+
+def test_a_forge_that_keeps_another_commit_ends_with_that_commit(repo, forge, capsys, monkeypatch):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 0.2)
+    monkeypatch.setattr(ci_watch, "HEAD_PAUSE", 0.05)
+    forge.answers = {"ci-wait": RED, "change-view": {**VIEW, "head_sha": "other"}}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["status"] == "failed"
+    assert answer["head_sha"] == "other" and answer["current_head"] is False
+
+
+def test_a_failed_head_read_ends_the_wait_for_the_new_commit(repo, forge, capsys, monkeypatch):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    forge.answers = {"ci-wait": RED, "change-view": {"ok": False, "error": {"code": "auth", "reason": "no"}}}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["status"] == "failed" and forge.verbs().count("ci-wait") == 1
+
+
 def test_a_red_ci_is_a_report_and_no_refusal(repo, forge, capsys):
     forge.answers = {"ci-wait": RED, "change-view": VIEW}
     code, answer = run(ci_watch, capsys, "watch", id="7")
@@ -637,7 +664,7 @@ def child_forge(repo, tmp_path, monkeypatch):
     stub.write_text(f"""
 import json, os
 done = os.path.exists({str(release)!r})
-print(json.dumps({{"number": 7, "state": "OPEN", "headRefOid": "from-the-forge",
+print(json.dumps({{"number": 7, "state": "OPEN", "headRefOid": {git(repo, "rev-parse", "HEAD")!r},
                    "statusCheckRollup": [{{"conclusion": "FAILURE"}} if done else {{"status": "IN_PROGRESS"}}]}}))
 """, encoding="utf-8")
     if os.name == "nt":
@@ -668,7 +695,7 @@ def test_start_returns_while_ci_runs_and_the_watch_outlives_the_command(repo, ch
     path = ci_watch._record_path("7")
     assert wait_for(lambda: ci_watch._read_record(path)["state"] == "finished"), record_of(repo)
     code, answer = run(ci_watch, capsys, "status", id="7")
-    assert code == 0 and answer["status"] == "failed" and answer["head_sha"] == "from-the-forge"
+    assert code == 0 and answer["status"] == "failed" and answer["head_sha"] == git(repo, "rev-parse", "HEAD")
 
 
 def test_start_reports_what_the_last_watch_found(repo, forge, capsys, monkeypatch):

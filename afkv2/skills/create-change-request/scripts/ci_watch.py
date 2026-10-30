@@ -25,6 +25,8 @@ READ_MARGIN = 300
 DEFAULT_BUDGET = 5400
 SLICE = 600
 LOST_AFTER = 3 * SLICE
+HEAD_GRACE = 300
+HEAD_PAUSE = 15
 PASSED_ON = ("forge", "repo")
 CI_REFUSALS = {"failed": "ci-red", "canceled": "ci-red", "running": "ci-running", "": "ci-none"}
 REVIEW_CAN_RUN = {"no-review", "review-owed", "fix-open", "round-open"}
@@ -243,6 +245,15 @@ def _watched_record(payload, path, change):
     return record if record is not None and record["token"] == token else None
 
 
+def _forge_behind(payload, change, record):
+    """True while the forge shows another commit than the one this watch started on. Right after a push, its answers are those of the last commit."""
+    try:
+        head = forge_answer("change-view", payload, id=change).get("head_sha")
+    except Refusal:
+        return False
+    return bool(head) and head != record["head_sha"]
+
+
 def watch_ci(payload):
     """Wait for the final CI status of the change and write it to the record. A red CI is a result, never a refusal."""
     change = change_ref(payload)
@@ -251,7 +262,8 @@ def watch_ci(payload):
     record = _watched_record(payload, path, change)
     if record is None:
         return _superseded(change)
-    deadline = time.monotonic() + budget
+    started = time.monotonic()
+    deadline = started + budget
     while True:
         left = max(0, int(deadline - time.monotonic()))
         wait = min(SLICE, left)
@@ -261,10 +273,13 @@ def watch_ci(payload):
             return _superseded(change)
         if not answer.get("ok"):
             return _end(payload, path, record, "no-verdict", "", error_of(answer).get("reason") or "the forge gave no CI status")
-        if answer.get("status") != "running":
-            return _end(payload, path, record, "finished", answer.get("status") or "")
-        if left <= SLICE:
-            return _end(payload, path, record, "no-verdict", "running", "the budget ended and the checks keep running")
+        if answer.get("status") == "running":
+            if left <= SLICE:
+                return _end(payload, path, record, "no-verdict", "running", "the budget ended and the checks keep running")
+        else:
+            if not left or time.monotonic() - started >= HEAD_GRACE or not _forge_behind(payload, change, record):
+                return _end(payload, path, record, "finished", answer.get("status") or "")
+            time.sleep(HEAD_PAUSE)
         _write_record(path, {**record, "beat_at": time.time()})
 
 

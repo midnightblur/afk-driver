@@ -48,7 +48,7 @@ Read `status` with `id` before each push and each new subtask. The watch writes 
 | `state` | Meaning | Next action |
 |---------|---------|-------------|
 | `watching` | CI still runs | keep working |
-| `finished` | `status` is `success`, `failed` or `canceled`; `current_head: false` means an older commit | see below |
+| `finished` | `status` is `success`, `failed` or `canceled`; `current_head: false` means an older commit: the forge did not show the pushed commit within 5 minutes, or a newer commit exists here | see below |
 | `no-verdict` | the watch ended with no final status; `reason` says why | `start` after the next push, or read CI at ship |
 | `lost` | the watch process stopped with no result | `start` |
 | `none` | no watch has run | `start` |

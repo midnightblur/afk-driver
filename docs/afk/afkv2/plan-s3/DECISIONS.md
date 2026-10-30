@@ -398,3 +398,10 @@
 - Chosen: B — the review's cap is its own rule, and its report shows the unread fix to the developer. A refusal here has no route to clear: `begin` refuses `round-cap` and `review-over`
 - Supersedes: none
 - To reverse: read `fixed[].reviewed` in `_why_open`
+
+## D-58 — the watch waits until the forge shows the pushed commit
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — take the first final status vs B — while the forge shows another commit, wait and read again, for at most 5 minutes
+- Chosen: B — seen live on change 156: 2 `start` runs right after a push each ended in seconds with the status and the head of the last commit, so the new commit had no watch. After 5 minutes the watch ends with the commit the forge shows and `current_head: false`, so that a `start` with no push does not wait for its whole budget. Not closed: GitLab's `head_pipeline` can hold an older pipeline with the head correct (D-54)
+- Supersedes: none
+- To reverse: `_forge_behind` and `HEAD_GRACE` in `ci_watch.py`
