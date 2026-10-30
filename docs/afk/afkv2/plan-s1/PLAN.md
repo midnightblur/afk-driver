@@ -50,7 +50,7 @@ Steps are written by 0001 and 0003 to `afkv2/tests/live/CODEX-LIVE-CHECKS.md`.
 
 | # | Check | Pass | On fail |
 |---|-------|------|---------|
-| 1 | Codex accepts the `.cmd` session-start hook after the trust review; a new session reports the end marker with the right sha12 | marker + sha12 match | Python hook; the 50 ms limit goes back to the owner (SDD §7) |
+| 1 | Codex accepts the `.cmd` session-start hook after the trust review; a new session reports the end marker with the right sha12 | marker + sha12 match | Python hook (SDD §7) |
 | 2 | Codex re-runs the hook after a compaction | marker present after compaction | record as AC-012 gap; owner decides |
 | 3 | Codex Stop hook: a page answer sent after 10 minutes reaches the agent with no chat message | answer arrives | fallback: one chat message after Send (ADR-0006) |
 ## Solution map
@@ -95,7 +95,7 @@ seams are the ones S2 and S3 depend on.*
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | done | — | static, unit, integration | — |
 | 2 | 0002-core-behaviors | core behaviors | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
-| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | pending | 0001-skeleton-manifests-hooks | static, unit, integration | — |
+| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | designing | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 4 | 0004-diagram-components | diagram components | pending | 0003-engine-core-schema-show-poll | static, unit | — |
 | 5 | 0005-notes-ingest-live-test | notes ingest live test | pending | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
 

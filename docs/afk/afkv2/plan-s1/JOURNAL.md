@@ -102,3 +102,4 @@
 2026-10-30 12:13 | execute | 0001-skeleton-manifests-hooks | follow-up(D-26) — a new test proves that the check reads only the folder it is given, and CI now runs the afkv2 tests on both systems, where only the hook timing test warns instead of failing; check exit 0; the affected test file passed; the row stays done.
 2026-10-30 12:13 | execute | 0001-skeleton-manifests-hooks | decision(D-28) — on a shared runner the hook timing test warns and does not fail, because a slow runner would fail a correct hook.
 2026-10-30 12:13 | execute | 0001-skeleton-manifests-hooks | gate-skip(R-4) — the D-26 commit uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run.
+2026-10-30 12:19 | autopilot | 0001-skeleton-manifests-hooks | decision(D-29) — the owner removed the 50 ms hook limit and its test; the first slice drops both, and two review findings about that test close

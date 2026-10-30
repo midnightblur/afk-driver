@@ -195,3 +195,10 @@
 - Chosen: A — D-9 measured a margin of 3 ms to 10 ms on this machine, and the same hook gave medians up to 81 ms under load, so a gate on a shared runner can fail a correct hook. Option C loses the number. The latency step in the same workflow already reports and does not gate. The local run stays the gate. The step comes before `Unit tests`: a failed step stops the later steps of the job, D-11 says the v1 unit-test job on this pull request is red, and D-26 allows no `if`. The cost is that a red afkv2 step hides the v1 steps of that leg. The step installs ripgrep when the runner has none, as `Install jq` does for jq; without it 4 search tests in `afkv2/tests/test_core_behaviors.py` skip, and D-26 allows only live-test skips. No test in `afkv2/tests` starts a harness, so the step skips none for a login
 - Supersedes: none
 - To reverse: remove the `||` warning and the `-k` filters from the `afkv2 tests` step, move the step, or remove the ripgrep install
+
+## D-29 — owner ruling: afkv2 sets no hook time limit and has no timing test
+- 2026-10-30 · decided by the owner (AC-013, commit ce72dc30), relayed in session S1
+- Options: A — no time limit and no timing test; the harness's own hook timeout applies vs B — keep the 50 ms limit and its test (D-7, D-9, D-28)
+- Chosen: A — owner ruling. The 0001 contract drops the timing part of its Acceptance bullet and integration row, and the 50 ms clause of the fallback bullet. The excerpts for AC-013, SK-02 and ADR-0005 are refreshed. That bullet keeps "parses no shell command" and "extra output fails", because SK-02 and AC-013 still require both. Findings f042 and f051 close on this ruling
+- Supersedes: D-7 and D-9 in full; the timing part of D-28
+- To reverse: restore the test, the bullet and the excerpts from the commit before this entry
