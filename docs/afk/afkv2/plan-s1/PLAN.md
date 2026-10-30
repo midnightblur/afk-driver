@@ -93,7 +93,7 @@ seams are the ones S2 and S3 depend on.*
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | verifying | — | static, unit, integration | — |
+| 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | reviewing | — | static, unit, integration | — |
 | 2 | 0002-core-behaviors | core behaviors | pending | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | pending | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 4 | 0004-diagram-components | diagram components | pending | 0003-engine-core-schema-show-poll | static, unit | — |

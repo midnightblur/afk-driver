@@ -127,6 +127,53 @@ def test_crlf_in_a_prebuilt_file_is_stale_and_build_repairs_it(tree, variant):
     assert b"\r" not in built.read_bytes()
 
 
+def crlf_converted_plain_variant(tree):
+    assert plugin_check.run_checks(tree) == []
+    built = tree / "hooks" / "built" / plugin_check.PLAIN_VARIANT
+    built.write_bytes(built.read_bytes().replace(b"\n", b"\r\n"))
+    return built
+
+
+def marker_and_span_hash(raw):
+    begin_line, rest = raw.split(b"\n", 1)
+    span = rest[: rest.rindex(f"{plugin_check.MARKER} end".encode())]
+    span = span.removesuffix(b"\n").removesuffix(b"\r")
+    return begin_line.split()[-1].decode(), hashlib.sha256(span).hexdigest()[:12]
+
+
+def assert_check_refuses_plain_variant(tree, capsys):
+    capsys.readouterr()
+    assert plugin_check.main(["check", "--root", str(tree)]) == 1
+    answer = json.loads(capsys.readouterr().out)
+    assert answer["ok"] is False
+    assert any(plugin_check.PLAIN_VARIANT in p and "stale" in p for p in answer["problems"])
+
+
+def test_check_refuses_a_built_file_with_a_cr_byte_although_it_hashes_to_its_marker(tree, capsys):
+    built = crlf_converted_plain_variant(tree)
+    raw = built.read_bytes()
+    marker, span_hash = marker_and_span_hash(raw)
+    built.write_bytes(raw.replace(marker.encode(), span_hash.encode()))
+    marker, span_hash = marker_and_span_hash(built.read_bytes())
+    assert marker == span_hash
+    assert b"\r" in built.read_bytes()
+    assert_check_refuses_plain_variant(tree, capsys)
+
+
+def test_check_refuses_a_built_file_that_does_not_hash_to_its_marker(tree, capsys):
+    built = crlf_converted_plain_variant(tree)
+    marker, span_hash = marker_and_span_hash(built.read_bytes())
+    assert marker != span_hash
+    assert_check_refuses_plain_variant(tree, capsys)
+
+    end_line = f"\n{plugin_check.MARKER} end".encode()
+    built.write_bytes(built.read_bytes().replace(b"\r\n", b"\n").replace(end_line, b"x" + end_line))
+    marker, span_hash = marker_and_span_hash(built.read_bytes())
+    assert marker != span_hash
+    assert b"\r" not in built.read_bytes()
+    assert_check_refuses_plain_variant(tree, capsys)
+
+
 def test_crlf_in_the_core_source_is_not_stale(tree):
     source = tree / plugin_check.CORE_SOURCE
     source.write_bytes(source.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
