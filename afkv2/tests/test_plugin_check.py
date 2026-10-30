@@ -417,6 +417,8 @@ def test_marker_match_in_other_spellings_fails(tree, name, line):
         ("sample.css", ".afkv2-match { color: red }"),
         ("sample.html", '<div class="afkv2-card-like"></div>'),
         ("sample.md", f'found = "{MARKER}" in text'),
+        ("sample.py", 'x = "afkv2-in"'),
+        ("sample.py", 'y = "afkv2-core-behaviors-find"'),
         ("sample.py", 'x = "afkv2-in-use"'),
         ("sample.py", 'x = "afkv2-find-end"'),
         ("sample.py", 'm = "afkv2:find:done"'),
