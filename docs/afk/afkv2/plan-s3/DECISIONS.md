@@ -300,3 +300,10 @@
 - Chosen: B — PRD SK-12 pushes to one Draft change per run, and 0015 opens it before it runs this skill; the PRD flow picture draws review before the change, and the catalog rows win. The caller also passes the plan folder and the base commit: IOU in `.claude/wiring-ious.md`
 - Supersedes: PRD flow picture order "code-review" before "Draft change"
 - To reverse: hold posts in the state until a `change` arrives
+
+## D-44 — the same text at another line of one round is another defect
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — add the line to the key vs B — keep D-42's key and add the rank of the line among the lines of that text in this round
+- Chosen: B — a later round keeps one defect when its line moves, and 2 defects with the same words stay apart. Known limit: when 2 defects share their words and a later round finds only the second, it matches the first entry
+- Supersedes: D-42 "file and the `finding` text" as the whole key
+- To reverse: `_with_keys` in `review_rounds.py`

@@ -96,3 +96,9 @@
 2026-10-30 07:55 | execute | 0013-code-review-skill | decision(D-43) — see plan-s3/DECISIONS.md
 2026-10-30 07:55 | execute | 0013-code-review-skill | gate-skip native-contract — first code commit: the same v1-layout refusal, rows on afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; no row on afkv2/skills/code-review or afkv2/tests/skills. The comment gate passed before it.
 2026-10-30 07:56 | execute | 0013-code-review-skill | verifying — running the static and unit tiers
+2026-10-30 07:56 | execute | 0013-code-review-skill | push — feat/afkv2-s3
+2026-10-30 07:56 | execute | 0013-code-review-skill | verifying — static pass (compile, frontmatter by test, 2/2 anchors), unit 67 passed
+2026-10-30 07:56 | execute | 0013-code-review-skill | reviewing — settle loop starts on change 156
+2026-10-30 08:01 | execute | 0013-code-review-skill | review r1 — advisory: crit=0 high=0 med=4 low=8; posted on change 156; lean roster: spec-fidelity scope-and-impact test-veracity logic-correctness api-contract
+2026-10-30 08:14 | execute | 0013-code-review-skill | decision(D-44) — see plan-s3/DECISIONS.md
+2026-10-30 08:14 | execute | 0013-code-review-skill | review r1 closed — 12 fixed in 0e6cc948; unit 78 passed; gate-skip native-contract on that commit: same v1-layout refusal, no row on afkv2/skills/code-review or afkv2/tests/skills
