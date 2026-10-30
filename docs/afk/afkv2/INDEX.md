@@ -14,7 +14,7 @@ afkv2 is the AFK 2.0 beta: a lighter rewrite of the AFK plugin that lets one dev
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan-s1/PLAN.md … plan-s4/PLAN.md | 17 subtasks, cited, 4 plan folders (S1-S3 parallel, S4 chain smoke); live status in each PLAN.md |
-| Smoke gate | plan-s1/PLAN.md … plan-s4/PLAN.md | minimal gate in each (no VERIFICATION-PLAN.md); plan-s3: red 2026-10-30 (minimal gate) |
+| Smoke gate | plan-s1/PLAN.md … plan-s4/PLAN.md | minimal gate in each (no VERIFICATION-PLAN.md); plan-s3: green 2026-10-30 (minimal gate) |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
 | Demo plan | DEMO-PLAN.md | — |
