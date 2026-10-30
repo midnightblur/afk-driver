@@ -196,3 +196,4 @@
 2026-10-30 15:55 | autopilot | run | run end (5/5 done, 0 parked) — every slice is finished and the feature gate is green; the pull request stays Draft and the ship gate is not run, by the session brief
 2026-10-30 16:40 | execute | setup backups | decision(D-88) — only the current user can open the setup backup folder that can hold the Jira token; if setup cannot set this, it writes nothing
 2026-10-30 16:40 | execute | setup backups | gate-skip — commit 49684d4f and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); setup tests only (217 passed, 5 skipped); smoke gate not re-run
+2026-10-30 16:50 | execute | setup backups | gate-skip — commit ef60fd78 and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); it corrects the refusal text; setup tests only (217 passed, 5 skipped)
