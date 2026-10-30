@@ -55,7 +55,7 @@ The review is done when `finish` answers `ok: true`.
 
 | Field of `finish` | Holds |
 |-------------------|-------|
-| `stopped_by` | `clean`: the last round found no critical or high finding. `cap`: round 3 ended with one. `unfixed`: a critical or high finding stayed unfixed, before round 3 |
+| `stopped_by` | `clean`: the last round found no critical or high finding, and none stayed unfixed. `cap`: round 3 found one. `unfixed`: every other stop, where a critical or high finding stayed unfixed |
 | `fixed` | each fix with its `sha`; `reviewed: false` means no later round read the fix |
 | `left.blocking` | critical and high findings not fixed, each also posted on the change; `replaces` is the url of its earlier medium or low comment |
 | `left.posted` | medium and low findings on the change |

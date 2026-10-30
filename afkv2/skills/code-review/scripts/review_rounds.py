@@ -190,19 +190,15 @@ def _key(found):
     return hashlib.sha256(f"{found['file']}\n{words}".encode("utf-8")).hexdigest()
 
 
-def _with_keys(checked):
-    """Pair each finding with its key. The same text at another line of one round is another defect."""
-    lines = {}
-    for found in checked:
-        key = _key(found)
-        seen = lines.setdefault(key, [])
-        if found["line"] not in seen:
-            seen.append(found["line"])
-        yield f"{key}-{seen.index(found['line'])}", found
+def _entry_of(state, key, found, number):
+    """The entry with the same text and the nearest line. In one round, the same text at another line is another defect."""
+    same = [item for item in state["findings"] if item["key"] == key and (item["last_round"] != number or item["line"] == found["line"])]
+    return min(same, key=lambda item: abs((item["line"] or 0) - (found["line"] or 0)), default=None)
 
 
-def _merge(state, key, found, number):
-    entry = next((item for item in state["findings"] if item["key"] == key), None)
+def _merge(state, found, number):
+    key = _key(found)
+    entry = _entry_of(state, key, found, number)
     if entry is None:
         state["findings"].append({"id": f"f{len(state['findings']) + 1}", "key": key, "first_round": number, "last_round": number,
                                   "outcome": None, "sha": None, "reason": None, "comment": None, "post_error": None,
@@ -265,8 +261,8 @@ def record(payload):
     if current is None:
         raise Refusal("no-open-round", "no round is open: run `begin`")
     number = current["round"]
-    for key, found in _with_keys(checked):
-        _merge(state, key, found, number)
+    for found in checked:
+        _merge(state, found, number)
     current["recorded"] = True
     _save(path, state)
     seen = [entry for entry in state["findings"] if entry["last_round"] == number]

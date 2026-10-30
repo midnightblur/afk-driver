@@ -614,3 +614,45 @@ def test_a_forge_command_that_answers_no_envelope_is_a_failed_post(tmp_path, cap
     real_review(tmp_path, capsys, "begin", change="7", concerns=CONCERNS)
     _, answer = real_review(tmp_path, capsys, "record", findings=[finding("low")])
     assert answer["post_failed"][0]["reason"] == "the forge command gave no answer object"
+
+
+def test_a_later_round_matches_the_same_text_to_the_nearest_line(review):
+    begin(review)
+    _, first = review("record", findings=[{**finding("high", "missing null check"), "line": 10},
+                                          {**finding("high", "missing null check"), "line": 90}])
+    fix_all(review, first)
+    begin(review)
+    _, second = review("record", findings=[{**finding("high", "missing null check"), "line": 91}])
+    assert ids(second["fix"]) == [first["fix"][1]["id"]]
+    review("outcome", id=second["fix"][0]["id"], result="fixed", sha="b")
+    begin(review)
+    review("record", findings=[])
+    _, report = review("finish")
+    assert report["reopened"] == [first["fix"][1]["id"]]
+    assert [item["id"] for item in report["fixed"]] == ids(first["fix"])
+
+
+def test_a_low_finding_whose_post_failed_can_come_back_high(review, forge):
+    begin(review)
+    forge.answers = [{"ok": False, "error": {"code": "auth", "reason": "no login"}}]
+    _, first = review("record", findings=[finding("high", "h"), finding("low", "x")])
+    fix_all(review, first)
+    begin(review)
+    code, second = review("record", findings=[finding("high", "x")])
+    assert code == 0
+    assert [item["finding"] for item in second["fix"]] == ["x"]
+    review("outcome", id=second["fix"][0]["id"], result="unfixed", reason="outside the scope")
+    assert review("finish")[1]["left"]["blocking"][0]["replaces"] is None
+
+
+def test_an_earlier_unfixed_finding_at_the_cap_reports_unfixed(review):
+    begin(review)
+    _, answer = review("record", findings=[finding("high", "a"), finding("high", "b")])
+    fix_all(review, {"fix": answer["fix"][:1]})
+    review("outcome", id=answer["fix"][1]["id"], result="unfixed", reason="outside the scope")
+    begin(review)
+    _, second = review("record", findings=[finding("high", "c")])
+    fix_all(review, second)
+    begin(review)
+    review("record", findings=[])
+    assert review("finish")[1]["stopped_by"] == "unfixed"
