@@ -98,11 +98,11 @@ sequenceDiagram
   T->>J: GET issue (description)
   J-->>T: issue
   T-->>P: ok + description
-  P->>T: attachment-put {key, png}
+  P->>T: attachment-put {key, png, preview}
   T->>J: POST attachment
   J-->>T: attachment id
   T-->>P: ok + attachment id + media id
-  P->>T: description-put {key, adf, expect_hash, receipt}
+  P->>T: description-put {key, adf, expect_hash, receipt, preview}
   T->>J: GET description, compare hash
   T->>J: PUT description
   T-->>P: ok, or error stale / bad-receipt
@@ -342,6 +342,8 @@ sequenceDiagram
 | the plan check passes a subtask whose checks need a file that neither its Scope nor a subtask it waits on creates | the plan check refuses each check path that no Scope in the subtask's chain owns | 0010 plan-check test |
 | the plugin's own commit and CI gates read the whole repository and fail on unrelated files and spec prose, so every commit skips all gates | the plugin check reads only the afkv2 plugin tree; spec-folder prose is never gate input | 0001 plugin-check test |
 | a text file the hook prints is turned to CRLF on a Windows checkout, its hash no longer matches its marker, and the check still passes | built files are LF by a `.gitattributes` rule; the plugin check fails on a CR byte or a hash mismatch | 0001 plugin-check test |
+| the forge port passes a large thread list or a body as one command argument, so a change with many threads fails with "argument list too long", and carriage returns are doubled on Windows | the forge port pages thread lists and passes every body through a file or stdin, never an argument; text keeps its line ends byte for byte | 0012 port tests: more than 240 threads; a body with CRLF round-trips unchanged |
+| two flat script modules with one name shadow each other when one process loads both | every afkv2 script module name is unique across the plugin tree | plugin-check test |
 
 ## §8 L7 — Module Decomposition
 
@@ -410,6 +412,9 @@ flowchart TB
 | afkv2 data folder | `%LOCALAPPDATA%\afkv2` on both harnesses | S1 | S3 setup, Stop hook |
 | marker hash | first 12 hex characters of SHA-256 over the text between the marker lines | S1 build check | S3 setup proof |
 | config reader | `.afkv2` reader in subtask 01 | S1 | every port and skill |
+| config file | `.afkv2/config.json` with a required `spec_folder`; setup writes JSON, the reader reads only this file (orchestrator ruling 2026-10-30: the reader decides) | S3 setup | S1 config reader |
+| fired record | `%LOCALAPPDATA%fkv2ired-<provider>.txt`, written by the hook (orchestrator ruling 2026-10-30: the writer decides) | S1 hook | S3 setup proof |
+| publish preview | a preview JSON file (`ticket_key`, `receipt`, `description_hash`, `picture_hashes`) that to-prd writes; attachment-put and description-put name it in `preview`, and the port refuses `bad-receipt` when the receipt, ticket, hash or a picture hash differs, or when the receipt computed again from the written block text differs | S2 to-prd | S3 Jira port |
 | Python | setup checks Python 3 on the path and records it; scripts start through it | S3 | every script |
 | no-v1-name rule | `afk` or `AFK_` not followed by `v2`, over file names, environment variables, markers, storage keys and CSS classes; each ported module renamed in one pass | all | plugin check |
 
