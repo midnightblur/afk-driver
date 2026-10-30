@@ -158,7 +158,10 @@ for kind in $KINDS; do
   status=$(field "$out" status)
   fingerprint=$(field "$out" fingerprint)
   [ -n "$status" ] || status=provisioned
-  if [ -n "$fingerprint" ]; then
+  # The marker records finished provisioning only: an exit-4 answer (degraded)
+  # must not be written as done, or the next run without --force reads the
+  # marker, prints "already provisioned" and never retries the install.
+  if [ "$rc" -eq 0 ] && [ -n "$fingerprint" ]; then
     mkdir -p "$(dirname "$MARKER")" 2>/dev/null || true
     printf 'status=%s\nfingerprint=%s\ntoolkit=%s\n' "$status" "$fingerprint" "$TOOLKIT_VERSION" > "$MARKER"
   fi
