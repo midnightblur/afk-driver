@@ -118,3 +118,31 @@
 - Chosen: A — the orchestrator reproduced A-1 on a fresh clone with `core.autocrlf=true` (5 CR bytes on stdout, begin line ends in CR, check exits 0); with the rule set through `.git/info/attributes`, stdout has 0 CR, the span hashes to `7f976c7ee15c`, and check exits 0
 - Supersedes: none
 - To reverse: remove the line from `.gitattributes` and the path from the 0001 `## Scope`
+
+## D-18 — owner ruling R-1: the adversarial gate is skipped for afkv2
+- 2026-10-30 · decided by the owner, recorded by autopilot (session brief, section Owner rulings)
+- Options: A — skip execute Step 10.5 on every afkv2 plan vs B — run it
+- Chosen: A — owner: "Skip for afkv2". Cause: no running app to attack. Each slice journals `adversary: skipped (owner ruling R-1)`
+- Supersedes: the "Step 10.5 mandatory" line of the execute contract's Driven mode, for this build
+- To reverse: the owner withdraws R-1; slices that skipped the gate then run it
+
+## D-19 — owner ruling R-2: at most 3 review rounds, fix only critical and high
+- 2026-10-30 · decided by the owner, recorded by autopilot (session brief, section Owner rulings)
+- Options: A — at most 3 rounds per slice, medium and low stay on the PR as advisory with no fix and no dispute round vs B — settle until a round is clean
+- Chosen: A — owner ruling. After round 3, an open critical or high finding parks the slice; otherwise the gate passes
+- Supersedes: the settle-until-clean rule of skills/afk/review/SETTLEMENT.md, for this build
+- To reverse: the owner withdraws R-2; re-review the slices that passed under it
+
+## D-20 — owner ruling R-3: a note that changes a sign-off card's wording sends the card back
+- 2026-10-30 · decided by the owner, recorded by autopilot (session brief, section Owner rulings)
+- Options: A — the card goes back for a sign mark vs B — the note settles the card
+- Chosen: A — owner chose this for HL-4 (closes S2 D-15 and finding f074). Binding here if a plan-s1 slice handles a note on a sign-off card
+- Supersedes: none in plan-s1
+- To reverse: the owner withdraws R-3
+
+## D-21 — owner ruling R-4: skipping pre-commit gates is accepted for this build
+- 2026-10-30 · decided by the owner, recorded by autopilot (session brief, section Owner rulings)
+- Options: A — AFK_SKIP_PRECOMMIT_GATES=1 on all afkv2 commits, PR CI catches the rest, the ship gate must be green vs B — skip only on proven v1 friction
+- Chosen: A — owner ruling. Skipped commits stay listed in the journal
+- Supersedes: the friction-only skip rule of the session brief
+- To reverse: the owner withdraws R-4; run the gates on later commits
