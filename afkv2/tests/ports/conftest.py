@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from port_fakes import PORTS, http_error
@@ -12,6 +14,8 @@ from port_fakes import PORTS, http_error
 sys.path.insert(0, str(PORTS))
 
 from tracker import jira, shell  # noqa: E402
+
+FAKE_PROCESS = Path(__file__).resolve().parent / "fake_forge_process.py"
 
 
 class FakeJira(jira.Jira):
@@ -78,6 +82,44 @@ class FakeTools:
 def tools(monkeypatch):
     fake = FakeTools(shell.run_tool)
     monkeypatch.setattr(shell, "run_tool", fake)
+    return fake
+
+
+class PipedTools:
+    """gh and glab as real processes, so the real pipes and the real argument limit apply."""
+
+    def __init__(self, folder):
+        self.rules = []
+        self.rules_file, self.record_file = folder / "rules.json", folder / "record.jsonl"
+        self.record_file.write_bytes(b"")
+
+    def on(self, tool, *prefix, answer=""):
+        raw = answer if isinstance(answer, bytes) else (answer if isinstance(answer, str) else json.dumps(answer)).encode("utf-8")
+        self.rules.insert(0, (tool, list(prefix), raw.hex()))
+        self.rules_file.write_text(json.dumps(self.rules), encoding="utf-8")
+        return self
+
+    @property
+    def calls(self):
+        return [json.loads(line) for line in self.record_file.read_text(encoding="utf-8").splitlines()]
+
+    def sent(self, *prefix):
+        """The stdin bytes of each call whose arguments start with `prefix`."""
+        return [bytes.fromhex(call["stdin"]) for call in self.calls if tuple(call["args"][:len(prefix)]) == prefix]
+
+
+@pytest.fixture
+def piped(monkeypatch, tmp_path):
+    folder = tmp_path / "piped"
+    folder.mkdir()
+    fake = PipedTools(folder)
+    real_run = subprocess.run
+
+    def run(argv, **kwargs):
+        return real_run([sys.executable, str(FAKE_PROCESS), str(fake.rules_file), str(fake.record_file), *argv], **kwargs)
+
+    monkeypatch.setattr(shell.shutil, "which", lambda tool: tool)
+    monkeypatch.setattr(shell.subprocess, "run", run)
     return fake
 
 

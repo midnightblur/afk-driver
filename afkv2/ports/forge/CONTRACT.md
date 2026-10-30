@@ -1,6 +1,6 @@
 # Forge port: the command contract
 
-`<python> afkv2/ports/forge/forge_cli.py <verb> [json-payload]`, or the payload on stdin. `<python>` is the Python in the setup install record (line `python`).
+`<python> afkv2/ports/forge/forge_cli.py <verb> [json-payload]`, or the payload on stdin. A payload that holds a body goes on stdin, as UTF-8 JSON bytes: an argument has a size limit. `<python>` is the Python in the setup install record (line `python`).
 
 The answer envelope and the exit codes are the same as in `afkv2/ports/tracker/CONTRACT.md`. The field lists below are the fields beside `ok`. Both forges answer the same keys.
 
@@ -36,6 +36,6 @@ A position the forge rejects: with `require_inline`, the verb refuses `position-
 
 The tracker table, plus `no-forge`, `bad-position`, `position-rejected`, `unreadable` and `draft-lost`.
 
-`draft-lost` means `change-update-body` wrote the body on GitLab, `glab` cleared the draft flag, and the port could not set it again. The change is open for review until a human sets it: `reason` names the command. A retry does not set it, because the flag then reads as off.
+`draft-lost` means `change-update-body` wrote the body on GitLab, the draft flag then read as off, and the port could not set it again. The change is open for review until a human sets it: `reason` names the command. A retry does not set it, because the flag then reads as off.
 
 `position-rejected` means the forge did not place the comment on the line. With `require_inline`, GitLab removes the plain note it wrote: the error holds `cleaned: true`, or `note` with the id of a note the cleanup could not remove.

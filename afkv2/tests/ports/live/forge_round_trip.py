@@ -11,10 +11,11 @@ from pathlib import Path
 CLI = Path(__file__).resolve().parents[3] / "ports" / "forge" / "forge_cli.py"
 MARKER = "afkv2 forge port round-trip, removed by the check"
 NO_SUCH_LINE = 987654
+CRLF_TEXT = f"{MARKER} (line ends)\r\nsecond line\nthird é\r\n"
 
 
 def forge(verb, **payload):
-    done = subprocess.run([sys.executable, str(CLI), verb, json.dumps(payload)], capture_output=True, timeout=180)
+    done = subprocess.run([sys.executable, str(CLI), verb], input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=180)
     answer = json.loads(done.stdout.decode("utf-8"))
     assert done.returncode == (0 if answer["ok"] else 1), done.stderr.decode("utf-8", "replace")
     return answer
@@ -57,8 +58,11 @@ def main(change):
     path, line = first_added_line(diff["diff"])
 
     plain = good("change-comment", id=change, text=f"{MARKER} (plain)")
-    inline = fallback = accepted = None
+    inline = fallback = accepted = line_ends = None
     try:
+        line_ends = good("change-comment", id=change, text=CRLF_TEXT)
+        kept = [note for note in good("note-list", id=change)["notes"] if note["id"] == line_ends["comment"]]
+        assert kept and kept[0]["body"] == CRLF_TEXT, ascii(kept)
         assert plain["inline"] is False and plain["comment"]
         inline = good("change-comment", id=change, text=f"{MARKER} (inline)", file=path, line=line, require_inline=True)
         assert inline["inline"] is True and inline["thread"] == inline["comment"]
@@ -78,6 +82,8 @@ def main(change):
         assert fallback["inline"] is False and fallback["reason"] and fallback["comment"]
     finally:
         remove(f"repos/{repo}/issues/comments/{plain['comment']}")
+        if line_ends:
+            remove(f"repos/{repo}/issues/comments/{line_ends['comment']}")
         if inline:
             remove(f"repos/{repo}/pulls/comments/{inline['comment']}")
         if fallback:

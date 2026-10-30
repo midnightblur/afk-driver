@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import urllib.parse
 
 from tracker import shell
@@ -11,7 +10,6 @@ from tracker.envelope import Refusal, fail, need, ok
 
 from . import common
 
-_CHANGE_URL = re.compile(r"https?://\S+/-/merge_requests/\d+")
 _JSON_HEADER = ["-H", "Content-Type: application/json"]
 NOTES_QUERY = """
 query($path:ID!,$iid:String!,$endCursor:String) {
@@ -119,18 +117,61 @@ def change_diff(payload):
     return common.diff_answer(shell.checked("glab", ["mr", "diff", common.ref(payload), *_flag(payload), "--color=never"]))
 
 
+def _send(method, path, fields):
+    """The body goes on stdin: an argument has a size limit, and glab 1.89 has no file flag on `mr create`."""
+    return shell.json_answer("glab", ["api", "-X", method, *_JSON_HEADER, path, "--input", "-"], stdin_text=json.dumps(fields))
+
+
+def _post(path, fields):
+    return _send("POST", path, fields)
+
+
+def _user_ids(names):
+    """The API takes ids. An unknown name stops the write: `glab mr create` also failed on one."""
+    ids = []
+    for name in names:
+        users = shell.as_items(shell.json_answer("glab", ["api", f"users?username={urllib.parse.quote(name, safe='')}"]))
+        found = [user["id"] for user in users if isinstance(user, dict) and user.get("id")
+                 and str(user.get("username", "")).lower() == name.lower()]
+        if not found:
+            raise Refusal("not-found", f"GitLab knows no user `{name}`")
+        ids.append(found[0])
+    return ids
+
+
+def _source_branch(payload):
+    branch = str(payload.get("source") or shell.checked("git", ["branch", "--show-current"])).strip()
+    if not branch:
+        raise Refusal("bad-payload", "name a `source`: this checkout is on no branch")
+    return branch
+
+
+def _target_branch(payload, project):
+    if payload.get("target"):
+        return str(payload["target"])
+    data = shell.json_answer("glab", ["api", f"projects/{project}"])
+    branch = data.get("default_branch") if isinstance(data, dict) else None
+    if not branch:
+        raise Refusal("bad-answer", "the GitLab API named no default branch: name a `target`")
+    return str(branch)
+
+
 def change_create_draft(payload):
-    args = ["mr", "create", *_flag(payload), "--draft", "--yes", "--title", str(need(payload, "title")),
-            "--description", str(payload.get("body") or "")]
-    for key, flag in (("target", "--target-branch"), ("source", "--source-branch"), ("reviewer", "--reviewer"), ("assignee", "--assignee")):
-        value = common.joined(payload.get(key))
-        if value:
-            args += [flag, value]
-    out = shell.checked("glab", args)
-    found = _CHANGE_URL.findall(out)
-    if not found:
-        raise Refusal("bad-answer", f"glab mr create printed no change URL: {out[:300]}")
-    return ok(url=found[-1], id=found[-1].rsplit("/", 1)[-1], draft=True)
+    """The API has no draft field: a title prefix sets the flag (docs: user/project/merge_requests/drafts)."""
+    title, project = str(need(payload, "title")), _project(payload)
+    fields = {"title": title if _draft({"title": title}) else f"Draft: {title}",
+              "description": str(payload.get("body") or ""),
+              "source_branch": _source_branch(payload),
+              "target_branch": _target_branch(payload, project)}
+    for key, field in (("assignee", "assignee_ids"), ("reviewer", "reviewer_ids")):
+        names = [name for name in common.joined(payload.get(key)).split(",") if name]
+        if names:
+            fields[field] = _user_ids(names)
+    data = _post(f"projects/{project}/merge_requests", fields)
+    url, iid = (data.get("web_url"), data.get("iid")) if isinstance(data, dict) else (None, None)
+    if not url or not iid:
+        raise Refusal("bad-answer", "the GitLab API answered no change URL and number")
+    return ok(url=url, id=str(iid), draft=True)
 
 
 def _is_draft(change, payload):
@@ -146,10 +187,11 @@ def _draft_kept(change, payload):
 
 
 def change_update_body(payload):
-    """`glab mr update` clears the draft flag: read it first, put it back after. A failed first read writes nothing."""
+    """A body write can clear the draft flag: read it first, put it back after. A failed first read writes nothing."""
     change, body = common.ref(payload), common.body_text(payload)
-    was_draft = _is_draft(change, payload)
-    shell.checked("glab", ["mr", "update", change, *_flag(payload), "--description", body])
+    meta = _view(change, payload)
+    was_draft = _draft(meta)
+    _send("PUT", f"projects/{_project(payload)}/merge_requests/{_iid(meta)}", {"description": body})
     restored = False
     if was_draft and not _draft_kept(change, payload):
         repair = ["mr", "update", change, *_flag(payload), "--draft"]
@@ -163,10 +205,6 @@ def change_ready(payload):
     change = common.ref(payload)
     shell.checked("glab", ["mr", "update", change, *_flag(payload), "--ready"])
     return ok(id=change, draft=False)
-
-
-def _post(path, fields):
-    return shell.json_answer("glab", ["api", "-X", "POST", *_JSON_HEADER, path, "--input", "-"], stdin_text=json.dumps(fields))
 
 
 def _note_url(change_url, ident):

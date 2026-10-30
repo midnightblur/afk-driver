@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -530,13 +532,18 @@ def test_github_change_update_body_goes_on_stdin(capsys, tools):
 def test_a_failed_first_read_of_the_draft_flag_writes_nothing(capsys, tools, kind):
     tools.on(TOOL[kind], *VIEW[kind], answer=lambda *_: (1, "", "boom"))
     assert refused(capsys, kind, "change-update-body", id="7", body="new")["code"] == "cli-failed"
-    assert all(call_[1][1] != ("edit" if kind == "github" else "update") for call_ in tools.calls)
+    assert [call_[1][:2] for call_ in tools.calls] == [list(VIEW[kind])]
+
+
+def gitlab_writes(tools):
+    tools.on("glab", "mr", "update", answer="")
+    tools.on("glab", "api", "-X", "PUT", answer={"iid": 7})
 
 
 def test_gitlab_a_failed_read_after_the_write_sets_the_flag_again(capsys, tools):
     views = iter([{"iid": 7, "draft": True}, (1, "", "boom")])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
-    tools.on("glab", "mr", "update", answer="")
+    gitlab_writes(tools)
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new")["draft_restored"] is True
     assert ["mr", "update", "7", "--draft"] in [call_[1] for call_ in tools.calls]
 
@@ -544,11 +551,21 @@ def test_gitlab_a_failed_read_after_the_write_sets_the_flag_again(capsys, tools)
 def test_gitlab_change_update_body_restores_the_draft_flag(capsys, tools):
     views = iter([{"iid": 7, "draft": True}, {"iid": 7, "draft": False}])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
-    tools.on("glab", "mr", "update", answer="")
+    gitlab_writes(tools)
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new") == {
         "ok": True, "id": "7", "was_draft": "true", "draft_restored": True}
     assert ["mr", "update", "7", "--draft"] in [call_[1] for call_ in tools.calls]
-    assert ["mr", "update", "7", "--description", "new"] in [call_[1] for call_ in tools.calls]
+
+
+def test_gitlab_change_update_body_goes_on_stdin_and_never_on_the_command_line(capsys, tools):
+    tools.on("glab", "mr", "view", answer={"iid": 7, "draft": False})
+    gitlab_writes(tools)
+    good(capsys, "gitlab", "change-update-body", id="branch-name", body="new é", repo="o/r")
+    put = tools.calls_to("glab", "api", "-X", "PUT")[0]
+    assert "projects/o%2Fr/merge_requests/7" in put[1] and "--input" in put[1]
+    assert json.loads(put[2]) == {"description": "new é"}
+    assert not any("new é" in " ".join(call_[1]) for call_ in tools.calls)
+    assert not any("--description" in call_[1] for call_ in tools.calls)
 
 
 @pytest.mark.parametrize("extra,command", [
@@ -556,6 +573,7 @@ def test_gitlab_change_update_body_restores_the_draft_flag(capsys, tools):
 def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools, extra, command):
     views = iter([{"iid": 7, "draft": True}, {"iid": 7, "draft": False}])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
+    tools.on("glab", "api", "-X", "PUT", answer={"iid": 7})
     tools.on("glab", "mr", "update", answer=lambda args, _: (1, "", "nope") if "--draft" in args else "")
     error = refused(capsys, "gitlab", "change-update-body", id="7", body="new", **extra)
     assert error["code"] == "draft-lost" and error["id"] == "7" and command in error["reason"]
@@ -565,21 +583,21 @@ def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools, extra, command)
 def test_gitlab_the_body_write_reads_the_draft_flag_as_change_view_does(capsys, tools, first):
     views = iter([{"iid": 7, **first}, {"iid": 7}])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
-    tools.on("glab", "mr", "update", answer="")
+    gitlab_writes(tools)
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new") == {
         "ok": True, "id": "7", "was_draft": "true", "draft_restored": True}
 
 
 def test_gitlab_a_kept_draft_flag_needs_no_restore(capsys, tools):
     tools.on("glab", "mr", "view", answer={"iid": 7, "draft": True})
-    tools.on("glab", "mr", "update", answer="")
+    gitlab_writes(tools)
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new")["draft_restored"] is False
     assert not any("--draft" in call_[1] for call_ in tools.calls)
 
 
 def test_gitlab_change_update_body_leaves_a_ready_change_ready(capsys, tools):
     tools.on("glab", "mr", "view", answer={"iid": 7, "draft": False})
-    tools.on("glab", "mr", "update", answer="")
+    gitlab_writes(tools)
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new")["draft_restored"] is False
     assert not any("--draft" in call_[1] for call_ in tools.calls)
 
@@ -873,17 +891,92 @@ def test_gitlab_ci_status_reads_the_head_pipeline(capsys, tools):
     assert good(capsys, "gitlab", "ci-status", id="7") == {"ok": True, "status": "running", "url": "https://gitlab.example/p/1"}
 
 
-@pytest.mark.parametrize("kind,url", [("gitlab", "https://gitlab.example/x/y/-/merge_requests/7"), ("github", "https://github.com/x/y/pull/7")])
-def test_change_create_draft_passes_the_assignee_when_set(capsys, tools, kind, url):
-    verb = ("mr", "create") if kind == "gitlab" else ("pr", "create")
-    tools.on(TOOL[kind], *verb, answer=f"created\n{url}\n")
-    answer = good(capsys, kind, "change-create-draft", title="t", target="main", source="b", body="x", assignee="octocat")
+GITLAB_URL = "https://gitlab.example/x/y/-/merge_requests/7"
+
+
+def gitlab_create(tools, **project):
+    """Answers the create call; the users and the project read answer too."""
+    tools.on("glab", "api", "-X", "POST", answer=lambda _args, sent: {
+        "iid": 7, "web_url": GITLAB_URL, "title": json.loads(sent)["title"], "draft": True})
+    tools.on("glab", "api", "projects/:id", answer={"default_branch": "trunk", **project})
+    tools.on("git", "branch", "--show-current", answer="here\n")
+    for ident, name in ((11, "octocat"), (12, "a"), (13, "b")):
+        tools.on("glab", "api", f"users?username={name}", answer=[{"id": ident, "username": name}])
+
+
+def created(tools):
+    call_ = tools.calls_to("glab", "api", "-X", "POST")[0]
+    return call_[1], json.loads(call_[2])
+
+
+def test_github_change_create_draft_passes_the_assignee_when_set(capsys, tools):
+    url = "https://github.com/x/y/pull/7"
+    tools.on("gh", "pr", "create", answer=f"created\n{url}\n")
+    answer = good(capsys, "github", "change-create-draft", title="t", target="main", source="b", body="x", assignee="octocat")
     assert answer == {"ok": True, "url": url, "id": "7", "draft": True}
     args = tools.calls[0][1]
     assert args[args.index("--assignee") + 1] == "octocat" and "--draft" in args
     assert args[args.index("--title") + 1] == "t"
-    target, source = {"github": ("--base", "--head"), "gitlab": ("--target-branch", "--source-branch")}[kind]
-    assert args[args.index(target) + 1] == "main" and args[args.index(source) + 1] == "b"
+    assert args[args.index("--base") + 1] == "main" and args[args.index("--head") + 1] == "b"
+
+
+def test_gitlab_change_create_draft_sends_every_field_on_stdin(capsys, tools):
+    gitlab_create(tools)
+    answer = good(capsys, "gitlab", "change-create-draft", title="t", target="main", source="b", body="x", assignee="octocat", reviewer=["a", "b"])
+    assert answer == {"ok": True, "url": GITLAB_URL, "id": "7", "draft": True}
+    args, sent = created(tools)
+    assert "projects/:id/merge_requests" in args and "--input" in args
+    assert sent == {"title": "Draft: t", "description": "x", "target_branch": "main", "source_branch": "b",
+                    "assignee_ids": [11], "reviewer_ids": [12, 13]}
+    assert not any("--description" in call_[1] or "x" in call_[1] for call_ in tools.calls)
+
+
+def test_gitlab_change_create_draft_takes_the_defaults_glab_took(capsys, tools):
+    gitlab_create(tools)
+    good(capsys, "gitlab", "change-create-draft", title="t")
+    _, sent = created(tools)
+    assert sent == {"title": "Draft: t", "description": "", "target_branch": "trunk", "source_branch": "here"}
+
+
+def test_gitlab_change_create_draft_reads_the_named_project(capsys, tools):
+    gitlab_create(tools)
+    tools.on("glab", "api", "projects/o%2Fr", answer={"default_branch": "dev"})
+    good(capsys, "gitlab", "change-create-draft", title="t", repo="o/r")
+    args, sent = created(tools)
+    assert "projects/o%2Fr/merge_requests" in args and sent["target_branch"] == "dev"
+
+
+@pytest.mark.parametrize("title", ["Draft: t", "draft: t", "WIP: t"])
+def test_gitlab_a_title_that_is_a_draft_gets_no_second_prefix(capsys, tools, title):
+    gitlab_create(tools)
+    good(capsys, "gitlab", "change-create-draft", title=title, target="m", source="b")
+    assert created(tools)[1]["title"] == title
+
+
+def test_gitlab_an_unknown_person_creates_nothing(capsys, tools):
+    gitlab_create(tools)
+    tools.on("glab", "api", "users?username=nobody", answer=[])
+    tools.on("glab", "api", "users?username=near", answer=[{"id": 9, "username": "nearly"}])
+    for name in ("nobody", "near"):
+        error = refused(capsys, "gitlab", "change-create-draft", title="t", target="m", source="b", reviewer=name)
+        assert error["code"] == "not-found" and name in error["reason"]
+    assert not tools.calls_to("glab", "api", "-X", "POST")
+
+
+@pytest.mark.parametrize("project", ["[]", {}, {"default_branch": ""}])
+def test_gitlab_a_project_with_no_default_branch_creates_nothing(capsys, tools, project):
+    gitlab_create(tools)
+    tools.on("glab", "api", "projects/:id", answer=project)
+    assert refused(capsys, "gitlab", "change-create-draft", title="t", source="b")["code"] == "bad-answer"
+    assert not tools.calls_to("glab", "api", "-X", "POST")
+
+
+def test_gitlab_a_detached_head_with_no_source_creates_nothing(capsys, tools):
+    gitlab_create(tools)
+    tools.on("git", "branch", "--show-current", answer="\n")
+    code, answer = call(capsys, "gitlab", "change-create-draft", title="t", target="m")
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
+    assert not tools.calls_to("glab", "api", "-X", "POST")
 
 
 def test_github_change_create_draft_sends_the_body_on_stdin(capsys, tools):
@@ -892,36 +985,29 @@ def test_github_change_create_draft_sends_the_body_on_stdin(capsys, tools):
     assert tools.calls[0][2] == "the body" and "--body-file" in tools.calls[0][1]
 
 
-def test_gitlab_change_create_draft_sends_the_description(capsys, tools):
-    tools.on("glab", "mr", "create", answer="https://gitlab.example/x/y/-/merge_requests/7")
-    good(capsys, "gitlab", "change-create-draft", title="t", body="the body")
-    args = tools.calls[0][1]
-    assert args[args.index("--description") + 1] == "the body"
-
-
-@pytest.mark.parametrize("kind,url", [("gitlab", "https://gitlab.example/x/y/-/merge_requests/7"), ("github", "https://github.com/x/y/pull/7")])
-def test_change_create_draft_omits_the_assignee_when_unset(capsys, tools, kind, url):
-    verb = ("mr", "create") if kind == "gitlab" else ("pr", "create")
-    tools.on(TOOL[kind], *verb, answer=url)
-    good(capsys, kind, "change-create-draft", title="t", body="x")
+def test_github_change_create_draft_omits_the_assignee_when_unset(capsys, tools):
+    tools.on("gh", "pr", "create", answer="https://github.com/x/y/pull/7")
+    good(capsys, "github", "change-create-draft", title="t", body="x")
     assert "--assignee" not in tools.calls[0][1]
 
 
-@pytest.mark.parametrize("kind", KINDS)
-def test_change_create_draft_joins_a_reviewer_list(capsys, tools, kind):
-    verb = ("mr", "create") if kind == "gitlab" else ("pr", "create")
-    url = "https://x.test/a/-/merge_requests/7" if kind == "gitlab" else "https://x.test/a/pull/7"
-    tools.on(TOOL[kind], *verb, answer=url)
-    good(capsys, kind, "change-create-draft", title="t", reviewer=["a", "b"])
+def test_github_change_create_draft_joins_a_reviewer_list(capsys, tools):
+    tools.on("gh", "pr", "create", answer="https://x.test/a/pull/7")
+    good(capsys, "github", "change-create-draft", title="t", reviewer=["a", "b"])
     args = tools.calls[0][1]
     assert args[args.index("--reviewer") + 1] == "a,b"
 
 
-@pytest.mark.parametrize("kind", KINDS)
-def test_change_create_draft_without_a_url_is_a_bad_answer(capsys, tools, kind):
-    verb = ("mr", "create") if kind == "gitlab" else ("pr", "create")
-    tools.on(TOOL[kind], *verb, answer="done")
-    assert refused(capsys, kind, "change-create-draft", title="t")["code"] == "bad-answer"
+def test_github_change_create_draft_without_a_url_is_a_bad_answer(capsys, tools):
+    tools.on("gh", "pr", "create", answer="done")
+    assert refused(capsys, "github", "change-create-draft", title="t")["code"] == "bad-answer"
+
+
+@pytest.mark.parametrize("answer", ["done", {"iid": 7}, {"web_url": GITLAB_URL}])
+def test_gitlab_change_create_draft_without_a_url_or_a_number_is_a_bad_answer(capsys, tools, answer):
+    gitlab_create(tools)
+    tools.on("glab", "api", "-X", "POST", answer=answer)
+    assert refused(capsys, "gitlab", "change-create-draft", title="t", target="m", source="b")["code"] == "bad-answer"
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -957,3 +1043,159 @@ def test_payload_repo_reaches_the_command(capsys, tools, kind):
 def test_an_answer_keeps_text_outside_the_console_encoding(tools, capsys, kind):
     tools.on(TOOL[kind], *VIEW[kind], answer={**CHANGE_META[kind], "title": "emoji \U0001f389"})
     assert good(capsys, kind, "change-view", id="7")["title"] == "emoji \U0001f389"
+
+
+# ------------------------------------------------- real processes: more than 240 threads, bytes kept
+
+CRLF_BODY = "first line\r\nsecond line\nthird é\r\n\r\nlast\r\n"
+BIG_BODY = "paragraph of a long description\r\n" * 2000
+THREADS = 245
+PAGE = 100
+
+
+def pages_of(items):
+    return "".join(json.dumps(items[start:start + PAGE]) + "\n" for start in range(0, len(items), PAGE))
+
+
+def github_thread_pages(piped):
+    """245 threads of a root and a reply, over 3 pages of REST and 5 of GraphQL: more than the argument limit in all."""
+    piped.on("gh", "repo", "view", answer={"nameWithOwner": "acme/widget"})
+    piped.on("gh", "pr", "view", answer={"number": 7})
+    comments, graph = [], ""
+    for start in range(0, THREADS, PAGE // 2):
+        nodes = [{"id": f"RT{n}", "isResolved": False, "comments": {"nodes": [
+            {"databaseId": 2 * n + 1, "lastEditedAt": None}, {"databaseId": 2 * n + 2, "lastEditedAt": None}]}}
+            for n in range(start, min(start + PAGE // 2, THREADS))]
+        graph += json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}}) + "\n"
+    for n in range(THREADS):
+        root = {"id": 2 * n + 1, "path": "a.txt", "line": 1, "side": "RIGHT", "user": {"login": "x"},
+                "created_at": f"2026-01-01T{n:06d}", "body": CRLF_BODY + "x" * 300}
+        reply = {"id": 2 * n + 2, "in_reply_to_id": 2 * n + 1, "path": "a.txt", "user": {"login": "y"},
+                 "created_at": f"2026-01-02T{n:06d}", "body": f"reply {n}"}
+        comments += [root, reply]
+    piped.on("gh", "api", "graphql", answer=graph)
+    piped.on("gh", "api", "--paginate", answer=pages_of(comments))
+
+
+def gitlab_thread_pages(piped):
+    piped.on("glab", "mr", "view", answer={"iid": 7, "web_url": "https://gitlab.example/a/-/merge_requests/7"})
+    piped.on("glab", "api", "projects/:id", answer={"path_with_namespace": "acme/widget"})
+    discussions, graph = [], ""
+    for start in range(0, 2 * THREADS, PAGE):
+        nodes = [{"id": f"gid://gitlab/Note/{n + 1}", "author": {"id": "gid://gitlab/User/1"}, "lastEditedBy": None}
+                 for n in range(start, min(start + PAGE, 2 * THREADS))]
+        graph += json.dumps({"data": {"project": {"mergeRequest": {"notes": {"nodes": nodes}}}}}) + "\n"
+    for n in range(THREADS):
+        position = {"new_line": 1, "new_path": "a.txt", "old_path": "a.txt"}
+        discussions.append({"id": f"d{n}", "notes": [
+            {"id": 2 * n + 1, "type": "DiffNote", "position": position, "author": {"username": "x"},
+             "created_at": f"2026-01-01T{n:06d}", "body": CRLF_BODY + "x" * 300},
+            {"id": 2 * n + 2, "type": "DiffNote", "position": position, "author": {"username": "y"},
+             "created_at": f"2026-01-02T{n:06d}", "body": f"reply {n}"}]})
+    piped.on("glab", "api", "graphql", answer=graph)
+    piped.on("glab", "api", "--paginate", answer=pages_of(discussions))
+
+
+THREAD_PAGES = {"github": github_thread_pages, "gitlab": gitlab_thread_pages}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_more_than_240_threads_arrive_whole_through_real_processes(capsys, piped, kind):
+    THREAD_PAGES[kind](piped)
+    answer = good(capsys, kind, "thread-list", id="7")
+    assert answer["count"] == THREADS and len(answer["threads"]) == THREADS
+    assert sum(len(json.dumps(thread)) for thread in answer["threads"]) > 40_000
+    for thread in answer["threads"]:
+        assert len(thread["notes"]) == 2 and thread["notes"][0]["body"].startswith(CRLF_BODY)
+    listing = [call_ for call_ in piped.calls if "--paginate" in call_["args"] and "graphql" not in call_["args"]]
+    assert len(listing) == 1 and "per_page=100" in " ".join(listing[0]["args"])
+    assert all(sum(map(len, call_["args"])) < 2000 for call_ in piped.calls)
+
+
+def sent_body(raw, key):
+    """The text in the bytes a write sent: JSON for an API call, the raw body for `--body-file -`."""
+    return json.loads(raw.decode("utf-8"))[key] if key else raw.decode("utf-8")
+
+
+def github_body_rules(piped):
+    piped.on("gh", "repo", "view", answer={"nameWithOwner": "acme/widget"})
+    piped.on("gh", "pr", "view", answer={"number": 7, "isDraft": False, "headRefOid": "head7"})
+    piped.on("gh", "pr", "edit", answer="")
+    piped.on("gh", "pr", "create", answer="https://github.com/x/y/pull/7\n")
+    piped.on("gh", "api", "-X", "POST", answer={"id": 90, "html_url": "https://github.example/n/90"})
+
+
+def gitlab_body_rules(piped):
+    piped.on("glab", "mr", "view", answer={"iid": 7, "draft": False, "web_url": "https://gitlab.example/a/-/merge_requests/7",
+                                           "diff_refs": {"base_sha": "b", "start_sha": "s", "head_sha": "h"}})
+    piped.on("glab", "api", "projects/:id", answer={"default_branch": "main", "path_with_namespace": "acme/widget"})
+    piped.on("glab", "api", "-X", "PUT", answer={"iid": 7})
+    piped.on("glab", "api", "-X", "POST", answer={"iid": 7, "id": 90, "web_url": "https://gitlab.example/a/-/merge_requests/7",
+                                                  "title": "Draft: t", "draft": True})
+
+
+BODY_RULES = {"github": github_body_rules, "gitlab": gitlab_body_rules}
+WRITES = [
+    ("github", "change-update-body", {"id": "7", "body": ...}, ("pr", "edit"), None),
+    ("github", "change-create-draft", {"title": "t", "body": ...}, ("pr", "create"), None),
+    ("github", "change-comment", {"id": "7", "text": ...}, ("api", "-X", "POST"), "body"),
+    ("gitlab", "change-update-body", {"id": "7", "body": ...}, ("api", "-X", "PUT"), "description"),
+    ("gitlab", "change-create-draft", {"title": "t", "target": "m", "source": "b", "body": ...}, ("api", "-X", "POST"), "description"),
+    ("gitlab", "change-comment", {"id": "7", "text": ...}, ("api", "-X", "POST"), "body"),
+]
+
+
+@pytest.mark.parametrize("body", [CRLF_BODY, BIG_BODY], ids=["crlf", "past-the-argument-limit"])
+@pytest.mark.parametrize("kind,verb,payload,write,key", WRITES)
+def test_a_body_reaches_the_forge_byte_for_byte_and_never_as_an_argument(capsys, piped, kind, verb, payload, write, key, body):
+    BODY_RULES[kind](piped)
+    good(capsys, kind, verb, **{name: body if value is ... else value for name, value in payload.items()})
+    assert sent_body(piped.sent(*write)[-1], key) == body
+    assert all(sum(map(len, call_["args"])) < 2000 for call_ in piped.calls)
+
+
+def test_the_body_bytes_on_the_pipe_are_the_utf8_of_the_text_with_no_line_end_change(capsys, piped):
+    BODY_RULES["github"](piped)
+    good(capsys, "github", "change-update-body", id="7", body=CRLF_BODY)
+    assert piped.sent("pr", "edit")[-1] == CRLF_BODY.encode("utf-8")
+
+
+NOTE_READS = {
+    "github": lambda piped, body: (
+        piped.on("gh", "repo", "view", answer={"nameWithOwner": "acme/widget"}),
+        piped.on("gh", "pr", "view", answer={"number": 7}),
+        piped.on("gh", "api", "graphql", answer={"data": {"repository": {"pullRequest": {"comments": {
+            "nodes": [{"databaseId": 1, "lastEditedAt": None}]}}}}}),
+        piped.on("gh", "api", "--paginate", answer=[{"id": 1, "body": body, "user": {"login": "x"}}])),
+    "gitlab": lambda piped, body: (
+        piped.on("glab", "mr", "view", answer={"iid": 7}),
+        piped.on("glab", "api", "projects/:id", answer={"path_with_namespace": "acme/widget"}),
+        piped.on("glab", "api", "graphql", answer=gitlab_edits(1)),
+        piped.on("glab", "api", "--paginate", answer=[{"id": 1, "body": body, "author": {"username": "x"}}])),
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_crlf_body_round_trips_unchanged(capsys, piped, kind):
+    BODY_RULES[kind](piped)
+    good(capsys, kind, "change-comment", id="7", text=CRLF_BODY)
+    received = sent_body(piped.sent("api", "-X", "POST")[-1], "body")
+    NOTE_READS[kind](piped, received)
+    assert good(capsys, kind, "note-list", id="7")["notes"][0]["body"] == CRLF_BODY
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_diff_with_crlf_keeps_its_bytes(capsys, piped, kind):
+    raw = "+line\r\n+é\r\n".encode("utf-8")
+    piped.on("gh", "pr", "view", answer={"baseRefOid": "", "headRefOid": ""})
+    piped.on(TOOL[kind], "pr" if kind == "github" else "mr", "diff", answer=raw)
+    assert good(capsys, kind, "change-diff", id="7")["diff"] == raw.decode("utf-8")
+
+
+def test_a_payload_on_stdin_keeps_its_line_ends(capsys, piped, monkeypatch):
+    BODY_RULES["github"](piped)
+    payload = json.dumps({"forge": "github", "id": "7", "body": CRLF_BODY}).encode("utf-8")
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8"))
+    assert forge_cli.forge_main(["change-update-body"]) == 0
+    capsys.readouterr()
+    assert piped.sent("pr", "edit")[-1] == CRLF_BODY.encode("utf-8")

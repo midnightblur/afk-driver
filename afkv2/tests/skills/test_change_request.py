@@ -1053,11 +1053,23 @@ class Tools:
         return shell.Done(0, json.dumps({"iid": 7, "web_url": "https://f.test/7", "title": "t", "state": "opened", "draft": self.draft,
                                          "sha": self.head, "head_pipeline": {"status": self.ci, "web_url": "https://f.test/ci"}}), "")
 
+    def _gitlab_api(self, args, stdin_text):
+        if args[1].startswith("users?username="):
+            name = args[1].split("=", 1)[1]
+            return shell.Done(0, json.dumps([{"id": len(name), "username": name}]), "")
+        if "-X" in args and args[args.index("-X") + 1] == "POST":
+            self.exists = True
+            assert json.loads(stdin_text)["title"].startswith("Draft: ")
+            return shell.Done(0, json.dumps({"iid": 7, "web_url": "https://f.test/-/merge_requests/7", "draft": True}), "")
+        return shell.Done(0, "{}", "")
+
     def __call__(self, tool, args, *, stdin_text=None, timeout=None):
         if tool == "git":
             return self.real_run(tool, args, stdin_text=stdin_text, timeout=timeout)
         assert tool == {"github": "gh", "gitlab": "glab"}[self.kind]
         self.commands.append(list(args))
+        if args[0] == "api" and self.kind == "gitlab":
+            return self._gitlab_api(args, stdin_text)
         if args[1] == "view":
             return self._view()
         if args[1] == "create":
@@ -1065,8 +1077,6 @@ class Tools:
             assert "--draft" in args
             return shell.Done(0, "https://f.test/" + ("pull" if self.kind == "github" else "-/merge_requests") + "/7\n", "")
         if args[1] == "ready" or "--ready" in args:
-            self.draft = False
-        if self.kind == "gitlab" and "--description" in args:
             self.draft = False
         if "--draft" in args:
             self.draft = True
