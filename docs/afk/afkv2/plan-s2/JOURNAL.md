@@ -174,3 +174,5 @@
 2026-10-30 20:51 | execute | 0010-to-subtasks-skill | done — tiers green, review gate passed, Draft pull request 154 checklist ticked; Codex live check is owner-run and not run (D-S-8)
 2026-10-30 16:55 | autopilot | run | decision(D-67) — two helper files were renamed, because every script name must now be unique across the plugin
 2026-10-30 16:55 | autopilot | run | gate-skip — commit f6eec235 and the merge commits made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-10-30 17:04 | smoke-test | gate | smoke smoke_green (2/2 scenarios) — the code compiles and the afkv2 tests pass (508 passed, 22 skipped because they wait for the other sessions' page engine and ticket tool); the real page engine and ticket tool were not part of this run
+2026-10-30 17:04 | autopilot | run | run end (5/5 done, 0 parked) — all five slices are built and the smoke check is green; the final ship check is left out by the session brief, and the pull request stays Draft
