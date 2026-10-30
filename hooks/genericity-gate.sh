@@ -5,7 +5,8 @@
 # was still violated by an agent hardening the harness after an incident —
 # instruction alone demonstrably isn't enough, hence enforcement.
 #
-# Checks ADDED lines of changed/untracked plugin .md files for:
+# Checks ADDED lines of changed/untracked plugin .md files (outside afkv2/ and
+# docs/afk/afkv2/) for:
 #   0. build-system commands in the generic worktree scripts (scripts/*), whose
 #      whole design is that every such command lives in a build-gate adapter
 #  0b. a person named anywhere in the plugin tree - a tracker account id, an

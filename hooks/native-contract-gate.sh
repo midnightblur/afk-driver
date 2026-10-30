@@ -34,6 +34,8 @@
 #   N. no plugin script, workflow or agent prose runs `lavish-axi` (guard's reader) except
 #      scripts/lavish_show.py and tests; exceptions use rule lavish-direct.
 #
+# Tree walks (A, I, J, K, N) skip afkv2/ and docs/afk/afkv2/.
+#
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
 
