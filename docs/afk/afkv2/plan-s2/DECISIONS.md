@@ -90,3 +90,10 @@
 - Chosen: A — the signed rule says "agent reads the note as clear", and the design interview settled owner notes that stated a change (GRILL-LOG V-2, V-7), so B narrows it. The other parts of D-12 stay
 - Supersedes: D-12, only for a note that asks for a change
 - To reverse: edit the round pass in `components/card.md` and the rule test
+
+## D-14 — a note that changes sign-off wording is not a clear note; the older-card point stays open
+- 2026-10-30 · decided by execute (0006-visualize-skill, review findings 0006-visualize-skill/f066, f067)
+- Options: A — a note that changes the wording of a `signoff` card returns as a new card with the new wording, and a note that affirms the wording can still settle vs B — every clear note settles a `signoff` card
+- Chosen: A — the human has not signed the new wording, and the design record re-signed after a change (GRILL-LOG, sign-off rows), so the note leaves the answer open. This limits no card kind, so D-12 stands. The test-helper line in `.claude/wiring-ious.md` is dropped, because the wiring gate cannot close it. How ingest records a note on a card of a settled round stays open and not verified; plan-s1 0005 owns it (acceptance "A note on a settled item reopens it"), and `components/card.md` follows what that slice ships
+- Supersedes: none
+- To reverse: edit the round pass in `components/card.md` and `ROUND_PASS` in the test

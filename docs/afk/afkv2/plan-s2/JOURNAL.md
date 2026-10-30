@@ -30,3 +30,5 @@
 2026-10-30 03:04 | execute | 0006-visualize-skill | decision(D-12) — no limit by card kind on a settle by note; a note asking for a change is not clear, and a reopen or changes mark always disagrees
 2026-10-30 03:16 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=2 low=3 — round 7: the reviewers found that one reading sentence still narrowed the signed note rule, and that the rule test left out 3 sentences
 2026-10-30 03:16 | execute | 0006-visualize-skill | decision(D-13) — a note that states a change in full can settle a point; only a note that leaves the answer open is not clear
+2026-10-30 03:30 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=2 low=2 — round 8: the reviewers found that a note changing sign-off wording could settle the card, and that a list of rule sentences could not catch an added sentence
+2026-10-30 03:30 | execute | 0006-visualize-skill | decision(D-14) — a note that changes sign-off wording returns for a sign mark, and the ingest record of a note on an older card stays open with plan-s1 0005
