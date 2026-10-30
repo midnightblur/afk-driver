@@ -87,3 +87,16 @@
 2026-10-30 12:45 | autopilot | run | heartbeat 2/5 done, starting 0008-to-prd-jira-publish — the grill skill is finished, moving to the skill that writes the requirements and publishes them to the ticket
 2026-10-30 12:46 | autopilot | run | decision(D-33) — the name the next slice uses to find the grill skill matched two lines, so the plan now uses one that matches a single line
 2026-10-30 12:46 | autopilot | run | decision(D-34) — the first replacement name was too short for the plan check, so the plan now uses a longer one that matches a single line
+
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | designing — the slice builds the requirements skill and its publish to the ticket; the grill it reads passed the consumer check
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | developing — tests first, against a recorded stand-in for the tracker; the real tracker gets no call in this slice
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-35) — the ground comparison shows many changed lines, all under docs/afk; nothing outside docs/afk/afkv2, afkv2 and .claude changed, so the seam ground still holds
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-36) — the publish calls use the payloads the tracker port contract states, because the port is not merged yet
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-37) — run files such as the preview and the pictures go to a run folder that git ignores
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-38) — the preview is an HTML page and the yes is the developer's own message in the session; no page engine
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-39) — diagrams render with mermaid-cli on the machine, and one diagram source renders once
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-40) — the rule that keeps requirement ids stable: an id never moves, never returns, and new ids go above old ones
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-41) — the publish reads the ticket once more before the write, so a change after the preview stops it
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-42) — the line that records a published ticket comes after the read-back and before the deletes, so a failed write leaves no record and a failed delete keeps it
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-43) — this skill imports the grill's own helper scripts instead of a second copy of them
+2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-44) — the old-version names live in files called v1_facts.py; the plugin check needs an exemption that a parallel session owes

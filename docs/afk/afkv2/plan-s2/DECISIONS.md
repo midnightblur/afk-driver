@@ -237,3 +237,73 @@
 - Chosen: A — the plan check refuses `name: grill` as shorter than 12 characters. I committed D-33 before I read the check result. The new anchor greps once, and the check is clean
 - Supersedes: D-33, only its anchor text
 - To reverse: restore `/afkv2:grill` in both contracts
+
+## D-35 — the seam ground held, although the diff script reports drift
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish, Step 4 ground diff)
+- Options: A — read the drift as noise: `git diff 22ab4de0 HEAD` over every path outside `docs/afk/afkv2`, `afkv2` and `.claude` is empty, so the code INV-002 read is byte-identical vs B — a new investigation run at the current head
+- Chosen: A — `ground_diff.py` exits 1 with 728 places, but every `+` row is spec prose added after the ledger, and the `-` rows come from a seed run with one `--subject`, while the ledger ran 4 roots; the seed script takes one subject. B would re-read identical code. Not verified: whether a 4-root seed run would come back clean
+- Supersedes: execute `CITED-MODE.md` "On drift, re-investigate rather than patch", for this seam
+- To reverse: run `/afk:investigate` on `build_description` at the head of this branch
+
+## D-36 — the tracker payloads follow the port's own contract file on the S3 branch
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — build the fake and the calls from `afkv2/ports/tracker/CONTRACT.md` at `origin/feat/afkv2-s3` (not merged) vs B — only from SDD §3, and adjust when S3 merges
+- Chosen: A — the plan's cross-session rule fixes the contract through the SDD, and SDD §3 names no carrier for the receipt and no text the receipt hashes. S3 settled them (its D-17 and later rows): `preview` path in `attachment-put` and `description-put`, `description_hash` and `block` from `issue-get`, `figure_token` and `block_text` from `md-to-adf`. B makes a guaranteed rework
+- Supersedes: SDD §3 "description-put {key, adf, expect_hash, receipt}" and "attachment-put {key, png}", as S3's ledger already does
+- To reverse: change `call` sites in `publish.py` and `fakes/fake_jira_port.py`
+
+## D-37 — the run area of a spec folder is `run/`, and git ignores it
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — `<spec folder>/run/` with a `.gitignore` of `*` that the preview writes vs B — the afkv2 data folder vs C — commit the preview with the spec folder
+- Chosen: A — SDD §4 puts "Publish preview + receipt" in the "spec folder run area", and PRD AC-070 lists what merges with the change, and a preview is not in that list. B moves it out of the place the SDD names
+- Supersedes: none
+- To reverse: change `run_dir` in `prd_files.py start`
+
+## D-38 — the preview is one HTML file and the yes is a chat message; to-prd calls no engine verb
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — a self-contained HTML file drawn from the ADF nodes the publish sends, and the developer's yes in chat vs B — a page document and an engine round for the preview
+- Chosen: A — SDD §4 fixes `session.skill ∈ grill, propose-solution, propose-verification`, so to-prd cannot own a signed page document (HL-1), and SDD §7 says only "show preview" and "yes". A also shows the nodes that go to the ticket, and not a second rendering of the Markdown
+- Supersedes: SDD §8 module diagram, edge "to-prd → page engine"
+- To reverse: add `to-prd` to the session skill values, and draw the preview as a round
+
+## D-39 — diagrams render with mermaid-cli on the machine, and each source renders once
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — `mmdc`, else `npx -y @mermaid-js/mermaid-cli` as v1 does, with the PNG cached by the hash of the source in the run area vs B — render at each preview
+- Chosen: A — SDD §5 makes the receipt depend on the picture hashes, and a renderer may not give equal bytes twice (not verified for mermaid-cli), so B could break the equal read-back of a re-run. No SDD row or setup contract installs mermaid-cli, so the preview refuses `render-failed` and names the install; setup can add it later
+- Supersedes: none
+- To reverse: drop `_rendered`, and render in `build_preview`
+
+## D-40 — an id stays by its line, and `check` compares with the last commit
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — a dropped criterion keeps its line with `retired: <why>`, a new id is above the highest of its family, and text that moves to another id is refused; all against `git show HEAD:` vs B — a separate id ledger file vs C — a rule in prose only
+- Chosen: A — AC-050 needs a mechanical check; A needs no new artifact, and keeps each id in the published text, so AC-055 still holds for a dropped criterion. C is a defect under the plugin's deterministic-first rule
+- Supersedes: none
+- To reverse: remove `renumber_problems` from `prd_files.py check`
+
+## D-41 — the publish reads the ticket once before its first write
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — after the yes, `issue-get` and `attachment-list` first: an equal block means no write; a changed hash means `stale` before any upload vs B — go straight to `attachment-put`
+- Chosen: A — SDD §5 asks a re-run after success to write nothing, and B uploads first. The port's own check just before the write stays the guard (ADR-0004 design); A only saves dead uploads. A local `uploads.json` lets a re-run reuse an upload and its media id, because `attachment-list` answers no media id
+- Supersedes: none
+- To reverse: remove the 2 reads and the 2 branches at the head of `publish_after_yes`
+
+## D-42 — the published line comes after the read-back and before the deletes
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — write the line once the read-back passes; a run that wrote nothing adds a line only when that ticket and receipt have none vs B — write it last
+- Chosen: A — the switch-back report must list a ticket that holds an afkv2 block, also when a delete failed. D-S-3 asks one line per publish, and a run that writes nothing is not a publish
+- Supersedes: none
+- To reverse: move `_record` after `_remove_unused`
+
+## D-43 — to-prd imports the grill's envelope, config read and gate read
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — import `grill_common`, `grill_start` and `grill_log` from `skills/grill/scripts` vs B — copy them
+- Chosen: A — one fact, one home: the spec folder rule (D-24) and the exit gate row have one parser each
+- Supersedes: none
+- To reverse: copy the 3 helpers into `skills/to-prd/scripts`
+
+## D-44 — the v1 picture name lives in a `v1_facts.py`
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — `skills/to-prd/scripts/v1_facts.py` and `tests/skills/fakes/v1_facts.py`, as S3's D-35 keeps its v1 strings vs B — hide the name from the check with a split string
+- Chosen: A — S3's D-35 rejects B because it defeats the check. The S1 plugin check flags a `v1_facts.py` until the exemption by file name that S3 owes lands: IOU in `.claude/wiring-ious.md`
+- Supersedes: none
+- To reverse: inline the name, once the check has a different exemption
