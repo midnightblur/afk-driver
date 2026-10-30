@@ -102,7 +102,8 @@ name the afkv2 tree directly.
 | 1 | compile | `afk-python -m compileall -q afkv2` | pass |
 | 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | pass |
 
-Last run: 2026-10-30 local — green: compile exit 0; regression 508 passed, 22 skipped
+Last run: 2026-10-30 local at 9f70068c — green: compile exit 0; regression 508 passed, 22 skipped
 
 Run history:
 - 2026-10-30 local — smoke_green (minimal gate), failing: none
+- 2026-10-30 local — smoke_green (minimal gate, re-run at 9f70068c after the late fixes and the merge of #157), failing: none

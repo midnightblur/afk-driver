@@ -179,3 +179,6 @@
 2026-10-30 17:16 | autopilot | run | decision(D-68) — the search for unused work found 2 commands nothing calls, so they are removed; 2 more items wait for work planned elsewhere
 2026-10-30 17:16 | autopilot | run | decision(D-69) — the owner ruled that a fix made late gets one narrow check of that fix alone
 2026-10-30 17:16 | autopilot | run | gate-skip — commit 5120ee84 and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-10-30 17:28 | autopilot | run | delta check confirm f6eec235, 5120ee84 — under owner ruling R-5 a fresh reader checked only the 2 late fixes and found both correct; it ran no tests
+2026-10-30 17:28 | smoke-test | gate | smoke smoke_green (2/2 scenarios) — run again at 9f70068c after the late fixes and the merge: the code compiles and the afkv2 tests pass (508 passed, 22 skipped)
+2026-10-30 17:28 | autopilot | run | run end (5/5 done, 0 parked) — all five slices are built and the smoke check is green at the final code; the ship check is left out by the session brief, and the pull request stays Draft
