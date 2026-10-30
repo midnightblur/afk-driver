@@ -147,3 +147,5 @@
 2026-10-30 15:41 | autopilot | run | decision(D-55) — the publish skill already follows the newly frozen preview format, so it needed no change, only a new test run
 2026-10-30 15:41 | autopilot | run | decision(D-56) — subtask 0010 will write the exact words the autopilot of the other session reads for a check that cannot run here
 2026-10-30 15:41 | autopilot | run | heartbeat 4/5 done, starting 0010-to-subtasks-skill — the design skill is finished, moving to the last slice, the skill that cuts a design into a plan
+2026-10-30 15:50 | execute | 0010-to-subtasks-skill | designing — the contract is read; it has no seam rows, so there is no ground to compare; all files are new, so no earlier reason applies
+2026-10-30 15:52 | execute | 0010-to-subtasks-skill | developing — the plan check is written test first

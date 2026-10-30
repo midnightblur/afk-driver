@@ -84,7 +84,7 @@ before it from disk.*
 | 2 | 0007-grill-skill | grill skill | done | 0006-visualize-skill | static, unit, integration | — |
 | 3 | 0008-to-prd-jira-publish | to prd jira publish | done | 0007-grill-skill | static, unit, integration | use §14 |
 | 4 | 0009-propose-solution-skill | propose solution skill | done | 0008-to-prd-jira-publish | static, unit, integration | — |
-| 5 | 0010-to-subtasks-skill | to subtasks skill | pending | 0009-propose-solution-skill | static, unit, integration | — |
+| 5 | 0010-to-subtasks-skill | to subtasks skill | developing | 0009-propose-solution-skill | static, unit, integration | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
