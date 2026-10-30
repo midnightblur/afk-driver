@@ -440,3 +440,17 @@
 - Chosen: B — no review round read the fix of the 2 high findings, and a clean marker would say that one did. Their proof is 2 new tests, each seen to fail on the old behaviour. The 9 medium and low findings of round 3 stay open on the change as `deferred gate=advisory`, so that no later gate reads them as owed. `gate --phase closure` refuses this state, as expected; D-60 replaces it for this slice
 - Supersedes: none
 - To reverse: run another review round on the tip and write a clean summary
+
+## D-64 — 3 wrong record comments of 0013 were deleted outside the ledger verbs
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — keep the 3 `fixed` records with sha d0e07482 vs B — delete them with `gh api -X DELETE` and write them again with sha 50d44790
+- Chosen: B — the earlier agent of this slice took this action and did not record it; this entry records it after the fact. It wrote the 3 records on change 156 for f013, f014 and f015 with a telemetry commit that has no `Settles:` trailer. `fixed` is terminal, so closure could never pass. It deleted only those 3 comments, its own (ids 4423544149, 4423551306, 4423558267), and `reconstruct` now shows the 3 keys `fixed` at 50d44790. Source: that agent's transcript. The deleted bodies were not read in this run (unverified)
+- Supersedes: none
+- To reverse: write no new record; the earlier comments cannot be restored, and their content is in the transcript
+
+## D-65 — round 3 of 0013 is recorded at the head it read, and passes by D-60
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — write `clean=true` at the current tip so that `gate --phase closure` passes vs B — run the round again vs C — write `clean=true` at d0e07482, the head that the round read, and take the gate result from D-60
+- Chosen: C — round 3 did run: its 2 reviewers (delta-sweep, test-veracity) read d0e07482 and both returned an empty list, but the stopped agent wrote no record of it. A new run would be a 4th round, which D-60 forbids. A marker at the tip would name a head that no round read. No file of this slice changed from d0e07482 to the tip. `gate --phase closure` refuses, as expected: "summary does not describe the requested final head and round". All 15 keys are `fixed` with resolved threads, and no critical or high finding is open, so D-60 passes the gate
+- Supersedes: none
+- To reverse: run another review round on the tip and write a clean summary
