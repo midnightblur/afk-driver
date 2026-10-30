@@ -58,6 +58,7 @@ def test_takeover_and_switch_back(env, places, repo, runner, system, plugin_root
                          env, system, plugin_root, repo, capsys)
     assert code == 1 and refused["v1_block"] == "kept"
     assert any("trust the afkv2 hooks" in r for r in refused["proof"]["reasons"])
+    assert "hook trust review" in refused["next"]
     assert (places.backup / "instructions" / "claude" / "original").exists()
     for path, data in files.items():
         assert path.read_bytes() == data, path
@@ -68,7 +69,6 @@ def test_takeover_and_switch_back(env, places, repo, runner, system, plugin_root
     code, done = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
                       env, system, plugin_root, repo, capsys)
     assert code == 0, done
-    assert b"afk:behaviors" not in places.instruction_file("claude").read_bytes()
     assert places.instruction_file("claude").read_bytes() == b"mine\r\nmore\r\n"
     assert places.instruction_file("codex").read_bytes() == b"codex\n"
     assert not (hooks_dir(repo) / "pre-commit").exists()
@@ -108,6 +108,19 @@ def test_takeover_and_switch_back(env, places, repo, runner, system, plugin_root
     assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
     assert not any((places.backup / sub).exists() and any((places.backup / sub).iterdir())
                    for sub in ("instructions", "git-hooks", "claude-settings", "codex"))
+
+    # The install record ends at switch-back, so an old fired record proves nothing.
+    assert not places.install_record.exists()
+    code, later = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
+                       env, system, plugin_root, repo, capsys)
+    assert code == 1 and later["error"]["code"] == "no-install-record"
+
+
+def test_unreadable_settings_exit_2(env, places, repo, system, plugin_root, capsys):
+    places.claude_user_settings.parent.mkdir(parents=True)
+    places.claude_user_settings.write_text("{not json", encoding="utf-8")
+    code, answer = _cli(["status"], env, system, plugin_root, repo, capsys)
+    assert code == 2 and answer["error"]["code"] == "unreadable-input"
 
 
 def test_status_reports_without_writing(env, places, repo, system, plugin_root, capsys):

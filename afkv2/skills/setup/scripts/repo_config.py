@@ -16,7 +16,7 @@ AFKV2_CONFIG = (".afkv2", "config.yaml")
 # Scalar keys copied; each value also names a section that is copied with it.
 KIND_KEYS = ("tracker", "forge", "notes")
 COPIED_SECTIONS = ("git",)
-HEADER = b"# afkv2 repository config. Values below the copy line came from the v1 config once.\n"
+HEADER = b"# afkv2 repository config.\n"
 
 _TOP_KEY = re.compile(rb"^([A-Za-z0-9_.-]+):(.*)$")
 
@@ -73,7 +73,7 @@ def copy_v1_config(repo: Path) -> dict:
     target = afkv2_config(repo)
     if target.exists():
         return {"ok": True, "action": "exists", "path": str(target)}
-    body = HEADER + b"# --- copy line ---\n" + b"".join(plan["_blocks"].values())
+    body = HEADER + b"".join(plan["_blocks"].values())
     write_atomic(target, body)
     return {"ok": True, "action": "copied", "keys": plan["keys"], "path": str(target)}
 

@@ -90,11 +90,22 @@ _ENABLED = re.compile(r"^(\s*enabled\s*=\s*)(true|false)(\s*(#.*)?)$")
 
 
 def codex_config_state(text: str) -> dict[str, bool]:
-    import tomllib
-
-    tables = tomllib.loads(text).get("plugins") or {}
-    return {i: bool((t or {}).get("enabled", True)) for i, t in tables.items()
-            if plugin_name(i) in NAMES}
+    """plugin id -> enabled for afk and afkv2 tables; no `enabled` line reads as on."""
+    state: dict[str, bool] = {}
+    table = None
+    for line in text.splitlines():
+        head = _TABLE.match(line)
+        if head:
+            table = head.group(1)
+            if plugin_name(table) in NAMES:
+                state[table] = True
+        elif line.startswith("["):
+            table = None
+        elif table in state:
+            match = _ENABLED.match(line)
+            if match:
+                state[table] = match.group(2) == "true"
+    return state
 
 
 def codex_edit(text: str, wanted: Mapping[str, bool]) -> str:

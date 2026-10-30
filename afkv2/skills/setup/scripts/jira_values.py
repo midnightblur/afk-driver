@@ -8,11 +8,11 @@ Claude user config (`~/.claude.json`), then the Codex config
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping
 
 from places import Places, write_atomic
+from tools import broadcast_environment_change
 import v1_facts
 
 KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
@@ -82,10 +82,8 @@ def store_jira_values(places: Places, values: Mapping[str, str],
                                        "reason": f"{path} is not valid JSON"}}
     block = _tracker_env(config) if config else None
     if block is not None:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        saved = places.backup / "claude-user-config" / f"claude.json.{stamp}"
-        saved.parent.mkdir(parents=True, exist_ok=True)
-        saved.write_bytes(path.read_bytes())
+        saved = places.backup / "claude-user-config" / "claude.json"
+        write_atomic(saved, path.read_bytes())
         block.update({k: values[k] for k in KEYS})
         write_atomic(path, (json.dumps(config, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         return {"ok": True, "stored_in": "claude user config", "backup": str(saved)}
@@ -104,6 +102,7 @@ def windows_user_env_setter(name: str, value: str) -> None:
 
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+    broadcast_environment_change()
 
 
 def ask_values(current: Mapping[str, tuple[str, str]], ask: Callable[[str], str],

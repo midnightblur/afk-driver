@@ -138,11 +138,11 @@ def windows_user_path_adder(folder: Path) -> bool:
         winreg.SetValueEx(key, "Path", 0, kind, ";".join([*parts, str(folder)]))
     finally:
         winreg.CloseKey(key)
-    _broadcast_environment_change()
+    broadcast_environment_change()
     return True
 
 
-def _broadcast_environment_change() -> None:
+def broadcast_environment_change() -> None:
     try:
         import ctypes
 

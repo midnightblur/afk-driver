@@ -81,7 +81,7 @@ def read_install_record(places: Places) -> dict[str, str]:
 def write_install_record(places: Places, python: dict, rg: str | None) -> dict:
     """Keep the first `installed` time: the hook proof compares against it."""
     record = read_install_record(places)
-    record.setdefault("installed", _now().isoformat(timespec="seconds"))
+    record.setdefault("installed", _now().isoformat())
     record["python"] = f"{python['path']} {python['version']}"
     record["rg"] = rg or "unknown"
     text = "".join(f"{k} {record[k]}\n" for k in ("installed", "python", "rg"))
@@ -429,6 +429,8 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
     lavish = tools.restore_lavish(places, run, env)
     one_on = _leave_v1_only(places, repos, run)
     ok = lavish["ok"] and one_on["ok"] and not any(h["action"] == "conflict" for h in hooks)
+    if ok:
+        places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
             "codex_config": codex, "lavish": lavish, "plugins": one_on,
             "published_tickets": published_tickets(places)}
@@ -483,6 +485,7 @@ def takeover(places: Places, repo: Path, system: System, env: Mapping[str, str],
                        required_providers(places, provider, codex_state))
     if not proof.get("proved"):
         return {"ok": False, "proof": proof, "v1_block": "kept", "backups_kept": kept,
+                "next": "start a new session and run setup again. " + TRUST_REVIEW,
                 "error": proof.get("error") or {"code": "no-proof", "reason": "; ".join(proof["reasons"])}}
     steps = {"proof": proof}
     for name, step in (("v1_block", lambda: remove_v1_block(places)),
@@ -541,24 +544,28 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
             return 2
-    if args.verb == "status":
-        answer = status(places, repo, system, env)
-    elif args.verb == "prepare":
-        answer = prepare(places, system, env)
-    elif args.verb == "secrets":
-        answer = secrets(places, system, env)
-    elif args.verb == "copy-config":
-        answer = repo_config.copy_v1_config(repo)
-    elif args.verb == "ownership":
-        answer = (repo_config.record_ownership_skip(repo, places) if args.skip
-                  else repo_config.write_ownership(repo, places, args.own, args.shared))
-    elif args.verb == "takeover":
-        if not args.provider:
-            print(json.dumps(_error("bad-arguments", "takeover needs --provider")))
-            return 2
-        answer = takeover(places, repo, system, env, args.provider, args.end_marker, plugin_root)
-    else:
-        answer = switch_back(places, system.run, env)
+    if args.verb == "takeover" and not args.provider:
+        print(json.dumps(_error("bad-arguments", "takeover needs --provider")))
+        return 2
+    try:
+        if args.verb == "status":
+            answer = status(places, repo, system, env)
+        elif args.verb == "prepare":
+            answer = prepare(places, system, env)
+        elif args.verb == "secrets":
+            answer = secrets(places, system, env)
+        elif args.verb == "copy-config":
+            answer = repo_config.copy_v1_config(repo)
+        elif args.verb == "ownership":
+            answer = (repo_config.record_ownership_skip(repo, places) if args.skip
+                      else repo_config.write_ownership(repo, places, args.own, args.shared))
+        elif args.verb == "takeover":
+            answer = takeover(places, repo, system, env, args.provider, args.end_marker, plugin_root)
+        else:
+            answer = switch_back(places, system.run, env)
+    except (ValueError, OSError) as exc:
+        print(json.dumps(_error("unreadable-input", f"{type(exc).__name__}: {exc}")))
+        return 2
     print(json.dumps(answer, indent=2, default=str))
     return 0 if answer.get("ok") else 1
 
