@@ -18,8 +18,9 @@ every note in the document comes from the human. A note with `deleted` set is no
 input.
 
 A note whose `target` is a map node id is a steer for that node. Repeat it word
-for word in your reply and hold to it for that node until the session ends. A
-newer steer on the same node replaces the older one.
+for word in your reply and hold to it for that node until the session ends. When
+2 steers on one node conflict, do not choose: state the conflict in your reply
+and ask the human.
 
 ## How it looks
 

@@ -25,26 +25,28 @@ map node. A card stays in its round when the round settles.
 
 When the human sends a round, the engine settles a point with one `accept`,
 `sign` or option mark. It moves a point to `needs_reading` on `reopen`,
-`changes`, a write-in, a note, a mark plus a note, or 2 marks. A note or a
-`reopen` mark on a settled card moves that card to `open`, in any round. Before
-you mark the round `settled`, go through every card the send changed, in any
-round, and every `blocked` card:
+`changes`, a write-in, a note, a mark plus a note, or 2 marks. Before you mark
+the round `settled`, go through the cards of the current round. Never change a
+card in a settled round. A note whose `target` is a map node id is a steer: leave
+it out when you read the signals, because it settles nothing.
 
-- `needs_reading` with a clear note: set `state` to `settled_by_note` and write
-  `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
-  The `signal` is the note id. A note whose `target` is a map node id is a steer
-  and settles nothing.
-- `needs_reading` with an unclear note, signals in conflict or no note: set
-  `state` to `open`.
+- `needs_reading` with a clear note or write-in: set `state` to `settled_by_note`
+  and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
+  The `signal` is the note id, or `write-in` for a write-in.
+- `needs_reading` in any other case: set `state` to `open`.
 - `blocked` with the point it waits on now settled: set `state` to `open`.
 
-Then mark the round `settled` and append the next round. Each `decided`,
-`confirm`, `debate` or `signoff` card that is still `open` or `blocked`, in any
-round, gets a new card there, unless a later card already names it. The new card
-has a new id. Its body names the old card id and shows the signals that returned
-the point, for example both the mark and the note. A carried `blocked` card names
-the current card id of the point it waits on. An `info` card stays in its round.
-The old card stays as it is.
+Then mark the round `settled` and append the next round. Make one new card for
+each point that returns:
+
+- a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
+  is still `open` or `blocked`;
+- a card of an earlier round that the human noted or reopened in this send.
+
+The new card has a new id. Its body names each old card id and shows the signals
+that returned the point, for example both the mark and the note. A carried
+`blocked` card names the current card id of the point it waits on. An `info` card
+stays in its round. The old card stays as it is.
 
 ## How it looks
 

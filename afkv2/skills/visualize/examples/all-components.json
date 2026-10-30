@@ -38,7 +38,7 @@
       },
       "replies": [
         {
-          "text": "Round 0 input, read as: the export stays per order. This round asks the three design points that follow from it.",
+          "text": "Read the requirements as: the export stays per order. This round asks the three design points that follow from it.",
           "about": ["i-data", "i-flow", "i-format"]
         }
       ],

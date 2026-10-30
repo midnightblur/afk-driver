@@ -51,6 +51,7 @@ ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 SETTLED_FIELDS = {"by", "round", "signal", "reading"}
 NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
+WRITE_IN = "write-in"
 COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
@@ -183,7 +184,7 @@ def _walk_components(comp):
                     yield from _walk_components(cell)
 
 
-def _check_settled(item, iw, last_round):
+def _check_settled(item, iw, last_round, node_ids):
     state = item.get("state", "open")
     settled = item.get("settled")
     if state not in ("settled_by_mark", "settled_by_note"):
@@ -198,8 +199,10 @@ def _check_settled(item, iw, last_round):
     if by == "note":
         _need(isinstance(settled.get("reading"), str) and settled["reading"], f"{iw}.settled",
               "reading (required when by = note)")
-        _need(settled["signal"] in {n["id"] for n in item.get("notes", [])}, f"{iw}.settled",
-              "signal (must name a note on the item)")
+        live = {n["id"] for n in item.get("notes", [])
+                if not n["deleted"] and n["target"] not in node_ids}
+        _need(settled["signal"] == WRITE_IN or settled["signal"] in live, f"{iw}.settled",
+              "signal (must name a live note on the item, or write-in)")
 
 
 def _check_notes(item, iw, last_round):
@@ -239,7 +242,7 @@ def _check_round(r, ids, node_ids, last_round, components):
         _need(item.get("state", "open") in POINT_STATES, iw, "state")
         _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
         _check_notes(item, iw, last_round)
-        _check_settled(item, iw, last_round)
+        _check_settled(item, iw, last_round, node_ids)
         _need("body" in item, iw, "body")
         _check_component(item["body"], f"{iw}.body", ids, last_round)
         components.extend(_walk_components(item["body"]))
@@ -274,6 +277,11 @@ def _check_document(doc):
         for p, reply in enumerate(r.get("replies", [])):
             for target in reply.get("about", []):
                 _need(target in ids, f"round {r['n']}.replies[{p}]", f"about {target} must resolve")
+    note_ids = set()
+    for note in (n for r in rounds for item in r["items"] for n in item.get("notes", [])):
+        _need(note["id"] not in note_ids, f"note {note['id']}", "id not unique")
+        note_ids.add(note["id"])
+        _need(note["target"] in ids, f"note {note['id']}", "target must resolve")
     return components
 
 
@@ -415,20 +423,23 @@ def _extra_round(d):
                         "banner": {"settled": [], "unlocks": [], "parked": []}, "items": []})
 
 
-def _settle(state, **settled):
+def _settle(state, notes=(), **settled):
     def mutate(d):
-        _at("i-data")(d).update(state=state, settled=settled, notes=[_note("i-data")])
+        _at("i-data")(d).update(state=state, settled=settled, notes=list(notes))
     return mutate
 
 
 def _next_round(d):
-    """Make round 1 settled and round 2 current, with one new card."""
+    """Settle round 1 and open round 2, which carries the point still open."""
+    for wanted in ("i-data", "i-flow"):
+        _at(wanted)(d).update(state="settled_by_mark",
+                              settled={"by": "mark", "round": 1, "signal": "accept"})
     _round(d)["state"] = "settled"
     d["rounds"].append({
         "n": 2, "state": "current",
         "banner": {"settled": ["The data change"], "unlocks": [], "parked": []},
         "items": [{"id": "i-format-2", "kind": "debate", "node": "n-format",
-                   "body": {"type": "text", "props": {"text": "Reopens i-format."}}}],
+                   "body": {"type": "text", "props": {"text": "Carried from i-format."}}}],
     })
     return d
 
@@ -472,7 +483,19 @@ REFUSALS = [
     ("note unknown field", _set(_at("i-data"), "notes", [{**_note("i-data"), "x": 1}]),
      "unknown field"),
     ("note id", _set(_at("i-data"), "notes", [{**_note("i-data"), "id": "n1"}]), "id (N-"),
-    ("note round", _set(_at("i-data"), "notes", [_note("i-data", 2)]), "notes[0]: round"),
+    ("note round past the last", _set(_at("i-data"), "notes", [_note("i-data", 2)]),
+     "notes[0]: round"),
+    ("note round 0", _set(_at("i-data"), "notes", [_note("i-data", 0)]), "notes[0]: round"),
+    ("note target not text", _set(_at("i-data"), "notes", [{**_note("i-data"), "target": 7}]),
+     "notes[0]: target"),
+    ("note target unknown", _set(_at("i-data"), "notes", [{**_note("i-data"), "target": "nope"}]),
+     "target must resolve"),
+    ("note text not text", _set(_at("i-data"), "notes", [{**_note("i-data"), "text": 7}]),
+     "notes[0]: text"),
+    ("note deleted not a flag", _set(_at("i-data"), "notes", [{**_note("i-data"), "deleted": "no"}]),
+     "notes[0]: deleted"),
+    ("note id twice", _set(_at("i-data"), "notes", [_note("i-data"), _note("i-data")]),
+     "id not unique"),
     ("settled on an open point",
      _set(_at("i-data"), "settled", {"by": "mark", "round": 1, "signal": "x"}),
      "only on a settled point"),
@@ -490,10 +513,20 @@ REFUSALS = [
     ("settled signal empty", _settle("settled_by_mark", by="mark", round=1, signal=""),
      "settled: signal"),
     ("note settle without reading",
-     _settle("settled_by_note", by="note", round=1, signal="N-1-i-data"), "reading"),
+     _settle("settled_by_note", [_note("i-data")], by="note", round=1, signal="N-1-i-data"),
+     "reading"),
     ("note settle names no note",
-     _settle("settled_by_note", by="note", round=1, signal="N-1-i-flow", reading="x"),
-     "must name a note"),
+     _settle("settled_by_note", [_note("i-data")], by="note", round=1, signal="N-1-i-flow",
+             reading="x"),
+     "must name a live note"),
+    ("note settle names a deleted note",
+     _settle("settled_by_note", [{**_note("i-data"), "deleted": True}], by="note", round=1,
+             signal="N-1-i-data", reading="x"),
+     "must name a live note"),
+    ("note settle names a steer",
+     _settle("settled_by_note", [{**_note("i-data"), "target": "n-data"}], by="note", round=1,
+             signal="N-1-i-data", reading="x"),
+     "must name a live note"),
     ("map node round past the last", _set(_at("n-export"), "round", 2), "nodes[0].round"),
     ("map node round 0", _set(_at("n-export"), "round", 0), "nodes[0].round"),
     ("map node state", _set(_at("n-export"), "state", "done"), "state"),
@@ -526,23 +559,23 @@ def test_fake_refuses_a_broken_document(mutate, field):
         check_document(doc)
 
 
-@pytest.mark.parametrize("state, settled", [
+@pytest.mark.parametrize("state, settled, notes", [
     ("settled_by_note", {"by": "note", "round": 1, "signal": "N-1-i-data",
-                         "reading": "Accepts the field change."}),
-    ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}),
-])
-def test_fake_accepts_a_settled_point(state, settled):
+                         "reading": "Accepts the field change."}, [_note("i-data")]),
+    ("settled_by_note", {"by": "note", "round": 1, "signal": WRITE_IN,
+                         "reading": "Picks a third format."}, []),
+    ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}, []),
+], ids=["by-note", "by-write-in", "by-mark"])
+def test_fake_accepts_a_settled_point(state, settled, notes):
     doc = _example()
-    _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=[_note("i-data")])
+    _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=notes)
     check_document(doc)
 
 
 def test_fake_accepts_a_settled_round_and_a_next_round():
     doc = _next_round(_example())
     components = check_document(doc)
-    assert doc["rounds"][0]["state"] == "settled"
-    assert doc["rounds"][1]["state"] == "current"
-    assert any(c.get("props", {}).get("text") == "Reopens i-format." for c in components)
+    assert any(c.get("props", {}).get("text") == "Carried from i-format." for c in components)
 
 
 def test_examples_carry_no_note_and_no_response():
@@ -561,6 +594,7 @@ def test_card_page_settled_example_has_the_schema_shape():
         assert set(settled) == SETTLED_FIELDS
         assert settled["by"] == "note"
         assert settled["signal"].startswith(f"N-{settled['round']}-")
+    assert f"`{WRITE_IN}`" in text
 
 
 def _frontmatter(path):
