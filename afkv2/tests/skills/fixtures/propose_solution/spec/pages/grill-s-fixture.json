@@ -1,0 +1,8 @@
+{"schema": "afkv2.page/0",
+ "session": {"id": "s-fixture", "skill": "grill", "feature": "PROJ-1", "ticket": "PROJ-1", "started": "2026-01-05T09:00:00Z"},
+ "maps": [],
+ "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+             "items": [{"id": "i-goal", "kind": "confirm", "state": "settled_by_mark",
+                        "settled": {"by": "mark", "round": 1, "signal": "accept"},
+                        "body": {"type": "text", "props": {"text": "The goal is one export file per day."}}}],
+             "responses": [{"received": "2026-01-05T10:00:00Z", "raw": "i-goal: accept", "signals": []}]}]}
