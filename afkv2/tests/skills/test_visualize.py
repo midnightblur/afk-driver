@@ -20,6 +20,7 @@ SKILL_MD = SKILL_DIR / "SKILL.md"
 PAGES_DIR = SKILL_DIR / "components"
 ALL_COMPONENTS = SKILL_DIR / "examples" / "all-components.json"
 ENGINE = PLUGIN / "engine" / "engine.py"
+NOTES_INGEST = PLUGIN / "engine" / "components"
 
 SCHEMA = "afkv2.page/0"
 
@@ -651,6 +652,8 @@ def test_card_page_states_the_round_pass():
     start = text.index("When the human sends a round")
     found = text[start:text.index("## How it looks")]
     assert found.split() == ROUND_PASS.split()
+    assert "settles only by a `sign` mark" not in text
+    assert "card never settles" not in text
 
 
 def _frontmatter(path):
@@ -753,6 +756,12 @@ def test_guide_names_no_upstream_caller():
     refs = set(re.findall(r"/afkv2:[\w-]+", text))
     assert refs <= {"/afkv2:visualize"}, refs
     assert not re.search(r"\b(called|invoked|run) by\b", text, re.I)
+
+
+@pytest.mark.skipif(not list(NOTES_INGEST.glob("notes_*.py")), reason="ingest not merged yet")
+def test_older_card_shape_is_replaced_once_ingest_merges():
+    pytest.fail("Ingest is merged: run it with a note on a card of a settled round, replace "
+                "_note_on_an_older_card with its document, align card.md, and delete this test.")
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake above checks")
