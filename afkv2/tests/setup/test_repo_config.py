@@ -1,0 +1,56 @@
+import repo_config
+
+V1 = (b"# v1 config\nschema: 1\ntracker: jira\nforge: github\nnotes: repo-files\n"
+      b"jira:\n  project: PROJ\n  site: 'x'\ngithub:\n  remote: origin\n"
+      b"git:\n  base-branch: origin/main\nrepo-files:\n  spec-dir: 'docs/{workId}'\n"
+      b"build-gates:\n  - maven\n")
+
+
+def _v1(repo):
+    path = repo / ".afk" / "config.yaml"
+    path.parent.mkdir()
+    path.write_bytes(V1)
+    return path
+
+
+def test_copy_once_and_v1_file_byte_identical(repo):
+    v1 = _v1(repo)
+    plan = repo_config.copy_plan(repo)
+    assert plan["keys"] == ["tracker", "forge", "notes", "jira", "github", "repo-files", "git"]
+    answer = repo_config.copy_v1_config(repo)
+    assert answer["action"] == "copied"
+    assert v1.read_bytes() == V1
+    body = repo_config.afkv2_config(repo).read_bytes()
+    assert b"jira:\n  project: PROJ\n  site: 'x'\n" in body
+    assert b"build-gates" not in body and b"schema" not in body
+    assert repo_config.copy_v1_config(repo)["action"] == "exists"
+    assert repo_config.copy_plan(repo)["done"]
+
+
+def test_no_v1_config(repo):
+    assert repo_config.copy_v1_config(repo) == {"ok": True, "action": "no-v1-config"}
+
+
+def test_ownership_asked_once_then_set(repo, places):
+    assert repo_config.ownership_state(repo, places) == "missing"
+    answer = repo_config.write_ownership(repo, places, ["src/**"], ["lib/it's/**"])
+    assert answer["ok"]
+    text = repo_config.afkv2_config(repo).read_text()
+    assert "ownership:\n  own:\n    - 'src/**'\n  shared:\n    - 'lib/it''s/**'\n" in text
+    assert repo_config.ownership_state(repo, places) == "set"
+    assert repo_config.write_ownership(repo, places, ["x"], [])["error"]["code"] == "ownership-set"
+
+
+def test_ownership_after_a_copy_keeps_the_copy(repo, places):
+    _v1(repo)
+    repo_config.copy_v1_config(repo)
+    repo_config.write_ownership(repo, places, ["a/**"], [])
+    text = repo_config.afkv2_config(repo).read_text()
+    assert "tracker: jira" in text and text.endswith("ownership:\n  own:\n    - 'a/**'\n")
+
+
+def test_skip_is_recorded_once(repo, places):
+    assert repo_config.record_ownership_skip(repo, places)["action"] == "skipped"
+    assert repo_config.ownership_state(repo, places) == "skipped"
+    assert repo_config.record_ownership_skip(repo, places)["action"] == "unchanged"
+    assert places.ownership_skips.read_text().count("\n") == 1
