@@ -104,3 +104,94 @@
 - Chosen: B — the run rule tests against a recorded fake until the producer's pull request merges, S1 can still change, and a code change now reopens the review at round 9 of 10. The failure of the fired record is safe: setup keeps the v1 block and reports why. The config mismatch has no safe failure: the S1 reader does not see the file setup writes. Unverified: which side yields on the config format; `spec_folder` has no value source in setup.
 - Supersedes: none
 - To reverse: apply the "To reverse" lines of D-3 and D-6 after S1 merges, before S4 0016 runs
+
+## D-16 — ground diff exit 1 for the INV-002 seam
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — re-run /afk:investigate for the seam vs B — accept the ground as held
+- Chosen: B — `git diff 22ab4de0..HEAD` outside `docs/afk/afkv2`, `afkv2` and `.claude` is empty, so no v1 line moved; the drift has the same cause as D-1
+- Supersedes: none
+- To reverse: run /afk:investigate for the seam and compare its claims with `jira.py`
+
+## D-17 — the receipt check reads a preview file
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — the port only checks that `receipt` has the right form vs B — the payload names a preview JSON file (`ticket_key`, `receipt`, `description_hash`, `picture_hashes`), and the port checks the receipt, the ticket, `expect_hash` and each picture hash against it
+- Chosen: B — SDD §5 refuses "without a receipt that matches the preview hash", and the SDD names no carrier. A cannot refuse a made-up receipt. The name of the file is the caller's choice. S2 0008 must write it and pass it: IOU in `.claude/wiring-ious.md`. Unverified: S2's preview format
+- Supersedes: none
+- To reverse: change `_preview_for` in `jira.py` to the carrier S2 builds
+
+## D-18 — `issue-get` answers the description hash and a block summary
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — the caller hashes and compares the ADF itself vs B — one hash and one summary (`family`, `text`, `media_ids`) in the port, in the answers of `issue-get` and `description-put`
+- Chosen: B — a second hash in S2 can disagree with the stale check, and a compare of whole nodes fails on attributes Jira adds on read. The read-back compare is `put.block == read.block`
+- Supersedes: none
+- To reverse: drop `description_hash` and `block` from `issue_get`
+
+## D-19 — the picture guards
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — `attachment-put` takes a target name and `attachment-delete` deletes any id vs B — `attachment-put` takes the name of the file and refuses a name outside the pattern (`bad-name`); `attachment-delete` reads the attachment first and refuses a file that is not an afkv2 or v1 picture (`not-a-picture`)
+- Chosen: B — PRD access row: the agent writes "one ticket's block and diagram pictures". A file a person attached stays out of reach, and an already deleted attachment answers `deleted: false`
+- Supersedes: none
+- To reverse: drop the name checks in `attachment_put` and `attachment_delete`
+
+## D-20 — `ci-wait` exits 0 for every status it can read
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep the v1 four-value exit code vs B — exit 0 with `status` in the answer; only 3 reads in a row with no status refuse (`unreadable`, exit 1)
+- Chosen: B — SDD §3 fixes exit 0, 1 and 2 for every forge command, where 2 is unreadable input and v1's exit 2 and 3 have no place. A failed run is a readable answer, and the caller routes on `status`
+- Supersedes: v1 `ci-wait` exit codes 0, 1, 2, 3 (ADR-0007 "v1 JSON answers": the answer stays, the exit code goes)
+- To reverse: return `exit_code` from `status` in `common.ci_wait`
+
+## D-21 — the forge verb list
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — all 18 v1 commands vs B — 11: `auth-status, change-view, change-diff, change-create-draft, change-update-body, change-ready, change-comment, note-list, thread-list, ci-status, ci-wait`
+- Chosen: B — ADR-0007 keeps only the commands the chain calls. 0013 posts findings, 0014 and 0015 open and update the change and read CI. No contract in plan-s3 replies to or resolves a thread. `change-fetch, change-state, change-reviewers, change-close, thread-reply, thread-resolve, commit-changes` answer `unknown-verb`. Unverified: a later slice can still need one
+- Supersedes: none
+- To reverse: port the verb into `github.py` and `gitlab.py` (ADR-0007 follow-up)
+
+## D-22 — how the forge port finds its kind
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — only the config reader vs B — payload `forge`, then `forge` in the reader's answer, then the host of the `origin` remote
+- Chosen: B — the S1 reader on the unmerged branch answers no `forge` key, and SDD §8 says the forge port reads the config. `origin` is the same fact v1's checkout-derived call used. A host that names neither forge refuses `no-forge`. v1's `github.remote` key is gone: the payload `repo` replaces it. IOU to the reader in `.claude/wiring-ious.md`
+- Supersedes: none
+- To reverse: remove `_from_origin` in `forge/cli.py`
+
+## D-23 — the same answer on both forges over the v1 literal shape
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — copy each v1 answer as it was vs B — GitHub `change-view` answers `opened` (not `open`), GitHub `change-update-body` answers `was_draft` and `draft_restored`, a missing change is the code `not-found` (not `missing: true`)
+- Chosen: B — PRD AC-066 asks for the same behaviour on both forges, and the SDD envelope replaces v1's error fields
+- Supersedes: ADR-0007 "v1 JSON answers" at these 3 points
+- To reverse: change `STATES` and `change_update_body` in `github.py`
+
+## D-24 — the credential lookup reads only the `tracker` entry
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — also read a `jira` entry when v1 wrote it vs B — only `tracker`
+- Chosen: B — SDD §8 row "tracker port": own credential lookup; §5: "the Claude user config's tracker entry". v1's test for its own entry needs v1's setup code, which afkv2 does not load. The v1 test "own legacy entry is read" is dropped; the other v1 credential tests are ported
+- Supersedes: none
+- To reverse: add the legacy name to `_walk_for_jira_env`
+
+## D-25 — `markdown-it-py` is imported only by `md-to-adf`
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — import at the top of the module, as v1 does vs B — import in the function and refuse `missing-dependency` with the install command
+- Chosen: B — every other verb works without the package, and the setup skill does not install it. A refusal names the fix. Unverified: which Python a developer's machine runs and whether it holds the package. IOU for setup in `.claude/wiring-ious.md`
+- Supersedes: none
+- To reverse: move the import to the top of `adf.py`
+
+## D-26 — the forge port imports the envelope from the tracker folder
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — a shared folder under `afkv2/ports` vs B — `tracker/envelope.py` and `tracker/shell.py` are the one home, and forge imports them
+- Chosen: B — the contract's Scope is `afkv2/ports/tracker/**` and `afkv2/ports/forge/**`; a shared folder is outside it, and a copy breaks "one answer envelope with the tracker port" (ADR-0007)
+- Supersedes: none
+- To reverse: move both files to a shared folder and change the imports
+
+## D-27 — v1 block lines and picture names live in one file
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep the literals in `jira.py` vs B — `tracker/v1_facts.py`, as the setup skill keeps its v1 names
+- Chosen: B — one place for the only v1 strings the port must know. S1's `plugin_check.check_no_v1_names` on the unmerged branch flags any such name in code and has no exemption, so it flags this file as it flags setup's. S4 0016 must add the exemption. A v1 begin line with another note text is plain text, so a block with it refuses `bad-block`, which is safe. Unverified: whether an older v1 release wrote another note text
+- Supersedes: none
+- To reverse: inline the constants in `jira.py`
+
+## D-28 — the recorded Jira answers are hand-built
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — park until the D-4 test project exists vs B — hand-built answers with a `_source` field, marked unverified
+- Chosen: B — PLAN.md Inputs: the project is named by day 4, and the 0012 contract moves the live run to 0016. The answers follow the REST v3 issue shape and the ADF attributes the documentation lists. Unverified until 0016: how Jira normalises ADF on read
+- Supersedes: none
+- To reverse: replace `afkv2/tests/ports/recorded/*.json` from the live run

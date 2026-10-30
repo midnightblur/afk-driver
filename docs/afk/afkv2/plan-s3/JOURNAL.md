@@ -44,3 +44,19 @@
 2026-10-30 05:10 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 47b5fb81c702772e2ccb0acfbfed89c553d3c6d6 (forbidden harness-name vocabulary and interpreter name in afkv2/skills/setup/SKILL.md and afkv2/tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md).
 2026-10-30 05:10 | execute | 0011-setup-skill | done — the setup skill is built, reviewed and pushed. Rationale receipt confirmed: nothing pending.
 2026-10-30 04:40 | autopilot | run | heartbeat 1/5 done, starting 0012-forge-tracker-port — the setup slice is finished and its review settled; two file names disagree with the unmerged S1 branch and need a reconcile before 0016
+2026-10-30 05:30 | execute | 0012-forge-tracker-port | designing — reading contract, specs and v1 sources
+2026-10-30 05:40 | execute | 0012-forge-tracker-port | developing — ground held: no v1 line changed since INV-002
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-16) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-17) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-18) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-19) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-20) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-21) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-22) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-23) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-24) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-25) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-26) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-27) — see plan-s3/DECISIONS.md
+2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-28) — see plan-s3/DECISIONS.md
+2026-10-30 06:15 | execute | 0012-forge-tracker-port | gate-skip native-contract — same v1-layout refusal on commits 9000cf52 and 615316b4: the rows are harness-name and interpreter on existing afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; none on a port file. The comment gate passed before it.
