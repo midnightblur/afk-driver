@@ -19,7 +19,7 @@ One ticket taken through the whole chain to prove the chain works end to end. It
 ## Rules the agent carries
 
 **Core behaviors**:
-The always-loaded rule text, at most 200 lines, that the plugin's session-start hook adds to every session where afkv2 is enabled, on every supported harness. It never lives in the user instruction files; setup removes any v1 block from them, so a session carries one AFK rule set.
+The always-loaded rule text, at most 8,000 characters, that the plugin's session-start hook adds to every session where afkv2 is enabled, on every supported harness. It never lives in the user instruction files; setup removes any v1 block from them, so a session carries one AFK rule set.
 `Related:` Interim behaviors · `Avoid:` core block, behaviors block
 
 **Interim behaviors**:
