@@ -587,10 +587,13 @@ def test_a_mode_that_cannot_be_restored_keeps_the_first_error_and_drops_the_temp
     target = tmp_path / "config"
     target.write_bytes(b"old")
     target.chmod(stat.S_IREAD)
+    read_only = stat.S_IMODE(target.stat().st_mode)
+    refused = []
     real_chmod = os.chmod
 
     def chmod(path, mode, **kwargs):
         if Path(path) == target and mode != stat.S_IWRITE:
+            refused.append(mode)
             raise PermissionError("restore locked")
         real_chmod(path, mode, **kwargs)
 
@@ -601,6 +604,8 @@ def test_a_mode_that_cannot_be_restored_keeps_the_first_error_and_drops_the_temp
     monkeypatch.setattr(os, "replace", replace)
     with pytest.raises(PermissionError, match="replace locked"):
         write_atomic(target, b"new")
+    assert refused == [read_only]
+    assert target.read_bytes() == b"old"
     assert [p.name for p in tmp_path.iterdir()] == ["config"]
 
 
