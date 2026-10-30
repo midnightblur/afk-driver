@@ -30,3 +30,5 @@
 2026-10-30 03:15 | execute | 0011-setup-skill | decision(D-14) — a settings file whose enabledPlugins is not an object stops the takeover
 2026-10-30 03:25 | execute | 0011-setup-skill | review r4 — blocking: crit=0 high=0 med=2 low=3; a read-only file could not be replaced on Windows. All 5 are fixed in 2f79aedc.
 2026-10-30 03:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 2f79aedc
+2026-10-30 03:45 | execute | 0011-setup-skill | review r5 — blocking: crit=0 high=0 med=0 low=2; the failure path of the file write could skip restoring a read-only mode. Both are fixed in 9c3cd097.
+2026-10-30 03:45 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 9c3cd097
