@@ -134,3 +134,5 @@
 2026-10-30 14:46 | execute | 0004-diagram-components | blocked — registering the real map type makes one page-order test of slice 0003 fail, and that test file is outside this slice's list, so the work stops for a ruling; nothing is pushed and no review ran
 2026-10-30 14:46 | execute | 0004-diagram-components | gate-skip(R-4) — plan commit 1914524e uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
 2026-10-30 14:47 | autopilot | 0004-diagram-components | decision(D-41) — adding the real map type broke one older test that stood in a pretend one; I reproduced it and allowed the one-line test edit, so the slice resumes
+2026-10-30 14:48 | execute | 0004-diagram-components | developing — resumed on ruling D-41: the one allowed edit removes the pretend map from the older page-order test
+2026-10-30 14:49 | execute | 0004-diagram-components | gate-skip(R-4) — commits ba7efddd and 71bbee51 use AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so their pre-commit gates did not run
