@@ -76,3 +76,10 @@
 - Chosen: A — a `signoff` card holds wording only a human may approve, so a note that asks for a change must not settle it (inferred from the card kind table; no spec line states it). An `info` card asks nothing, so nothing there can settle. A costs at most one more round
 - Supersedes: none
 - To reverse: edit the round pass in `components/card.md` and the rule test
+
+## D-12 — no limit by card kind on a settle by note
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f056)
+- Options: A — keep the signed state rule for every card kind, and state how to read a signal: a note that asks for a change is not clear, a `reopen` or `changes` mark always disagrees, and a note on an `info` card answers nothing vs B — limit a settle by note to some card kinds (D-11) vs C — park the limit for the human
+- Chosen: A — SDD §6 says only "agent reads the note as clear" and is signed under HL-4, so B narrows a signed rule and needs the human. A only applies the signed words "clear" and "in conflict", so a `signoff` card with a `changes` mark still returns, and no decision is needed from the human
+- Supersedes: D-11
+- To reverse: edit the round pass in `components/card.md` and the rule test
