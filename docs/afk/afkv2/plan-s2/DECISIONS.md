@@ -55,3 +55,10 @@
 - Chosen: A — the glossary makes a steer a standing rule until the session ends; B would narrow that rule with no source, and A adds no new rule
 - Supersedes: none
 - To reverse: edit `components/notes-and-replies.md` and the glossary entry
+
+## D-9 — a write-in returns as a `confirm` card
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f045)
+- Options: A — a write-in returns the point to `open`, and the new card is a `confirm` card that states it as the agent's reading, which a lone accept mark settles vs B — settle by note with signal `write-in` (D-7) vs C — park the fork
+- Chosen: A — SDD §6 says "settled-by-note has a note id and a reading", and a write-in has no note id, so B breaks a signed rule. A stays inside the signed state rules and the point still settles in the next round, so no decision is needed from the human. D-7 was wrong on this point
+- Supersedes: D-7
+- To reverse: change `components/card.md` when the S1 engine defines how it stores a write-in

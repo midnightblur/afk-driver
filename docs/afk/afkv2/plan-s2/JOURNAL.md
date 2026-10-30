@@ -18,3 +18,8 @@
 2026-10-30 02:17 | execute | 0006-visualize-skill | review blocking crit=0 high=1 med=4 low=7 — round 3: the reviewers found that the new card pass wrote into settled rounds, and more missing note checks in the test
 2026-10-30 02:18 | execute | 0006-visualize-skill | decision(D-6, D-7, D-8) — the agent never changes a settled round, a write-in reads like a note, and conflicting steers go to the human
 2026-10-30 02:18 | execute | 0006-visualize-skill | gate-skip — commit 261fadc2 made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only; no line in afkv2/skills or afkv2/tests
+2026-10-30 02:41 | execute | 0006-visualize-skill | review blocking crit=0 high=2 med=1 low=5 — round 4: the reviewers found that the card rules let a clear note settle against a disagreeing mark, and that a write-in signal breaks a signed engine rule
+2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-6) — the agent never changes a card in a settled round
+2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-7) — superseded by D-9
+2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-8) — 2 conflicting steers on one node go to the human
+2026-10-30 02:42 | execute | 0006-visualize-skill | decision(D-9) — a write-in returns as a confirm card, because a settled-by-note point needs a note id
