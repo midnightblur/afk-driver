@@ -265,3 +265,38 @@
 - Chosen: B and B — the cost of the first is one refused body write on a GitHub read failure, and a retry fixes it: the same answer on both forges is what PRD AC-066 asks. The second keeps the evidence of a long wait when one read fails at the end. Known limit: the receipt does not bind a link target: the SDD formula sets what it binds, and S2 builds the same formula. A wider hash is an SDD change and an S2 change
 - Supersedes: D-37 item 4
 - To reverse: `change_update_body` in `github.py`; `ci_wait` in `common.py`
+
+## D-39 — what round 3 does with a critical or high finding
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — post every finding of round 3 and fix nothing vs B — fix as in every round, then stop; `finish` reports a fix of round 3 as `reviewed: false`, and posts each finding left unfixed
+- Chosen: B — PRD AC-063: "Critical and high findings are fixed", and a finding it leaves is reported, so a reader sees what no reviewer read
+- Supersedes: none
+- To reverse: `_stop_reason` and `_report` in `review_rounds.py`
+
+## D-40 — a new round exists only to review a fix of the last round
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — always 3 rounds vs B — `begin` refuses `no-fix-to-review` when the last round made no fix
+- Chosen: B — 3 is a cap (decision 46). A round with no new code has nothing new to read
+- Supersedes: none
+- To reverse: drop the `no-fix-to-review` check in `_new_round`
+
+## D-41 — the review script imports the envelope from the tracker folder
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — a second copy of the answer code in the skill vs B — `tracker/envelope.py`, the home D-26 names
+- Chosen: B — SDD §3 fixes one answer shape, and SDD §8 lets a skill depend on a port. The skill calls the forge through its published command, not by import
+- Supersedes: none
+- To reverse: copy `serve` into `review_rounds.py`
+
+## D-42 — one finding across rounds is the file plus its headline
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — also the line vs B — file and the `finding` text, without case and extra spaces
+- Chosen: B — a fix moves lines, and a repost on every round is noise on the change. Known limit: a reworded finding is a new finding and gets a second comment
+- Supersedes: none
+- To reverse: `_key` in `review_rounds.py`
+
+## D-43 — the review needs a change before it starts
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — review without a change and hold the posts vs B — `change` is a required input of `begin`
+- Chosen: B — PRD SK-12 pushes to one Draft change per run, and 0015 opens it before it runs this skill; the PRD flow picture draws review before the change, and the catalog rows win. The caller also passes the plan folder and the base commit: IOU in `.claude/wiring-ious.md`
+- Supersedes: PRD flow picture order "code-review" before "Draft change"
+- To reverse: hold posts in the state until a `change` arrives
