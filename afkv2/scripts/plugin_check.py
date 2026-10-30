@@ -27,30 +27,30 @@ PLAIN_VARIANT = MARKER + ".txt"
 CLAUDE_SUBAGENT_VARIANT = MARKER + ".claude-subagent.json"
 
 SKIPPED_DIRS = frozenset({"__pycache__", ".pytest_cache"})
-SCRIPT_SUFFIXES = frozenset({".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".vue"})
-CODE_SUFFIXES = SCRIPT_SUFFIXES | {".html", ".css", ".yaml", ".yml", ".toml"}
+PROSE_SUFFIXES = frozenset({".md", ".txt", ".json"})
+BINARY_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".woff", ".woff2", ".pdf", ".zip"})
+NOT_TEXT = "not UTF-8 text; the check cannot read it"
 
 V1_FILE_PART = re.compile(r"af[k](?!v2)", re.IGNORECASE)
 V1_NAME = re.compile(r"(?<![a-z0-9])af[k](?!v2)", re.IGNORECASE)
 V1_PROSE_WORD = re.compile(r"(?:^|(?<=[\s(`\"']))af[k](?=$|[\s)`,;!?]|[.:](?:\s|$))", re.IGNORECASE)
 V1_CSS_CLASS = re.compile(r"class(?:Name)?\s*=\s*[\"'][^\"']*(?<![a-z0-9-])af[k](?![a-z0-9-])", re.IGNORECASE)
-URL = re.compile(r"https?://\S+")
+URL = re.compile(r"https?://[^\s\"'`,;()<>]+")
 
 MARKER_TOKEN = re.compile(r"(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
 SUBSTRING_MATCH = re.compile(
-    r"\.(?:startswith|endswith|find|rfind|index|rindex|count|search|match|matchall|exec|test"
-    r"|split|rsplit|partition|rpartition|replace|replaceall|removeprefix|removesuffix"
+    r"\.(?:startswith|endswith|find|rfind|findall|finditer|index|rindex|count|search|match|matchall|exec|test"
+    r"|sub|subn|split|rsplit|partition|rpartition|replace|replaceall|removeprefix|removesuffix"
     r"|includes|indexof|lastindexof|contains|slice|substring|substr)\("
-    r"|\bre\.(?:findall|finditer|sub|subn)\("
-    r"|\[[^\]\"']*:[^\]\"']*\]\s*[!=]="
-    r"|[!=]==?\s*[\w.$]+\[[^\]\"']*:[^\]\"']*\]"
-    r"|%\w+:~"
-    r"|\bselect-string\b"
-    r"|-[ci]?(?:not)?(?:like|match|contains)\b"
-    r"|(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9:-]*\*",
+    r"|\[(?:[^\]\"':]|\"[^\"]*\"|'[^']*')*:"
+    r"|[%!]\w+:\S"
+    r"|=~"
+    r"|\$\{\w+[:#%]"
+    r"|(?<![\w-])-[ci]?(?:not)?(?:like|match|contains|replace|split)\b"
+    r"|(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9:-]*\*"
+    r"|\b(?:select-string|in|findstr|find|grep|strstr|sed|awk|sls)\b",
     re.IGNORECASE,
 )
-SUBSTRING_WORD = re.compile(r"(?<![=!<>])\b(?:in|findstr|find|grep|strstr|sed|awk|sls)\b", re.IGNORECASE)
 
 
 def marker_hash(body: str) -> str:
@@ -83,12 +83,12 @@ def check_no_v1_names(root: Path) -> list[str]:
         relative = path.relative_to(root)
         if any(V1_FILE_PART.search(part) for part in relative.parts):
             problems.append(f"{relative.as_posix()}: file name uses a v1 name")
-        is_code = path.suffix.lower() in CODE_SUFFIXES
-        lines, problem = _read_lines(path, is_code)
+        is_prose = path.suffix.lower() in PROSE_SUFFIXES
+        lines, problem = _read_lines(path)
         if problem:
             problems.append(f"{relative.as_posix()}: {problem}")
         for number, line in lines:
-            if _holds_v1_name(URL.sub("", line), is_code):
+            if _holds_v1_name(URL.sub("", line), is_prose):
                 problems.append(f"{relative.as_posix()}:{number}: v1 name: {line.strip()}")
     return problems
 
@@ -96,13 +96,12 @@ def check_no_v1_names(root: Path) -> list[str]:
 def check_marker_matching(root: Path) -> list[str]:
     problems = []
     for path in _files(root):
-        suffix = path.suffix.lower()
-        if suffix not in CODE_SUFFIXES:
+        if path.suffix.lower() in PROSE_SUFFIXES:
             continue
         relative = path.relative_to(root).as_posix()
-        lines, _ = _read_lines(path, is_code=True)
+        lines, _ = _read_lines(path)
         for number, line in lines:
-            if MARKER_TOKEN.search(line) and _is_partial_match(line, suffix):
+            if MARKER_TOKEN.search(line) and SUBSTRING_MATCH.search(line):
                 problems.append(f"{relative}:{number}: marker matched by prefix or substring; compare the full line")
     return problems
 
@@ -206,31 +205,27 @@ def _files(root: Path):
             yield path
 
 
-def _read_lines(path: Path, is_code: bool) -> tuple[list[tuple[int, str]], str | None]:
+def _read_lines(path: Path) -> tuple[list[tuple[int, str]], str | None]:
     """Numbered lines of `path`, and the reason when the check cannot read a file it must read."""
+    if path.suffix.lower() in BINARY_SUFFIXES:
+        return [], None
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as error:
         return [], f"cannot read: {error}"
     except UnicodeDecodeError:
-        return [], "not UTF-8; the check cannot read it" if is_code else None
+        return [], NOT_TEXT
     if "\x00" in text:
-        return [], "not UTF-8; the check cannot read it" if is_code else None
+        return [], NOT_TEXT
     return list(enumerate(text.splitlines(), start=1)), None
 
 
-def _holds_v1_name(line: str, is_code: bool) -> bool:
-    if is_code:
+def _holds_v1_name(line: str, is_prose: bool) -> bool:
+    if not is_prose:
         return V1_NAME.search(line) is not None
     if V1_CSS_CLASS.search(line):
         return True
     return any(not V1_PROSE_WORD.match(line, hit.start()) for hit in V1_NAME.finditer(line))
-
-
-def _is_partial_match(line: str, suffix: str) -> bool:
-    if SUBSTRING_MATCH.search(line):
-        return True
-    return suffix in SCRIPT_SUFFIXES and SUBSTRING_WORD.search(line) is not None
 
 
 def _has_handler(registration: object) -> bool:

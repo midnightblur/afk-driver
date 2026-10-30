@@ -199,6 +199,9 @@ def test_v1_file_name_fails(tree, relative):
         f"self._{V1} = 1",
         f"set _{V1.upper()}=1",
         f"._{V1} {{ color: red }}",
+        f'fetch("https://x/"+{V1_ENV}KEY)',
+        f'{{"url":"https://x.y","env":"{V1_ENV}KEY"}}',
+        f'url="https://x.y";{V1}_key=1',
     ],
 )
 @pytest.mark.parametrize("name", ["sample.py", "sample.txt"])
@@ -207,31 +210,39 @@ def test_v1_name_in_text_fails(tree, line, name):
     assert any(f"{name}:1" in p for p in plugin_check.check_no_v1_names(tree))
 
 
-def test_code_suffixes_are_the_recorded_set():
-    assert plugin_check.CODE_SUFFIXES == {
-        ".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".vue",
-        ".html", ".css", ".yaml", ".yml", ".toml",
+def test_prose_and_binary_suffixes_are_the_recorded_sets():
+    assert plugin_check.PROSE_SUFFIXES == {".md", ".txt", ".json"}
+    assert plugin_check.BINARY_SUFFIXES == {
+        ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".woff", ".woff2", ".pdf", ".zip",
     }
 
 
-@pytest.mark.parametrize("suffix", sorted(plugin_check.CODE_SUFFIXES))
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        ".py", ".cmd", ".bat", ".ps1", ".psm1", ".sh", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".vue", ".html",
+        ".css", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".svg", "", ".CMD", ".PY",
+    ],
+)
 @pytest.mark.parametrize("line", [f"{V1} = 1", f"def {V1}(x):", f"run({V1})"])
-def test_bare_v1_word_in_code_fails(tree, line, suffix):
+def test_bare_v1_word_outside_prose_files_fails(tree, line, suffix):
     (tree / "scripts" / f"sample{suffix}").write_text(line + "\n", encoding="utf-8")
     assert any(f"sample{suffix}:1" in p for p in plugin_check.check_no_v1_names(tree))
 
 
+@pytest.mark.parametrize("name", ["sample.cmd", "sample.md", "sample.json", "sample", "sample.TXT"])
 @pytest.mark.parametrize(
     "data",
     [
         "set X=1\r\nrem caf\xe9\r\n".encode("latin-1"),
         "set X=1\r\n".encode("utf-16"),
         f"set {V1_ENV}X=1\r\n".encode("utf-16-le"),
+        b"set X=1\x00\r\n",
     ],
 )
-def test_code_file_that_is_not_utf8_is_a_problem(tree, data):
-    (tree / "scripts" / "sample.cmd").write_bytes(data)
-    assert any("sample.cmd" in p and "UTF-8" in p for p in plugin_check.check_no_v1_names(tree))
+def test_text_file_that_is_not_utf8_is_a_problem(tree, name, data):
+    (tree / "scripts" / name).write_bytes(data)
+    assert any(name in p and "UTF-8" in p for p in plugin_check.check_no_v1_names(tree))
 
 
 @pytest.mark.parametrize("name", ["sample.py", "sample.md"])
@@ -248,9 +259,12 @@ def test_file_that_cannot_be_opened_fails_the_tree_check(tree, name, monkeypatch
     assert any(name in p and "cannot read" in p for p in plugin_check.run_checks(tree))
 
 
-def test_binary_file_outside_code_is_skipped(tree):
-    (tree / "scripts" / "sample.png").write_bytes(b"\xff\xfe\x00")
+@pytest.mark.parametrize("data", [b"\xff\xfe\x00", b"png\x00 bytes", f"x {V1_ENV}Y\x00".encode()])
+@pytest.mark.parametrize("name", ["sample.png", "sample.PNG"])
+def test_binary_file_is_skipped(tree, name, data):
+    (tree / "scripts" / name).write_bytes(data)
     assert plugin_check.check_no_v1_names(tree) == []
+    assert plugin_check.check_marker_matching(tree) == []
 
 
 @pytest.mark.parametrize(
@@ -263,11 +277,25 @@ def test_binary_file_outside_code_is_skipped(tree):
         f"Run {V1.upper()}: then stop.",
         f"The tools ({V1.upper()}, Jira) stay.",
         f"{V1.upper()}",
+        f"This is {V1.upper()}.",
+        f"Use (the old {V1.upper()}).",
+        f"Use {V1.upper()}; then stop.",
+        f"Is it {V1.upper()}?",
+        f"Run {V1.upper()}!",
+        f"Run {V1.upper()}:",
+        f"The word '{V1} is here",
     ],
 )
-def test_prose_passes_outside_code(tree, line):
-    (tree / "scripts" / "sample.md").write_text(line + "\n", encoding="utf-8")
+@pytest.mark.parametrize("name", ["sample.md", "sample.txt", "sample.json", "sample.MD"])
+def test_prose_passes_in_prose_files(tree, line, name):
+    (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
     assert plugin_check.check_no_v1_names(tree) == []
+
+
+@pytest.mark.xfail(strict=True, reason="known gap: a name joined to a word before it is not found")
+def test_v1_name_joined_to_a_word_before_it_fails(tree):
+    (tree / "scripts" / "sample.py").write_text(f"not{V1} = 1\n", encoding="utf-8")
+    assert plugin_check.check_no_v1_names(tree)
 
 
 @pytest.mark.parametrize("line", ['x = "afkv2-core"', "set AFKV2_DATA=1", 'cls = "afkv2-card"', 'p = "afkv2"'])
@@ -284,50 +312,75 @@ def test_afkv2_names_in_code_pass(tree, line):
         f're.search(r"{MARKER} end ([0-9a-f]{{12}})", text)',
         f'at = text.find("{MARKER}")',
         f'const hit = body.includes("{PRD_START}");',
-        f'findstr /c:"{MARKER}" out.txt',
         f'if line.startswith("<!-- {V1}:prd:start"):',
         f"/{MARKER}/.test(line)",
-        f'Select-String -Pattern "{MARKER}" x.txt',
-        f'sed -n "/{MARKER}/p" x',
         f'line[:20] == "{MARKER}"',
         f'line.slice(0, 5) === "{MARKER}"',
         f'"{MARKER}" == line[:20]',
         f'"{MARKER}" === line[0:20]',
-        f'text.rsplit("{MARKER}")',
-        f'text.rpartition("{MARKER}")',
-        f'line.removeprefix("{MARKER}")',
-        f'line.removesuffix("{MARKER}")',
-        f'line.substring(0, 5) === "{MARKER}"',
-        f'line.substr(0, 5) === "{MARKER}"',
+        f'"{MARKER}" == line.strip()[:20]',
+        f'"{MARKER}" == lines[0][:20]',
+        f'line[:20].strip() == "{MARKER}"',
+        f'line[:len("{MARKER}")] == "{MARKER}"',
         f'/{MARKER}/.exec(line)',
-        f'[[ "$line" == {MARKER}* ]]',
-        f'awk "/{MARKER}/" x',
-        f'grep "{MARKER}" x',
     ],
 )
 def test_prefix_or_substring_marker_match_fails(tree, line):
-    name = "sample.cmd" if line.startswith("findstr") else "sample.py"
-    (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
-    assert any(f"{name}:1" in p for p in plugin_check.check_marker_matching(tree))
+    (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
+    assert any("sample.py:1" in p for p in plugin_check.check_marker_matching(tree))
+
+
+@pytest.mark.parametrize(
+    "operator",
+    [
+        "startswith", "endswith", "find", "rfind", "findall", "finditer", "index", "rindex", "count", "search",
+        "match", "matchAll", "exec", "test", "sub", "subn", "split", "rsplit", "partition", "rpartition", "replace",
+        "replaceAll", "removeprefix", "removesuffix", "includes", "indexOf", "lastIndexOf", "contains", "slice",
+        "substring", "substr",
+    ],
+)
+def test_every_method_operator_fails(tree, operator):
+    (tree / "scripts" / "sample.py").write_text(f'x.{operator}("{MARKER}")\n', encoding="utf-8")
+    assert any("sample.py:1" in p for p in plugin_check.check_marker_matching(tree))
 
 
 @pytest.mark.parametrize(
     "name, line",
     [
         ("sample.js", f'line.startsWith("{MARKER}")'),
-        ("sample.js", f'line.endsWith("{MARKER}")'),
-        ("sample.js", f'line.indexOf("{MARKER}")'),
         ("sample.ps1", f'$line.StartsWith("{MARKER}")'),
         ("sample.ps1", f'$line.Substring(0,5) -eq "{MARKER}"'),
         ("sample.ps1", f'$line -Match "{MARKER}"'),
         ("sample.ps1", f'$line -cmatch "{MARKER}"'),
         ("sample.ps1", f'$line -notmatch "{MARKER}"'),
         ("sample.ps1", f'$line -ilike "{MARKER}*"'),
-        ("sample.ps1", f'select-string -Pattern "{MARKER}" x'),
+        ("sample.ps1", f'$line -contains "{MARKER}"'),
+        ("sample.ps1", f'$line -replace "{MARKER}",""'),
+        ("sample.ps1", f'$line -split "{MARKER}"'),
+        ("sample.ps1", f'Select-String -Pattern "{MARKER}" x'),
         ("sample.ps1", f'sls "{MARKER}" x'),
         ("sample.cmd", f'FINDSTR /c:"{MARKER}" x'),
+        ("sample.cmd", f'findstr /c:"{MARKER}" out.txt'),
+        ("sample.bat", f'find "{MARKER}" x'),
         ("sample.cmd", f'if "%line:~0,20%"=="{MARKER}" echo y'),
+        ("sample.cmd", f'if "!line:~0,20!"=="{MARKER}" echo y'),
+        ("sample.cmd", f'if not "%line:{MARKER}=%"=="%line%" echo y'),
+        ("sample.sh", f'[[ "$line" == {MARKER}* ]]'),
+        ("sample.sh", f'[[ "$line" =~ {MARKER} ]]'),
+        ("sample.sh", f'[ "${{line:0:20}}" = "{MARKER}" ]'),
+        ("sample.sh", f'x="${{line#{MARKER}}}"'),
+        ("sample.sh", f'x="${{line%{MARKER}}}"'),
+        ("sample.sh", f'grep "{MARKER}" x'),
+        ("sample.sh", f'sed -n "/{MARKER}/p" x'),
+        ("sample.sh", f'awk "/{MARKER}/" x'),
+        ("sample.py", f'strstr("{MARKER}", x)'),
+        ("sample.py", f'found = "{MARKER}" in text'),
         ("sample.yaml", f'run: line.startswith("{MARKER}")'),
+        ("sample.yaml", f'run: grep "{MARKER}" out.txt'),
+        ("sample.yml", f"if: \"'{MARKER}' in github.event.head_commit.message\""),
+        ("sample.html", f'<script>if ("{MARKER}" in text) go()</script>'),
+        ("sample.psm1", f'$line -match "{MARKER}"'),
+        ("sample.CMD", f'findstr /c:"{MARKER}" x'),
     ],
 )
 def test_marker_match_in_other_spellings_fails(tree, name, line):
@@ -343,8 +396,12 @@ def test_marker_match_in_other_spellings_fails(tree, name, line):
         ("sample.cmd", f'type "%~dp0built\\{MARKER}.txt"'),
         ("sample.py", f'd["{PRD_START}"] == x'),
         ("sample.py", f'd["a:b"] == "{MARKER}"'),
-        ("sample.html", f"<p>the {MARKER} text in context</p>"),
-        ("sample.yaml", f"marker: {MARKER} in file"),
+        ("sample.py", f'"{MARKER}" == d["a:b"]'),
+        ("sample.py", f"\"{MARKER}\" == d['a:b']"),
+        ("sample.py", f'MARKERS = ["{PRD_START}", "{MARKER}"]'),
+        ("sample.css", ".afkv2-match { color: red }"),
+        ("sample.html", '<div class="afkv2-card-like"></div>'),
+        ("sample.md", f'found = "{MARKER}" in text'),
     ],
 )
 def test_full_line_marker_match_passes(tree, name, line):

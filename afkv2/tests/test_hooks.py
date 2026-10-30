@@ -63,6 +63,12 @@ def normalized(data):
     return data.replace(b"\r\n", b"\n")
 
 
+def folder_state(folder):
+    if not folder.exists():
+        return None
+    return {path: path.stat().st_mtime_ns for path in [folder, *folder.iterdir()]}
+
+
 CASES = [
     (SESSION, "claude", PLAIN, "session-start"),
     (SESSION, "codex", PLAIN, "session-start"),
@@ -185,14 +191,14 @@ def test_hook_without_a_data_folder_prints_the_text_and_writes_no_record(tmp_pat
     work = tmp_path / "work"
     work.mkdir()
     root_folder = Path(tmp_path.anchor) / "afkv2"
-    existed_before = root_folder.exists()
+    before = folder_state(root_folder)
     env = {key: value for key, value in hook_env(work).items() if key != "LOCALAPPDATA"}
     done = run_hook(hook, "codex", work, env=env)
     assert done.returncode == 0
     assert done.stderr == b""
     assert normalized(done.stdout) == normalized(PLAIN.read_bytes())
     assert list(work.iterdir()) == []
-    assert root_folder.exists() == existed_before
+    assert folder_state(root_folder) == before
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
