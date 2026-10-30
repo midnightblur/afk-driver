@@ -122,7 +122,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = _Parser(prog="afkv2_config.py")
+    parser = _Parser(prog="afkv2_config.py", add_help=False)
     parser.add_argument("verb", choices=["read"])
     parser.add_argument("--start", default=None)
     try:

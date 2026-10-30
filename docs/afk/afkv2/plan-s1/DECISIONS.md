@@ -27,3 +27,24 @@
 - Chosen: A — a same-line rule is deterministic and cheap; the author writes a full-line compare with `==` or `fullmatch`. Data flow through a variable is not traced (known gap).
 - Supersedes: none
 - To reverse: change `check_marker_matching` in `afkv2/scripts/plugin_check.py`
+
+## D-5 — the Codex marketplace also lists afkv2
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — add a pure-addition afkv2 entry to `.agents/plugins/marketplace.json`; the v1 entry stays as is vs B — leave the file; the owner cannot enable afkv2 in Codex from this repository, and owner-run checks 1 and 2 have no install path
+- Chosen: A — the 0001 Goal is the Claude and Codex skeleton, and the owner-run checks need an install path. No plan step adds the entry. An entry with `"installation": "AVAILABLE"` installs nothing until the owner enables it (Codex behavior not verified here; owner-run check 1 covers the path).
+- Supersedes: none (0001 `## Scope` lists only `.claude-plugin/marketplace.json`; this adds one path outside it)
+- To reverse: delete the afkv2 entry from `.agents/plugins/marketplace.json` and `test_codex_marketplace_lists_afkv2_beside_the_v1_plugin`
+
+## D-6 — what the no-v1-name rule treats as prose
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — every file: flag name-shaped forms (path part, quoted whole word, `%name%`, `$name`, `name=`, CSS class); code files also flag the bare word; a bare word in other text files passes as prose vs B — flag the bare word in every file
+- Chosen: A — the manifests and the marketplace description name the product "AFK 2.0 beta" in prose, and that text is a required value of the manifests, not a v1 identifier (0001 Acceptance lists file names, environment variables, markers, storage keys and CSS classes). A v1 name in a prose sentence of a text file is not found (known gap).
+- Supersedes: none
+- To reverse: move `V1_WORD_IN_CODE` into `V1_TEXT` in `afkv2/scripts/plugin_check.py` and reword the descriptions
+
+## D-7 — the 50 ms test tries a median of 7 up to five times
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — pass on the first median of 7 under 50 ms, in at most five attempts vs B — one attempt
+- Chosen: A — with other work on the machine, the same hook gave medians from 41 ms to 81 ms in one probe (`session-start.cmd`: 45.5, 40.9, 45.4, 68.3, 81.5, 47.7 ms). One attempt fails on machine load, not on the hook. A hook that is slower than 50 ms fails all five attempts, so the PRD AC-013 rule still holds.
+- Supersedes: none
+- To reverse: set `TIMING_ATTEMPTS` to 1 in `afkv2/tests/test_hooks.py`

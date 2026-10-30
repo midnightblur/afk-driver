@@ -8,7 +8,7 @@ Each check has a pass rule and an on-fail path. Write the result in the table at
 
 1. Use a test repository, not a repository with real work.
 2. Get the expected hash. Open `afkv2\hooks\built\afkv2-core-behaviors.txt` in the afkv2 source. Its last line is `afkv2-core-behaviors end <sha12>`. Write down the `<sha12>`.
-3. Enable afkv2 in Codex from the plugin marketplace of this repository. The exact Codex command is not verified here; use the Codex plugin documentation.
+3. Enable afkv2 in Codex from the plugin marketplace of this repository: `.agents/plugins/marketplace.json` lists it (plan-s1 decision D-5). The exact Codex command is not verified here; use the Codex plugin documentation.
 4. Write down the time. The hook writes `%LOCALAPPDATA%\afkv2\fired-codex.txt` each time it runs.
 
 ## Check 1 — Codex accepts the `.cmd` hook after the trust review

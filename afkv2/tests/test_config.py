@@ -82,7 +82,12 @@ def test_missing_ownership_and_tracker_answer_null(tmp_path):
         ({"spec_folder": ""}, "spec_folder"),
         ({"spec_folder": 3}, "spec_folder"),
         ({"spec_folder": "../outside"}, "spec_folder"),
-        ({"spec_folder": "C:/abs"}, "spec_folder"),
+        ({"spec_folder": "/abs"}, "spec_folder"),
+        pytest.param(
+            {"spec_folder": "C:/abs"},
+            "spec_folder",
+            marks=pytest.mark.skipif(sys.platform != "win32", reason="a drive letter is absolute only on Windows"),
+        ),
         ({"spec_folder": "docs", "tracker": {"kind": "trello"}}, "tracker.kind"),
         ({"spec_folder": "docs", "tracker": "jira"}, "tracker"),
         ({"spec_folder": "docs", "ownership": {"mine": ["x"]}}, "ownership.mine"),
@@ -159,7 +164,8 @@ def test_read_command_takes_a_start_folder(tmp_path):
     assert answer["repo_root"] == str(repo)
 
 
-def test_unknown_verb_is_a_usage_error(tmp_path):
-    code, answer = run_reader("write", cwd=tmp_path)
+@pytest.mark.parametrize("args", [("write",), ("--help",), ("read", "-h"), ()])
+def test_every_usage_error_answers_json_with_exit_2(tmp_path, args):
+    code, answer = run_reader(*args, cwd=tmp_path)
     assert code == 2
     assert answer["error"]["code"] == "usage"

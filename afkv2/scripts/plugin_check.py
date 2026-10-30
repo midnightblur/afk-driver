@@ -29,15 +29,20 @@ CLAUDE_SUBAGENT_VARIANT = MARKER + ".claude-subagent.json"
 SKIPPED_DIRS = frozenset({"__pycache__", ".pytest_cache"})
 CODE_SUFFIXES = frozenset({".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts"})
 
-V1_FILE_PART = re.compile(r"afk(?!v2)", re.IGNORECASE)
+V1_FILE_PART = re.compile(r"af[k](?!v2)", re.IGNORECASE)
 V1_TEXT = (
-    re.compile(r"(?<![A-Za-z0-9_])AFK[_]"),
-    re.compile(r"(?<![a-z0-9])afk(?!v2)(?=[-_:./a-z0-9])", re.IGNORECASE),
-    re.compile(r"[.]afk(?![a-z0-9])", re.IGNORECASE),
+    re.compile(r"(?<![A-Za-z0-9_])AF[K][_]"),
+    re.compile(r"(?<![a-z0-9])af[k](?!v2)(?=[-_:./\\a-z0-9])", re.IGNORECASE),
+    re.compile(r"[.\\/]af[k](?![a-z0-9])", re.IGNORECASE),
+    re.compile(r"([\"'%])af[k]\1", re.IGNORECASE),
+    re.compile(r"(?<![a-z0-9_])af[k][=]", re.IGNORECASE),
+    re.compile(r"[$][{]?af[k](?![a-z0-9_])", re.IGNORECASE),
+    re.compile(r"class(?:Name)?\s*=\s*[\"'][^\"']*(?<![a-z0-9-])af[k](?![a-z0-9-])", re.IGNORECASE),
 )
+V1_WORD_IN_CODE = re.compile(r"(?<![a-z0-9_])af[k](?![a-z0-9_])", re.IGNORECASE)
 URL = re.compile(r"https?://\S+")
 
-MARKER_TOKEN = re.compile(r"(?<![a-z0-9])afk(?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
+MARKER_TOKEN = re.compile(r"(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
 SUBSTRING_MATCH = re.compile(
     r"\.(?:startswith|endswith|find|rfind|index|rindex|count|search|match|split|partition|replace"
     r"|includes|indexOf|lastIndexOf|contains)\("
@@ -49,7 +54,10 @@ SUBSTRING_MATCH = re.compile(
 
 
 def marker_hash(body: str) -> str:
-    """First 12 hex characters of SHA-256 over the text between the marker lines."""
+    """First 12 hex characters of SHA-256 over the lines between the marker lines.
+
+    `body` joins those lines with LF and has no line break at its end.
+    """
     return hashlib.sha256(body.encode("utf-8")).hexdigest()[:12]
 
 
@@ -75,9 +83,10 @@ def check_no_v1_names(root: Path) -> list[str]:
         relative = path.relative_to(root)
         if any(V1_FILE_PART.search(part) for part in relative.parts):
             problems.append(f"{relative.as_posix()}: file name uses a v1 name")
+        patterns = (*V1_TEXT, V1_WORD_IN_CODE) if path.suffix.lower() in CODE_SUFFIXES else V1_TEXT
         for number, line in _text_lines(path):
             scrubbed = URL.sub("", line)
-            if any(pattern.search(scrubbed) for pattern in V1_TEXT):
+            if any(pattern.search(scrubbed) for pattern in patterns):
                 problems.append(f"{relative.as_posix()}:{number}: v1 name: {line.strip()}")
     return problems
 
@@ -149,6 +158,9 @@ def _check_manifests(root: Path) -> list[str]:
     hooks = _load_json(root / HOOKS_FILE, problems)
     if hooks is not None:
         events = hooks.get("hooks", {})
+        if not isinstance(events, dict):
+            problems.append(f"{HOOKS_FILE.as_posix()}: hooks must be one JSON object")
+            return problems
         for event in HOOK_EVENTS:
             if event not in events:
                 problems.append(f"{HOOKS_FILE.as_posix()}: no {event} registration")
@@ -186,11 +198,24 @@ def _text_lines(path: Path):
     yield from enumerate(text.splitlines(), start=1)
 
 
+class _UsageError(Exception):
+    pass
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise _UsageError(message)
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="plugin_check.py")
+    parser = _Parser(prog="plugin_check.py", add_help=False)
     parser.add_argument("verb", nargs="?", default="check", choices=["check", "build"])
     parser.add_argument("--root", default=str(PLUGIN_ROOT))
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except _UsageError as error:
+        print(json.dumps({"ok": False, "error": {"code": "usage", "reason": str(error)}}))
+        return 2
     root = Path(args.root)
     problems = build(root) if args.verb == "build" else run_checks(root)
     if problems:

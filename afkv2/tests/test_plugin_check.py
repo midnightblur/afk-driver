@@ -155,9 +155,26 @@ def test_v1_file_name_fails(tree, relative):
         f'<div class="{V1}-card">',
         f'path = "{V1}v1-thing"',
         f"cfg = Path('.{V1}') / 'config.yaml'",
+        f"set D=%LOCALAPPDATA%\\{V1}\\state",
+        f"D = 'C:\\{V1}'",
+        f'Path("{V1}")',
+        f"localStorage.getItem('{V1}')",
+        f'<div class="{V1}">',
+        f'<div class="{V1} card">',
+        f'<div class="card {V1}">',
+        f"set {V1.upper()}=1",
+        f"echo %{V1.upper()}%",
+        f"echo ${V1.upper()}",
     ],
 )
-def test_v1_name_in_text_fails(tree, line):
+@pytest.mark.parametrize("name", ["sample.py", "sample.txt"])
+def test_v1_name_in_text_fails(tree, line, name):
+    (tree / "scripts" / name).write_text(line + "\n", encoding="utf-8")
+    assert any(f"{name}:1" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+@pytest.mark.parametrize("line", [f"{V1} = 1", f"def {V1}(x):", f"run({V1})"])
+def test_bare_v1_word_in_code_fails(tree, line):
     (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
     assert any("sample.py:1" in p for p in plugin_check.check_no_v1_names(tree))
 
@@ -165,14 +182,18 @@ def test_v1_name_in_text_fails(tree, line):
 @pytest.mark.parametrize(
     "line",
     [
-        'x = "afkv2-core"',
-        "set AFKV2_DATA=1",
-        'cls = "afkv2-card"',
+        f'"description": "{V1.upper()} 2.0 beta: a workflow."',
         f"The {V1.upper()} 2.0 beta and the `{V1}` plugin are prose.",
         f"see https://github.com/owner/{V1}-driver for the source",
     ],
 )
-def test_afkv2_names_and_prose_pass(tree, line):
+def test_prose_passes_outside_code(tree, line):
+    (tree / "scripts" / "sample.md").write_text(line + "\n", encoding="utf-8")
+    assert plugin_check.check_no_v1_names(tree) == []
+
+
+@pytest.mark.parametrize("line", ['x = "afkv2-core"', "set AFKV2_DATA=1", 'cls = "afkv2-card"', 'p = "afkv2"'])
+def test_afkv2_names_in_code_pass(tree, line):
     (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
     assert plugin_check.check_no_v1_names(tree) == []
 
@@ -208,8 +229,9 @@ def test_full_line_marker_match_passes(tree, line):
     assert plugin_check.check_marker_matching(tree) == []
 
 
-def test_manifests_must_name_the_plugin_afkv2(tree):
-    manifest = tree / ".claude-plugin" / "plugin.json"
+@pytest.mark.parametrize("relative", plugin_check.MANIFESTS)
+def test_manifests_must_name_the_plugin_afkv2(tree, relative):
+    manifest = tree / relative
     data = json.loads(manifest.read_text(encoding="utf-8"))
     data["name"] = "other"
     manifest.write_text(json.dumps(data), encoding="utf-8")
@@ -219,6 +241,25 @@ def test_manifests_must_name_the_plugin_afkv2(tree):
 def test_unparseable_hooks_file_fails(tree):
     (tree / "hooks" / "hooks.json").write_text("{", encoding="utf-8")
     assert any("hooks.json" in p for p in plugin_check.run_checks(tree))
+
+
+@pytest.mark.parametrize("value", ["null", '"SessionStart SubagentStart"', "[]"])
+def test_hooks_value_that_is_no_object_is_a_problem_not_a_crash(tree, value):
+    (tree / "hooks" / "hooks.json").write_text('{"hooks": ' + value + "}", encoding="utf-8")
+    assert any("hooks.json" in p for p in plugin_check.run_checks(tree))
+
+
+@pytest.mark.xfail(strict=True, reason="plan-s1 D-4 known gap: the rule reads one line and traces no variable")
+def test_marker_held_in_a_variable_and_matched_on_another_line_fails(tree):
+    (tree / "scripts" / "sample.py").write_text(f'MARK = "{MARKER}"\nfound = MARK in text\n', encoding="utf-8")
+    assert plugin_check.check_marker_matching(tree)
+
+
+@pytest.mark.parametrize("args", [("nonsense",), ("--help",), ("check", "-h")])
+def test_every_usage_error_answers_json_with_exit_2(args):
+    code, answer = run_check(*args)
+    assert code == 2
+    assert answer["error"]["code"] == "usage"
 
 
 def test_check_command_answers_json_and_exits_1_on_problems(tree):
@@ -251,8 +292,21 @@ def test_build_command_regenerates_and_checks(tree):
 def test_marketplace_lists_afkv2_beside_the_v1_plugin():
     marketplace = json.loads((PLUGIN.parent / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
     entries = {entry["name"]: entry for entry in marketplace["plugins"]}
-    assert entries[V1]["source"] == "./"
+    v1_manifest = json.loads((PLUGIN.parent / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert entries[V1] == {
+        "name": V1,
+        "source": "./",
+        "version": v1_manifest["version"],
+        "description": v1_manifest["description"],
+    }
     assert entries["afkv2"]["source"] == "./afkv2"
     for manifest in plugin_check.MANIFESTS:
         data = json.loads((PLUGIN / manifest).read_text(encoding="utf-8"))
         assert data["version"] == entries["afkv2"]["version"]
+
+
+def test_codex_marketplace_lists_afkv2_beside_the_v1_plugin():
+    marketplace = json.loads((PLUGIN.parent / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
+    entries = {entry["name"]: entry for entry in marketplace["plugins"]}
+    assert entries[V1]["source"] == {"source": "local", "path": "./"}
+    assert entries["afkv2"]["source"] == {"source": "local", "path": "./afkv2"}
