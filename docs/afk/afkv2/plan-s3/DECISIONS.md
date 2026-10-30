@@ -538,3 +538,10 @@
 - Chosen: B — PRD AC-072: "an executor never changes its own Scope". `rule` rules kinds `scope`, `file-owner` and `subtask-order`; kinds `acceptance`, `one-way` and `cost`, a call that is not reversible or leaves the approved goal, an order against `## Blocked by`, and a 4th call on one subtask each park with the dependents. The ruling reaches the executor in the `brief` of the next `start`, because the stopped subagent has ended. The contract file stays as it is: a ruling in the brief binds over it. A running `then` of an order ruling goes back to `pending`. The cap of 3 rulings per subtask is this slice's own limit, against a loop with no human
 - Supersedes: none
 - To reverse: `rule` in `walk.py` and the section "Rule the plan call" in `autopilot/SKILL.md`
+
+## D-78 — how the review ledger reads a change with too many threads
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — park the slice vs B — edit the installed v1 plugin vs C — use the documented seam `AFK_LEDGER_ADAPTER_CMD` of `forge_ledger.py` with a scratch script
+- Chosen: C — on change 156 the v1 verb `thread-list` of `adapters/forge/github/forge.sh` (line 597) fails with `Argument list too long`, because it passes the thread graph as one argument and the change now has more than 240 threads. Every ledger command reads this verb, so each one fails on change 156 until this is fixed. The scratch script builds the same answer in process, and sends every other verb to the v1 adapter. The ledger's trust and gate logic is unchanged. Not checked: the answer byte for byte against v1, because v1 can no longer answer on this change. Reconstruct, gate progress and gate closure accept it
+- Supersedes: none
+- To reverse: unset `AFK_LEDGER_ADAPTER_CMD` once the v1 adapter passes the graph by stdin or a file

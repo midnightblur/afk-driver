@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "afkv2/tests/skills/test_execute.py",
+  "line": 370,
+  "side": "new",
+  "finding": "Self-order refusal test does not prove the refusal left no ledger entry or state change",
+  "why": "The 2nd assert (`next` still returns 0001-a) holds for any refusal; if the guard moved after `_ledger_entry` in `rule`, the call would still return bad-payload but leave a decision in the ledger.",
+  "fix": "Assert `ledger_of(run)` has no new D- entry (or `plan/DECISIONS.md` unchanged) after the refused call.",
+  "evidence": "assert code_of(answer) == \"bad-payload\"\n    assert call(\"next\", plan=str(run.plan))[\"subtask\"] == \"0001-a\""
+ }
+]
