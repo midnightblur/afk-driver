@@ -23,3 +23,5 @@
 2026-10-30 01:50 | execute | 0011-setup-skill | decision(D-12) — switch-back keeps what the harness wrote since the takeover
 2026-10-30 01:55 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit ce4b2932 (harness-name and interpreter rows on afkv2 files)
 2026-10-30 02:54 | autopilot | 0015-autopilot-execute | decision(D-13) — the plan author corrected the 0015 contract before it starts; the check input from another session stays an acceptance line because the plan check refuses a producer outside this plan
+2026-10-30 02:20 | execute | 0011-setup-skill | review r2 — blocking: crit=0 high=1 med=6 low=6; a git failure on a live repository was read as a deleted one. All 13 are fixed in 1fe1c293.
+2026-10-30 02:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 1fe1c293 (harness-name rows on spec files of this feature)
