@@ -58,3 +58,13 @@
 2026-10-30 11:25 | execute | 0006-visualize-skill | pushed ddbb912e..a94c7233 (4 commits) — the 2 owner-ruling commits from the orchestrator, the glossary commit and the IOU commit; the plan commit that holds this line follows in a second push
 2026-10-30 11:25 | execute | 0006-visualize-skill | done — the authoring guide for page documents is finished; static and unit checks pass (96 passed, 14 skipped until the S1 engine merges), and the owner rulings replaced the review limit and the attack check
 2026-10-30 11:27 | autopilot | run | heartbeat 1/5 done, starting 0007-grill-skill — the visualize guide is finished, moving to the grill skill
+2026-10-30 11:38 | execute | 0007-grill-skill | designing — started the grill skill; the guide it needs is present
+2026-10-30 11:38 | execute | 0007-grill-skill | developing — writing the tests and fakes first, then the skill and its scripts
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-22) — round 0 happens in chat
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-23) — engine call forms stay in one wrapper, unverified until the page engine merges
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-24) — one spec folder per ticket
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-25) — the grill rules live in files of the skill
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-26) — the picture rule and the decided-card fields are enforced when a card is built
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-27) — GitHub links come from text references and a search, capped at 20
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-28) — the log keeps rows from every session of a ticket
+2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-29) — a returned point stops returning when a later card names it

@@ -146,3 +146,59 @@
 - Chosen: A — PRD AC-038 and ADR-0002 (requirements) define the map-node form, and `components/notes-and-replies.md` follows it; GRILL-LOG line 117 records a page-level steer, so B drops a form that the design record used. Whether the S1 engine stores a whole-session steer is not verified, because that engine is not on this branch
 - Supersedes: none
 - To reverse: edit the Steer entry in `afkv2/GLOSSARY.md`
+
+## D-22 — round 0 happens in chat, not on the page
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — chat, with the words verbatim on a `Round 0` row of GRILL-LOG.md vs B — a page round numbered 0
+- Chosen: A — the signed schema has round n ≥ 1 (SDD §4), and contract SK-07 says "optional round 0; requirement rounds on the page"
+- Supersedes: none
+- To reverse: add a round-0 page form to the schema and the build verb of `round_document.py`
+
+## D-23 — engine call forms the SDD leaves open are assumed in one wrapper
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — one wrapper `page_round.py` assumes every verb takes the document path, `poll` answers `raw`, `render` answers `page`, `ingest DOC --raw-file FILE` vs B — the skill states engine commands directly
+- Chosen: A — one file changes when S1 0003 to 0005 merge; the assumed forms are unverified until then
+- Supersedes: none
+- To reverse: change `_engine` calls in `page_round.py` and `fake_engine.py`
+
+## D-24 — the spec folder of a ticket is the config spec folder plus the ticket slug
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — `<spec_folder>/<ticket slug>` with non-word characters replaced by `-` vs B — one flat spec folder for all tickets
+- Chosen: A — GRILL-LOG.md and pages/ are per ticket, and B collides on the second ticket
+- Supersedes: none
+- To reverse: change `ticket_slug` and `start` in `grill_start.py`
+
+## D-25 — the grill rules are rewritten in sibling files of the skill
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — `ROUNDS.md` and `GRILL-LOG-FORMAT.md` hold the rules, with the claim ledger verified by read-only `rg` subagents vs B — point at the v1 grill files
+- Chosen: A — v1 is off when v2 runs (decision 46 drops the investigate ledger), and the owner steer keeps the round model, the card kinds, explicit marks, the ledger and the exit gate
+- Supersedes: none
+- To reverse: replace the sibling files with pointers
+
+## D-26 — critical and decided are build input only
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — the builder enforces the picture rule and the six decided-card fields, then strips both fields vs B — add them to the document schema
+- Chosen: A — the document stays schema afkv2.page/0, and the rule is deterministic at the one place cards are written
+- Supersedes: none
+- To reverse: add the fields to SDD §4 and keep them in `_item`
+
+## D-27 — GitHub ticket links are text references plus a reverse search, capped at 20
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — references in body and comments, then `issue-search` for `"#N"`, with a cap of 20 links and the rest in `unread_links` vs B — references only
+- Chosen: A — decision 63 asks for links, and GitHub has no link field; a live `gh issue list --search '"#153"'` returned issue 153, so whether the search finds mentions in other issues is unverified
+- Supersedes: none
+- To reverse: drop the search in `_github_links`
+
+## D-28 — a sync writes rows from every grill document of the ticket
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — `sync` regenerates rows from all `pages/grill-*.json`, oldest session first vs B — only the current document, which drops the settled rows and owner notes of an older session from the log
+- Chosen: A — keeps the row grammar and keeps every owner note on the log
+- Supersedes: none
+- To reverse: read one document in `sync`
+
+## D-29 — a reopened older card stops returning when a later card names it
+- 2026-10-30 · decided by execute (0007-grill-skill)
+- Options: A — a card of a later round than the last note on the old card that names its id carries it vs B — add a carried marker to the document
+- Chosen: A — a settled round is never rewritten and the schema has no marker; the older-card ingest shape is unverified until S1 0005 (D-14, D-15)
+- Supersedes: none
+- To reverse: read the engine's own field in `returning` once S1 0005 merges
