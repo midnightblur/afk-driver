@@ -33,8 +33,10 @@ it out when you read the signals, because it settles nothing.
 - `needs_reading` with a clear note and no signal that disagrees with it: set
   `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
   The `signal` is the note id. A note that leaves the answer open is not a clear
-  note. A note on an `info` card is not a clear note: it answers nothing, so it gets
-  a reply only. A `reopen` or `changes` mark always disagrees.
+  note. A note that changes the wording of a `signoff` card is not a clear note: the
+  new card asks the human to sign the new wording. A note on an `info` card is not a
+  clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
+  mark always disagrees.
 - `needs_reading` in any other case: set `state` to `open`. A write-in has no note
   id, so it cannot settle by note: the new card for that point is a `confirm` card
   that states the write-in as your reading.

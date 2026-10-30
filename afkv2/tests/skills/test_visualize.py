@@ -610,36 +610,47 @@ def test_card_page_settled_example_has_the_schema_shape():
         assert settled["signal"].startswith(f"N-{settled['round']}-")
 
 
-def test_card_page_states_the_round_pass_rules():
-    text = " ".join((PAGES_DIR / "card.md").read_text("utf-8").split())
-    assert "settles only by a `sign` mark" not in text
-    for rule in ("the engine settles a point with one `accept`, `sign` or option mark.",
-                 "It moves a point to `needs_reading` on `reopen`, `changes`, a write-in, a note, "
-                 "a mark plus a note, or 2 marks.",
-                 "Never change a card in a settled round.",
-                 "A note whose `target` is a map node id is a steer: leave it out when you read "
-                 "the signals, because it settles nothing.",
-                 "`needs_reading` with a clear note and no signal that disagrees with it: "
-                 "set `state` to `settled_by_note`",
-                 "The `signal` is the note id.",
-                 "A note that leaves the answer open is not a clear note.",
-                 "A `reopen` or `changes` mark always disagrees.",
-                 "`needs_reading` in any other case: set `state` to `open`.",
-                 "A note on an `info` card is not a clear note: it answers nothing, so it gets "
-                 "a reply only.",
-                 "A write-in has no note id, so it cannot settle by note: the new card for "
-                 "that point is a `confirm` card that states the write-in as your reading.",
-                 "`blocked` with the point it waits on now settled: set `state` to `open`.",
-                 "Make one new card for each point that returns:",
-                 "a `decided`, `confirm`, `debate` or `signoff` card of the round you settled "
-                 "that is still `open` or `blocked`;",
-                 "a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that "
-                 "the human noted or reopened in this send.",
-                 "The new card has a new id. Its body names each old card id and shows the "
-                 "signals that returned the point",
-                 "A carried `blocked` card names the current card id of the point it waits on.",
-                 "An `info` card stays in its round."):
-        assert rule in text
+# The guide is the program, so the whole round pass is pinned: a changed sentence must fail here.
+ROUND_PASS = """
+When the human sends a round, the engine settles a point with one `accept`,
+`sign` or option mark. It moves a point to `needs_reading` on `reopen`,
+`changes`, a write-in, a note, a mark plus a note, or 2 marks. Before you mark
+the round `settled`, go through the cards of the current round. Never change a
+card in a settled round. A note whose `target` is a map node id is a steer: leave
+it out when you read the signals, because it settles nothing.
+
+- `needs_reading` with a clear note and no signal that disagrees with it: set
+  `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
+  The `signal` is the note id. A note that leaves the answer open is not a clear
+  note. A note that changes the wording of a `signoff` card is not a clear note: the
+  new card asks the human to sign the new wording. A note on an `info` card is not a
+  clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
+  mark always disagrees.
+- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
+  id, so it cannot settle by note: the new card for that point is a `confirm` card
+  that states the write-in as your reading.
+- `blocked` with the point it waits on now settled: set `state` to `open`.
+
+Then mark the round `settled` and append the next round. Make one new card for
+each point that returns:
+
+- a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
+  is still `open` or `blocked`;
+- a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
+  human noted or reopened in this send.
+
+The new card has a new id. Its body names each old card id and shows the signals
+that returned the point, for example both the mark and the note. A carried
+`blocked` card names the current card id of the point it waits on. An `info` card
+stays in its round. The old card stays as it is.
+"""
+
+
+def test_card_page_states_the_round_pass():
+    text = (PAGES_DIR / "card.md").read_text("utf-8")
+    start = text.index("When the human sends a round")
+    found = text[start:text.index("## How it looks")]
+    assert found.split() == ROUND_PASS.split()
 
 
 def _frontmatter(path):
