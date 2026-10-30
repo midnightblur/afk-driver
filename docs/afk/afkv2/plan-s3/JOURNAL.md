@@ -25,3 +25,5 @@
 2026-10-30 02:54 | autopilot | 0015-autopilot-execute | decision(D-13) — the plan author corrected the 0015 contract before it starts; the check input from another session stays an acceptance line because the plan check refuses a producer outside this plan
 2026-10-30 02:20 | execute | 0011-setup-skill | review r2 — blocking: crit=0 high=1 med=6 low=6; a git failure on a live repository was read as a deleted one. All 13 are fixed in 1fe1c293.
 2026-10-30 02:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 1fe1c293 (harness-name rows on spec files of this feature)
+2026-10-30 02:50 | execute | 0011-setup-skill | review r3 — blocking: crit=0 high=0 med=3 low=2; writes to a read-only file failed after the round 2 fix. All 5 are fixed in 2f8e32c7.
+2026-10-30 02:50 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 2f8e32c7 (harness-name rows and provider-helper names on spec files of this feature)
