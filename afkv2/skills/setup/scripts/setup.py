@@ -56,7 +56,7 @@ class System:
     windows: bool = os.name == "nt"
     fresh_env: Callable[[], Mapping[str, str]] | None = None
     add_to_user_path: Callable[[Path], bool] | None = None
-    set_user_env: Callable[[str, str], None] | None = None
+    user_env: jira_values.UserEnv | None = None
     ask: Callable[[str], str] = input
     ask_secret: Callable[[str], str] = getpass.getpass
     is_terminal: Callable[[], bool] = lambda: sys.stdin.isatty()
@@ -525,7 +525,8 @@ def _restore_codex_config(places: Places) -> str:
     return "restored" if now == before else "merged"
 
 
-def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> dict:
+def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
+                user_env: jira_values.UserEnv | None = None) -> dict:
     """Restore every backup, leave only v1 on, and list the tickets afkv2 published."""
     blocks = restore_v1_block(places)
     hooks = restore_v1_git_hooks(places)
@@ -533,6 +534,8 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
     settings = [_restore_repo_settings(saved) for saved in saved_dirs]
     live = [Path(s["repo"]) for s in settings if s["settings"] not in ("repo-missing", "failed")]
     codex = _restore_codex_config(places)
+    jira = {"claude_user_config": jira_values.restore_claude_user_config(places),
+            "user_environment": jira_values.restore_user_env(places, user_env)}
     lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
     one_on = _leave_v1_only(places, live, run)
     not_switched = {c["repo"] for c in one_on["claude"] if not c["ok"]}
@@ -552,13 +555,14 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
         if failed:
             answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])
     ok = (lavish["ok"] and one_on["ok"] and codex != "failed"
+          and not any(step["action"] == "failed" for step in jira.values())
           and not any(b["action"] == "failed" for b in blocks)
           and not any(h["action"] in ("conflict", "failed") for h in hooks)
           and not any(s["settings"] == "failed" for s in settings))
     if ok:
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
-            "codex_config": codex, "lavish": lavish, "plugins": one_on,
+            "codex_config": codex, "jira_values": jira, "lavish": lavish, "plugins": one_on,
             "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
 
@@ -642,7 +646,7 @@ def secrets(places: Places, system: System, env: Mapping[str, str]) -> dict:
         values = jira_values.ask_values(jira_values.lookup(places, env), system.ask, system.ask_secret)
     except ValueError as exc:
         return _error("bad-value", f"{exc}; nothing was written")
-    return jira_values.store_jira_values(places, values, system.set_user_env)
+    return jira_values.store_jira_values(places, values, system.user_env)
 
 
 def default_system() -> System:
@@ -650,7 +654,7 @@ def default_system() -> System:
         return System()
     return System(fresh_env=lambda: tools.fresh_windows_env(os.environ),
                   add_to_user_path=tools.windows_user_path_adder,
-                  set_user_env=jira_values.windows_user_env_setter)
+                  user_env=jira_values.WINDOWS_USER_ENV)
 
 
 def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
@@ -699,7 +703,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         elif args.verb == "takeover":
             answer = takeover(places, repo, system, env, args.provider, args.end_marker, plugin_root)
         else:
-            answer = switch_back(places, system.run, env)
+            answer = switch_back(places, system.run, env, system.user_env)
     except (ValueError, OSError) as exc:
         print(json.dumps(_error("unreadable-input", f"{type(exc).__name__}: {exc}")))
         return 2

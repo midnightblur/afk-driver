@@ -59,12 +59,15 @@ you ask in this session; the Jira token never passes through you.
 ## Switch back to v1
 
 `/afkv2:setup switch-back`: run `setup.py switch-back`. It restores the v1 block,
-the git hook stubs, the plugin settings and the lavish host version from the
-backups, and leaves only v1 on. A file the harness changed since keeps those
-changes (`merged`); a deleted repository is skipped (`repo-missing`). A
+the git hook stubs, the plugin settings, the Jira values and the lavish host
+version from the backups, and leaves only v1 on. A file the harness changed since
+keeps those changes (`merged`); a deleted repository is skipped (`repo-missing`). A
 `.claude/settings.local.json` that holds the off value stays, with its ignore
 line. Report each restored item and each `conflict` or `failed` entry with its `backup`
 path. For `codex_config: failed` the backup is `codex/config.toml` under the
-top-level `backup_dir`; for a failed `lavish` report its `error`. Report the
+top-level `backup_dir`; for a failed `lavish` report its `error`. `jira_values`
+names each key's outcome and never a value. The backup of those values holds the
+token in plain text under `backup_dir`: never open or print it. Restored user
+environment values reach a new terminal, not a running one. Report the
 `published_tickets` list: on those tickets the developer
 must not run v1's publish, because v1 does not find afkv2's block.

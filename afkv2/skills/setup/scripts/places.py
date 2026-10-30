@@ -75,8 +75,11 @@ def place_key(path: Path) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
 
-def write_atomic(path: Path, data: bytes) -> None:
-    """Replace the file in one step; a symlink stays a link, a file keeps its mode."""
+def write_atomic(path: Path, data: bytes, private: bool = False) -> None:
+    """Replace the file in one step; a symlink stays a link, a file keeps its mode.
+
+    `private` gives a new file mode 0600, because it holds a secret.
+    """
     if path.is_symlink():
         path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,7 +91,7 @@ def write_atomic(path: Path, data: bytes) -> None:
     # Private until the mode is copied: the file can hold a secret. New files take the umask.
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
     try:
-        with os.fdopen(os.open(tmp, flags, 0o600 if exists else 0o666), "wb") as out:
+        with os.fdopen(os.open(tmp, flags, 0o600 if exists or private else 0o666), "wb") as out:
             out.write(data)
         if exists:
             shutil.copymode(path, tmp)

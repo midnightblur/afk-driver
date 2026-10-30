@@ -104,6 +104,27 @@ class FakeRunner(tools.Runner):
         return tools.Result(0)
 
 
+class FakeUserEnv:
+    """The user environment store as a dict; no test writes the real one."""
+
+    def __init__(self, **values):
+        self.values = dict(values)
+        self.broken = False
+
+    def get(self, name):
+        return self.values.get(name)
+
+    def set(self, name, value):
+        if self.broken:
+            raise OSError("access denied")
+        self.values[name] = value
+
+    def delete(self, name):
+        if self.broken:
+            raise OSError("access denied")
+        self.values.pop(name, None)
+
+
 @pytest.fixture
 def env(tmp_path):
     home = tmp_path / "home"

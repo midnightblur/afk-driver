@@ -14,7 +14,7 @@ import plugins
 import recorded_config_reader
 import setup
 import tools
-from conftest import NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
+from conftest import FakeUserEnv, NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
 from places import write_atomic
 
 
@@ -180,6 +180,63 @@ def test_switch_back_restores_every_file(taken_over, world, env, places, repo, r
     assert {p: p.read_bytes() for p in unchanged} == {p: world[p] for p in unchanged}
     assert not any((places.backup / sub).exists() and any((places.backup / sub).iterdir())
                    for sub in ("instructions", "git-hooks", "claude-settings", "codex"))
+
+
+def _secrets(env, system, plugin_root, repo, capsys):
+    answers = iter(["https://new.atlassian.net", "new@example.com"])
+    system.ask = lambda _p: next(answers)
+    system.ask_secret = lambda _p: "new-token-secret"
+    return _cli(["secrets"], env, system, plugin_root, repo, capsys)
+
+
+def test_switch_back_restores_the_claude_jira_values_and_keeps_later_harness_writes(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    old = {"JIRA_BASE_URL": "https://old.atlassian.net", "JIRA_EMAIL": "old@example.com", "JIRA_API_TOKEN": "old-token-secret"}
+    places.claude_user_config.write_text(json.dumps({"mcpServers": {"tracker": {"env": old}}}), encoding="utf-8")
+    assert _secrets(env, system, plugin_root, repo, capsys)[0] == 0
+    later = json.loads(places.claude_user_config.read_text(encoding="utf-8"))
+    later["numStartups"] = 7
+    places.claude_user_config.write_text(json.dumps(later), encoding="utf-8")
+    code = setup.main(["switch-back"], env=env, system=system, plugin_root=plugin_root, cwd=repo)
+    printed = capsys.readouterr().out
+    assert code == 0, printed
+    assert json.loads(printed)["jira_values"]["claude_user_config"] == {"action": "merged"}
+    now = json.loads(places.claude_user_config.read_text(encoding="utf-8"))
+    assert now == {"mcpServers": {"tracker": {"env": old}}, "numStartups": 7}
+    assert "secret" not in printed
+    assert not (places.backup / "claude-user-config").exists()
+
+
+def test_switch_back_restores_the_user_environment(taken_over, env, places, repo, system, plugin_root, capsys):
+    system.user_env = FakeUserEnv(JIRA_EMAIL="old@example.com")
+    assert _secrets(env, system, plugin_root, repo, capsys)[0] == 0
+    assert system.user_env.values["JIRA_API_TOKEN"] == "new-token-secret"
+    code = setup.main(["switch-back"], env=env, system=system, plugin_root=plugin_root, cwd=repo)
+    printed = capsys.readouterr().out
+    assert code == 0, printed
+    assert json.loads(printed)["jira_values"]["user_environment"]["keys"]["JIRA_EMAIL"] == "restored"
+    assert system.user_env.values == {"JIRA_EMAIL": "old@example.com"}
+    assert "secret" not in printed and not (places.backup / "user-env").exists()
+
+
+def test_a_failed_user_environment_restore_fails_switch_back_and_a_rerun_finishes(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    system.user_env = FakeUserEnv()
+    assert _secrets(env, system, plugin_root, repo, capsys)[0] == 0
+    system.user_env.broken = True
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and back["jira_values"]["user_environment"]["action"] == "failed"
+    assert (places.backup / "user-env" / "values.json").exists()
+    system.user_env.broken = False
+    code, again = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and again["jira_values"]["user_environment"]["action"] == "restored"
+    assert system.user_env.values == {}
+
+
+def test_switch_back_with_no_jira_backup_reports_it(taken_over, env, repo, system, plugin_root, capsys):
+    _, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert back["jira_values"] == {"claude_user_config": {"action": "no-backup"},
+                                   "user_environment": {"action": "no-backup"}}
 
 
 def test_switch_back_leaves_only_v1_on(taken_over, world, env, places, repo, runner, system, plugin_root, capsys):
