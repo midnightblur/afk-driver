@@ -85,3 +85,4 @@
 2026-10-30 11:10 | execute | 0012-forge-tracker-port | wiring gate exit 0
 2026-10-30 11:10 | execute | 0012-forge-tracker-port | plugin-source gates over the slice: rows on afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 only; none on afkv2/ports or afkv2/tests/ports
 2026-10-30 11:10 | execute | 0012-forge-tracker-port | status done
+2026-10-30 11:20 | execute | 0012-forge-tracker-port | wiring gate side effect — the gate closed 10 open IOU lines in the working copy, on a referrer that is not the consumer (consumers 0008, 0013-0016 do not exist yet); restored from the commit, not committed
