@@ -68,3 +68,18 @@
 2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-27) — GitHub links come from text references and a search, capped at 20
 2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-28) — the log keeps rows from every session of a ticket
 2026-10-30 12:00 | execute | 0007-grill-skill | decision(D-29) — a returned point stops returning when a later card names it
+2026-10-30 12:02 | execute | 0007-grill-skill | pushed 7cbf833f..0bb8aa1e (4 commits) — the grill skill and its tests are on the branch; commits 142a4d93, 5f71149a and 0bb8aa1e used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-10-30 12:02 | execute | 0007-grill-skill | verifying — running the three test levels the plan names for this slice
+2026-10-30 12:06 | execute | 0007-grill-skill | verified static, unit, integration — compile and anchors pass; 75 tests pass, 1 skipped until the page engine merges; the 2 scripted dry runs pass against recorded fakes
+2026-10-30 12:06 | execute | 0007-grill-skill | produces-check pass — both promised anchors are on the branch
+2026-10-30 12:06 | execute | 0007-grill-skill | reviewing — independent review starts, at most 3 rounds (owner ruling R-2)
+2026-10-30 12:35 | execute | 0007-grill-skill | review(r1): blocking — crit=0 high=3 med=23 low=13; the reviewers found 3 real faults and 36 smaller points that stay on the pull request as advice (owner ruling R-2)
+2026-10-30 12:35 | execute | 0007-grill-skill | review fix e344a1cb — fixed the 3 faults: a card that only mentions an open point no longer hides it, a refused round can be built again, a redefined term keeps its links; commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-10-30 12:35 | execute | 0007-grill-skill | decision(D-30) — a new card asks an old point again only when it says so
+2026-10-30 12:35 | execute | 0007-grill-skill | decision(D-31) — a round the page engine refused can be rewritten while it has no answer
+2026-10-30 12:42 | execute | 0007-grill-skill | review(r2): advisory — crit=0 high=0 med=3 low=5; the second check of the fixes found no serious fault, so the review gate passes after 2 of at most 3 rounds (owner ruling R-2); 44 smaller points stay open on the pull request as advice
+2026-10-30 12:42 | execute | 0007-grill-skill | adversary: skipped (owner ruling R-1)
+2026-10-30 12:42 | execute | 0007-grill-skill | wiring: exit 0 — the wiring scan found no unused file; the skill and its test have open IOU lines until their consumers merge
+2026-10-30 12:42 | execute | 0007-grill-skill | glossary: Claim ledger, Exit gate — two terms the skill uses now have entries
+2026-10-30 12:42 | execute | 0007-grill-skill | gate-skip — commits 142a4d93, 5f71149a, 0bb8aa1e, e344a1cb, 3ba01cbb, 3db1b4d4 and the closing plan commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); pull request checks do not run afkv2/tests, so the local tests are the only check of this slice
+2026-10-30 12:42 | execute | 0007-grill-skill | done — the grill skill is finished and tested against stand-ins for the page engine and the tracker; a live Codex check waits for the owner (CODEX-LIVE-CHECK.md)

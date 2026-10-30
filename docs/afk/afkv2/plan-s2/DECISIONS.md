@@ -202,3 +202,17 @@
 - Chosen: A — a settled round is never rewritten and the schema has no marker; the older-card ingest shape is unverified until S1 0005 (D-14, D-15)
 - Supersedes: none
 - To reverse: read the engine's own field in `returning` once S1 0005 merges
+
+## D-30 — a new card carries an old point only through an explicit carries field
+- 2026-10-30 · decided by execute (0007-grill-skill, review round 1)
+- Options: A — a build input field `carries`, written into the body as a `<card>-carries` text the checks read vs B — any mention of the old id in the body counts
+- Chosen: A — B lets a card that only depends on an open point hide it, and the point then never returns; A still meets the guide's rule that the new card's body names the old id
+- Supersedes: none
+- To reverse: restore the body-wide search in `_carries_card`
+
+## D-31 — a round the engine refused is corrected with build --replace
+- 2026-10-30 · decided by execute (0007-grill-skill, review round 1)
+- Options: A — an explicit `--replace` that rewrites a current round with no answer vs B — run the engine check on a temporary copy before the document is written
+- Chosen: A — the check's handling of a path other than the session document is unverified until S1 merges, and A needs no engine call
+- Supersedes: none
+- To reverse: remove `_drop_unanswered_round` and check before the write
