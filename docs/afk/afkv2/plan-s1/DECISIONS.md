@@ -181,3 +181,10 @@
 - Chosen: A — ruling of the plan author. The step follows the existing matrix, so it runs on Linux while that row exists. The owner has an open question on removing the Linux row; if it goes, this step goes with it and needs no edit. The hook tests already skip off Windows (`afkv2/tests/test_hooks.py:21`)
 - Supersedes: gap 1 of D-11 (no job runs `afkv2/tests`); the other D-11 gap stands
 - To reverse: remove the step and the path in the 0001 `## Scope`, and the 3 bullets
+
+## D-27 — findings f004 and f053 keep their terminal records; the citation of D-25 is a plain reply
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — leave the terminal records, the threads stay resolved, and each thread gets a plain reply that cites D-25 vs B — post new finding keys for the recurrence and close those with `fixed`
+- Chosen: A — both keys are already terminal, f004 as `fixed` and f053 as `verdict withdrawn`, and their threads are resolved. skills/afk/review/SETTLEMENT.md lists no transition out of a terminal state, and forge_ledger.py raises "illegal transition from terminal". Option B adds two findings and closes nothing more. The reason text of f053 still names D-8 and is out of date; the reply says so
+- Supersedes: none
+- To reverse: post new keys for the recurrence and close them with `fixed`

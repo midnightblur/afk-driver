@@ -8,7 +8,7 @@ Each check has a pass rule and an on-fail path. Write the result in the table at
 
 1. Use a test repository, not a repository with real work.
 2. Get the expected hash. Open `afkv2\hooks\built\afkv2-core-behaviors.txt` in the afkv2 source. Its last line is `afkv2-core-behaviors end <sha12>`. Write down the `<sha12>`.
-3. Give Codex an install path. The repository Codex marketplace `.agents/plugins/marketplace.json` lists only the v1 plugin. In your test copy of this repository, add this entry to its `plugins` list: `{"name": "afkv2", "source": {"source": "local", "path": "./afkv2"}, "policy": {"installation": "AVAILABLE", "authentication": "ON_USE"}, "category": "Developer Tools"}`. Do not commit this change.
+3. Check the install path. The repository Codex marketplace `.agents/plugins/marketplace.json` lists afkv2 with the path `./afkv2`. You add no entry.
 4. Enable afkv2 in Codex from that marketplace. The exact Codex command is not verified here; use the Codex plugin documentation.
 5. Write down the time. The hook writes `%LOCALAPPDATA%\afkv2\fired-codex.txt` each time it runs.
 

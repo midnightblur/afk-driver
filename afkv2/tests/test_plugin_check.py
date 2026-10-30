@@ -638,6 +638,24 @@ def test_build_command_regenerates_and_checks(tree):
     assert json.loads(done.stdout)["ok"] is True
 
 
+def test_codex_marketplace_lists_afkv2_beside_the_v1_plugin():
+    marketplace = json.loads((PLUGIN.parent / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
+    entries = {entry["name"]: entry for entry in marketplace["plugins"]}
+    policy = {"installation": "AVAILABLE", "authentication": "ON_USE"}
+    assert entries[V1] == {
+        "name": V1,
+        "source": {"source": "local", "path": "./"},
+        "policy": policy,
+        "category": "Developer Tools",
+    }
+    assert entries["afkv2"] == {
+        "name": "afkv2",
+        "source": {"source": "local", "path": "./afkv2"},
+        "policy": policy,
+        "category": "Developer Tools",
+    }
+
+
 def test_marketplace_lists_afkv2_beside_the_v1_plugin():
     marketplace = json.loads((PLUGIN.parent / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
     entries = {entry["name"]: entry for entry in marketplace["plugins"]}
