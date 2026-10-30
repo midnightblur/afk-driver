@@ -46,7 +46,7 @@ complex
 - [ ] Every test runs against a temporary home, data folder and repository; no test touches the real user files
 
 ## Produces
-- afkv2/skills/setup/SKILL.md#/afkv2:setup — the setup skill
+- afkv2/skills/setup/SKILL.md#description: /afkv2:setup — the setup skill
 - afkv2/skills/setup/scripts/setup.py#def prove_hook( — fired record + end marker proof
 - afkv2/skills/setup/scripts/setup.py#def remove_v1_block( — full-line block removal with backup
 - afkv2/skills/setup/scripts/setup.py#def move_v1_git_hooks( — stubs aside with backup

@@ -545,3 +545,38 @@
 - Chosen: C — on change 156 the v1 verb `thread-list` of `adapters/forge/github/forge.sh` (line 597) fails with `Argument list too long`, because it passes the thread graph as one argument and the change now has more than 240 threads. Every ledger command reads this verb, so each one fails on change 156 until this is fixed. The scratch script builds the same answer in process, and sends every other verb to the v1 adapter. The ledger's trust and gate logic is unchanged. Not checked: the answer byte for byte against v1, because v1 can no longer answer on this change. Reconstruct, gate progress and gate closure accept it
 - Supersedes: none
 - To reverse: unset `AFK_LEDGER_ADAPTER_CMD` once the v1 adapter passes the graph by stdin or a file
+
+## D-79 — every afkv2 script module name is unique
+- 2026-10-30 · decided by orchestrator
+- Options: A — keep the flat `v1_facts` copies and fix only the test load order vs B — rename them, and every other duplicate basename
+- Chosen: B — SDD §7 row "every afkv2 script module name is unique across the plugin tree"; the smoke gate is red on this clash. Autopilot gets `autopilot_v1_facts.py`, setup gets `setup_v1_facts.py`, the tracker copy keeps its name (S2 imports it). `forge/cli.py` becomes `forge/forge_cli.py`, the tracker copy keeps its name (S2 calls it). `__init__.py` and `conftest.py` stay: Python and pytest fix those names
+- Supersedes: D-35 "keep them in files named `v1_facts.py`" for the two renamed copies. The S1 check must exempt the new names (IOU)
+- To reverse: rename the files back
+
+## D-80 — setup uses the frozen config and fired-record names
+- 2026-10-30 · decided by orchestrator
+- Options: A — keep the S3 names vs B — `.afkv2/config.json` with a required `spec_folder`, and `%LOCALAPPDATA%\afkv2\fired-<provider>.txt`
+- Chosen: B — SDD §8 "Frozen on day 1" now fixes both: the S1 reader and the S1 hook decide. The same section freezes the publish preview, which settles the D-29 question
+- Supersedes: D-3, D-6, D-15
+- To reverse: an SDD §8 change
+
+## D-81 — switch-back restores the Jira values
+- 2026-10-30 · decided by orchestrator
+- Options: A — leave them, as the contract's restore list does vs B — back up `claude-user-config/claude.json` and the user environment values setup writes, and restore both
+- Chosen: B — ADR-0008 "Every write keeps a backup; switch-back restores each one"
+- Supersedes: 0011 `## Acceptance` restore list, as too narrow
+- To reverse: drop the restore step in `switch_back`
+
+## D-82 — the 0011 setup anchor becomes unique
+- 2026-10-30 · decided by orchestrator
+- Options: A — leave `/afkv2:setup`, which greps 4 times vs B — `description: /afkv2:setup`, which greps once
+- Chosen: B — `validate_plan.py` must exit 0 on plan-s3
+- Supersedes: 0011 `## Produces` anchor `/afkv2:setup`
+- To reverse: restore the anchor
+
+## D-83 — the v2 forge port pages thread lists and keeps body bytes
+- 2026-10-30 · decided by orchestrator
+- Options: A — leave the port vs B — page thread lists, pass every body by file or stdin, and keep CRLF byte for byte, with 2 new tests
+- Chosen: B — SDD §7 row "the forge port pages thread lists and passes every body through a file or stdin, never an argument". This also ends the "Kept from v1" glab body on argv that 0012 reported
+- Supersedes: none
+- To reverse: revert the port change

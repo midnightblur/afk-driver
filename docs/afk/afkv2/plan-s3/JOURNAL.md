@@ -182,3 +182,8 @@
 2026-10-30 14:32 | execute | 0015-autopilot-execute | gate-skip — commit fd9de7e2 and the plan commits of this slice used AFK_SKIP_PRECOMMIT_GATES=1 (ruling D-62). In plain terms: the commit checks did not run on these commits; the pull request's CI still runs
 2026-10-30 14:46 | smoke-test | gate | smoke fail (1/2 scenarios) — the code compiles, but the test run stopped before any test ran, because two helper files with the same name clash when all tests load together; each test folder passes alone: 923 passed, 5 skipped
 2026-10-30 14:46 | autopilot | run | run end (5/5 done, 0 parked) — every slice is finished and the feature gate is red; a human or a new slice must fix the name clash before the gate runs again
+2026-10-30 14:53 | autopilot | run | decision(D-79) — two helper files may not share a name anywhere in the plugin
+2026-10-30 14:53 | autopilot | run | decision(D-80) — setup now uses the file names the design document fixed
+2026-10-30 14:53 | autopilot | run | decision(D-81) — going back to the old version now also restores the Jira values
+2026-10-30 14:53 | autopilot | run | decision(D-82) — the plan check now passes on this plan
+2026-10-30 14:53 | autopilot | run | decision(D-83) — the connection code must handle very long comment lists and keep text exact
