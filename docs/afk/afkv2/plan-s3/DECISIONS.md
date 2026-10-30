@@ -468,3 +468,10 @@
 - Chosen: B — each clause has a test, and each test failed when the rule was changed in memory. Round cap: `test_next_round_stops_after_round_3` and `test_round_4_is_refused_whatever_is_left` fail at a cap of 2 and of 4. Only critical and high are fixed: `test_route_sends_critical_and_high_to_fix_and_medium_and_low_to_post` and `test_record_routes_each_severity_and_posts_only_medium_and_low` fail when every severity goes to fix, and when only critical does. The rest stay as advice: the same 2 tests fail when no finding is posted; the record test also proves that the only forge calls are 2 `change-comment` calls, so no thread is resolved; `outcome` refuses a medium finding (`no-such-finding`); and `test_finish_after_a_round_with_nothing_to_fix_stops_clean` reports a low finding under `left.posted` with `stopped_by` `clean`. Not proved: the comment text does not say the word "advice" and no test asks for it (the severity label and `left.posted` carry that meaning). No code changed, so no review round is owed and D-65 still holds
 - Supersedes: none
 - To reverse: add the test to `afkv2/tests/skills/test_code_review.py`
+
+## D-68 — 0015 chooses how a plan names a gate not applicable
+- 2026-10-30 · decided by autopilot (orchestrator ruling, this one fork)
+- Options: A — 0015 parks until the owner or S2 names the format vs B — 0015 chooses one format, records it, and leaves an IOU for S2 0010 to emit it
+- Chosen: B — SDD §7 says "the plan names it not applicable" and defines no form. 0010 is pending on `feat/afkv2-s2`, and a grep of its branch finds no such form, so no caller exists to break. The form is one edit in 0015 and one in 0010. Any other fork that 0015 parks on needs a new ruling
+- Supersedes: none
+- To reverse: change the parser in `start_gate.py` to the form S2 builds
