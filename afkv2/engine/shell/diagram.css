@@ -1,0 +1,87 @@
+/* --- diagrams: map, graph, sequence diagram, simulated-run strip ---------- */
+
+.afkv2-diagram { margin: .5rem 0; }
+.afkv2-diagram-title { margin-bottom: .35rem; font-weight: 600; }
+.afkv2-diagram-scroll { max-width: 100%; overflow-x: auto; }
+
+/* --- boxes and arrows ---------------------------------------------------- */
+
+.afkv2-boxes { position: relative; }
+.afkv2-group {
+  position: absolute; z-index: 0; padding: .2rem .5rem;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+}
+.afkv2-group-label { display: block; font-size: .78rem; line-height: 18px; color: var(--fg-dim); overflow-wrap: anywhere; }
+.afkv2-edges { position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; }
+.afkv2-edge { fill: none; stroke: var(--neutral); stroke-width: 1.5; }
+.afkv2-edge--back { stroke-dasharray: 5 3; }
+.afkv2-arrowhead { fill: var(--neutral); }
+.afkv2-edge-label {
+  position: absolute; z-index: 3; transform: translate(-50%, -50%); padding: 0 .25rem;
+  background: var(--bg); color: var(--fg-dim); font-size: .75rem; line-height: 16px;
+  text-align: center; overflow-wrap: anywhere;
+}
+.afkv2-box {
+  position: absolute; z-index: 2; padding: 6px 8px; overflow: auto;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2);
+  font-size: .85rem; line-height: 20px;
+}
+.afkv2-box-label { display: block; overflow-wrap: anywhere; }
+
+/* --- map: a colour and a border shape for each state, and the state in words -- */
+
+.afkv2-node--settled { border-color: var(--settled); border-style: solid; }
+.afkv2-node--open { border-color: var(--open); border-style: dashed; }
+.afkv2-node--focus { border-color: var(--focus); border-style: double; border-width: 4px; padding: 3px 5px; }
+.afkv2-node-head { display: flex; justify-content: space-between; gap: .4rem; font-size: .7rem; line-height: 20px; color: var(--fg-dim); }
+.afkv2-node--settled .afkv2-node-state { color: var(--settled); }
+.afkv2-node--open .afkv2-node-state { color: var(--open); }
+.afkv2-node--focus .afkv2-node-state { color: var(--focus); font-weight: 700; }
+.afkv2-node-round { font-family: ui-monospace, monospace; }
+
+/* --- sequence diagram ---------------------------------------------------- */
+
+.afkv2-seq { display: grid; row-gap: .4rem; padding-bottom: .6rem; }
+.afkv2-seq-actor {
+  justify-self: center; z-index: 1; padding: .25rem .6rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--surface-2); font-weight: 600; overflow-wrap: anywhere;
+}
+.afkv2-seq-life { justify-self: center; width: 0; border-left: 1px dashed var(--line); }
+.afkv2-seq-msg { position: relative; z-index: 1; align-self: end; min-width: 0; }
+.afkv2-seq-text { padding: 0 .9rem .1rem; font-size: .85rem; text-align: center; overflow-wrap: anywhere; }
+.afkv2-seq-n { color: var(--fg-dim); font-family: ui-monospace, monospace; }
+.afkv2-seq-words { overflow-wrap: anywhere; }
+.afkv2-seq-line { position: relative; border-top: 2px solid var(--fg-dim); }
+.afkv2-seq-line::after {
+  content: ""; position: absolute; top: -6px; width: 0; height: 0;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+}
+.afkv2-seq-msg--right .afkv2-seq-line::after { right: 0; border-left: 8px solid var(--fg-dim); }
+.afkv2-seq-msg--left .afkv2-seq-line::after { left: 0; border-right: 8px solid var(--fg-dim); }
+.afkv2-seq-msg--self { margin-left: 50%; }
+.afkv2-seq-msg--self .afkv2-seq-text { text-align: left; }
+.afkv2-seq-msg--self .afkv2-seq-line {
+  height: .9rem; width: 2.5rem; border: 2px solid var(--fg-dim); border-left: 0; border-radius: 0 6px 6px 0;
+}
+.afkv2-seq-msg--self .afkv2-seq-line::after { top: auto; bottom: -6px; left: 0; border-right: 8px solid var(--fg-dim); }
+
+/* --- simulated-run strip ------------------------------------------------- */
+
+.afkv2-run-lane { margin: .35rem 0; }
+.afkv2-run-head { margin: 0 0 .2rem; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim); }
+.afkv2-run-steps { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin: 0; padding: 0; list-style: none; counter-reset: afkv2-run; }
+.afkv2-run-step {
+  position: relative; display: flex; flex-direction: column; min-width: 0; max-width: 16rem; padding: .3rem .55rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); font-size: .85rem;
+  counter-increment: afkv2-run;
+}
+.afkv2-run-step:not(:last-child)::after {
+  content: "\2192"; position: absolute; right: -1.15rem; top: 50%; transform: translateY(-50%); color: var(--fg-dim);
+}
+.afkv2-run-label { overflow-wrap: anywhere; }
+.afkv2-run-label::before { content: counter(afkv2-run) ". "; color: var(--fg-dim); }
+.afkv2-run-detail { color: var(--fg-dim); font-size: .78rem; overflow-wrap: anywhere; }
+.afkv2-run-tone { font-size: .7rem; letter-spacing: .04em; text-transform: uppercase; }
+.afkv2-run-step.afkv2-tone--removed { border-color: var(--blocked); }
+.afkv2-run-step.afkv2-tone--new { border-color: var(--accent); }
+.afkv2-run-step.afkv2-tone--proposed { border-style: dashed; }
