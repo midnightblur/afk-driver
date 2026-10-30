@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
 
-import v1_facts  # noqa: E402
+import to_prd_v1_facts  # noqa: E402
 from grill_common import EXIT_REFUSED, EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text  # noqa: E402
 from grill_start import read_config  # noqa: E402
 from prd_files import ID, set_row  # noqa: E402
@@ -321,7 +321,7 @@ def _remove_unused(tracker, key, keep_ids):
     deleted, not_deleted = [], []
     for item in tracker("attachment-list", {"key": key}).get("attachments") or []:
         name = item.get("filename") or ""
-        if not (PICTURE_NAME.fullmatch(name) or v1_facts.PICTURE_NAME.fullmatch(name)):
+        if not (PICTURE_NAME.fullmatch(name) or to_prd_v1_facts.PICTURE_NAME.fullmatch(name)):
             continue
         if str(item.get("id")) in keep_ids:
             continue

@@ -33,7 +33,7 @@ sys.path.insert(0, str(SKILL_DIR / "scripts"))
 import prd_files  # noqa: E402
 import publish  # noqa: E402
 
-_spec = importlib.util.spec_from_file_location("fake_v1_facts", FAKES / "v1_facts.py")
+_spec = importlib.util.spec_from_file_location("fake_v1_facts", FAKES / "fake_v1_facts.py")
 V1 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(V1)
 
@@ -117,7 +117,7 @@ class World:
         self.calls, self.state_file = root / "calls.log", root / "jira.json"
         for skill in ("to-prd", "grill"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
-        for fake, target in (("fake_jira_port.py", "ports/tracker/cli.py"), ("v1_facts.py", "ports/tracker/v1_facts.py"),
+        for fake, target in (("fake_jira_port.py", "ports/tracker/cli.py"), ("fake_v1_facts.py", "ports/tracker/fake_v1_facts.py"),
                              ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(FAKES / fake, self.plugin / target)

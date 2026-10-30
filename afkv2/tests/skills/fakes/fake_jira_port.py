@@ -18,12 +18,12 @@ import re
 import sys
 from pathlib import Path
 
-import v1_facts
+import fake_v1_facts
 
 FIG_TOKEN = "AFKV2FIGURE{}ENDFIGURE"
 BEGIN_LINE, END_LINE = "afkv2:prd:start", "afkv2:prd:end"
-BEGINS = {BEGIN_LINE: "afkv2", v1_facts.BEGIN_LINE: "v1", v1_facts.BEGIN_LINE_NOTE: "v1"}
-ENDS = {END_LINE: "afkv2", v1_facts.END_LINE: "v1"}
+BEGINS = {BEGIN_LINE: "afkv2", fake_v1_facts.BEGIN_LINE: "v1", fake_v1_facts.BEGIN_LINE_NOTE: "v1"}
+ENDS = {END_LINE: "afkv2", fake_v1_facts.END_LINE: "v1"}
 
 
 class Refused(Exception):
@@ -178,7 +178,7 @@ class Port:
                 if item["id"] == str(payload["id"]):
                     name = item["filename"]
                     if not (re.fullmatch(r"afkv2-fig-[0-9a-f]{8}-\d+\.png", name)
-                            or name in (v1_facts.PICTURE, v1_facts.SECOND_PICTURE)):
+                            or name in (fake_v1_facts.PICTURE, fake_v1_facts.SECOND_PICTURE)):
                         raise Refused("not-a-picture", name)
                     issue["attachments"].remove(item)
                     self.save()
