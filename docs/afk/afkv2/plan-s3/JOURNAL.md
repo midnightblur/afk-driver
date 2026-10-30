@@ -43,3 +43,4 @@
 2026-10-30 05:10 | execute | 0011-setup-skill | wiring-gate exit 0; a blind orphan hunt then named consumers that other sessions build. They are IOUs in .claude/wiring-ious.md. D-15 records the two names that differ from the S1 branch.
 2026-10-30 05:10 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 47b5fb81c702772e2ccb0acfbfed89c553d3c6d6 (forbidden harness-name vocabulary and interpreter name in afkv2/skills/setup/SKILL.md and afkv2/tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md).
 2026-10-30 05:10 | execute | 0011-setup-skill | done — the setup skill is built, reviewed and pushed. Rationale receipt confirmed: nothing pending.
+2026-10-30 04:40 | autopilot | run | heartbeat 1/5 done, starting 0012-forge-tracker-port — the setup slice is finished and its review settled; two file names disagree with the unmerged S1 branch and need a reconcile before 0016
