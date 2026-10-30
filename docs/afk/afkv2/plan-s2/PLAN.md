@@ -82,7 +82,7 @@ before it from disk.*
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0006-visualize-skill | visualize skill | done | — | static, unit | — |
 | 2 | 0007-grill-skill | grill skill | done | 0006-visualize-skill | static, unit, integration | — |
-| 3 | 0008-to-prd-jira-publish | to prd jira publish | developing | 0007-grill-skill | static, unit, integration | use §14 |
+| 3 | 0008-to-prd-jira-publish | to prd jira publish | done | 0007-grill-skill | static, unit, integration | use §14 |
 | 4 | 0009-propose-solution-skill | propose solution skill | pending | 0008-to-prd-jira-publish | static, unit, integration | — |
 | 5 | 0010-to-subtasks-skill | to subtasks skill | pending | 0009-propose-solution-skill | static, unit, integration | — |
 

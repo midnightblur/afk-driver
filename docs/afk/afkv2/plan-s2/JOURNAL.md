@@ -100,3 +100,17 @@
 2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-42) — the line that records a published ticket comes after the read-back and before the deletes, so a failed write leaves no record and a failed delete keeps it
 2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-43) — this skill imports the grill's own helper scripts instead of a second copy of them
 2026-10-30 13:27 | execute | 0008-to-prd-jira-publish | decision(D-44) — the old-version names live in files called v1_facts.py; the plugin check needs an exemption that a parallel session owes
+2026-10-30 13:31 | execute | 0008-to-prd-jira-publish | pushed 0d657667..1b7b83f8 (4 commits) — the skill, the publish code, the tests and the plan lines are on the branch
+2026-10-30 13:31 | execute | 0008-to-prd-jira-publish | verifying — running the static, unit and integration tiers
+2026-10-30 13:41 | execute | 0008-to-prd-jira-publish | verified static, unit, integration — compile, frontmatter and anchors pass; 63 tests pass, 2 of them through the real port code from the parallel branch against a local stand-in server; no real tracker call
+2026-10-30 13:41 | execute | 0008-to-prd-jira-publish | produces-check pass — all 4 named items exist on the branch
+2026-10-30 13:41 | execute | 0008-to-prd-jira-publish | reviewing — independent review starts, at most 3 rounds (owner ruling R-2)
+2026-10-30 14:20 | execute | 0008-to-prd-jira-publish | review(r1): blocking — crit=0 high=1 med=9 low=9; the reviewers found 1 real fault and 18 smaller points that stay on the pull request as advice (owner ruling R-2)
+2026-10-30 14:20 | execute | 0008-to-prd-jira-publish | review fix 6ff11391 — a preview with no upload record no longer says the ticket is already published, so the picture the ticket still shows is not deleted; a new test fails on the old code; commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | review(r2): advisory — crit=0 high=0 med=1 low=2; the check of the fix found no serious fault, so the review gate passes after 2 of at most 3 rounds (owner ruling R-2); 21 smaller points stay open on pull request 154 as advice
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | decision(D-45) — the download fallback for the diagram tool goes against a grill decision; the review finding stays open by owner ruling, and the earlier decision text is corrected
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | adversary: skipped (owner ruling R-1)
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | wiring: exit 0 — the wiring scan found no unused file; the skill and its test have open IOU lines until their consumers merge
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | glossary: no change — no term in afkv2/GLOSSARY.md differs from what the skill does
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | gate-skip — commits 3c9e4773, 5d551ab1, 82a20c81, 1b7b83f8, 6ff11391 and the closing plan commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); pull request checks do not run afkv2/tests, so the local tests are the only check
+2026-10-30 14:27 | execute | 0008-to-prd-jira-publish | done — the requirements skill and its ticket publish are finished and tested against a recorded stand-in; no real ticket was touched; the live publish waits for subtask 0016

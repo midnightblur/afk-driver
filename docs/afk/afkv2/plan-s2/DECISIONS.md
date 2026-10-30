@@ -307,3 +307,10 @@
 - Chosen: A — S3's D-35 rejects B because it defeats the check. The S1 plugin check flags a `v1_facts.py` until the exemption by file name that S3 owes lands: IOU in `.claude/wiring-ious.md`
 - Supersedes: none
 - To reverse: inline the name, once the check has a different exemption
+## D-45 — the `npx` fallback stays as open advice; D-39's claim is corrected
+- 2026-10-30 · decided by execute (0008-to-prd-jira-publish)
+- Options: A — keep `npx -y @mermaid-js/mermaid-cli` when `mmdc` is absent and leave the review finding open vs B — remove the branch now
+- Chosen: A — owner ruling R-2 keeps a medium finding open with no fix. Correction to D-39: GRILL-LOG.md, seam row "tracker port", states "setup installs markdown package + diagram renderer, no download at publish", so the `npx` branch goes against that row. D-39 did not cite it. No setup contract installs the renderer yet (checked: plan-s3 0011 and 0012 do not name it), so `mmdc` is absent on a new machine and the branch is the only way a diagram renders
+- Supersedes: none
+- To reverse: delete the `npx` branch in `render_mermaid`, once setup installs `mmdc`
+
