@@ -22,3 +22,4 @@
 2026-10-30 01:50 | execute | 0011-setup-skill | decision(D-11) — the ignore line for the personal settings file has its own decision
 2026-10-30 01:50 | execute | 0011-setup-skill | decision(D-12) — switch-back keeps what the harness wrote since the takeover
 2026-10-30 01:55 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit ce4b2932 (harness-name and interpreter rows on afkv2 files)
+2026-10-30 02:54 | autopilot | 0015-autopilot-execute | decision(D-13) — the plan author corrected the 0015 contract before it starts; the check input from another session stays an acceptance line because the plan check refuses a producer outside this plan

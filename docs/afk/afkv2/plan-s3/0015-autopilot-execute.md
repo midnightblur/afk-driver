@@ -19,12 +19,15 @@ complex
 - afkv2/skills/autopilot/**
 - afkv2/skills/execute/**
 - afkv2/tests/skills/test_autopilot.py
+- afkv2/tests/skills/test_execute.py
+- afkv2/tests/autopilot/**   # fakes + fixtures for this slice only
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
 
 ## Acceptance
 - [ ] autopilot refuses to start when the plan check fails or the PLAN.md header has no `> Division: approved <date>` line, and lists every failure (PRD §AC-060; PLAN.md decision D-S-2)
+- [ ] `check_start` calls the cross-session input `check_plan` from 0010-to-subtasks-skill (plan-s2, `afkv2/skills/to-subtasks/scripts/check_plan.py#def check_plan(`). Until that pull request merges, tests run against a recorded fake under `afkv2/tests/autopilot/fakes/`, built from the 0010 contract (one JSON object that lists every failure; exit 0, 1 or 2; SDD §3 envelope) and the `> Division: approved <date>` line. No file goes under `afkv2/tests/skills/fakes/`: S2 owns that path (PRD §AC-060; SDD §3; PLAN.md decision D-S-2)
 - [ ] It refuses a v1 plan folder and names the two options: finish on v1, or slice again with `/afkv2:to-subtasks` (PRD §AC-005)
 - [ ] It parses the frozen contract sections (v1 subtask contract sections without materialized seams) (SDD §8 "Frozen on day 1" row "plan contract")
 - [ ] Each subtask runs in a fresh subagent with TDD; a finished subtask has its own commits on the run's feature branch (PRD §AC-061)
@@ -45,8 +48,9 @@ complex
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | every `afkv2/skills/autopilot afkv2/skills/execute/**/SKILL.md` has Agent Skills frontmatter (`name`, `description`); `afk-python -m compileall -q afkv2/skills/autopilot afkv2/skills/execute`; `rg -F` each ## Produces anchor | skill files parse; declared symbols present |
+| static | every `afkv2/skills/{autopilot,execute}/**/SKILL.md` has Agent Skills frontmatter (`name`, `description`); `afk-python -m compileall -q afkv2/skills/autopilot afkv2/skills/execute`; `rg -F` each ## Produces anchor | skill files parse; declared symbols present |
 | unit | `afk-python -m pytest afkv2/tests/skills/test_autopilot.py -q` | start gate: failed check, missing approval, v1 plan; park propagation to dependents |
+| unit | `afk-python -m pytest afkv2/tests/skills/test_execute.py -q` | fresh subagent per subtask, TDD order, own commits |
 | integration | dry run on a fixture plan with 3 subtasks in a temp repository with a `-run` branch: one done, one parked as a one-way door with its dependent parked, ledger and journal lines written on the run branch only | the run-branch layout and park rule on real git |
 
 ## Context excerpts
