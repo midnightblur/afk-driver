@@ -758,3 +758,34 @@ def test_a_note_on_a_settled_aspect_of_an_earlier_round_takes_it_out_of_settled(
     world.answer(started, "a-entities: note: one more entity\na-relations: accept")
     step = world.run("next", doc=started["doc"])
     assert [entry["key"] for entry in step["aspects_open"]] == ["entities"]
+
+
+def test_a_carrier_on_another_node_is_refused_so_the_old_node_stays_open(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.build(started, round_of(aspect_card("entities")))
+    world.answer(started, "a-entities: accept")
+    carrier = {"id": "c-1", "kind": "confirm", "carries": ["a-entities"],
+               "body": {"type": "text", "id": "c-1-text", "props": {"text": "The set stays."}}}
+    answer = world.build(started, round_of(carrier), expect=1)
+    assert answer["error"]["code"] == "carry-node"
+    assert "aspect-entities" in answer["error"]["reason"]
+
+
+def test_a_carrier_on_the_same_node_is_accepted(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.build(started, round_of(aspect_card("entities")))
+    world.answer(started, "a-entities: accept")
+    answer = world.build(started, round_of(aspect_card("entities", "a-entities-2", carries=["a-entities"])))
+    assert answer["items"] == ["a-entities-2"]
+
+
+@pytest.mark.parametrize("layer, blocks", [("L3", "yes: needs the schema"), ("L3", "Yes"), ("L3 (data)", "yes")])
+def test_each_form_of_a_blocking_open_question_is_found(layer, blocks):
+    table = f"## §13 Open Questions\n\n| Question | Layer | Blocks? | Owner | Date |\n|---|---|---|---|---|\n| Q | {layer} | {blocks} | o | d |\n"
+    assert any("open question blocks the executor" in problem for problem in design_files._open_question_problems(table))
+
+
+@pytest.mark.parametrize("layer, blocks", [("L3", "no: a named fallback exists"), ("L8", "yes: a font"), ("L1", "yes")])
+def test_a_harmless_open_question_passes(layer, blocks):
+    table = f"## §13 Open Questions\n\n| Question | Layer | Blocks? | Owner | Date |\n|---|---|---|---|---|\n| Q | {layer} | {blocks} | o | d |\n"
+    assert not design_files._open_question_problems(table)

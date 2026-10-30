@@ -114,6 +114,17 @@ def is_settled(doc, node):
     return bool(cards) and not any(_live(doc, item, n) for n, item in cards)
 
 
+def _check_carriers(doc, items):
+    """A card that carries a card of an aspect, a layer or a locked aspect stays on that node, so the node stays open."""
+    nodes = {item["id"]: item.get("node") for rnd in doc["rounds"] for item in rnd["items"]}
+    nodes.update({item["id"]: item.get("node") for item in items})
+    reserved = _reserved_nodes()
+    for item in items:
+        for carried in item.get("carries") or []:
+            if nodes.get(carried) in reserved and item.get("node") != nodes[carried]:
+                raise Refusal("carry-node", f"item {item['id']} carries {carried}, so it must tag {nodes[carried]} too")
+
+
 def _check_order(doc, items):
     asked = {node for rnd in doc["rounds"] for node in (item.get("node") for item in rnd["items"])}
     aspects_done = all(is_settled(doc, node_id("aspect", key)) for key in group_keys("aspect"))
@@ -161,6 +172,7 @@ def build_design_round(doc_path, session, round_input, replace=False):
         raise Refusal("bad-round", "the round input is one JSON object, and items is a list")
     doc = _view(doc_path, replace)
     items = [_tagged(raw) for raw in round_input.get("items") or []]
+    _check_carriers(doc, items)
     _check_order(doc, items)
     built = copy.deepcopy(round_input)
     built["items"] = items

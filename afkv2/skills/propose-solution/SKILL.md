@@ -60,7 +60,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `layer: "<L1..L9>"` | the card belongs to that layer. The build refuses it until every aspect is settled, and refuses a layer before the ones above it. |
    | `locked: "<HL-n>"` | the `signoff` card of that human-locked aspect. |
    | `fork: {question, options, why_open, recommended, picture}` | the build writes a `debate` card with the options side by side. A `debate` card has no other form. |
-   | `decided`, `carries` | as in [../grill/SKILL.md](../grill/SKILL.md), step 4. |
+   | `decided`, `carries` | as in [../grill/SKILL.md](../grill/SKILL.md), step 4. A card that carries a tagged card has the same tag. |
 
    Before the first draft round, offer the draft to the second-provider slot. It is off in this version, and answers no forks. Add each entry of `forks` to the round as a fork card.
 

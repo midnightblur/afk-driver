@@ -34,7 +34,8 @@ BLOCKERS = re.compile(r"\bTBD\b|\bTODO\b|\bFIXME\b|\bXXX\b|\?\?\?|\bADR-NNNN\b|_
                       r"|<\?>|<placeholder>|<fill>|<TICKET-ID>|<NNNN>|<service>"
                       r"|\{Feature Name\}|\{YYYY-MM-DD\}|\{who\}|\{system\}"
                       r"|\(decide later\)|\(unresolved\)|\(open\)")
-BLOCKING_LAYERS = {"L2", "L3", "L4", "L5", "L6", "L7", "L9"}
+BLOCKING_LAYER = re.compile(r"L[2-79]\b")
+BLOCKING_ANSWER = re.compile(r"yes\b", re.I)
 EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
 ADR_SECTIONS = ("Decision", "Alternatives Considered")
@@ -167,7 +168,7 @@ def _open_question_problems(markdown):
     problems = []
     for line in (prd_files._section(markdown, OPEN_QUESTIONS) or "").splitlines():
         cells = _cells(line) if line.startswith("|") else []
-        if len(cells) > 2 and cells[1] in BLOCKING_LAYERS and cells[2].lower() == "yes":
+        if len(cells) > 2 and BLOCKING_LAYER.match(cells[1]) and BLOCKING_ANSWER.match(cells[2]):
             problems.append(f"{OPEN_QUESTIONS}: an open question blocks the executor: {cells[0]}")
     return problems
 
