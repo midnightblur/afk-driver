@@ -139,3 +139,10 @@
 - Chosen: A — PR CI catches the rest, and the ship gate must be green. Skipped commits stay listed in the journal
 - Supersedes: the brief's narrower rule on v1 friction
 - To reverse: the owner withdraws R-4
+
+## D-21 — the glossary Steer entry keeps the whole-session form and adds the map-node form
+- 2026-10-30 · decided by execute (0006-visualize-skill, Step 12 glossary reconcile)
+- Options: A — Steer covers a note on a map node or about the whole session vs B — Steer covers a note on a map node only
+- Chosen: A — PRD AC-038 and ADR-0002 (requirements) define the map-node form, and `components/notes-and-replies.md` follows it; GRILL-LOG line 117 records a page-level steer, so B drops a form that the design record used. Whether the S1 engine stores a whole-session steer is not verified, because that engine is not on this branch
+- Supersedes: none
+- To reverse: edit the Steer entry in `afkv2/GLOSSARY.md`
