@@ -34,3 +34,5 @@
 2026-10-30 03:45 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 9c3cd097
 2026-10-30 04:05 | execute | 0011-setup-skill | review r6 — blocking: crit=0 high=1 med=1 low=2; a test assertion was too loose to prove the failure branch. All 4 are fixed in 3e994a4a.
 2026-10-30 04:05 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit 3e994a4a
+2026-10-30 04:25 | execute | 0011-setup-skill | review r7 — blocking: crit=0 high=0 med=0 low=1; one failure branch had no test. Fixed in e6d5987066024b2986c7d6207911369f24b1bbae.
+2026-10-30 04:25 | execute | 0011-setup-skill | gate-skip native-contract — same v1-layout refusal on commit e6d5987066024b2986c7d6207911369f24b1bbae
