@@ -32,7 +32,7 @@ The beta is P0. P1 (days 5-6) and 2.1 are listed in Out of Scope.
 | ID | Part | Responsibility | Settled by |
 |----|------|----------------|------------|
 | SK-01 | plugin skeleton | 2 native manifests (Claude, Codex), plugin name `afkv2`, config folder `.afkv2`, environment prefix `AFKV2_`, own plugin data folder | C-2 |
-| SK-02 | session-start hook | prints the core-behaviors file and stops; under 50 ms; parses no shell command | H-1, H-3 |
+| SK-02 | session-start hook | prints the core-behaviors file and stops; no afkv2 time limit (the harness hook timeout applies); parses no shell command | H-1, H-3 |
 | SK-03 | core behaviors | one rule text, at most 8,000 characters, grown from the interim behaviors | K-2, decision 18, owner 2026-10-29 (hook caps) |
 | SK-04 | `/afkv2:setup` | runs in any repository, main checkout included; one run serves Claude and Codex; asks for the Jira API token and stores it as v1 does; installs ripgrep (`rg`) and puts it on the path of every shell the agent uses; asks for the ownership config; guides the Codex hook trust review; removes the v1 block after the hook proof | K-1, D-2, D-3, H-4 |
 | SK-05 | page engine | turns a page document into the page; component registry grown from the v1 kit | V-1..V-6, V-10, V-11 |
@@ -42,7 +42,7 @@ The beta is P0. P1 (days 5-6) and 2.1 are listed in Out of Scope.
 | SK-09 | `/afkv2:propose-solution` | critical-aspect questions (CAT-A), top-down draft, fork cards (choice cards with options side by side) on the page; SDD + design ADRs; a slot for a second provider | F-3, K-7, V-9, decision 97 |
 | SK-10 | `/afkv2:to-subtasks` | `plan/` with PLAN.md and one contract per subtask, cited to the PRD and SDD; plan check script; waits for the division approval | K-8, A-5 |
 | SK-11 | forge and tracker port | GitHub (gh) and GitLab (glab) with the v1 forge commands and JSON answers; GitHub-issue read; Jira read and managed-block write with diagram pictures, through the ported v1 REST client (no acli) | K-15, S-1, S-2, J-2, Y-1, owner 2026-10-29 (L2-3b) |
-| SK-12 | `/afkv2:autopilot` | walks the plan one subtask at a time, a fresh subagent each; TDD (test-driven development); commits often; pushes to one Draft change; records two-way doors; parks one-way doors with dependents | K-9, decision 23, 45 |
+| SK-12 | `/afkv2:autopilot` | walks the plan one subtask at a time, a fresh subagent each; TDD (test-driven development); commits often; pushes to one Draft change; records two-way doors; rules reversible plan calls for its executors (AC-072); parks one-way doors with dependents | K-9, decision 23, 45 |
 | SK-13 | `/afkv2:code-review` | picks concerns per subtask; fixes critical and high; posts medium and low on the change; stops after 3 rounds | K-10, decision 25, 46 |
 | SK-14 | `/afkv2:create-change-request` + CI watch | Draft change, description, one request per person, proofs, mergeability case, one self-critique; background CI watch after each push; Ready at ship | K-11, K-12, K-13, decision 31 |
 
@@ -92,7 +92,7 @@ Every component may hold others and owns its styling. Every component takes an o
 - [ ] AC-010 With afkv2 enabled, a new session holds the core-behaviors text from the session-start hook, on Claude and on Codex. On Codex, this holds after the one-time hook trust review that setup guides (Codex hook docs).
 - [ ] AC-011 With afkv2 disabled, a new session holds no afkv2 rule text. (verified: Codex probe 2026-10-29, GRILL-LOG ledger)
 - [ ] AC-012 After a compaction, the session holds the core-behaviors text again. The test includes a compaction on Codex. (verified: Claude docs + probe; Codex docs, root sessions only; GRILL-LOG ledger)
-- [ ] AC-013 The session-start hook finishes in under 50 ms and prints only the core-behaviors text, in the wrapper the provider requires (plain text, or the provider's JSON). A slower hook or extra output fails.
+- [ ] AC-013 The session-start hook prints only the core-behaviors text, in the wrapper the provider requires (plain text, or the provider's JSON). Extra output fails. afkv2 sets no time limit and has no timing test: the harness's own hook timeout applies (owner, 2026-10-30).
 - [ ] AC-014 The core-behaviors file has at most 8,000 characters. A file with 8,001 characters or more fails the plugin check. In a live session on Claude and on Codex, the full text arrives in context, not a file path with a preview.
 - [ ] AC-015 `/afkv2:setup` removes the v1 block from a user instruction file only after the session shows the afkv2 hook marker. Without the marker, setup leaves the block, keeps a backup, and reports why.
 - [ ] AC-016 After setup removed the v1 block, the switch-back step restores the block from the backup and turns v1 on.
@@ -138,6 +138,7 @@ Every component may hold others and owns its styling. Every component takes an o
 - [ ] AC-060 `/afkv2:autopilot` refuses to start when the plan check fails or the division is not approved, and it lists every failure.
 - [ ] AC-061 Each subtask runs in a fresh subagent. A finished subtask has its own commits on the run's branch.
 - [ ] AC-062 A two-way door is decided and recorded in the decision ledger. A one-way door parks its subtask and every dependent subtask, and the park is recorded for retro.
+- [ ] AC-072 `/afkv2:autopilot`, as the orchestrator, rules a reversible plan call that stays inside the approved goal when an executor stops on it: a subtask's Scope, which subtask owns a file, the order of two subtasks. It records the ruling in the decision ledger, sends it to the executor, and reports it to the human after. The rule lives in the autopilot workflow, not in the core behaviors: an executor never changes its own Scope. A change to an acceptance criterion, a one-way door, or a cost trade-off still parks for the human (owner, 2026-10-30).
 - [ ] AC-063 `/afkv2:code-review` stops after round 3. Critical and high findings are fixed; medium and low findings are posted on the change.
 - [ ] AC-064 The change opens as Draft. At ship, with review settled and CI green, the agent marks it Ready. The agent never merges.
 - [ ] AC-065 CI watch reports the CI result without blocking work. A red CI on the feature branch is allowed during work. Ship is refused while CI is red.
