@@ -11,6 +11,7 @@ import hashlib
 import json
 import re
 import sys
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +37,7 @@ V1_NAME = re.compile(r"(?<![a-z0-9])af[k](?!v2)", re.IGNORECASE)
 V1_PROSE_WORD = re.compile(r"(?:^|(?<=[\s(`\"']))af[k](?=$|[\s)`,;!?]|[.:](?:\s|$))", re.IGNORECASE)
 V1_CSS_CLASS = re.compile(r"class(?:Name)?\s*=\s*[\"'][^\"']*(?<![a-z0-9-])af[k](?![a-z0-9-])", re.IGNORECASE)
 URL = re.compile(r"https?://[^\s\"'`,;()<>{}$]+")
+V1_FACTS_FILES = ("*v1_facts.py", "test_*v1_facts*.py")
 
 MARKER_TOKEN = re.compile(r"(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
 SUBSTRING_MATCH = re.compile(
@@ -81,11 +83,15 @@ def check_no_v1_names(root: Path) -> list[str]:
     problems = []
     for path in _files(root):
         relative = path.relative_to(root)
-        if any(V1_FILE_PART.search(part) for part in relative.parts):
+        is_v1_facts = any(fnmatchcase(path.name, pattern) for pattern in V1_FACTS_FILES)
+        named_parts = relative.parent.parts if is_v1_facts else relative.parts
+        if any(V1_FILE_PART.search(part) for part in named_parts):
             problems.append(f"{relative.as_posix()}: file name uses a v1 name")
         lines, problem = _read_lines(path)
         if problem:
             problems.append(f"{relative.as_posix()}: {problem}")
+        if is_v1_facts:
+            continue
         for number, line in lines:
             if _holds_v1_name(URL.sub("", line), _is_prose(relative)):
                 problems.append(f"{relative.as_posix()}:{number}: v1 name: {line.strip()}")

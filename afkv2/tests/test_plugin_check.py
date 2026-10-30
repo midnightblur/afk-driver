@@ -526,6 +526,90 @@ def test_other_json_stays_prose_for_both_rules(tree):
     assert plugin_check.check_no_v1_names(tree) == []
 
 
+V1_FACTS_LINE = f'HOME = ".{V1}/{V1_ENV}HOME"  # {V1}\n'
+
+
+def write_tree_file(root, relative, text="ok\n"):
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="")
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "scripts/v1_facts.py",
+        "ports/tracker/v1_facts.py",
+        "skills/setup/scripts/setup_v1_facts.py",
+        f"scripts/{V1}_v1_facts.py",
+        "tests/test_v1_facts.py",
+        "tests/ports/test_tracker_v1_facts.py",
+        "tests/test_tracker_v1_facts_more.py",
+        f"tests/test_{V1}_v1_facts.py",
+    ],
+)
+def test_v1_name_in_a_v1_facts_file_passes_both_rules_of_the_name_check(tree, relative):
+    write_tree_file(tree, relative, V1_FACTS_LINE)
+    assert plugin_check.check_no_v1_names(tree) == []
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "scripts/sample.py",
+        "scripts/v1_facts_extra.py",
+        "scripts/v1_facts2.py",
+        "scripts/v1_fact.py",
+        "scripts/v1facts.py",
+        "scripts/V1_FACTS.py",
+        "scripts/v1_facts.py.txt",
+        "scripts/v1_facts.pyi",
+        "tests/v1_facts_extra.py",
+        "tests/test_v1facts.py",
+        "tests/tests_v1_facts_more.py",
+    ],
+)
+def test_same_v1_name_in_any_other_file_fails(tree, relative):
+    write_tree_file(tree, relative, V1_FACTS_LINE)
+    problems = plugin_check.check_no_v1_names(tree)
+    assert any(p.startswith(f"{relative}:1: v1 name") for p in problems)
+
+
+def test_v1_file_name_on_a_near_name_stays_a_problem(tree):
+    relative = f"scripts/{V1}_v1_facts_extra.py"
+    write_tree_file(tree, relative)
+    assert plugin_check.check_no_v1_names(tree) == [f"{relative}: file name uses a v1 name"]
+
+
+def test_a_v1_facts_file_does_not_exempt_a_v1_named_folder(tree):
+    relative = f"{V1}/v1_facts.py"
+    write_tree_file(tree, relative, V1_FACTS_LINE)
+    assert plugin_check.check_no_v1_names(tree) == [f"{relative}: file name uses a v1 name"]
+
+
+def test_a_v1_facts_file_that_is_not_utf8_stays_a_problem(tree):
+    path = tree / "scripts" / "v1_facts.py"
+    path.write_bytes(b"\xff\xfe\x00")
+    assert plugin_check.check_no_v1_names(tree) == [f"scripts/v1_facts.py: {plugin_check.NOT_TEXT}"]
+
+
+def test_the_marker_rule_still_reads_a_v1_facts_file(tree):
+    relative = "scripts/v1_facts.py"
+    write_tree_file(tree, relative, f'found = line.startswith("{V1}:prd:start")\n')
+    assert plugin_check.check_no_v1_names(tree) == []
+    assert any(p.startswith(f"{relative}:1:") for p in plugin_check.check_marker_matching(tree))
+
+
+def test_check_command_passes_a_v1_facts_file_and_fails_the_same_name_elsewhere(tree):
+    write_tree_file(tree, "scripts/v1_facts.py", V1_FACTS_LINE)
+    code, answer = run_tree_check(tree, "check")
+    assert code == 0, answer
+    write_tree_file(tree, "scripts/v1_facts_extra.py", V1_FACTS_LINE)
+    code, answer = run_tree_check(tree, "check")
+    assert code == 1
+    assert all("scripts/v1_facts_extra.py" in p for p in answer["problems"])
+
+
 @pytest.mark.parametrize("relative", plugin_check.MANIFESTS)
 def test_manifests_must_name_the_plugin_afkv2(tree, relative):
     manifest = tree / relative
