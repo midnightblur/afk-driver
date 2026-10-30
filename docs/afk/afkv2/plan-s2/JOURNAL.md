@@ -83,3 +83,5 @@
 2026-10-30 12:42 | execute | 0007-grill-skill | glossary: Claim ledger, Exit gate — two terms the skill uses now have entries
 2026-10-30 12:42 | execute | 0007-grill-skill | gate-skip — commits 142a4d93, 5f71149a, 0bb8aa1e, e344a1cb, 3ba01cbb, 3db1b4d4 and the closing plan commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); pull request checks do not run afkv2/tests, so the local tests are the only check of this slice
 2026-10-30 12:42 | execute | 0007-grill-skill | done — the grill skill is finished and tested against stand-ins for the page engine and the tracker; a live Codex check waits for the owner (CODEX-LIVE-CHECK.md)
+2026-10-30 12:45 | autopilot | run | decision(D-32) — the plan author added 2 refusals to the plan check that subtask 0010 builds, after taking the latest design update into this branch
+2026-10-30 12:45 | autopilot | run | heartbeat 2/5 done, starting 0008-to-prd-jira-publish — the grill skill is finished, moving to the skill that writes the requirements and publishes them to the ticket

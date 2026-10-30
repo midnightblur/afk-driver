@@ -216,3 +216,10 @@
 - Chosen: A — the check's handling of a path other than the session document is unverified until S1 merges, and A needs no engine call
 - Supersedes: none
 - To reverse: remove `_drop_unanswered_round` and check before the write
+
+## D-32 — 0010 plan check gets 2 more refusals from SDD §7
+- 2026-10-30 · decided by the plan author (plan update sent to this session mid-run; SDD §7 rows in commit 05ef43e8)
+- Options: A — add 2 Acceptance bullets and 2 unit tests to 0010 vs B — leave 0010 as sliced, so the v1 defects repeat
+- Chosen: A — SDD §7 assigns both rows to the 0010 plan-check test. The check refuses a gate the repository cannot run unless the plan names it not applicable, and refuses a check path that no Scope in the subtask's chain owns. Merged origin/feat/afkv2 at b3ae5fac first, by merge and not by rebase
+- Supersedes: none
+- To reverse: remove the 2 bullets and the addition to the unit row of 0010
