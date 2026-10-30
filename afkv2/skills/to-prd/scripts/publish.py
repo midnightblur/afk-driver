@@ -236,7 +236,7 @@ def _already_published(block, preview, attachments, uploads):
     media, names = block.get("media_ids") or [], preview["pictures"]
     if len(media) != len(names) or not set(names) <= {item.get("filename") for item in attachments}:
         return False
-    return not uploads or media == [uploads[name]["media_id"] for name in names if name in uploads]
+    return all(name in uploads for name in names) and media == [uploads[name]["media_id"] for name in names]
 
 
 def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_mermaid):
@@ -316,14 +316,14 @@ def _compare_read_back(block, text, media_ids):
                                             "old pictures stay", differs=differs)
 
 
-def _remove_unused(tracker, key, keep_ids, keep_names):
+def _remove_unused(tracker, key, keep_ids):
     """Delete only afkv2 and v1 pictures, each named in full, that the new block does not use."""
     deleted, not_deleted = [], []
     for item in tracker("attachment-list", {"key": key}).get("attachments") or []:
         name = item.get("filename") or ""
         if not (PICTURE_NAME.fullmatch(name) or v1_facts.PICTURE_NAME.fullmatch(name)):
             continue
-        if str(item.get("id")) in keep_ids or (not keep_ids and name in keep_names):
+        if str(item.get("id")) in keep_ids:
             continue
         try:
             tracker("attachment-delete", {"id": item.get("id")})
@@ -381,8 +381,8 @@ def publish_after_yes(preview_path, receipt, log_path, tracker=call_tracker, now
     attachments = tracker("attachment-list", {"key": key}).get("attachments") or []
     if _already_published(issue.get("block"), preview, attachments, _uploads(run_dir, receipt)):
         uploads = _uploads(run_dir, receipt)
-        keep_ids = {str(uploads[name]["attachment_id"]) for name in preview["pictures"] if name in uploads}
-        deleted, not_deleted = _remove_unused(tracker, key, keep_ids, set(preview["pictures"]))
+        keep_ids = {str(uploads[name]["attachment_id"]) for name in preview["pictures"]}
+        deleted, not_deleted = _remove_unused(tracker, key, keep_ids)
         problem = _record(log_path, key, receipt, now, only_if_new=True)
         _note_published(preview, now)
         return _publish_answer(preview, published=False, already_published=True, deleted=deleted,
@@ -406,7 +406,7 @@ def publish_after_yes(preview_path, receipt, log_path, tracker=call_tracker, now
     problem = _record(log_path, key, receipt, now, only_if_new=False)
     _note_published(preview, now)
     keep_ids = {str(uploads[name]["attachment_id"]) for name in names}
-    deleted, not_deleted = _remove_unused(tracker, key, keep_ids, set(names))
+    deleted, not_deleted = _remove_unused(tracker, key, keep_ids)
     return _publish_answer(preview, published=True, already_published=False, replaced=put.get("replaced"),
                            uploaded=uploaded, deleted=deleted, not_deleted=not_deleted, log_problem=problem)
 

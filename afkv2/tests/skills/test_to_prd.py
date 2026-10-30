@@ -687,6 +687,34 @@ def test_a_lost_upload_record_leaves_no_copy(world):
     assert len(world.names()) == 1
 
 
+def _block_media(world):
+    state = json.loads(world.state_file.read_text("utf-8"))
+    return [child["attrs"]["id"] for item in state["issues"][KEY]["description"]["content"]
+            for child in item.get("content") or [] if child.get("type") == "media"]
+
+
+def test_no_upload_record_does_not_count_as_published_and_the_picture_in_use_stays(world):
+    first, _ = world.preview_and_publish()
+    old_media = _block_media(world)
+    world.prd.write_text(PRD.replace(DIAGRAM, DIAGRAM + "\n  B --> C[more]"), "utf-8")
+    second = world.preview()
+    assert second["receipt"] != first["receipt"]
+    world.env["FAKE_JIRA_FAIL"] = "description-put:server-error"
+    world.publish(second, expect=1)
+    del world.env["FAKE_JIRA_FAIL"]
+    (world.run_dir / "uploads.json").unlink()
+    assert _block_media(world) == old_media and picture(first) in world.names()
+
+    world.clear_calls()
+    again = world.preview()
+    assert again["receipt"] == second["receipt"] and again["already_published"] is False
+    assert world.writes() == []
+    done = world.publish(again)
+    assert done["published"] is True and done["already_published"] is False
+    assert _block_media(world) != old_media
+    assert picture(first) in done["deleted"] and world.names() == [picture(second)]
+
+
 def test_a_failed_delete_is_reported_and_the_next_run_removes_it(world):
     world.set_ticket(doc("Context"), [{"id": "1", "filename": V1.PICTURE}])
     answer = world.preview()
