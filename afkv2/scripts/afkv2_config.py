@@ -16,6 +16,7 @@ CONFIG_FILE = "config.json"
 DATA_FOLDER_NAME = "afkv2"
 TRACKER_KINDS = ("jira", "github-issues")
 OWNERSHIP_GRADES = ("own", "shared")
+FORGE_KINDS = ("github", "gitlab")
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -43,6 +44,7 @@ def read_config(start: str | os.PathLike | None = None) -> dict:
             "spec_folder": _spec_folder(raw, repo_root),
             "tracker": _tracker(raw),
             "ownership": _ownership(raw),
+            "forge": _forge(raw),
             "data_folder": str(data_folder()),
         }
     except Refusal as refusal:
@@ -113,6 +115,15 @@ def _ownership(raw: dict) -> dict | None:
             raise Refusal("bad-value", f"ownership.{grade}: not one of {', '.join(OWNERSHIP_GRADES)}")
         if not isinstance(globs, list) or not all(isinstance(g, str) and g.strip() for g in globs):
             raise Refusal("bad-value", f"ownership.{grade}: a list of non-empty path globs is required")
+    return value
+
+
+def _forge(raw: dict) -> str | None:
+    value = raw.get("forge")
+    if value is None:
+        return None
+    if value not in FORGE_KINDS:
+        raise Refusal("bad-value", f"forge: {value!r} is not one of {', '.join(FORGE_KINDS)}")
     return value
 
 

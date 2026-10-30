@@ -34,6 +34,7 @@ FULL = {
     "spec_folder": "docs/specs",
     "tracker": {"kind": "jira", "project": "ABC"},
     "ownership": {"own": ["src/**"], "shared": ["lib/**"]},
+    "forge": "github",
 }
 
 
@@ -47,6 +48,7 @@ def test_resolves_spec_folder_tracker_ownership_and_data_folder(tmp_path, local_
         "spec_folder": str(repo / "docs" / "specs"),
         "tracker": {"kind": "jira", "project": "ABC"},
         "ownership": {"own": ["src/**"], "shared": ["lib/**"]},
+        "forge": "github",
         "data_folder": str(local_app_data / "afkv2"),
     }
 
@@ -75,6 +77,26 @@ def test_missing_ownership_and_tracker_answer_null(tmp_path):
     assert answer["tracker"] is None
 
 
+@pytest.mark.parametrize("forge", ["github", "gitlab"])
+def test_answers_the_forge_key(tmp_path, forge):
+    repo = make_repo(tmp_path, {"spec_folder": "docs", "forge": forge})
+    assert afkv2_config.read_config(repo)["forge"] == forge
+
+
+@pytest.mark.parametrize("config", [{"spec_folder": "docs"}, {"spec_folder": "docs", "forge": None}])
+def test_forge_answers_null_when_the_key_is_absent_or_null(tmp_path, config):
+    answer = afkv2_config.read_config(make_repo(tmp_path, config))
+    assert answer["ok"] is True
+    assert answer["forge"] is None
+
+
+def test_forge_does_not_replace_the_required_spec_folder(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {"forge": "github"}))
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "bad-value"
+    assert "spec_folder" in answer["error"]["reason"]
+
+
 @pytest.mark.parametrize(
     "config, field",
     [
@@ -94,6 +116,13 @@ def test_missing_ownership_and_tracker_answer_null(tmp_path):
         ({"spec_folder": "docs", "ownership": {"own": "src/**"}}, "ownership.own"),
         ({"spec_folder": "docs", "ownership": {"own": [""]}}, "ownership.own"),
         ([], "config"),
+        ({"spec_folder": "docs", "forge": "bitbucket"}, "forge"),
+        ({"spec_folder": "docs", "forge": "GitHub"}, "forge"),
+        ({"spec_folder": "docs", "forge": ""}, "forge"),
+        ({"spec_folder": "docs", "forge": 3}, "forge"),
+        ({"spec_folder": "docs", "forge": False}, "forge"),
+        ({"spec_folder": "docs", "forge": ["github"]}, "forge"),
+        ({"spec_folder": "docs", "forge": {"kind": "github"}}, "forge"),
     ],
 )
 def test_bad_values_are_refused_and_named(tmp_path, config, field):
@@ -141,6 +170,16 @@ def test_read_command_exit_1_on_refusal(tmp_path):
     code, answer = run_reader("read", cwd=repo)
     assert code == 1
     assert answer == {"ok": False, "error": {"code": "bad-value", "reason": answer["error"]["reason"]}}
+
+
+def test_read_command_answers_forge_and_exits_1_on_a_bad_forge(tmp_path):
+    code, answer = run_reader("read", cwd=make_repo(tmp_path, FULL))
+    assert code == 0
+    assert answer["forge"] == "github"
+    bad = make_repo(tmp_path / "bad", {"spec_folder": "docs", "forge": "bitbucket"})
+    code, answer = run_reader("read", cwd=bad)
+    assert code == 1
+    assert answer["error"]["code"] == "bad-value"
 
 
 def test_read_command_exit_1_with_no_config(tmp_path):
