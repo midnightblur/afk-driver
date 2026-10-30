@@ -102,3 +102,6 @@
 2026-10-30 08:01 | execute | 0013-code-review-skill | review r1 — advisory: crit=0 high=0 med=4 low=8; posted on change 156; lean roster: spec-fidelity scope-and-impact test-veracity logic-correctness api-contract
 2026-10-30 08:14 | execute | 0013-code-review-skill | decision(D-44) — see plan-s3/DECISIONS.md
 2026-10-30 08:14 | execute | 0013-code-review-skill | review r1 closed — 12 fixed in 0e6cc948; unit 78 passed; gate-skip native-contract on that commit: same v1-layout refusal, no row on afkv2/skills/code-review or afkv2/tests/skills
+2026-10-30 08:20 | execute | 0013-code-review-skill | review r2 — advisory: crit=0 high=0 med=1 low=2; delta roster: delta-sweep, test-veracity, logic-correctness, api-contract
+2026-10-30 08:20 | execute | 0013-code-review-skill | decision(D-45) — see plan-s3/DECISIONS.md
+2026-10-30 08:21 | execute | 0013-code-review-skill | review r2 closed — 3 fixed in 50d44790; unit 81 passed; gate-skip native-contract on that commit: same v1-layout refusal, no row on afkv2/skills/code-review or afkv2/tests/skills

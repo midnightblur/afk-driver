@@ -307,3 +307,10 @@
 - Chosen: B — a later round keeps one defect when its line moves, and 2 defects with the same words stay apart. Known limit: when 2 defects share their words and a later round finds only the second, it matches the first entry
 - Supersedes: D-42 "file and the `finding` text" as the whole key
 - To reverse: `_with_keys` in `review_rounds.py`
+
+## D-45 — a later round matches a finding to the nearest line
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — keep D-44's rank of the line vs B — one key for the text, and the entry with the nearest line wins; an entry seen in this round at another line does not match
+- Chosen: B — with A, a later round that finds only the second of 2 defects reopens the first. Known limit: 2 defects with the same words on lines that a fix moves far apart can still swap
+- Supersedes: D-44 "the rank of the line among the lines of that text in this round", and D-44's known limit
+- To reverse: `_entry_of` in `review_rounds.py`
