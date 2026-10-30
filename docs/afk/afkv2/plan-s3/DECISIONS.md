@@ -405,3 +405,31 @@
 - Chosen: B — seen live on change 156: 2 `start` runs right after a push each ended in seconds with the status and the head of the last commit, so the new commit had no watch. After 5 minutes the watch ends with the commit the forge shows and `current_head: false`, so that a `start` with no push does not wait for its whole budget. Not closed: GitLab's `head_pipeline` can hold an older pipeline with the head correct (D-54)
 - Supersedes: none
 - To reverse: `_forge_behind` and `HEAD_GRACE` in `ci_watch.py`
+
+## D-59 — owner ruling R-1: no adversarial gate on afkv2
+- 2026-10-30 · decided by the owner (R-1, session brief)
+- Options: A — run execute Step 10.5 vs B — skip it
+- Chosen: B — owner: "Skip for afkv2". There is no running app to attack. Each slice records `adversary: skipped (owner ruling R-1)` in the journal
+- Supersedes: execute "Driven mode" "adversarial gate included"
+- To reverse: the owner withdraws R-1
+
+## D-60 — owner ruling R-2: review loop has at most 3 rounds, and fixes only critical and high
+- 2026-10-30 · decided by the owner (R-2, session brief)
+- Options: A — settle up to 10 rounds and fix or dispute every finding vs B — at most 3 rounds per slice; medium and low findings stay on the pull request as advisory, with no fix and no dispute round
+- Chosen: B — owner ruling. After round 3, an open critical or high finding parks the slice; otherwise the gate passes. Applies to 0013, 0014 and 0015. 0011 and 0012 settled before this ruling
+- Supersedes: SETTLEMENT.md round cap of 10 and its fix-or-dispute rule for medium and low findings
+- To reverse: the owner withdraws R-2
+
+## D-61 — owner ruling R-3: a note that changes sign-off wording sends the card back
+- 2026-10-30 · decided by the owner (R-3, session brief)
+- Options: A — a wording note keeps the sign mark vs B — the card goes back for a sign mark
+- Chosen: B — owner ruling; it closes S2 D-15 / f074. No plan-s3 contract names HL-4, so no S3 slice changes (grep on plan-s3 contracts, setup, code-review and ports)
+- Supersedes: none in plan-s3
+- To reverse: the owner withdraws R-3
+
+## D-62 — owner ruling R-4: pre-commit gates may be skipped on afkv2 commits
+- 2026-10-30 · decided by the owner (R-4, session brief)
+- Options: A — skip only for spec-folder commits and v1-layout refusals vs B — skip all pre-commit gates on afkv2 commits
+- Chosen: B — owner ruling for this build. Pull-request CI catches the rest, and the ship gate must be green. Skipped commits stay listed in the journal
+- Supersedes: session brief rule that a skip needs a v1-layout refusal
+- To reverse: the owner withdraws R-4

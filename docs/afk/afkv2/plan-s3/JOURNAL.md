@@ -125,3 +125,7 @@
 2026-10-30 09:57 | execute | 0014-change-request-ci-watch | review r1 fixes — 37 fixed in ddb0ad80, 1 deferred to the feature gate (r-020, D-54). In plain terms: the gate now checks the change first and says who clears an open review; the skill routes each late or waiting check
 2026-10-30 09:57 | execute | 0014-change-request-ci-watch | gate skip — ddb0ad80 committed with the skip of the commit gates: native-contract refused v1-layout rows only (170 forbidden-vocabulary rows, none on this slice's files). In plain terms: an old check reads the new folder layout as an error, so this commit went past it
 2026-10-30 09:57 | execute | 0014-change-request-ci-watch | verifying — unit 135 passed; S1 name rules 0 hits in this slice. In plain terms: the tests of this subtask pass after the fixes
+2026-10-30 11:14 | autopilot | run | decision(D-59) — owner ruling: no attack test against a running app on any afkv2 slice
+2026-10-30 11:14 | autopilot | run | decision(D-60) — owner ruling: at most three review rounds per slice, and only critical and high findings get fixed
+2026-10-30 11:14 | autopilot | run | decision(D-61) — owner ruling: a note that changes sign-off wording needs a new sign mark; no S3 slice is affected
+2026-10-30 11:14 | autopilot | run | decision(D-62) — owner ruling: commit gates may be skipped on this build; skipped commits stay listed here
