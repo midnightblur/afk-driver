@@ -62,3 +62,10 @@
 - Chosen: A — SDD §6 says "settled-by-note has a note id and a reading", and a write-in has no note id, so B breaks a signed rule. A stays inside the signed state rules and the point still settles in the next round, so no decision is needed from the human. D-7 was wrong on this point
 - Supersedes: D-7
 - To reverse: change `components/card.md` when the S1 engine defines how it stores a write-in
+
+## D-10 — 0009 and 0010 may write the shared test fakes and fixtures
+- 2026-10-30 · decided by the plan author (slicing defect fix, sent to this session mid-run)
+- Options: A — add `afkv2/tests/skills/fakes/*` and `afkv2/tests/skills/fixtures/**` to `## Scope` of 0009 and 0010 vs B — keep the Scope, and each integration row cannot write the fixture PRD, SDD, engine fakes and fake page mark it needs
+- Chosen: A — the integration rows of 0009 and 0010 need those files. 0007 and 0008 already list `fakes/*` and run first in this session, so these are sequential edits, not 2 writers at the same time. The plan check is clean after the edit
+- Supersedes: none
+- To reverse: remove the 2 paths from `## Scope` of 0009 and 0010

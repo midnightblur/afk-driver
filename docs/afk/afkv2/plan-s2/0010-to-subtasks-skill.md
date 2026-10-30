@@ -17,6 +17,8 @@ complex
 ## Scope
 - afkv2/skills/to-subtasks/**
 - afkv2/tests/skills/test_to_subtasks.py
+- afkv2/tests/skills/fakes/*
+- afkv2/tests/skills/fixtures/**
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
