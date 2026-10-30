@@ -79,3 +79,9 @@
 2026-10-30 10:20 | execute | 0012-forge-tracker-port | review r3 — blocking: crit=0 high=0 med=2 low=9; 11 fixed in 984c7126; live round-trip passed
 2026-10-30 10:40 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r4 fix commit: the same v1-layout refusal; no row on afkv2/ports or afkv2/tests/ports
 2026-10-30 10:45 | execute | 0012-forge-tracker-port | review r4 — blocking: crit=0 high=0 med=1 low=2; 3 fixed in ec3ab429
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | review r5 — clean; settle gate closure settled at 2bede33c, round 5; f028 f050 f055 f058 deferred to the feature gate
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | verifying — static pass (compile, 6/6 anchors), unit 447 passed, integration live round-trip on change 156 passed at 2bede33c
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | adversary skip — no app: repository has no build gate
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | wiring gate exit 0
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | plugin-source gates over the slice: rows on afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 only; none on afkv2/ports or afkv2/tests/ports
+2026-10-30 11:10 | execute | 0012-forge-tracker-port | status done
