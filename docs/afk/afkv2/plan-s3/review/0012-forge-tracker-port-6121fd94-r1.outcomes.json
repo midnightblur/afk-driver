@@ -1,0 +1,412 @@
+[
+  {
+    "id": "r-001",
+    "key": "0012-forge-tracker-port/f001",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: caller contract changed and not covered",
+    "severity": "high",
+    "class": "scope",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-002",
+    "key": "0012-forge-tracker-port/f002",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: downstream gate on the merged tree",
+    "severity": "high",
+    "class": "scope",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-003",
+    "key": "0012-forge-tracker-port/f003",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: consumer-facing command contract",
+    "severity": "high",
+    "class": "scope",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-004",
+    "key": "0012-forge-tracker-port/f004",
+    "concern": "logic-correctness",
+    "criterion": "boundary values: forge kind from origin",
+    "severity": "high",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-005",
+    "key": "0012-forge-tracker-port/f005",
+    "concern": "spec-fidelity",
+    "criterion": "Acceptance: description-put refuses without a receipt that matches the preview hash",
+    "severity": "high",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-006",
+    "key": "0012-forge-tracker-port/f006",
+    "concern": "api-contract",
+    "criterion": "Breaking change without expand-contract",
+    "severity": "high",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-007",
+    "key": "0012-forge-tracker-port/f007",
+    "concern": "logic-correctness",
+    "criterion": "error and rollback paths: unknown states",
+    "severity": "high",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-008",
+    "key": "0012-forge-tracker-port/f008",
+    "concern": "logic-correctness",
+    "criterion": "boundary values: status vocabulary",
+    "severity": "high",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-010",
+    "key": "0012-forge-tracker-port/f010",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "high",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-009",
+    "key": "0012-forge-tracker-port/f009",
+    "concern": "api-contract",
+    "criterion": "Wrong protocol semantics",
+    "severity": "medium",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-011",
+    "key": "0012-forge-tracker-port/f011",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: dependency with no installer",
+    "severity": "medium",
+    "class": "scope",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-012",
+    "key": "0012-forge-tracker-port/f012",
+    "concern": "spec-fidelity",
+    "criterion": "Acceptance: forge answers the same on GitHub and GitLab (PRD AC-066)",
+    "severity": "medium",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-013",
+    "key": "0012-forge-tracker-port/f013",
+    "concern": "logic-correctness",
+    "criterion": "partial-failure handling: draft restore",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-014",
+    "key": "0012-forge-tracker-port/f014",
+    "concern": "logic-correctness",
+    "criterion": "empty/null/missing inputs: figure index",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-015",
+    "key": "0012-forge-tracker-port/f015",
+    "concern": "logic-correctness",
+    "criterion": "empty/null/missing inputs: empty ADF text",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-016",
+    "key": "0012-forge-tracker-port/f016",
+    "concern": "spec-fidelity",
+    "criterion": "Acceptance: seam-test on Jira REST runs against recorded Jira responses",
+    "severity": "medium",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-024",
+    "key": "0012-forge-tracker-port/f024",
+    "concern": "test-veracity",
+    "criterion": "Mock echo / tautology",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-025",
+    "key": "0012-forge-tracker-port/f025",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-026",
+    "key": "0012-forge-tracker-port/f026",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-027",
+    "key": "0012-forge-tracker-port/f027",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-028",
+    "key": "0012-forge-tracker-port/f028",
+    "concern": "test-veracity",
+    "criterion": "Mock echo / tautology",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "deferred",
+    "sha": null
+  },
+  {
+    "id": "r-029",
+    "key": "0012-forge-tracker-port/f029",
+    "concern": "test-veracity",
+    "criterion": "Hard-to-test code",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-030",
+    "key": "0012-forge-tracker-port/f030",
+    "concern": "test-veracity",
+    "criterion": "Mock echo / tautology",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-031",
+    "key": "0012-forge-tracker-port/f031",
+    "concern": "test-veracity",
+    "criterion": "Erratic test",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-017",
+    "key": "0012-forge-tracker-port/f017",
+    "concern": "api-contract",
+    "criterion": "Undocumented surface",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-019",
+    "key": "0012-forge-tracker-port/f019",
+    "concern": "api-contract",
+    "criterion": "Easy to misuse",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-020",
+    "key": "0012-forge-tracker-port/f020",
+    "concern": "api-contract",
+    "criterion": "Easy to misuse",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-022",
+    "key": "0012-forge-tracker-port/f022",
+    "concern": "api-contract",
+    "criterion": "Needless surface",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-032",
+    "key": "0012-forge-tracker-port/f032",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: consumer contract wording against the verb list",
+    "severity": "low",
+    "class": "scope",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-033",
+    "key": "0012-forge-tracker-port/f033",
+    "concern": "spec-fidelity",
+    "criterion": "Acceptance: exit 2 for unreadable input (SDD \u00a73)",
+    "severity": "low",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-034",
+    "key": "0012-forge-tracker-port/f034",
+    "concern": "logic-correctness",
+    "criterion": "off-by-one: ci-wait last read",
+    "severity": "low",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-035",
+    "key": "0012-forge-tracker-port/f035",
+    "concern": "api-contract",
+    "criterion": "Vocabulary drift",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-036",
+    "key": "0012-forge-tracker-port/f036",
+    "concern": "api-contract",
+    "criterion": "Undocumented surface",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-037",
+    "key": "0012-forge-tracker-port/f037",
+    "concern": "api-contract",
+    "criterion": "Needless surface",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-038",
+    "key": "0012-forge-tracker-port/f038",
+    "concern": "api-contract",
+    "criterion": "Undocumented surface",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-039",
+    "key": "0012-forge-tracker-port/f039",
+    "concern": "test-veracity",
+    "criterion": "Conditional test logic",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-040",
+    "key": "0012-forge-tracker-port/f040",
+    "concern": "test-veracity",
+    "criterion": "Mock echo / tautology",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-041",
+    "key": "0012-forge-tracker-port/f041",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-042",
+    "key": "0012-forge-tracker-port/f042",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-043",
+    "key": "0012-forge-tracker-port/f043",
+    "concern": "test-veracity",
+    "criterion": "Obscure Test",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  },
+  {
+    "id": "r-044",
+    "key": "0012-forge-tracker-port/f044",
+    "concern": "test-veracity",
+    "criterion": "open-question",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "565a4382"
+  }
+]

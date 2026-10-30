@@ -70,3 +70,4 @@
 2026-10-30 07:30 | execute | 0012-forge-tracker-port | decision(D-35) — see plan-s3/DECISIONS.md
 2026-10-30 07:30 | execute | 0012-forge-tracker-port | decision(D-36) — see plan-s3/DECISIONS.md
 2026-10-30 07:45 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r1 fix commit: the same v1-layout refusal, rows on existing afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; no row on afkv2/ports or afkv2/tests/ports. The genericity row on my own text is fixed.
+2026-10-30 09:00 | execute | 0012-forge-tracker-port | review r1 — blocking: crit=0 high=9 med=15 low=17; 40 fixed in 565a4382, f028 deferred to the feature gate; live round-trip passed after the fix
