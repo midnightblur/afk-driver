@@ -46,7 +46,10 @@ top=$(git rev-parse --show-toplevel 2>/dev/null) || { say "afk: not inside a git
 # A configured hooks path (a shared or per-repo dir such as .husky) is not ours to write.
 if [ -n "$(git config --get core.hooksPath 2>/dev/null)" ]; then
   echo "afk: core.hooksPath is set in $top — git hooks NOT installed; the protected-branch backstop is off here." >&2
-  exit 0
+  # --quiet never exits non-zero (SessionStart contract); a manual run must be
+  # able to tell a skip from a success, so the skip is recorded as a failure.
+  [ "$QUIET" = 1 ] && exit 0
+  exit 1
 fi
 
 # Absolute path to the resolved (common) hooks dir — correct from any subdir/worktree.
@@ -85,7 +88,7 @@ install_hook() {
     return 0
   fi
 
-  cat > "$target" <<HOOK
+  if ! cat > "$target" <<HOOK
 #!/usr/bin/env bash
 # $marker (installed by afk-toolkit install-git-hooks.sh).
 $root_line
@@ -94,7 +97,19 @@ gate="$plugin_root/hooks/$script"
 [ -f "\$gate" ] || exit 0
 exec bash "\$gate" "\$@"
 HOOK
-  chmod +x "$target"
+  then
+    # A failed rewrite leaves a stale or foreign hook in place — never claim it was installed.
+    echo "afk: could not write $hook hook to $target — $desc NOT installed." >&2
+    [ "$QUIET" = 1 ] && return 0
+    rc=1
+    return 0
+  fi
+  if ! chmod +x "$target"; then
+    echo "afk: could not make $target executable — $desc may not run." >&2
+    [ "$QUIET" = 1 ] && return 0
+    rc=1
+    return 0
+  fi
   say "afk: installed $desc -> $target"
 }
 
