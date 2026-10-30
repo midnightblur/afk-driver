@@ -580,6 +580,30 @@ def test_a_temp_file_that_cannot_be_dropped_keeps_the_first_error(tmp_path, monk
     assert target.read_bytes() == b"old"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="the read-only unlock runs on Windows only")
+def test_a_mode_that_cannot_be_restored_keeps_the_first_error_and_drops_the_temp(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "config"
+    target.write_bytes(b"old")
+    target.chmod(stat.S_IREAD)
+    real_chmod = os.chmod
+
+    def chmod(path, mode, **kwargs):
+        if Path(path) == target and mode != stat.S_IWRITE:
+            raise PermissionError("restore locked")
+        real_chmod(path, mode, **kwargs)
+
+    def replace(*_args):
+        raise PermissionError("replace locked")
+
+    monkeypatch.setattr(os, "chmod", chmod)
+    monkeypatch.setattr(os, "replace", replace)
+    with pytest.raises(PermissionError, match="replace locked"):
+        write_atomic(target, b"new")
+    assert [p.name for p in tmp_path.iterdir()] == ["config"]
+
+
 def test_write_atomic_on_a_full_disk_leaves_no_temp_file(tmp_path, monkeypatch):
     target = tmp_path / "config"
     target.write_bytes(b"old")
