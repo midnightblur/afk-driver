@@ -74,3 +74,5 @@
 2026-10-30 09:30 | execute | 0012-forge-tracker-port | decision(D-37) — see plan-s3/DECISIONS.md
 2026-10-30 09:35 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r2 fix commit: the same v1-layout refusal, rows on existing afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; no row on afkv2/ports or afkv2/tests/ports
 2026-10-30 09:50 | execute | 0012-forge-tracker-port | review r2 — blocking: crit=0 high=0 med=10 low=13; 19 fixed in 60d81241, f048 withdrawn by adjudicator, f050 f055 f058 deferred to the feature gate; live round-trip passed
+2026-10-30 10:05 | execute | 0012-forge-tracker-port | decision(D-38) — see plan-s3/DECISIONS.md
+2026-10-30 10:10 | execute | 0012-forge-tracker-port | gate-skip native-contract — review r3 fix commit: the same v1-layout refusal; no row on afkv2/ports or afkv2/tests/ports

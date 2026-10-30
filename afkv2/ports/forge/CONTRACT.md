@@ -4,7 +4,7 @@
 
 The answer envelope and the exit codes are the same as in `afkv2/ports/tracker/CONTRACT.md`. The field lists below are the fields beside `ok`. Both forges answer the same keys.
 
-Every payload can hold `forge` (`github` or `gitlab`) and `repo`. Without `forge`, the kind comes from `forge` in the config reader's answer, then from the host of the `origin` remote: exactly one of `github` and `gitlab` must be a part of the host, where a dot or a dash ends a part. Any other host refuses `no-forge`.
+Every payload can hold `forge` (`github` or `gitlab`) and `repo`. Without `forge`, the kind comes from `forge` in the config reader's answer, then from the host of the `origin` remote: exactly one of `github` and `gitlab` must be a part of the host, where a dot or a dash ends a part. Any other host refuses `no-forge`. A host that holds the word of the other forge must set `forge`.
 
 ## Verbs
 
@@ -17,7 +17,7 @@ Every payload can hold `forge` (`github` or `gitlab`) and `repo`. Without `forge
 | `change-update-body` | `id, body` (never blank) | `id, was_draft, draft_restored`; `was_draft` is `"true"` or `"false"`. A failed read of the flag refuses, and nothing is written |
 | `change-ready` | `id` | `id, draft` |
 | `change-comment` | `id, text`; for an inline comment `file` or `old_path`/`new_path`, `side` (`new` by default, `old`, `context`), `line` (for `new`, `context`), `old_line` (for `old`, `context`), `require_inline` | `inline, thread, comment, url`, and `reason` when a position landed as a plain note |
-| `note-list` | `id` | `notes[id, author, body, created_at, updated_at, edited], count`. Every note that is not on a line and not from the system, replies too |
+| `note-list` | `id` | `notes[id, author, body, created_at, updated_at, edited], count`. GitHub: the conversation comments, and no review body. GitLab: every note that is not on a line and not from the system, replies too |
 | `thread-list` | `id` | `threads[id, resolved, file, side, line, old_line, old_path, new_path, url, notes[id, author, type, body, created_at, updated_at, edited]], count`. Line comments only. A thread note `id` is a number, and `type` is the forge's own word |
 | `ci-status` | `id` | `status, url` |
 | `ci-wait` | `id`; optional `budget` (default 5400 s), `interval` (default 180 s) | `status, elapsed, id` |
@@ -30,7 +30,7 @@ A position the forge rejects: with `require_inline`, the verb refuses `position-
 
 ## `ci-wait`
 
-`ci-wait` exits 0 for every status it can read, `failed` and `canceled` too. The caller routes on `status`. It reads at least once, and once more when the budget ends. After a last read that gives a status that is not final, `status` is `running` and `reason` says so: the checks keep running. 3 reads in a row with no status, or a last read with no status, refuse with `unreadable`, which is no verdict on the change.
+`ci-wait` exits 0 for every status it can read, `failed` and `canceled` too. The caller routes on `status`. It reads at least once, and once more when the budget ends. After a last read that gives a status that is not final, `status` is `running` and `reason` says so: the checks keep running. 3 reads in a row with no status, or a budget that ends with no read that gave a status, refuse with `unreadable`, which is no verdict on the change.
 
 ## Error codes
 

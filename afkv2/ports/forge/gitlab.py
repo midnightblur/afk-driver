@@ -128,14 +128,14 @@ def change_create_draft(payload):
     return ok(url=found[-1], id=found[-1].rsplit("/", 1)[-1], draft=True)
 
 
-def _draft_flag(change, payload):
-    return "true" if _view(change, payload).get("draft") else "false"
+def _is_draft(change, payload):
+    return bool(_view(change, payload).get("draft"))
 
 
 def _draft_kept(change, payload):
     """A read that fails after the write proves nothing: the caller sets the flag again."""
     try:
-        return _draft_flag(change, payload) == "true"
+        return _is_draft(change, payload)
     except Refusal:
         return False
 
@@ -143,14 +143,15 @@ def _draft_kept(change, payload):
 def change_update_body(payload):
     """`glab mr update` clears the draft flag: read it first, put it back after. A failed first read writes nothing."""
     change, body = common.ref(payload), common.body_text(payload)
-    was_draft = _draft_flag(change, payload)
+    was_draft = _is_draft(change, payload)
     shell.checked("glab", ["mr", "update", change, *_flag(payload), "--description", body])
     restored = False
-    if was_draft == "true" and not _draft_kept(change, payload):
-        if shell.run_tool("glab", ["mr", "update", change, *_flag(payload), "--draft"]).returncode != 0:
-            return fail("draft-lost", f"the body changed, but the draft flag is off and could not be set again: run `glab mr update {change} --draft`", id=change)
+    if was_draft and not _draft_kept(change, payload):
+        repair = ["mr", "update", change, *_flag(payload), "--draft"]
+        if shell.run_tool("glab", repair).returncode != 0:
+            return fail("draft-lost", f"the body changed, but the draft flag is off and could not be set again: run `glab {' '.join(repair)}`", id=change)
         restored = True
-    return ok(id=change, was_draft=was_draft, draft_restored=restored)
+    return ok(id=change, was_draft="true" if was_draft else "false", draft_restored=restored)
 
 
 def change_ready(payload):
@@ -247,12 +248,16 @@ def _edit_problem(unknown, hidden):
     return Refusal("bad-answer", f"GraphQL edit state missing for notes: {', '.join(unknown)}{why}")
 
 
+def _is_line_note(note):
+    return note.get("type") == "DiffNote" or bool(note.get("position"))
+
+
 def note_list(payload):
     iid = _iid(_view(common.ref(payload), payload))
     edited, hidden = _note_edits(payload, iid)
     path = f"projects/{_project(payload)}/merge_requests/{iid}/notes?per_page=100&sort=asc&order_by=created_at"
     items = [item for item in shell.as_items(shell.json_answer("glab", ["api", "--paginate", path]))
-             if not item.get("system") and item.get("type") != "DiffNote"]
+             if not (item.get("system") or _is_line_note(item))]
     unknown = [str(item.get("id") or "") for item in items if edited.get(str(item.get("id") or "")) is None]
     if unknown:
         raise _edit_problem(unknown, hidden)
@@ -286,7 +291,7 @@ def _thread(discussion, change_url, edited):
 
 def _on_a_line(discussion):
     root = (discussion.get("notes") or [{}])[0]
-    return bool(root.get("position")) and not root.get("system")
+    return _is_line_note(root) and not root.get("system")
 
 
 def thread_list(payload):

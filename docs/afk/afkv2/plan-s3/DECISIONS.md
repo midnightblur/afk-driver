@@ -258,3 +258,10 @@
 - Chosen: B — (1) ends a wait that a human can still end. (2) and (3) close the hole D-32 left open. (5) no comment is lost between the two verbs: the `DiscussionNote` type is from memory of the GitLab API, unverified live. The receipt binds visible text and picture bytes, as the SDD formula says: a link target, a node type or a media id is not in the hash, so D-29's "other `adf`" means other text
 - Supersedes: ADR-0007 "v1's ... JSON answers" for items 1, 2, 4 and 5. D-30 for `ACTION_REQUIRED`. D-18 "in the answers of `issue-get` and `description-put`": `description-put` has answered no `description_hash` since D-36. Also D-36 "Supersedes: none"
 - To reverse: `_rollup` and `change_update_body` in `github.py`; `change_update_body`, `note_list`, `_on_a_line` in `gitlab.py`; `ci_wait` in `common.py`; `_from_origin` in `cli.py`; `_repo_and_number` in `github_issues.py`
+
+## D-38 — limits of the port after the third review pass
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — GitHub reads the draft flag as best effort, because `gh pr edit` does not clear it vs B — one rule on both forges: a failed first read refuses and writes nothing. Separately: A — `ci-wait` refuses when the last read gave no status vs B — only when no read gave a status
+- Chosen: B and B — the cost of the first is one refused body write on a GitHub read failure, and a retry fixes it: the same answer on both forges is what PRD AC-066 asks. The second keeps the evidence of a long wait when one read fails at the end. Known limit: the receipt does not bind a link target: the SDD formula sets what it binds, and S2 builds the same formula. A wider hash is an SDD change and an S2 change
+- Supersedes: D-37 item 4
+- To reverse: `change_update_body` in `github.py`; `ci_wait` in `common.py`

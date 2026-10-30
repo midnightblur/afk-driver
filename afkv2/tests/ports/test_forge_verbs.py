@@ -532,12 +532,14 @@ def test_gitlab_change_update_body_restores_the_draft_flag(capsys, tools):
     assert ["mr", "update", "7", "--description", "new"] in [call_[1] for call_ in tools.calls]
 
 
-def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools):
+@pytest.mark.parametrize("extra,command", [
+    ({}, "glab mr update 7 --draft"), ({"repo": "o/r"}, "glab mr update 7 -R o/r --draft")])
+def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools, extra, command):
     views = iter([{"iid": 7, "draft": True}, {"iid": 7, "draft": False}])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
     tools.on("glab", "mr", "update", answer=lambda args, _: (1, "", "nope") if "--draft" in args else "")
-    error = refused(capsys, "gitlab", "change-update-body", id="7", body="new")
-    assert error["code"] == "draft-lost" and error["id"] == "7" and "glab mr update 7 --draft" in error["reason"]
+    error = refused(capsys, "gitlab", "change-update-body", id="7", body="new", **extra)
+    assert error["code"] == "draft-lost" and error["id"] == "7" and command in error["reason"]
 
 
 def test_gitlab_a_kept_draft_flag_needs_no_restore(capsys, tools):
@@ -736,6 +738,13 @@ def test_ci_wait_with_no_budget_and_no_status_is_unreadable(capsys, tools, no_sl
     tools.on(TOOL[kind], *VIEW[kind], answer="")
     assert refused(capsys, kind, "ci-wait", id="7", budget=0)["code"] == "unreadable"
     assert len(tools.calls) == 1
+
+
+def test_ci_wait_a_failed_last_read_keeps_the_running_answer(capsys, tools, no_sleep):
+    reads = iter([ci_answer("gitlab", "running"), (1, "", "boom")])
+    tools.on("glab", "mr", "view", answer=lambda *_: next(reads))
+    answer = good(capsys, "gitlab", "ci-wait", id="7", budget=1, interval=1)
+    assert answer["status"] == "running" and "budget" in answer["reason"]
 
 
 def test_ci_wait_on_a_change_with_no_checks_is_unreadable_when_the_budget_ends(capsys, tools, no_sleep):

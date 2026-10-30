@@ -94,6 +94,10 @@ def _whole_number(payload, key, default):
         raise Refusal("bad-payload", f"`{key}` must be a whole number of seconds") from None
 
 
+def _unreadable(what, elapsed):
+    return fail("unreadable", f"{what} gave no status: auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
+
+
 def ci_wait(payload, read_status):
     """Poll until a final status or the budget ends. Every readable status exits 0: the caller routes on `status`."""
     change = ref(payload)
@@ -101,7 +105,7 @@ def ci_wait(payload, read_status):
     interval = _whole_number(payload, "interval", DEFAULT_INTERVAL)
     if interval <= 0:
         interval = 1
-    errors, elapsed = 0, 0
+    errors, elapsed, seen = 0, 0, False
     while True:
         try:
             status = read_status(change)
@@ -110,18 +114,16 @@ def ci_wait(payload, read_status):
                 raise
             status = ""
         if status:
-            errors = 0
+            errors, seen = 0, True
             if status in TERMINAL:
                 return ok(status=status, elapsed=elapsed, id=change)
         else:
             errors += 1
             if errors >= MAX_READ_ERRORS:
-                return fail("unreadable", f"{MAX_READ_ERRORS} reads in a row of {change} gave no status: "
-                                          "auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
+                return _unreadable(f"{MAX_READ_ERRORS} reads in a row of {change}", elapsed)
         if elapsed >= budget:
-            if not status:
-                return fail("unreadable", f"the last read of {change} gave no status: "
-                                          "auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
+            if not seen:
+                return _unreadable(f"every read of {change}", elapsed)
             break
         wait = min(interval, budget - elapsed)
         time.sleep(wait)

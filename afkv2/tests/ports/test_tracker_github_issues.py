@@ -47,8 +47,15 @@ def test_a_key_that_names_another_repository_is_refused(tools):
     assert caught.value.code == "bad-payload" and tools.calls == []
 
 
-@pytest.mark.parametrize("key", ["--web", "#--web", "--web#7", "o/r#", "#", "https://github.com/other/thing/issues/7", "7a", "\u0667"])
+@pytest.mark.parametrize("key", ["--web", "#--web", "--web#7"])
 def test_a_key_like_a_flag_is_refused(tools, key):
+    with pytest.raises(envelope.Refusal) as caught:
+        github_issues.issue_get({"key": key})
+    assert caught.value.code == "bad-payload" and tools.calls == []
+
+
+@pytest.mark.parametrize("key", ["o/r#", "#", "https://github.com/other/thing/issues/7", "7a", "\u0667"])
+def test_a_key_with_no_number_of_digits_is_refused(tools, key):
     with pytest.raises(envelope.Refusal) as caught:
         github_issues.issue_get({"key": key})
     assert caught.value.code == "bad-payload" and tools.calls == []
