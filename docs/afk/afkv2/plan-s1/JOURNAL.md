@@ -103,3 +103,5 @@
 2026-10-30 12:13 | execute | 0001-skeleton-manifests-hooks | decision(D-28) — on a shared runner the hook timing test warns and does not fail, because a slow runner would fail a correct hook.
 2026-10-30 12:13 | execute | 0001-skeleton-manifests-hooks | gate-skip(R-4) — the D-26 commit uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run.
 2026-10-30 12:19 | autopilot | 0001-skeleton-manifests-hooks | decision(D-29) — the owner removed the 50 ms hook limit and its test; the first slice drops both, and two review findings about that test close
+2026-10-30 12:21 | execute | 0001-skeleton-manifests-hooks | follow-up(D-29) — the owner ruled that the new plugin sets no hook time limit, so the timing test, its helpers, its CI command and the 50 ms wording are gone; the shell-command and extra-output tests stay; 49 passed in test_hooks.py; check exit 0; the row stays done.
+2026-10-30 12:21 | execute | 0001-skeleton-manifests-hooks | gate-skip(R-4) — the D-29 commit uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run.

@@ -2,10 +2,8 @@ import hashlib
 import json
 import re
 import shutil
-import statistics
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -24,9 +22,6 @@ SESSION = HOOKS / "session-start.cmd"
 SUBAGENT = HOOKS / "subagent-start.cmd"
 PLAIN = BUILT / plugin_check.PLAIN_VARIANT
 CLAUDE_SUBAGENT = BUILT / plugin_check.CLAUDE_SUBAGENT_VARIANT
-TIMING_ATTEMPTS = 5
-LIMIT_SECONDS = 0.050
-EMPTY_CMD = b"@echo off\r\n"
 CANARY = "canary.txt"
 PAYLOAD = json.dumps(
     {
@@ -50,14 +45,6 @@ def run_hook(hook, provider, data_root, env=None):
         env=hook_env(data_root) if env is None else env,
         cwd=data_root,
     )
-
-
-def timed_run(hook, data_root):
-    start = time.perf_counter()
-    done = run_hook(hook, "claude", data_root)
-    elapsed = time.perf_counter() - start
-    assert done.returncode == 0
-    return elapsed
 
 
 def normalized(data):
@@ -164,26 +151,6 @@ def test_unknown_provider_prints_nothing_and_writes_nothing(tmp_path, hook, prov
     assert done.returncode == 2
     assert done.stdout == b""
     assert not (tmp_path / "afkv2").exists()
-
-
-@pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
-def test_hook_median_of_7_runs_is_under_50_ms(tmp_path, hook):
-    floor_hook = tmp_path / "empty.cmd"
-    floor_hook.write_bytes(EMPTY_CMD)
-    run_hook(hook, "claude", tmp_path)
-    run_hook(floor_hook, "claude", tmp_path)
-    attempts = []
-    for _ in range(TIMING_ATTEMPTS):
-        hook_times, floor_times = [], []
-        for _ in range(7):
-            floor_times.append(timed_run(floor_hook, tmp_path))
-            hook_times.append(timed_run(hook, tmp_path))
-        attempts.append((statistics.median(hook_times), statistics.median(floor_times)))
-        if attempts[-1][0] < LIMIT_SECONDS and attempts[-1][1] < LIMIT_SECONDS:
-            return
-    if all(floor >= LIMIT_SECONDS for _, floor in attempts):
-        pytest.skip(f"no verdict: an empty .cmd takes over 50 ms on this machine now: {attempts}")
-    pytest.fail(f"median over 50 ms with a usable floor, (hook, floor) per attempt: {attempts}")
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])

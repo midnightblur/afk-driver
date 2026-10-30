@@ -27,7 +27,7 @@ Also look for these problems:
 - The answer holds a file path and a preview, not the text. Codex cut the text at its output limit (about 2,500 tokens). Record it; the owner decides on `additionalContextLimit`.
 - The text has extra lines before the begin marker. Codex runs the command with `cmd /C` (inferred from v1 evidence), which also runs a cmd `AutoRun` registry command. Record the extra lines.
 
-On fail: the hook does not run on Codex. The fallback is a Python hook, and the 50 ms limit goes back to the owner (SDD §7, failure row ".cmd hook refused by a harness"). If Codex refuses `hooks.json` because of the Claude-only `args` field, move the Codex handlers to an inline `hooks` object in `afkv2/.codex-plugin/plugin.json`.
+On fail: the hook does not run on Codex. The fallback is a Python hook (SDD §7, failure row ".cmd hook refused by a harness"). If Codex refuses `hooks.json` because of the Claude-only `args` field, move the Codex handlers to an inline `hooks` object in `afkv2/.codex-plugin/plugin.json`.
 
 ## Check 2 — Codex runs the hook again after a compaction
 
