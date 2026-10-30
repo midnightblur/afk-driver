@@ -47,6 +47,7 @@ class FakeRunner(tools.Runner):
         self.npm_ls_fails = False
         self.git_common_dir_fails = False
         self.python_version = "Python 3.12.4\n"
+        self.icacls_fails = False
 
     def which(self, name, env=None):
         if name == "git":
@@ -62,6 +63,8 @@ class FakeRunner(tools.Runner):
                 return tools.Result(128, "", "fatal: detected dubious ownership")
             done = subprocess.run(argv, capture_output=True, text=True, env=git_env(self.places.home))
             return tools.Result(done.returncode, done.stdout, done.stderr)
+        if name == "icacls":
+            return tools.Result(5, "", "Access is denied.") if self.icacls_fails else tools.Result(0)
         if name == "codex":
             return self._codex()
         if name == "npm":

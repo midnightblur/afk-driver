@@ -14,6 +14,10 @@ OLD_TOKEN = "old-tok-secret-456"
 VALUES = {"JIRA_BASE_URL": "https://s.atlassian.net", "JIRA_EMAIL": "dev@example.com", "JIRA_API_TOKEN": TOKEN}
 
 
+def _store(places, values, user_env):
+    return jira_values.store_jira_values(places, values, user_env, lambda _folder: None)
+
+
 def _claude_entry(places, env_block):
     data = {"mcpServers": {"tracker": {"command": "x", "env": env_block}}, "other": 1}
     places.claude_user_config.write_text(json.dumps(data), encoding="utf-8")
@@ -41,7 +45,7 @@ def test_store_into_the_v1_entry_with_backup(places):
     _claude_entry(places, {"JIRA_EMAIL": "dev@example.com"})
     before = places.claude_user_config.read_bytes()
     values = {"JIRA_BASE_URL": "https://s.atlassian.net", "JIRA_EMAIL": "dev@example.com", "JIRA_API_TOKEN": TOKEN}
-    answer = jira_values.store_jira_values(places, values, None)
+    answer = _store(places, values, None)
     assert answer["ok"] and answer["stored_in"] == "claude user config"
     assert TOKEN not in json.dumps(answer)
     from pathlib import Path
@@ -52,7 +56,7 @@ def test_store_into_the_v1_entry_with_backup(places):
 
 def test_store_into_the_user_environment_without_v1_entry(places):
     store = FakeUserEnv()
-    answer = jira_values.store_jira_values(places, VALUES, store)
+    answer = _store(places, VALUES, store)
     assert answer == {"ok": True, "stored_in": "user environment"} and store.values == VALUES
 
 
@@ -180,7 +184,7 @@ def _claude_world(places):
     data = {"mcpServers": {"tracker": {"command": "x", "env": {"JIRA_API_TOKEN": OLD_TOKEN, "OTHER": "kept"}}}, "other": 1}
     places.claude_user_config.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
     before = places.claude_user_config.read_bytes()
-    assert jira_values.store_jira_values(places, VALUES, None)["ok"]
+    assert _store(places, VALUES, None)["ok"]
     return before
 
 
@@ -209,7 +213,7 @@ def test_claude_restore_keeps_what_the_harness_wrote_later(places):
 
 def test_claude_restore_after_a_later_setup_run_uses_the_first_backup(places):
     before = _claude_world(places)
-    jira_values.store_jira_values(places, {**VALUES, "JIRA_API_TOKEN": "third"}, None)
+    _store(places, {**VALUES, "JIRA_API_TOKEN": "third"}, None)
     assert _claude_saved(places).read_bytes() == before
     jira_values.restore_claude_user_config(places)
     assert places.claude_user_config.read_bytes() == before
@@ -250,7 +254,7 @@ def test_claude_restore_of_an_unreadable_file_keeps_the_backup_and_says_no_value
 
 def test_env_store_records_each_previous_value_or_absent(places):
     store = FakeUserEnv(JIRA_API_TOKEN=OLD_TOKEN)
-    jira_values.store_jira_values(places, VALUES, store)
+    _store(places, VALUES, store)
     assert json.loads(_env_saved(places).read_text(encoding="utf-8")) == {
         "JIRA_BASE_URL": {"absent": True}, "JIRA_EMAIL": {"absent": True}, "JIRA_API_TOKEN": {"value": OLD_TOKEN}}
 
@@ -263,15 +267,15 @@ def test_env_backup_is_written_before_the_first_value(places):
             seen.append(_env_saved(places).exists())
             super().set(name, value)
 
-    jira_values.store_jira_values(places, VALUES, Watching())
+    _store(places, VALUES, Watching())
     assert seen == [True, True, True]
 
 
 def test_a_second_env_store_keeps_the_first_backup(places):
     store = FakeUserEnv(JIRA_API_TOKEN=OLD_TOKEN)
-    jira_values.store_jira_values(places, VALUES, store)
+    _store(places, VALUES, store)
     first = _env_saved(places).read_bytes()
-    jira_values.store_jira_values(places, {**VALUES, "JIRA_API_TOKEN": "third"}, store)
+    _store(places, {**VALUES, "JIRA_API_TOKEN": "third"}, store)
     assert _env_saved(places).read_bytes() == first
 
 
@@ -279,14 +283,14 @@ def test_a_second_store_adds_only_a_key_the_first_did_not_record(places):
     saved = _env_saved(places)
     saved.parent.mkdir(parents=True)
     saved.write_text(json.dumps({"JIRA_API_TOKEN": {"value": OLD_TOKEN}}), encoding="utf-8")
-    jira_values.store_jira_values(places, VALUES, FakeUserEnv(JIRA_API_TOKEN="newer", JIRA_EMAIL="old@example.com"))
+    _store(places, VALUES, FakeUserEnv(JIRA_API_TOKEN="newer", JIRA_EMAIL="old@example.com"))
     kept = json.loads(saved.read_text(encoding="utf-8"))
     assert kept["JIRA_API_TOKEN"] == {"value": OLD_TOKEN} and kept["JIRA_EMAIL"] == {"value": "old@example.com"}
 
 
 def test_env_restore_puts_back_values_and_deletes_absent_keys(places):
     store = FakeUserEnv(JIRA_API_TOKEN=OLD_TOKEN, UNRELATED="stays")
-    jira_values.store_jira_values(places, VALUES, store)
+    _store(places, VALUES, store)
     store.values["ADDED_LATER"] = "stays too"
     answer = jira_values.restore_user_env(places, store)
     assert answer == {"action": "restored", "keys": {
@@ -303,7 +307,7 @@ def test_env_restore_with_no_backup_changes_nothing(places):
 
 def test_a_failed_env_restore_keeps_the_backup_and_a_rerun_finishes(places):
     store = FakeUserEnv(JIRA_API_TOKEN=OLD_TOKEN)
-    jira_values.store_jira_values(places, VALUES, store)
+    _store(places, VALUES, store)
     store.broken = True
     answer = jira_values.restore_user_env(places, store)
     assert answer["action"] == "failed" and answer["backup"] == str(_env_saved(places))
@@ -314,7 +318,7 @@ def test_a_failed_env_restore_keeps_the_backup_and_a_rerun_finishes(places):
 
 
 def test_env_restore_with_no_store_on_this_system_keeps_the_backup(places):
-    jira_values.store_jira_values(places, VALUES, FakeUserEnv())
+    _store(places, VALUES, FakeUserEnv())
     answer = jira_values.restore_user_env(places, None)
     assert answer["action"] == "failed" and _env_saved(places).exists()
 
@@ -335,11 +339,74 @@ def test_a_bad_env_backup_stops_a_store_before_any_write(places):
     saved.write_text("{bad", encoding="utf-8")
     store = FakeUserEnv()
     with pytest.raises(ValueError):
-        jira_values.store_jira_values(places, VALUES, store)
+        _store(places, VALUES, store)
     assert store.values == {} and saved.read_text(encoding="utf-8") == "{bad"
+
+
+def _store_target(places, target):
+    if target == "claude user config":
+        _claude_entry(places, {"JIRA_EMAIL": "dev@example.com"})
+        return None
+    return FakeUserEnv()
+
+
+def _files_under(folder):
+    return [p for p in folder.rglob("*") if p.is_file()]
+
+
+@pytest.mark.parametrize("target", ["claude user config", "user environment"])
+def test_the_backup_folder_is_locked_before_a_token_backup_is_written(places, target):
+    store = _store_target(places, target)
+    locked = []
+
+    def lock(folder):
+        locked.append((folder, _files_under(places.backup)))
+
+    assert jira_values.store_jira_values(places, VALUES, store, lock)["stored_in"] == target
+    assert locked == [(places.backup, [])] and _files_under(places.backup)
+
+
+@pytest.mark.parametrize("target", ["claude user config", "user environment"])
+def test_a_failed_lock_writes_no_backup_and_no_value(places, target):
+    store = _store_target(places, target)
+    before = places.claude_user_config.read_bytes() if store is None else None
+
+    def lock(folder):
+        raise OSError(f"cannot limit {folder} to the current user: Access is denied.")
+
+    answer = jira_values.store_jira_values(places, VALUES, store, lock)
+    assert answer["ok"] is False and answer["error"]["code"] == "backup-not-private"
+    assert "nothing was written" in answer["error"]["reason"] and TOKEN not in json.dumps(answer)
+    assert _files_under(places.backup) == []
+    if store is None:
+        assert places.claude_user_config.read_bytes() == before
+    else:
+        assert store.values == {}
+
+
+def _answer_prompts(system):
+    system.windows = True
+    system.ask = lambda prompt: "https://s.atlassian.net" if "URL" in prompt else "dev@example.com"
+    system.ask_secret = lambda _prompt: TOKEN
+    system.user_env = FakeUserEnv()
+
+
+def test_secrets_locks_the_backup_folder_through_the_runner(places, runner, system):
+    _answer_prompts(system)
+    answer = setup.secrets(places, system, {"USERNAME": "dev", "USERDOMAIN": "CORP"})
+    assert answer["ok"] and ["icacls", str(places.backup), "/inheritance:r", "/grant:r",
+                             "CORP\\dev:(OI)(CI)F"] in runner.calls
+
+
+def test_secrets_refuses_when_icacls_fails(places, runner, system):
+    runner.icacls_fails = True
+    _answer_prompts(system)
+    answer = setup.secrets(places, system, {"USERNAME": "dev"})
+    assert answer["error"]["code"] == "backup-not-private" and system.user_env.values == {}
+    assert not _env_saved(places).exists() and TOKEN not in json.dumps(answer)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows file modes do not carry this protection")
 def test_the_env_backup_is_private_on_posix(places):
-    jira_values.store_jira_values(places, VALUES, FakeUserEnv())
+    _store(places, VALUES, FakeUserEnv())
     assert stat.S_IMODE(_env_saved(places).stat().st_mode) == 0o600

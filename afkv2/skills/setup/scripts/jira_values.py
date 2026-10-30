@@ -5,7 +5,8 @@ Claude user config (`~/.claude.json`), then the Codex config
 (`[mcp_servers.tracker.env]`).
 
 Switch-back restores what `store_jira_values` changed. Its backups hold a token
-in plain text, so no answer, log or error carries a value from them.
+in plain text, so no answer, log or error carries a value from them, and only
+the current user can open their folder.
 """
 
 from __future__ import annotations
@@ -87,11 +88,13 @@ def status(places: Places, env: Mapping[str, str]) -> dict:
             "sources": {k: (found[k][1] if k in found else None) for k in KEYS}}
 
 
-def store_jira_values(places: Places, values: Mapping[str, str], user_env: UserEnv | None) -> dict:
+def store_jira_values(places: Places, values: Mapping[str, str], user_env: UserEnv | None,
+                      lock: Callable[[Path], None]) -> dict:
     """Write the 3 values where v1 keeps them; back up a file before its edit.
 
     The v1 tracker entry in the Claude user config is the target when it
     exists; otherwise the user environment, the first source of the lookup.
+    `lock` limits the backup folder to the current user; if it fails, nothing is written.
     """
     path = places.claude_user_config
     try:
@@ -100,17 +103,22 @@ def store_jira_values(places: Places, values: Mapping[str, str], user_env: UserE
         return {"ok": False, "error": {"code": "bad-config",
                                        "reason": f"{path} is not valid JSON"}}
     block = _tracker_env(config) if config else None
+    if block is None and user_env is None:
+        return {"ok": False, "error": {
+            "code": "no-store",
+            "reason": "no v1 tracker entry and no user environment store on this system; "
+                      "export JIRA_BASE_URL, JIRA_EMAIL and JIRA_API_TOKEN in your shell profile"}}
+    try:
+        lock(places.backup)
+    except OSError as exc:
+        return {"ok": False, "error": {"code": "backup-not-private",
+                                       "reason": f"{exc}; nothing was written"}}
     if block is not None:
         saved = _claude_backup(places)
         backup_once(path, saved)
         block.update({k: values[k] for k in KEYS})
         write_atomic(path, (json.dumps(config, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         return {"ok": True, "stored_in": "claude user config", "backup": str(saved)}
-    if user_env is None:
-        return {"ok": False, "error": {
-            "code": "no-store",
-            "reason": "no v1 tracker entry and no user environment store on this system; "
-                      "export JIRA_BASE_URL, JIRA_EMAIL and JIRA_API_TOKEN in your shell profile"}}
     _keep_env_values(places, user_env)
     for key in KEYS:
         user_env.set(key, values[key])

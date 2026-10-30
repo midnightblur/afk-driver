@@ -444,6 +444,11 @@ def _switch_codex(places: Places, run: tools.Runner, enable: str, with_backup: b
     written = False
     if any(state[i] != v for i, v in wanted.items()):
         if with_backup:
+            try:  # the config can hold the Jira token
+                tools.lock_to_current_user(places.backup, run)
+            except OSError as exc:
+                return {"ok": False, "written": False, "error": {
+                    "code": "backup-not-private", "reason": f"{exc}; nothing was written"}}
             backup_once(config, places.backup / "codex" / "config.toml")
         write_atomic(config, plugins.codex_edit(text, wanted).encode("utf-8"))
         written = True
@@ -646,7 +651,9 @@ def secrets(places: Places, system: System, env: Mapping[str, str]) -> dict:
         values = jira_values.ask_values(jira_values.lookup(places, env), system.ask, system.ask_secret)
     except ValueError as exc:
         return _error("bad-value", f"{exc}; nothing was written")
-    return jira_values.store_jira_values(places, values, system.user_env)
+    return jira_values.store_jira_values(
+        places, values, system.user_env,
+        lambda folder: tools.lock_to_current_user(folder, system.run, system.windows, env))
 
 
 def default_system() -> System:

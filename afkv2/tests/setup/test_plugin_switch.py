@@ -195,3 +195,17 @@ def test_codex_restore_keeps_lines_written_since():
     assert plugins.codex_restore(now, before) == (
         f'[plugins."{V1_ID}"]\nenabled = true\n\n[plugins."{NEW_ID}"]\nenabled = false\n\n'
         '[projects."C:/w"]\ntrust_level = "trusted"\n')
+
+
+def test_a_failed_lock_keeps_the_codex_config_and_writes_no_backup(places, runner, monkeypatch):
+    write_codex_config(places)
+    before = places.codex_config.read_bytes()
+
+    def refuse(folder, run):
+        raise OSError(f"cannot limit {folder} to the current user: Access is denied.")
+
+    monkeypatch.setattr(setup.tools, "lock_to_current_user", refuse)
+    answer = setup._switch_codex(places, runner, "afkv2", with_backup=True)
+    assert answer["ok"] is False and answer["error"]["code"] == "backup-not-private"
+    assert places.codex_config.read_bytes() == before
+    assert not (places.backup / "codex" / "config.toml").exists()

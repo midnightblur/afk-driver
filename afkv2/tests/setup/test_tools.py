@@ -1,4 +1,5 @@
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -190,3 +191,34 @@ def test_path_adder_creates_an_absent_value(registry):
     fake = registry()
     assert tools.windows_user_path_adder(Path("/tools/rg"))
     assert fake.values["Path"] == (str(Path("/tools/rg")), _FakeWinreg.REG_EXPAND_SZ)
+
+
+def test_lock_removes_inherited_rights_and_grants_only_the_user(tmp_path, runner):
+    folder = tmp_path / "data" / "backup"
+    tools.lock_to_current_user(folder, runner, True, {"USERNAME": "dev", "USERDOMAIN": "CORP"})
+    assert folder.is_dir()
+    assert runner.calls == [["icacls", str(folder), "/inheritance:r", "/grant:r", "CORP\\dev:(OI)(CI)F"]]
+
+
+def test_lock_without_a_domain_uses_the_bare_user_name(tmp_path, runner):
+    tools.lock_to_current_user(tmp_path, runner, True, {"USERNAME": "dev"})
+    assert runner.calls[0][-1] == "dev:(OI)(CI)F"
+
+
+def test_lock_raises_when_icacls_fails(tmp_path, runner):
+    runner.icacls_fails = True
+    with pytest.raises(OSError, match="Access is denied"):
+        tools.lock_to_current_user(tmp_path, runner, True, {"USERNAME": "dev"})
+
+
+def test_lock_without_a_user_name_raises_and_runs_nothing(tmp_path, runner):
+    with pytest.raises(OSError, match="USERNAME"):
+        tools.lock_to_current_user(tmp_path, runner, True, {})
+    assert runner.calls == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows file modes do not carry this protection")
+def test_lock_on_posix_is_mode_0700_with_no_command(tmp_path, runner):
+    folder = tmp_path / "backup"
+    tools.lock_to_current_user(folder, runner, False, {})
+    assert stat.S_IMODE(folder.stat().st_mode) == 0o700 and runner.calls == []

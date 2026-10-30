@@ -37,3 +37,16 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
 2. Expect: `codex plugin list` shows only `afk@afk-toolkit` enabled; the v1 block
    is back in both instruction files; `npm ls -g lavish-axi` shows the version
    from before setup.
+
+## 5. Only you can open the backup folder
+
+1. Run `setup.py secrets` in your own terminal, not through the agent. Enter
+   test values.
+2. Run `icacls "%LOCALAPPDATA%\afkv2\backup"`.
+3. Expect: one entry, your own account with `(OI)(CI)(F)`. No entry for
+   `CodexSandboxUsers`, `SYSTEM` or `Administrators`, and no `(I)` mark.
+4. Run `icacls` on a file under that folder, such as `user-env\values.json`.
+   Expect: only your own account, marked `(I)(F)`.
+5. Run `/afkv2:setup switch-back` from a Codex session. Expect: `jira_values`
+   does not say `failed`. If it does, the Codex sandbox account cannot open the
+   folder: record this in the journal.

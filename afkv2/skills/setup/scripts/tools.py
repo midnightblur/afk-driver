@@ -48,6 +48,26 @@ class Runner:
         return Result(done.returncode, done.stdout, done.stderr)
 
 
+# ---------------------------------------------------------- the backup folder
+
+def lock_to_current_user(folder: Path, run: Runner, windows: bool = os.name == "nt",
+                         env: Mapping[str, str] = os.environ) -> None:
+    """Only the current user can open `folder` and what it holds. OSError if this fails."""
+    folder.mkdir(parents=True, exist_ok=True)
+    if not windows:
+        os.chmod(folder, 0o700)
+        return
+    user = env.get("USERNAME")
+    if not user:
+        raise OSError(f"cannot limit {folder} to the current user: USERNAME is not set")
+    # The domain stops a local account with the same name from matching first.
+    name = f"{env['USERDOMAIN']}\\{user}" if env.get("USERDOMAIN") else user
+    got = run(["icacls", str(folder), "/inheritance:r", "/grant:r", f"{name}:(OI)(CI)F"],
+              env=env, timeout=60)
+    if got.code != 0:
+        raise OSError(f"cannot limit {folder} to the current user: {(got.err or got.out).strip()}")
+
+
 # ----------------------------------------------------------------- Python 3
 
 def find_python(run: Runner, env: Mapping[str, str]) -> dict:
