@@ -153,3 +153,17 @@
 - Chosen: A — ruling of the plan author. Its condition holds: Acceptance 4 defines the marker hash over the text between the marker lines, and Acceptance 7 says the check refuses a stale prebuilt file. A-2 to A-9 stay advisory under R-2; no new adversary run under R-1
 - Supersedes: the Scope comment and the "one line" wording of D-17 (D-17)
 - To reverse: restore the D-17 Scope comment, remove the comment line and the new test
+
+## D-23 — which v1 behaviors the core text carries
+- 2026-10-30 · decided by execute (0002-core-behaviors)
+- Options: A — carry the interim behaviors whole, and each v1 behavior whose rule still applies, as self-contained text vs B — carry the interim behaviors only and leave out every v1 behavior vs C — carry every v1 behavior, with its pointer to a v1 file
+- Chosen: A — the contract Goal says the text grows from both sources, and C breaks the no-v1-name rule in Acceptance 3. Not carried, with cause: `ci-parity-before-push` and the "do not merge the target branch locally" half of `change-landing` (interim rules say the opposite); `lavish-grilling-render` (a page skill owns it; PRD SK row for the page engine); `rationale-on-change` (the PRD has no such transport); `phase-boundary-review` (the PRD chain has no manual phased plan). Also carried from decisions 18, 28, 33, 58 of issue 153: environment awareness, collaboration branch, verify premises. The background-job recipes of issue row W1 are not carried: they are not in the Acceptance, and the two-harness facts are not verified in this slice.
+- Supersedes: none
+- To reverse: edit `afkv2/core/CORE-BEHAVIORS.md`, then run `plugin_check.py build`
+
+## D-24 — what the search benchmark counts as a hit
+- 2026-10-30 · decided by execute (0002-core-behaviors)
+- Options: A — a hit is one matching text line, compared as a multiset of `path:text` in each timed run; a binary-file notice is not a hit, and the answer counts notices per tool vs B — a binary-file notice counts as a hit, so one tool that reports a binary match and the other that does not fail the compare
+- Chosen: A — a notice names a file and no line, so an agent cannot act on it as a hit. Measured on the benchmark repository, pattern `Transactional`: both tools have the same text lines, and `git grep --untracked` adds 1 notice for a `.jar` file that rg does not report. rg stops reading a file at the first NUL byte (inferred from that output; not verified against the rg source).
+- Supersedes: none
+- To reverse: count notices in `normalize_hits` in `afkv2/scripts/search_bench.py`

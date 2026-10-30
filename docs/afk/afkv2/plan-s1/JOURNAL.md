@@ -76,3 +76,7 @@
 2026-10-30 11:21 | execute | 0001-skeleton-manifests-hooks | wiring — the wiring scan exited 0 on dfb0246a.
 2026-10-30 11:21 | execute | 0001-skeleton-manifests-hooks | done — every gate the owner rulings keep has passed; the rationale receipt is confirmed; the human reviews and merges.
 2026-10-30 11:23 | autopilot | run | heartbeat 1/5 done, starting 0002-core-behaviors — the skeleton is finished and pushed; the core rule text comes next
+2026-10-30 11:28 | execute | 0002-core-behaviors | designing — reading the contract, the hook design and the two rule sources before any text
+2026-10-30 11:30 | execute | 0002-core-behaviors | developing — writing failing tests first for the benchmark and the rule text
+2026-10-30 11:37 | execute | 0002-core-behaviors | decision(D-23) — the rule text carries the interim rules and each old rule that still applies; 5 old rules stay out, each with a recorded cause
+2026-10-30 11:37 | execute | 0002-core-behaviors | decision(D-24) — the benchmark counts matching text lines as hits, and it reports notices about binary files apart from the hits
