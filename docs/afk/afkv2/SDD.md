@@ -49,7 +49,7 @@ afkv2 is built in 3 parallel sessions (S1 skeleton, hook, core behaviors, page e
 
 ## §2 L1 — System Topology
 
-Inherited: a local plugin with no server, running inside a Claude Code or Codex session on Windows. Scripts are Python; hooks are `.cmd` where the 50 ms budget needs it. Pages are shown through the same lavish host as v1 (ADR-0001).
+Inherited: a local plugin with no server, running inside a Claude Code or Codex session on Windows. Scripts are Python; hooks are `.cmd`, the fastest start on Windows; the harness hook timeout is the only time limit. Pages are shown through the same lavish host as v1 (ADR-0001).
 
 ```mermaid
 flowchart LR
@@ -326,7 +326,7 @@ sequenceDiagram
 | read-back differs | compare fails | none; old pictures kept | report a failed publish; re-run | to-prd |
 | hook did not fire | no fired record newer than the install record | setup keeps the v1 block | follow the Codex hook trust review, then re-run setup | setup |
 | core-behaviors text cut to a preview | end marker missing in context | setup keeps the v1 block | shrink the text below 8,000 characters | S1 build check |
-| `.cmd` hook refused by a harness | day-1 live check fails | none | Python hook; the 50 ms limit returns to the owner | S1 |
+| `.cmd` hook refused by a harness | day-1 live check fails | none | Python hook | S1 |
 | Codex Stop hook cannot wait long enough | day-1 live check fails | none | one chat message after Send; owner informed | S1 |
 | switch back to v1 | developer runs switch-back | restores the block, git hooks, settings and host version from backups | — | setup |
 
