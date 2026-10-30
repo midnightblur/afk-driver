@@ -279,3 +279,10 @@
 - Chosen: A — PRD AC-035 lists map node and diagram as note targets. Known gap: `engine._element_ids` reads nodes only from the document's `maps` list, so a map held in a card or a cell draws, but a note on one of its nodes resolves to no element, and its node ids are not checked for uniqueness. `afkv2/engine/engine.py` is outside the 0004 `## Scope`. S2's page says a map goes in the `maps` list
 - Supersedes: none
 - To reverse: add the attribute in `_plain` in `diagram_boxes.py` and register graph nodes in `engine._element_ids`
+
+## D-41 — orchestrator ruling: 0004 may make one edit in test_engine_core.py
+- 2026-10-30 · decided by autopilot, as orchestrator (AC-072; owner's green-light rule of 2026-10-30)
+- Options: A — add `afkv2/tests/engine/test_engine_core.py` to the 0004 `## Scope` for one change: delete `scratch_type("map")` and the test's `scratch_type` parameter vs B — rename the type, which breaks S2's use of `map` vs C — leave the test red, with CI red
+- Chosen: A — I reproduced it: 1 failed, 171 passed, 1 skipped, from `ValueError` at `afkv2/engine/registry.py:42`. The test stood in a scratch `map` until the real one existed, and 0004 adds the real one. The fixture stays, because 2 other tests use it. The 0004 agent also runs this test file. This covers this one edit on 0004 only
+- Supersedes: none
+- To reverse: remove the path from the 0004 `## Scope` and restore the 2 lines
