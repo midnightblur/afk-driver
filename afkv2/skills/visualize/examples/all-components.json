@@ -1,0 +1,182 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-example",
+    "skill": "propose-solution",
+    "feature": "order-export",
+    "ticket": "PROJ-123",
+    "started": "2026-01-05T09:00:00Z"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-scope",
+      "props": {
+        "title": "Order export: design",
+        "nodes": [
+          {"id": "n-export", "label": "Export per order", "state": "settled", "round": 1},
+          {"id": "n-data", "label": "Order fields", "state": "focus", "round": 1},
+          {"id": "n-flow", "label": "Request flow", "state": "open", "round": 1},
+          {"id": "n-format", "label": "File format", "state": "open", "round": 1}
+        ],
+        "edges": [
+          {"from": "n-export", "to": "n-data"},
+          {"from": "n-export", "to": "n-flow"},
+          {"from": "n-export", "to": "n-format"}
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": ["The requirements fix one export file per order."],
+        "unlocks": ["The data change", "The request flow", "The file format"],
+        "parked": ["Archive retention, waits for the data owner"]
+      },
+      "replies": [
+        {
+          "text": "Read as: the export stays per order. This round asks the three design points that follow from it.",
+          "about": ["i-data", "i-flow", "i-format"]
+        }
+      ],
+      "items": [
+        {
+          "id": "i-data",
+          "kind": "decided",
+          "node": "n-data",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "Current state of the code area and the data the export reads:"},
+            "children": [
+              {
+                "type": "graph",
+                "id": "g-modules",
+                "props": {
+                  "direction": "right",
+                  "groups": [{"id": "web", "label": "web module"}, {"id": "core", "label": "core module"}],
+                  "nodes": [
+                    {"id": "g-controller", "label": "order endpoint", "group": "web"},
+                    {"id": "g-service", "label": "order service", "group": "core"},
+                    {"id": "g-store", "label": "order store", "group": "core"}
+                  ],
+                  "edges": [
+                    {"from": "g-controller", "to": "g-service"},
+                    {"from": "g-service", "to": "g-store"}
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-order-fields",
+                "props": {
+                  "columns": ["Field", "Today", "After the change"],
+                  "rows": [
+                    ["order id", "text", {"type": "chip", "props": {"text": "kept", "tone": "kept"}}],
+                    ["export path", "—", {"type": "chip", "props": {"text": "new field", "tone": "new"}}],
+                    ["fax number", "text", {"type": "chip", "props": {"text": "removed", "tone": "removed"}}]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-data-question",
+                "props": {"text": "Decided: add the export path field and drop the fax number field. Accept or reopen."}
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-flow",
+          "kind": "confirm",
+          "node": "n-flow",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "Confirm the request flow:"},
+            "children": [
+              {
+                "type": "sequence",
+                "id": "q-export",
+                "props": {
+                  "actors": [
+                    {"id": "user", "label": "User"},
+                    {"id": "api", "label": "Export endpoint"},
+                    {"id": "store", "label": "Order store"}
+                  ],
+                  "messages": [
+                    {"from": "user", "to": "api", "text": "start export"},
+                    {"from": "api", "to": "store", "text": "read orders"},
+                    {"from": "store", "to": "api", "text": "orders"},
+                    {"from": "api", "to": "user", "text": "file link"}
+                  ]
+                }
+              },
+              {
+                "type": "run-strip",
+                "id": "r-export-run",
+                "props": {
+                  "current": [
+                    {"label": "read orders"},
+                    {"label": "write file"},
+                    {"label": "email file", "tone": "removed"}
+                  ],
+                  "proposed": [
+                    {"label": "read orders", "tone": "kept"},
+                    {"label": "write file", "tone": "kept"},
+                    {"label": "store file", "detail": "link valid 7 days", "tone": "new"}
+                  ]
+                }
+              },
+              {"type": "text", "props": {"text": "Archive after 7 days", "tone": "proposed"}}
+            ]
+          }
+        },
+        {
+          "id": "i-format",
+          "kind": "debate",
+          "node": "n-format",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "Which file format does the export write? Recommended: A."},
+            "children": [
+              {
+                "type": "table",
+                "id": "i-format-options",
+                "props": {
+                  "columns": ["A — CSV", "B — JSON lines"],
+                  "rows": [[
+                    {"type": "text", "id": "i-format-opt-a", "props": {"text": "Opens in a spreadsheet; flat rows only."}},
+                    {"type": "text", "id": "i-format-opt-b", "props": {"text": "Keeps nested fields; needs a reader tool."}}
+                  ]]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-load",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "Measured export time per day:"},
+            "style": "font-size: 0.9em",
+            "children": [
+              {
+                "type": "freestyle",
+                "id": "f-load-curve",
+                "props": {"reason": "line chart of a measured value over time"},
+                "html": "<svg viewBox=\"0 0 120 40\" role=\"img\" aria-label=\"export time per day\"><polyline points=\"0,35 30,30 60,18 90,12 120,5\" fill=\"none\" stroke=\"currentColor\"/></svg>"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
