@@ -40,7 +40,7 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins") or {}, dict):
+    if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins", {}), (dict, type(None))):
         raise ValueError(f"{path} is not a JSON object with an enabledPlugins object")
     return data
 

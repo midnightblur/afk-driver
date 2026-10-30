@@ -45,6 +45,7 @@ class FakeRunner(tools.Runner):
         self.winget_installs = True
         self.npm_fails = False
         self.npm_ls_fails = False
+        self.git_common_dir_fails = False
         self.python_version = "Python 3.12.4\n"
 
     def which(self, name, env=None):
@@ -57,6 +58,8 @@ class FakeRunner(tools.Runner):
         self.calls.append(argv)
         name = os.path.basename(argv[0]).split(".")[0]
         if name == "git":
+            if self.git_common_dir_fails and "--git-common-dir" in argv:
+                return tools.Result(128, "", "fatal: detected dubious ownership")
             done = subprocess.run(argv, capture_output=True, text=True, env=git_env(self.places.home))
             return tools.Result(done.returncode, done.stdout, done.stderr)
         if name == "codex":

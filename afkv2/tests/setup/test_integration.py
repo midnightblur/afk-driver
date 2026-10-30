@@ -26,6 +26,11 @@ def _takeover(env, system, plugin_root, repo, capsys):
                 env, system, plugin_root, repo, capsys)
 
 
+def _writable(function, path, _exc):
+    os.chmod(path, stat.S_IWRITE)
+    function(path)
+
+
 def _refuse_writes(patch, module, path):
     """The module's writes to `path` raise, as on a locked file."""
     real = module.write_atomic
@@ -224,12 +229,7 @@ def test_switch_back_with_a_deleted_repository_restores_the_rest(
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     monkeypatch.chdir(elsewhere)
-
-    def writable(function, path, _exc):
-        os.chmod(path, stat.S_IWRITE)
-        function(path)
-
-    shutil.rmtree(repo, onerror=writable)
+    shutil.rmtree(repo, onerror=_writable)
     code, back = _cli(["switch-back"], env, system, plugin_root, elsewhere, capsys)
     assert code == 0, back
     assert back["claude_settings"] == [{"repo": str(repo), "settings": "repo-missing"}]
@@ -302,12 +302,47 @@ def test_a_failed_codex_restore_keeps_its_backup_and_a_rerun_finishes(
 
 
 def test_a_git_failure_on_a_live_repository_still_restores_its_settings(
-        taken_over, env, places, repo, system, plugin_root, capsys, monkeypatch):
-    monkeypatch.setattr(setup, "_common_dir", lambda run, where: None)
+        taken_over, env, places, repo, runner, system, plugin_root, capsys):
+    runner.git_common_dir_fails = True
     code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
     assert code == 0, back
     assert back["claude_settings"][0]["settings"] == "removed"
     assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+
+
+def _v1_alone_taken_over(env, places, repo, system, plugin_root, capsys):
+    """After this takeover the ignore line is setup's, and switch-back leaves no settings file."""
+    prepared_world(places, repo)
+    places.claude_user_settings.write_text(json.dumps({"enabledPlugins": {V1_ID: True}}), encoding="utf-8")
+    exclude = repo / ".git" / "info" / "exclude"
+    before = exclude.read_bytes()
+    assert _takeover(env, system, plugin_root, repo, capsys)[0] == 0
+    return exclude, before
+
+
+def test_a_git_failure_keeps_the_marker_until_the_ignore_line_is_gone(
+        env, places, repo, runner, system, plugin_root, capsys):
+    exclude, before = _v1_alone_taken_over(env, places, repo, system, plugin_root, capsys)
+    runner.git_common_dir_fails = True
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and places.install_record.exists()
+    answer = back["claude_settings"][0]
+    assert answer["settings"] == "failed" and Path(answer["backup"], setup.IGNORE_ADDED).exists()
+    runner.git_common_dir_fails = False
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert exclude.read_bytes() == before
+
+
+def test_a_repository_folder_with_no_git_has_no_ignore_line_to_remove(
+        env, tmp_path, places, repo, system, plugin_root, capsys):
+    _v1_alone_taken_over(env, places, repo, system, plugin_root, capsys)
+    shutil.rmtree(repo / ".git", onerror=_writable)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    code, back = _cli(["switch-back"], env, system, plugin_root, elsewhere, capsys)
+    assert code == 0, back
+    assert back["claude_settings"][0]["ignore_line"] == "absent"
+    assert not any((places.backup / "claude-settings").iterdir())
 
 
 def test_a_failed_v1_only_switch_keeps_the_settings_backup_and_a_rerun_finishes(
@@ -447,19 +482,52 @@ def test_write_atomic_keeps_the_file_mode(tmp_path):
     assert stat.S_IMODE(secret.stat().st_mode) == 0o600
 
 
-def test_write_atomic_copies_the_mode_before_the_data_goes_in(tmp_path, monkeypatch):
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_write_atomic_replaces_a_read_only_file_and_keeps_its_mode(tmp_path):
     secret = tmp_path / "secret"
     secret.write_bytes(b"old")
-    real = shutil.copymode
-    temp_content = []
+    secret.chmod(0o400)
+    write_atomic(secret, b"new")
+    assert secret.read_bytes() == b"new" and stat.S_IMODE(secret.stat().st_mode) == 0o400
 
-    def copymode(source, target, **kwargs):
-        temp_content.append(Path(target).read_bytes())
-        real(source, target, **kwargs)
 
-    monkeypatch.setattr(shutil, "copymode", copymode)
-    write_atomic(secret, b"token")
-    assert temp_content == [b""] and secret.read_bytes() == b"token"
+@pytest.mark.parametrize("exists, mode", [(True, 0o600), (False, 0o666)])
+def test_write_atomic_keeps_the_data_private_until_the_mode_is_copied(tmp_path, monkeypatch, exists, mode):
+    target = tmp_path / "secret"
+    if exists:
+        target.write_bytes(b"old")
+    real = os.open
+    modes = []
+
+    def spy(path, flags, *args, **kwargs):
+        modes.append(args[0])
+        return real(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", spy)
+    write_atomic(target, b"token\r\n")
+    assert modes == [mode] and target.read_bytes() == b"token\r\n"
+
+
+def test_write_atomic_survives_a_read_only_temp_file_a_crash_left(tmp_path):
+    target = tmp_path / "config"
+    stale = tmp_path / "config.afkv2-tmp"
+    stale.write_bytes(b"stale")
+    stale.chmod(stat.S_IREAD)
+    write_atomic(target, b"new")
+    assert target.read_bytes() == b"new" and not stale.exists()
+
+
+def test_write_atomic_failure_leaves_the_target_and_no_temp_file(tmp_path, monkeypatch):
+    target = tmp_path / "config"
+    target.write_bytes(b"old")
+
+    def locked(_source, _target):
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(os, "replace", locked)
+    with pytest.raises(PermissionError):
+        write_atomic(target, b"new")
+    assert target.read_bytes() == b"old" and [p.name for p in tmp_path.iterdir()] == ["config"]
 
 
 def test_write_atomic_writes_through_a_symlink(tmp_path):

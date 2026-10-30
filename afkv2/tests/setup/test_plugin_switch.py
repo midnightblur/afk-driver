@@ -130,7 +130,7 @@ def test_the_ignore_marker_goes_in_before_the_line(repo, runner, tmp_path, monke
     assert (tmp_path / setup.IGNORE_ADDED).exists()
 
 
-@pytest.mark.parametrize("value", [["x"], "x", 1])
+@pytest.mark.parametrize("value", [["x"], "x", 1, [], "", 0, False])
 def test_a_non_object_enabled_plugins_is_refused(places, repo, value):
     _user_settings(places, {"enabledPlugins": value})
     with pytest.raises(ValueError, match="enabledPlugins"):

@@ -58,7 +58,8 @@ the git hook stubs, the plugin settings and the lavish host version from the
 backups, and leaves only v1 on. A file the harness changed since keeps those
 changes (`merged`); a deleted repository is skipped (`repo-missing`). A
 `.claude/settings.local.json` that holds the off value stays, with its ignore
-line. Report each restored item, each `conflict` or `failed` with its `backup` path
-(`codex_config` has `backup_dir`, file `codex/config.toml`), and the
+line. Report each restored item and each `conflict` or `failed` entry with its `backup`
+path. For `codex_config: failed` the backup is `codex/config.toml` under the
+top-level `backup_dir`; for a failed `lavish` report its `error`. Report the
 `published_tickets` list: on those tickets the developer
 must not run v1's publish, because v1 does not find afkv2's block.

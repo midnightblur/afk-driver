@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -79,11 +80,25 @@ def write_atomic(path: Path, data: bytes) -> None:
         path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".afkv2-tmp")
-    tmp.write_bytes(b"")
-    if path.exists():
-        shutil.copymode(path, tmp)  # before the data: the file can hold a secret
-    tmp.write_bytes(data)
-    os.replace(tmp, path)
+    _drop_temp(tmp)
+    exists = path.exists()
+    # Private until the mode is copied: the file can hold a secret. New files take the umask.
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    with os.fdopen(os.open(tmp, flags, 0o600 if exists else 0o666), "wb") as out:
+        out.write(data)
+    try:
+        if exists:
+            shutil.copymode(path, tmp)
+        os.replace(tmp, path)
+    except OSError:
+        _drop_temp(tmp)
+        raise
+
+
+def _drop_temp(tmp: Path) -> None:
+    if tmp.exists():
+        os.chmod(tmp, stat.S_IWRITE)  # Windows refuses to delete a read-only file
+        tmp.unlink()
 
 
 def backup_once(source: Path, saved: Path) -> bool:

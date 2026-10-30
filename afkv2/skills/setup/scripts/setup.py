@@ -395,9 +395,12 @@ def _ensure_local_ignored(repo: Path, run: tools.Runner, saved: Path | None) -> 
     return True
 
 
-def _drop_ignore_line(repo: Path, run: tools.Runner) -> bool:
+def _drop_ignore_line(repo: Path, run: tools.Runner) -> bool | None:
+    """Whether a line was removed; None when git cannot name the file of a live repository."""
     exclude = _exclude_file(run, repo)
-    if exclude is None or not exclude.exists():
+    if exclude is None:
+        return None if (repo / ".git").exists() else False
+    if not exclude.exists():
         return False
     lines = exclude.read_bytes().splitlines(keepends=True)
     kept = [line for line in lines if line.rstrip(b"\r\n") != LOCAL_IGNORE_LINE]
@@ -537,7 +540,12 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
             continue
         repo = Path(answer["repo"])
         if (saved / IGNORE_ADDED).exists() and repo in live and not (repo / LOCAL_IGNORE_PATH).exists():
-            answer["ignore_line"] = "removed" if _drop_ignore_line(repo, run) else "absent"
+            dropped = _drop_ignore_line(repo, run)
+            if dropped is None:
+                answer.update(settings="failed", backup=str(saved),
+                              reason="git could not name the ignore file; run switch-back again")
+                continue
+            answer["ignore_line"] = "removed" if dropped else "absent"
         failed = _remove_backup(saved)
         if failed:
             answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])

@@ -89,6 +89,15 @@ def test_an_unindented_list_stays_in_its_block(repo):
     assert b"git:\n- one\n- two\n" in repo_config.afkv2_config(repo).read_bytes()
 
 
+def test_ownership_after_a_crlf_file_with_no_last_line_end_stays_crlf(repo, places):
+    target = repo_config.afkv2_config(repo)
+    target.parent.mkdir()
+    target.write_bytes(b"tracker: jira\r\nforge: github")
+    repo_config.write_ownership(repo, places, ["a/**"], [])
+    assert target.read_bytes() == (b"tracker: jira\r\nforge: github\r\n"
+                                   b"ownership:\r\n  own:\r\n    - 'a/**'\r\n")
+
+
 def test_ownership_after_a_crlf_copy_stays_crlf(repo, places):
     (repo / ".afk").mkdir()
     (repo / ".afk" / "config.yaml").write_bytes(V1.replace(b"\n", b"\r\n"))
