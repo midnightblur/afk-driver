@@ -161,7 +161,10 @@ gate_genericity() {
   changed_md=$(
     { git diff --name-only "$AFK_CTX_MERGEBASE" -- "$PLUGIN_SCOPE*.md" "$PLUGIN_SCOPE**/*.md" 2>/dev/null
       gate_ctx_filter AFK_CTX_NEW "$PLUGIN_SCOPE*.md"
-    } | sort -u
+    } | sort -u | while IFS= read -r f; do
+      # afkv2 is a separate plugin tree with its own check (docs/afk/afkv2/SDD.md §7).
+      case "$f" in "${PLUGIN_SCOPE}afkv2/"*|"${PLUGIN_SCOPE}docs/afk/afkv2/"*) ;; *) printf '%s\n' "$f" ;; esac
+    done
   )
   [ -z "$changed_md" ] && return 0   # scope no-op
 
