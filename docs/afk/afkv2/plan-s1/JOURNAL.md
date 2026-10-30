@@ -75,3 +75,4 @@
 2026-10-30 11:21 | execute | 0001-skeleton-manifests-hooks | correction — the adversary line of this run said that no adversary run tested the A-1 fix; on request the stopped run reported from memory that a core.autocrlf=true clone had 0 CR bytes and a check exit of 0, with 3 medium and 8 low findings and no report file; a second reader did not verify this, and the list is on the pull request as advisory.
 2026-10-30 11:21 | execute | 0001-skeleton-manifests-hooks | wiring — the wiring scan exited 0 on dfb0246a.
 2026-10-30 11:21 | execute | 0001-skeleton-manifests-hooks | done — every gate the owner rulings keep has passed; the rationale receipt is confirmed; the human reviews and merges.
+2026-10-30 11:23 | autopilot | run | heartbeat 1/5 done, starting 0002-core-behaviors — the skeleton is finished and pushed; the core rule text comes next
