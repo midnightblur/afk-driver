@@ -33,15 +33,15 @@ The beta is P0. P1 (days 5-6) and 2.1 are listed in Out of Scope.
 |----|------|----------------|------------|
 | SK-01 | plugin skeleton | 2 native manifests (Claude, Codex), plugin name `afkv2`, config folder `.afkv2`, environment prefix `AFKV2_`, own plugin data folder | C-2 |
 | SK-02 | session-start hook | prints the core-behaviors file and stops; under 50 ms; parses no shell command | H-1, H-3 |
-| SK-03 | core behaviors | one rule text, at most 200 lines, grown from the interim behaviors | K-2, decision 18 |
-| SK-04 | `/afkv2:setup` | runs in any repository, main checkout included; one run serves Claude and Codex; installs and configures acli; asks for the ownership config; guides the Codex hook trust review; removes the v1 block after the hook proof | K-1, D-2, D-3, H-4 |
+| SK-03 | core behaviors | one rule text, at most 8,000 characters, grown from the interim behaviors | K-2, decision 18, owner 2026-10-29 (hook caps) |
+| SK-04 | `/afkv2:setup` | runs in any repository, main checkout included; one run serves Claude and Codex; asks for the Jira API token and stores it as v1 does; installs ripgrep (`rg`) and puts it on the path of every shell the agent uses; asks for the ownership config; guides the Codex hook trust review; removes the v1 block after the hook proof | K-1, D-2, D-3, H-4 |
 | SK-05 | page engine | turns a page document into the page; component registry grown from the v1 kit | V-1..V-6, V-10, V-11 |
 | SK-06 | `/afkv2:visualize` | the authoring guide for page documents: each component, when to use it, how it looks | V-7 + owner note |
 | SK-07 | `/afkv2:grill` | reads a ticket with comments and links; optional round 0; requirement rounds on the page; claim ledger; exit gate | K-3, decision 62, 63 |
 | SK-08 | `/afkv2:to-prd` | PRD + requirement ADRs from the settled grill; no new questions; publishes the PRD into the Jira ticket | F-2, J-2, Y-1..Y-3 |
 | SK-09 | `/afkv2:propose-solution` | critical-aspect questions (CAT-A), top-down draft, fork cards (choice cards with options side by side) on the page; SDD + design ADRs; a slot for a second provider | F-3, K-7, V-9, decision 97 |
 | SK-10 | `/afkv2:to-subtasks` | `plan/` with PLAN.md and one contract per subtask, cited to the PRD and SDD; plan check script; waits for the division approval | K-8, A-5 |
-| SK-11 | forge and tracker port | GitHub (gh) and GitLab (glab) with the v1 forge commands and JSON answers; GitHub-issue read; Jira read (acli); Jira managed-block write with diagram pictures | K-15, S-1, S-2, J-2, Y-1 |
+| SK-11 | forge and tracker port | GitHub (gh) and GitLab (glab) with the v1 forge commands and JSON answers; GitHub-issue read; Jira read and managed-block write with diagram pictures, through the ported v1 REST client (no acli) | K-15, S-1, S-2, J-2, Y-1, owner 2026-10-29 (L2-3b) |
 | SK-12 | `/afkv2:autopilot` | walks the plan one subtask at a time, a fresh subagent each; TDD (test-driven development); commits often; pushes to one Draft change; records two-way doors; parks one-way doors with dependents | K-9, decision 23, 45 |
 | SK-13 | `/afkv2:code-review` | picks concerns per subtask; fixes critical and high; posts medium and low on the change; stops after 3 rounds | K-10, decision 25, 46 |
 | SK-14 | `/afkv2:create-change-request` + CI watch | Draft change, description, one request per person, proofs, mergeability case, one self-critique; background CI watch after each push; Ready at ship | K-11, K-12, K-13, decision 31 |
@@ -90,16 +90,17 @@ Every component may hold others and owns its styling. Every component takes an o
 ### Install, rules and coexistence
 
 - [ ] AC-010 With afkv2 enabled, a new session holds the core-behaviors text from the session-start hook, on Claude and on Codex. On Codex, this holds after the one-time hook trust review that setup guides (Codex hook docs).
-- [ ] AC-011 With afkv2 disabled, a new session holds no afkv2 rule text. (unverified premise: the Codex hook stops when the plugin is turned off)
-- [ ] AC-012 After a compaction, the session holds the core-behaviors text again. (unverified premise: the hook loads again after a compaction, on Claude and on Codex)
-- [ ] AC-013 The session-start hook finishes in under 50 ms and prints only the core-behaviors file. A slower hook or extra output fails.
-- [ ] AC-014 The core-behaviors file has at most 200 lines. A file with 201 lines or more fails the plugin check.
+- [ ] AC-011 With afkv2 disabled, a new session holds no afkv2 rule text. (verified: Codex probe 2026-10-29, GRILL-LOG ledger)
+- [ ] AC-012 After a compaction, the session holds the core-behaviors text again. The test includes a compaction on Codex. (verified: Claude docs + probe; Codex docs, root sessions only; GRILL-LOG ledger)
+- [ ] AC-013 The session-start hook finishes in under 50 ms and prints only the core-behaviors text, in the wrapper the provider requires (plain text, or the provider's JSON). A slower hook or extra output fails.
+- [ ] AC-014 The core-behaviors file has at most 8,000 characters. A file with 8,001 characters or more fails the plugin check. In a live session on Claude and on Codex, the full text arrives in context, not a file path with a preview.
 - [ ] AC-015 `/afkv2:setup` removes the v1 block from a user instruction file only after the session shows the afkv2 hook marker. Without the marker, setup leaves the block, keeps a backup, and reports why.
 - [ ] AC-016 After setup removed the v1 block, the switch-back step restores the block from the backup and turns v1 on.
 - [ ] AC-017 On Claude, exactly one of `afk` and `afkv2` is enabled per project. On Codex, exactly one is enabled on the machine. Setup refuses to leave both enabled.
 - [ ] AC-018 In a repository with a v1 config, setup offers one copy of the needed values into `.afkv2`. The v1 config file is byte-identical after setup.
 - [ ] AC-019 No afkv2 file, environment variable or data folder uses a v1 name (`afk`, `.afk`, `AFK_`).
 - [ ] AC-020 In a repository with no ownership config, setup asks for it once. If the developer skips it, the agent asks at its first edit to a file the ticket does not name.
+- [ ] AC-021 The core behaviors name one shell search command for every code search: `rg --hidden -g '!.git' PATTERN PATH`, always with a path. Without a path, rg reads stdin and can hang. The command finds untracked and hidden files. In the benchmark repository (about 53,000 files), it returns the same hits as `git grep --untracked` in at most 60% of the time.
 
 ### Page engine
 
@@ -117,6 +118,7 @@ Every component may hold others and owns its styling. Every component takes an o
 - [ ] AC-041 A re-render while the human is typing keeps every unsent note.
 - [ ] AC-042 In the live browser test, no content is hidden or cut off, and every action works (mark, note, edit and delete a note, collapse, send). The test covers many notes, long text, wide tables, many rounds and big diagrams.
 - [ ] AC-043 Before a critical-aspect question, the grill and propose-solution pages show the current state as a picture (code area, data or flow).
+- [ ] AC-044 On Claude and on Codex, the agent receives a sent round with no chat message from the developer. (unverified premise: a Codex Stop hook may wait up to 3600 s for the answer; checked live on day 1, fallback one chat message after Send)
 
 ### PRD and Jira
 
@@ -222,7 +224,7 @@ Actors (A-1): developer, agent (a Claude or Codex session and its subagents), re
 - The spec folder merges with the change; the run branch holds run files only → [ADR-0006](adr/requirements/0006-spec-folder-vs-run-branch.md).
 - Evals prove contextual instructions, not AFK skills, and arrive in P1 → [ADR-0007](adr/requirements/0007-evals-prove-contextual-instructions.md).
 - The engine grows out of the v1 page kit: its wrapper, send runtime, saved drafts, layout-audit fixes and tooltip layer stay. The fixed components become a component registry, and the round cards become registry components (V-11).
-- Ported v1 code: the forge contract (GitHub, GitLab), GitHub-issue read, Jira rich-text conversion and picture upload. Skill text is rewritten, with Matt Pocock's skills as reference (decision 82). The plugin has no bash scripts: Python and PowerShell only (decision 74).
+- Ported v1 code: the forge contract (GitHub, GitLab; only the commands the chain calls, rewritten in Python, owner 2026-10-29 FRG-1), the lavish host launcher (pin 0.1.80, owner PIN-2), GitHub-issue read, Jira rich-text conversion and picture upload. Skill text is rewritten, with Matt Pocock's skills as reference (decision 82). The plugin has no bash scripts: Python and PowerShell only (decision 74).
 - P0 division (W-2), 5 subtasks per session, smoke run on day 4:
 
 | Session | Subtasks |
@@ -280,13 +282,15 @@ Actors (A-1): developer, agent (a Claude or Codex session and its subagents), re
 
 ### Assumptions this PRD rests on
 
-The owner acknowledged these in W-5 (2026-10-29). The seam design pass probes them before the plan locks (H-4).
+The owner acknowledged these in W-5 (2026-10-29). The seam design pass probed them on 2026-10-29 (H-4); what stays open is listed here.
 
-- (unverified premise: the Codex hook stops when the plugin is turned off) — AC-011.
-- (unverified premise: the hook loads again after a compaction, on Claude and on Codex) — AC-012.
-- (unverified premise: a throwaway Codex home folder can turn the plugin off for an eval run without touching the developer's settings) — P1 eval harness (D-5).
+- Not verified live: a Codex Stop hook may wait up to 3600 s for a page answer, and the developer can still use the chat meanwhile (docs state no maximum) — AC-044.
+- Not verified live: Codex re-runs the hook after a compaction (docs say yes, for root sessions; the probe had no login) and Codex subagent sessions — AC-012.
+- A separate Codex home folder isolates config and plugins (verified by probe), but it needs its own login or an API key — P1 eval harness (D-5).
 - Codex has no proven per-session plugin switch: a config flag probe still listed the plugin as enabled (ledger, 2026-10-29). AC-017 therefore uses one global switch on Codex (H-2).
 - Not verified: how Jira shows a very long description. The Jira test ticket in the chain smoke run shows it before the demo.
+
+- Search benchmark, 2026-10-29, Windows, rg 15.2.0, median of 5-7 runs. Repository of about 53,000 files: a full search (with untracked and hidden files) took 2.0 s with rg and 3.8 s with git grep; a search of tracked files only took 1.8 s with rg and 1.4 s with git grep (rg about 25% slower); listing files took 0.2 s with rg and 1.4 s with git. Repository of about 500 files: both tools took under 100 ms. The probe confirmed that rg with no path reads stdin. Not verified: whether each provider's built-in search tool sees hidden files (AC-021).
 
 ### Parked
 
