@@ -34,3 +34,24 @@
 - Chosen: A — SDD §6 moves a settled card to `open` on a note or a `reopen` mark in any round, and PRD WE-02 requires the card to return with both signals shown; B would strand those cards and would copy every `info` card into every later round, because an `info` card never leaves `open`. This refines D-4, which still holds for the new card and the new id
 - Supersedes: none
 - To reverse: change `components/card.md` when the S1 engine defines how it returns a card
+
+## D-6 — the agent never changes a card in a settled round
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f032)
+- Options: A — the agent changes only cards of the current round, and a signal on an older card returns as one new card in the next round vs B — the agent also sets `state` on the older card
+- Chosen: A — SDD §6 refuses a document that rewrites a settled round and says the reopen "is recorded in the next round"; B breaks that signed rule. Whether ingest itself marks the older card is not verified, because the S1 engine is not on this branch. This corrects the part of D-5 that spoke of a card returned "in any round" as a card the pass changes
+- Supersedes: D-5, only for writes into a settled round
+- To reverse: change `components/card.md` when the S1 engine defines how it records a reopen on an older card
+
+## D-7 — a write-in reads like a note, with signal `write-in`
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f043)
+- Options: A — the agent reads a write-in as it reads a note and settles by note with signal `write-in` vs B — a write-in always returns the point to `open`
+- Chosen: A — SDD §6 sends a write-in to needs-reading, so an agent must read it, and B would return a clear answer forever. SDD §4 gives no field for how a write-in is stored, so the `signal` value is this guide's until the S1 engine names it
+- Supersedes: none
+- To reverse: change `components/card.md` and the `WRITE_IN` value in the test when the S1 engine names the signal
+
+## D-8 — 2 conflicting steers on one node go to the human
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f036)
+- Options: A — the agent states the conflict and asks vs B — the newer steer replaces the older one
+- Chosen: A — the glossary makes a steer a standing rule until the session ends; B would narrow that rule with no source, and A adds no new rule
+- Supersedes: none
+- To reverse: edit `components/notes-and-replies.md` and the glossary entry

@@ -15,3 +15,6 @@
 2026-10-30 01:46 | execute | 0006-visualize-skill | review blocking crit=0 high=0 med=7 low=10 — round 2: the reviewers found gaps in the card pass rules for a lone reopen mark, a reopened earlier card and info cards, and more missing refusal rows
 2026-10-30 01:51 | execute | 0006-visualize-skill | decision(D-5) — the carry rule covers a card returned in any round, and an info card stays in its round
 2026-10-30 01:51 | execute | 0006-visualize-skill | gate-skip — commit 85eda09e made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only (147 lines); no line in afkv2/skills or afkv2/tests
+2026-10-30 02:17 | execute | 0006-visualize-skill | review blocking crit=0 high=1 med=4 low=7 — round 3: the reviewers found that the new card pass wrote into settled rounds, and more missing note checks in the test
+2026-10-30 02:18 | execute | 0006-visualize-skill | decision(D-6, D-7, D-8) — the agent never changes a settled round, a write-in reads like a note, and conflicting steers go to the human
+2026-10-30 02:18 | execute | 0006-visualize-skill | gate-skip — commit 261fadc2 made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only; no line in afkv2/skills or afkv2/tests
