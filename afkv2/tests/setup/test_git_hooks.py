@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 
 import setup
@@ -55,3 +56,37 @@ def test_a_rewritten_different_stub_is_a_conflict(places, repo, runner):
     restored = setup.restore_v1_git_hooks(places)
     conflict = [r for r in restored if r["action"] == "conflict"]
     assert len(conflict) == 1 and conflict[0]["path"].endswith("pre-commit")
+
+
+def test_a_deleted_repository_is_reported_and_its_backup_dropped(places, repo, runner):
+    _stubs(repo)
+    setup.move_v1_git_hooks(places, repo, runner)
+    shutil.rmtree(repo / ".git")
+    restored = setup.restore_v1_git_hooks(places)
+    assert {r["action"] for r in restored} == {"repo-missing"}
+    assert not any((places.backup / "git-hooks").iterdir())
+
+
+def test_a_missing_hooks_folder_is_created(places, repo, runner):
+    _stubs(repo)
+    setup.move_v1_git_hooks(places, repo, runner)
+    shutil.rmtree(hooks_dir(repo))
+    assert {r["action"] for r in setup.restore_v1_git_hooks(places)} == {"restored"}
+    assert (hooks_dir(repo) / "pre-commit").read_bytes() == v1_stub("pre-commit")
+
+
+def test_a_failed_move_is_reported_and_the_backup_kept(places, repo, runner, monkeypatch):
+    _stubs(repo)
+    setup.move_v1_git_hooks(places, repo, runner)
+
+    def locked(_src, _dst):
+        raise OSError("locked")
+
+    monkeypatch.setattr(setup.shutil, "move", locked)
+    restored = setup.restore_v1_git_hooks(places)
+    assert {r["action"] for r in restored} == {"failed"}
+    assert len(list((places.backup / "git-hooks").rglob("pre-commit"))) == 1
+
+
+def test_common_dir_is_none_outside_a_repository(runner, tmp_path):
+    assert setup._common_dir(runner, tmp_path / "gone") is None

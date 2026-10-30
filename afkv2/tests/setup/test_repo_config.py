@@ -1,3 +1,7 @@
+import re
+
+import pytest
+
 import repo_config
 
 V1 = (b"# v1 config\nschema: 1\ntracker: jira\nforge: github\nnotes: repo-files\n"
@@ -54,3 +58,32 @@ def test_skip_is_recorded_once(repo, places):
     assert repo_config.ownership_state(repo, places) == "skipped"
     assert repo_config.record_ownership_skip(repo, places)["action"] == "unchanged"
     assert places.ownership_skips.read_text().count("\n") == 1
+
+
+def test_a_crlf_config_is_copied_byte_for_byte(repo):
+    crlf = V1.replace(b"\n", b"\r\n")
+    path = repo / ".afk" / "config.yaml"
+    path.parent.mkdir()
+    path.write_bytes(crlf)
+    repo_config.copy_v1_config(repo)
+    body = repo_config.afkv2_config(repo).read_bytes()
+    assert b"jira:\r\n  project: PROJ\r\n  site: 'x'\r\n" in body
+    assert b"git:\r\n  base-branch: origin/main\r\n" in body
+    assert not re.search(rb"(?<!\r)\n", body)
+
+
+@pytest.mark.parametrize("line", [b"tracker: jira  # the tracker", b"tracker: 'jira' # the tracker",
+                                  b'tracker: "jira"'])
+def test_a_kind_key_comment_or_quote_still_brings_its_section(repo, line):
+    path = repo / ".afk" / "config.yaml"
+    path.parent.mkdir()
+    path.write_bytes(line + b"\njira:\n  project: PROJ\n")
+    assert repo_config.copy_plan(repo)["keys"] == ["tracker", "jira"]
+
+
+def test_an_unindented_list_stays_in_its_block(repo):
+    path = repo / ".afk" / "config.yaml"
+    path.parent.mkdir()
+    path.write_bytes(b"tracker: jira\njira:\n  project: P\ngit:\n- one\n- two\n")
+    repo_config.copy_v1_config(repo)
+    assert b"git:\n- one\n- two\n" in repo_config.afkv2_config(repo).read_bytes()

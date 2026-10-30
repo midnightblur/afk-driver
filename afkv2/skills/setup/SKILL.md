@@ -42,8 +42,9 @@ you ask in this session; the Jira token never passes through you.
    (`--end-marker ""` when the line is absent). The script proves the hook, then
    removes the v1 rule block from both instruction files, moves the v1 git hook
    stubs aside, switches the plugins (Claude: this project's
-   `.claude/settings.local.json`; Codex: the global config) and installs lavish
-   host 0.1.80 — each with a backup.
+   `.claude/settings.local.json`, kept out of git by a line in `.git/info/exclude`
+   when git does not already ignore it; Codex: the global config) and installs
+   lavish host 0.1.80 — each with a backup.
    - `proof.proved` false: the v1 block stays and its backup is kept. Tell the
      developer each line of `proof.reasons`, then to start a new session and run
      `/afkv2:setup` again.
@@ -54,6 +55,9 @@ you ask in this session; the Jira token never passes through you.
 
 `/afkv2:setup switch-back`: run `setup.py switch-back`. It restores the v1 block,
 the git hook stubs, the plugin settings and the lavish host version from the
-backups, and leaves only v1 on. Report each restored item, each `conflict` with
-its backup path, and the `published_tickets` list: on those tickets the developer
+backups, and leaves only v1 on. A file the harness changed since keeps those
+changes (`merged`); a deleted repository is skipped (`repo-missing`). A
+`.claude/settings.local.json` that holds the off value stays, with its ignore
+line. Report each restored item, each `conflict` or `failed` with its backup path,
+and the `published_tickets` list: on those tickets the developer
 must not run v1's publish, because v1 does not find afkv2's block.

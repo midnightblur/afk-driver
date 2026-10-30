@@ -35,9 +35,12 @@ import repo_config  # noqa: E402
 import tools  # noqa: E402
 import v1_facts  # noqa: E402
 from places import (PROVIDERS, Places, backup_once, has_backup, place_key,  # noqa: E402
-                    restore, write_atomic)
+                    write_atomic)
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+LOCAL_IGNORE_PATH = ".claude/settings.local.json"
+LOCAL_IGNORE_LINE = b"/" + LOCAL_IGNORE_PATH.encode("ascii")
+IGNORE_ADDED = "ignore-line-added"
 END_LINE = re.compile(r"afkv2-core-behaviors end ([0-9a-f]{12})")
 BEGIN_LINE = re.compile(r"afkv2-core-behaviors begin ([0-9a-f]{12})")
 TRUST_REVIEW = ("Codex skips an untrusted hook without a message: open a new Codex session, "
@@ -153,8 +156,8 @@ def remove_v1_block(places: Places) -> dict:
         saved = _instruction_backup(places, provider)
         write_atomic(saved / "original", data)
         write_atomic(saved / "blocks", b"".join(removed))
-        write_atomic(target, after)
         write_atomic(saved / "after", after)
+        write_atomic(target, after)
         files.append({"path": str(target), "action": "removed", "blocks": len(blocks)})
     return {"ok": True, "files": files}
 
@@ -166,22 +169,29 @@ def restore_v1_block(places: Places) -> list[dict]:
         if not (saved / "original").exists():
             continue
         target = places.instruction_file(provider)
-        current = target.read_bytes() if target.exists() else b""
-        if not (saved / "after").exists():
-            action = "kept-backup-dropped"
-        elif current == (saved / "after").read_bytes():
-            write_atomic(target, (saved / "original").read_bytes())
-            action = "restored"
-        elif find_blocks(current)[0]:
-            action = "block-present"
-        else:
-            eol = b"\r\n" if b"\r\n" in current else b"\n"
-            sep = b"" if not current or current.endswith((b"\n", b"\r")) else eol
-            write_atomic(target, current + sep + (saved / "blocks").read_bytes())
-            action = "appended"
-        shutil.rmtree(saved)
+        try:
+            action = _restore_one_instruction_file(target, saved)
+            shutil.rmtree(saved)
+        except OSError as exc:
+            done.append({"path": str(target), "action": "failed", "reason": str(exc)})
+            continue
         done.append({"path": str(target), "action": action})
     return done
+
+
+def _restore_one_instruction_file(target: Path, saved: Path) -> str:
+    current = target.read_bytes() if target.exists() else b""
+    if not (saved / "after").exists():
+        return "kept-backup-dropped"
+    if current == (saved / "after").read_bytes():
+        write_atomic(target, (saved / "original").read_bytes())
+        return "restored"
+    if find_blocks(current)[0]:
+        return "block-present"
+    eol = b"\r\n" if b"\r\n" in current else b"\n"
+    sep = b"" if not current or current.endswith((b"\n", b"\r")) else eol
+    write_atomic(target, current + sep + (saved / "blocks").read_bytes())
+    return "appended"
 
 
 # ================================================================ hook proof
@@ -225,7 +235,8 @@ def prove_hook(places: Places, provider: str, end_marker: str, plugin_root: Path
     reasons = []
     installed = read_install_record(places).get("installed")
     if not installed:
-        return _error("no-install-record", "run `setup.py prepare` first", proved=False)
+        reason = "run `setup.py prepare` first"
+        return _error("no-install-record", reason, proved=False, reasons=[reason])
     since = datetime.fromisoformat(installed).timestamp()
     for name in required:
         fired = places.fired_record(name)
@@ -257,9 +268,9 @@ def repo_top(run: tools.Runner, start: Path) -> Path | None:
     return Path(got.out.strip()) if got.code == 0 and got.out.strip() else None
 
 
-def _common_dir(run: tools.Runner, repo: Path) -> Path:
+def _common_dir(run: tools.Runner, repo: Path) -> Path | None:
     got = _git(run, repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    return Path(got.out.strip())
+    return Path(got.out.strip()) if got.code == 0 and got.out.strip() else None
 
 
 def is_v1_stub(path: Path, hook: str) -> bool:
@@ -273,7 +284,10 @@ def move_v1_git_hooks(places: Places, repo: Path, run: tools.Runner) -> dict:
     """Move the v1 stubs of this repository into the backup folder."""
     if _git(run, repo, "config", "--get", "core.hooksPath").out.strip():
         return {"ok": True, "action": "skipped", "reason": "core.hooksPath is set; v1 stubs do not run"}
-    hooks = _common_dir(run, repo) / "hooks"
+    common = _common_dir(run, repo)
+    if common is None:
+        return _error("not-a-repo", f"{repo} is not a git repository")
+    hooks = common / "hooks"
     saved = places.backup / "git-hooks" / place_key(hooks)
     moved = {}
     for hook in v1_facts.STUB_LINES:
@@ -295,23 +309,36 @@ def restore_v1_git_hooks(places: Places) -> list[dict]:
     root = places.backup / "git-hooks"
     for saved in sorted(root.iterdir()) if root.exists() else []:
         hooks = Path((saved / "place.txt").read_text(encoding="utf-8"))
+        if not hooks.parent.exists():
+            done.append({"path": str(hooks), "action": "repo-missing"})
+            shutil.rmtree(saved)
+            continue
         for hook in v1_facts.STUB_LINES:
             keep, target = saved / hook, hooks / hook
             if not keep.exists():
                 continue
-            if not target.exists():
-                shutil.move(str(keep), str(target))
-                action = "restored"
-            elif target.read_bytes() == keep.read_bytes():
-                keep.unlink()
-                action = "already-there"
-            else:
-                done.append({"path": str(target), "action": "conflict", "backup": str(keep)})
+            try:
+                action = _restore_one_stub(keep, target)
+            except OSError as exc:
+                done.append({"path": str(target), "action": "failed", "reason": str(exc),
+                             "backup": str(keep)})
                 continue
-            done.append({"path": str(target), "action": action})
+            entry = {"path": str(target), "action": action}
+            done.append(entry | {"backup": str(keep)} if action == "conflict" else entry)
         if not any(p.name in v1_facts.STUB_LINES for p in saved.iterdir()):
             shutil.rmtree(saved)
     return done
+
+
+def _restore_one_stub(keep: Path, target: Path) -> str:
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(keep), str(target))
+        return "restored"
+    if target.read_bytes() == keep.read_bytes():
+        keep.unlink()
+        return "already-there"
+    return "conflict"
 
 
 # ============================================================ plugin switch
@@ -326,15 +353,35 @@ def _codex_state(places: Places, run: tools.Runner) -> tuple[dict[str, bool], st
     return {}, "none"
 
 
+def _exclude_file(run: tools.Runner, repo: Path) -> Path | None:
+    common = _common_dir(run, repo)
+    return common / "info" / "exclude" if common else None
+
+
 def _ensure_local_ignored(repo: Path, run: tools.Runner, saved: Path | None) -> bool:
-    if _git(run, repo, "check-ignore", "-q", ".claude/settings.local.json").code == 0:
+    """Keep the personal settings file out of git; `saved` records that this run added the line."""
+    if _git(run, repo, "check-ignore", "-q", LOCAL_IGNORE_PATH).code == 0:
         return False
-    exclude = _common_dir(run, repo) / "info" / "exclude"
-    if saved is not None:
-        backup_once(exclude, saved / "exclude")
+    exclude = _exclude_file(run, repo)
+    if exclude is None:
+        return False
     old = exclude.read_bytes() if exclude.exists() else b""
     sep = b"" if not old or old.endswith(b"\n") else b"\n"
-    write_atomic(exclude, old + sep + b"/.claude/settings.local.json\n")
+    write_atomic(exclude, old + sep + LOCAL_IGNORE_LINE + b"\n")
+    if saved is not None:
+        (saved / IGNORE_ADDED).write_bytes(b"")
+    return True
+
+
+def _drop_ignore_line(repo: Path, run: tools.Runner) -> bool:
+    exclude = _exclude_file(run, repo)
+    if exclude is None or not exclude.exists():
+        return False
+    lines = exclude.read_bytes().splitlines(keepends=True)
+    kept = [line for line in lines if line.rstrip(b"\r\n") != LOCAL_IGNORE_LINE]
+    if len(kept) == len(lines):
+        return False
+    write_atomic(exclude, b"".join(kept))
     return True
 
 
@@ -349,7 +396,7 @@ def _switch_claude(places: Places, repo: Path, run: tools.Runner, enable: str,
         (saved / "place.txt").write_text(str(repo), encoding="utf-8")
         backup_once(local, saved / "settings.local.json")
     written = plugins.write_claude_local(repo, wanted)
-    ignored_now = written and _ensure_local_ignored(repo, run, saved if with_backup else None)
+    ignored_now = local.exists() and _ensure_local_ignored(repo, run, saved if with_backup else None)
     effective = plugins.claude_effective(user, repo)
     answer = {"written": written, "exclude_added": bool(ignored_now), "effective": effective}
     if plugins.only_one_on(effective) != enable:
@@ -403,32 +450,76 @@ def published_tickets(places: Places) -> list[str]:
     return keys
 
 
+def _attempt(step: Callable[[], dict]) -> dict:
+    """One step's answer; an unreadable or unwritable file fails that step only."""
+    try:
+        return step()
+    except (ValueError, OSError) as exc:
+        return _error("unreadable-input", f"{type(exc).__name__}: {exc}")
+
+
 def _leave_v1_only(places: Places, repos: list[Path], run: tools.Runner) -> dict:
-    claude = [_switch_claude(places, r, run, v1_facts.PLUGIN_NAME, with_backup=False) | {"repo": str(r)}
-              for r in repos]
-    codex = _switch_codex(places, run, v1_facts.PLUGIN_NAME, with_backup=False)
+    claude = []
+    for repo in repos:
+        def switch(repo=repo):
+            effective = plugins.claude_effective(places.claude_user_settings, repo)
+            if plugins.only_one_on(effective) == v1_facts.PLUGIN_NAME:
+                return {"ok": True, "written": False, "effective": effective}
+            return _switch_claude(places, repo, run, v1_facts.PLUGIN_NAME, with_backup=False)
+        claude.append(_attempt(switch) | {"repo": str(repo)})
+    codex = _attempt(lambda: _switch_codex(places, run, v1_facts.PLUGIN_NAME, with_backup=False))
     return {"ok": all(c["ok"] for c in claude) and codex["ok"], "claude": claude, "codex": codex}
+
+
+def _restore_repo_settings(saved: Path, run: tools.Runner) -> dict:
+    repo = Path((saved / "place.txt").read_text(encoding="utf-8"))
+    if _common_dir(run, repo) is None:
+        return {"repo": str(repo), "settings": "repo-missing"}
+    try:
+        action = plugins.restore_claude_local(repo / ".claude" / "settings.local.json",
+                                              saved / "settings.local.json")
+    except (ValueError, OSError) as exc:
+        return {"repo": str(repo), "settings": "failed", "reason": f"{type(exc).__name__}: {exc}"}
+    return {"repo": str(repo), "settings": action}
+
+
+def _restore_codex_config(places: Places) -> str:
+    saved = places.backup / "codex" / "config.toml"
+    if not saved.exists():
+        return "no-backup"
+    config = places.codex_config
+    try:
+        before = saved.read_bytes().decode("utf-8")
+        now = plugins.codex_restore(config.read_bytes().decode("utf-8"), before) if config.exists() else before
+        write_atomic(config, now.encode("utf-8"))
+    except (ValueError, OSError):
+        return "failed"
+    saved.unlink()
+    return "restored" if now == before else "merged"
 
 
 def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> dict:
     """Restore every backup, leave only v1 on, and list the tickets afkv2 published."""
     blocks = restore_v1_block(places)
     hooks = restore_v1_git_hooks(places)
-    settings, repos = [], []
     root = places.backup / "claude-settings"
-    for saved in sorted(root.iterdir()) if root.exists() else []:
-        repo = Path((saved / "place.txt").read_text(encoding="utf-8"))
-        repos.append(repo)
-        common = _common_dir(run, repo)
-        settings.append({"repo": str(repo),
-                         "settings": restore(saved / "settings.local.json",
-                                             repo / ".claude" / "settings.local.json"),
-                         "exclude": restore(saved / "exclude", common / "info" / "exclude")})
+    saved_dirs = sorted(root.iterdir()) if root.exists() else []
+    settings = [_restore_repo_settings(saved, run) for saved in saved_dirs]
+    live = [Path(s["repo"]) for s in settings if s["settings"] not in ("repo-missing", "failed")]
+    codex = _restore_codex_config(places)
+    lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
+    one_on = _leave_v1_only(places, live, run)
+    for saved, answer in zip(saved_dirs, settings):
+        if answer["settings"] == "failed":
+            continue
+        repo = Path(answer["repo"])
+        if (saved / IGNORE_ADDED).exists() and repo in live and not (repo / LOCAL_IGNORE_PATH).exists():
+            answer["ignore_line"] = "removed" if _drop_ignore_line(repo, run) else "absent"
         shutil.rmtree(saved)
-    codex = restore(places.backup / "codex" / "config.toml", places.codex_config)
-    lavish = tools.restore_lavish(places, run, env)
-    one_on = _leave_v1_only(places, repos, run)
-    ok = lavish["ok"] and one_on["ok"] and not any(h["action"] == "conflict" for h in hooks)
+    ok = (lavish["ok"] and one_on["ok"] and codex != "failed"
+          and not any(b["action"] == "failed" for b in blocks)
+          and not any(h["action"] in ("conflict", "failed") for h in hooks)
+          and not any(s["settings"] == "failed" for s in settings))
     if ok:
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
@@ -460,7 +551,7 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         target = places.instruction_file(provider)
         found, problem = find_blocks(target.read_bytes()) if target.exists() else ([], None)
         blocks[provider] = {"path": str(target), "blocks": len(found), "problem": problem}
-    hooks_dir = _common_dir(system.run, repo) / "hooks"
+    hooks_dir = (_common_dir(system.run, repo) or repo / ".git") / "hooks"
     return {
         "ok": True,
         "repo": str(repo),
@@ -477,6 +568,14 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
     }
 
 
+def _check_plugin_inputs(places: Places, repo: Path) -> dict:
+    """Read what the plugin switch reads, before the first change."""
+    plugins.claude_effective(places.claude_user_settings, repo)
+    if places.codex_config.exists():
+        places.codex_config.read_bytes().decode("utf-8")
+    return {"ok": True}
+
+
 def takeover(places: Places, repo: Path, system: System, env: Mapping[str, str],
              provider: str, end_marker: str, plugin_root: Path) -> dict:
     kept = keep_instruction_backups(places)
@@ -488,11 +587,12 @@ def takeover(places: Places, repo: Path, system: System, env: Mapping[str, str],
                 "next": "start a new session and run setup again. " + TRUST_REVIEW,
                 "error": proof.get("error") or {"code": "no-proof", "reason": "; ".join(proof["reasons"])}}
     steps = {"proof": proof}
-    for name, step in (("v1_block", lambda: remove_v1_block(places)),
+    for name, step in (("plugin_inputs", lambda: _check_plugin_inputs(places, repo)),
+                       ("v1_block", lambda: remove_v1_block(places)),
                        ("git_hooks", lambda: move_v1_git_hooks(places, repo, system.run)),
                        ("plugins", lambda: switch_plugins(places, repo, system.run)),
                        ("lavish", lambda: tools.install_lavish_pin(places, system.run, env))):
-        steps[name] = step()
+        steps[name] = _attempt(step)
         if not steps[name]["ok"]:
             return {"ok": False, **steps, "error": steps[name].get("error")
                     or {"code": f"{name}-failed", "reason": f"the {name} step failed"}}

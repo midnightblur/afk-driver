@@ -74,9 +74,14 @@ def place_key(path: Path) -> str:
 
 
 def write_atomic(path: Path, data: bytes) -> None:
+    """Replace the file in one step; a symlink stays a link, a file keeps its mode."""
+    if path.is_symlink():
+        path = Path(os.path.realpath(path))
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".afkv2-tmp")
     tmp.write_bytes(data)
+    if path.exists():
+        shutil.copymode(path, tmp)
     os.replace(tmp, path)
 
 
@@ -95,18 +100,3 @@ def backup_once(source: Path, saved: Path) -> bool:
 
 def has_backup(saved: Path) -> bool:
     return saved.exists() or saved.with_name(saved.name + ".absent").exists()
-
-
-def restore(saved: Path, target: Path) -> str:
-    """Put the backup back, delete it, and say what happened."""
-    absent = saved.with_name(saved.name + ".absent")
-    if absent.exists():
-        if target.exists():
-            target.unlink()
-        absent.unlink()
-        return "removed"
-    if saved.exists():
-        write_atomic(target, saved.read_bytes())
-        saved.unlink()
-        return "restored"
-    return "no-backup"

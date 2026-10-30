@@ -38,18 +38,24 @@ def _blocks(text: bytes) -> dict[str, bytes]:
         if match:
             current = match.group(1).decode("utf-8")
             blocks[current] = line
-        elif current and (line[:1] in (b" ", b"\t") or not line.strip()):
+        elif current and (line[:1] in (b" ", b"\t") or line.startswith(b"- ") or not line.strip()):
             blocks[current] += line
         elif line.startswith(b"#"):
             continue
         else:
             current = None
-    return {k: v.rstrip(b"\r\n") + b"\n" for k, v in blocks.items()}
+    return {k: v.rstrip(b"\r\n") + _eol(v) for k, v in blocks.items()}
+
+
+def _eol(text: bytes) -> bytes:
+    return b"\r\n" if b"\r\n" in text else b"\n"
 
 
 def _scalar(block: bytes) -> str:
     value = block.split(b"\n", 1)[0].split(b":", 1)[1].strip().decode("utf-8")
-    return value.strip("'\"")
+    if value[:1] in ("'", '"'):
+        return value[1:].split(value[0], 1)[0]
+    return re.split(r"\s#", value, maxsplit=1)[0].strip()
 
 
 def copy_plan(repo: Path) -> dict:
@@ -73,7 +79,8 @@ def copy_v1_config(repo: Path) -> dict:
     target = afkv2_config(repo)
     if target.exists():
         return {"ok": True, "action": "exists", "path": str(target)}
-    body = HEADER + b"".join(plan["_blocks"].values())
+    source = v1_config(repo).read_bytes()
+    body = HEADER.replace(b"\n", _eol(source)) + b"".join(plan["_blocks"].values())
     write_atomic(target, body)
     return {"ok": True, "action": "copied", "keys": plan["keys"], "path": str(target)}
 

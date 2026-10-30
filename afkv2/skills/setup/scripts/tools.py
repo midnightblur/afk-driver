@@ -173,12 +173,20 @@ def fresh_windows_env(env: Mapping[str, str]) -> dict[str, str]:
 # ------------------------------------------------------------- lavish host
 
 def lavish_version(run: Runner, env: Mapping[str, str]) -> str | None:
+    """The installed version, or None when npm says it is absent.
+
+    ValueError when npm gives no answer, because then nothing is known.
+    """
     got = run(["npm", "ls", "-g", LAVISH_PACKAGE, "--json", "--depth=0"], env=env, timeout=120)
     try:
-        deps = json.loads(got.out or "{}").get("dependencies") or {}
-    except json.JSONDecodeError:
-        return None
+        deps = json.loads(got.out).get("dependencies") or {}
+    except ValueError:
+        raise ValueError(f"npm ls gave no answer: {(got.err or got.out).strip()[:200]}") from None
     return (deps.get(LAVISH_PACKAGE) or {}).get("version")
+
+
+def _npm_unavailable(exc: ValueError) -> dict:
+    return {"ok": False, "error": {"code": "npm-unavailable", "reason": str(exc)}}
 
 
 def lavish_record(places: Places) -> Path:
@@ -187,7 +195,10 @@ def lavish_record(places: Places) -> Path:
 
 def install_lavish_pin(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
     """Record the installed host version once, then install the pin."""
-    prior = lavish_version(run, env)
+    try:
+        prior = lavish_version(run, env)
+    except ValueError as exc:
+        return _npm_unavailable(exc)
     record = lavish_record(places)
     if not has_backup(record):
         record.parent.mkdir(parents=True, exist_ok=True)
@@ -195,7 +206,10 @@ def install_lavish_pin(places: Places, run: Runner, env: Mapping[str, str]) -> d
     if prior == LAVISH_PIN:
         return {"ok": True, "action": "present", "version": prior}
     got = run(["npm", "install", "-g", f"{LAVISH_PACKAGE}@{LAVISH_PIN}"], env=env, timeout=600)
-    now = lavish_version(run, env)
+    try:
+        now = lavish_version(run, env)
+    except ValueError as exc:
+        return _npm_unavailable(exc)
     if got.code != 0 or now != LAVISH_PIN:
         return {"ok": False, "prior": prior, "error": {
             "code": "lavish-install-failed", "reason": (got.err or got.out).strip()[:300]}}
@@ -207,7 +221,10 @@ def restore_lavish(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
     if not record.exists():
         return {"ok": True, "action": "no-backup"}
     prior = record.read_text(encoding="utf-8").strip()
-    now = lavish_version(run, env)
+    try:
+        now = lavish_version(run, env)
+    except ValueError as exc:
+        return _npm_unavailable(exc)
     if prior == "none":
         got = run(["npm", "uninstall", "-g", LAVISH_PACKAGE], env=env, timeout=600) \
             if now else Result(0)

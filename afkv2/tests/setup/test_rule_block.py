@@ -1,3 +1,5 @@
+import pytest
+
 import setup
 from conftest import v1_block
 
@@ -67,3 +69,59 @@ def test_restore_after_an_edit_appends_the_block(places):
     path.write_bytes(b"x\nnew line")
     assert setup.restore_v1_block(places)[0]["action"] == "appended"
     assert path.read_bytes() == b"x\nnew line\n" + v1_block().encode()
+
+
+@pytest.mark.parametrize("failing", ["after", "target"])
+def test_a_write_failure_during_removal_never_loses_the_block(places, monkeypatch, failing):
+    original = "x\n" + v1_block() + "y\n"
+    path = _write(places, "claude", original)
+    real = setup.write_atomic
+
+    def fail_once(target, data):
+        if (failing == "after" and target.name == "after") or (failing == "target" and target == path):
+            raise OSError("disk full")
+        real(target, data)
+
+    monkeypatch.setattr(setup, "write_atomic", fail_once)
+    with pytest.raises(OSError):
+        setup.remove_v1_block(places)
+    monkeypatch.setattr(setup, "write_atomic", real)
+    setup.restore_v1_block(places)
+    assert path.read_bytes() == original.encode()
+
+
+def test_every_block_is_removed_and_restored_with_the_text_between(places):
+    second = "<!-- afk:investigation:start -->\ninv\n<!-- afk:investigation:end -->\n"
+    original = "a\n" + v1_block() + "between\n" + second + "z\n"
+    path = _write(places, "claude", original)
+    answer = setup.remove_v1_block(places)
+    assert answer["files"][0] == {"path": str(path), "action": "removed", "blocks": 2}
+    assert path.read_bytes() == b"a\nbetween\nz\n"
+    assert setup.restore_v1_block(places)[0]["action"] == "restored"
+    assert path.read_bytes() == original.encode()
+
+
+def test_restore_after_an_edit_appends_every_block(places):
+    second = "<!-- afk:investigation:start -->\ninv\n<!-- afk:investigation:end -->\n"
+    path = _write(places, "claude", "a\n" + v1_block() + "between\n" + second)
+    setup.remove_v1_block(places)
+    path.write_bytes(b"edited\n")
+    assert setup.restore_v1_block(places)[0]["action"] == "appended"
+    assert path.read_bytes() == b"edited\n" + v1_block().encode() + second.encode()
+
+
+def test_restore_leaves_a_block_written_back_since(places):
+    path = _write(places, "claude", "x\n" + v1_block())
+    setup.remove_v1_block(places)
+    rewritten = "edited\n" + v1_block()
+    path.write_bytes(rewritten.encode())
+    assert setup.restore_v1_block(places)[0]["action"] == "block-present"
+    assert path.read_bytes() == rewritten.encode()
+
+
+def test_restore_with_only_the_pre_proof_backup_keeps_the_file(places):
+    original = "x\n" + v1_block()
+    path = _write(places, "claude", original)
+    setup.keep_instruction_backups(places)
+    assert setup.restore_v1_block(places)[0]["action"] == "kept-backup-dropped"
+    assert path.read_bytes() == original.encode()

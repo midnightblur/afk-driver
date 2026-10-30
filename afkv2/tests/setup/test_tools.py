@@ -1,4 +1,8 @@
+import os
+import sys
 from pathlib import Path
+
+import pytest
 
 import tools
 
@@ -86,3 +90,103 @@ def test_windows_probes_skip_the_wsl_launcher():
     assert "bash" not in probes and probes["cmd"][0] == paths["cmd"]
     paths["bash"] = r"C:\Program Files\Git\usr\bin\bash.exe"
     assert dict(tools.shell_probes(True, paths.get))["bash"][0] == paths["bash"]
+
+
+def test_rg_install_failure_is_reported(runner):
+    del runner.paths["rg"]
+    runner.winget_installs = False
+    runner.shell_has_rg["bash"] = False
+    answer = tools.ensure_rg(runner, lambda: {}, _probes(runner, windows=True), lambda _f: False, windows=True)
+    assert not answer["ok"] and answer["error"]["code"] == "rg-install-failed"
+    assert answer["shells"]["bash"] is False
+
+
+def test_a_shell_still_without_rg_is_reported_by_name(runner):
+    runner.shell_has_rg["bash"] = False
+    answer = tools.ensure_rg(runner, lambda: {}, _probes(runner), lambda _f: True, windows=False)
+    assert not answer["ok"] and answer["error"]["code"] == "rg-not-on-every-shell"
+    assert answer["shells"] == {"bash": False} and answer["path_added"]
+
+
+def test_python_2_is_not_python_3(runner):
+    runner.paths["python"] = "/usr/bin/python"
+    runner.python_version = "Python 2.7.18\n"
+    assert tools.find_python(runner, {})["error"]["code"] == "no-python"
+
+
+def test_npm_with_no_answer_writes_no_lavish_record(places, runner):
+    runner.npm_ls_fails = True
+    answer = tools.install_lavish_pin(places, runner, {})
+    assert not answer["ok"] and answer["error"]["code"] == "npm-unavailable"
+    assert not tools.lavish_record(places).exists()
+
+
+def test_a_real_absence_is_recorded(places, runner):
+    runner.lavish = None
+    assert tools.lavish_version(runner, {}) is None
+    tools.install_lavish_pin(places, runner, {})
+    assert tools.lavish_record(places).read_text().strip() == "none"
+
+
+def test_restore_with_npm_unavailable_keeps_the_record_and_the_package(places, runner):
+    tools.install_lavish_pin(places, runner, {})
+    runner.npm_ls_fails = True
+    answer = tools.restore_lavish(places, runner, {})
+    assert not answer["ok"] and answer["error"]["code"] == "npm-unavailable"
+    assert tools.lavish_record(places).exists() and runner.lavish == "0.1.80"
+
+
+class _FakeWinreg:
+    """The winreg calls the writers use, over one Environment key in memory."""
+
+    HKEY_CURRENT_USER, KEY_READ, KEY_WRITE, KEY_SET_VALUE = 1, 2, 4, 8
+    REG_SZ, REG_EXPAND_SZ = 1, 2
+
+    def __init__(self, values=None):
+        self.values = dict(values or {})
+
+    def OpenKey(self, *_args):
+        return self
+
+    def CloseKey(self, _key):
+        pass
+
+    def QueryValueEx(self, _key, name):
+        if name not in self.values:
+            raise FileNotFoundError(name)
+        return self.values[name]
+
+    def SetValueEx(self, _key, name, _reserved, kind, value):
+        self.values[name] = (value, kind)
+
+
+@pytest.fixture
+def registry(monkeypatch):
+    def install(values=None):
+        fake = _FakeWinreg(values)
+        monkeypatch.setitem(sys.modules, "winreg", fake)
+        monkeypatch.setattr(tools, "broadcast_environment_change", lambda: None)
+        return fake
+    return install
+
+
+def test_path_adder_appends_and_keeps_the_expandable_kind(registry):
+    fake = registry({"Path": ("/one;%TOOLS%/two", _FakeWinreg.REG_EXPAND_SZ)})
+    assert tools.windows_user_path_adder(Path("/rg"))
+    value, kind = fake.values["Path"]
+    assert value.split(";") == ["/one", "%TOOLS%/two", str(Path("/rg"))]
+    assert kind == _FakeWinreg.REG_EXPAND_SZ
+
+
+def test_path_adder_writes_nothing_when_the_folder_is_there(registry, monkeypatch):
+    monkeypatch.setenv("AFKV2_TEST_TOOLS", str(Path("/tools")))
+    before = (f"/other;$AFKV2_TEST_TOOLS{os.sep}rg", _FakeWinreg.REG_EXPAND_SZ)
+    fake = registry({"Path": before})
+    assert not tools.windows_user_path_adder(Path("/tools/rg"))
+    assert fake.values["Path"] == before
+
+
+def test_path_adder_creates_an_absent_value(registry):
+    fake = registry()
+    assert tools.windows_user_path_adder(Path("/tools/rg"))
+    assert fake.values["Path"] == (str(Path("/tools/rg")), _FakeWinreg.REG_EXPAND_SZ)

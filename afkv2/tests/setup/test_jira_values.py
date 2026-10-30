@@ -1,4 +1,5 @@
 import json
+import sys
 
 import jira_values
 import setup
@@ -58,12 +59,23 @@ def test_secrets_refuses_outside_a_terminal(places, system):
 
 def test_secrets_asks_once_and_never_prints_the_token(places, system, capsys):
     answers = iter(["https://s.atlassian.net/", "dev@example.com"])
-    system.ask = lambda _p: next(answers)
-    system.ask_secret = lambda _p: TOKEN
+    prompts = []
+
+    def ask(prompt):
+        prompts.append(prompt)
+        return next(answers)
+
+    def ask_secret(prompt):
+        prompts.append(prompt)
+        return TOKEN
+
+    system.ask, system.ask_secret = ask, ask_secret
     stored = {}
     system.set_user_env = stored.__setitem__
     answer = setup.secrets(places, system, {})
-    assert answer["ok"] and stored["JIRA_BASE_URL"] == "https://s.atlassian.net"
+    assert answer["ok"] and len(prompts) == 3
+    assert stored == {"JIRA_BASE_URL": "https://s.atlassian.net", "JIRA_EMAIL": "dev@example.com",
+                      "JIRA_API_TOKEN": TOKEN}
     assert TOKEN not in capsys.readouterr().out + json.dumps(answer)
 
 
@@ -81,3 +93,36 @@ def test_bad_value_writes_nothing(places, system):
     system.ask_secret = lambda _p: TOKEN
     answer = setup.secrets(places, system, {})
     assert answer["error"]["code"] == "bad-value" and not places.claude_user_config.exists()
+
+
+def test_second_secrets_run_keeps_the_first_backup(places, system):
+    first = {"JIRA_BASE_URL": "https://a", "JIRA_EMAIL": "dev@example.com", "JIRA_API_TOKEN": TOKEN}
+    _claude_entry(places, first)
+    before = places.claude_user_config.read_bytes()
+    answers = iter(["https://b.atlassian.net", "", "https://c.atlassian.net", ""])
+    system.ask = lambda _p: next(answers)
+    system.ask_secret = lambda _p: ""
+    setup.secrets(places, system, {})
+    setup.secrets(places, system, {})
+    assert (places.backup / "claude-user-config" / "claude.json").read_bytes() == before
+
+
+def test_user_env_setter_writes_one_plain_value(monkeypatch):
+    written = {}
+
+    class Key:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+    class Fake:
+        HKEY_CURRENT_USER, KEY_SET_VALUE, REG_SZ = 1, 2, 3
+        OpenKey = staticmethod(lambda *_a: Key())
+        SetValueEx = staticmethod(lambda _k, name, _r, kind, value: written.update({name: (value, kind)}))
+
+    monkeypatch.setitem(sys.modules, "winreg", Fake)
+    monkeypatch.setattr(jira_values, "broadcast_environment_change", lambda: None)
+    jira_values.windows_user_env_setter("JIRA_EMAIL", "dev@example.com")
+    assert written == {"JIRA_EMAIL": ("dev@example.com", 3)}

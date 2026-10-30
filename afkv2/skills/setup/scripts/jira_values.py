@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Callable, Mapping
 
-from places import Places, write_atomic
+from places import Places, backup_once, write_atomic
 from tools import broadcast_environment_change
 import v1_facts
 
@@ -83,7 +83,7 @@ def store_jira_values(places: Places, values: Mapping[str, str],
     block = _tracker_env(config) if config else None
     if block is not None:
         saved = places.backup / "claude-user-config" / "claude.json"
-        write_atomic(saved, path.read_bytes())
+        backup_once(path, saved)
         block.update({k: values[k] for k in KEYS})
         write_atomic(path, (json.dumps(config, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         return {"ok": True, "stored_in": "claude user config", "backup": str(saved)}

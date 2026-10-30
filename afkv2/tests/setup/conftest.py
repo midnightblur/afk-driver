@@ -3,7 +3,9 @@ in-process fake for every outside command except git."""
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +15,6 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[2] / "skills" / "setup" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-import plugins  # noqa: E402
 import tools  # noqa: E402
 from places import Places  # noqa: E402
 import setup  # noqa: E402
@@ -43,6 +44,8 @@ class FakeRunner(tools.Runner):
         self.codex_cli = True
         self.winget_installs = True
         self.npm_fails = False
+        self.npm_ls_fails = False
+        self.python_version = "Python 3.12.4\n"
 
     def which(self, name, env=None):
         if name == "git":
@@ -68,24 +71,27 @@ class FakeRunner(tools.Runner):
         if name in self.shell_has_rg:
             return tools.Result(0 if self.shell_has_rg[name] else 1)
         if name in ("python3", "python", "py"):
-            return tools.Result(0, "Python 3.12.4\n") if name in self.paths else tools.Result(127)
+            return tools.Result(0, self.python_version) if name in self.paths else tools.Result(127)
         return tools.Result(127, "", f"{name} not faked")
 
     def _codex(self):
         if not self.codex_cli or not self.places.codex_config.exists():
             return tools.Result(127, "", "codex not found")
-        state = plugins.codex_config_state(self.places.codex_config.read_text(encoding="utf-8"))
+        tables = re.findall(r'\[plugins\."([^"]+)"\]\r?\n(?:enabled = (true|false))?',
+                            self.places.codex_config.read_bytes().decode("utf-8"))
         rows = ["PLUGIN              STATUS               VERSION  SOURCE"]
-        for plugin_id, on in sorted(state.items()):
-            status = "installed, enabled" if on else "installed, disabled"
+        for plugin_id, value in sorted(tables):
+            status = "installed, disabled" if value == "false" else "installed, enabled"
             rows.append(f"{plugin_id:<20}{status:<21}1.0.0    local")
         return tools.Result(0, "\n".join(rows) + "\n")
 
     def _npm(self, argv):
         if argv[1] == "ls":
-            body = {"dependencies": {"lavish-axi": {"version": self.lavish}}} if self.lavish else {}
-            import json
-            return tools.Result(0, json.dumps(body))
+            if self.npm_ls_fails:
+                return tools.Result(127, "", "npm not found")
+            if not self.lavish:
+                return tools.Result(1, "{}")
+            return tools.Result(0, json.dumps({"dependencies": {"lavish-axi": {"version": self.lavish}}}))
         if self.npm_fails:
             return tools.Result(1, "", "npm failed")
         if argv[1] == "install":
@@ -162,6 +168,41 @@ def write_codex_config(places: Places, afk_on: bool = True, new_on: bool = True)
     places.codex_config.parent.mkdir(parents=True, exist_ok=True)
     places.codex_config.write_text(text, encoding="utf-8")
     return text
+
+
+V1_CONFIG = b"tracker: github-issues\nforge: github\ngithub-issues:\n  repo: o/r\ngithub:\n  remote: origin\n"
+
+
+def make_world(places: Places, repo: Path) -> dict[Path, bytes]:
+    """A machine on v1: blocks in both files, stubs, a v1 config, both plugins on."""
+    files = {}
+    for provider, text in (("claude", "mine\r\n" + v1_block("\r\n") + "more\r\n"),
+                           ("codex", v1_block() + "codex\n")):
+        path = places.instruction_file(provider)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode())
+        files[path] = path.read_bytes()
+    for hook in ("pre-commit", "reference-transaction"):
+        (hooks_dir(repo) / hook).write_bytes(v1_stub(hook))
+        files[hooks_dir(repo) / hook] = v1_stub(hook)
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_bytes(V1_CONFIG)
+    files[repo / ".afk" / "config.yaml"] = V1_CONFIG
+    places.claude_user_settings.write_text(
+        json.dumps({"enabledPlugins": {V1_ID: True, NEW_ID: True}}), encoding="utf-8")
+    files[places.claude_user_settings] = places.claude_user_settings.read_bytes()
+    write_codex_config(places)
+    files[places.codex_config] = places.codex_config.read_bytes()
+    return files
+
+
+def prepared_world(places: Places, repo: Path) -> dict[Path, bytes]:
+    """`make_world` after setup's install record, with both hooks fired since."""
+    files = make_world(places, repo)
+    setup.write_install_record(places, {"path": "/py", "version": "3.12"}, "/rg")
+    fire(places, "claude")
+    fire(places, "codex")
+    return files
 
 
 def fire(places: Places, provider: str, later: float = 5.0) -> None:

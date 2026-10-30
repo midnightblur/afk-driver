@@ -1,37 +1,18 @@
 """End to end on a temporary home and repository through the command line verbs."""
 
 import json
+import os
 import re
+import shutil
+import stat
+
+import pytest
 
 import plugins
 import setup
-from conftest import NEW_ID, V1_ID, end_marker, fire, hooks_dir, v1_block, v1_stub, write_codex_config
-
-V1_CONFIG = b"tracker: github-issues\nforge: github\ngithub-issues:\n  repo: o/r\ngithub:\n  remote: origin\n"
-
-
-def _world(places, repo):
-    files = {}
-    for provider, text in (("claude", "mine\r\n" + v1_block("\r\n") + "more\r\n"),
-                           ("codex", v1_block() + "codex\n")):
-        path = places.instruction_file(provider)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(text.encode())
-        files[path] = path.read_bytes()
-    for hook in ("pre-commit", "reference-transaction"):
-        (hooks_dir(repo) / hook).write_bytes(v1_stub(hook))
-        files[hooks_dir(repo) / hook] = v1_stub(hook)
-    (repo / ".afk").mkdir()
-    (repo / ".afk" / "config.yaml").write_bytes(V1_CONFIG)
-    files[repo / ".afk" / "config.yaml"] = V1_CONFIG
-    places.claude_user_settings.write_text(
-        json.dumps({"enabledPlugins": {V1_ID: True, NEW_ID: True}}), encoding="utf-8")
-    files[places.claude_user_settings] = places.claude_user_settings.read_bytes()
-    write_codex_config(places)
-    files[places.codex_config] = places.codex_config.read_bytes()
-    exclude = repo / ".git" / "info" / "exclude"
-    files[exclude] = exclude.read_bytes()
-    return files
+import tools
+from conftest import NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
+from places import write_atomic
 
 
 def _cli(argv, env, system, plugin_root, repo, capsys):
@@ -39,81 +20,275 @@ def _cli(argv, env, system, plugin_root, repo, capsys):
     return code, json.loads(capsys.readouterr().out)
 
 
-def test_takeover_and_switch_back(env, places, repo, runner, system, plugin_root, capsys):
-    files = _world(places, repo)
+def _takeover(env, system, plugin_root, repo, capsys):
+    return _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
+                env, system, plugin_root, repo, capsys)
+
+
+@pytest.fixture
+def world(places, repo, runner):
     runner.paths["python3"] = "/usr/bin/python3"
-    places.published_tickets.parent.mkdir(parents=True, exist_ok=True)
-    places.published_tickets.write_text(
-        "2026-10-30T10:00:00Z PROJ-1 abcd1234\n2026-10-30T11:00:00Z PROJ-1 ef567890\n"
-        "2026-10-30T12:00:00Z PROJ-2 00112233\n", encoding="utf-8")
+    return make_world(places, repo)
 
-    code, prepared = _cli(["prepare"], env, system, plugin_root, repo, capsys)
-    assert code == 0 and prepared["install_record"]["python"] == "/usr/bin/python3 3.12.4"
 
-    code, copied = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
-    assert code == 0 and copied["action"] == "copied"
+@pytest.fixture
+def taken_over(world, env, places, repo, runner, system, plugin_root, capsys):
+    """Setup ran, both hooks fired since, and the takeover passed."""
+    assert _cli(["prepare"], env, system, plugin_root, repo, capsys)[0] == 0
+    fire(places, "claude")
+    fire(places, "codex")
+    code, done = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 0, done
+    return done
 
-    # The hook fired before setup's install record: no proof, block kept, backup kept.
-    code, refused = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
-                         env, system, plugin_root, repo, capsys)
+
+# ---------------------------------------------------------- the hook proof
+
+def test_a_hook_that_never_fired_keeps_the_block_and_names_the_trust_review(
+        world, env, places, repo, system, plugin_root, capsys):
+    assert _cli(["prepare"], env, system, plugin_root, repo, capsys)[0] == 0
+    code, refused = _takeover(env, system, plugin_root, repo, capsys)
     assert code == 1 and refused["v1_block"] == "kept"
     assert any("trust the afkv2 hooks" in r for r in refused["proof"]["reasons"])
     assert "hook trust review" in refused["next"]
     assert (places.backup / "instructions" / "claude" / "original").exists()
-    for path, data in files.items():
+    for path, data in world.items():
         assert path.read_bytes() == data, path
 
-    # Both hooks fired in new sessions: takeover.
-    fire(places, "claude")
-    fire(places, "codex")
-    code, done = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
-                      env, system, plugin_root, repo, capsys)
-    assert code == 0, done
+
+def test_a_hook_that_fired_before_the_install_record_is_no_proof(
+        world, env, places, repo, system, plugin_root, capsys):
+    assert _cli(["prepare"], env, system, plugin_root, repo, capsys)[0] == 0
+    fire(places, "claude", later=-60)
+    fire(places, "codex", later=-60)
+    code, refused = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 1 and refused["v1_block"] == "kept"
+    assert all("before setup's install record" in r for r in refused["proof"]["reasons"])
+    assert places.instruction_file("claude").read_bytes() == world[places.instruction_file("claude")]
+
+
+# ----------------------------------------------------------- the takeover
+
+def test_takeover_changes_every_v1_place(taken_over, world, places, repo, runner):
     assert places.instruction_file("claude").read_bytes() == b"mine\r\nmore\r\n"
     assert places.instruction_file("codex").read_bytes() == b"codex\n"
     assert not (hooks_dir(repo) / "pre-commit").exists()
-    assert done["plugins"]["claude"]["effective"] == {V1_ID: False, NEW_ID: True}
+    assert taken_over["plugins"]["claude"]["effective"] == {V1_ID: False, NEW_ID: True}
     assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: False, NEW_ID: True}
-    assert done["plugins"]["codex"]["listed"] == {V1_ID: False, NEW_ID: True}
+    assert taken_over["plugins"]["codex"]["listed"] == {V1_ID: False, NEW_ID: True}
     assert runner.lavish == "0.1.80"
-    assert places.claude_user_settings.read_bytes() == files[places.claude_user_settings]
+    assert places.claude_user_settings.read_bytes() == world[places.claude_user_settings]
     assert (repo / ".afk" / "config.yaml").read_bytes() == V1_CONFIG
 
-    # A second run changes nothing.
-    snapshot = {p: p.read_bytes() for p in (places.instruction_file("claude"),
-                                            repo / ".claude" / "settings.local.json",
-                                            places.codex_config)}
-    code, again = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
-                       env, system, plugin_root, repo, capsys)
-    assert code == 0 and not again["plugins"]["claude"]["written"]
-    assert {p: p.read_bytes() for p in snapshot} == snapshot
 
+def test_a_second_takeover_changes_nothing(taken_over, env, places, repo, system, plugin_root, capsys):
+    watched = (places.instruction_file("claude"), repo / ".claude" / "settings.local.json", places.codex_config)
+    snapshot = {p: p.read_bytes() for p in watched}
+    code, again = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 0 and not again["plugins"]["claude"]["written"]
+    assert {p: p.read_bytes() for p in watched} == snapshot
+
+
+def test_a_bad_block_stops_the_takeover_before_any_change(
+        env, places, repo, runner, system, plugin_root, capsys):
+    files = prepared_world(places, repo)
+    codex_file = places.instruction_file("codex")
+    codex_file.write_bytes(b"<!-- afk:behaviors:start -->\nno end\n")
+    code, answer = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "bad-block"
+    assert "git_hooks" not in answer and "plugins" not in answer
+    assert (hooks_dir(repo) / "pre-commit").exists()
+    assert places.instruction_file("claude").read_bytes() == files[places.instruction_file("claude")]
+
+
+def test_an_unreadable_plugin_input_stops_the_takeover_before_any_change(
+        env, places, repo, runner, system, plugin_root, capsys):
+    files = prepared_world(places, repo)
+    runner._codex = lambda: tools.Result(0, "PLUGIN  STATUS\n")
+    places.codex_config.write_bytes(b'model = "\xff"\n')
+    code, answer = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "unreadable-input"
+    assert "v1_block" not in answer
+    assert places.instruction_file("claude").read_bytes() == files[places.instruction_file("claude")]
+    assert (hooks_dir(repo) / "pre-commit").exists()
+
+
+def test_a_failed_last_step_reports_the_steps_done_and_a_rerun_finishes(
+        env, places, repo, runner, system, plugin_root, capsys):
+    prepared_world(places, repo)
+    runner.npm_fails = True
+    code, stopped = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 1 and stopped["error"]["code"] == "lavish-install-failed"
+    assert stopped["v1_block"]["ok"] and stopped["git_hooks"]["ok"] and stopped["plugins"]["ok"]
+    runner.npm_fails = False
+    code, done = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 0, done
+    assert {f["action"] for f in done["v1_block"]["files"]} == {"absent"}
+    assert set(done["git_hooks"]["hooks"].values()) == {"already-moved"}
+    assert not done["plugins"]["claude"]["written"]
+    assert done["lavish"]["version"] == "0.1.80"
+
+
+def test_an_error_inside_a_step_names_that_step(
+        env, places, repo, runner, system, plugin_root, capsys, monkeypatch):
+    prepared_world(places, repo)
+
+    def locked(*_args):
+        raise OSError("locked")
+
+    monkeypatch.setattr(setup, "move_v1_git_hooks", locked)
+    code, answer = _takeover(env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["v1_block"]["ok"]
+    assert answer["git_hooks"]["error"]["code"] == "unreadable-input"
+    assert answer["error"] == answer["git_hooks"]["error"] and "plugins" not in answer
+
+
+# ---------------------------------------------------------- the switch back
+
+def test_switch_back_restores_every_file(taken_over, world, env, places, repo, runner, system, plugin_root, capsys):
+    places.published_tickets.parent.mkdir(parents=True, exist_ok=True)
+    places.published_tickets.write_text(
+        "2026-10-30T10:00:00Z PROJ-1 abcd1234\n2026-10-30T11:00:00Z PROJ-1 ef567890\n"
+        "2026-10-30T12:00:00Z PROJ-2 00112233\n", encoding="utf-8")
     code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
     assert code == 0, back
     assert back["published_tickets"] == ["PROJ-1", "PROJ-2"]
     assert runner.lavish == "0.1.63"
-    exclude = repo / ".git" / "info" / "exclude"
-    for path, data in files.items():
-        if path in (places.codex_config, exclude):
-            continue
-        assert path.read_bytes() == data, path
-    # D-9: only the afkv2 enable value differs, so exactly v1 is on; the local
-    # settings file it lives in stays out of git.
-    assert exclude.read_bytes() == files[exclude] + b"/.claude/settings.local.json\n"
-    codex_now = places.codex_config.read_bytes()
-    assert codex_now == re.sub(rb'("afkv2@afk-toolkit"\]\r?\nenabled = )true',
-                               rb"\1false", files[places.codex_config])
-    local = json.loads((repo / ".claude" / "settings.local.json").read_text())
-    assert local == {"enabledPlugins": {NEW_ID: False, V1_ID: True}}
-    assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+    unchanged = set(world) - {places.codex_config}
+    assert {p: p.read_bytes() for p in unchanged} == {p: world[p] for p in unchanged}
     assert not any((places.backup / sub).exists() and any((places.backup / sub).iterdir())
                    for sub in ("instructions", "git-hooks", "claude-settings", "codex"))
 
-    # The install record ends at switch-back, so an old fired record proves nothing.
+
+def test_switch_back_leaves_only_v1_on(taken_over, world, env, places, repo, runner, system, plugin_root, capsys):
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert places.codex_config.read_bytes() == re.sub(rb'("afkv2@afk-toolkit"\]\r?\nenabled = )true',
+                                                      rb"\1false", world[places.codex_config])
+    local = json.loads((repo / ".claude" / "settings.local.json").read_text())
+    assert local == {"enabledPlugins": {NEW_ID: False, V1_ID: True}}
+    assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
+    status = runner(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all", "--", ".claude"])
+    assert status.out == ""
+
+
+def test_switch_back_with_v1_alone_on_leaves_no_trace_in_the_repository(
+        env, places, repo, runner, system, plugin_root, capsys):
+    files = prepared_world(places, repo)
+    places.claude_user_settings.write_text(json.dumps({"enabledPlugins": {V1_ID: True}}), encoding="utf-8")
+    exclude = repo / ".git" / "info" / "exclude"
+    before = exclude.read_bytes()
+    assert _takeover(env, system, plugin_root, repo, capsys)[0] == 0
+    assert b"settings.local.json" in exclude.read_bytes()
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 0, back
+    assert not (repo / ".claude" / "settings.local.json").exists()
+    assert exclude.read_bytes() == before
+    assert places.instruction_file("codex").read_bytes() == files[places.instruction_file("codex")]
+
+
+def test_switch_back_keeps_what_the_harnesses_wrote_since(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    local = repo / ".claude" / "settings.local.json"
+    data = json.loads(local.read_text(encoding="utf-8"))
+    data["permissions"] = {"allow": ["Read"]}
+    local.write_text(json.dumps(data), encoding="utf-8")
+    with places.codex_config.open("ab") as handle:
+        handle.write(b'\n[projects."C:/w"]\ntrust_level = "trusted"\n')
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 0, back
+    assert back["claude_settings"][0]["settings"] == "merged" and back["codex_config"] == "merged"
+    assert json.loads(local.read_text(encoding="utf-8")) == {
+        "enabledPlugins": {NEW_ID: False, V1_ID: True}, "permissions": {"allow": ["Read"]}}
+    text = places.codex_config.read_bytes().decode("utf-8")
+    assert 'trust_level = "trusted"' in text
+    assert plugins.codex_config_state(text) == {V1_ID: True, NEW_ID: False}
+
+
+def test_switch_back_with_a_deleted_repository_restores_the_rest(
+        taken_over, world, env, tmp_path, places, repo, runner, system, plugin_root, capsys, monkeypatch):
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    def writable(function, path, _exc):
+        os.chmod(path, stat.S_IWRITE)
+        function(path)
+
+    shutil.rmtree(repo, onerror=writable)
+    code, back = _cli(["switch-back"], env, system, plugin_root, elsewhere, capsys)
+    assert code == 0, back
+    assert back["claude_settings"] == [{"repo": str(repo), "settings": "repo-missing"}]
+    assert {h["action"] for h in back["git_hooks"]} == {"repo-missing"}
+    assert not repo.exists() and not any(elsewhere.iterdir())
+    assert places.instruction_file("claude").read_bytes() == world[places.instruction_file("claude")]
+    assert runner.lavish == "0.1.63"
     assert not places.install_record.exists()
-    code, later = _cli(["takeover", "--provider", "claude", "--end-marker", end_marker()],
-                       env, system, plugin_root, repo, capsys)
+
+
+def test_a_hook_conflict_keeps_the_install_record_and_the_backup(
+        taken_over, env, places, repo, system, plugin_root, capsys):
+    (hooks_dir(repo) / "pre-commit").write_bytes(b"#!/bin/sh\nnew\n")
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1
+    assert [h["action"] for h in back["git_hooks"]].count("conflict") == 1
+    assert places.install_record.exists()
+    assert len(list((places.backup / "git-hooks").rglob("pre-commit"))) == 1
+
+
+def test_a_failed_lavish_restore_keeps_the_install_record(
+        taken_over, env, places, repo, runner, system, plugin_root, capsys):
+    runner.npm_fails = True
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and back["lavish"]["error"]["code"] == "lavish-restore-failed"
+    assert places.install_record.exists() and tools.lavish_record(places).exists()
+
+
+def test_the_install_record_ends_at_switch_back(taken_over, env, places, repo, system, plugin_root, capsys):
+    assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
+    assert not places.install_record.exists()
+    code, later = _takeover(env, system, plugin_root, repo, capsys)
     assert code == 1 and later["error"]["code"] == "no-install-record"
+
+
+# ------------------------------------------------------------- command line
+
+def test_prepare_exits_1_on_a_red_shell(env, repo, runner, system, plugin_root, capsys):
+    runner.paths["python3"] = "/usr/bin/python3"
+    runner.shell_has_rg["bash"] = False
+    code, answer = _cli(["prepare"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "rg-not-on-every-shell"
+    assert answer["rg"]["shells"] == {"bash": False}
+
+
+def test_prepare_exits_1_with_no_python(env, repo, system, plugin_root, capsys):
+    code, answer = _cli(["prepare"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "no-python"
+
+
+def test_ownership_verb_writes_both_grades(env, places, repo, system, plugin_root, capsys):
+    code, answer = _cli(["ownership", "--own", "a/**", "b/**", "--shared", "c/**"],
+                        env, system, plugin_root, repo, capsys)
+    assert code == 0 and answer["action"] == "written"
+    text = (repo / ".afkv2" / "config.yaml").read_text(encoding="utf-8")
+    assert "  own:\n    - 'a/**'\n    - 'b/**'\n  shared:\n    - 'c/**'\n" in text
+
+
+def test_ownership_verb_records_a_skip(env, places, repo, system, plugin_root, capsys):
+    code, answer = _cli(["ownership", "--skip"], env, system, plugin_root, repo, capsys)
+    assert code == 0 and answer["action"] == "skipped"
+    assert str(repo.resolve()) in places.ownership_skips.read_text(encoding="utf-8")
+
+
+def test_ownership_verb_with_no_paths_exits_1(env, repo, system, plugin_root, capsys):
+    code, answer = _cli(["ownership"], env, system, plugin_root, repo, capsys)
+    assert code == 1 and answer["error"]["code"] == "empty"
+
+
+def test_outside_a_repository_exits_2(env, tmp_path, system, plugin_root, capsys):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    code, answer = _cli(["status"], env, system, plugin_root, outside, capsys)
+    assert code == 2 and answer["error"]["code"] == "not-a-repo"
 
 
 def test_unreadable_settings_exit_2(env, places, repo, system, plugin_root, capsys):
@@ -123,8 +298,7 @@ def test_unreadable_settings_exit_2(env, places, repo, system, plugin_root, caps
     assert code == 2 and answer["error"]["code"] == "unreadable-input"
 
 
-def test_status_reports_without_writing(env, places, repo, system, plugin_root, capsys):
-    _world(places, repo)
+def test_status_reports_without_writing(world, env, places, repo, system, plugin_root, capsys):
     code, answer = _cli(["status"], env, system, plugin_root, repo, capsys)
     assert code == 0
     assert answer["v1_blocks"]["claude"]["blocks"] == 1
@@ -136,3 +310,27 @@ def test_status_reports_without_writing(env, places, repo, system, plugin_root, 
 def test_bad_arguments_exit_2(env, system, plugin_root, repo, capsys):
     code, answer = _cli(["takeover"], env, system, plugin_root, repo, capsys)
     assert code == 2 and answer["error"]["code"] == "bad-arguments"
+
+
+# --------------------------------------------------------------- safe writes
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_write_atomic_keeps_the_file_mode(tmp_path):
+    secret = tmp_path / "config"
+    secret.write_bytes(b"old")
+    secret.chmod(0o600)
+    write_atomic(secret, b"new")
+    assert stat.S_IMODE(secret.stat().st_mode) == 0o600
+
+
+def test_write_atomic_writes_through_a_symlink(tmp_path):
+    real = tmp_path / "dotfiles" / "CLAUDE.md"
+    real.parent.mkdir()
+    real.write_bytes(b"old")
+    link = tmp_path / "CLAUDE.md"
+    try:
+        link.symlink_to(real)
+    except OSError:
+        pytest.skip("this account cannot make a symbolic link")
+    write_atomic(link, b"new")
+    assert link.is_symlink() and real.read_bytes() == b"new"

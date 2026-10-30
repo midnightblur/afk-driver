@@ -40,8 +40,8 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError(f"{path} is not a JSON object")
+    if not isinstance(data, dict) or not isinstance(data.get("enabledPlugins", {}), dict):
+        raise ValueError(f"{path} is not a JSON object with an enabledPlugins object")
     return data
 
 
@@ -75,6 +75,38 @@ def write_claude_local(repo: Path, wanted: Mapping[str, bool]) -> bool:
     data["enabledPlugins"] = plugins
     write_atomic(local, (json.dumps(data, indent=2) + "\n").encode("utf-8"))
     return True
+
+
+def _without_our_values(data: dict) -> dict:
+    rest = dict(data)
+    kept = {k: v for k, v in rest.pop("enabledPlugins", {}).items() if plugin_name(k) not in NAMES}
+    return {**rest, "enabledPlugins": kept} if kept else rest
+
+
+def restore_claude_local(local: Path, saved: Path) -> str:
+    """Put back the plugin values of the backup and delete it. With no other
+    change since, the file gets the backup's bytes; otherwise the harness's
+    later keys stay."""
+    absent = saved.with_name(saved.name + ".absent")
+    if not saved.exists() and not absent.exists():
+        return "no-backup"
+    before = _read_json(saved)
+    rest = _without_our_values(_read_json(local))
+    if local.exists() and rest != _without_our_values(before):
+        ours = {k: v for k, v in before.get("enabledPlugins", {}).items() if plugin_name(k) in NAMES}
+        values = {**ours, **rest.get("enabledPlugins", {})}
+        merged = {**rest, "enabledPlugins": values} if values else rest
+        write_atomic(local, (json.dumps(merged, indent=2) + "\n").encode("utf-8"))
+        action = "merged"
+    elif saved.exists():
+        write_atomic(local, saved.read_bytes())
+        action = "restored"
+    else:
+        local.unlink(missing_ok=True)
+        action = "removed"
+    saved.unlink(missing_ok=True)
+    absent.unlink(missing_ok=True)
+    return action
 
 
 def only_one_on(state: Mapping[str, bool]) -> str | None:
@@ -145,6 +177,30 @@ def codex_edit(text: str, wanted: Mapping[str, bool]) -> str:
             out[at] += eol
         out.insert(at + 1, f"enabled = {value}{eol}")
     return "".join(out)
+
+
+def _without_our_enabled_lines(text: str) -> list[str]:
+    kept, table = [], None
+    for line in text.splitlines(keepends=True):
+        body = line.rstrip("\r\n")
+        head = _TABLE.match(body)
+        if head:
+            table = head.group(1)
+        elif body.startswith("["):
+            table = None
+        elif table and plugin_name(table) in NAMES and _ENABLED.match(body):
+            continue
+        kept.append(line)
+    return kept
+
+
+def codex_restore(current: str, before: str) -> str:
+    """The config with the plugin values of `before`. With no other change since,
+    the answer is `before` itself; otherwise the lines Codex wrote since stay."""
+    if _without_our_enabled_lines(current) == _without_our_enabled_lines(before):
+        return before
+    present = codex_config_state(current)
+    return codex_edit(current, {i: v for i, v in codex_config_state(before).items() if i in present})
 
 
 def parse_codex_list(table: str) -> dict[str, bool]:
