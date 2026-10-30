@@ -52,10 +52,15 @@ def _pipeline(data):
     return data.get("head_pipeline") or data.get("pipeline") or {}
 
 
+_CI_WORDS = {"success": "success", "skipped": "success", "failed": "failed", "canceled": "canceled"}
+
+
 def _ci_word(pipeline):
     """The contract word. GitLab has more: all that is not final reads `running`, and `skipped` is GitHub's success."""
-    word = pipeline.get("status") or ""
-    return {"success": "success", "skipped": "success", "failed": "failed", "canceled": "canceled"}.get(word, "running") if word else ""
+    word = pipeline.get("status")
+    if not word:
+        return ""
+    return _CI_WORDS.get(word, "running")
 
 
 def _blob_base(data):
@@ -124,21 +129,26 @@ def change_create_draft(payload):
 
 
 def _draft_flag(change, payload):
+    return "true" if _view(change, payload).get("draft") else "false"
+
+
+def _draft_kept(change, payload):
+    """A read that fails after the write proves nothing: the caller sets the flag again."""
     try:
-        return "true" if _view(change, payload).get("draft") else "false"
+        return _draft_flag(change, payload) == "true"
     except Refusal:
-        return "unknown"
+        return False
 
 
 def change_update_body(payload):
-    """`glab mr update` clears the draft flag: read it first, put it back after."""
+    """`glab mr update` clears the draft flag: read it first, put it back after. A failed first read writes nothing."""
     change, body = common.ref(payload), common.body_text(payload)
     was_draft = _draft_flag(change, payload)
     shell.checked("glab", ["mr", "update", change, *_flag(payload), "--description", body])
     restored = False
-    if was_draft == "true" and _draft_flag(change, payload) != "true":
+    if was_draft == "true" and not _draft_kept(change, payload):
         if shell.run_tool("glab", ["mr", "update", change, *_flag(payload), "--draft"]).returncode != 0:
-            return fail("draft-lost", "the body changed, but the draft flag is off and could not be set again", id=change)
+            return fail("draft-lost", f"the body changed, but the draft flag is off and could not be set again: run `glab mr update {change} --draft`", id=change)
         restored = True
     return ok(id=change, was_draft=was_draft, draft_restored=restored)
 
@@ -153,11 +163,15 @@ def _post(path, fields):
     return shell.json_answer("glab", ["api", "-X", "POST", *_JSON_HEADER, path, "--input", "-"], stdin_text=json.dumps(fields))
 
 
+def _note_url(change_url, ident):
+    return f"{change_url}#note_{ident}" if change_url and ident else ""
+
+
 def _plain_note(project, iid, text, change_url, **extra):
     data = _post(f"projects/{project}/merge_requests/{iid}/notes", {"body": text})
     ident = common.comment_id(data)
     return ok(inline=False, thread="", comment=ident,
-              url=data.get("web_url") or (f"{change_url}#note_{ident}" if change_url else ""), **extra)
+              url=data.get("web_url") or _note_url(change_url, ident), **extra)
 
 
 def _degraded(payload, project, iid, ident, url):
@@ -193,7 +207,7 @@ def change_comment(payload):
         return _plain_note(project, iid, text, change_url, reason=common.PLAIN_NOTE_REASON)
     note = ((data.get("notes") or [{}])[0]) if isinstance(data, dict) else {}
     ident = common.comment_id(note)
-    url = note.get("web_url") or data.get("web_url") or (f"{change_url}#note_{ident}" if change_url else "")
+    url = note.get("web_url") or data.get("web_url") or _note_url(change_url, ident)
     if note.get("type") != "DiffNote":
         return _degraded(payload, project, iid, ident, url)
     return ok(inline=True, thread=str(data.get("id") or ""), comment=ident, url=url)
@@ -238,7 +252,7 @@ def note_list(payload):
     edited, hidden = _note_edits(payload, iid)
     path = f"projects/{_project(payload)}/merge_requests/{iid}/notes?per_page=100&sort=asc&order_by=created_at"
     items = [item for item in shell.as_items(shell.json_answer("glab", ["api", "--paginate", path]))
-             if not (item.get("system") or item.get("type"))]
+             if not item.get("system") and item.get("type") != "DiffNote"]
     unknown = [str(item.get("id") or "") for item in items if edited.get(str(item.get("id") or "")) is None]
     if unknown:
         raise _edit_problem(unknown, hidden)
@@ -263,7 +277,7 @@ def _thread(discussion, change_url, edited):
         "old_line": old_line,
         "old_path": position.get("old_path"),
         "new_path": position.get("new_path"),
-        "url": root.get("web_url") or discussion.get("web_url") or (f"{change_url}#note_{root.get('id')}" if change_url and root.get("id") else ""),
+        "url": root.get("web_url") or discussion.get("web_url") or _note_url(change_url, root.get("id")),
         "notes": [{"id": note.get("id"), "author": (note.get("author") or {}).get("username"), "type": note.get("type"),
                    "body": note.get("body") or "", "created_at": note.get("created_at") or "",
                    "updated_at": note.get("updated_at") or "", "edited": edited[str(note.get("id"))]} for note in notes],

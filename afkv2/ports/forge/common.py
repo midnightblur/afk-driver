@@ -119,6 +119,9 @@ def ci_wait(payload, read_status):
                 return fail("unreadable", f"{MAX_READ_ERRORS} reads in a row of {change} gave no status: "
                                           "auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
         if elapsed >= budget:
+            if not status:
+                return fail("unreadable", f"the last read of {change} gave no status: "
+                                          "auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
             break
         wait = min(interval, budget - elapsed)
         time.sleep(wait)

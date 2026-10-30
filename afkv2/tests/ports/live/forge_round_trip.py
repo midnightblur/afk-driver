@@ -10,6 +10,7 @@ from pathlib import Path
 
 CLI = Path(__file__).resolve().parents[3] / "ports" / "forge" / "cli.py"
 MARKER = "afkv2 forge port round-trip, removed by the check"
+NO_SUCH_LINE = 987654
 
 
 def forge(verb, **payload):
@@ -56,7 +57,7 @@ def main(change):
     path, line = first_added_line(diff["diff"])
 
     plain = good("change-comment", id=change, text=f"{MARKER} (plain)")
-    inline = None
+    inline = fallback = None
     try:
         assert plain["inline"] is False and plain["comment"]
         inline = good("change-comment", id=change, text=f"{MARKER} (inline)", file=path, line=line, require_inline=True)
@@ -69,10 +70,17 @@ def main(change):
         threads = good("thread-list", id=change)
         thread = [item for item in threads["threads"] if item["id"] == inline["thread"]]
         assert thread and thread[0]["line"] == line and thread[0]["new_path"] == path and thread[0]["side"] == "new"
+
+        off_diff = forge("change-comment", id=change, text=f"{MARKER} (refused)", file=path, line=NO_SUCH_LINE, require_inline=True)
+        assert not off_diff["ok"] and off_diff["error"]["code"] == "position-rejected", off_diff
+        fallback = good("change-comment", id=change, text=f"{MARKER} (fallback)", file=path, line=NO_SUCH_LINE)
+        assert fallback["inline"] is False and fallback["reason"] and fallback["comment"]
     finally:
         remove(f"repos/{repo}/issues/comments/{plain['comment']}")
         if inline:
             remove(f"repos/{repo}/pulls/comments/{inline['comment']}")
+        if fallback:
+            remove(f"repos/{repo}/issues/comments/{fallback['comment']}")
 
     left = [note for note in good("note-list", id=change)["notes"] if MARKER in note["body"]]
     assert not left, left
@@ -81,7 +89,12 @@ def main(change):
     assert status["status"] in ("", "success", "failed", "canceled", "running") and status["url"] == view["url"]
     waited = forge("ci-wait", id=change, budget=0)
     final = ("success", "failed", "canceled")
-    assert waited["ok"] and waited["status"] == (status["status"] if status["status"] in final else "running")
+    if status["status"] in final:
+        assert waited["ok"] and waited["status"] == status["status"], waited
+    elif waited["ok"]:
+        assert waited["status"] in (*final, "running"), waited
+    else:
+        assert status["status"] == "" and waited["error"]["code"] == "unreadable", waited
     print(json.dumps({"change": change, "inline_path": path, "inline_line": line, "ci": status["status"]}))
     return 0
 

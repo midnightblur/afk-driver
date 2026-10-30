@@ -20,7 +20,7 @@ def _repo_and_number(payload):
     repo = payload.get("repo")
     if named and repo and named.lower() != str(repo).lower():
         raise Refusal("bad-payload", f"`key` names {named}, and `repo` is {repo}")
-    if number.startswith("-") or named.startswith("-"):
+    if not (number.isascii() and number.isdigit()) or named.startswith("-"):
         raise Refusal("bad-payload", f"`key` {payload['key']} is no issue reference")
     return named or repo, number
 

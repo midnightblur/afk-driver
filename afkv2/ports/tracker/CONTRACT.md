@@ -9,12 +9,12 @@ Exit 0 is ok. Exit 1 is a refusal. Exit 2 is unreadable input (`bad-payload`, `u
 
 | Verb | Payload | Answer | Kind |
 |------|---------|--------|------|
-| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` and the `gh` fields | both |
+| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` (the bare number, also for `owner/name#7`) and the `gh` fields | both |
 | `issue-search` | optional `query`, `max_results`, `tracker`, `repo` | `issues, count` | GitHub issues |
 | `md-to-adf` | `markdown`; optional `figures` `{index: [ADF nodes]}` | `content, figure_token, block_text` | Jira |
 | `attachment-list` | `key` | `attachments, count` | Jira |
 | `attachment-put` | `key, png, receipt, preview` | `key, attachment_id, media_id, filename, width, height` | Jira |
-| `attachment-delete` | `id` | `id, filename, deleted`; `deleted` is false when Jira no longer has it | Jira |
+| `attachment-delete` | `id` | `id, filename, deleted`; when Jira no longer has it, `deleted` is false and `filename` is null | Jira |
 | `description-put` | `key, adf, expect_hash, receipt, preview` | `key, replaced, block`; `replaced` is `afkv2`, `v1`, or null for a first publish | Jira |
 
 The port has no create, transition or comment verb.
@@ -24,7 +24,7 @@ The port has no create, transition or comment verb.
 ## The publish contract
 
 - `preview` is the path of a JSON file with `ticket_key`, `receipt`, `description_hash` and `picture_hashes` (a list: the sha256 hex digest of each picture file).
-- `receipt` is the sha256 hex digest (64 lowercase characters) of the UTF-8 bytes of ticket key + `block_text` + the `picture_hashes` joined with no separator, in list order. `description-put` computes it again from `adf` and refuses `bad-receipt` when it differs.
+- `receipt` is the sha256 hex digest (64 lowercase characters) of the UTF-8 bytes of ticket key + `block_text` + the `picture_hashes` joined with no separator, in list order. `description-put` computes it again from `adf` and refuses `bad-receipt` when it differs. It binds the visible text and the picture bytes only: a link target, a node type or a media id in `adf` is not in the hash, and the read-back compares the media ids.
 - `block_text` is the text of the top-level nodes that hold text, one per line. Figure nodes hold none, so `md-to-adf` without `figures` gives the same `block_text` as the later call with `figures`.
 - `expect_hash` is the `description_hash` that `issue-get` answered when the preview was built. It must equal the preview's `description_hash`.
 - The `png` file name is `afkv2-fig-<receipt 8 chars>-<n>.png`, and the hash of the file must be in `picture_hashes`.

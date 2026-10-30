@@ -235,6 +235,18 @@ def test_github_replies_join_their_root_in_time_order(capsys, tools):
     assert answer["count"] == 1 and [note["body"] for note in answer["threads"][0]["notes"]] == ["x", "y"]
 
 
+def test_gitlab_note_list_holds_replies_and_leaves_out_line_and_system_notes(capsys, tools):
+    gitlab_project(tools)
+    tools.on("glab", "mr", "view", answer={"iid": 7})
+    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, 3, 4))
+    tools.on("glab", "api", "--paginate", answer=[
+        {"id": 1, "type": None, "body": "plain"},
+        {"id": 2, "type": "DiscussionNote", "body": "reply"},
+        {"id": 3, "type": "DiffNote", "body": "on a line"},
+        {"id": 4, "system": True, "body": "system"}])
+    assert [note["body"] for note in good(capsys, "gitlab", "note-list", id="7")["notes"]] == ["plain", "reply"]
+
+
 def test_gitlab_thread_list_leaves_out_plain_and_system_notes(capsys, tools):
     gitlab_project(tools)
     tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, 3))
@@ -495,6 +507,21 @@ def test_github_change_update_body_goes_on_stdin(capsys, tools):
     assert edit[2] == "new é" and "--body-file" in edit[1]
 
 
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_failed_first_read_of_the_draft_flag_writes_nothing(capsys, tools, kind):
+    tools.on(TOOL[kind], *VIEW[kind], answer=lambda *_: (1, "", "boom"))
+    assert refused(capsys, kind, "change-update-body", id="7", body="new")["code"] == "cli-failed"
+    assert all(call_[1][1] != ("edit" if kind == "github" else "update") for call_ in tools.calls)
+
+
+def test_gitlab_a_failed_read_after_the_write_sets_the_flag_again(capsys, tools):
+    views = iter([{"iid": 7, "draft": True}, (1, "", "boom")])
+    tools.on("glab", "mr", "view", answer=lambda *_: next(views))
+    tools.on("glab", "mr", "update", answer="")
+    assert good(capsys, "gitlab", "change-update-body", id="7", body="new")["draft_restored"] is True
+    assert ["mr", "update", "7", "--draft"] in [call_[1] for call_ in tools.calls]
+
+
 def test_gitlab_change_update_body_restores_the_draft_flag(capsys, tools):
     views = iter([{"iid": 7, "draft": True}, {"iid": 7, "draft": False}])
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
@@ -510,7 +537,7 @@ def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools):
     tools.on("glab", "mr", "view", answer=lambda *_: next(views))
     tools.on("glab", "mr", "update", answer=lambda args, _: (1, "", "nope") if "--draft" in args else "")
     error = refused(capsys, "gitlab", "change-update-body", id="7", body="new")
-    assert error["code"] == "draft-lost" and error["id"] == "7"
+    assert error["code"] == "draft-lost" and error["id"] == "7" and "glab mr update 7 --draft" in error["reason"]
 
 
 def test_gitlab_a_kept_draft_flag_needs_no_restore(capsys, tools):
@@ -705,6 +732,19 @@ def test_ci_wait_spends_the_budget_then_stops(capsys, tools, no_sleep, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
+def test_ci_wait_with_no_budget_and_no_status_is_unreadable(capsys, tools, no_sleep, kind):
+    tools.on(TOOL[kind], *VIEW[kind], answer="")
+    assert refused(capsys, kind, "ci-wait", id="7", budget=0)["code"] == "unreadable"
+    assert len(tools.calls) == 1
+
+
+def test_ci_wait_on_a_change_with_no_checks_is_unreadable_when_the_budget_ends(capsys, tools, no_sleep):
+    tools.on("glab", "mr", "view", answer={"iid": 7})
+    assert refused(capsys, "gitlab", "ci-wait", id="7", budget=1, interval=1)["code"] == "unreadable"
+    assert no_sleep == [1]
+
+
+@pytest.mark.parametrize("kind", KINDS)
 def test_ci_wait_reports_an_unreadable_pipeline(capsys, tools, no_sleep, kind):
     tools.on(TOOL[kind], *VIEW[kind], answer="")
     error = refused(capsys, kind, "ci-wait", id="7", budget=30, interval=1)
@@ -756,6 +796,7 @@ def test_ci_wait_stops_at_once_when_the_command_is_absent(capsys, monkeypatch, n
     ("github", [{"state": "SUCCESS"}], "success"),
     ("github", [{"state": "ERROR"}], "failed"),
     ("github", [{"conclusion": "STALE"}], "failed"),
+    ("github", [{"conclusion": "ACTION_REQUIRED"}], "running"),
     ("github", [{"state": "EXPECTED"}], "running"),
     ("github", [{"conclusion": "A_NEW_WORD"}], "running"),
     ("github", [{"conclusion": "SUCCESS"}, {"state": "PENDING"}], "running"),
@@ -778,10 +819,10 @@ def test_gitlab_pipeline_words_become_the_contract_words(capsys, tools, word, st
     assert good(capsys, "gitlab", "change-view", id="7")["pipeline"] == {"status": status}
 
 
-@pytest.mark.parametrize("word", ["skipped", "failed", "canceled"])
-def test_gitlab_ci_wait_ends_on_a_final_contract_word(capsys, tools, no_sleep, word):
+@pytest.mark.parametrize("word,status", [("skipped", "success"), ("failed", "failed"), ("canceled", "canceled")])
+def test_gitlab_ci_wait_ends_on_a_final_contract_word(capsys, tools, no_sleep, word, status):
     tools.on("glab", "mr", "view", answer=ci_answer("gitlab", word))
-    assert good(capsys, "gitlab", "ci-wait", id="7", budget=30, interval=1)["status"] != "running"
+    assert good(capsys, "gitlab", "ci-wait", id="7", budget=30, interval=1)["status"] == status
     assert no_sleep == []
 
 

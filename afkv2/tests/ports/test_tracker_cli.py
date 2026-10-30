@@ -88,6 +88,15 @@ def test_md_to_adf_answers_the_text_the_receipt_covers(capsys):
     assert code == 0 and answer["block_text"] == "A\nb"
 
 
+def test_the_preview_text_equals_the_text_of_the_later_call_with_figures(capsys):
+    markdown = "# A\n\nb\n\nAFKV2FIGURE1ENDFIGURE\n\nc"
+    figure = [{"type": "mediaSingle", "content": []}]
+    _, preview = call(capsys, "md-to-adf", json.dumps({"markdown": markdown}))
+    _, write = call(capsys, "md-to-adf", json.dumps({"markdown": markdown, "figures": {"1": figure}}))
+    assert preview["block_text"] == write["block_text"] == "A\nb\nc"
+    assert figure[0] in write["content"] and figure[0] not in preview["content"]
+
+
 def test_a_tracker_kind_that_is_no_word_is_bad_payload(capsys):
     code, answer = call(capsys, "issue-get", json.dumps({"key": "x", "tracker": {"kind": "jira"}}))
     assert code == 2 and answer["error"]["code"] == "bad-payload"

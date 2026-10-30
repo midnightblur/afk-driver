@@ -129,7 +129,8 @@ def _build_blocks(tokens, i, stop, fig_nodes):
             i += 1
         elif kind in ("fence", "code_block"):
             info = (token.info or "").strip().split()
-            node = {"type": "codeBlock", "content": [{"type": "text", "text": token.content.rstrip("\n")}]}
+            code = token.content.rstrip("\n")
+            node = {"type": "codeBlock", "content": [{"type": "text", "text": code}] if code else []}
             if info:
                 node["attrs"] = {"language": info[0]}
             nodes.append(node)

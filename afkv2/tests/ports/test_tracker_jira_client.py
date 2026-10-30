@@ -75,6 +75,10 @@ def test_codex_config_is_the_last_source(home):
 def test_a_broken_claude_json_does_not_stop_the_lookup(home, monkeypatch):
     (home / ".claude.json").write_text("{not json", encoding="utf-8")
     assert jira.resolve_creds_env() == {}
+
+
+def test_the_codex_config_is_read_after_a_broken_claude_json(home):
+    (home / ".claude.json").write_text("{not json", encoding="utf-8")
     (home / ".codex").mkdir(exist_ok=True)
     (home / ".codex" / "config.toml").write_text(
         '[mcp_servers.tracker.env]\nJIRA_BASE_URL = "https://codex.test"\nJIRA_EMAIL = "c@x.test"\nJIRA_API_TOKEN = "c-tok"\n',

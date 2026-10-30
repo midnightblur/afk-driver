@@ -80,7 +80,15 @@ def test_only_the_host_names_the_kind(capsys, tools, monkeypatch, url, tool, vie
     assert call(capsys, "change-view", '{"id":"7"}')[1]["id"] == "7"
 
 
-@pytest.mark.parametrize("url", ["https://example.test/github-archive/r.git\n", "https://notgithub.example/o/r.git\n"])
+def test_a_dash_ends_a_part_of_the_host(capsys, tools, monkeypatch):
+    monkeypatch.setattr(settings, "read_config", lambda: {})
+    tools.on("git", "remote", "get-url", answer="git@gitlab-ee.corp.example:o/r.git\n")
+    tools.on("glab", "mr", "view", answer={"iid": 7})
+    assert call(capsys, "change-view", '{"id":"7"}')[1]["id"] == "7"
+
+
+@pytest.mark.parametrize("url", [
+    "https://example.test/github-archive/r.git\n", "https://notgithub.example/o/r.git\n", "https://github-proxy.gitlab.example/o/r.git\n"])
 def test_a_host_that_names_no_forge_is_refused(capsys, tools, monkeypatch, url):
     monkeypatch.setattr(settings, "read_config", lambda: {})
     tools.on("git", "remote", "get-url", answer=url)

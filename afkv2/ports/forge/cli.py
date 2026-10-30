@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import urllib.parse
 from pathlib import Path
@@ -29,8 +30,9 @@ def _from_origin():
         return None
     if done.returncode != 0:
         return None
-    labels = _host(done.stdout).lower().split(".")
-    return next((kind for kind in KINDS if kind in labels), None)
+    labels = re.split(r"[.-]", _host(done.stdout).lower())
+    named = [kind for kind in KINDS if kind in labels]
+    return named[0] if len(named) == 1 else None
 
 
 def _kind(payload):

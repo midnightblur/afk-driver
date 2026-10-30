@@ -107,6 +107,14 @@ def test_an_empty_list_item_has_no_text_node():
     assert item["content"] == [{"type": "paragraph", "content": []}]
 
 
+def test_an_empty_code_block_has_no_text_node():
+    assert convert("```\n```")[0]["content"] == []
+
+
+def test_a_code_block_keeps_its_text():
+    assert convert("```\nx\n```")[0]["content"] == [{"type": "text", "text": "x"}]
+
+
 def test_a_figure_with_no_entry_in_the_map_is_refused():
     with pytest.raises(envelope.Refusal) as caught:
         adf.md_to_adf_content("before\n\nAFKV2FIGURE3ENDFIGURE\n\nafter", {0: []})

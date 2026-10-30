@@ -251,3 +251,10 @@
 - Chosen: B — all are in the contracts now, before a consumer exists
 - Supersedes: none
 - To reverse: `jira.py`, `github_issues.py`, both `cli.py`
+
+## D-37 — changes to the port after the second review pass
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep the answers vs B — (1) GitHub `ACTION_REQUIRED` reads `running`, as GitLab `manual` does; (2) a failed first read of the draft flag refuses and writes nothing, on both forges, so `was_draft` has no `"unknown"`; (3) a failed read after the GitLab write sets the flag again; (4) a last `ci-wait` read with no status refuses `unreadable`; (5) GitLab `note-list` holds every note that is not on a line and not from the system, so a reply on a plain note is in `note-list`, and `thread-list` holds line comments only, as on GitHub; (6) a dash also ends a part of the host, and a host that names both forges refuses `no-forge`; (7) a GitHub key needs a number of digits
+- Chosen: B — (1) ends a wait that a human can still end. (2) and (3) close the hole D-32 left open. (5) no comment is lost between the two verbs: the `DiscussionNote` type is from memory of the GitLab API, unverified live. The receipt binds visible text and picture bytes, as the SDD formula says: a link target, a node type or a media id is not in the hash, so D-29's "other `adf`" means other text
+- Supersedes: ADR-0007 "v1's ... JSON answers" for items 1, 2, 4 and 5. D-30 for `ACTION_REQUIRED`. D-18 "in the answers of `issue-get` and `description-put`": `description-put` has answered no `description_hash` since D-36. Also D-36 "Supersedes: none"
+- To reverse: `_rollup` and `change_update_body` in `github.py`; `change_update_body`, `note_list`, `_on_a_line` in `gitlab.py`; `ci_wait` in `common.py`; `_from_origin` in `cli.py`; `_repo_and_number` in `github_issues.py`

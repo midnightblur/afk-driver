@@ -71,7 +71,7 @@ def _rollup(data):
     seen = {(check.get("conclusion") or check.get("state") or check.get("status") or "").upper() for check in checks}
     if not checks:
         return ""
-    if seen & {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR", "STALE"}:
+    if seen & {"FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ERROR", "STALE"}:
         return "failed"
     if seen & {"CANCELLED", "CANCELED"}:
         return "canceled"
@@ -155,10 +155,7 @@ def change_create_draft(payload):
 
 def change_update_body(payload):
     change, body = common.ref(payload), common.body_text(payload)
-    try:
-        was_draft = "true" if _view(change, payload, "isDraft").get("isDraft") else "false"
-    except Refusal:
-        was_draft = "unknown"
+    was_draft = "true" if _view(change, payload, "isDraft").get("isDraft") else "false"
     shell.checked("gh", ["pr", "edit", change, *_flag(payload), "--body-file", "-"], stdin_text=body)
     return ok(id=change, was_draft=was_draft, draft_restored=False)
 
