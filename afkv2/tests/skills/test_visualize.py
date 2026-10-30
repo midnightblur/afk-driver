@@ -581,10 +581,15 @@ def test_fake_accepts_a_settled_round_and_a_next_round():
     assert any(c.get("props", {}).get("text") == "Carried from i-format." for c in components)
 
 
-def test_fake_accepts_a_note_on_a_card_of_an_earlier_round():
+def _note_on_an_older_card():
     doc = _next_round(_example())
     _at("i-data")(doc)["notes"] = [_note("i-data", 2)]
-    check_document(doc)
+    return doc
+
+
+def test_fake_accepts_the_unverified_shape_of_a_note_on_an_older_card():
+    """The engine-gated test decides this shape once the engine merges."""
+    check_document(_note_on_an_older_card())
 
 
 def test_examples_carry_no_note_and_no_response():
@@ -608,9 +613,14 @@ def test_card_page_settled_example_has_the_schema_shape():
 def test_card_page_states_the_round_pass_rules():
     text = " ".join((PAGES_DIR / "card.md").read_text("utf-8").split())
     for rule in ("Never change a card in a settled round.",
-                 "a clear note and no signal that disagrees with it",
-                 "A write-in has no note id, so it cannot settle by note",
+                 "`needs_reading` on a `decided`, `confirm` or `debate` card with a clear note "
+                 "and no signal that disagrees with it: set `state` to `settled_by_note`",
+                 "`needs_reading` in any other case: set `state` to `open`",
+                 "A `signoff` card settles only by a `sign` mark",
+                 "A note on an `info` card gets a reply only",
+                 "the new card for that point is a `confirm` card",
                  "Make one new card for each point that returns",
+                 "a `decided`, `confirm`, `debate` or `signoff` card of an earlier round",
                  "An `info` card stays in its round."):
         assert rule in text
 
@@ -718,7 +728,9 @@ def test_guide_names_no_upstream_caller():
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake above checks")
-@pytest.mark.parametrize("label, doc", all_documents(), ids=lambda v: v if isinstance(v, str) else "")
+@pytest.mark.parametrize("label, doc",
+                         [*all_documents(), ("note on an older card", _note_on_an_older_card())],
+                         ids=lambda v: v if isinstance(v, str) else "")
 def test_engine_check_accepts_every_example(label, doc, tmp_path):
     path = tmp_path / "doc.json"
     path.write_text(json.dumps(doc), "utf-8")
