@@ -20,3 +20,10 @@
 - Chosen: A — SDD §4 item fields have no options field (signed HL-1, so B would change a signed schema); a table is the component that holds things side by side. How the page offers the option mark is the engine's (S1 0003).
 - Supersedes: none
 - To reverse: change the debate example in `components/card.md` when the S1 card renderer names its option form
+
+## D-4 — an unsettled point moves to the next round as a new card
+- 2026-10-30 · decided by execute (0006-visualize-skill, review finding 0006-visualize-skill/f004)
+- Options: A — a new card with a new id in the next round, whose body names the old card id vs B — the old card stays answerable in its settled round
+- Chosen: A — SDD §6 says "a settled round is never rewritten" and SDD §4 says an item id is "never reused", so only a new card keeps both rules; B would change a settled round when the point settles later.
+- Supersedes: none
+- To reverse: change `components/card.md` when the S1 engine defines how a round chip marks a carried point

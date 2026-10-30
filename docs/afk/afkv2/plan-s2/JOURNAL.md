@@ -6,3 +6,9 @@
 2026-10-30 00:57 | execute | 0006-visualize-skill | decision(D-2) — one guide page per component; the guide uses component names, not requirement ids
 2026-10-30 00:57 | execute | 0006-visualize-skill | decision(D-3) — a debate card shows its options as table columns, because the signed document format has no options field
 2026-10-30 00:57 | execute | 0006-visualize-skill | gate-skip — commit 9f99d477 made with AFK_SKIP_PRECOMMIT_GATES=1: the v1 native-contract gate blocked on 151 lines, all in pre-existing docs/afk/afkv2/ and plan-s3/plan-s4 files ("forbidden harness-name vocabulary", "forbidden claude-plugin-root vocabulary"); no finding in afkv2/skills/visualize or afkv2/tests; skill-registry, genericity and behavior-registry gates passed; the comment gate ran and its 3 findings were fixed before the commit
+2026-10-30 00:59 | execute | 0006-visualize-skill | pushed bc2349c9..6edaa3a1 (2 commits) — the guide and its test are on the branch; draft pull request 154 opened against feat/afkv2
+2026-10-30 00:59 | execute | 0006-visualize-skill | verifying — running the file checks and the guide test
+2026-10-30 00:59 | execute | 0006-visualize-skill | reviewing — both checks green; independent reviewers now read the change
+2026-10-30 01:16 | execute | 0006-visualize-skill | review blocking crit=0 high=1 med=4 low=9 — round 1: reviewers found weak refusal tests in the guide test and gaps in the card rules for blocked and unsettled points; all 14 are posted on the pull request and being fixed
+2026-10-30 01:16 | execute | 0006-visualize-skill | decision(D-4) — a point still unsettled after a round moves to the next round as a new card that names the old one
+2026-10-30 01:18 | execute | 0006-visualize-skill | gate-skip — commit 29b7ca3b made with AFK_SKIP_PRECOMMIT_GATES=1: the same native-contract block on pre-existing docs/afk/afkv2 files only; the comment gate passed first
