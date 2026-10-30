@@ -38,6 +38,7 @@ complex
 - afkv2/hooks/built/afkv2-core-behaviors.claude-subagent.json   # seed only; 0002 owns the content
 - .gitattributes   # afkv2 lines only; v1 lines byte-identical
 - .agents/plugins/marketplace.json   # add the afkv2 entry only; v1 entries byte-identical
+- .github/workflows/tests.yml   # add the afkv2 test step only; v1 steps byte-identical
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
@@ -56,6 +57,9 @@ complex
 - [ ] If a harness refuses a `.cmd` hook, the subtask stops with `design_conflict`: the fallback (Python hook, 50 ms limit back to the owner) is the owner's call (SDD §7 failure row ".cmd hook refused by a harness")
 - [ ] The marketplace entry adds afkv2 and leaves the v1 entry byte-identical (PRD §SK-01)
 - [ ] Implements the public interfaces in SDD §8 rows "config reader" and "session-start hook" unmodified (SDD §8)
+- [ ] The plugin check reads only the afkv2 plugin tree, never spec-folder prose (SDD §7 v1 defects)
+- [ ] Built files are LF by a `.gitattributes` rule, and the plugin check fails on a CR byte or a hash mismatch in a built file (SDD §7 v1 defects)
+- [ ] `.github/workflows/tests.yml` runs `afkv2/tests` on both OSes and skips only the live tests that need a harness login; every v1 step stays byte-identical (SDD §7 v1 defects)
 
 ## Produces
 - afkv2/.claude-plugin/plugin.json#"name": "afkv2" — Claude manifest

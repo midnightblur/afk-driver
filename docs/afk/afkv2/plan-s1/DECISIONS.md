@@ -174,3 +174,10 @@
 - Chosen: A — owner ruling. It closes findings f004 and f053 on that basis. A wiring IOU is written only if the consumer of the entry is still later. The orchestrator found no later plan step that names this file (grep of plan-s1 to plan-s4, SDD and PRD); the consumer is Codex, reading the marketplace, and owner-run check 1 uses it, so no IOU is expected. The 0001 agent confirms this when it restores the entry
 - Supersedes: D-8 in full
 - To reverse: delete the afkv2 entry and the path in the 0001 `## Scope`; D-8 then applies again
+
+## D-26 — plan author's update: 3 Acceptance bullets on 0001, and CI runs the v2 tests
+- 2026-10-30 · decided by the plan author (reversible, in goal), relayed in session S1
+- Options: A — merge origin/feat/afkv2 (SDD §7 gained 5 rows at 05ef43e8), add the 3 bullets citing SDD §7, and add `.github/workflows/tests.yml` to the 0001 `## Scope` for one step that runs `afkv2/tests` on both OSes, skipping only the live tests that need a harness login vs B — leave CI on the v1 suites only (D-11)
+- Chosen: A — ruling of the plan author. The step follows the existing matrix, so it runs on Linux while that row exists. The owner has an open question on removing the Linux row; if it goes, this step goes with it and needs no edit. The hook tests already skip off Windows (`afkv2/tests/test_hooks.py:21`)
+- Supersedes: gap 1 of D-11 (no job runs `afkv2/tests`); the other D-11 gap stands
+- To reverse: remove the step and the path in the 0001 `## Scope`, and the 3 bullets
