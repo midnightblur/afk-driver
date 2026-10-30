@@ -144,3 +144,6 @@
 2026-10-30 15:35 | execute | 0009-propose-solution-skill | gate-skip — commits aa858ad2, 969c8d83, 27564e9b and the closing plan commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); pull request checks do not run afkv2/tests, so the local tests are the only check
 2026-10-30 15:35 | execute | 0009-propose-solution-skill | done — the design skill is finished and tested against recorded stand-ins; the Codex live check is written for the owner to run (D-S-8), and its test against the real page engine waits for that merge
 2026-10-30 15:38 | execute | 0009-propose-solution-skill | pull request text: the forge command got named flags, ignored them and wrote an empty text; restored within 1 minute from the copy read just before, with 0009 ticked, and read back the same; the command takes one JSON object, a plugin fault that 0008 already noted
+2026-10-30 15:41 | autopilot | run | decision(D-55) — the publish skill already follows the newly frozen preview format, so it needed no change, only a new test run
+2026-10-30 15:41 | autopilot | run | decision(D-56) — subtask 0010 will write the exact words the autopilot of the other session reads for a check that cannot run here
+2026-10-30 15:41 | autopilot | run | heartbeat 4/5 done, starting 0010-to-subtasks-skill — the design skill is finished, moving to the last slice, the skill that cuts a design into a plan

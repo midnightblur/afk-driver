@@ -377,3 +377,17 @@
 - Chosen: A — deterministic work goes in a script. A missing INDEX.md blocks nothing, and the answer says `index_missing`. The section list is read from the template in `SDD-FORMAT.md`, which has one home.
 - Supersedes: none
 - To reverse: delete the `gate` verb, and state the checks in `SKILL.md`
+
+## D-55 — orchestrator ruling: 0008 builds to the frozen publish preview; no code change was needed
+- 2026-10-30 · decided by the session orchestrator (ruling sent to this session mid-run; SDD §8 "Frozen on day 1" row "publish preview", commit a867cf98; plan-s3 D-17, D-29)
+- Options: A — check 0008 against the frozen row and change only what differs vs B — rework the publish flow
+- Chosen: A — `publish.py` already writes `ticket_key`, `receipt`, `description_hash` and `picture_hashes` in `preview.json` (plus its own `block_text`, `pictures`, `index`) and passes the path as `preview` to `attachment-put` and `description-put`. `fake_jira_port.py` refuses `bad-receipt` on a receipt, ticket, hash or picture-hash mismatch and computes the receipt again from the written block text. After the merge at 0272df31, `test_to_prd.py` and `test_propose_solution.py` give 161 passed, 3 skipped. The tests against the real S3 port skip on this branch until S3 merges; the 0008 executor reports that they passed against the S3 port code (not re-checked)
+- Supersedes: none
+- To reverse: none; this records a check
+
+## D-56 — orchestrator ruling: 0010 emits the gate-not-applicable form that S3 0015 reads
+- 2026-10-30 · decided by the session orchestrator (ruling sent to this session mid-run; plan-s3 D-68, D-70, D-71)
+- Options: A — add the S3 form to 0010 Acceptance vs B — 0010 chooses its own form
+- Chosen: A — S3 `start_gate.py` reads a check cell that starts `not applicable:` with a reason, and refuses another form as `bad-not-applicable`. A second form would make a valid plan refuse at the autopilot start. The new bullet is in `## Acceptance` of 0010, and the plan check is clean
+- Supersedes: D-32, only its open phrase "names it not applicable", which now has this form
+- To reverse: change the bullet and `NOT_APPLICABLE` in `start_gate.py`
