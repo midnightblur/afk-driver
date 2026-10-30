@@ -454,3 +454,10 @@
 - Chosen: A — the user rule on wiring requires a line for each artifact whose consumer comes later. No code changes outside Scope.
 - Supersedes: none
 - To reverse: delete the 3 lines
+
+## D-66 — correction of D-59: the check does not read `./mvnw` as a path
+- 2026-10-30 · decided by execute (0010-to-subtasks-skill)
+- Options: A — state the correction here and leave the gap open as advice (owner ruling R-2) vs B — fix it in this slice
+- Chosen: A — D-59 says that with the Scope rule alone "every `./mvnw`" refuses. That is wrong: review finding r-001 is right, a run of `check_paths` on `./mvnw test` answers no path. So an unowned one-part `./tool` passes the check, and S3 D-71 leaves such a command to this check. The feature-branch reason of D-59 still holds for a path with a folder, such as `scripts/run_all`. R-2 allows no fix for a medium finding, so the gap stays open on pull request 154, and the final report names it for the owner.
+- Supersedes: D-59, only its `./mvnw` clause
+- To reverse: test the slash before `removeprefix("./")` in `check_paths`, and add a test

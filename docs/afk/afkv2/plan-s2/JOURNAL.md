@@ -165,3 +165,10 @@
 2026-10-30 20:50 | execute | 0010-to-subtasks-skill | real engine — the one-off run found that the engine accepts only the file name `<skill>-<session>.json`; the page document now has that name (D-57)
 2026-10-30 20:50 | execute | 0010-to-subtasks-skill | codex live check — written for the owner in afkv2/skills/to-subtasks/CODEX-LIVE-CHECK.md and not run (D-S-8)
 2026-10-30 20:51 | execute | 0010-to-subtasks-skill | reviewing — independent review starts, at most 3 rounds (owner ruling R-2)
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | review(r1) advisory — no critical and no high finding; 13 medium and 10 low findings stay open on pull request 154 as advice (keys f001 to f023); the gate passes after round 1 (owner ruling R-2)
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | adversary: skipped (owner ruling R-1)
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | decision(D-66) — correction of D-59: the check does not read `./mvnw` as a path, so an unowned one-part command passes; the gap stays open as advice and the final report names it
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | wiring scan — hooks/wiring-gate.sh exit 0; the gate closed the IOU line of check_plan.py because SKILL.md and the tests now refer to it; the S3 consumer is not merged, and the 4 skipped tests compare the call form once it merges
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | rationale — rationale-verify --clear ok, 0 pending
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | pre-commit gates skipped (owner ruling R-4) — fb84eba7, 56c93aa9, d6c8793a, fb6257a8, and the commit that carries this line
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | done — tiers green, review gate passed, Draft pull request 154 checklist ticked; Codex live check is owner-run and not run (D-S-8)
