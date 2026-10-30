@@ -48,12 +48,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
 4. **Work one round.** Load [ROUNDS.md](ROUNDS.md) and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify claims, weigh the options, take every decision the rules allow, and write the `Ledger` rows as they change. Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
-   An item has the page document fields, plus 2 fields of the input only:
+   An item has the page document fields, plus 3 fields of the input only:
 
    | Field | Effect |
    |-------|--------|
    | `critical: true` | the card asks a critical-aspect question: how an existing code area, data set or flow must change. The body root must be a picture of the current state, with the question in its `children`. The build refuses any other shape. |
    | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body. A gap makes it a `confirm` card and the answer lists it in `degraded`. |
+   | `carries: [<old card id>]` | this new card asks a returning point again, and the build writes that into the body. Every point the round pass returns needs one such card; the build refuses the next round without it. A mention in other text or in `depends_on` carries nothing. |
 
 5. **Build and show the round.** Done when `present` answers ok.
 
@@ -65,7 +66,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/page_round.py" present --doc "<doc>"
    ```
 
-   `present` runs check, render and show. A refusal holds the failed `verb`. On `check`, fix the named field. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
+   `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`, which rewrites the current round when it has no answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
 
 6. **Wait for the answer.** The answer reaches you with no chat message from the human.
 
@@ -96,7 +97,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `unblock` | item id | the point it waited on settled |
    | `replies` | `{text, about}` | every other note: a steer word for word, an answer |
 
-   A settled-round card never changes: a point in `returned` gets one new card in the next round. A human line `take over` is the escape: [ROUNDS.md](ROUNDS.md).
+   A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A human line `take over` is the escape: [ROUNDS.md](ROUNDS.md).
 
 8. **Save the state.** Done when the log holds this round's settled rows and owner notes, and each resolved term is in the glossary.
 

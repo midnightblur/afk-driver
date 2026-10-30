@@ -1,7 +1,7 @@
 """Write the page document of one grill session (schema afkv2.page/0, SDD §4).
 
 Verbs, run from the repository root:
-  build          --doc D --session S --ticket K --round-input F --ticket-file T
+  build          --doc D --session S --ticket K --round-input F --ticket-file T [--replace]
   apply-readings --doc D --readings F
   pending        --doc D
 
@@ -13,7 +13,6 @@ fields, and that no asking card is lost when a round closes.
 from __future__ import annotations
 
 import copy
-import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -28,7 +27,7 @@ NEW_STATES = {"open", "blocked"}
 PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
-ITEM_INPUT_FIELDS = {"id", "kind", "node", "state", "body", "critical", "decided"} | ENGINE_ITEM_FIELDS
+ITEM_INPUT_FIELDS = {"id", "kind", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
 TICKET_CARD = "i-ticket"
 
 
@@ -127,6 +126,11 @@ def _item(raw, known_ids, degraded):
     if raw.get("critical") and body["type"] not in PICTURES:
         raise Refusal("no-picture", f"{where}: a critical-aspect question needs a picture of the current state "
                                     f"as the body root, above the question; the root is {body['type']!r}")
+    carries = raw.get("carries") or []
+    if not set(carries) <= known_ids:
+        raise Refusal("bad-item", f"{where}: carries an unknown card: {sorted(set(carries) - known_ids)}")
+    if carries:
+        body["children"] = [*(body.get("children") or []), _text(f"Carries {', '.join(carries)}.", f"{item_id}-carries")]
     item = {"id": item_id, "kind": kind, "state": state, "body": body}
     if raw.get("node"):
         item["node"] = raw["node"]
@@ -156,9 +160,10 @@ def _ticket_card(ticket):
         "props": {"text": f"{ticket['key']}: {ticket.get('title') or ''}"}, "children": children}}
 
 
-def _names_card(item, card_id):
-    pattern = rf"(?<![\w-]){re.escape(card_id)}(?![\w-])"
-    return re.search(pattern, json.dumps(item["body"], ensure_ascii=False)) is not None
+def _carries_card(item, card_id):
+    """True when the item states that it carries the card; a mention in other text or in depends-on carries nothing."""
+    stated = next((c for c in _components(item["body"]) if c.get("id") == f"{item['id']}-carries"), {})
+    return re.search(rf"(?<![\w-]){re.escape(card_id)}(?![\w-])", (stated.get("props") or {}).get("text", "")) is not None
 
 
 def returning(doc):
@@ -181,9 +186,9 @@ def returning(doc):
 
 
 def _carried(doc, item, own_round):
-    """True when a card of a later round than the item's last note names it: the point lives there now."""
+    """True when a card of a later round than the item's last note carries it: the point lives there now."""
     after = max([own_round, *(note.get("round", own_round) for note in _live_notes(item))])
-    return any(_names_card(card, item["id"]) for rnd in doc["rounds"] if rnd["n"] > after for card in rnd["items"])
+    return any(_carries_card(card, item["id"]) for rnd in doc["rounds"] if rnd["n"] > after for card in rnd["items"])
 
 
 def _close_current(doc, new_items):
@@ -197,10 +202,22 @@ def _close_current(doc, new_items):
         raise Refusal("round-pass-open", f"round {current['n']}: read these points first: {', '.join(unread)}")
     returned = [item for item in current["items"]
                 if item["kind"] in ASKING and item["state"] in NEW_STATES] + returning(doc)
-    lost = [item["id"] for item in returned if not any(_names_card(new, item["id"]) for new in new_items)]
+    lost = [item["id"] for item in returned if not any(_carries_card(new, item["id"]) for new in new_items)]
     if lost:
-        raise Refusal("missing-carry", f"these points return, and no new card names them: {', '.join(lost)}")
+        raise Refusal("missing-carry", f"these points return, and no new card carries them: {', '.join(lost)}")
     current["state"] = "settled"
+
+
+def _drop_unanswered_round(doc):
+    """Take back the current round so a corrected one replaces it; the round before it is current again."""
+    current = current_round(doc)
+    if current is None:
+        raise Refusal("round-not-replaceable", "no round is current")
+    if current.get("responses"):
+        raise Refusal("round-answered", f"round {current['n']} has an answer; a new round carries its points")
+    doc["rounds"].remove(current)
+    if doc["rounds"]:
+        doc["rounds"][-1]["state"] = "current"
 
 
 def _apply_maps(doc, maps, n):
@@ -214,12 +231,13 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
-def build_round_document(doc_path, session, round_input, ticket=None):
+def build_round_document(doc_path, session, round_input, ticket=None, replace=False):
     """Create the document or append the next round; write nothing on a refusal.
 
     `round_input` holds banner, items and optional maps, replies, colour. An item may carry
-    `critical` (a picture must be the body root) and `decided` (the six decided-card fields; a gap
-    makes it a confirm card). `ticket` adds the ticket card to round 1.
+    `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
+    makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
+    ticket card to round 1. `replace` rewrites a current round that has no answer.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -240,6 +258,8 @@ def build_round_document(doc_path, session, round_input, ticket=None):
     else:
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         doc = {"schema": SCHEMA, "session": {**session, "started": started}, "maps": [], "rounds": []}
+    if replace:
+        _drop_unanswered_round(doc)
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
@@ -363,6 +383,7 @@ def main(argv):
     parser.add_argument("--ticket")
     parser.add_argument("--round-input")
     parser.add_argument("--ticket-file")
+    parser.add_argument("--replace", action="store_true")
     parser.add_argument("--readings")
     args = parser.parse_args(argv)
     if args.verb == "build":
@@ -372,7 +393,7 @@ def main(argv):
         ticket = read_json(args.ticket_file) if args.ticket_file else None
         feature = Path(args.doc).parent.parent.name
         session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
-        return build_round_document(args.doc, session, round_input, ticket)
+        return build_round_document(args.doc, session, round_input, ticket, args.replace)
     if args.verb == "apply-readings":
         if not args.readings:
             raise Refusal("usage", "apply-readings needs --readings", 2)

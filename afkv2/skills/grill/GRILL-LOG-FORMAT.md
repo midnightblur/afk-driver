@@ -22,7 +22,7 @@ The checkpoint of a grill, in the spec folder. A row is overwritten as its state
 | Settled, by note | `sync` | `- Settled: <card text> · settled by note R<n> · reading: <reading> · card <id>` |
 | Settled, decided card | `sync` | `- Settled: <decision> · decided-by agent R<n> · accepted <date> · <grade>: <evidence> · reverse: <clause> · card <id>` |
 | Open | `sync` | `- Open: <card text> · card <id>` |
-| Carried | `sync` | `- Carried: <card text> · card <id>`: an older card with a note, returned as a new card |
+| Carried | `sync` | `- Carried: <card text> · card <id>`: an older card with a note, returned as a new card with `carries` |
 | Info | `sync` | `- Info: <card text> · card <id>`: an `info` card with a note |
 | Owner note | `sync` | `  owner note on <id> (<note id>): "<the human's words>"`, under the row of its card |
 | Steer | `sync` | `- Steer: <map node id> (<note id>): "<the human's words>"` |

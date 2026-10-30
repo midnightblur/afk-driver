@@ -186,7 +186,7 @@ def write_term(log, term, glossary, definition):
     path = Path(glossary)
     text = path.read_text("utf-8") if path.exists() else "# Glossary\n"
     entry = f"**{term}**:\n{' '.join(definition.split())}\n"
-    pattern = re.compile(rf"^\*\*{re.escape(term)}\*\*:\n(?:.+\n?)*", re.M)
+    pattern = re.compile(rf"^\*\*{re.escape(term)}\*\*:[^\n]*\n(?:(?!`)[^\n]+\n?)*", re.M)
     if pattern.search(text):
         text = pattern.sub(lambda _: entry, text, count=1)
     else:

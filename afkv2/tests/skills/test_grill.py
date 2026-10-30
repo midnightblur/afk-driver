@@ -522,12 +522,14 @@ def test_unclear_note_returns_to_open_and_must_be_carried(world):
         "r.json", {"open": [{"item": "i-format", "reply": "Your note leaves the format open."}]}))
     with pytest.raises(AssertionError, match="missing-carry"):
         world.build_round(started, next_round([{"id": "i-x", "kind": "confirm", "body": text("x")}]), ticket=False)
-    carried = {"id": "i-format-2", "kind": "debate", "node": "n-format",
-               "body": text("From i-format. Your note: maybe. Which file format?")}
+    carried = {"id": "i-format-2", "kind": "debate", "node": "n-format", "carries": ["i-format"],
+               "body": text("Your note: maybe. Which file format?")}
     world.build_round(started, next_round([carried]), ticket=False)
     world.run("present", doc=started["doc"])
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
+    assert "carries" not in doc["rounds"][1]["items"][0]
+    assert "Carries i-format." in json.dumps(doc["rounds"][1]["items"][0]["body"])
     check_authored_part(doc)
 
 
@@ -539,8 +541,8 @@ def test_a_note_on_an_older_card_returns_and_must_be_carried(world):
     assert [p["id"] for p in pending["returned"]] == ["i-scope"]
     with pytest.raises(AssertionError, match="missing-carry"):
         world.build_round(started, next_round([{"id": "i-three", "kind": "confirm", "body": text("x")}]), ticket=False)
-    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm",
-                                            "body": text("From i-scope: only for open orders?")}]), ticket=False)
+    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
+                                            "body": text("Only for open orders?")}]), ticket=False)
     world.run("sync", doc=started["doc"], log=started["log"])
     log = Path(started["log"]).read_text("utf-8")
     assert 'owner note on i-scope (N-2-i-scope): "only for open orders"' in log
@@ -696,7 +698,72 @@ def test_term_upsert_keeps_other_entries(world):
     glossary = world.repo / "GLOSSARY.md"
     glossary.write_text("# G\n\n**Alpha**:\nFirst.\n`Related:` Beta\n\n**Beta**:\nSecond.\n", "utf-8")
     world.run("term", log=started["log"], glossary=glossary, term="Alpha", definition="New.")
-    assert glossary.read_text("utf-8") == "# G\n\n**Alpha**:\nNew.\n\n**Beta**:\nSecond.\n"
+    assert glossary.read_text("utf-8") == "# G\n\n**Alpha**:\nNew.\n`Related:` Beta\n\n**Beta**:\nSecond.\n"
+
+
+def test_a_mention_or_a_dependency_does_not_carry_a_point(world):
+    started = first_round(world)
+    answered(world, started, "i-scope: accept\n")
+    dependent = {"id": "i-next", "kind": "decided", "decided": {**DECIDED, "depends_on": ["i-format"]},
+                 "body": text("Holds if i-format = CSV.")}
+    with pytest.raises(AssertionError, match="missing-carry"):
+        world.build_round(started, next_round([dependent]), ticket=False)
+    world.build_round(started, next_round([dependent, {"id": "i-format-2", "kind": "debate", "carries": ["i-format"],
+                                                       "body": text("Which file format?")}]), ticket=False)
+
+
+def test_a_carry_of_an_unknown_card_is_refused(tmp_path):
+    content = round_one()
+    content["items"][0]["carries"] = ["i-none"]
+    with pytest.raises(rd.Refusal) as caught:
+        rd.build_round_document(tmp_path / "doc.json", session(), content)
+    assert caught.value.code == "bad-item"
+
+
+REPLACE = ('--round-input "<round input>"', '--replace --round-input "<round input>"')
+
+
+def test_a_round_the_engine_refused_can_be_built_again(world):
+    started = world.start_and_read()
+    world.build_round(started, round_one())
+    world.env["FAKE_ENGINE_REFUSE"] = "check"
+    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "check"
+    del world.env["FAKE_ENGINE_REFUSE"]
+    corrected = round_one()
+    corrected["items"][0]["body"] = text("Corrected.")
+    answer = world.run("build", swap=REPLACE, doc=started["doc"], session=started["session"], ticket_key=started["ticket"],
+                       round_input=world.file("round.json", corrected), ticket_file=world.scratch / "ticket.json")
+    assert answer["round"] == 1
+    world.run("present", doc=started["doc"])
+    doc = json.loads(Path(started["doc"]).read_text("utf-8"))
+    assert len(doc["rounds"]) == 1 and doc["rounds"][0]["state"] == "current"
+    shown = json.dumps(doc["rounds"][0]["items"])
+    assert "Corrected." in shown and "per file" not in shown and shown.count('"i-ticket"') == 1
+
+
+def test_replace_restores_the_round_before_and_closes_it_again(world):
+    started = first_round(world)
+    answered(world, started, "i-scope: accept\ni-format: accept\n")
+    world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
+    answer = world.run("build", swap=REPLACE, doc=started["doc"], session=started["session"], ticket_key=started["ticket"],
+                       round_input=world.file("round.json", next_round([{"id": "i-two", "kind": "confirm",
+                                                                         "body": text("Two, corrected.")}])),
+                       ticket_file=world.file("t.json", {}))
+    assert answer["round"] == 2
+    doc = json.loads(Path(started["doc"]).read_text("utf-8"))
+    assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
+    world.run("present", doc=started["doc"])
+
+
+def test_replace_refuses_a_round_with_an_answer(world):
+    started = first_round(world)
+    answered(world, started, "i-scope: accept\ni-format: accept\n")
+    before = Path(started["doc"]).read_bytes()
+    answer = world.run("build", expect=1, swap=REPLACE, doc=started["doc"], session=started["session"],
+                       ticket_key=started["ticket"], round_input=world.file("round.json", round_one()),
+                       ticket_file=world.file("t.json", {}))
+    assert answer["error"]["code"] == "round-answered"
+    assert Path(started["doc"]).read_bytes() == before
 
 
 def test_exit_gate_lists_every_failure_and_passes_when_clean(world):
@@ -760,8 +827,8 @@ def test_a_carried_point_does_not_return_again(world):
     answered(world, started, "i-scope: accept\ni-format: accept\n")
     world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
     answered(world, started, "i-two: accept\ni-scope: note: only for open orders\n")
-    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm",
-                                            "body": text("From i-scope: only for open orders?")}]), ticket=False)
+    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
+                                            "body": text("Only for open orders?")}]), ticket=False)
     pending = answered(world, started, "i-scope-2: accept\n")
     assert pending["returned"] == []
     world.build_round(started, next_round([{"id": "i-four", "kind": "confirm", "body": text("Four.")}]), ticket=False)
