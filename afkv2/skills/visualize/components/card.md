@@ -15,19 +15,27 @@ component tree) and, once settled, `settled`. Kinds:
 | `info` | shows context; it asks nothing | may note it |
 
 `state` is a point state: `open`, `blocked`, `needs_reading`,
-`settled_by_mark`, `settled_by_note`. A new card is `open`; a card that waits on
-another open point is `blocked`.
+`settled_by_mark`, `settled_by_note`. A new card is `open`. A card that waits on
+another open point is `blocked`, and its body names the card it waits on.
 
 ## Use it when
 
 One card per map node or per question. Set `node` when the card belongs to a
 map node. A card stays in its round when the round settles.
 
-The engine settles a point by mark and moves a point with a note to
-`needs_reading`. For such a point, read the note. A clear note: set `state` to
-`settled_by_note` and write `settled` with `by: "note"`, the `round`, the note
-id as `signal` and your `reading`. An unclear note, or signals in conflict: set
-`state` back to `open` and ask again.
+When the human sends a round, the engine settles each point with one mark and
+moves each point with a note to `needs_reading`. Go through that round's cards
+before you mark the round `settled`:
+
+- `needs_reading` with a clear note: set `state` to `settled_by_note` and write
+  `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
+  The `signal` is the note id.
+- `needs_reading` with an unclear note or signals in conflict: set `state` to `open`.
+- `blocked` with the point it waits on now settled: set `state` to `open`.
+
+Then mark the round `settled` and append the next round. Each point that is still
+`open` or `blocked` gets a new card there, with a new id, and its body names the
+old card id. The old card stays as it is.
 
 ## How it looks
 

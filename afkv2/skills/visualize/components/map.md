@@ -19,8 +19,8 @@ and set its `round` to the current round.
 ## How it looks
 
 Boxes and arrows in the maps section, below notes and replies. Settled, open and
-current-focus nodes have different colours. The human can note a node; the
-engine records that note as a steer for the node.
+current-focus nodes have different colours. The human can note a node; that
+note is a steer for the node (`notes-and-replies.md`).
 
 ## Example
 
@@ -32,7 +32,7 @@ engine records that note as a steer for the node.
     "title": "Scope",
     "nodes": [
       {"id": "n-export", "label": "Export", "state": "settled", "round": 1},
-      {"id": "n-format", "label": "File format", "state": "focus", "round": 2},
+      {"id": "n-format", "label": "File format", "state": "focus", "round": 1},
       {"id": "n-access", "label": "Who may export", "state": "open", "round": 1}
     ],
     "edges": [

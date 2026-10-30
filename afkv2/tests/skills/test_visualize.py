@@ -5,6 +5,7 @@ the page document v0 contract (SDD §4 field tables). When the engine file
 exists, every example also goes through `engine check` and must answer ok.
 """
 
+import copy
 import json
 import re
 import subprocess
@@ -48,6 +49,7 @@ REPLY_FIELDS = {"text", "about"}
 ITEM_FIELDS = {"id", "kind", "node", "state", "body", "settled", "notes"}
 ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
+SETTLED_FIELDS = {"by", "round", "signal", "reading"}
 COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
@@ -69,11 +71,45 @@ def _only(obj, allowed, where):
     _need(not extra, where, f"unknown field {sorted(extra)}")
 
 
+def _objects(value, where, field):
+    _need(isinstance(value, list) and all(isinstance(v, dict) for v in value), where, field)
+    return value
+
+
 def _text_list(value, where, field):
     _need(isinstance(value, list) and all(isinstance(v, str) for v in value), where, field)
 
 
-def _check_props(comp, where, ids):
+def _ids(value, where, field):
+    objs = _objects(value, where, field)
+    _need(all(isinstance(o.get("id"), str) for o in objs), where, f"{field}[].id")
+    return {o["id"] for o in objs}
+
+
+def _check_graph(kind, props, where, ids, last_round):
+    nodes = _objects(props.get("nodes"), where, "props.nodes")
+    _need(nodes, where, "props.nodes")
+    groups = _ids(props.get("groups", []), where, "props.groups")
+    node_ids = set()
+    for n, node in enumerate(nodes):
+        _need(isinstance(node.get("id"), str), where, f"props.nodes[{n}].id")
+        _need(isinstance(node.get("label"), str), where, f"props.nodes[{n}].label")
+        if kind == "map":
+            _need(node.get("state") in NODE_STATES, where, f"props.nodes[{n}].state")
+            rnd = node.get("round")
+            _need(isinstance(rnd, int) and 1 <= rnd <= last_round, where,
+                  f"props.nodes[{n}].round (1..{last_round})")
+            _need(node["id"] not in ids, where, f"node id {node['id']} not unique")
+            ids.add(node["id"])
+        _need(node.get("group") is None or node["group"] in groups, where,
+              f"props.nodes[{n}].group")
+        node_ids.add(node["id"])
+    for e, edge in enumerate(_objects(props.get("edges", []), where, "props.edges")):
+        _need(edge.get("from") in node_ids and edge.get("to") in node_ids, where,
+              f"props.edges[{e}]")
+
+
+def _check_props(comp, where, ids, last_round):
     kind = comp["type"]
     props = comp.get("props", {})
     _need(isinstance(props, dict), where, "props")
@@ -97,32 +133,14 @@ def _check_props(comp, where, ids):
             _need(isinstance(row, list) and len(row) == len(cols), where, f"props.rows[{r}]")
             for c, cell in enumerate(row):
                 if not isinstance(cell, str):
-                    _check_component(cell, f"{where}.rows[{r}][{c}]", ids)
+                    _check_component(cell, f"{where}.rows[{r}][{c}]", ids, last_round)
     elif kind in ("graph", "map"):
-        nodes = props.get("nodes")
-        _need(isinstance(nodes, list) and nodes, where, "props.nodes")
-        groups = {g["id"] for g in props.get("groups", [])}
-        node_ids = set()
-        for n, node in enumerate(nodes):
-            _need(isinstance(node.get("id"), str), where, f"props.nodes[{n}].id")
-            _need(isinstance(node.get("label"), str), where, f"props.nodes[{n}].label")
-            if kind == "map":
-                _need(node.get("state") in NODE_STATES, where, f"props.nodes[{n}].state")
-                _need(isinstance(node.get("round"), int) and node["round"] >= 1, where,
-                      f"props.nodes[{n}].round")
-                _need(node["id"] not in ids, where, f"node id {node['id']} not unique")
-                ids.add(node["id"])
-            _need(node.get("group") is None or node["group"] in groups, where,
-                  f"props.nodes[{n}].group")
-            node_ids.add(node["id"])
-        for e, edge in enumerate(props.get("edges", [])):
-            _need(edge.get("from") in node_ids and edge.get("to") in node_ids, where,
-                  f"props.edges[{e}]")
+        _check_graph(kind, props, where, ids, last_round)
     elif kind == "sequence":
-        actors = {a["id"] for a in props.get("actors", [])}
+        actors = _ids(props.get("actors", []), where, "props.actors")
         _need(actors, where, "props.actors")
-        msgs = props.get("messages")
-        _need(isinstance(msgs, list) and msgs, where, "props.messages")
+        msgs = _objects(props.get("messages"), where, "props.messages")
+        _need(msgs, where, "props.messages")
         for m, msg in enumerate(msgs):
             _need(msg.get("from") in actors and msg.get("to") in actors, where,
                   f"props.messages[{m}]")
@@ -131,7 +149,7 @@ def _check_props(comp, where, ids):
         lanes = [k for k in ("current", "proposed") if k in props]
         _need(lanes, where, "props.current or props.proposed")
         for lane in lanes:
-            for s, step in enumerate(props[lane]):
+            for s, step in enumerate(_objects(props[lane], where, f"props.{lane}")):
                 _need(isinstance(step.get("label"), str), where, f"props.{lane}[{s}].label")
                 _need(step.get("tone") is None or step["tone"] in TONES, where,
                       f"props.{lane}[{s}].tone")
@@ -139,19 +157,18 @@ def _check_props(comp, where, ids):
         raise Refused(f"{where}: unknown type {kind!r}")
 
 
-def _check_component(comp, where, ids):
+def _check_component(comp, where, ids, last_round):
     _only(comp, COMPONENT_FIELDS, where)
     _need(isinstance(comp.get("type"), str), where, "type")
     if "id" in comp:
+        _need(isinstance(comp["id"], str), where, "id")
         _need(comp["id"] not in ids, where, f"id {comp['id']} not unique")
         ids.add(comp["id"])
     if "style" in comp:
         _need(isinstance(comp["style"], str), where, "style")
-    _check_props(comp, where, ids)
-    children = comp.get("children", [])
-    _need(isinstance(children, list), where, "children")
-    for i, child in enumerate(children):
-        _check_component(child, f"{where}.children[{i}]", ids)
+    _check_props(comp, where, ids, last_round)
+    for i, child in enumerate(_objects(comp.get("children", []), where, "children")):
+        _check_component(child, f"{where}.children[{i}]", ids, last_round)
 
 
 def _walk_components(comp):
@@ -165,58 +182,91 @@ def _walk_components(comp):
                     yield from _walk_components(cell)
 
 
-def check_document(doc):
-    """Return every component of a valid document; raise Refused otherwise."""
+def _check_settled(item, iw, last_round):
+    state = item.get("state", "open")
+    settled = item.get("settled")
+    if state not in ("settled_by_mark", "settled_by_note"):
+        _need(settled is None, iw, "settled (only on a settled point)")
+        return
+    _only(settled, SETTLED_FIELDS, f"{iw}.settled")
+    by = "note" if state == "settled_by_note" else "mark"
+    _need(settled.get("by") == by, f"{iw}.settled", f"by (expected {by})")
+    rnd = settled.get("round")
+    _need(isinstance(rnd, int) and 1 <= rnd <= last_round, f"{iw}.settled", "round")
+    _need(isinstance(settled.get("signal"), str) and settled["signal"], f"{iw}.settled", "signal")
+    if by == "note":
+        _need(isinstance(settled.get("reading"), str) and settled["reading"], f"{iw}.settled",
+              "reading (required when by = note)")
+
+
+def _check_round(r, ids, node_ids, last_round, components):
+    where = f"round {r.get('n')}"
+    _only(r, ROUND_FIELDS, where)
+    _need(r.get("state") in ("current", "settled"), where, "state")
+    _need("banner" in r and "items" in r, where, "banner and items")
+    _only(r["banner"], BANNER_FIELDS, f"{where}.banner")
+    for key in sorted(BANNER_FIELDS):
+        _need(key in r["banner"], f"{where}.banner", f"{key} (required)")
+        _text_list(r["banner"][key], f"{where}.banner", key)
+    _need(not r.get("responses"), where, "responses (written only by ingest)")
+    for p, reply in enumerate(_objects(r.get("replies", []), where, "replies")):
+        _only(reply, REPLY_FIELDS, f"{where}.replies[{p}]")
+        _need(isinstance(reply.get("text"), str), f"{where}.replies[{p}]", "text")
+        _text_list(reply.get("about", []), f"{where}.replies[{p}]", "about")
+    for item in _objects(r["items"], where, "items"):
+        iw = f"item {item.get('id')}"
+        _only(item, ITEM_FIELDS, iw)
+        _need(isinstance(item.get("id"), str), iw, "id")
+        _need(item["id"] not in ids, iw, "id not unique")
+        ids.add(item["id"])
+        _need(item.get("kind") in ITEM_KINDS, iw, "kind")
+        _need(item.get("state", "open") in POINT_STATES, iw, "state")
+        _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
+        _need(not item.get("notes"), iw, "notes (minted by the engine)")
+        _check_settled(item, iw, last_round)
+        _need("body" in item, iw, "body")
+        _check_component(item["body"], f"{iw}.body", ids, last_round)
+        components.extend(_walk_components(item["body"]))
+
+
+def _check_document(doc):
     _only(doc, DOC_FIELDS, "document")
     _need(doc.get("schema") == SCHEMA, "document", f"schema (expected {SCHEMA})")
     session = doc.get("session")
     _only(session, SESSION_FIELDS, "session")
     _need(set(session) == SESSION_FIELDS, "session", "missing field")
     _need(session["skill"] in SKILLS, "session", "skill")
-    _need(bool(ISO_UTC.match(session["started"])), "session", "started (ISO-8601 UTC)")
-    ids = set()
-    components = []
-    for m, mp in enumerate(doc.get("maps", [])):
-        _need(mp.get("type") == "map", f"maps[{m}]", "type (map)")
-        _check_component(mp, f"maps[{m}]", ids)
-        components.append(mp)
-    node_ids = {n["id"] for mp in doc.get("maps", []) for n in mp["props"]["nodes"]}
-    rounds = doc.get("rounds")
-    _need(isinstance(rounds, list) and rounds, "document", "rounds")
+    _need(isinstance(session["started"], str) and bool(ISO_UTC.match(session["started"])),
+          "session", "started (ISO-8601 UTC)")
+    rounds = _objects(doc.get("rounds"), "document", "rounds")
+    _need(rounds, "document", "rounds")
     _need([r.get("n") for r in rounds] == list(range(1, len(rounds) + 1)), "rounds", "n in order")
     _need(sum(r.get("state") == "current" for r in rounds) == 1, "rounds",
           "exactly one round is current")
+    last_round = len(rounds)
+    ids = set()
+    components = []
+    maps = _objects(doc.get("maps", []), "document", "maps")
+    for m, mp in enumerate(maps):
+        _need(mp.get("type") == "map", f"maps[{m}]", "type (map)")
+        _check_component(mp, f"maps[{m}]", ids, last_round)
+        components.append(mp)
+    node_ids = {n["id"] for mp in maps for n in mp["props"]["nodes"]}
     for r in rounds:
-        where = f"round {r.get('n')}"
-        _only(r, ROUND_FIELDS, where)
-        _need(r["state"] in ("current", "settled"), where, "state")
-        _need("banner" in r and "items" in r, where, "banner and items")
-        _only(r["banner"], BANNER_FIELDS, f"{where}.banner")
-        for key, value in r["banner"].items():
-            _text_list(value, f"{where}.banner", key)
-        _need(not r.get("responses"), where, "responses (written only by ingest)")
-        for p, reply in enumerate(r.get("replies", [])):
-            _only(reply, REPLY_FIELDS, f"{where}.replies[{p}]")
-            _need(isinstance(reply.get("text"), str), f"{where}.replies[{p}]", "text")
-            _text_list(reply.get("about", []), f"{where}.replies[{p}]", "about")
-        for item in r["items"]:
-            iw = f"item {item.get('id')}"
-            _only(item, ITEM_FIELDS, iw)
-            _need(isinstance(item.get("id"), str), iw, "id")
-            _need(item["id"] not in ids, iw, "id not unique")
-            ids.add(item["id"])
-            _need(item.get("kind") in ITEM_KINDS, iw, "kind")
-            _need(item.get("state", "open") in POINT_STATES, iw, "state")
-            _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
-            _need(not item.get("notes"), iw, "notes (minted by the engine)")
-            _need("body" in item, iw, "body")
-            _check_component(item["body"], f"{iw}.body", ids)
-            components.extend(_walk_components(item["body"]))
+        _check_round(r, ids, node_ids, last_round, components)
     for r in rounds:
         for p, reply in enumerate(r.get("replies", [])):
             for target in reply.get("about", []):
                 _need(target in ids, f"round {r['n']}.replies[{p}]", f"about {target} must resolve")
     return components
+
+
+def check_document(doc):
+    """Return every component of a valid document; raise Refused otherwise."""
+    try:
+        return _check_document(doc)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise Refused(f"malformed document: {type(exc).__name__}: {exc}") from exc
 
 
 # Fragments: ```json fragment=<level> blocks in the guide.
@@ -226,11 +276,18 @@ LEVELS = {"document", "round", "banner", "reply", "item", "component", "map"}
 
 
 def fragments(path):
-    return [(m.group(1), json.loads(m.group(2))) for m in FENCE.finditer(path.read_text("utf-8"))]
+    text = path.read_text("utf-8")
+    found = [(m.group(1), json.loads(m.group(2))) for m in FENCE.finditer(text)]
+    assert len(found) == text.count("```json"), f"{path.name}: a json fence is not a fragment"
+    return found
 
 
 def wrap(level, frag):
-    """Put a fragment into the smallest whole document that holds it."""
+    """Put a fragment into the smallest whole document that holds it.
+
+    The wrapper supplies every item and map node the fragment names, so id
+    resolution is proven on all-components.json only (see the refusal tests).
+    """
     if level == "document":
         return frag
     doc = {
@@ -238,7 +295,8 @@ def wrap(level, frag):
         "session": {"id": "s-wrap", "skill": "grill", "feature": "example",
                     "ticket": "PROJ-123", "started": "2026-01-01T09:00:00Z"},
         "maps": [],
-        "rounds": [{"n": 1, "state": "current", "banner": {}, "items": []}],
+        "rounds": [{"n": 1, "state": "current",
+                    "banner": {"settled": [], "unlocks": [], "parked": []}, "items": []}],
     }
     current = doc["rounds"][0]
     if level == "round":
@@ -281,19 +339,130 @@ def all_documents():
     return docs
 
 
+def _example():
+    return json.loads(ALL_COMPONENTS.read_text("utf-8"))
 
 
-def _frontmatter(path):
-    text = path.read_text("utf-8")
-    assert text.startswith("---\n"), f"{path} has no frontmatter"
-    head = text.split("---\n", 2)[1]
-    return dict(line.split(": ", 1) for line in head.strip().splitlines())
+def _round(d):
+    return d["rounds"][0]
+
+
+def _item(d, n):
+    return _round(d)["items"][n]
+
+
+def _child(d, item, n):
+    return _item(d, item)["body"]["children"][n]
+
+
+def _cell(d):
+    return _child(d, 0, 1)["props"]["rows"][0][2]
+
+
+def _set(path_fn, key, value):
+    def mutate(d):
+        path_fn(d)[key] = value
+    return mutate
+
+
+def _drop(path_fn, key):
+    def mutate(d):
+        path_fn(d).pop(key)
+    return mutate
+
+
+def _extra_round(d):
+    d["rounds"].append({"n": 2, "state": "current",
+                        "banner": {"settled": [], "unlocks": [], "parked": []}, "items": []})
+
+
+def _note_settle_without_reading(d):
+    _item(d, 0).update(state="settled_by_note",
+                       settled={"by": "note", "round": 1, "signal": "N-1-i-data"})
+
+
+REFUSALS = [
+    ("schema value", _set(lambda d: d, "schema", "afkv2.page/9"), "schema"),
+    ("document field", _set(lambda d: d, "html_page", "<html>"), "unknown field"),
+    ("round field", _set(_round, "extra", 1), "unknown field"),
+    ("item field", _set(lambda d: _item(d, 0), "options", []), "unknown field"),
+    ("component field in a body", _set(lambda d: _item(d, 0)["body"], "label", "x"), "unknown field"),
+    ("component field in a cell", _set(_cell, "extra", 1), "unknown field"),
+    ("session skill", _set(lambda d: d["session"], "skill", "review"), "skill"),
+    ("session started", _set(lambda d: d["session"], "started", "2026-01-05 09:00"), "started"),
+    ("session field missing", _drop(lambda d: d["session"], "ticket"), "missing field"),
+    ("two current rounds", _extra_round, "exactly one round is current"),
+    ("no current round", _set(_round, "state", "settled"), "exactly one round is current"),
+    ("round order", _set(_round, "n", 2), "n in order"),
+    ("banner list missing", _drop(lambda d: _round(d)["banner"], "parked"), "parked"),
+    ("banner not an object", _set(_round, "banner", "x"), "is not an object"),
+    ("responses", _set(_round, "responses", [{"received": "x", "raw": "x", "signals": []}]),
+     "responses"),
+    ("reply target", _set(lambda d: _round(d)["replies"][0], "about", ["i-missing"]),
+     "must resolve"),
+    ("item id twice", _set(lambda d: _item(d, 1), "id", "i-data"), "not unique"),
+    ("component id twice", _set(lambda d: _child(d, 0, 0), "id", "t-order-fields"), "not unique"),
+    ("map node id twice", _set(lambda d: d["maps"][0]["props"]["nodes"][1], "id", "n-export"),
+     "not unique"),
+    ("item kind", _set(lambda d: _item(d, 0), "kind", "question"), "kind"),
+    ("item state", _set(lambda d: _item(d, 0), "state", "closed"), "state"),
+    ("item node", _set(lambda d: _item(d, 0), "node", "n-missing"), "node must resolve"),
+    ("item notes", _set(lambda d: _item(d, 0), "notes", [{"id": "N-1-i-data"}]), "notes"),
+    ("settled on an open point",
+     _set(lambda d: _item(d, 0), "settled", {"by": "mark", "round": 1, "signal": "x"}),
+     "only on a settled point"),
+    ("note settle without reading", _note_settle_without_reading, "reading"),
+    ("map node round", _set(lambda d: d["maps"][0]["props"]["nodes"][0], "round", 2), "round"),
+    ("map node state", _set(lambda d: d["maps"][0]["props"]["nodes"][0], "state", "done"), "state"),
+    ("map nodes malformed", _set(lambda d: d["maps"][0]["props"], "nodes", ["x"]), "props.nodes"),
+    ("unknown type", _set(lambda d: _item(d, 0)["body"], "children", [{"type": "button"}]),
+     "unknown type"),
+    ("html outside freestyle", _set(lambda d: _child(d, 0, 2), "html", "<b>x</b>"),
+     "freestyle only"),
+    ("chip without tone", _drop(lambda d: _cell(d)["props"], "tone"), "props.tone"),
+    ("chip tone", _set(lambda d: _cell(d)["props"], "tone", "green"), "props.tone"),
+    ("table row width", lambda d: _child(d, 0, 1)["props"]["rows"][0].pop(), "props.rows"),
+    ("graph edge", _set(lambda d: _child(d, 0, 0)["props"]["edges"][0], "to", "g-missing"),
+     "props.edges"),
+    ("graph group", _set(lambda d: _child(d, 0, 0)["props"]["nodes"][0], "group", "nope"), "group"),
+    ("sequence actor", _set(lambda d: _child(d, 1, 0)["props"]["messages"][0], "to", "nobody"),
+     "props.messages"),
+    ("sequence actors malformed", _set(lambda d: _child(d, 1, 0)["props"], "actors", ["user"]),
+     "props.actors"),
+    ("run strip lanes", _set(lambda d: _child(d, 1, 1), "props", {}), "props.current"),
+    ("freestyle reason", _set(lambda d: _child(d, 3, 0), "props", {}), "props.reason"),
+    ("freestyle id", _drop(lambda d: _child(d, 3, 0), "id"), "id"),
+    ("freestyle html", _drop(lambda d: _child(d, 3, 0), "html"), "html"),
+]
+
+
+@pytest.mark.parametrize("mutate, field", [(m, f) for _, m, f in REFUSALS],
+                         ids=[name for name, _, _ in REFUSALS])
+def test_fake_refuses_a_broken_document(mutate, field):
+    doc = _example()
+    mutate(doc)
+    with pytest.raises(Refused, match=re.escape(field)):
+        check_document(doc)
+
+
+@pytest.mark.parametrize("state, settled", [
+    ("settled_by_note", {"by": "note", "round": 1, "signal": "N-1-i-data",
+                         "reading": "Accepts the field change."}),
+    ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}),
+])
+def test_fake_accepts_a_settled_point(state, settled):
+    doc = _example()
+    _item(doc, 0).update(state=state, settled=copy.deepcopy(settled))
+    check_document(doc)
 
 
 def test_every_skill_file_has_agent_skills_frontmatter():
     files = list(SKILL_DIR.rglob("SKILL.md"))
     assert files == [SKILL_MD]
-    meta = _frontmatter(SKILL_MD)
+    text = SKILL_MD.read_text("utf-8")
+    assert text.startswith("---\n"), "SKILL.md has no frontmatter"
+    head = text.split("---\n", 2)[1]
+    meta = dict(line.split(": ", 1) for line in head.strip().splitlines())
     assert meta.get("name") == "visualize"
     assert len(meta.get("description", "")) > 40
 
@@ -324,35 +493,13 @@ def test_example_uses_only_schema_v0_fields(label, doc):
 
 def test_every_whole_example_document_carries_the_schema_value():
     whole = [frag for _, level, frag in all_fragments() if level == "document"]
-    whole.append(json.loads(ALL_COMPONENTS.read_text("utf-8")))
+    whole.append(_example())
     for doc in whole:
         assert doc["schema"] == SCHEMA
 
 
-@pytest.mark.parametrize("bad, field", [
-    ({"schema": "afkv2.page/9"}, "schema"),
-    ({"html_page": "<html>"}, "unknown field"),
-])
-def test_fake_refuses_a_broken_document(bad, field):
-    doc = json.loads(ALL_COMPONENTS.read_text("utf-8"))
-    doc.update(bad)
-    with pytest.raises(Refused, match=field):
-        check_document(doc)
-
-
-def test_fake_refuses_an_unknown_component_type_and_html_outside_freestyle():
-    doc = json.loads(ALL_COMPONENTS.read_text("utf-8"))
-    body = doc["rounds"][-1]["items"][0]["body"]
-    body["children"] = [{"type": "button", "props": {}}]
-    with pytest.raises(Refused, match="unknown type"):
-        check_document(doc)
-    body["children"] = [{"type": "text", "props": {"text": "x"}, "html": "<b>x</b>"}]
-    with pytest.raises(Refused, match="freestyle only"):
-        check_document(doc)
-
-
 def test_all_components_document_uses_every_component():
-    doc = json.loads(ALL_COMPONENTS.read_text("utf-8"))
+    doc = _example()
     components = check_document(doc)
     types = {c["type"] for c in components}
     assert types >= {"map", "graph", "table", "sequence", "run-strip", "chip", "text", "freestyle"}

@@ -32,13 +32,13 @@
       "n": 1,
       "state": "current",
       "banner": {
-        "settled": ["The requirements fix one export file per order."],
+        "settled": [],
         "unlocks": ["The data change", "The request flow", "The file format"],
         "parked": ["Archive retention, waits for the data owner"]
       },
       "replies": [
         {
-          "text": "Read as: the export stays per order. This round asks the three design points that follow from it.",
+          "text": "Read your opening note as: the export stays per order. This round asks the three design points that follow from it.",
           "about": ["i-data", "i-flow", "i-format"]
         }
       ],
