@@ -30,10 +30,12 @@ the round `settled`, go through the cards of the current round. Never change a
 card in a settled round. A note whose `target` is a map node id is a steer: leave
 it out when you read the signals, because it settles nothing.
 
-- `needs_reading` with a clear note or write-in: set `state` to `settled_by_note`
-  and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
-  The `signal` is the note id, or `write-in` for a write-in.
-- `needs_reading` in any other case: set `state` to `open`.
+- `needs_reading` with a clear note and no signal that disagrees with it: set
+  `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
+  The `signal` is the note id.
+- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
+  id, so it cannot settle by note: the new card for that point is a `confirm` card
+  that states the write-in as your reading.
 - `blocked` with the point it waits on now settled: set `state` to `open`.
 
 Then mark the round `settled` and append the next round. Make one new card for
@@ -41,7 +43,8 @@ each point that returns:
 
 - a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
   is still `open` or `blocked`;
-- a card of an earlier round that the human noted or reopened in this send.
+- a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
+  human noted or reopened in this send.
 
 The new card has a new id. Its body names each old card id and shows the signals
 that returned the point, for example both the mark and the note. A carried

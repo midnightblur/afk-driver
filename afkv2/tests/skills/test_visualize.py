@@ -51,7 +51,6 @@ ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 SETTLED_FIELDS = {"by", "round", "signal", "reading"}
 NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
-WRITE_IN = "write-in"
 COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
@@ -201,8 +200,8 @@ def _check_settled(item, iw, last_round, node_ids):
               "reading (required when by = note)")
         live = {n["id"] for n in item.get("notes", [])
                 if not n["deleted"] and n["target"] not in node_ids}
-        _need(settled["signal"] == WRITE_IN or settled["signal"] in live, f"{iw}.settled",
-              "signal (must name a live note on the item, or write-in)")
+        _need(settled["signal"] in live, f"{iw}.settled",
+              "signal (must name a live note on the item)")
 
 
 def _check_notes(item, iw, last_round):
@@ -519,6 +518,9 @@ REFUSALS = [
      _settle("settled_by_note", [_note("i-data")], by="note", round=1, signal="N-1-i-flow",
              reading="x"),
      "must name a live note"),
+    ("note settle by a write-in",
+     _settle("settled_by_note", by="note", round=1, signal="write-in", reading="x"),
+     "must name a live note"),
     ("note settle names a deleted note",
      _settle("settled_by_note", [{**_note("i-data"), "deleted": True}], by="note", round=1,
              signal="N-1-i-data", reading="x"),
@@ -562,10 +564,11 @@ def test_fake_refuses_a_broken_document(mutate, field):
 @pytest.mark.parametrize("state, settled, notes", [
     ("settled_by_note", {"by": "note", "round": 1, "signal": "N-1-i-data",
                          "reading": "Accepts the field change."}, [_note("i-data")]),
-    ("settled_by_note", {"by": "note", "round": 1, "signal": WRITE_IN,
-                         "reading": "Picks a third format."}, []),
+    ("settled_by_note", {"by": "note", "round": 1, "signal": "N-1-i-data",
+                         "reading": "Accepts the field change."},
+     [{**_note("i-data"), "target": "i-data-question"}]),
     ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}, []),
-], ids=["by-note", "by-write-in", "by-mark"])
+], ids=["by-note", "by-note-on-a-component", "by-mark"])
 def test_fake_accepts_a_settled_point(state, settled, notes):
     doc = _example()
     _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=notes)
@@ -576,6 +579,12 @@ def test_fake_accepts_a_settled_round_and_a_next_round():
     doc = _next_round(_example())
     components = check_document(doc)
     assert any(c.get("props", {}).get("text") == "Carried from i-format." for c in components)
+
+
+def test_fake_accepts_a_note_on_a_card_of_an_earlier_round():
+    doc = _next_round(_example())
+    _at("i-data")(doc)["notes"] = [_note("i-data", 2)]
+    check_document(doc)
 
 
 def test_examples_carry_no_note_and_no_response():
@@ -594,7 +603,16 @@ def test_card_page_settled_example_has_the_schema_shape():
         assert set(settled) == SETTLED_FIELDS
         assert settled["by"] == "note"
         assert settled["signal"].startswith(f"N-{settled['round']}-")
-    assert f"`{WRITE_IN}`" in text
+
+
+def test_card_page_states_the_round_pass_rules():
+    text = " ".join((PAGES_DIR / "card.md").read_text("utf-8").split())
+    for rule in ("Never change a card in a settled round.",
+                 "a clear note and no signal that disagrees with it",
+                 "A write-in has no note id, so it cannot settle by note",
+                 "Make one new card for each point that returns",
+                 "An `info` card stays in its round."):
+        assert rule in text
 
 
 def _frontmatter(path):
