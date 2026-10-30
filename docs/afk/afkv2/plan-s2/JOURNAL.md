@@ -149,3 +149,19 @@
 2026-10-30 15:41 | autopilot | run | heartbeat 4/5 done, starting 0010-to-subtasks-skill — the design skill is finished, moving to the last slice, the skill that cuts a design into a plan
 2026-10-30 15:50 | execute | 0010-to-subtasks-skill | designing — the contract is read; it has no seam rows, so there is no ground to compare; all files are new, so no earlier reason applies
 2026-10-30 15:52 | execute | 0010-to-subtasks-skill | developing — the plan check is written test first
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-57) — the approval page keeps the file name and session field the page engine allows, because that engine has no entry for this skill
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-58) — the plan states in one header line whether the repository has a running app, because the plan check takes no other input
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-59) — a file a check needs passes when a subtask in the chain owns it or it already is on the feature branch
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-60) — the plan check reports a missing approval and does not fail on it, because the plan has to pass before anyone can approve it
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-61) — citations resolve in their own command at cut time, because the run branch holds no spec file
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-62) — an approval counts only for the exact plan the developer saw
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-63) — the run branch starts empty through low-level git commands, so the feature worktree does not move
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-64) — the plan leaves out the sections no afkv2 reader uses
+2026-10-30 20:30 | execute | 0010-to-subtasks-skill | decision(D-65) — the wiring list gets 3 lines, outside the scope, as in earlier slices
+2026-10-30 20:31 | execute | 0010-to-subtasks-skill | pushed — fb84eba7, 56c93aa9, d6c8793a on feat/afkv2-s2; the pull request checklist ticks 0010 through one JSON object and reads back the same text; no reason recorded, and the check reports nothing pending
+2026-10-30 20:32 | execute | 0010-to-subtasks-skill | verifying — static, unit and integration tiers run now
+2026-10-30 20:50 | execute | 0010-to-subtasks-skill | verified static, unit, integration — compile, frontmatter and the 4 anchors pass (producer check 4/4); 171 tests pass, and 4 tests wait for the S1 and S3 merges; a one-off copy of the tree with the S1 engine (a03a92c2) and the S3 autopilot (44a3e3a1) ran these 4 and the 1 real start-gate plan rule test: all pass
+2026-10-30 20:50 | execute | 0010-to-subtasks-skill | refusal proof — each refusal was removed from a copy of the code, and its test failed: live tier with no app, program not on the PATH, another not-applicable form, an empty reason, a check path nobody owns, a spec file on the run branch, no settled card, an older plan, a missing input
+2026-10-30 20:50 | execute | 0010-to-subtasks-skill | real engine — the one-off run found that the engine accepts only the file name `<skill>-<session>.json`; the page document now has that name (D-57)
+2026-10-30 20:50 | execute | 0010-to-subtasks-skill | codex live check — written for the owner in afkv2/skills/to-subtasks/CODEX-LIVE-CHECK.md and not run (D-S-8)
+2026-10-30 20:51 | execute | 0010-to-subtasks-skill | reviewing — independent review starts, at most 3 rounds (owner ruling R-2)
