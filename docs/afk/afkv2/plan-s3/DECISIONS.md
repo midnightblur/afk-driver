@@ -461,3 +461,10 @@
 - Chosen: A — the rows name "0013 test" and "0015 start-gate test" as their checks. 0013 is in its re-run: `test_next_round_stops_after_round_3`, `test_route_sends_critical_and_high_to_fix_and_medium_and_low_to_post` and `test_record_routes_each_severity_and_posts_only_medium_and_low` already cover its bullet (read by name; run by its executor). 0015 has not started; its unit row and excerpts also carry the rule
 - Supersedes: none
 - To reverse: revert this commit
+
+## D-67 — the SDD §7 bullet of 0013 needs no new test
+- 2026-10-30 · decided by execute (0013-code-review-skill)
+- Options: A — add a test for the bullet of D-66 vs B — keep the tests that exist
+- Chosen: B — each clause has a test, and each test failed when the rule was changed in memory. Round cap: `test_next_round_stops_after_round_3` and `test_round_4_is_refused_whatever_is_left` fail at a cap of 2 and of 4. Only critical and high are fixed: `test_route_sends_critical_and_high_to_fix_and_medium_and_low_to_post` and `test_record_routes_each_severity_and_posts_only_medium_and_low` fail when every severity goes to fix, and when only critical does. The rest stay as advice: the same 2 tests fail when no finding is posted; the record test also proves that the only forge calls are 2 `change-comment` calls, so no thread is resolved; `outcome` refuses a medium finding (`no-such-finding`); and `test_finish_after_a_round_with_nothing_to_fix_stops_clean` reports a low finding under `left.posted` with `stopped_by` `clean`. Not proved: the comment text does not say the word "advice" and no test asks for it (the severity label and `left.posted` carry that meaning). No code changed, so no review round is owed and D-65 still holds
+- Supersedes: none
+- To reverse: add the test to `afkv2/tests/skills/test_code_review.py`
