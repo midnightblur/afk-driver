@@ -9,8 +9,8 @@ afkv2 is the AFK 2.0 beta: a lighter rewrite of the AFK plugin that lets one dev
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 7 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 8 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | — |
