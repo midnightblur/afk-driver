@@ -56,3 +56,9 @@
 2026-10-30 05:27 | execute | 0001-skeleton-manifests-hooks | wiring — scan exit 0 on b334a805
 2026-10-30 05:27 | execute | 0001-skeleton-manifests-hooks | rationale — verify without clear: 5 pending entries, durable=true. The note posted at plugin_check.py line 134 reads back at line 153, the line it explains, so no entry was dropped. Clear stays owed for the done step
 2026-10-30 05:27 | execute | 0001-skeleton-manifests-hooks | blocked(needs_decision) — the real fix for the high finding is one line in .gitattributes, which is outside the 0001 scope. The run stops for a ruling
+2026-10-30 05:30 | autopilot | 0001-skeleton-manifests-hooks | parked(needs_decision) — the code passed review, but on a normal Windows checkout the printed rules no longer match their proof hash, and the one-line fix is in a file outside the slice's file list, so the plan author must rule
+2026-10-30 05:30 | autopilot | 0002-core-behaviors | park-inherited(waiting on 0001-skeleton-manifests-hooks) — this slice did not start because a slice it depends on is not finished
+2026-10-30 05:30 | autopilot | 0003-engine-core-schema-show-poll | park-inherited(waiting on 0001-skeleton-manifests-hooks) — this slice did not start because a slice it depends on is not finished
+2026-10-30 05:30 | autopilot | 0004-diagram-components | park-inherited(waiting on 0003-engine-core-schema-show-poll) — this slice did not start because a slice it depends on is not finished
+2026-10-30 05:30 | autopilot | 0005-notes-ingest-live-test | park-inherited(waiting on 0003-engine-core-schema-show-poll) — this slice did not start because a slice it depends on is not finished
+2026-10-30 05:30 | autopilot | run | run end (0/5 done, 5 parked) — one slice waits for a ruling on one line in one file and the other four wait on it; the smoke check did not run
