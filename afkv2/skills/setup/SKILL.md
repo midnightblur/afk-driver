@@ -67,8 +67,9 @@ line. Report each restored item and each `conflict` or `failed` entry with its `
 path. For `codex_config: failed` the backup is `codex/config.toml` under the
 top-level `backup_dir`; for a failed `lavish` report its `error`. `jira_values`
 names each key's outcome and never a value. An `error.code` of `backup-not-private`
-means setup could not limit the backup folder to the current user and wrote nothing:
-report its `reason` and do not work around it. The backup of those values holds the
+means setup could not limit the backup folder to the current user and wrote no token
+backup: report its `reason` and do not work around it. In a takeover it is under
+`plugins.codex`; the Claude switch is already done, and a new run finishes the step. The backup of those values holds the
 token in plain text under `backup_dir`: never open or print it. Restored user
 environment values reach a new terminal, not a running one. Report the
 `published_tickets` list: on those tickets the developer

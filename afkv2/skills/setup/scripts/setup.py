@@ -448,7 +448,7 @@ def _switch_codex(places: Places, run: tools.Runner, enable: str, with_backup: b
                 tools.lock_to_current_user(places.backup, run)
             except OSError as exc:
                 return {"ok": False, "written": False, "error": {
-                    "code": "backup-not-private", "reason": f"{exc}; nothing was written"}}
+                    "code": "backup-not-private", "reason": f"{exc}; the Codex config did not change"}}
             backup_once(config, places.backup / "codex" / "config.toml")
         write_atomic(config, plugins.codex_edit(text, wanted).encode("utf-8"))
         written = True
