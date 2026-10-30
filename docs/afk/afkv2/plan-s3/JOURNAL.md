@@ -60,3 +60,4 @@
 2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-27) — see plan-s3/DECISIONS.md
 2026-10-30 06:00 | execute | 0012-forge-tracker-port | decision(D-28) — see plan-s3/DECISIONS.md
 2026-10-30 06:15 | execute | 0012-forge-tracker-port | gate-skip native-contract — same v1-layout refusal on commits 9000cf52 and 615316b4: the rows are harness-name and interpreter on existing afkv2/skills/setup, afkv2/tests/setup/live and docs/afk/afkv2 files; none on a port file. The comment gate passed before it.
+2026-10-30 06:40 | execute | 0012-forge-tracker-port | verifying — static: compile ok and 6 of 6 anchors; unit: 335 passed in afkv2/tests/ports; integration: live forge round trip on pull request 156 ok, Jira read-back compare on recorded answers ok. No GitLab live run: this repository has no GitLab change (unverified live).
