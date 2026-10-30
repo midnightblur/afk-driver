@@ -13,8 +13,8 @@ afkv2 is the AFK 2.0 beta: a lighter rewrite of the AFK plugin that lets one dev
 | Design ADRs | adr/design/ | 8 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
-| Smoke gate | plan/PLAN.md | — |
+| Plan | plan-s1/PLAN.md … plan-s4/PLAN.md | 17 subtasks, cited, 4 plan folders (S1-S3 parallel, S4 chain smoke); live status in each PLAN.md |
+| Smoke gate | plan-s1/PLAN.md … plan-s4/PLAN.md | minimal gate in each (no VERIFICATION-PLAN.md) |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
 | Demo plan | DEMO-PLAN.md | — |

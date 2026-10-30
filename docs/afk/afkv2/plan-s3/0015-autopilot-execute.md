@@ -1,0 +1,83 @@
+# 0015-autopilot-execute
+
+## Goal
+Write `/afkv2:autopilot` and the execute step it runs per subtask: refuse a plan
+that fails the check, lacks the division approval or is a v1 plan; walk the plan
+on the run branch one subtask at a time, each in a fresh subagent, TDD, commits
+often, one Draft change; decide and record two-way doors; park one-way doors
+with their dependents; run code-review per subtask.
+
+## Complexity
+complex
+
+## Design refs
+- SDD: SDD.md#§8 L7 — Module Decomposition — row plan contract (S3 reads); "Frozen on day 1" row plan contract
+- SDD: SDD.md#§4 L3 — Data Architecture — row Plan contract
+- ADR: adr/requirements/0006-spec-folder-vs-run-branch.md
+
+## Scope
+- afkv2/skills/autopilot/**
+- afkv2/skills/execute/**
+- afkv2/tests/skills/test_autopilot.py
+
+## Seams
+(none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
+
+## Acceptance
+- [ ] autopilot refuses to start when the plan check fails or the PLAN.md header has no `> Division: approved <date>` line, and lists every failure (PRD §AC-060; PLAN.md decision D-S-2)
+- [ ] It refuses a v1 plan folder and names the two options: finish on v1, or slice again with `/afkv2:to-subtasks` (PRD §AC-005)
+- [ ] It parses the frozen contract sections (v1 subtask contract sections without materialized seams) (SDD §8 "Frozen on day 1" row "plan contract")
+- [ ] Each subtask runs in a fresh subagent with TDD; a finished subtask has its own commits on the run's feature branch (PRD §AC-061)
+- [ ] Plan, journal, decision ledger and review telemetry live in `plan/` on `<feature branch>-run`; code and spec stay on the feature branch (PRD §AC-071; PLAN.md decision D-S-1)
+- [ ] A two-way door is decided and recorded in the decision ledger; a one-way door parks its subtask and every dependent, and the park is recorded for retro (PRD §AC-062)
+- [ ] It pushes to one Draft change through `/afkv2:create-change-request` and runs `/afkv2:code-review` per subtask (PRD §SK-12)
+
+## Produces
+- afkv2/skills/autopilot/SKILL.md#name: autopilot — the plan walker
+- afkv2/skills/execute/SKILL.md#name: execute — one subtask end to end
+- afkv2/skills/autopilot/scripts/start_gate.py#def check_start( — plan check + approval + v1-plan refusal
+
+## Consumes
+- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — push and change commands
+- 0013-code-review-skill afkv2/skills/code-review/SKILL.md#name: code-review — per-subtask review
+- 0014-change-request-ci-watch afkv2/skills/create-change-request/SKILL.md#name: create-change-request — the one Draft change
+
+## Verification
+| Tier | Check (command or method) | Proves |
+|------|---------------------------|--------|
+| static | every `afkv2/skills/autopilot afkv2/skills/execute/**/SKILL.md` has Agent Skills frontmatter (`name`, `description`); `afk-python -m compileall -q afkv2/skills/autopilot afkv2/skills/execute`; `rg -F` each ## Produces anchor | skill files parse; declared symbols present |
+| unit | `afk-python -m pytest afkv2/tests/skills/test_autopilot.py -q` | start gate: failed check, missing approval, v1 plan; park propagation to dependents |
+| integration | dry run on a fixture plan with 3 subtasks in a temp repository with a `-run` branch: one done, one parked as a one-way door with its dependent parked, ledger and journal lines written on the run branch only | the run-branch layout and park rule on real git |
+
+## Context excerpts
+> (PRD §SK-12) | SK-12 | `/afkv2:autopilot` | walks the plan one subtask at a time, a fresh subagent each; TDD (test-driven development); commits often; pushes to one Draft change; records two-way doors; parks one-way doors with dependents | K-9, decision 23, 45 |
+
+> (PRD §AC-005) v2 refuses a v1 plan folder and names the two options: finish on v1, or slice again with `/afkv2:to-subtasks`.
+
+> (PRD §AC-060) `/afkv2:autopilot` refuses to start when the plan check fails or the division is not approved, and it lists every failure.
+
+> (PRD §AC-061) Each subtask runs in a fresh subagent. A finished subtask has its own commits on the run's branch.
+
+> (PRD §AC-062) A two-way door is decided and recorded in the decision ledger. A one-way door parks its subtask and every dependent subtask, and the park is recorded for retro.
+
+> (SDD §8 Frozen on day 1) | plan contract | v1 subtask contract sections without materialized seams; one format file + check script | S2 | S3 execute |
+
+## Parent PRD
+docs/afk/afkv2/PRD.md
+
+## Parent SDD
+docs/afk/afkv2/SDD.md
+
+## Blocked by
+- 0012-forge-tracker-port
+- 0013-code-review-skill
+- 0014-change-request-ci-watch
+
+## Conflict procedure
+If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality
+during implementation, classify per the decision protocol (`DECISIONS.md`,
+workflow plugin root): a two-way-door correction is recorded in
+`plan/DECISIONS.md` (this plan folder's `DECISIONS.md`) and implemented; a
+one-way door or a tie exits `design_conflict` quoting the SDD section + the
+conflict. Never override off the record. Parked conflicts route back to
+`/afk:grill-solution` for a superseding ADR.
