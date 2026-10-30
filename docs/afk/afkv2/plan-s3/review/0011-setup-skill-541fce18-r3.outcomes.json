@@ -1,0 +1,52 @@
+[
+ {
+  "id": "r-039",
+  "key": "0011-setup-skill/f039",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / boundary values",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f8e32c7"
+ },
+ {
+  "id": "r-040",
+  "key": "0011-setup-skill/f040",
+  "concern": "refactor-safety",
+  "criterion": "changed defaults: validation loosened beyond the stated intent",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f8e32c7"
+ },
+ {
+  "id": "r-041",
+  "key": "0011-setup-skill/f041",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology (assertion strength)",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "2f8e32c7"
+ },
+ {
+  "id": "r-042",
+  "key": "0011-setup-skill/f042",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (missing negative/boundary case)",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "2f8e32c7"
+ },
+ {
+  "id": "r-043",
+  "key": "0011-setup-skill/f043",
+  "concern": "refactor-safety",
+  "criterion": "renamed or reshaped answers: every consumer of the old answer shape updated",
+  "severity": "low",
+  "class": "spec",
+  "outcome": "fixed",
+  "sha": "2f8e32c7"
+ }
+]

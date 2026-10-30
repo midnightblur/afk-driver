@@ -1,0 +1,232 @@
+[
+  {
+    "id": "r-001",
+    "key": "0012-forge-tracker-port/f042",
+    "concern": "logic-correctness",
+    "criterion": "spec: CI word set",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-002",
+    "key": "0012-forge-tracker-port/f043",
+    "concern": "logic-correctness",
+    "criterion": "partial-failure handling",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-003",
+    "key": "0012-forge-tracker-port/f044",
+    "concern": "logic-correctness",
+    "criterion": "error and rollback paths",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-004",
+    "key": "0012-forge-tracker-port/f045",
+    "concern": "logic-correctness",
+    "criterion": "boundary values",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-005",
+    "key": "0012-forge-tracker-port/f046",
+    "concern": "logic-correctness",
+    "criterion": "input validation: receipt coverage",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-006",
+    "key": "0012-forge-tracker-port/f047",
+    "concern": "logic-correctness",
+    "criterion": "open-question",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-007",
+    "key": "0012-forge-tracker-port/f048",
+    "concern": "scope-and-impact",
+    "criterion": "blast radius: caller whose contract the diff changed but did not update",
+    "severity": "medium",
+    "class": "scope",
+    "outcome": "dismissed(withdrawn by adjudicator)",
+    "sha": null
+  },
+  {
+    "id": "r-008",
+    "key": "0012-forge-tracker-port/f049",
+    "concern": "test-veracity",
+    "criterion": "Erratic test",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-009",
+    "key": "0012-forge-tracker-port/f050",
+    "concern": "delta-sweep",
+    "criterion": "Documented-rule breach in changed lines",
+    "severity": "low",
+    "class": "compliance",
+    "outcome": "deferred",
+    "sha": null
+  },
+  {
+    "id": "r-010",
+    "key": "0012-forge-tracker-port/f051",
+    "concern": "test-veracity",
+    "criterion": "Assertion roulette / weak assertion",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-011",
+    "key": "0012-forge-tracker-port/f052",
+    "concern": "test-veracity",
+    "criterion": "Mock echo / tautology",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-012",
+    "key": "0012-forge-tracker-port/f053",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only / missing case",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-013",
+    "key": "0012-forge-tracker-port/f054",
+    "concern": "test-veracity",
+    "criterion": "Obscure Test (eager test)",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-014",
+    "key": "0012-forge-tracker-port/f055",
+    "concern": "api-contract",
+    "criterion": "Leaky contract",
+    "severity": "low",
+    "class": "design",
+    "outcome": "deferred",
+    "sha": null
+  },
+  {
+    "id": "r-015",
+    "key": "0012-forge-tracker-port/f056",
+    "concern": "api-contract",
+    "criterion": "Null in the contract",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-016",
+    "key": "0012-forge-tracker-port/f057",
+    "concern": "api-contract",
+    "criterion": "Easy to misuse",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-017",
+    "key": "0012-forge-tracker-port/f058",
+    "concern": "code-quality",
+    "criterion": "Duplicated knowledge",
+    "severity": "medium",
+    "class": "smell",
+    "outcome": "deferred",
+    "sha": null
+  },
+  {
+    "id": "r-018",
+    "key": "0012-forge-tracker-port/f059",
+    "concern": "code-quality",
+    "criterion": "Duplicated knowledge",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-019",
+    "key": "0012-forge-tracker-port/f060",
+    "concern": "code-quality",
+    "criterion": "Barricade breach",
+    "severity": "medium",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-020",
+    "key": "0012-forge-tracker-port/f061",
+    "concern": "code-quality",
+    "criterion": "Mysterious Name",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-021",
+    "key": "0012-forge-tracker-port/f062",
+    "concern": "logic-correctness",
+    "criterion": "boundary values",
+    "severity": "low",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-022",
+    "key": "0012-forge-tracker-port/f063",
+    "concern": "spec-fidelity",
+    "criterion": "Acceptance: Forge keeps v1 names and JSON answers, same on GitHub and GitLab",
+    "severity": "medium",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  },
+  {
+    "id": "r-023",
+    "key": "0012-forge-tracker-port/f064",
+    "concern": "spec-fidelity",
+    "criterion": "Decision-ledger consistency",
+    "severity": "low",
+    "class": "spec",
+    "outcome": "fixed",
+    "sha": "60d81241"
+  }
+]

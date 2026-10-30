@@ -1,0 +1,22 @@
+[
+ {
+  "id": "r-049",
+  "key": "0011-setup-skill/f049",
+  "concern": "refactor-safety",
+  "criterion": "reworked control flow in an existing method (write_atomic)",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "9c3cd097"
+ },
+ {
+  "id": "r-050",
+  "key": "0011-setup-skill/f050",
+  "concern": "test-veracity",
+  "criterion": "Fragile test",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "9c3cd097"
+ }
+]

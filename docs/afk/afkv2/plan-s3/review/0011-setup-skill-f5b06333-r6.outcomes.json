@@ -1,0 +1,42 @@
+[
+ {
+  "id": "r-051",
+  "key": "0011-setup-skill/f051",
+  "concern": "delta-sweep",
+  "criterion": "Test weakened to pass",
+  "severity": "high",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "3e994a4a"
+ },
+ {
+  "id": "r-052",
+  "key": "0011-setup-skill/f052",
+  "concern": "refactor-safety",
+  "criterion": "behaviour-preservation risk (reworked control flow in an existing method)",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "3e994a4a"
+ },
+ {
+  "id": "r-053",
+  "key": "0011-setup-skill/f053",
+  "concern": "test-veracity",
+  "criterion": "Erratic test / Obscure Test (the fix is only exercised on one OS)",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "3e994a4a"
+ },
+ {
+  "id": "r-054",
+  "key": "0011-setup-skill/f054",
+  "concern": "test-veracity",
+  "criterion": "Fragile test (the raised error is not identified)",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "3e994a4a"
+ }
+]

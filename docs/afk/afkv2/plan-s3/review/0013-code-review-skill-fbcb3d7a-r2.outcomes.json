@@ -1,0 +1,32 @@
+[
+ {
+  "id": "r-001",
+  "key": "0013-code-review-skill/f013",
+  "concern": "logic-correctness",
+  "criterion": "correctness",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "50d44790"
+ },
+ {
+  "id": "r-002",
+  "key": "0013-code-review-skill/f014",
+  "concern": "test-veracity",
+  "criterion": "happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "50d44790"
+ },
+ {
+  "id": "r-003",
+  "key": "0013-code-review-skill/f015",
+  "concern": "logic-correctness",
+  "criterion": "correctness",
+  "severity": "low",
+  "class": "spec",
+  "outcome": "fixed",
+  "sha": "50d44790"
+ }
+]

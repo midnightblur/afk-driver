@@ -23,13 +23,14 @@ standard
 - [ ] The skill picks concerns per subtask from the subtask's contract and diff (PRD §SK-13)
 - [ ] Critical and high findings are fixed; medium and low findings are posted on the change through the forge port (PRD §AC-063)
 - [ ] The review stops after round 3 whatever is left, and reports what is left (PRD §AC-063)
+- [ ] At most 3 review rounds; only critical and high findings are fixed; the rest stay on the change request as advice. A unit test proves it (SDD §7 v1 defects)
 
 ## Produces
 - afkv2/skills/code-review/SKILL.md#name: code-review — the review skill
 - afkv2/skills/code-review/scripts/review_rounds.py#def next_round( — round counter with the cap of 3
 
 ## Consumes
-- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — posts findings on the change
+- 0012-forge-tracker-port afkv2/ports/forge/forge_cli.py#def forge_main( — posts findings on the change
 
 ## Verification
 | Tier | Check (command or method) | Proves |

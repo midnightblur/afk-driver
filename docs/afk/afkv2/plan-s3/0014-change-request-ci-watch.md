@@ -32,7 +32,7 @@ complex
 - afkv2/skills/create-change-request/scripts/ci_watch.py#def mark_ready_if_green( — Ready only on settled review + green CI
 
 ## Consumes
-- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — change and CI commands
+- 0012-forge-tracker-port afkv2/ports/forge/forge_cli.py#def forge_main( — change and CI commands
 
 ## Verification
 | Tier | Check (command or method) | Proves |

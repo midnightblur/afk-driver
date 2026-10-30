@@ -1,0 +1,1 @@
+{"exit": 1, "answer": {"ok": false, "error": {"code": "plan-check-failed", "reason": "the plan check found failures"}, "failures": [{"code": "A-UNKNOWN-PRODUCER", "where": "0002-b.md", "reason": "the Consumes line names no producer"}, {"code": "B-GENERIC-ANCHOR", "where": "0001-a.md", "reason": "the anchor is a forbidden generic token"}]}}

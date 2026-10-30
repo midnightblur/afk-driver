@@ -4,7 +4,7 @@
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2-s3
 > Last updated: 2026-10-30 (status column maintained by /afk:execute)
-> Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Feature: complete (minimal gate, 2026-10-30)   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 This is one of 4 plan folders for afkv2 (`plan-s1`..`plan-s4`, decision D-S-4).
@@ -83,11 +83,11 @@ uses them.*
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0011-setup-skill | setup skill | pending | — | static, unit, integration | impl §14, impl §14 |
-| 2 | 0012-forge-tracker-port | forge tracker port | pending | — | static, unit, integration | impl §14 |
-| 3 | 0013-code-review-skill | code review skill | pending | 0012-forge-tracker-port | static, unit | — |
-| 4 | 0014-change-request-ci-watch | change request ci watch | pending | 0012-forge-tracker-port | static, unit, integration | — |
-| 5 | 0015-autopilot-execute | autopilot execute | pending | 0012-forge-tracker-port, 0013-code-review-skill, 0014-change-request-ci-watch | static, unit, integration | — |
+| 1 | 0011-setup-skill | setup skill | done | — | static, unit, integration | impl §14, impl §14 |
+| 2 | 0012-forge-tracker-port | forge tracker port | done | — | static, unit, integration | impl §14 |
+| 3 | 0013-code-review-skill | code review skill | done | 0012-forge-tracker-port | static, unit | — |
+| 4 | 0014-change-request-ci-watch | change request ci watch | done | 0012-forge-tracker-port | static, unit, integration | — |
+| 5 | 0015-autopilot-execute | autopilot execute | done | 0012-forge-tracker-port, 0013-code-review-skill, 0014-change-request-ci-watch | static, unit, integration | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
@@ -102,7 +102,11 @@ name the afkv2 tree directly.
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `afk-python -m compileall -q afkv2` | |
-| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | |
+| 1 | compile | `afk-python -m compileall -q afkv2` | pass |
+| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | pass |
 
-Last run: —
+Last run: 2026-10-30, target=local — compile pass; regression pass, 1017 passed, 6 skipped
+
+Run history:
+- 2026-10-30 local — smoke_fail, failing: regression
+- 2026-10-30 local — smoke_green, failing: none

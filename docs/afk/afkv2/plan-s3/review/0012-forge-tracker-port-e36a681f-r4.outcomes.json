@@ -1,0 +1,32 @@
+[
+  {
+    "id": "r-001",
+    "key": "0012-forge-tracker-port/f076",
+    "concern": "test-veracity",
+    "criterion": "Happy-path-only",
+    "severity": "medium",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "ec3ab429"
+  },
+  {
+    "id": "r-002",
+    "key": "0012-forge-tracker-port/f077",
+    "concern": "code-quality",
+    "criterion": "Duplicated knowledge",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "ec3ab429"
+  },
+  {
+    "id": "r-003",
+    "key": "0012-forge-tracker-port/f078",
+    "concern": "logic-correctness",
+    "criterion": "error and rollback paths (possible)",
+    "severity": "low",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "ec3ab429"
+  }
+]
