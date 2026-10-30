@@ -49,3 +49,4 @@
 2026-10-30 11:14 | autopilot | run | decision(D-18) — the owner limited review to 3 rounds per slice, and only critical and high findings get a fix
 2026-10-30 11:14 | autopilot | run | decision(D-19) — the owner ruled that changed sign-off wording goes back for a sign mark
 2026-10-30 11:14 | autopilot | run | decision(D-20) — the owner accepted the commit gate skip for this build, and pull request checks catch the rest
+2026-10-30 11:15 | autopilot | run | run start (5 runnable) — second run after the owner rulings: subtask 0006 resumes at its wiring check, then four slices follow in order
