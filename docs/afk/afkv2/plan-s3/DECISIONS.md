@@ -433,3 +433,10 @@
 - Chosen: B — owner ruling for this build. Pull-request CI catches the rest, and the ship gate must be green. Skipped commits stay listed in the journal
 - Supersedes: session brief rule that a skip needs a v1-layout refusal
 - To reverse: the owner withdraws R-4
+
+## D-63 — round 3 of 0014 ends by D-60, with no clean marker
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — write `clean=true` at the fix head so that `gate --phase closure` passes vs B — write the round 3 summary with `clean=false` at the head that round read, and take the gate result from D-60
+- Chosen: B — no review round read the fix of the 2 high findings, and a clean marker would say that one did. Their proof is 2 new tests, each seen to fail on the old behaviour. The 9 medium and low findings of round 3 stay open on the change as `deferred gate=advisory`, so that no later gate reads them as owed. `gate --phase closure` refuses this state, as expected; D-60 replaces it for this slice
+- Supersedes: none
+- To reverse: run another review round on the tip and write a clean summary

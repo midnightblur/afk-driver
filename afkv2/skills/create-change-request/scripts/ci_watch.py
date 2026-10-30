@@ -264,9 +264,11 @@ def watch_ci(payload):
         return _superseded(change)
     started = time.monotonic()
     deadline = started + budget
+    head_seen = False
     while True:
         left = max(0, int(deadline - time.monotonic()))
         wait = min(SLICE, left)
+        head_seen = head_seen or not _forge_behind(payload, change, record)
         fields = {"id": change, "budget": wait, **({} if interval is None else {"interval": interval})}
         answer = call_forge("ci-wait", {**passed_on(payload), **fields}, wait + READ_MARGIN)
         if not _is_current(path, record["token"]):
@@ -277,9 +279,11 @@ def watch_ci(payload):
             if left <= SLICE:
                 return _end(payload, path, record, "no-verdict", "running", "the budget ended and the checks keep running")
         else:
-            if not left or time.monotonic() - started >= HEAD_GRACE or not _forge_behind(payload, change, record):
+            if head_seen or not left or time.monotonic() - started >= HEAD_GRACE:
                 return _end(payload, path, record, "finished", answer.get("status") or "")
             time.sleep(HEAD_PAUSE)
+            if not _is_current(path, record["token"]):
+                return _superseded(change)
         _write_record(path, {**record, "beat_at": time.time()})
 
 

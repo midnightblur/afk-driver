@@ -427,6 +427,39 @@ def test_the_result_of_the_last_commit_is_no_result_for_the_new_commit(repo, for
     assert forge.verbs().count("ci-wait") == 2
 
 
+def test_a_status_read_before_the_forge_showed_the_commit_is_no_result(repo, forge, capsys, monkeypatch):
+    head = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    monkeypatch.setattr(ci_watch, "HEAD_PAUSE", 0)
+    shown = {"head": "last"}
+
+    def status_then_the_forge_moves(_payload):
+        answer = RED if shown["head"] == "last" else GREEN
+        shown["head"] = head
+        return answer
+
+    forge.answers = {"ci-wait": status_then_the_forge_moves, "change-view": lambda _payload: {**VIEW, "head_sha": shown["head"]}}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["status"] == "success" and answer["current_head"] is True
+    assert forge.verbs().count("ci-wait") == 2
+
+
+def test_a_start_during_the_pause_keeps_its_record(repo, forge, capsys, monkeypatch):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    path = ci_watch._record_path("7")
+    newer = {}
+
+    def a_newer_start(_seconds):
+        newer.update(ci_watch._new_record(path, "7", "newer"))
+
+    monkeypatch.setattr(ci_watch.time, "sleep", a_newer_start)
+    forge.answers = {"ci-wait": RED, "change-view": {**VIEW, "head_sha": "other"}}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "superseded"
+    record = ci_watch._read_record(path)
+    assert record["token"] == newer["token"] and record["head_sha"] == "newer" and record["state"] == "watching"
+
+
 def test_a_forge_that_keeps_another_commit_ends_with_that_commit(repo, forge, capsys, monkeypatch):
     monkeypatch.setattr(ci_watch, "HEAD_GRACE", 0.2)
     monkeypatch.setattr(ci_watch, "HEAD_PAUSE", 0.05)
@@ -467,7 +500,8 @@ def test_each_read_of_the_watch_has_its_slice_and_a_longer_limit(repo, forge, ca
 def test_the_read_of_a_short_budget_ends_with_the_budget(repo, forge, capsys):
     forge.answers = {"ci-wait": GREEN, "change-view": VIEW}
     run(ci_watch, capsys, "watch", id="7", budget=100)
-    (_, sent), limit = forge.calls[0], forge.limits[0]
+    first = forge.verbs().index("ci-wait")
+    (_, sent), limit = forge.calls[first], forge.limits[first]
     assert 99 <= sent["budget"] <= 100 and limit == sent["budget"] + ci_watch.READ_MARGIN
 
 
