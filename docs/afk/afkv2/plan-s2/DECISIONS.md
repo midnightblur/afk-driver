@@ -468,3 +468,17 @@
 - Chosen: A — commit f6eec235. `ports/tracker/v1_facts.py` and `ports/tracker/cli.py` keep their names (S3). S1 `plugin_check.py` exempts `*v1_facts.py`, so both new names keep the v1-string exemption. A name check over the S1 and S3 branch tips and this tree finds no other duplicate. `test_to_prd.py`: 62 passed, 2 skipped. The check was not run on the merged tree, because S1 and S3 are not merged
 - Supersedes: none
 - To reverse: rename the 2 files and their importers
+
+## D-68 — the orphan hunt: remove 2 unused verbs, add 2 IOUs
+- 2026-10-30 · decided by autopilot (orchestrator, `/afk:verify-seams` non-final)
+- Options: A — remove `round_document.py pending` and `prd_files.py row` vs B — keep them behind an IOU
+- Chosen: A — commit 5120ee84. A blind reader, and a search of the S1, S3 and S4 plans, found no caller, so an IOU has no real anchor. Other skills call `set_row` and `pending` in-process. `test_grill.py` and `test_to_prd.py` give 142 passed, 3 skipped. The new IOUs cover the engine verb `ingest` (plan-s1 0005, still pending) and the owner-run `CODEX-LIVE-CHECK.md` files (D-S-8). Limit: the reader enumerated consumers itself and had no per-symbol ledgers, so its verdicts are weaker than the skill's standard. It did not audit `afkv2/GLOSSARY.md`
+- Supersedes: none
+- To reverse: revert commit 5120ee84
+
+## D-69 — owner ruling R-5: one delta check for a late fix
+- 2026-10-30 · decided by the owner (brief, section "Owner rulings")
+- Options: A — one delta check of a critical or high fix in the last allowed round, or of a fix for a ruling after review settled vs B — no check of such a fix
+- Chosen: A — the check reads only the fix commits' diff. It may confirm or reopen what those commits answer, and it raises a new finding only if a fix adds a critical or high defect. A reopened critical or high finding gets one more fix, and the slice parks if the next delta check fails. In this run it applies to the D-67 rename (f6eec235). No slice reached round 3, so no last-round fix needs it. The check also reads 5120ee84, which no ruling asked for, because it also came after review settled
+- Supersedes: D-18, only where it gave a late fix no check
+- To reverse: the owner withdraws R-5

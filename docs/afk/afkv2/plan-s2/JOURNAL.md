@@ -176,3 +176,6 @@
 2026-10-30 16:55 | autopilot | run | gate-skip — commit f6eec235 and the merge commits made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
 2026-10-30 17:04 | smoke-test | gate | smoke smoke_green (2/2 scenarios) — the code compiles and the afkv2 tests pass (508 passed, 22 skipped because they wait for the other sessions' page engine and ticket tool); the real page engine and ticket tool were not part of this run
 2026-10-30 17:04 | autopilot | run | run end (5/5 done, 0 parked) — all five slices are built and the smoke check is green; the final ship check is left out by the session brief, and the pull request stays Draft
+2026-10-30 17:16 | autopilot | run | decision(D-68) — the search for unused work found 2 commands nothing calls, so they are removed; 2 more items wait for work planned elsewhere
+2026-10-30 17:16 | autopilot | run | decision(D-69) — the owner ruled that a fix made late gets one narrow check of that fix alone
+2026-10-30 17:16 | autopilot | run | gate-skip — commit 5120ee84 and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
