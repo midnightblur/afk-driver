@@ -33,6 +33,9 @@ complex
 - afkv2/tests/test_hooks.py
 - afkv2/tests/test_plugin_check.py
 - afkv2/tests/live/CODEX-LIVE-CHECKS.md
+- afkv2/core/CORE-BEHAVIORS.md   # seed only; 0002 owns the content
+- afkv2/hooks/built/afkv2-core-behaviors.txt   # seed only; 0002 owns the content
+- afkv2/hooks/built/afkv2-core-behaviors.claude-subagent.json   # seed only; 0002 owns the content
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)

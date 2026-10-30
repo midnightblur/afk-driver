@@ -76,3 +76,10 @@
 - Chosen: A — both paths are outside every 0001 `## Scope` glob, so root DECISIONS.md condition 3 stops the agent. Gap 1: no job runs `afkv2/tests` (`.github/workflows/tests.yml:64` runs `scripts/tests` only). Gap 2: the v1 native-contract gate refuses the two tool names in `afkv2/tests/live/CODEX-LIVE-CHECKS.md` and in `docs/afk/afkv2`, so the v1 unit-test job on pull request 155 is red, and the rule "at ship, CI must be green" has no plan step behind it.
 - Supersedes: none
 - To reverse: the owner names a plan step for the two paths
+
+## D-12 — ruling on the 0001 seed files: resolves D-1 and review finding f008
+- 2026-10-30 · decided by the plan author (the human who sliced this plan; the owner delegated reversible plan calls), relayed in session S1
+- Options: A — keep the 3 files and add them to the 0001 `## Scope` as seed only vs B — remove the files and move the plugin-check and live-check rows of 0001 to after 0002
+- Chosen: A — ruling of the plan author. The 3 paths are now in the 0001 `## Scope`, each with the comment `# seed only; 0002 owns the content`: `afkv2/core/CORE-BEHAVIORS.md`, `afkv2/hooks/built/afkv2-core-behaviors.txt`, `afkv2/hooks/built/afkv2-core-behaviors.claude-subagent.json`
+- Supersedes: "0001 `## Scope` does not list the two paths" (D-1)
+- To reverse: 0002 overwrites the seed; to undo the Scope change, remove the 3 lines from the 0001 `## Scope`
