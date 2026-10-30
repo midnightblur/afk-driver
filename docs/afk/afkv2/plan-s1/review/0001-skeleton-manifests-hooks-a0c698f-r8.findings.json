@@ -1,0 +1,3 @@
+[
+  {"id": "r-001", "concern": "test-veracity", "criterion": "Happy-path-only", "severity": "low", "class": "test", "file": "afkv2/tests/test_plugin_check.py", "line": 421, "side": "new", "finding": "The word rule's lookahead and colon lookbehind are not pinned by any pass case, so the new cases pin only the hyphen lookbehind.", "why": "Each pass case is also blocked by a second guard, so removing the lookahead or the colon in the lookbehind leaves every test green.", "fix": "Add pass cases that only one guard can reject.", "evidence": "The reviewer mutation probe: mutants lookahead removed, lookahead without hyphen, lookahead without colon, lookbehind without colon each leave 0 fail-list lines unflagged and no extra pass-list lines flagged."}
+]
