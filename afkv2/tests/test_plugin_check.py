@@ -390,6 +390,8 @@ def test_every_method_operator_fails(tree, operator):
         ("sample.html", f'<script>if ("{MARKER}" in text) go()</script>'),
         ("sample.psm1", f'$line -match "{MARKER}"'),
         ("sample.ps1", f'$line -in "{MARKER}"'),
+        ("sample.sh", f"git log --grep {MARKER}"),
+        ("sample.sh", f"git log --grep={MARKER}"),
         ("sample.CMD", f'findstr /c:"{MARKER}" x'),
         ("sample.html", f"<p>the {MARKER} text in context</p>"),
         ("sample.yaml", f"marker: {MARKER} in file"),
@@ -444,9 +446,10 @@ def test_bare_v1_word_in_a_hook_command_fails(tree):
     assert any("hooks/hooks.json:1" in p for p in plugin_check.check_no_v1_names(tree))
 
 
-def test_marker_and_word_in_other_json_passes(tree):
-    (tree / "hooks" / "other.json").write_text(f'  "command": "grep {MARKER} x",\n', encoding="utf-8")
+def test_other_json_stays_prose_for_both_rules(tree):
+    (tree / "hooks" / "other.json").write_text(f'  "command": "grep {MARKER} x {V1} now",\n', encoding="utf-8")
     assert plugin_check.check_marker_matching(tree) == []
+    assert plugin_check.check_no_v1_names(tree) == []
 
 
 @pytest.mark.parametrize("relative", plugin_check.MANIFESTS)

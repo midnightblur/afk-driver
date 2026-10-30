@@ -48,7 +48,7 @@ SUBSTRING_MATCH = re.compile(
     r"|\$\{\w+[:#%]"
     r"|(?<![\w-])-[ci]?(?:not)?(?:like|match|contains|replace|split|in)\b"
     r"|(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9:-]*\*"
-    r"|(?<![\w:-])(?:select-string|in|findstr|find|grep|strstr|sed|awk|sls)(?![\w:-])",
+    r"|(?<![\w:])(?<![a-z0-9]-)(?:select-string|in|findstr|find|grep|strstr|sed|awk|sls)(?![\w:-])",
     re.IGNORECASE,
 )
 
