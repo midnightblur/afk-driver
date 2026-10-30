@@ -286,3 +286,17 @@
 - Chosen: A — I reproduced it: 1 failed, 171 passed, 1 skipped, from `ValueError` at `afkv2/engine/registry.py:42`. The test stood in a scratch `map` until the real one existed, and 0004 adds the real one. The fixture stays, because 2 other tests use it. The 0004 agent also runs this test file. This covers this one edit on 0004 only
 - Supersedes: none
 - To reverse: remove the path from the 0004 `## Scope` and restore the 2 lines
+
+## D-42 — an arrow that skips a rank takes a free lane, and an arrow label moves clear
+- 2026-10-30 · decided by execute (0004-diagram-components)
+- Options: A — Python keeps the computed layout: a forward arrow with a box in its way runs in the nearest free lane through straight segments, and each label moves across the ranks until it touches no box and no earlier label, and the canvas grows to hold it vs B — a browser script measures and routes, which D-39 refused
+- Chosen: A — review round 1 of this slice found 2 high defects on PRD CMP-5 and AC-042. A label size is an estimate. Headless Edge measured 14 hard graphs in both directions, and no label touched a box or a label or left the canvas. Still a known gap: a back arrow can pass behind a box in a tall stack
+- Supersedes: D-39 "An arrow that spans ranks or a back arrow can pass behind a box, and its label can sit on a box in a stack (known gap)", for forward arrows and all labels
+- To reverse: remove `_lanes` and `_Taken` from `diagram_boxes.py`
+
+## D-43 — the gap of a map held in a card goes to 0005 by orchestrator ruling
+- 2026-10-30 · decided by the orchestrator, recorded by execute (0004-diagram-components)
+- Options: A — 0004 leaves `afkv2/engine/engine.py` as it is and 0005 takes the gap vs B — 0004 widens its Scope and changes `engine._element_ids`
+- Chosen: A — the orchestrator's words: "D-40's gap stays as you recorded it. `afkv2/engine/engine.py` is outside your Scope, and I am passing the gap to 0005, which has that file in its Scope and builds notes. Do not fix it here." Review round 1 widens what 0005 must cover. For a map held in a card or a table cell: a note on its node is refused, an item cannot link to its node, 2 held maps with one node id pass the check, and a node round past the last round passes the check. S2's `round_document.py` accepts `map` as a card body, so this shape is reachable (read in the reviewer's evidence, not re-run here)
+- Supersedes: none
+- To reverse: walk every map with `registry.walk` in `engine._element_ids`
