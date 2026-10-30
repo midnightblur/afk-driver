@@ -107,3 +107,11 @@
 2026-10-30 12:21 | execute | 0001-skeleton-manifests-hooks | gate-skip(R-4) — the D-29 commit uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run.
 2026-10-30 12:50 | execute | 0003-engine-core-schema-show-poll | developing — the tests are written first and the engine, the page shell and the Codex wait now pass them, including a live run on a local copy of the page host
 2026-10-30 12:50 | execute | 0003-engine-core-schema-show-poll | decision(D-30..D-36) — seven reversible build choices are recorded; the one to know is that show falls back to Markdown until the machine's page host moves from 0.1.63 to 0.1.80
+2026-10-30 12:55 | execute | 0003-engine-core-schema-show-poll | pushed 0b2de51a..e39818dc (4 commits) — the page engine, the Codex wait and their tests are on the branch, and the pull request checklist is ticked
+2026-10-30 12:55 | execute | 0003-engine-core-schema-show-poll | gate-skip(R-4) — commits 34890d14, bff4bddb, 8148c7ec and e39818dc use AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so their pre-commit gates did not run
+2026-10-30 12:55 | execute | 0003-engine-core-schema-show-poll | verifying — running each declared check
+2026-10-30 12:58 | execute | 0003-engine-core-schema-show-poll | verify — on e39818dc: compile ok, 8 of 8 anchors found once each, 159 unit tests passed, the live seam test passed on a local lavish-axi 0.1.80 in Edge, 502 hook and check tests passed, plugin check ok
+2026-10-30 12:58 | execute | 0003-engine-core-schema-show-poll | reviewing — independent readers check the slice
+2026-10-30 12:58 | execute | 0003-engine-core-schema-show-poll | adversary: skipped (owner ruling R-1) — no run of the attack gate on this slice
+2026-10-30 13:30 | execute | 0003-engine-core-schema-show-poll | review blocking crit=0 high=3 med=18 low=10 — a malformed table cell or map entry made the check crash instead of refusing; both are fixed, and the 28 lesser findings stay on the pull request as advice under owner ruling R-2
+2026-10-30 13:30 | execute | 0003-engine-core-schema-show-poll | gate-skip(R-4) — the review fix commit uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run

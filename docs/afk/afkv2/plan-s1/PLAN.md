@@ -95,7 +95,7 @@ seams are the ones S2 and S3 depend on.*
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | done | — | static, unit, integration | — |
 | 2 | 0002-core-behaviors | core behaviors | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
-| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | developing | 0001-skeleton-manifests-hooks | static, unit, integration | — |
+| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | reviewing | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 4 | 0004-diagram-components | diagram components | pending | 0003-engine-core-schema-show-poll | static, unit | — |
 | 5 | 0005-notes-ingest-live-test | notes ingest live test | pending | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
 

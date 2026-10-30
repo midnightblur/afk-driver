@@ -67,8 +67,8 @@ def describe(doc: dict, path: tuple) -> tuple[str, str]:
     if path[:1] == ("session",):
         name, rest = "session", path[1:]
     elif path[:1] == ("maps",) and len(path) > 1:
-        entry = (doc.get("maps") or [None])[path[1]]
-        name = f"map {(entry or {}).get('id') or path[1]}"
+        entry = doc["maps"][path[1]]
+        name = f"map {(entry.get('id') if isinstance(entry, dict) else None) or path[1]}"
         rest = path[2:]
     elif path[:1] == ("rounds",) and len(path) > 1:
         round_ = doc["rounds"][path[1]]

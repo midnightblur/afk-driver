@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import importlib.util
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
@@ -15,6 +16,8 @@ from typing import Callable, Iterable
 from schema.validate import check_schema, problems
 
 COMPONENTS = Path(__file__).resolve().parent / "components"
+PAGE_SCHEMA = json.loads((COMPONENTS.parent / "schema" / "page-v0.schema.json").read_text(encoding="utf-8"))
+COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}
 _loaded = False
@@ -77,6 +80,9 @@ def _held(component: dict, kind: ComponentType | None) -> list[tuple]:
 
 def validate(component: dict, path: tuple = ()) -> list[tuple]:
     """Problems of a component and of every component it holds, as `(path, why)`."""
+    shape = problems(component, COMPONENT_SHAPE, path, PAGE_SCHEMA)
+    if shape:
+        return shape
     kind = lookup(component["type"])
     if kind is None:
         return [((*path, "type"), f"unknown type {component['type']!r}; known types: {', '.join(known_types())}")]

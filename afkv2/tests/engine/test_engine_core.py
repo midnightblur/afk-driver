@@ -466,6 +466,10 @@ def test_freestyle_renders_any_html_and_the_page_marks_it():
     assert holds(html, 'data-afkv2-freestyle="1"', "Freestyle: a drawing")
 
 
+def table_with_cell(cell):
+    return {"type": "table", "props": {"columns": ["A"], "rows": [[cell]]}}
+
+
 @pytest.mark.parametrize("component, field", [
     ({"type": "freestyle", "props": {}, "html": "<b></b>"}, "props.reason"),
     ({"type": "freestyle", "props": {"reason": "x"}}, "html"),
@@ -474,11 +478,27 @@ def test_freestyle_renders_any_html_and_the_page_marks_it():
     ({"type": "chip", "props": {"text": "x", "tone": "loud"}}, "props.tone"),
     ({"type": "table", "props": {"columns": ["A", "B"], "rows": [["x"]]}}, "props.rows[0]"),
     ({"type": "table", "props": {"columns": ["A"], "rows": [[{"type": "nope"}]]}}, "props.rows[0][0].type"),
+    (table_with_cell({"type": "text", "props": {"text": "x"}, "id": 5}), "props.rows[0][0].id"),
+    (table_with_cell({"type": "text", "props": {"text": "x"}, "style": 5}), "props.rows[0][0].style"),
+    (table_with_cell({"type": "text", "props": {"text": "x"}, "children": "ab"}), "props.rows[0][0].children"),
+    (table_with_cell({"type": "text", "props": {"text": "x"}, "extra": 1}), "props.rows[0][0].extra"),
+    (table_with_cell({"type": ["text"]}), "props.rows[0][0].type"),
+    (table_with_cell({"type": "text", "props": "x"}), "props.rows[0][0].props"),
+    (table_with_cell({"type": "text", "props": {"text": "x"}, "children": [{"type": "text", "id": 5}]}),
+     "props.rows[0][0].children[0].id"),
 ])
 def test_bad_props_name_the_field(capsys, tmp_path, component, field):
     doc = document()
     doc["rounds"][0]["items"][0]["body"] = component
     assert f"item i-a, field body.{field}" in refused(capsys, tmp_path, doc)["reason"]
+
+
+@pytest.mark.parametrize("entry, name", [("abc", "map 0"), (5, "map 0"), (0, "map 0"), (["x"], "map 0"), ({}, "map 0"),
+                                         ({"id": "m-1"}, "map m-1")])
+def test_a_bad_map_entry_is_refused_by_name(capsys, tmp_path, entry, name):
+    doc = document()
+    doc["maps"] = [entry]
+    assert refused(capsys, tmp_path, doc)["reason"].startswith(f"{name}, field ")
 
 
 # --- base components
