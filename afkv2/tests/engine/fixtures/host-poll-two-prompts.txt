@@ -1,0 +1,20 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  status: feedback
+  session_ended: true
+  ended_by: user
+prompts[2]:
+  - uid: "1"
+    prompt: "first, with a comma"
+    selector: p
+    tag: note
+    text: x
+  - uid: "2"
+    prompt: "- second\nline"
+    selector: null
+    tag: choice
+    text: y
+    attachments[1]{name,path}:
+      a.png,"C:\\a.png"
+next_step: Stop.
+dom_snapshot: ""

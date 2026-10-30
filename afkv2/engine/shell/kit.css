@@ -1,0 +1,259 @@
+/* Inlined into every rendered page, never fetched. Dark-first; `data-theme="light"` on <html> paints the light set.
+ * One fixed semantic colour set, each colour paired with a text or shape cue. */
+
+:root {
+  color-scheme: dark;
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-2: #23272f;
+  --line: #333944;
+  --fg: #e6e9ef;
+  --fg-dim: #a7b0be;
+  --settled: #4ade80;
+  --open: #fbbf24;
+  --blocked: #f87171;
+  --neutral: #94a3b8;
+  --accent: #7dd3fc;
+  --focus: #7dd3fc;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --line: #d8dde6;
+  --fg: #14161a;
+  --fg-dim: #545c6a;
+  --settled: #15803d;
+  --open: #b45309;
+  --blocked: #b91c1c;
+  --neutral: #52606d;
+  --accent: #0369a1;
+  --focus: #0369a1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem 1.5rem 7rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.afkv2-page { max-width: 62rem; margin: 0 auto; }
+
+.afkv2-title { margin: 0 0 .25rem; font-size: 1.35rem; }
+.afkv2-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+
+h2, h3, h4 { line-height: 1.3; }
+
+/* No bare h4 rule: card headings are h4. Style headings by class, never by level. */
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: .88em; background: var(--surface-2); padding: .1em .35em;
+       border-radius: 3px; }
+
+a { color: var(--accent); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.afkv2-section { margin: 2rem 0; }
+.afkv2-section > h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+
+.afkv2-round {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--afkv2-round, var(--open));
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.afkv2-round > .afkv2-h { margin: 0 0 .75rem; font-size: 1.1rem; }
+
+.afkv2-round-header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
+.afkv2-where { margin: 0; font-weight: 600; }
+.afkv2-settled-last, .afkv2-next p { margin: .25rem 0; color: var(--fg-dim); }
+.afkv2-next { margin-top: .75rem; }
+
+.afkv2-cards { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+/* --- cards ------------------------------------------------------------- */
+
+.afkv2-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neutral);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: .85rem 1rem;
+}
+.afkv2-card > .afkv2-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+                     letter-spacing: normal; text-transform: none; color: var(--fg); }
+.afkv2-card--decided { border-left-color: var(--accent); }
+.afkv2-card--debate { border-left-color: var(--open); }
+.afkv2-card--confirm { border-left-color: var(--open); }
+.afkv2-card--signoff { border-left-color: var(--blocked); }
+.afkv2-card--settled { border-left-color: var(--settled); }
+.afkv2-card[data-afkv2-state="blocked"] { border-left-color: var(--blocked); }
+
+/* The session rail collapses a card by adding this class; only the heading,
+ * which is always the first child, stays visible. */
+.afkv2-card.afkv2-collapsed > *:not(.afkv2-h) { display: none; }
+
+.afkv2-fields { margin: .5rem 0 0; }
+.afkv2-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); margin-top: .6rem; }
+.afkv2-fields dd { margin: .15rem 0 0; }
+.afkv2-fields ul { margin: .15rem 0; padding-left: 1.1rem; }
+
+.afkv2-context { margin: 0 0 .6rem; }
+.afkv2-context + .afkv2-context { margin-top: -.2rem; }
+.afkv2-why-beat { margin: 0 0 .35rem; }
+.afkv2-third { color: var(--accent); }
+.afkv2-undecided { color: var(--fg-dim); }
+.afkv2-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
+
+.afkv2-degraded {
+  margin: 0 0 .5rem;
+  padding: .5rem .65rem;
+  border: 1px dashed var(--open);
+  border-radius: 4px;
+  color: var(--open);
+}
+
+/* --- option grid ------------------------------------------------------- */
+
+.afkv2-grid-wrap { overflow-x: auto; margin: .5rem 0; }
+.afkv2-grid { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.afkv2-grid caption { text-align: left; color: var(--fg-dim); padding-bottom: .3rem; }
+.afkv2-grid th, .afkv2-grid td {
+  border: 1px solid var(--line); padding: .4rem .55rem; text-align: left;
+  vertical-align: top;
+}
+.afkv2-grid thead th { background: var(--surface); }
+.afkv2-rec { color: var(--accent); font-weight: 600; font-size: .75rem; }
+
+/* --- answer surface ---------------------------------------------------- */
+
+.afkv2-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+
+.afkv2-choice { border: 0; margin: 0; padding: 0; }
+/* `display: block` takes the legend out of the fieldset's border-anchored slot,
+ * where its box overlaps the first option row and trips the layout audit. */
+.afkv2-choice { display: flow-root; }
+.afkv2-choice legend { display: block; width: 100%; float: none;
+                     margin: 0 0 .3rem;
+                     font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                     color: var(--fg-dim); padding: 0; }
+.afkv2-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+.afkv2-opt input { margin-top: .25rem; }
+
+.afkv2-note { display: block; margin-top: .55rem; }
+.afkv2-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); }
+.afkv2-note textarea {
+  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; font: inherit; resize: vertical;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- send bar ---------------------------------------------------------- */
+
+.afkv2-send {
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .7rem 1.25rem;
+  /* Not fully opaque: the layout audit reads an opaque sticky bar as covering the text under it.
+   * The blur keeps the bar legible. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur available: a translucent bar over scrolling text is unreadable, so
+   * take the solid fill back and accept the false warning. Legibility first. */
+  .afkv2-send { background: var(--surface); }
+}
+.afkv2-send button {
+  font: inherit; padding: .45rem .9rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  cursor: pointer;
+}
+.afkv2-send button.afkv2-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.afkv2-send button[hidden] { display: none; }
+.afkv2-card.afkv2-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
+.afkv2-send-summary {
+  flex: 1 1 100%; color: var(--fg); font: .82rem/1.35 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+.afkv2-send-status { color: var(--fg-dim); font-size: .88rem; }
+.afkv2-send-status.afkv2-warn { color: var(--open); }
+
+/* --- rounds: each round has its own colour ------------------------------ */
+
+.afkv2-round-past { margin: 1.5rem 0; }
+.afkv2-maps:empty, .afkv2-notes-replies:empty { display: none; }
+.afkv2-section-h { margin: 1.5rem 0 .75rem; font-size: 1.05rem; }
+
+.afkv2-round-chip {
+  display: inline-block; padding: .05rem .45rem; border-radius: 999px;
+  background: var(--afkv2-round, var(--accent)); color: #111418;
+  font: 700 .75rem/1.5 ui-monospace, monospace;
+}
+
+/* --- round banner ------------------------------------------------------- */
+
+.afkv2-banner {
+  margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--line);
+  border-top: 4px solid var(--afkv2-round, var(--accent)); border-radius: 6px;
+  background: var(--surface);
+}
+.afkv2-banner > h2 { margin: 0 0 .5rem; font-size: 1.05rem; }
+.afkv2-banner-lists { display: grid; gap: .75rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.afkv2-banner-list > h3 {
+  margin: 0 0 .2rem; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
+}
+.afkv2-banner-list ul { margin: 0; padding-left: 1.1rem; }
+.afkv2-none { margin: 0; color: var(--fg-dim); }
+
+/* --- card additions ----------------------------------------------------- */
+
+.afkv2-card { border-left-color: var(--afkv2-round, var(--neutral)); }
+.afkv2-card[data-afkv2-state="settled"] { border-left-color: var(--settled); }
+.afkv2-state { font-size: .72rem; font-weight: 400; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-dim); }
+.afkv2-state--open { color: var(--open); }
+.afkv2-state--blocked { color: var(--blocked); }
+.afkv2-state--settled_by_mark, .afkv2-state--settled_by_note { color: var(--settled); }
+.afkv2-settled { margin: 0 0 .5rem; color: var(--fg-dim); }
+.afkv2-settled--note { color: var(--settled); font-style: italic; }
+.afkv2-body > :first-child { margin-top: 0; }
+.afkv2-text > p { margin: 0 0 .4rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.afkv2-children { margin: .25rem 0; }
+.afkv2-card .afkv2-h { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
+
+/* --- chip and styled text: 4 semantic tones, never colour alone ---------- */
+
+.afkv2-chip {
+  display: inline-block; margin: .1rem .25rem .1rem 0; padding: .05rem .5rem; border-radius: 999px;
+  border: 1px solid var(--line); font-size: .85rem;
+}
+.afkv2-tone--removed { color: var(--blocked); text-decoration: line-through; }
+.afkv2-chip.afkv2-tone--removed { border-color: var(--blocked); }
+.afkv2-tone--kept { color: var(--neutral); }
+.afkv2-chip.afkv2-tone--kept { background: var(--surface); }
+.afkv2-tone--new { color: var(--accent); }
+.afkv2-chip.afkv2-tone--new { border-color: var(--accent); background: var(--surface-2); }
+.afkv2-tone--proposed { color: var(--fg); }
+.afkv2-chip.afkv2-tone--proposed { border-style: dashed; }
+.afkv2-text.afkv2-tone--proposed { border: 1px dashed var(--line); border-radius: 4px; padding: .25rem .5rem; }
+
+/* --- freestyle: the page marks each use --------------------------------- */
+
+.afkv2-freestyle { margin: .5rem 0; padding: .5rem .65rem; border: 1px dashed var(--open); border-radius: 4px; }
+.afkv2-freestyle > figcaption { margin-bottom: .35rem; font-size: .78rem; color: var(--open); }
+.afkv2-freestyle-body { overflow-x: auto; }
+

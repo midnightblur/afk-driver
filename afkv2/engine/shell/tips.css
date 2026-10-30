@@ -1,0 +1,38 @@
+  .afkv2-tip { border-bottom: 1px dotted currentColor; cursor: help; }
+  #afkv2-tip-box {
+    position: fixed; z-index: 2147483647; max-width: 340px; padding: 8px 10px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35); pointer-events: none;
+    opacity: 0; transition: opacity .12s; white-space: normal;
+  }
+  #afkv2-nav {
+    position: fixed; top: 14px; right: 14px; z-index: 2147483645; width: 236px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  #afkv2-nav-head { display: flex; align-items: center; gap: 6px; padding: 7px 10px; cursor: pointer; user-select: none; }
+  #afkv2-nav-head b { flex: 1; font-weight: 600; }
+  #afkv2-nav-list { max-height: 62vh; overflow-y: auto; padding: 0 6px 6px; }
+  #afkv2-nav.afkv2-min { width: auto; }
+  #afkv2-nav.afkv2-min #afkv2-nav-list { display: none; }
+  .afkv2-nav-g { margin: 4px 0 2px; padding: 2px 4px; font-weight: 600; opacity: .75; cursor: pointer; user-select: none; }
+  .afkv2-nav-row { display: block; padding: 3px 4px 3px 10px; border-radius: 5px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .afkv2-nav-row:hover { background: rgba(255,255,255,.08); }
+  .afkv2-nav-row.afkv2-cur { background: rgba(59,130,246,.25); }
+  .afkv2-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; margin-right: 5px; vertical-align: 1px; }
+  #afkv2-jump {
+    position: fixed; left: 14px; bottom: 14px; z-index: 2147483645; display: none;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 12.5px/1.4 system-ui, sans-serif;
+  }
+  #afkv2-jump:hover { border-color: rgba(255,255,255,.5); }
+  .afkv2-collapsed > *:not(:first-child) { display: none !important; }
+  .afkv2-caret { cursor: pointer; }
+  .afkv2-caret::after { content: "▸"; margin-left: 6px; opacity: .55; }
+  .afkv2-caret.afkv2-open::after { content: "▾"; }
+  [data-afkv2-fresh] { box-shadow: -3px 0 0 0 #f59e0b; }
+  [data-afkv2-item] { scroll-margin-top: 10px; }
+  .afkv2-flash { outline: 2px solid #f59e0b; outline-offset: 2px; }

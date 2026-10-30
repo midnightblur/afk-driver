@@ -1,0 +1,5 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  status: ended
+  ended_by: user
+next_step: Stop polling.

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "page-document-v0",
+  "title": "Page document, version 0",
+  "description": "Frozen. A change is a new schema value with its own file and reader. Each component type checks its own props with its registered schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "session", "rounds"],
+  "properties": {
+    "schema": {"const": "afkv2.page/0"},
+    "session": {"$ref": "#/$defs/session"},
+    "maps": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
+    "rounds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/round"}}
+  },
+  "$defs": {
+    "text_list": {"type": "array", "items": {"type": "string"}},
+    "utc_time": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?Z$"},
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "skill", "feature", "ticket", "started"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "skill": {"enum": ["grill", "propose-solution", "propose-verification"]},
+        "feature": {"type": "string", "minLength": 1},
+        "ticket": {"type": "string", "minLength": 1},
+        "started": {"$ref": "#/$defs/utc_time"}
+      }
+    },
+    "round": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "state", "banner", "items"],
+      "properties": {
+        "n": {"type": "integer", "minimum": 1},
+        "state": {"enum": ["current", "settled"]},
+        "colour": {"type": ["string", "null"]},
+        "banner": {"$ref": "#/$defs/banner"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+        "responses": {"type": ["array", "null"], "items": {"$ref": "#/$defs/response"}},
+        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/reply"}}
+      }
+    },
+    "banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settled", "unlocks", "parked"],
+      "properties": {
+        "settled": {"$ref": "#/$defs/text_list"},
+        "unlocks": {"$ref": "#/$defs/text_list"},
+        "parked": {"$ref": "#/$defs/text_list"}
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["received", "raw", "signals"],
+      "properties": {
+        "received": {"$ref": "#/$defs/utc_time"},
+        "raw": {"type": "string"},
+        "signals": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["stamp"]}}
+      }
+    },
+    "reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": {"type": "string"},
+        "about": {"type": ["array", "null"], "items": {"type": "string"}}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "body"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["decided", "confirm", "debate", "signoff", "info"]},
+        "node": {"type": ["string", "null"]},
+        "state": {"enum": ["open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"]},
+        "body": {"$ref": "#/$defs/component"},
+        "settled": {"$ref": "#/$defs/settled"},
+        "notes": {"type": ["array", "null"], "items": {"$ref": "#/$defs/note"}}
+      }
+    },
+    "settled": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["by", "round", "signal"],
+      "properties": {
+        "by": {"enum": ["mark", "note"]},
+        "round": {"type": "integer", "minimum": 1},
+        "signal": {"type": "string", "minLength": 1},
+        "reading": {"type": "string"}
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "round", "target", "text", "deleted"],
+      "properties": {
+        "id": {"type": "string"},
+        "round": {"type": "integer", "minimum": 1},
+        "target": {"type": "string"},
+        "text": {"type": "string"},
+        "deleted": {"type": "boolean"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "id": {"type": ["string", "null"]},
+        "props": {"type": ["object", "null"]},
+        "style": {"type": ["string", "null"]},
+        "children": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
+        "html": {"type": "string"}
+      }
+    }
+  }
+}

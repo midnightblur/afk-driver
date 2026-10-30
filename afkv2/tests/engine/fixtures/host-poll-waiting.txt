@@ -1,0 +1,4 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  status: waiting
+next_step: Poll again.

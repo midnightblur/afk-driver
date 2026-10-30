@@ -1,0 +1,5 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  url: "http://127.0.0.1:4387/session/42b5993a48b4b0d8"
+  status: opened
+next_step: Now poll.
