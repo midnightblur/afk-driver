@@ -169,3 +169,4 @@
 2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-76) — see plan-s3/DECISIONS.md
 2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-77) — see plan-s3/DECISIONS.md
 2026-10-30 12:46 | execute | 0015-autopilot-execute | developing — gate, walk, test-first record and both skills written. The gate and the record were written before their tests; each rule was then proved by a test that fails when the rule is changed (20 changes, 0 survivors). The walk tests came first. In plain terms: the code is written, and each rule has a test that notices when the rule breaks
+2026-10-30 12:51 | execute | 0015-autopilot-execute | gate-skip — commits 0239fc7b, ad7e93a1, dcabfbfb and the plan commit used AFK_SKIP_PRECOMMIT_GATES=1 (ruling D-62). In plain terms: the commit checks did not run on these commits; the pull request's CI still runs
