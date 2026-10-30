@@ -27,13 +27,17 @@ PLAIN_VARIANT = MARKER + ".txt"
 CLAUDE_SUBAGENT_VARIANT = MARKER + ".claude-subagent.json"
 
 SKIPPED_DIRS = frozenset({"__pycache__", ".pytest_cache"})
-CODE_SUFFIXES = frozenset({".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts"})
+CODE_SUFFIXES = frozenset(
+    {".py", ".cmd", ".bat", ".ps1", ".sh", ".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".vue", ".html", ".css"}
+    | {".yaml", ".yml", ".toml"}
+)
 
 V1_FILE_PART = re.compile(r"af[k](?!v2)", re.IGNORECASE)
 V1_TEXT = (
     re.compile(r"(?<![A-Za-z0-9_])AF[K][_]"),
-    re.compile(r"(?<![a-z0-9])af[k](?!v2)(?=[-_:./\\a-z0-9])", re.IGNORECASE),
-    re.compile(r"[.\\/]af[k](?![a-z0-9])", re.IGNORECASE),
+    re.compile(r"(?<![a-z0-9])af[k](?!v2)(?=[-_:./\\][a-z0-9]|[a-z0-9])", re.IGNORECASE),
+    re.compile(r"[.\\/#]af[k](?![a-z0-9])", re.IGNORECASE),
+    re.compile(r"(?<=[a-z0-9])[-_]af[k](?![a-z0-9])", re.IGNORECASE),
     re.compile(r"([\"'%])af[k]\1", re.IGNORECASE),
     re.compile(r"(?<![a-z0-9_])af[k][=]", re.IGNORECASE),
     re.compile(r"[$][{]?af[k](?![a-z0-9_])", re.IGNORECASE),
@@ -48,7 +52,11 @@ SUBSTRING_MATCH = re.compile(
     r"|includes|indexOf|lastIndexOf|contains)\("
     r"|\bre\.(?:findall|finditer|sub)\("
     r"|(?<![=!<>])\bin\b"
-    r"|\b(?:findstr|find|grep|strstr)\b"
+    r"|\.test\("
+    r"|\.(?:slice|substring|substr)\("
+    r"|\[[^\]]*:[^\]]*\]\s*[!=]="
+    r"|\b(?:findstr|find|grep|strstr|sed|awk|sls)\b"
+    r"|\bSelect-String\b"
     r"|-(?:like|match|contains)\b"
 )
 
@@ -83,7 +91,10 @@ def check_no_v1_names(root: Path) -> list[str]:
         relative = path.relative_to(root)
         if any(V1_FILE_PART.search(part) for part in relative.parts):
             problems.append(f"{relative.as_posix()}: file name uses a v1 name")
-        patterns = (*V1_TEXT, V1_WORD_IN_CODE) if path.suffix.lower() in CODE_SUFFIXES else V1_TEXT
+        is_code = path.suffix.lower() in CODE_SUFFIXES
+        if is_code and not _is_utf8(path):
+            problems.append(f"{relative.as_posix()}: not UTF-8; the check cannot read it")
+        patterns = (*V1_TEXT, V1_WORD_IN_CODE) if is_code else V1_TEXT
         for number, line in _text_lines(path):
             scrubbed = URL.sub("", line)
             if any(pattern.search(scrubbed) for pattern in patterns):
@@ -108,7 +119,7 @@ def run_checks(root: Path = PLUGIN_ROOT) -> list[str]:
     problems = _check_manifests(root)
     source = _read_source(root)
     if source is None:
-        problems.append(f"{CORE_SOURCE.as_posix()}: missing")
+        problems.append(f"{CORE_SOURCE.as_posix()}: missing or unreadable")
     else:
         problems += check_core_size(source)
         problems += _check_built(root, source)
@@ -121,15 +132,18 @@ def build(root: Path = PLUGIN_ROOT) -> list[str]:
     root = Path(root)
     source = _read_source(root)
     if source is None:
-        return [f"{CORE_SOURCE.as_posix()}: missing"]
+        return [f"{CORE_SOURCE.as_posix()}: missing or unreadable"]
     problems = check_core_size(source)
     if problems:
         return problems
     built = root / BUILT_DIR
     built.mkdir(parents=True, exist_ok=True)
     for name, text in build_hook_outputs(source).items():
-        (built / name).write_text(text, encoding="utf-8", newline="")
-    return run_checks(root)
+        try:
+            (built / name).write_text(text, encoding="utf-8", newline="")
+        except OSError as error:
+            problems.append(f"{(BUILT_DIR / name).as_posix()}: cannot write: {error}")
+    return problems or run_checks(root)
 
 
 def _check_built(root: Path, source: str) -> list[str]:
@@ -140,7 +154,7 @@ def _check_built(root: Path, source: str) -> list[str]:
         path = built / name
         if not path.is_file():
             problems.append(f"{(BUILT_DIR / name).as_posix()}: missing; run plugin_check.py build")
-        elif path.read_text(encoding="utf-8") != text:
+        elif _read_text(path) != text:
             problems.append(f"{(BUILT_DIR / name).as_posix()}: stale; run plugin_check.py build")
     if built.is_dir():
         for path in sorted(built.iterdir()):
@@ -162,7 +176,8 @@ def _check_manifests(root: Path) -> list[str]:
             problems.append(f"{HOOKS_FILE.as_posix()}: hooks must be one JSON object")
             return problems
         for event in HOOK_EVENTS:
-            if event not in events:
+            registration = events.get(event)
+            if not isinstance(registration, list) or not registration:
                 problems.append(f"{HOOKS_FILE.as_posix()}: no {event} registration")
     return problems
 
@@ -180,8 +195,24 @@ def _load_json(path: Path, problems: list[str]) -> dict | None:
 
 
 def _read_source(root: Path) -> str | None:
-    path = root / CORE_SOURCE
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+    return _read_text(root / CORE_SOURCE)
+
+
+def _read_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _is_utf8(path: Path) -> bool:
+    try:
+        path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return False
+    except OSError:
+        return True
+    return True
 
 
 def _files(root: Path):

@@ -168,4 +168,4 @@ def test_read_command_takes_a_start_folder(tmp_path):
 def test_every_usage_error_answers_json_with_exit_2(tmp_path, args):
     code, answer = run_reader(*args, cwd=tmp_path)
     assert code == 2
-    assert answer["error"]["code"] == "usage"
+    assert answer == {"ok": False, "error": {"code": "usage", "reason": answer["error"]["reason"]}}

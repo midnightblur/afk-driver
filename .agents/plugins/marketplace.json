@@ -5,18 +5,6 @@
   },
   "plugins": [
     {
-      "name": "afkv2",
-      "source": {
-        "source": "local",
-        "path": "./afkv2"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Developer Tools"
-    },
-    {
       "name": "afk",
       "source": {
         "source": "local",

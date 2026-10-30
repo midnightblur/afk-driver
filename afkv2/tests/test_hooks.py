@@ -24,6 +24,8 @@ SUBAGENT = HOOKS / "subagent-start.cmd"
 PLAIN = BUILT / plugin_check.PLAIN_VARIANT
 CLAUDE_SUBAGENT = BUILT / plugin_check.CLAUDE_SUBAGENT_VARIANT
 TIMING_ATTEMPTS = 5
+LIMIT_SECONDS = 0.050
+EMPTY_CMD = b"@echo off\r\n"
 CANARY = "canary.txt"
 PAYLOAD = json.dumps(
     {
@@ -47,6 +49,14 @@ def run_hook(hook, provider, data_root, env=None):
         env=hook_env(data_root) if env is None else env,
         cwd=data_root,
     )
+
+
+def timed_run(hook, data_root):
+    start = time.perf_counter()
+    done = run_hook(hook, "claude", data_root)
+    elapsed = time.perf_counter() - start
+    assert done.returncode == 0
+    return elapsed
 
 
 def normalized(data):
@@ -105,19 +115,22 @@ def test_unknown_provider_prints_nothing_and_writes_nothing(tmp_path, hook, prov
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
 def test_hook_median_of_7_runs_is_under_50_ms(tmp_path, hook):
+    floor_hook = tmp_path / "empty.cmd"
+    floor_hook.write_bytes(EMPTY_CMD)
     run_hook(hook, "claude", tmp_path)
-    medians = []
+    run_hook(floor_hook, "claude", tmp_path)
+    attempts = []
     for _ in range(TIMING_ATTEMPTS):
-        times = []
+        hook_times, floor_times = [], []
         for _ in range(7):
-            start = time.perf_counter()
-            done = run_hook(hook, "claude", tmp_path)
-            times.append(time.perf_counter() - start)
-            assert done.returncode == 0
-        medians.append(statistics.median(times))
-        if medians[-1] < 0.050:
+            floor_times.append(timed_run(floor_hook, tmp_path))
+            hook_times.append(timed_run(hook, tmp_path))
+        attempts.append((statistics.median(hook_times), statistics.median(floor_times)))
+        if attempts[-1][0] < LIMIT_SECONDS and attempts[-1][1] < LIMIT_SECONDS:
             return
-    pytest.fail(f"median over 50 ms in all {TIMING_ATTEMPTS} attempts: {medians}")
+    if all(floor >= LIMIT_SECONDS for _, floor in attempts):
+        pytest.skip(f"no verdict: an empty .cmd takes over 50 ms on this machine now: {attempts}")
+    pytest.fail(f"median over 50 ms with a usable floor, (hook, floor) per attempt: {attempts}")
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
@@ -159,12 +172,24 @@ def test_data_folder_path_with_brackets_gets_the_record(tmp_path, hook):
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
+@pytest.mark.parametrize("name, value", [("DATE", "Thu (10/30/2026)"), ("TIME", "12:00 (x)")])
+def test_bracket_in_date_or_time_cannot_fail_the_hook(tmp_path, hook, name, value):
+    done = run_hook(hook, "codex", tmp_path, env={**hook_env(tmp_path), name: value})
+    assert done.returncode == 0
+    assert done.stderr == b""
+    assert value in (tmp_path / "afkv2" / "fired-codex.txt").read_text(encoding="ascii")
+
+
+@pytest.mark.parametrize("hook", [SESSION, SUBAGENT])
 def test_hook_without_a_data_folder_prints_the_text_and_writes_no_record(tmp_path, hook):
+    root_folder = Path(tmp_path.anchor) / "afkv2"
+    assert not root_folder.exists(), f"{root_folder} exists before the run; remove it"
     env = {key: value for key, value in hook_env(tmp_path).items() if key != "LOCALAPPDATA"}
     done = run_hook(hook, "codex", tmp_path, env=env)
     assert done.returncode == 0
+    assert done.stderr == b""
     assert normalized(done.stdout) == normalized(PLAIN.read_bytes())
-    assert not (Path(tmp_path.anchor) / "afkv2").exists()
+    assert not root_folder.exists()
 
 
 @pytest.mark.parametrize("hook", [SESSION, SUBAGENT])

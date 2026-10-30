@@ -48,3 +48,31 @@
 - Chosen: A — with other work on the machine, the same hook gave medians from 41 ms to 81 ms in one probe (`session-start.cmd`: 45.5, 40.9, 45.4, 68.3, 81.5, 47.7 ms). One attempt fails on machine load, not on the hook. A hook that is slower than 50 ms fails all five attempts, so the PRD AC-013 rule still holds.
 - Supersedes: none
 - To reverse: set `TIMING_ATTEMPTS` to 1 in `afkv2/tests/test_hooks.py`
+
+## D-8 — take the Codex marketplace entry back out
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — remove the afkv2 entry from `.agents/plugins/marketplace.json`; the owner-run steps add it in a test copy, and the final report names the plan gap vs B — keep the entry of D-5
+- Chosen: A — root DECISIONS.md condition 3 ("it reshapes no plan structure (Scope globs ...)") does not let an agent add a Scope path that its own Goal and Acceptance do not need, and D-5 said it adds one; the Codex checks are owner-run (plan-s1 D-S-8).
+- Supersedes: D-5 in full
+- To reverse: the owner adds the path to a plan step, then that step adds the entry from `afkv2/tests/live/CODEX-LIVE-CHECKS.md`
+
+## D-9 — the 50 ms test measures an empty .cmd in the same attempt
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — each attempt runs 7 pairs of an empty `.cmd` and the hook after one discarded warm-up; pass on the first attempt with both medians under 50 ms, skip as no verdict if the empty `.cmd` is over 50 ms in all five attempts, otherwise fail vs B — one median of 7 with no floor vs C — the D-7 rule
+- Chosen: A — probes on this machine: an empty `.cmd` takes 40 ms to 47 ms in the same harness, so the hook body has about 3 ms to 10 ms of margin, and the same hook gave medians from 41 ms to 81 ms under load. D-7 was wrong to say that a hook slower than 50 ms fails all five attempts: the gate is the first median under the limit, so a hook near the limit can pass by chance. Load only adds time, so a hook far over the limit still fails.
+- Supersedes: D-7 in full; 0001 `## Verification` "run each `.cmd` 7 times with a sample hook payload on stdin, median < 50 ms"
+- To reverse: restore one median of 7 in `afkv2/tests/test_hooks.py`
+
+## D-10 — extra forms of the no-v1-name rule
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — also flag a name part at the end of a longer name (`-name`, `_name`), `#name`, and the bare word in `.jsx`, `.tsx`, `.vue`, `.html`, `.css`, `.yaml`, `.yml`, `.toml`; a code file that is not UTF-8 is a problem vs B — keep the D-6 forms
+- Chosen: A — 0001 Acceptance lists environment variables, storage keys and CSS classes, and these forms are those. Remaining known gap: a bare word in `.md`, `.txt` and `.json` passes (the manifest description is prose), and a joined word such as `notafk` passes. Page text in `.html` must say afkv2, not the bare word.
+- Supersedes: the D-6 sentence "a bare word in other text files passes as prose" for the suffixes above
+- To reverse: change `CODE_SUFFIXES` and `V1_TEXT` in `afkv2/scripts/plugin_check.py`
+
+## D-11 — two continuous-integration gaps have no owner in any plan
+- 2026-10-30 · decided by execute (0001-skeleton-manifests-hooks)
+- Options: A — record the gaps here and name them in the final report; the owner names the plan step vs B — edit `.github/workflows/tests.yml` and `hooks/native-contract-allow.txt` in this slice
+- Chosen: A — both paths are outside every 0001 `## Scope` glob, so root DECISIONS.md condition 3 stops the agent. Gap 1: no job runs `afkv2/tests` (`.github/workflows/tests.yml:64` runs `scripts/tests` only). Gap 2: the v1 native-contract gate refuses the two tool names in `afkv2/tests/live/CODEX-LIVE-CHECKS.md` and in `docs/afk/afkv2`, so the v1 unit-test job on pull request 155 is red, and the rule "at ship, CI must be green" has no plan step behind it.
+- Supersedes: none
+- To reverse: the owner names a plan step for the two paths

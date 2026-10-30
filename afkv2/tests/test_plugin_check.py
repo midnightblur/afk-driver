@@ -30,6 +30,16 @@ def run_check(*args):
     return done.returncode, json.loads(done.stdout)
 
 
+def run_tree_check(root, *args):
+    done = subprocess.run(
+        [sys.executable, str(root / "scripts" / "plugin_check.py"), *args],
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+    return done.returncode, json.loads(done.stdout)
+
+
 @pytest.fixture
 def tree(tmp_path):
     """A copy of the plugin tree the check can change freely."""
@@ -110,7 +120,7 @@ def test_unexpected_prebuilt_file_is_refused(tree):
 
 def test_crlf_checkout_of_prebuilt_files_is_not_stale(tree):
     built = tree / "hooks" / "built" / plugin_check.PLAIN_VARIANT
-    built.write_bytes(built.read_bytes().replace(b"\n", b"\r\n"))
+    built.write_bytes(built.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     assert plugin_check.run_checks(tree) == []
 
 
@@ -165,6 +175,16 @@ def test_v1_file_name_fails(tree, relative):
         f"set {V1.upper()}=1",
         f"echo %{V1.upper()}%",
         f"echo ${V1.upper()}",
+        f"see skills/{V1}/x",
+        f"echo ${{{V1.upper()}}}",
+        f'<div className="{V1}">',
+        f"{V1}\\state",
+        f'<div class="my-{V1}">',
+        f".card-{V1} {{ color: red }}",
+        f"#{V1} {{ color: red }}",
+        f'{{"key": "draft-{V1}"}}',
+        f"env: MY_{V1.upper()}",
+        f"set MY_{V1.upper()}=1",
     ],
 )
 @pytest.mark.parametrize("name", ["sample.py", "sample.txt"])
@@ -173,10 +193,22 @@ def test_v1_name_in_text_fails(tree, line, name):
     assert any(f"{name}:1" in p for p in plugin_check.check_no_v1_names(tree))
 
 
+@pytest.mark.parametrize("suffix", sorted(plugin_check.CODE_SUFFIXES))
 @pytest.mark.parametrize("line", [f"{V1} = 1", f"def {V1}(x):", f"run({V1})"])
-def test_bare_v1_word_in_code_fails(tree, line):
-    (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
-    assert any("sample.py:1" in p for p in plugin_check.check_no_v1_names(tree))
+def test_bare_v1_word_in_code_fails(tree, line, suffix):
+    (tree / "scripts" / f"sample{suffix}").write_text(line + "\n", encoding="utf-8")
+    assert any(f"sample{suffix}:1" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+@pytest.mark.parametrize("data", ["set X=1\r\nrem caf\xe9\r\n".encode("latin-1"), "set X=1\r\n".encode("utf-16")])
+def test_code_file_that_is_not_utf8_is_a_problem(tree, data):
+    (tree / "scripts" / "sample.cmd").write_bytes(data)
+    assert any("sample.cmd" in p and "UTF-8" in p for p in plugin_check.check_no_v1_names(tree))
+
+
+def test_binary_file_outside_code_is_skipped(tree):
+    (tree / "scripts" / "sample.png").write_bytes(b"\xff\xfe\x00")
+    assert plugin_check.check_no_v1_names(tree) == []
 
 
 @pytest.mark.parametrize(
@@ -185,6 +217,8 @@ def test_bare_v1_word_in_code_fails(tree, line):
         f'"description": "{V1.upper()} 2.0 beta: a workflow."',
         f"The {V1.upper()} 2.0 beta and the `{V1}` plugin are prose.",
         f"see https://github.com/owner/{V1}-driver for the source",
+        f"Compare with {V1.upper()}. Then go on.",
+        f"Run {V1.upper()}: then stop.",
     ],
 )
 def test_prose_passes_outside_code(tree, line):
@@ -208,6 +242,11 @@ def test_afkv2_names_in_code_pass(tree, line):
         f'const hit = body.includes("{PRD_START}");',
         f'findstr /c:"{MARKER}" out.txt',
         f'if line.startswith("<!-- {V1}:prd:start"):',
+        f"/{MARKER}/.test(line)",
+        f'Select-String -Pattern "{MARKER}" x.txt',
+        f'sed -n "/{MARKER}/p" x',
+        f'line[:20] == "{MARKER}"',
+        f'line.slice(0, 5) === "{MARKER}"',
     ],
 )
 def test_prefix_or_substring_marker_match_fails(tree, line):
@@ -249,7 +288,44 @@ def test_hooks_value_that_is_no_object_is_a_problem_not_a_crash(tree, value):
     assert any("hooks.json" in p for p in plugin_check.run_checks(tree))
 
 
-@pytest.mark.xfail(strict=True, reason="plan-s1 D-4 known gap: the rule reads one line and traces no variable")
+@pytest.mark.parametrize("event", plugin_check.HOOK_EVENTS)
+@pytest.mark.parametrize("value", [None, [], "missing"])
+def test_event_with_no_registration_is_a_problem(tree, event, value):
+    path = tree / "hooks" / "hooks.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if value == "missing":
+        del data["hooks"][event]
+    else:
+        data["hooks"][event] = value
+    path.write_text(json.dumps(data), encoding="utf-8")
+    assert any(f"no {event} registration" in p for p in plugin_check.run_checks(tree))
+
+
+@pytest.mark.parametrize("verb", ["check", "build"])
+def test_unreadable_source_answers_json(tree, verb):
+    (tree / "core" / "CORE-BEHAVIORS.md").write_bytes(b"\xff\xfe bad\n")
+    code, answer = run_tree_check(tree, verb)
+    assert code == 1
+    assert any("CORE-BEHAVIORS.md" in p for p in answer["problems"])
+
+
+def test_prebuilt_file_that_does_not_decode_is_stale(tree):
+    (tree / "hooks" / "built" / plugin_check.PLAIN_VARIANT).write_bytes(b"\xff bad")
+    code, answer = run_tree_check(tree, "check")
+    assert code == 1
+    assert any("stale" in p for p in answer["problems"])
+
+
+def test_prebuilt_path_that_cannot_be_written_answers_json(tree):
+    built = tree / "hooks" / "built" / plugin_check.PLAIN_VARIANT
+    built.unlink()
+    built.mkdir()
+    code, answer = run_tree_check(tree, "build")
+    assert code == 1
+    assert any("cannot write" in p for p in answer["problems"])
+
+
+@pytest.mark.xfail(strict=True, reason="known gap: the rule reads one line and traces no variable")
 def test_marker_held_in_a_variable_and_matched_on_another_line_fails(tree):
     (tree / "scripts" / "sample.py").write_text(f'MARK = "{MARKER}"\nfound = MARK in text\n', encoding="utf-8")
     assert plugin_check.check_marker_matching(tree)
@@ -259,7 +335,7 @@ def test_marker_held_in_a_variable_and_matched_on_another_line_fails(tree):
 def test_every_usage_error_answers_json_with_exit_2(args):
     code, answer = run_check(*args)
     assert code == 2
-    assert answer["error"]["code"] == "usage"
+    assert answer == {"ok": False, "error": {"code": "usage", "reason": answer["error"]["reason"]}}
 
 
 def test_check_command_answers_json_and_exits_1_on_problems(tree):
@@ -303,10 +379,3 @@ def test_marketplace_lists_afkv2_beside_the_v1_plugin():
     for manifest in plugin_check.MANIFESTS:
         data = json.loads((PLUGIN / manifest).read_text(encoding="utf-8"))
         assert data["version"] == entries["afkv2"]["version"]
-
-
-def test_codex_marketplace_lists_afkv2_beside_the_v1_plugin():
-    marketplace = json.loads((PLUGIN.parent / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
-    entries = {entry["name"]: entry for entry in marketplace["plugins"]}
-    assert entries[V1]["source"] == {"source": "local", "path": "./"}
-    assert entries["afkv2"]["source"] == {"source": "local", "path": "./afkv2"}
