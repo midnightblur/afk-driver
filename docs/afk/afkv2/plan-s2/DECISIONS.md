@@ -314,3 +314,66 @@
 - Supersedes: none
 - To reverse: delete the `npx` branch in `render_mermaid`, once setup installs `mmdc`
 
+
+## D-46 — the critical-aspect order lives in one table the script reads
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — one table in `ASPECTS.md`, parsed by `design_round.py`, with each aspect tagged through a generated map node vs B — a list in the script and a copy in the prose vs C — a new item field in the page document
+- Chosen: A — one fact has one home, and the build can refuse a wrong order. The S1 schema has `additionalProperties: false` on an item, so C needs a contract change; a map node is already a field, and GRILL-LOG.md line 117 names the design layers as the map of this skill.
+- Supersedes: none
+- To reverse: move the table into the script, and keep the node names
+
+## D-47 — an aspect card asks the human, and the draft waits for all aspects
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — an aspect card is `confirm` or a fork; one round may hold several aspects in order; a layer or sign-off card is refused until every aspect is settled vs B — one aspect per round, and any kind
+- Chosen: A — decision 49 of issue 153 puts a short question and answer before the draft, so an aspect cannot be a `decided` or `info` card. B costs up to 11 rounds. An aspect the feature does not touch gets a `confirm` card that says what was checked, so silence never skips one.
+- Supersedes: none
+- To reverse: drop the check on kinds and the `aspects-first` refusal in `design_round.py`
+
+## D-48 — the human-locked set of v1 stays, in compact form
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — keep the 6 aspects and the §0 register, in `DRAFT.md`, and let the gate compare the register with the sign-off cards vs B — no sign-off in the design skill
+- Chosen: A — decision 94 of issue 153 keeps the approach of the v1 design grill, and the page model already has the `signoff` kind and the `sign` mark. Owner ruling R-3 applies to these cards.
+- Supersedes: none
+- To reverse: delete the table and `_register_problems`
+
+## D-49 — design premises use the row kind `Premise`, not `Ledger`
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — a new kind `Premise` in the section `## Solution design` of `GRILL-LOG.md` vs B — the grill's `Ledger` kind
+- Chosen: A — `prd_files._grill_rows` reads `- Ledger:` and `- Term:` rows over the whole log, so a pending design row of kind `Ledger` blocks a later run of to-prd.
+- Supersedes: none
+- To reverse: narrow `_grill_rows` to the grill's own section, then rename the kind
+
+## D-50 — a session ends at its gate row; a later run is a change session
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — resume the newest document with no `Settled: design gate passed … · session <id>` row, else start a new session, and `sdd_exists` true means the session changes a design vs B — always resume the newest document
+- Chosen: A — a passed session is closed, and one page document holds one session (SDD §4). A change writes a new ADR with `Superseded by` on the old one.
+- Supersedes: none
+- To reverse: `_open_session` in `design_files.py`
+
+## D-51 — every debate card comes from a `fork` field
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — the build refuses a debate card with a hand-written body (`not-a-fork`), and a fork needs `why_open` vs B — accept any body and check it by review
+- Chosen: A — the side-by-side shape is then a property of the build, not of care. The option convention (`<item id>-opt-<letter>`, label = column title) is confirmed on `origin/feat/afkv2-s1` commit ab931ae0: the real engine rendered both option marks of the fixture round. This supports D-3.
+- Supersedes: none
+- To reverse: drop `not-a-fork` in `design_round._tagged`
+
+## D-52 — the second-provider slot is one command that answers off
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — `second_provider.py review --draft F` answers `{"state":"off","forks":[]}`, the skill calls it before the first draft round, and `forks` has the shape of the `fork` input vs B — a sentence in the skill and no code
+- Chosen: A — the call site and the answer shape stay fixed, so P1 (decision 98) changes one script. Nothing is called in P0.
+- Supersedes: none
+- To reverse: delete the script and its step
+
+## D-53 — the skill calls the grill's verbs and imports its helpers
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — the fences call `../grill/scripts/page_round.py` and `round_document.py apply-readings` directly, and `design_round.py` wraps only `build` vs B — a wrapper per verb
+- Chosen: A — same precedent as D-43, and the only difference is the skill name in the session, which `round_document.main` fixes. The grill folder is outside Scope and stays unchanged.
+- Supersedes: none
+- To reverse: copy the verbs into this skill
+
+## D-54 — the gate checks what a script can see; the rest is a checklist
+- 2026-10-30 · decided by execute (0009-propose-solution-skill)
+- Options: A — `design_files.py gate` lists points, aspects, layers, premises, SDD headings and blockers, blocking open questions, the register, ADR shape and settled forks, and writes the `SDD` and `Design ADRs` rows of INDEX.md; judgment checks stay in `DRAFT.md` vs B — all checks as prose
+- Chosen: A — deterministic work goes in a script. A missing INDEX.md blocks nothing, and the answer says `index_missing`. The section list is read from the template in `SDD-FORMAT.md`, which has one home.
+- Supersedes: none
+- To reverse: delete the `gate` verb, and state the checks in `SKILL.md`

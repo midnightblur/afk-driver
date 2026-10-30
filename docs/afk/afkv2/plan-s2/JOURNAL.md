@@ -118,3 +118,14 @@
 2026-10-30 14:29 | execute | 0008-to-prd-jira-publish | pull request text: a test call of the forge command with --help blanked the description of pull request 154 for about 2 minutes; restored from the copy read just before, with 0008 ticked; the command takes unknown flags and writes an empty text, a plugin fault to report
 2026-10-30 14:29 | execute | 0008-to-prd-jira-publish | wiring: the scan ticked the IOU line for the v1_facts.py files because a referrer exists; the plugin check exemption it names is still owed, by the S3 IOU line for files of that name
 2026-10-30 14:31 | autopilot | run | heartbeat 3/5 done, starting 0009-propose-solution-skill — the requirements and publish skill is finished, moving to the design skill
+2026-10-30 14:33 | execute | 0009-propose-solution-skill | designing — the contract is read; the slice has no seam rows, so there is no ground to compare; all files are new, so no earlier reason applies; open lesson L-0001 is about plan slicing and does not apply here (not verified further)
+2026-10-30 14:40 | execute | 0009-propose-solution-skill | developing — the design skill is written test first; the test file failed on the missing module, then passed
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-46) — the order of the critical questions is one table that the script reads
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-47) — a critical question always asks the human, and the draft waits until every one is settled
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-48) — the 6 aspects a human must sign stay, and the gate compares them with the signed cards
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-49) — claims of this skill go in their own kind of row, so they cannot block a later run of to-prd
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-50) — a passed gate closes a session; a later run is a new session that changes the design
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-51) — a choice card is always built from its options, so they always stand side by side
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-52) — the second-provider slot is one command that answers off and calls nothing
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-53) — the skill calls the grill's page commands and does not copy them
+2026-10-30 14:41 | execute | 0009-propose-solution-skill | decision(D-54) — a script checks what it can see, and the judgment checks stay a list for the agent
