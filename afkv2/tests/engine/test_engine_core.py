@@ -596,8 +596,7 @@ def test_a_round_banner_holds_its_three_lists():
 # --- the page
 
 
-def test_page_order_is_banner_slot_maps_cards(scratch_type):
-    scratch_type("map")
+def test_page_order_is_banner_slot_maps_cards():
     doc = two_rounds()
     doc["maps"] = [{"type": "map", "id": "m-1", "props": {
         "nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
