@@ -1,0 +1,72 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "medium",
+  "class": "compliance",
+  "file": ".claude/wiring-ious.md",
+  "line": 13,
+  "side": "new",
+  "finding": "The rewritten IOU row starts with a symbol and not with an artifact path, so `hooks/wiring-gate.sh` cannot see it and its final mode passes while the row is open.",
+  "why": "The gate looks up a row only by the path of a candidate file, so `engine._element_ids` never matches, the gate can neither close this row nor report it as pending, and the statement 'open IOUs block' in final mode is false for this row.",
+  "fix": "Keep the head outside the gate's auto-close if that is the reason for the rewrite, but say in the row that the gate does not track it and that `/afk:verify-seams final` must read it by hand; or use an anchor the gate can check (an IOU head on a new file that 0005 must make is not an option, because a future file name must not be guessed).",
+  "evidence": "Ledger header: 'One line per artifact whose consumer does not exist yet, in the grammar `hooks/wiring-gate.sh` parses. The gate closes a line when a referrer appears.' Gate header line 15: '- [ ] `path/to/artifact` -> anchor:'. New row: '- [ ] `engine._element_ids` holds the nodes of a map held in a card or a table cell'. By reading: `_wiring_ledger_open()` matches `- [ ] \\`$1\\``, and its only callers at the `for i in \"${!cand_files[@]}\"` loop pass `f=${cand_files[$i]}`, which are file paths; a grep of the gate for the row marker finds lines 15, 88 and 255 only, so no scan lists every open row. The gate was not run, because it edits the ledger with sed. Limits: skills/utils/verify-seams/SKILL.md step 3 hands still-open IOUs to a subagent, so the row can still be seen by that route (not run), and the `afk-python` row is an earlier row with a non-path head. The old row would probably auto-close when `diagram_map.py` gets a referrer (inferred, not run), so the rewrite is not worse than the old row on this point."
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "New test proves nothing",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/tests/engine/test_diagram_components.py",
+  "line": 508,
+  "side": "new",
+  "finding": "The `right` case of the taller-box test cannot fail, and no new test proves the straight first leg in direction right.",
+  "why": "In direction right the main size of a text box is always NODE_WIDTH (176), so the fixture has no box that reaches past the source box along the ranks; the failure needs a held component (HELD_WIDTH 264), and the 60 fuzz seeds in direction right also never reach it, so a change that drops the leg in direction right only passes these tests.",
+  "fix": "In direction right, use a held component as the taller box, with a target low enough to reach it: nodes s, l (chip), a, b, z and edges s->z, l->a, l->b.",
+  "evidence": "Test line: `{\"id\": \"s\", \"label\": \"s\"}, {\"id\": \"l\", \"label\": \"long label text \" * 12}, {\"id\": \"x\", \"label\": \"x\"},`. Own in-memory mutant that puts back the old curve in `_forward` (no worktree change): test_an_arrow_leaves_a_short_box_clear_of_a_taller_box_of_its_rank gives right pass, down FAIL; test_in_any_graph_no_forward_arrow_or_label_is_hidden gives right 0 of 60 failed, down 6 of 60 failed (seeds 7, 26, 29, 33, 38, 52). Proposed fixture under the same mutant: box l (24, 80, 264, 136), path 'M200 42 C272 42 272 154 344 154', 5 of 21 samples inside the box. On the current code: path 'M200 42 L288 42 C316 42 316 154 344 154', 0 of 42 inside. The code itself is correct here: a wider fuzz of 4000 graphs (up to 14 nodes, up to 3 groups, many held boxes) found 0 forward arrows behind a box. Effect in a browser not verified."
+ },
+ {
+  "id": "r-003",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/tests/engine/test_diagram_components.py",
+  "line": 510,
+  "side": "new",
+  "finding": "In direction right, no new test proves the straight first leg: the `right` case of the taller-box test and all 60 `right` fuzz seeds pass on the old code.",
+  "why": "A text node is always 176px wide, so in direction right no box of the rank is longer along the ranks and the fixture cannot trigger the defect, and the fuzz holds a component only in `nodes[0]` (line 522), so D-44's words 'every forward arrow runs straight to the end of its rank' have no proof in this direction.",
+  "fix": "In direction right, make node `l` a held component and add a second arrow from `l` so the target of `s` is lower (nodes s, l, x, w, y; edges l->x, l->w, s->y), and in `random_graph` hold a component in any node, not only `nodes[0]`.",
+  "evidence": "`{\"id\": \"l\", \"label\": \"long label text \" * 12}`. Separate check with in-memory source swaps, not a re-run of the journal's count. Code of 691d6334: 10 failed, all `down` (taller-box 1, fuzz 8, long label 1). Mutant `leave = from_main if layout.right else first_gap - layout.gap // 2`: 239 passed. Fixture path on the current code in direction right: 'M200 42 L200 42 C228 42 228 98 256 98', a first leg of zero length. Proposed fixture under that mutant: path 'M200 42 L200 42 C272 42 272 154 344 154' goes inside held box (24, 80, 264, 136); on the current code it does not. Generator under that mutant: 0 of the 60 pinned `right` seeds, 26 of 3000 further `right` seeds, and 4 of 60 when any node can hold a component. A browser was not used."
+ },
+ {
+  "id": "r-004",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/tests/engine/test_diagram_components.py",
+  "line": 542,
+  "side": "new",
+  "finding": "No test ties the label of a curved arrow to its arrow, so a label 2000px away passes every test.",
+  "why": "The label asserts check only the canvas, other labels and boxes, and the canvas grows to hold any label, so the changed `label_cross` formula in `_forward` has no test and a reader cannot be sure which arrow a misplaced label names.",
+  "fix": "For one labelled arrow with nothing in its way, in both directions, assert that the label centre is within a set distance of the nearest point from `sampled` on that arrow.",
+  "evidence": "`for i, label in enumerate(labels):` followed by `assert label[0] >= 0 and label[1] >= 0 ...`. In-memory mutants of afkv2/engine/shell/diagram_boxes.py, 239 passed each: `return curve, tip, (first_gap + 2000, label_cross)`; `label_cross = max(from_cross, tip_cross) + 2000`; `label_cross = from_cross`. Earlier finding r-011 of round 2 covers only the label of a lane arrow, which has a different return line in `_forward`."
+ },
+ {
+  "id": "r-005",
+  "concern": "test-veracity",
+  "criterion": "Fragile test",
+  "severity": "low",
+  "class": "test",
+  "file": "afkv2/tests/engine/test_diagram_components.py",
+  "line": 491,
+  "side": "new",
+  "finding": "`sampled` takes 21 points for each path segment at any length, so a long segment can step over a box.",
+  "why": "The step between 2 points reaches about 86px on the pinned graphs, and a box can be 36px tall, so the check can miss a hidden arrow that it exists to find; this is a weak detector and not a known defect, because no current arrow is hidden when sampled more finely.",
+  "fix": "Choose the point count from the segment length, so that no step is larger than about 8px.",
+  "evidence": "`for n in range(21)` at lines 491 and 495. Measured on the 120 pinned graphs: largest step 85.6px, and 562 steps above 34px. 21 points against 801 points, in-memory mutants: `lanes` left empty, pinned 34 against 35 graphs (missed: down, seed 13), seeds 60 to 999 in both directions 768 against 780; `leave = from_main`, seeds 60 to 999 in both directions 120 against 136. Current code at 301 points: 0 hidden of 7840 forward arrows on 1600 graphs. Each mutant is still found by other seeds."
+ }
+]
