@@ -140,3 +140,4 @@
 2026-10-30 11:53 | execute | 0014-change-request-ci-watch | rationale — rationale-verify ok, nothing pending. In plain terms: no reason comment is owed on the pull request
 2026-10-30 11:53 | execute | 0014-change-request-ci-watch | done — tracker row set to done. In plain terms: this subtask is finished and waits for human review
 2026-10-30 11:54 | execute | 0014-change-request-ci-watch | correction — the wiring line above says 7 closed IOU lines; the diff showed at least 8, and it was cut at 30 lines. All were restored. In plain terms: the count in the earlier line was wrong; the fix was not affected
+2026-10-30 11:54 | autopilot | run | heartbeat 3/5 done, starting 0013-code-review-skill — the change request slice is finished; the code review slice that stopped responding now runs again with a new helper, and its finished work stays
