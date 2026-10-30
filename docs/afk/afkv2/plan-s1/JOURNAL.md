@@ -163,3 +163,4 @@
 2026-10-30 16:35 | execute | 0001-skeleton-manifests-hooks | integration: not re-run — the brief says this change touches no hook and no printed text, so the earlier live Claude result stands
 2026-10-30 16:35 | execute | 0001-skeleton-manifests-hooks | final checks on a03a92c2: wiring gate exit 0, rationale-verify ok and cleared, 10/10 Produces anchors, test_config with test_plugin_check 529 passed 2 xfailed, plugin check ok — every check this re-entry names passes
 2026-10-30 16:35 | execute | 0001-skeleton-manifests-hooks | done — 2 script files with one name now fail the plugin check, v1_facts files may name v1 things, and the config reader answers the forge; gate-skip(R-4): the plan commit that holds this line
+2026-10-30 16:40 | autopilot | 0001-skeleton-manifests-hooks | heartbeat 4/5 done, starting 0005-notes-ingest-live-test — the small 0001 change is done; I re-ran its tests and check myself and they pass
