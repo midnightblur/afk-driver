@@ -152,3 +152,4 @@
 2026-10-30 12:06 | execute | 0013-code-review-skill | rationale — rationale-verify ok, nothing pending. In plain terms: no reason comment is owed on the pull request
 2026-10-30 12:06 | execute | 0013-code-review-skill | gate-skip — the 2 commits of this re-run used AFK_SKIP_PRECOMMIT_GATES=1 (ruling D-62): this close commit and the done commit. Earlier commits are named in the lines above. In plain terms: the commit checks did not run on these 2 commits; the pull request's CI still runs
 2026-10-30 12:06 | execute | 0013-code-review-skill | done — tracker row set to done. In plain terms: this subtask is finished and waits for human review
+2026-10-30 12:07 | autopilot | run | decision(D-66) — the plan author added two rules from the design document: at most three review rounds, and autopilot does not start a slice whose checks cannot run here

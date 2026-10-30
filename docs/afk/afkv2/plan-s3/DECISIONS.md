@@ -454,3 +454,10 @@
 - Chosen: C — round 3 did run: its 2 reviewers (delta-sweep, test-veracity) read d0e07482 and both returned an empty list, but the stopped agent wrote no record of it. A new run would be a 4th round, which D-60 forbids. A marker at the tip would name a head that no round read. No file of this slice changed from d0e07482 to the tip. `gate --phase closure` refuses, as expected: "summary does not describe the requested final head and round". All 15 keys are `fixed` with resolved threads, and no critical or high finding is open, so D-60 passes the gate
 - Supersedes: none
 - To reverse: run another review round on the tip and write a clean summary
+
+## D-66 — 0013 and 0015 get the new SDD §7 v1-defect bullets
+- 2026-10-30 · decided by the plan author (SDD commit 05ef43e8), applied by autopilot
+- Options: A — add the Acceptance bullets now vs B — leave the contracts and test the rows only in S4 0016
+- Chosen: A — the rows name "0013 test" and "0015 start-gate test" as their checks. 0013 is in its re-run: `test_next_round_stops_after_round_3`, `test_route_sends_critical_and_high_to_fix_and_medium_and_low_to_post` and `test_record_routes_each_severity_and_posts_only_medium_and_low` already cover its bullet (read by name; run by its executor). 0015 has not started; its unit row and excerpts also carry the rule
+- Supersedes: none
+- To reverse: revert this commit

@@ -34,6 +34,7 @@ complex
 - [ ] Plan, journal, decision ledger and review telemetry live in `plan/` on `<feature branch>-run`; code and spec stay on the feature branch (PRD §AC-071; PLAN.md decision D-S-1)
 - [ ] A two-way door is decided and recorded in the decision ledger; a one-way door parks its subtask and every dependent, and the park is recorded for retro (PRD §AC-062)
 - [ ] It pushes to one Draft change through `/afkv2:create-change-request` and runs `/afkv2:code-review` per subtask (PRD §SK-12)
+- [ ] autopilot never starts a subtask whose gates cannot run in this repository: the start gate refuses before any work. A unit test proves it (SDD §7 v1 defects)
 
 ## Produces
 - afkv2/skills/autopilot/SKILL.md#name: autopilot — the plan walker
@@ -49,7 +50,7 @@ complex
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | every `afkv2/skills/{autopilot,execute}/**/SKILL.md` has Agent Skills frontmatter (`name`, `description`); `afk-python -m compileall -q afkv2/skills/autopilot afkv2/skills/execute`; `rg -F` each ## Produces anchor | skill files parse; declared symbols present |
-| unit | `afk-python -m pytest afkv2/tests/skills/test_autopilot.py -q` | start gate: failed check, missing approval, v1 plan; park propagation to dependents |
+| unit | `afk-python -m pytest afkv2/tests/skills/test_autopilot.py -q` | start gate: failed check, missing approval, v1 plan, a gate the repository cannot run; park propagation to dependents |
 | unit | `afk-python -m pytest afkv2/tests/skills/test_execute.py -q` | fresh subagent per subtask, TDD order, own commits |
 | integration | dry run on a fixture plan with 3 subtasks in a temp repository with a `-run` branch: one done, one parked as a one-way door with its dependent parked, ledger and journal lines written on the run branch only | the run-branch layout and park rule on real git |
 
@@ -65,6 +66,7 @@ complex
 > (PRD §AC-062) A two-way door is decided and recorded in the decision ledger. A one-way door parks its subtask and every dependent subtask, and the park is recorded for retro.
 
 > (SDD §8 Frozen on day 1) | plan contract | v1 subtask contract sections without materialized seams; one format file + check script | S2 | S3 execute |
+> (SDD §7 v1 defects) | a mandatory gate that needs a running app parks every subtask of a repository with no app, and the run finds it only after the work and the review | a gate that needs something the repository does not have is decided when the plan is cut: the plan names it not applicable, or the plan check refuses; autopilot never starts a subtask whose gates cannot run | 0010 plan-check test; 0015 start-gate test |
 
 ## Parent PRD
 docs/afk/afkv2/PRD.md
