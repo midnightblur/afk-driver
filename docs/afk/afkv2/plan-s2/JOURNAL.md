@@ -117,3 +117,4 @@
 2026-10-30 14:29 | execute | 0008-to-prd-jira-publish | pushed 1b7b83f8..b7636059 (2 commits) — the review fix and the closing plan commit are on the branch; this journal commit also used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
 2026-10-30 14:29 | execute | 0008-to-prd-jira-publish | pull request text: a test call of the forge command with --help blanked the description of pull request 154 for about 2 minutes; restored from the copy read just before, with 0008 ticked; the command takes unknown flags and writes an empty text, a plugin fault to report
 2026-10-30 14:29 | execute | 0008-to-prd-jira-publish | wiring: the scan ticked the IOU line for the v1_facts.py files because a referrer exists; the plugin check exemption it names is still owed, by the S3 IOU line for files of that name
+2026-10-30 14:31 | autopilot | run | heartbeat 3/5 done, starting 0009-propose-solution-skill — the requirements and publish skill is finished, moving to the design skill
