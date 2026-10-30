@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import shutil
@@ -95,9 +96,11 @@ def write_atomic(path: Path, data: bytes) -> None:
             os.chmod(path, stat.S_IWRITE)
         os.replace(tmp, path)
     except OSError:
-        if unlock:
-            os.chmod(path, mode)
-        _drop_temp(tmp)
+        with contextlib.suppress(OSError):
+            if unlock:
+                os.chmod(path, mode)
+        with contextlib.suppress(OSError):
+            _drop_temp(tmp)
         raise
 
 
