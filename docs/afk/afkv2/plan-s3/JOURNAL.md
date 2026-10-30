@@ -187,3 +187,8 @@
 2026-10-30 14:53 | autopilot | run | decision(D-81) — going back to the old version now also restores the Jira values
 2026-10-30 14:53 | autopilot | run | decision(D-82) — the plan check now passes on this plan
 2026-10-30 14:53 | autopilot | run | decision(D-83) — the connection code must handle very long comment lists and keep text exact
+2026-10-30 15:31 | execute | red-gate fixes | decision(D-84) — a test now fails when 2 Python files in the tree have one name; the old-name check of the other session still needs its exemption
+2026-10-30 15:31 | execute | red-gate fixes | decision(D-85) — the folder for ticket files comes from the old setting, else from the developer; without one, setup refuses and writes nothing
+2026-10-30 15:31 | execute | red-gate fixes | decision(D-86) — going back to the old version puts back the Jira values and keeps any later change to the same files
+2026-10-30 15:31 | execute | red-gate fixes | decision(D-87) — the GitLab code now sends long text through the GitLab API on standard input, so no length limit applies
+2026-10-30 15:31 | execute | red-gate fixes | gate-skip — commits 97fde4d4, 901f9ff0, d51a1af3, 1bfe0201 and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4). They rename clashing files, use the fixed file names, restore the Jira values on switch-back, and fix how GitLab text is sent. In plain terms: the commit checks did not run on these commits; the pull request's CI still runs them
