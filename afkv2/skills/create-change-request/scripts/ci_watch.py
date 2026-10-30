@@ -28,6 +28,7 @@ LOST_AFTER = 3 * SLICE
 PASSED_ON = ("forge", "repo")
 CI_REFUSALS = {"failed": "ci-red", "canceled": "ci-red", "running": "ci-running", "": "ci-none"}
 REVIEW_CAN_RUN = {"no-review", "review-owed", "fix-open", "round-open"}
+REVIEW_CAN_RETRY = {"command-failed"}
 FILE_TRIES, FILE_PAUSE = 20, 0.1
 SUBTASK_FILE = re.compile(r"[0-9]{4}-.+\.md")
 _NOT_A_FILE_NAME = re.compile(r"[^0-9A-Za-z._-]")
@@ -133,7 +134,7 @@ def _read_record(path):
         return None
     except (OSError, ValueError) as error:
         raise Refusal("bad-record", f"the watch record {path} is unreadable: {error}; run `start`") from None
-    if not isinstance(record, dict) or "token" not in record or "state" not in record:
+    if not isinstance(record, dict) or "token" not in record or "state" not in record or not isinstance(record.get("beat_at", 0), (int, float)):
         raise Refusal("bad-record", f"the watch record {path} holds no watch; run `start`")
     return record
 
@@ -152,9 +153,13 @@ def _new_record(path, change, head):
     return record
 
 
+def _no_result(change, state, reason):
+    return ok(id=change, state=state, status="", head_sha="", current_head=False, reason=reason)
+
+
 def _report(change, record):
     if record is None:
-        return ok(id=change, state="none", status="", head_sha="", current_head=False, reason="no watch has run on this change")
+        return _no_result(change, "none", "no watch has run on this change")
     state, reason = record["state"], record.get("reason") or ""
     if state == "watching" and time.time() - record.get("beat_at", 0) > LOST_AFTER:
         state, reason = "lost", "the watch stopped with no result: run `start`"
@@ -181,7 +186,7 @@ def _last_result(change, path):
     try:
         return _report(change, _read_record(path))
     except Refusal as refusal:
-        return ok(id=change, state=refusal.code, status="", head_sha="", current_head=False, reason=refusal.reason)
+        return _no_result(change, refusal.code, refusal.reason)
 
 
 def start_watch(payload):
@@ -211,7 +216,7 @@ def _is_current(path, token):
 
 
 def _superseded(change):
-    return ok(id=change, state="superseded", status="", head_sha="", current_head=False, reason="a newer watch took over")
+    return _no_result(change, "superseded", "a newer watch took over")
 
 
 def _end(payload, path, record, state, status_word, reason=""):
@@ -281,7 +286,9 @@ def _why_open(plan, subtask, change_ids):
     answer = call_review(plan, subtask)
     if not answer.get("ok"):
         error = error_of(answer)
-        return error.get("reason") or "the review command gave no reason", "run-review" if error.get("code") in REVIEW_CAN_RUN else "developer"
+        code = error.get("code")
+        next_step = "run-review" if code in REVIEW_CAN_RUN else "mark-again" if code in REVIEW_CAN_RETRY else "developer"
+        return error.get("reason") or "the review command gave no reason", next_step
     left = answer.get("left")
     if not isinstance(left, dict) or not answer.get("stopped_by"):
         return "the review command gave no report", "developer"
@@ -302,25 +309,39 @@ def _open_reviews(plan, change_ids):
     return [{"subtask": subtask, "why": found[0], "next": found[1]} for subtask, found in reasons if found]
 
 
-def mark_ready_if_green(payload):
-    """Mark the change Ready on the local head of an open change, settled reviews and green CI. The CI answer names no commit: decision D-54."""
-    change = change_ref(payload)
-    plan = Path(str(need(payload, "plan")))
-    if not plan.is_dir():
-        raise _bad(f"no plan folder at {plan}")
+def _head_view(payload, change):
+    """The view of the open change at the local head, or the refusal."""
     view = forge_answer("change-view", payload, id=change)
     if view.get("state") != "opened":
         raise Refusal("change-not-open", f"change {change} is {view.get('state')}")
     local = _local_head()
     if not local or local != view.get("head_sha"):
         raise Refusal("head-differs", f"the local head {local} is not the head {view.get('head_sha')} of the change: push, or run from the branch of the change")
-    open_reviews = _open_reviews(plan, {change, str(view.get("id"))})
-    if open_reviews:
-        raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
+    return view
+
+
+def _refuse_unless_green(payload, change):
     ci = forge_answer("ci-status", payload, id=change)
     word = ci.get("status") or ""
     if word != "success":
         raise Refusal(CI_REFUSALS.get(word, "ci-none"), f"CI on change {change} is not green: {word or 'no checks'}", status=word, url=ci.get("url") or "")
+
+
+def mark_ready_if_green(payload):
+    """Mark the change Ready on the local head of an open change, settled reviews and green CI. The CI answer names no commit.
+
+    `finish` stops a review, so a wrong change or head refuses first. The reviews can take minutes, so the change and its head are read again, and CI last.
+    """
+    change = change_ref(payload)
+    plan = Path(str(need(payload, "plan")))
+    if not plan.is_dir():
+        raise _bad(f"no plan folder at {plan}")
+    view = _head_view(payload, change)
+    open_reviews = _open_reviews(plan, {change, str(view.get("id")), view.get("url")})
+    if open_reviews:
+        raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
+    view = _head_view(payload, change)
+    _refuse_unless_green(payload, change)
     if not view.get("draft"):
         return ok(id=change, draft=False, marked=False, url=view.get("url") or "")
     forge_answer("change-ready", payload, id=change)

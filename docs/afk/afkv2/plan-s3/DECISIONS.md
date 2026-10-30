@@ -384,3 +384,17 @@
 - Chosen: B — the plan's contracts belong to its author, and an execute run owns only its tracker cell. The skill's own sections call `start`, `status`, `watch` and `mark-ready`, so an agent that follows the skill runs them. 0015 Acceptance does not test this: the executor of 0015 must add the check, or the watch can stay unrun
 - Supersedes: none
 - To reverse: name the verbs in the 0015 Acceptance
+
+## D-56 — the Ready gate reads the change before and after the reviews
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — one read of the change, as in D-52 vs B — read the change and its head before and after `finish`, and CI last vs C — also read CI before `finish`
+- Chosen: B — the reviews can take minutes, so the head and the draft flag must be read again just before the CI read and `change-ready`. The cost is 1 more forge read at ship. C gives nothing: the verify pass read each review state `finish` can stop, and `begin` refuses a next round in each. So a CI fix has no round in either order (D-53)
+- Supersedes: none; it adds to D-52
+- To reverse: the second `_head_view` in `mark_ready_if_green`
+
+## D-57 — a capped review with a fix no round read counts as settled
+- 2026-10-30 · decided by execute (0014-change-request-ci-watch)
+- Options: A — refuse Ready on `fixed[].reviewed: false` vs B — keep the D-46 reading: `left.blocking` and `left.not_posted` are empty
+- Chosen: B — the review's cap is its own rule, and its report shows the unread fix to the developer. A refusal here has no route to clear: `begin` refuses `round-cap` and `review-over`
+- Supersedes: none
+- To reverse: read `fixed[].reviewed` in `_why_open`

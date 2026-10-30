@@ -122,7 +122,7 @@ def _create(payload, body):
 def _refuse_another_target(payload, view):
     """The case in the description rests on the target it was given, so a different target must not pass with no message."""
     if payload.get("target") and view.get("target") and _branch(payload["target"], "target") != view["target"]:
-        raise Refusal("target-differs", f"change {view['id']} targets {view['target']}, not {payload['target']}")
+        raise Refusal("target-differs", f"change {view['id']} targets {view['target']}, not {payload['target']}", target=view["target"])
 
 
 def open_change(payload):
@@ -149,9 +149,10 @@ def _count(*args):
 
 
 def _fetched(name):
-    """A fetch that fails or runs past its limit leaves the facts of the last fetch, and the answer says so."""
+    """A fetch that fails or runs past its limit leaves the facts of the last fetch, and the answer says so. The full refspec moves the tracking ref in a clone that does not track this branch."""
+    refspec = f"+refs/heads/{name}:refs/remotes/origin/{name}"
     try:
-        return shell.run_tool("git", ["fetch", "--quiet", "origin", name], timeout=FETCH_LIMIT).returncode == 0
+        return shell.run_tool("git", ["fetch", "--quiet", "origin", refspec], timeout=FETCH_LIMIT).returncode == 0
     except Refusal:
         return False
 
