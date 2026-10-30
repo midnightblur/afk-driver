@@ -461,3 +461,10 @@
 - Chosen: A — D-59 says that with the Scope rule alone "every `./mvnw`" refuses. That is wrong: review finding r-001 is right, a run of `check_paths` on `./mvnw test` answers no path. So an unowned one-part `./tool` passes the check, and S3 D-71 leaves such a command to this check. The feature-branch reason of D-59 still holds for a path with a folder, such as `scripts/run_all`. R-2 allows no fix for a medium finding, so the gap stays open on pull request 154, and the final report names it for the owner.
 - Supersedes: D-59, only its `./mvnw` clause
 - To reverse: test the slash before `removeprefix("./")` in `check_paths`, and add a test
+
+## D-67 — orchestrator ruling: unique names for the 2 S2 v1 facts modules
+- 2026-10-30 · decided by the session orchestrator (ruling sent to this session mid-run; SDD §7 row "two flat script modules with one name")
+- Options: A — `to_prd_v1_facts.py` and `fake_v1_facts.py` vs B — keep `v1_facts.py`, which fails `afkv2/tests/test_module_names.py` on the merged tree
+- Chosen: A — commit f6eec235. `ports/tracker/v1_facts.py` and `ports/tracker/cli.py` keep their names (S3). S1 `plugin_check.py` exempts `*v1_facts.py`, so both new names keep the v1-string exemption. A name check over the S1 and S3 branch tips and this tree finds no other duplicate. `test_to_prd.py`: 62 passed, 2 skipped. The check was not run on the merged tree, because S1 and S3 are not merged
+- Supersedes: none
+- To reverse: rename the 2 files and their importers

@@ -172,3 +172,5 @@
 2026-10-30 20:51 | execute | 0010-to-subtasks-skill | rationale — rationale-verify --clear ok, 0 pending
 2026-10-30 20:51 | execute | 0010-to-subtasks-skill | pre-commit gates skipped (owner ruling R-4) — fb84eba7, 56c93aa9, d6c8793a, fb6257a8, and the commit that carries this line
 2026-10-30 20:51 | execute | 0010-to-subtasks-skill | done — tiers green, review gate passed, Draft pull request 154 checklist ticked; Codex live check is owner-run and not run (D-S-8)
+2026-10-30 16:55 | autopilot | run | decision(D-67) — two helper files were renamed, because every script name must now be unique across the plugin
+2026-10-30 16:55 | autopilot | run | gate-skip — commit f6eec235 and the merge commits made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
