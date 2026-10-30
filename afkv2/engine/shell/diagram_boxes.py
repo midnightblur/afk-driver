@@ -235,7 +235,7 @@ def _forward(layout: _Layout, edge: dict, lane: int | None) -> tuple[str, str, t
     start, target = layout.places[edge["from"]], layout.places[edge["to"]]
     from_main, from_cross = start.main + start.main_size, start.centre
     tip_main, tip_cross = target.main, target.centre
-    end, middle = tip_main - HEAD, (from_main + tip_main - HEAD) // 2
+    end = tip_main - HEAD
     at = layout.point
     tip = (f"M{at(tip_main, tip_cross)} L{at(end, tip_cross - HEAD_WIDTH)} L{at(end, tip_cross + HEAD_WIDTH)} Z")
     first_gap = layout.gap_middles[layout.ranks[edge["from"]]]
@@ -244,8 +244,11 @@ def _forward(layout: _Layout, edge: dict, lane: int | None) -> tuple[str, str, t
         turns = ((first_gap, from_cross), (first_gap, lane), (last_gap, lane), (last_gap, tip_cross), (end, tip_cross))
         curve = f"M{at(from_main, from_cross)} " + " ".join(f"L{at(*turn)}" for turn in turns)
         return curve, tip, (first_gap, (from_cross + lane) // 2)
-    curve = (f"M{at(from_main, from_cross)} C{at(middle, from_cross)} {at(middle, tip_cross)} {at(end, tip_cross)}")
-    label_cross = from_cross + (tip_cross - from_cross) * (first_gap - from_main) // (tip_main - from_main)
+    leave = first_gap - layout.gap // 2
+    middle = (leave + end) // 2
+    curve = (f"M{at(from_main, from_cross)} L{at(leave, from_cross)} "
+             f"C{at(middle, from_cross)} {at(middle, tip_cross)} {at(end, tip_cross)}")
+    label_cross = from_cross + (tip_cross - from_cross) * (first_gap - leave) // (tip_main - leave)
     return curve, tip, (first_gap, label_cross)
 
 
@@ -310,12 +313,12 @@ def _arrows(layout: _Layout, edges: list[dict]) -> tuple[str, str, int, int]:
                      f'<path class="afkv2-arrowhead" d="{tip}"/>')
         if edge.get("label"):
             main_size, cross_size = _label_size(layout, edge["label"])
-            low = main - main_size // 2
+            low = max(LABEL_GAP, main - main_size // 2)
             rect_cross = taken.free_cross((low, max(LABEL_GAP, cross - cross_size // 2), main_size, cross_size))
             taken.add((low, rect_cross, main_size, cross_size))
             main_end = max(main_end, low + main_size + LABEL_GAP)
             cross_end = max(cross_end, rect_cross + cross_size + LABEL_GAP)
-            left, top = layout.label_left_top(main, rect_cross + cross_size // 2)
+            left, top = layout.label_left_top(low + main_size // 2, rect_cross + cross_size // 2)
             labels.append(f'<span class="afkv2-edge-label" style="left:{left}px;top:{top}px;'
                           f'max-width:{layout.label_width}px">{escape(edge["label"])}</span>')
     width, height = (main_end, cross_end) if layout.right else (cross_end, main_end)

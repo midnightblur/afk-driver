@@ -5,6 +5,7 @@ The example props are the shapes session S2 documents for page authors in its vi
 
 import copy
 import json
+import random
 import re
 import sys
 from pathlib import Path
@@ -67,6 +68,7 @@ GROUP_FRAME = re.compile(r'class="afkv2-group" style="left:(\d+)px;top:(\d+)px;w
 EDGE_LABEL = re.compile(r'afkv2-edge-label" style="left:(\d+)px;top:(\d+)px')
 EDGE_LABEL_BOX = re.compile(r'afkv2-edge-label" style="left:(\d+)px;top:(\d+)px;max-width:(\d+)px">([^<]*)</span>')
 EDGE_D = re.compile(r'<path class="afkv2-edge[^"]*" data-afkv2-edge="([^"]*)" d="([^"]*)"')
+FORWARD_D = re.compile(r'<path class="afkv2-edge" data-afkv2-edge="[^"]*" d="([^"]*)"')
 EDGE_LABEL_RULE = re.compile(r"\.afkv2-edge-label \{[^}]*width: max-content;")
 LABEL_CHAR, LABEL_LINE, LABEL_PAD = 7, 16, 8
 SEQ_TEXT = re.compile(r'<span class="afkv2-seq-n">(\d+)\.</span> ?<span class="afkv2-seq-words">([^<]*)</span>')
@@ -394,7 +396,7 @@ def edge_paths(html):
 
 def turns(curve):
     """The corners of a straight-line path, as (x, y)."""
-    numbers = [int(number) for number in re.findall(r"\d+", curve)]
+    numbers = [int(number) for number in re.findall(r"-?\d+", curve)]
     return list(zip(numbers[::2], numbers[1::2]))
 
 
@@ -477,10 +479,77 @@ def test_arrow_labels_never_land_on_each_other(direction, edges, count):
         assert not any(overlap(label, box) for box in boxes(html))
 
 
+def sampled(curve):
+    """Points along a path of M, L and C commands."""
+    points, at = [], (0, 0)
+    for command, body in re.findall(r"([MLC])([^MLC]*)", curve):
+        numbers = [int(number) for number in re.findall(r"-?\d+", body)]
+        given = list(zip(numbers[::2], numbers[1::2]))
+        if command == "M":
+            at = given[0]
+        elif command == "L":
+            points += [(at[0] + (given[0][0] - at[0]) * n / 20, at[1] + (given[0][1] - at[1]) * n / 20) for n in range(21)]
+            at = given[0]
+        else:
+            first, second, end = given
+            for n in range(21):
+                t = n / 20
+                points.append(tuple((1 - t) ** 3 * at[i] + 3 * (1 - t) ** 2 * t * first[i]
+                                    + 3 * (1 - t) * t ** 2 * second[i] + t ** 3 * end[i] for i in (0, 1)))
+            at = end
+    return points
+
+
+def inside(point, box):
+    return box[0] + 1 < point[0] < box[0] + box[2] - 1 and box[1] + 1 < point[1] < box[1] + box[3] - 1
+
+
 @pytest.mark.parametrize("direction", ["right", "down"])
-def test_a_long_arrow_label_stays_on_the_canvas(direction):
+def test_an_arrow_leaves_a_short_box_clear_of_a_taller_box_of_its_rank(direction):
+    props = {"direction": direction, "nodes": [
+        {"id": "s", "label": "s"}, {"id": "l", "label": "long label text " * 12}, {"id": "x", "label": "x"},
+        {"id": "y", "label": "y"}], "edges": [{"from": "s", "to": "y"}, {"from": "l", "to": "x"}]}
+    html = registry.render_component({"type": "graph", "props": props})
+    tall = boxes(html)[1]
+    assert not any(inside(point, tall) for point in sampled(edge_paths(html)["s y"]))
+
+
+def random_graph(rng, direction):
+    count = rng.randint(3, 9)
+    words = ["a", "a short label", "a node label that takes more than one line of the box " * 2]
+    nodes = [{"id": str(i), "label": rng.choice(words)} for i in range(count)]
+    if rng.random() < 0.3:
+        nodes[0]["label"] = {"type": "chip", "props": {"text": "held", "tone": "new"}}
+    groups = [{"id": "g", "label": "a group"}] if rng.random() < 0.3 else []
+    if groups:
+        nodes[-1]["group"] = "g"
+    sizes = ["", "go", "e " * 4, "e " * 12, "a long arrow label " * 8]
+    edges = [{"from": str(rng.randrange(count)), "to": str(rng.randrange(count)), "label": rng.choice(sizes)}
+             for _ in range(rng.randint(2, 2 * count))]
+    return {"direction": direction, "nodes": nodes, "groups": groups, "edges": edges}
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+@pytest.mark.parametrize("seed", range(60))
+def test_in_any_graph_no_forward_arrow_or_label_is_hidden(direction, seed):
+    html = registry.render_component({"type": "graph", "props": random_graph(random.Random(seed), direction)})
+    drawn, labels = boxes(html), label_boxes(html)
+    width, height = canvas(html)
+    for curve in FORWARD_D.findall(html):
+        points = sampled(curve)
+        assert all(0 <= x <= width and 0 <= y <= height for x, y in points)
+        assert not any(inside(point, box) for box in drawn for point in points)
+    for i, label in enumerate(labels):
+        assert label[0] >= 0 and label[1] >= 0 and label[0] + label[2] <= width and label[1] + label[3] <= height
+        assert not any(overlap(label, other) for other in labels[i + 1:])
+        assert not any(overlap(label, box) for box in drawn)
+
+
+@pytest.mark.parametrize("direction", ["right", "down"])
+@pytest.mark.parametrize("ends", [("a", "b"), ("a", "a"), ("b", "a")])
+def test_a_long_arrow_label_stays_on_the_canvas(direction, ends):
     props = {"direction": direction, "nodes": [{"id": "a", "label": "a"}, {"id": "b", "label": "b"}],
-             "edges": [{"from": "a", "to": "b", "label": "a long label " * 20}]}
+             "edges": [{"from": "a", "to": "b"}, {"from": ends[0], "to": ends[1], "label": "a long label " * 20}]}
     html = registry.render_component({"type": "graph", "props": props})
     width, height = canvas(html)
     (left, top, label_width, label_height), = label_boxes(html)
