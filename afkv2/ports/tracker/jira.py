@@ -265,10 +265,15 @@ def _media_ids(node):
     return found
 
 
+def block_text(nodes):
+    """The text of a block. A figure node holds none, so a preview without pictures gives the same text."""
+    return "\n".join(text for text in map(node_text, nodes) if text)
+
+
 def _summary(family, nodes):
     """What a read-back compares: Jira may add attributes to a node on read, so never the nodes."""
     return {"family": family,
-            "text": "\n".join(node_text(node) for node in nodes),
+            "text": block_text(nodes),
             "media_ids": [media for node in nodes for media in _media_ids(node)]}
 
 
@@ -296,6 +301,13 @@ def _preview_for(payload, key):
     if preview.get("ticket_key") != key:
         raise Refusal("bad-receipt", f"the preview is for {preview.get('ticket_key')}, not for {key}")
     return preview
+
+
+def _check_text_is_previewed(payload, key, preview, nodes):
+    hashes = preview.get("picture_hashes") or []
+    seen = hashlib.sha256((key + block_text(nodes) + "".join(hashes)).encode("utf-8")).hexdigest()
+    if seen != payload["receipt"]:
+        raise Refusal("bad-receipt", "this text and these pictures are not what the receipt covers: show a new preview")
 
 
 def _new_nodes(value):
@@ -333,14 +345,16 @@ def issue_get(payload):
 
 
 def md_to_adf(payload):
-    figures = payload.get("figures") or {}
-    if not isinstance(figures, dict):
+    figures, nodes = payload.get("figures"), None
+    if figures is not None and not isinstance(figures, dict):
         raise Refusal("bad-payload", "`figures` must map a figure index to a list of ADF nodes")
-    try:
-        nodes = {int(index): value for index, value in figures.items()}
-    except ValueError:
-        raise Refusal("bad-payload", "`figures` keys must be figure indexes") from None
-    return ok(content=adf.md_to_adf_content(need(payload, "markdown"), nodes), figure_token=adf.FIG_TOKEN)
+    if figures is not None:
+        try:
+            nodes = {int(index): value for index, value in figures.items()}
+        except ValueError:
+            raise Refusal("bad-payload", "`figures` keys must be figure indexes") from None
+    content = adf.md_to_adf_content(need(payload, "markdown"), nodes)
+    return ok(content=content, figure_token=adf.FIG_TOKEN, block_text=block_text(content))
 
 
 @_rest
@@ -357,10 +371,10 @@ def attachment_list(payload):
 def attachment_put(payload):
     key, png = need(payload, "key"), need(payload, "png")
     preview = _preview_for(payload, key)
-    path = Path(png)
-    expected = re.compile(rf"afkv2-fig-{payload['receipt'][:8]}-\d+\.png")
+    path, tag = Path(png), payload["receipt"][:8]
+    expected = re.compile(rf"afkv2-fig-{tag}-\d+\.png")
     if not expected.fullmatch(path.name):
-        raise Refusal("bad-name", f"{path.name} does not match afkv2-fig-{payload['receipt'][:8]}-<n>.png")
+        raise Refusal("bad-name", f"{path.name} does not match afkv2-fig-{tag}-<n>.png")
     try:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as error:
@@ -386,7 +400,7 @@ def attachment_delete(payload):
         name = jira.get_json(f"/rest/api/3/attachment/{_segment(attachment_id)}").get("filename") or ""
     except urllib.error.HTTPError as error:
         if error.code == 404:
-            return ok(id=attachment_id, deleted=False)
+            return ok(id=attachment_id, filename=None, deleted=False)
         raise
     if not (PICTURE_NAME.fullmatch(name) or v1_facts.PICTURE_NAME.fullmatch(name)):
         raise Refusal("not-a-picture", f"attachment {attachment_id} ({name}) is not a picture of a published block")
@@ -400,6 +414,7 @@ def description_put(payload):
     if preview.get("description_hash") != expect_hash:
         raise Refusal("bad-receipt", "`expect_hash` is not the description hash the preview showed")
     nodes = _new_nodes(value)
+    _check_text_is_previewed(payload, key, preview, nodes)
     jira = client()
     description = (jira.get_issue(key, "description").get("fields") or {}).get("description")
     if description_hash(description) != expect_hash:
@@ -415,5 +430,4 @@ def description_put(payload):
         new_content = [*content, *framed]
     document = {**(description or {"type": "doc", "version": 1}), "content": new_content}
     jira.update_description(key, document)
-    return ok(key=key, replaced=block.family if block else None, description_hash=description_hash(document),
-              block=_summary("afkv2", nodes))
+    return ok(key=key, replaced=block.family if block else None, block=_summary("afkv2", nodes))

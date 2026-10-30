@@ -52,6 +52,12 @@ def _pipeline(data):
     return data.get("head_pipeline") or data.get("pipeline") or {}
 
 
+def _ci_word(pipeline):
+    """The contract word. GitLab has more: all that is not final reads `running`, and `skipped` is GitHub's success."""
+    word = pipeline.get("status") or ""
+    return {"success": "success", "skipped": "success", "failed": "failed", "canceled": "canceled"}.get(word, "running") if word else ""
+
+
 def _blob_base(data):
     source = (data.get("source_project") or {}).get("web_url")
     if source:
@@ -85,7 +91,7 @@ def _normalize(data):
         "head_ref": f"merge-requests/{number}/head",
         "cross_fork": bool(source_id and target_id and source_id != target_id),
         "blob_base": _blob_base(data),
-        "pipeline": {"status": _pipeline(data).get("status") or ""},
+        "pipeline": {"status": _ci_word(_pipeline(data))},
     }
 
 
@@ -131,7 +137,9 @@ def change_update_body(payload):
     shell.checked("glab", ["mr", "update", change, *_flag(payload), "--description", body])
     restored = False
     if was_draft == "true" and _draft_flag(change, payload) != "true":
-        restored = shell.run_tool("glab", ["mr", "update", change, *_flag(payload), "--draft"]).returncode == 0
+        if shell.run_tool("glab", ["mr", "update", change, *_flag(payload), "--draft"]).returncode != 0:
+            return fail("draft-lost", "the body changed, but the draft flag is off and could not be set again", id=change)
+        restored = True
     return ok(id=change, was_draft=was_draft, draft_restored=restored)
 
 
@@ -145,8 +153,15 @@ def _post(path, fields):
     return shell.json_answer("glab", ["api", "-X", "POST", *_JSON_HEADER, path, "--input", "-"], stdin_text=json.dumps(fields))
 
 
+def _plain_note(project, iid, text, change_url, **extra):
+    data = _post(f"projects/{project}/merge_requests/{iid}/notes", {"body": text})
+    ident = common.comment_id(data)
+    return ok(inline=False, thread="", comment=ident,
+              url=data.get("web_url") or (f"{change_url}#note_{ident}" if change_url else ""), **extra)
+
+
 def _degraded(payload, project, iid, ident, url):
-    reason = "the position was rejected; this landed as a plain note"
+    reason = common.PLAIN_NOTE_REASON
     if not payload.get("require_inline"):
         return ok(inline=False, thread="", comment=ident, url=url, reason=reason)
     if shell.run_tool("glab", ["api", "-X", "DELETE", f"projects/{project}/merge_requests/{iid}/notes/{ident}"]).returncode == 0:
@@ -160,10 +175,7 @@ def change_comment(payload):
     meta = _view(change, payload)
     iid, project, change_url = _iid(meta), _project(payload), meta.get("web_url") or ""
     if target is None:
-        data = _post(f"projects/{project}/merge_requests/{iid}/notes", {"body": text})
-        ident = common.comment_id(data)
-        return ok(inline=False, thread="", comment=ident,
-                  url=data.get("web_url") or (f"{change_url}#note_{ident}" if change_url else ""))
+        return _plain_note(project, iid, text, change_url)
     refs = meta.get("diff_refs") or {}
     position = {"position_type": "text", "new_path": target.new_path, "old_path": target.old_path,
                 "base_sha": refs.get("base_sha"), "start_sha": refs.get("start_sha"), "head_sha": refs.get("head_sha")}
@@ -171,7 +183,14 @@ def change_comment(payload):
         position["new_line"] = target.line
     if target.side in ("old", "context"):
         position["old_line"] = target.old_line
-    data = _post(f"projects/{project}/merge_requests/{iid}/discussions", {"body": text, "position": position})
+    try:
+        data = _post(f"projects/{project}/merge_requests/{iid}/discussions", {"body": text, "position": position})
+    except Refusal as refusal:
+        if refusal.code not in ("bad-request", "unprocessable"):
+            raise
+        if payload.get("require_inline"):
+            raise Refusal("position-rejected", refusal.reason) from None
+        return _plain_note(project, iid, text, change_url, reason=common.PLAIN_NOTE_REASON)
     note = ((data.get("notes") or [{}])[0]) if isinstance(data, dict) else {}
     ident = common.comment_id(note)
     url = note.get("web_url") or data.get("web_url") or (f"{change_url}#note_{ident}" if change_url else "")
@@ -251,12 +270,17 @@ def _thread(discussion, change_url, edited):
     }
 
 
+def _on_a_line(discussion):
+    root = (discussion.get("notes") or [{}])[0]
+    return bool(root.get("position")) and not root.get("system")
+
+
 def thread_list(payload):
     meta = _view(common.ref(payload), payload)
     iid = _iid(meta)
     edited, hidden = _note_edits(payload, iid)
     path = f"projects/{_project(payload)}/merge_requests/{iid}/discussions?per_page=100"
-    discussions = shell.as_items(shell.json_answer("glab", ["api", "--paginate", path]))
+    discussions = [item for item in shell.as_items(shell.json_answer("glab", ["api", "--paginate", path])) if _on_a_line(item)]
     unknown = [str(note.get("id")) for discussion in discussions for note in discussion.get("notes") or []
                if edited.get(str(note.get("id"))) is None]
     if unknown:
@@ -268,11 +292,11 @@ def thread_list(payload):
 
 def ci_status(payload):
     pipeline = _pipeline(_view(common.ref(payload), payload))
-    return ok(status=pipeline.get("status") or "", url=pipeline.get("web_url") or "")
+    return ok(status=_ci_word(pipeline), url=pipeline.get("web_url") or "")
 
 
 def ci_wait(payload):
-    return common.ci_wait(payload, lambda change: _pipeline(_view(change, payload)).get("status") or "")
+    return common.ci_wait(payload, lambda change: _ci_word(_pipeline(_view(change, payload))))
 
 
 VERBS = {

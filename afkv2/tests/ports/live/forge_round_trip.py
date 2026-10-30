@@ -80,7 +80,8 @@ def main(change):
     status = good("ci-status", id=change)
     assert status["status"] in ("", "success", "failed", "canceled", "running") and status["url"] == view["url"]
     waited = forge("ci-wait", id=change, budget=0)
-    assert waited["ok"] and waited["status"] == "running"
+    final = ("success", "failed", "canceled")
+    assert waited["ok"] and waited["status"] == (status["status"] if status["status"] in final else "running")
     print(json.dumps({"change": change, "inline_path": path, "inline_line": line, "ci": status["status"]}))
     return 0
 

@@ -35,6 +35,25 @@ def test_issue_get_keeps_the_gh_fields_inside_the_envelope(tools):
     assert "comments" in args[args.index("--json") + 1]
 
 
+def test_a_key_that_names_a_repository_reads_that_repository(tools):
+    tools.on("gh", "issue", "view", answer={"number": 7})
+    github_issues.issue_get({"key": "o/r#7"})
+    assert tools.calls[0][1][:5] == ["issue", "view", "7", "--repo", "o/r"]
+
+
+def test_a_key_that_names_another_repository_is_refused(tools):
+    with pytest.raises(envelope.Refusal) as caught:
+        github_issues.issue_get({"key": "other/thing#7", "repo": "o/r"})
+    assert caught.value.code == "bad-payload" and tools.calls == []
+
+
+@pytest.mark.parametrize("key", ["--web", "#--web", "--web#7"])
+def test_a_key_like_a_flag_is_refused(tools, key):
+    with pytest.raises(envelope.Refusal) as caught:
+        github_issues.issue_get({"key": key})
+    assert caught.value.code == "bad-payload" and tools.calls == []
+
+
 @pytest.mark.parametrize("key,number", [("7", "7"), ("#7", "7"), ("o/r#7", "7"), (7, "7")])
 def test_issue_key_spellings(tools, key, number):
     tools.on("gh", "issue", "view", answer={"number": 7})

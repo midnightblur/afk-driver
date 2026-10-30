@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import base64
 import json
+import http.server
 import struct
+import threading
 import urllib.request
 from pathlib import Path
 
 import pytest
 
-from conftest import FakeResp, http_error
+from port_fakes import FakeResp, http_error
 from tracker import envelope, jira
 
 KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
@@ -73,6 +75,11 @@ def test_codex_config_is_the_last_source(home):
 def test_a_broken_claude_json_does_not_stop_the_lookup(home, monkeypatch):
     (home / ".claude.json").write_text("{not json", encoding="utf-8")
     assert jira.resolve_creds_env() == {}
+    (home / ".codex").mkdir(exist_ok=True)
+    (home / ".codex" / "config.toml").write_text(
+        '[mcp_servers.tracker.env]\nJIRA_BASE_URL = "https://codex.test"\nJIRA_EMAIL = "c@x.test"\nJIRA_API_TOKEN = "c-tok"\n',
+        encoding="utf-8")
+    assert jira.load_creds()[0] == "https://codex.test"
 
 
 def test_a_jira_named_server_is_not_a_credential_source(home):
@@ -120,7 +127,8 @@ def test_upload_attachment_multipart_body(tmp_path):
     assert captured["headers"]["X-Atlassian-Token"] == "no-check"
     assert "multipart/form-data; boundary=" in captured["headers"]["Content-Type"]
     body = captured["data"]
-    assert b'Content-Disposition: form-data; name="file"; filename="afkv2-fig-00000000-1.png"' in body
+    picture = png.name.encode()
+    assert b'Content-Disposition: form-data; name="file"; filename="' + picture + b'"' in body
     assert b"Content-Type: image/png" in body and b"DATA" in body
 
 
@@ -173,8 +181,8 @@ def test_a_network_failure_is_a_named_refusal(monkeypatch):
     assert caught.value.code == "network"
 
 
-def test_an_answer_that_is_not_json_is_a_named_refusal(recorded_jira):
-    recorded_jira({("GET", "/rest/api/3/issue/PROJ-1"): FakeResp(b"<html>")})
+def test_an_answer_that_is_not_json_is_a_named_refusal(fake_jira):
+    fake_jira({("GET", "/rest/api/3/issue/PROJ-1"): FakeResp(b"<html>")})
     with pytest.raises(envelope.Refusal) as caught:
         jira.issue_get({"key": "PROJ-1"})
     assert caught.value.code == "bad-answer"
@@ -209,3 +217,31 @@ def test_non_png_returns_none(tmp_path):
     other = tmp_path / "a.bin"
     other.write_bytes(b"not a png at all here")
     assert jira.png_size(other) is None
+
+
+def test_the_media_id_comes_from_a_real_303_and_the_redirect_is_not_followed(monkeypatch):
+    media = "6e8f6c52-3b1a-4a55-9f10-2a1e6f0c7d11"
+    paths = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            paths.append(self.path)
+            self.send_response(303)
+            self.send_header("Location", f"/file/{media}/binary")
+            self.end_headers()
+
+        def log_message(self, *_):
+            pass
+
+    monkeypatch.setenv("NO_PROXY", "*")
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        client = jira.Jira(f"http://127.0.0.1:{server.server_port}", "me@x.test", "tok-secret")
+        assert client.resolve_media_uuid("9001") == media
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+    assert paths == ["/rest/api/3/attachment/content/9001"]

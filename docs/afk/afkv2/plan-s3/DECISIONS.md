@@ -195,3 +195,59 @@
 - Chosen: B — PLAN.md Inputs: the project is named by day 4, and the 0012 contract moves the live run to 0016. The answers follow the REST v3 issue shape and the ADF attributes the documentation lists. Unverified until 0016: how Jira normalises ADF on read
 - Supersedes: none
 - To reverse: replace `afkv2/tests/ports/recorded/*.json` from the live run
+
+## D-29 — the port computes the receipt again from the text it writes
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — compare only `receipt` with the preview file vs B — also compute the sha256 digest of key + block text + picture hashes from `adf`, and refuse a difference
+- Chosen: B — with A, a valid preview and other `adf` writes text the developer never saw. `block_text` is defined by the port and answered by `md-to-adf`, so the skill and the port hash the same text. Figure nodes hold no text, so the preview text (no `figures`) equals the write text. Unverified: S2's preview code, which does not exist yet
+- Supersedes: SDD §3 "description-put {key, adf, expect_hash, receipt}" and "attachment-put {key, png}": both also take `preview`, the path of the file D-17 names. Also D-17 "Supersedes: none"
+- To reverse: remove `_check_text_is_previewed` in `jira.py`
+
+## D-30 — the CI status is one closed word set on both forges
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — pass the forge's own word vs B — map to `success`, `failed`, `canceled`, `running`, or empty
+- Chosen: B — only named words read green. GitHub: `ERROR` and `STALE` read `failed`, every word not listed reads `running`. GitLab: `skipped` reads `success`, as GitHub `SKIPPED` does; `manual` and every word not final reads `running`, so `ci-wait` ends at its budget on a pipeline that waits for a human. A v1 defect on the ship path, not copied: v1 answered `success` for `ERROR`
+- Supersedes: ADR-0007 "v1's ... JSON answers" for `status`
+- To reverse: `_rollup` in `github.py`, `_ci_word` in `gitlab.py`
+
+## D-31 — one rule for a rejected position
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep v1, where GitHub refuses and GitLab can land a plain note vs B — with `require_inline` both refuse `position-rejected` and leave no comment; without it both land a plain note with `reason`
+- Chosen: B — PRD AC-066 asks for the same behaviour. The GitLab status for a bad position (400) is from memory of its API: unverified live. The port treats 400 and 422 on that post as a rejected position
+- Supersedes: ADR-0007 "v1's ... JSON answers" for `change-comment`
+- To reverse: `change_comment` in `github.py` and `gitlab.py`
+
+## D-32 — a lost draft flag on GitLab is a refusal
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — v1: exit 0 with `draft_restored: false` vs B — refuse `draft-lost`
+- Chosen: B — with A the same answer means "flag kept" and "the change is now open for review", and PRD AC-064 keeps the change Draft until ship
+- Supersedes: ADR-0007 "v1's ... JSON answers" for this one failure
+- To reverse: `change_update_body` in `gitlab.py`
+
+## D-33 — the Jira answers are hand-built until the live run
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep the word "recorded" vs B — name them hand-built: folder `afkv2/tests/ports/hand_built`, fixture `fake_jira`
+- Chosen: B — no answer was recorded from Jira (D-28), and the name must not read as proof. An IOU sends the replacement to 0016, which has the D-4 test project
+- Supersedes: 0012 Acceptance "runs against recorded Jira responses here": hand-built answers here, recorded answers in 0016. Also D-28 "Supersedes: none"
+- To reverse: rename the folder after the live run
+
+## D-34 — push is git, and GitLab has no live proof yet
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — add a push verb vs B — no push verb: the 0015 Consumes line "push and change commands" reads as change commands from the port and a push through git
+- Chosen: B — v1 had no push verb, and git is the same on both forges. Separately: `forge_round_trip.py` runs on GitHub only, because this repository has no GitLab change. All GitLab answers rest on fakes: unverified live. An IOU sends a GitLab round trip to the owner's run in 0016
+- Supersedes: none
+- To reverse: add the verb to both `VERBS` tables
+
+## D-35 — the plugin check and the v1 strings
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — hide the v1 strings from `check_no_v1_names` vs B — keep them in files named `v1_facts.py`, and the check exempts that file name
+- Chosen: B — the first publish must recognise the v1 block (SDD §14), and hiding the strings defeats the check. The S1 check flags only `ports/tracker/v1_facts.py` of the port now, as read from `origin/feat/afkv2-s1`; `afkv2/skills/setup/scripts/v1_facts.py` has the same need. The tests pin the strings by digest, so they hold no v1 word; the digests were computed from the constants in v1's publish script. The exemption lives in `plugin_check.py`, which is outside the 0012 Scope and the 0016 Scope: an IOU names it
+- Supersedes: none
+- To reverse: inline the strings and remove the exemption
+
+## D-36 — small changes to the port answers after review
+- 2026-10-30 · decided by execute (0012-forge-tracker-port)
+- Options: A — keep the answers vs B — `description-put` answers no `description_hash`, because it hashes the document as sent and is no `expect_hash`; `attachment-delete` answers `filename: null` when the file is gone; a GitHub key `owner/name#7` reads that repository, and a key that names another repository than `repo` refuses `bad-payload`; a `forge` or `tracker` value that is not a word is `bad-payload`; `attachment-delete` stays id-only (D-19), and the contract says that it checks only the file name
+- Chosen: B — all are in the contracts now, before a consumer exists
+- Supersedes: none
+- To reverse: `jira.py`, `github_issues.py`, both `cli.py`

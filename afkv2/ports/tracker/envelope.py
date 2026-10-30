@@ -47,7 +47,10 @@ def read_payload(args, stream):
         text = ""
     else:
         raw = getattr(stream, "buffer", None)
-        text = raw.read().decode("utf-8") if raw is not None else stream.read()
+        try:
+            text = raw.read().decode("utf-8") if raw is not None else stream.read()
+        except UnicodeDecodeError as error:
+            raise Refusal("bad-payload", f"the payload is not UTF-8: {error}") from None
     if not text.strip():
         return {}
     try:

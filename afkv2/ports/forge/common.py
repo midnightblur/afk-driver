@@ -11,6 +11,7 @@ DEFAULT_BUDGET, DEFAULT_INTERVAL = 5400, 180
 MAX_READ_ERRORS = 3
 SIDES = ("new", "old", "context")
 TERMINAL = ("success", "failed", "canceled")
+PLAIN_NOTE_REASON = "the position was rejected; this landed as a plain note"
 
 
 class Target(NamedTuple):
@@ -101,7 +102,7 @@ def ci_wait(payload, read_status):
     if interval <= 0:
         interval = 1
     errors, elapsed = 0, 0
-    while elapsed < budget:
+    while True:
         try:
             status = read_status(change)
         except Refusal as refusal:
@@ -117,6 +118,9 @@ def ci_wait(payload, read_status):
             if errors >= MAX_READ_ERRORS:
                 return fail("unreadable", f"{MAX_READ_ERRORS} reads in a row of {change} gave no status: "
                                           "auth, network, or no checks on the change; not a verdict", elapsed=elapsed)
-        time.sleep(interval)
-        elapsed += interval
+        if elapsed >= budget:
+            break
+        wait = min(interval, budget - elapsed)
+        time.sleep(wait)
+        elapsed += wait
     return ok(status="running", elapsed=elapsed, id=change, reason="budget exhausted; the checks keep running")

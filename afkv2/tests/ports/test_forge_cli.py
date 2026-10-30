@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from conftest import PORTS
+from port_fakes import PORTS
 from forge import cli
 from tracker import settings, shell
 
@@ -66,6 +66,31 @@ def test_the_origin_host_names_the_kind(capsys, tools, monkeypatch, url, tool, v
     tools.on("git", "remote", "get-url", answer=url)
     tools.on(tool, "pr" if tool == "gh" else "mr", "view", answer=view)
     assert call(capsys, "change-view", '{"id":"7"}')[1]["id"] == "7"
+
+
+@pytest.mark.parametrize("url,tool,view", [
+    ("git@gitlab.example.com:infra/github-mirror.git\n", "glab", {"iid": 7}),
+    ("https://gitlab.example.com/github-tools/r.git\n", "glab", {"iid": 7}),
+    ("ssh://git@github.com/team/gitlab-sync.git\n", "gh", {"number": 7}),
+])
+def test_only_the_host_names_the_kind(capsys, tools, monkeypatch, url, tool, view):
+    monkeypatch.setattr(settings, "read_config", lambda: {})
+    tools.on("git", "remote", "get-url", answer=url)
+    tools.on(tool, "pr" if tool == "gh" else "mr", "view", answer=view)
+    assert call(capsys, "change-view", '{"id":"7"}')[1]["id"] == "7"
+
+
+@pytest.mark.parametrize("url", ["https://example.test/github-archive/r.git\n", "https://notgithub.example/o/r.git\n"])
+def test_a_host_that_names_no_forge_is_refused(capsys, tools, monkeypatch, url):
+    monkeypatch.setattr(settings, "read_config", lambda: {})
+    tools.on("git", "remote", "get-url", answer=url)
+    code, answer = call(capsys, "change-view", '{"id":"7"}')
+    assert code == 1 and answer["error"]["code"] == "no-forge"
+
+
+def test_a_forge_kind_that_is_no_word_is_bad_payload(capsys, tools):
+    code, answer = call(capsys, "change-view", '{"id":"7","forge":["github"]}')
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
 
 
 @pytest.mark.parametrize("remote", ["https://example.test/o/r.git\n", (1, "", "no such remote")])

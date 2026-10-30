@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 
 import pytest
 
-from conftest import FakeResp, http_error
+from port_fakes import FakeResp, http_error
 from tracker import envelope, jira, v1_facts
 
 BEGIN, END = jira.BEGIN_LINE, jira.END_LINE
@@ -18,6 +19,11 @@ V1_END = v1_facts.BLOCK_END_LINE
 
 def para(text):
     return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+
+
+def v1_line(text):
+    """v1 wrote its block lines with the em mark."""
+    return {"type": "paragraph", "content": [{"type": "text", "text": text, "marks": [{"type": "em"}]}]}
 
 
 def doc(*nodes):
@@ -102,21 +108,33 @@ def test_a_marker_in_a_code_block_is_quoted_text():
     assert jira.find_managed_block([code]) is None
 
 
+def _text_of(adf):
+    nodes = adf.get("content") if isinstance(adf, dict) else adf
+    return jira.block_text(nodes) if isinstance(nodes, list) and all(isinstance(node, dict) for node in nodes) else ""
+
+
 class Publish:
     """One description-put against a recorded Jira description."""
 
-    def __init__(self, recorded_jira, preview, description):
+    def __init__(self, fake_jira, preview, description, tmp):
         self.description = description
         self.hash = jira.description_hash(description)
-        self.preview, self.receipt, _ = preview(description_hash=self.hash, pictures=())
-        self.client = recorded_jira({
+        self.build, self.tmp = preview, tmp
+        self.client = fake_jira({
             ("GET", "/rest/api/3/issue/PROJ-1"): FakeResp({"key": "PROJ-1", "fields": {"description": description}}),
             ("PUT", "/rest/api/3/issue/PROJ-1"): FakeResp(b""),
         })
 
     def payload(self, **change):
-        return {"key": "PROJ-1", "adf": NEW_BLOCK, "expect_hash": self.hash, "receipt": self.receipt,
-                "preview": self.preview, **change}
+        """A preview of the text this payload sends: the receipt fits unless the test changes it."""
+        file, receipt, _ = self.build(description_hash=self.hash, pictures=(), text=_text_of(change.get("adf", NEW_BLOCK)))
+        return {"key": "PROJ-1", "adf": NEW_BLOCK, "expect_hash": self.hash, "receipt": receipt, "preview": file, **change}
+
+    def write_preview(self, receipt, hashes):
+        file = self.tmp / "other-preview.json"
+        file.write_text(json.dumps({"ticket_key": "PROJ-1", "receipt": receipt, "description_hash": self.hash,
+                                    "picture_hashes": hashes}), encoding="utf-8")
+        return str(file)
 
     def sent(self):
         put = [call for call in self.client.calls if call[0] == "PUT"]
@@ -125,8 +143,8 @@ class Publish:
 
 
 @pytest.fixture
-def publish(recorded_jira, preview):
-    return lambda description: Publish(recorded_jira, preview, description)
+def publish(fake_jira, preview, tmp_path):
+    return lambda description: Publish(fake_jira, preview, description, tmp_path)
 
 
 def test_first_publish_appends_at_the_end_and_keeps_the_rest(publish):
@@ -157,7 +175,7 @@ def test_replace_keeps_short_sections_byte_identical(publish):
 
 
 def test_a_v1_block_is_replaced_by_the_afkv2_block(publish):
-    run = publish(doc(SHORT_BEFORE, para(V1_BEGIN), para("old"), para(V1_END), SHORT_AFTER))
+    run = publish(doc(SHORT_BEFORE, v1_line(V1_BEGIN), para("old"), v1_line(V1_END), SHORT_AFTER))
     answer = jira.description_put(run.payload())
     assert answer["replaced"] == "v1"
     assert [jira.node_text(n) for n in run.sent()["content"]] == [
@@ -239,7 +257,7 @@ def test_bad_receipt_touches_nothing(publish, change):
 
 def test_a_preview_of_another_ticket_is_a_bad_receipt(publish, tmp_path):
     run = publish(doc())
-    data = json.loads(open(run.preview, encoding="utf-8").read())
+    data = json.loads(open(run.payload()["preview"], encoding="utf-8").read())
     data["ticket_key"] = "PROJ-2"
     other = tmp_path / "other.json"
     other.write_text(json.dumps(data), encoding="utf-8")
@@ -280,3 +298,33 @@ def test_the_hash_ignores_key_order_only():
     assert jira.description_hash({"a": 1, "b": [2]}) == jira.description_hash({"b": [2], "a": 1})
     assert jira.description_hash({"a": 1}) != jira.description_hash({"a": 2})
     assert jira.description_hash(None) != jira.description_hash(doc())
+
+
+def test_the_receipt_is_the_hash_of_key_text_and_pictures(publish, preview):
+    run = publish(doc())
+    hashes = ["a" * 64, "b" * 64]
+    receipt = hashlib.sha256(("PROJ-1" + "the new PRD" + "a" * 64 + "b" * 64).encode("utf-8")).hexdigest()
+    file = run.write_preview(receipt, hashes)
+    assert jira.description_put(run.payload(receipt=receipt, preview=file))["ok"] is True
+
+
+def test_text_the_preview_did_not_show_is_refused(publish, preview):
+    run = publish(doc())
+    file, receipt, _ = preview(description_hash=run.hash, pictures=(), text="the new PRD")
+    with pytest.raises(envelope.Refusal) as caught:
+        jira.description_put(run.payload(adf=[para("text nobody saw")], receipt=receipt, preview=file))
+    assert caught.value.code == "bad-receipt" and not run.client.writes()
+
+
+def test_pictures_the_receipt_does_not_cover_are_refused(publish, preview):
+    run = publish(doc())
+    _, receipt, _ = preview(description_hash=run.hash, pictures=(), text="the new PRD")
+    file = run.write_preview(receipt, ["a" * 64])
+    with pytest.raises(envelope.Refusal) as caught:
+        jira.description_put(run.payload(receipt=receipt, preview=file))
+    assert caught.value.code == "bad-receipt" and not run.client.writes()
+
+
+def test_a_figure_does_not_change_the_block_text():
+    figure = {"type": "mediaSingle", "content": [{"type": "media", "attrs": {"id": "m"}}]}
+    assert jira.block_text([para("a"), figure, para("b")]) == jira.block_text([para("a"), para("b")]) == "a\nb"

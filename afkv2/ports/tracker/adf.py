@@ -53,7 +53,7 @@ def _inline_to_adf(token):
             out.append({"type": "hardBreak"})
         elif kind == "image":
             push_text(child.content or dict(child.attrs).get("alt", "") or "[image]")
-    return out or [{"type": "text", "text": ""}]
+    return out
 
 
 def _adf_marks(marks):
@@ -72,7 +72,7 @@ def _pop(marks, kind):
 
 
 def md_to_adf_content(md_text, fig_nodes):
-    """ADF block nodes; `fig_nodes` maps a figure index to the nodes that replace its token."""
+    """ADF block nodes; `fig_nodes` maps a figure index to the nodes that replace its token, or is None."""
     try:
         from markdown_it import MarkdownIt
     except ImportError:
@@ -81,6 +81,15 @@ def md_to_adf_content(md_text, fig_nodes):
     tokens = MarkdownIt("gfm-like", {"linkify": False, "html": False}).parse(md_text)
     content, _ = _build_blocks(tokens, 0, None, fig_nodes)
     return content
+
+
+def _figure_nodes(index, fig_nodes):
+    """No map at all builds the preview text, which holds no figure. A map without the index would lose a picture."""
+    if fig_nodes is None:
+        return []
+    if index not in fig_nodes:
+        raise Refusal("bad-payload", f"`figures` has no entry for figure {index}")
+    return fig_nodes[index]
 
 
 def _build_blocks(tokens, i, stop, fig_nodes):
@@ -98,7 +107,7 @@ def _build_blocks(tokens, i, stop, fig_nodes):
             inline = tokens[i + 1]
             figure = _FIG_LINE.fullmatch(inline.content.strip())
             if figure:
-                nodes.extend(fig_nodes.get(int(figure.group(1)), []))
+                nodes.extend(_figure_nodes(int(figure.group(1)), fig_nodes))
             else:
                 nodes.append({"type": "paragraph", "content": _inline_to_adf(inline)})
             i += 3
@@ -141,7 +150,7 @@ def _build_list_items(tokens, i, stop, fig_nodes):
         if tokens[i].type == "list_item_open":
             children, i = _build_blocks(tokens, i + 1, "list_item_close", fig_nodes)
             items.append({"type": "listItem",
-                          "content": children or [{"type": "paragraph", "content": [{"type": "text", "text": ""}]}]})
+                          "content": children or [{"type": "paragraph", "content": []}]})
         else:
             i += 1
     return items, i

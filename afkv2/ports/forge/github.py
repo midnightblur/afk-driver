@@ -71,13 +71,11 @@ def _rollup(data):
     seen = {(check.get("conclusion") or check.get("state") or check.get("status") or "").upper() for check in checks}
     if not checks:
         return ""
-    if seen & {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"}:
+    if seen & {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR", "STALE"}:
         return "failed"
     if seen & {"CANCELLED", "CANCELED"}:
         return "canceled"
-    if seen & {"IN_PROGRESS", "QUEUED", "PENDING", "WAITING", "REQUESTED", ""}:
-        return "running"
-    return "success"
+    return "success" if seen <= {"SUCCESS", "NEUTRAL", "SKIPPED"} else "running"
 
 
 def _blob_base(data):
@@ -176,12 +174,16 @@ def _post(path, fields):
     return data, common.comment_id(data)
 
 
+def _plain_comment(repo, number, text, **extra):
+    data, ident = _post(f"repos/{repo}/issues/{number}/comments", {"body": text})
+    return ok(inline=False, thread="", comment=ident, url=data.get("html_url") or "", **extra)
+
+
 def change_comment(payload):
     change, text, target = common.ref(payload), str(need(payload, "text")), common.inline_target(payload)
     repo = _repo(payload)
     if target is None:
-        data, ident = _post(f"repos/{repo}/issues/{_number(change, payload)}/comments", {"body": text})
-        return ok(inline=False, thread="", comment=ident, url=data.get("html_url") or "")
+        return _plain_comment(repo, _number(change, payload), text)
     meta = _view(change, payload, "number,headRefOid")
     if not (meta.get("number") and meta.get("headRefOid")):
         raise Refusal("bad-answer", f"gh pr view named no number and head commit for {change}")
@@ -191,9 +193,11 @@ def change_comment(payload):
     try:
         data, ident = _post(f"repos/{repo}/pulls/{meta['number']}/comments", fields)
     except Refusal as refusal:
-        if refusal.code == "unprocessable":
+        if refusal.code != "unprocessable":
+            raise
+        if payload.get("require_inline"):
             raise Refusal("position-rejected", refusal.reason) from None
-        raise
+        return _plain_comment(repo, meta["number"], text, reason=common.PLAIN_NOTE_REASON)
     return ok(inline=True, thread=ident, comment=ident, url=data.get("html_url") or "")
 
 

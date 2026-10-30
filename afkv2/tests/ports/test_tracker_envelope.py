@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
+import sys
 
 import pytest
+from port_fakes import PORTS
 
 from tracker import envelope
 
@@ -85,3 +89,19 @@ def test_need_refuses_missing_and_empty():
         with pytest.raises(envelope.Refusal) as caught:
             envelope.need(payload, "a")
         assert caught.value.code == "bad-payload"
+
+
+def test_an_answer_survives_a_console_that_cannot_encode_it():
+    script = ("import sys; sys.path.insert(0, sys.argv[1]); from tracker import envelope; "
+              "sys.exit(envelope.serve({'x': lambda p: envelope.ok(title='emoji \\U0001f389')}, ['x']))")
+    done = subprocess.run([sys.executable, "-c", script, str(PORTS)], capture_output=True, timeout=60,
+                          env={**os.environ, "PYTHONIOENCODING": "cp1252"})
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout.decode("cp1252"))["title"] == "emoji \U0001f389"
+
+
+def test_stdin_that_is_not_utf8_is_unreadable_input():
+    script = ("import sys; sys.path.insert(0, sys.argv[1]); from tracker import envelope; "
+              "sys.exit(envelope.serve({'x': lambda p: envelope.ok()}, ['x']))")
+    done = subprocess.run([sys.executable, "-c", script, str(PORTS)], input=b'{"a":"\xe9"}', capture_output=True, timeout=60)
+    assert done.returncode == 2 and json.loads(done.stdout)["error"]["code"] == "bad-payload"

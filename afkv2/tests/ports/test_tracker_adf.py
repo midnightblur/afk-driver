@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tracker import adf
+from tracker import adf, envelope
 
 
 def convert(md, figures=None):
@@ -95,3 +95,24 @@ def test_missing_parser_is_a_named_refusal(monkeypatch):
     with pytest.raises(envelope.Refusal) as caught:
         convert("# x")
     assert caught.value.code == "missing-dependency" and "markdown-it-py" in caught.value.reason
+
+
+def test_an_empty_table_cell_has_no_text_node():
+    cells = convert("| a | b |\n|---|---|\n| 1 |   |")[0]["content"][1]["content"]
+    assert cells[1]["content"] == [{"type": "paragraph", "content": []}]
+
+
+def test_an_empty_list_item_has_no_text_node():
+    item = convert("- \n- b")[0]["content"][0]
+    assert item["content"] == [{"type": "paragraph", "content": []}]
+
+
+def test_a_figure_with_no_entry_in_the_map_is_refused():
+    with pytest.raises(envelope.Refusal) as caught:
+        adf.md_to_adf_content("before\n\nAFKV2FIGURE3ENDFIGURE\n\nafter", {0: []})
+    assert caught.value.code == "bad-payload" and "3" in caught.value.reason
+
+
+def test_no_map_leaves_the_figure_out():
+    nodes = adf.md_to_adf_content("before\n\nAFKV2FIGURE3ENDFIGURE\n\nafter", None)
+    assert [node["content"][0]["text"] for node in nodes] == ["before", "after"]

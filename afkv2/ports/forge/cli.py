@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,6 +14,14 @@ from tracker import envelope, settings, shell  # noqa: E402
 KINDS = {"github": github, "gitlab": gitlab}
 
 
+def _host(url):
+    """The host of an https, ssh or scp-form remote."""
+    url = url.strip()
+    if "://" in url:
+        return urllib.parse.urlsplit(url).hostname or ""
+    return url.rpartition("@")[2].partition(":")[0]
+
+
 def _from_origin():
     try:
         done = shell.run_tool("git", ["remote", "get-url", "origin"])
@@ -20,11 +29,14 @@ def _from_origin():
         return None
     if done.returncode != 0:
         return None
-    return next((kind for kind in KINDS if kind in done.stdout.lower()), None)
+    labels = _host(done.stdout).lower().split(".")
+    return next((kind for kind in KINDS if kind in labels), None)
 
 
 def _kind(payload):
     kind = payload.get("forge") or settings.read_config().get("forge") or _from_origin()
+    if kind is not None and not isinstance(kind, str):
+        raise envelope.Refusal("bad-payload", "`forge` must be a word: github or gitlab")
     if kind not in KINDS:
         raise envelope.Refusal("no-forge", "no forge kind: pass `forge` in the payload (github or gitlab), "
                                            "or run where the `origin` remote names one")

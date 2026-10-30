@@ -69,41 +69,72 @@ def test_a_verb_the_chain_does_not_call_is_unknown(capsys, verb):
     assert code == 2 and answer["error"]["code"] == "unknown-verb"
 
 
+POSITION = {"new_line": 5, "new_path": "a.txt", "old_path": "a.txt"}
+
+
+def gitlab_pages(tools):
+    gitlab_project(tools)
+    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2))
+    note = '{"id":%d,"body":"b","author":{"username":"x"},"position":{"new_line":5,"new_path":"a.txt"}}'
+    tools.on("glab", "api", "--paginate", answer=(
+        '[{"id":"a","notes":[' + note % 1 + ']}]\n'
+        '[{"id":"b","notes":[' + note % 2 + ']}]\n'))
+
+
+def github_pages(tools):
+    github_project(tools)
+    tools.on("gh", "api", "graphql", answer=github_threads((1, False), (2, False)))
+    tools.on("gh", "api", "--paginate", answer=(
+        '[{"id":1,"body":"one","path":"a.txt","user":{"login":"x"}}]\n'
+        '[{"id":2,"body":"two","path":"b.txt","user":{"login":"y"}}]\n'))
+
+
+TWO_PAGES = {"gitlab": gitlab_pages, "github": github_pages}
+
+
 @pytest.mark.parametrize("kind", KINDS)
 def test_thread_list_reads_every_page(capsys, tools, kind):
-    if kind == "gitlab":
-        gitlab_project(tools)
-        tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2))
-        tools.on("glab", "api", "--paginate", answer=(
-            '[{"id":"a","notes":[{"id":1,"body":"one","author":{"username":"x"}}]}]\n'
-            '[{"id":"b","notes":[{"id":2,"body":"two","author":{"username":"y"}}]}]\n'))
-    else:
-        github_project(tools)
-        tools.on("gh", "api", "graphql", answer={"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
-            {"id": "T1", "isResolved": False, "comments": {"nodes": [{"databaseId": 1, "lastEditedAt": None}]}},
-            {"id": "T2", "isResolved": False, "comments": {"nodes": [{"databaseId": 2, "lastEditedAt": None}]}}]}}}}})
-        tools.on("gh", "api", "--paginate", answer=(
-            '[{"id":1,"body":"one","path":"a.txt","user":{"login":"x"}}]\n'
-            '[{"id":2,"body":"two","path":"b.txt","user":{"login":"y"}}]\n'))
+    TWO_PAGES[kind](tools)
     assert good(capsys, kind, "thread-list", id="7")["count"] == 2
+
+
+def gitlab_note_pages(tools, nodes):
+    gitlab_project(tools)
+    tools.on("glab", "api", "graphql", answer=nodes)
+    tools.on("glab", "api", "--paginate", answer=(
+        '[{"id":2,"body":"later","author":{"username":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02","system":false}]\n'
+        '[{"id":1,"body":"first","author":{"username":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01","system":false},'
+        '{"id":3,"body":"system","system":true}]\n'))
+
+
+def github_note_pages(tools, nodes):
+    github_project(tools)
+    tools.on("gh", "api", "graphql", answer=nodes)
+    tools.on("gh", "api", "--paginate", answer=(
+        '[{"id":2,"body":"later","user":{"login":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02"}]\n'
+        '[{"id":1,"body":"first","user":{"login":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01"}]\n'))
+
+
+def github_comment_nodes(*nodes):
+    return {"data": {"repository": {"pullRequest": {"comments": {"nodes": list(nodes)}}}}}
+
+
+NOTE_PAGES = {"gitlab": gitlab_note_pages, "github": github_note_pages}
+EDITED_NOTES = {
+    "gitlab": gitlab_edits(1, 2, edited=(1,)),
+    "github": github_comment_nodes({"databaseId": 2, "lastEditedAt": None}, {"databaseId": 1, "lastEditedAt": "2025-02-03T00:00:00Z"}),
+}
+NOTE_MISSING_EDIT_FIELD = {
+    "gitlab": {"data": {"project": {"mergeRequest": {"notes": {"nodes": [
+        {"id": "gid://gitlab/Note/1", "lastEditedBy": None, "author": {"id": "gid://gitlab/User/1"}},
+        {"id": "gid://gitlab/Note/2", "author": {"id": "gid://gitlab/User/1"}}]}}}}},
+    "github": github_comment_nodes({"databaseId": 1, "lastEditedAt": None}, {"databaseId": 2}),
+}
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_note_list_is_paginated_normalized_and_oldest_first(capsys, tools, kind):
-    if kind == "gitlab":
-        gitlab_project(tools)
-        tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, edited=(1,)))
-        tools.on("glab", "api", "--paginate", answer=(
-            '[{"id":2,"body":"later","author":{"username":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02","system":false}]\n'
-            '[{"id":1,"body":"first","author":{"username":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01","system":false},'
-            '{"id":3,"body":"system","system":true}]\n'))
-    else:
-        github_project(tools)
-        tools.on("gh", "api", "graphql", answer={"data": {"repository": {"pullRequest": {"comments": {"nodes": [
-            {"databaseId": 2, "lastEditedAt": None}, {"databaseId": 1, "lastEditedAt": "2025-02-03T00:00:00Z"}]}}}}})
-        tools.on("gh", "api", "--paginate", answer=(
-            '[{"id":2,"body":"later","user":{"login":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02"}]\n'
-            '[{"id":1,"body":"first","user":{"login":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01"}]\n'))
+    NOTE_PAGES[kind](tools, EDITED_NOTES[kind])
     assert good(capsys, kind, "note-list", id="7") == {
         "ok": True, "count": 2,
         "notes": [
@@ -114,15 +145,117 @@ def test_note_list_is_paginated_normalized_and_oldest_first(capsys, tools, kind)
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_note_without_an_edit_state_is_refused(capsys, tools, kind):
-    if kind == "gitlab":
-        gitlab_project(tools)
-        tools.on("glab", "api", "graphql", answer=gitlab_edits())
-        tools.on("glab", "api", "--paginate", answer='[{"id":1,"body":"x"}]')
-    else:
-        github_project(tools)
-        tools.on("gh", "api", "graphql", answer={"data": {"repository": {"pullRequest": {"comments": {"nodes": []}}}}})
-        tools.on("gh", "api", "--paginate", answer='[{"id":1,"body":"x"}]')
+    NOTE_PAGES[kind](tools, {"gitlab": gitlab_edits(), "github": github_comment_nodes()}[kind])
     assert refused(capsys, kind, "note-list", id="7")["code"] == "bad-answer"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_note_list_fails_when_the_graphql_call_fails(capsys, tools, kind):
+    NOTE_PAGES[kind](tools, (1, "", "gh: Bad credentials (HTTP 401)"))
+    answer = refused(capsys, kind, "note-list", id="7")
+    assert answer["code"] == "auth"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_note_list_fails_when_graphql_omits_the_edit_field(capsys, tools, kind):
+    NOTE_PAGES[kind](tools, NOTE_MISSING_EDIT_FIELD[kind])
+    assert refused(capsys, kind, "note-list", id="7")["code"] == "bad-answer"
+
+
+@pytest.mark.parametrize("kind,errored", [
+    ("gitlab", {**gitlab_edits(1, 2), "errors": [{"message": "no"}]}),
+    ("github", {**github_comment_nodes({"databaseId": 1, "lastEditedAt": None}, {"databaseId": 2, "lastEditedAt": None}),
+                "errors": [{"message": "no"}]}),
+])
+def test_a_graphql_answer_with_errors_is_a_bad_answer(capsys, tools, kind, errored):
+    NOTE_PAGES[kind](tools, errored)
+    assert refused(capsys, kind, "note-list", id="7")["code"] == "bad-answer"
+
+
+def gitlab_line_thread(tools, edits):
+    gitlab_project(tools)
+    tools.on("glab", "api", "graphql", answer=edits)
+    tools.on("glab", "api", "--paginate", answer=[{"id": "d1", "notes": [
+        {"id": 1, "type": "DiffNote", "resolved": False, "body": "x", "created_at": "2025-03-01", "position": POSITION},
+        {"id": 2, "type": "DiffNote", "resolved": True, "body": "y", "created_at": "2025-03-02", "position": POSITION}]}])
+
+
+def github_line_thread(tools, nodes):
+    github_project(tools)
+    tools.on("gh", "api", "graphql", answer=nodes)
+    tools.on("gh", "api", "--paginate", answer=[
+        {"id": 1, "body": "x", "path": "a.txt", "line": 5, "side": "RIGHT", "created_at": "2025-03-01", "user": {"login": "a"}},
+        {"id": 2, "in_reply_to_id": 1, "body": "y", "path": "a.txt", "line": 5, "side": "RIGHT", "created_at": "2025-03-02",
+         "user": {"login": "b"}}])
+
+
+def github_thread_nodes(*comments, resolved=False):
+    return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
+        {"id": "T1", "isResolved": resolved, "comments": {"nodes": list(comments)}}]}}}}}
+
+
+LINE_THREAD = {"gitlab": gitlab_line_thread, "github": github_line_thread}
+FIRST_NOTE_EDITED = {
+    "gitlab": gitlab_edits(1, 2, edited=(1,)),
+    "github": github_thread_nodes({"databaseId": 1, "lastEditedAt": "2025-03-03T00:00:00Z"}, {"databaseId": 2, "lastEditedAt": None}),
+}
+THREAD_MISSING_EDIT_FIELD = {
+    "gitlab": NOTE_MISSING_EDIT_FIELD["gitlab"],
+    "github": github_thread_nodes({"databaseId": 1, "lastEditedAt": None}, {"databaseId": 2}),
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_thread_list_carries_the_forge_edit_flag_per_note(capsys, tools, kind):
+    LINE_THREAD[kind](tools, FIRST_NOTE_EDITED[kind])
+    thread = good(capsys, kind, "thread-list", id="7")["threads"][0]
+    assert [(note["id"], note["edited"]) for note in thread["notes"]] == [(1, True), (2, False)]
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_thread_list_fails_when_the_graphql_call_fails(capsys, tools, kind):
+    LINE_THREAD[kind](tools, (1, "", "gh: Bad credentials (HTTP 401)"))
+    assert refused(capsys, kind, "thread-list", id="7")["code"] == "auth"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_thread_list_fails_when_graphql_omits_the_edit_field(capsys, tools, kind):
+    LINE_THREAD[kind](tools, THREAD_MISSING_EDIT_FIELD[kind])
+    assert refused(capsys, kind, "thread-list", id="7")["code"] == "bad-answer"
+
+
+def test_gitlab_thread_is_resolved_when_a_note_is(capsys, tools):
+    gitlab_line_thread(tools, gitlab_edits(1, 2))
+    assert good(capsys, "gitlab", "thread-list", id="7")["threads"][0]["resolved"] is True
+
+
+def test_github_replies_join_their_root_in_time_order(capsys, tools):
+    github_line_thread(tools, github_thread_nodes({"databaseId": 1, "lastEditedAt": None}, {"databaseId": 2, "lastEditedAt": None}))
+    answer = good(capsys, "github", "thread-list", id="7")
+    assert answer["count"] == 1 and [note["body"] for note in answer["threads"][0]["notes"]] == ["x", "y"]
+
+
+def test_gitlab_thread_list_leaves_out_plain_and_system_notes(capsys, tools):
+    gitlab_project(tools)
+    tools.on("glab", "api", "graphql", answer=gitlab_edits(1, 2, 3))
+    tools.on("glab", "api", "--paginate", answer=[
+        {"id": "plain", "individual_note": True, "notes": [{"id": 1, "type": None, "body": "p"}]},
+        {"id": "system", "individual_note": True, "notes": [{"id": 2, "system": True, "body": "s"}]},
+        {"id": "line", "notes": [{"id": 3, "type": "DiffNote", "body": "l", "position": POSITION}]}])
+    answer = good(capsys, "gitlab", "thread-list", id="7")
+    assert answer["count"] == 1 and answer["threads"][0]["id"] == "line"
+
+
+@pytest.mark.parametrize("by,author,edited", [
+    ({"id": "gid://gitlab/User/9"}, {"id": "gid://gitlab/User/1"}, True),
+    (None, {"id": "gid://gitlab/User/1"}, False),
+    ({"id": "gid://gitlab/User/9"}, None, True),
+])
+def test_gitlab_edit_state_reads_the_editor_alone(capsys, tools, by, author, edited):
+    gitlab_note_pages(tools, {"data": {"project": {"mergeRequest": {"notes": {"nodes": [
+        {"id": "gid://gitlab/Note/1", "lastEditedBy": by, "author": author},
+        {"id": "gid://gitlab/Note/2", "lastEditedBy": None, "author": {"id": "gid://gitlab/User/1"}}]}}}}})
+    assert good(capsys, "gitlab", "note-list", id="7")["notes"][0]["edited"] is edited
 
 
 def test_gitlab_hidden_authors_are_named(capsys, tools):
@@ -149,10 +282,10 @@ def test_change_view_carries_immutable_refs_and_blob_source(capsys, tools, kind)
     tools.on(TOOL[kind], *VIEW[kind], answer=CHANGE_META[kind])
     answer = good(capsys, kind, "change-view", id="7")
     assert answer["head_sha"] == "head7" and answer["base_sha"] == "base7"
-    assert answer["head_ref"] == ("pull/7/head" if kind == "github" else "merge-requests/7/head")
+    assert answer["head_ref"] == {"github": "pull/7/head", "gitlab": "merge-requests/7/head"}[kind]
     assert answer["cross_fork"] is True
-    assert answer["blob_base"] == ("https://github.com/fork/widget/blob" if kind == "github"
-                                   else "https://gitlab.example/fork/widget/-/blob")
+    assert answer["blob_base"] == {"github": "https://github.com/fork/widget/blob",
+                                   "gitlab": "https://gitlab.example/fork/widget/-/blob"}[kind]
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -284,11 +417,42 @@ def test_github_comment_text_reaches_gh_on_stdin_never_on_the_command_line(capsy
     assert not any("secret" in arg for arg in args)
 
 
-def test_github_a_rejected_position_is_named(capsys, tools):
-    github_project(tools)
-    tools.on("gh", "api", "-X", answer=(1, "", "gh: Validation Failed (HTTP 422): line must be part of the diff"))
-    error = refused(capsys, "github", "change-comment", id="7", text="x", file="a.txt", line=9)
+REJECTED = {"github": "gh: Validation Failed (HTTP 422): line must be part of the diff",
+            "gitlab": "glab: 400 Bad Request: line_code can't be blank"}
+INLINE_PATH = {"github": "pulls/7/comments", "gitlab": "merge_requests/7/discussions"}
+
+
+def reject_the_position(tools, kind):
+    """The forge refuses the post at a line, and takes a plain note."""
+    def answer(args, _):
+        if any(INLINE_PATH[kind] in arg for arg in args):
+            return (1, "", REJECTED[kind])
+        return {"id": 90, "html_url": "https://forge.example/n/90", "web_url": "https://forge.example/n/90"}
+    {"github": github_project, "gitlab": gitlab_project}[kind](tools)
+    tools.on(TOOL[kind], "api", "-X", answer=answer)
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_rejected_position_with_require_inline_leaves_no_comment(capsys, tools, kind):
+    reject_the_position(tools, kind)
+    error = refused(capsys, kind, "change-comment", id="7", text="x", file="a.txt", line=9, require_inline=True)
     assert error["code"] == "position-rejected"
+    assert len([call_ for call_ in tools.calls if call_[1][:3] == ["api", "-X", "POST"]]) == 1
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_rejected_position_without_require_inline_lands_as_a_plain_note(capsys, tools, kind):
+    reject_the_position(tools, kind)
+    answer = good(capsys, kind, "change-comment", id="7", text="x", file="a.txt", line=9)
+    assert answer["inline"] is False and answer["thread"] == "" and answer["comment"] == "90"
+    assert answer["url"] == "https://forge.example/n/90" and "plain note" in answer["reason"]
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_forge_failure_at_a_line_is_not_a_rejected_position(capsys, tools, kind):
+    {"github": github_project, "gitlab": gitlab_project}[kind](tools)
+    tools.on(TOOL[kind], "api", "-X", answer=(1, "", "HTTP 500: server error"))
+    assert refused(capsys, kind, "change-comment", id="7", text="x", file="a.txt", line=9)["code"] == "server-error"
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -338,6 +502,22 @@ def test_gitlab_change_update_body_restores_the_draft_flag(capsys, tools):
     assert good(capsys, "gitlab", "change-update-body", id="7", body="new") == {
         "ok": True, "id": "7", "was_draft": "true", "draft_restored": True}
     assert ["mr", "update", "7", "--draft"] in [call_[1] for call_ in tools.calls]
+    assert ["mr", "update", "7", "--description", "new"] in [call_[1] for call_ in tools.calls]
+
+
+def test_gitlab_a_failed_draft_restore_is_refused(capsys, tools):
+    views = iter([{"iid": 7, "draft": True}, {"iid": 7, "draft": False}])
+    tools.on("glab", "mr", "view", answer=lambda *_: next(views))
+    tools.on("glab", "mr", "update", answer=lambda args, _: (1, "", "nope") if "--draft" in args else "")
+    error = refused(capsys, "gitlab", "change-update-body", id="7", body="new")
+    assert error["code"] == "draft-lost" and error["id"] == "7"
+
+
+def test_gitlab_a_kept_draft_flag_needs_no_restore(capsys, tools):
+    tools.on("glab", "mr", "view", answer={"iid": 7, "draft": True})
+    tools.on("glab", "mr", "update", answer="")
+    assert good(capsys, "gitlab", "change-update-body", id="7", body="new")["draft_restored"] is False
+    assert not any("--draft" in call_[1] for call_ in tools.calls)
 
 
 def test_gitlab_change_update_body_leaves_a_ready_change_ready(capsys, tools):
@@ -416,12 +596,8 @@ def test_gitlab_plain_comment_builds_a_canonical_note_url(capsys, tools):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_comment_answer_without_an_id_is_a_bad_answer(capsys, tools, kind):
-    if kind == "gitlab":
-        gitlab_project(tools)
-        tools.on("glab", "api", "-X", answer={})
-    else:
-        github_project(tools)
-        tools.on("gh", "api", "-X", answer={})
+    {"github": github_project, "gitlab": gitlab_project}[kind](tools)
+    tools.on(TOOL[kind], "api", "-X", answer={})
     assert refused(capsys, kind, "change-comment", id="7", text="x")["code"] == "bad-answer"
 
 
@@ -440,7 +616,7 @@ def test_gitlab_thread_list_exposes_locator_url_and_note_times(capsys, tools):
     assert (note["created_at"], note["updated_at"], note["edited"]) == ("2025-03-01", "2025-03-02", False)
 
 
-def test_github_thread_list_joins_graphql_resolution_and_groups_replies(capsys, tools):
+def test_github_thread_list_joins_graphql_resolution(capsys, tools):
     github_project(tools)
     tools.on("gh", "api", "graphql", answer=github_threads((71, True)))
     tools.on("gh", "api", "--paginate", answer=[
@@ -489,6 +665,9 @@ def ci_answer(kind, status):
     return {"number": 7, "url": "https://github.example/pull/7", "statusCheckRollup": [{"conclusion": status}]}
 
 
+RUNNING_WORD = {"gitlab": "running", "github": "IN_PROGRESS"}
+
+
 @pytest.fixture
 def no_sleep(monkeypatch):
     slept = []
@@ -497,15 +676,30 @@ def no_sleep(monkeypatch):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_ci_wait_reports_budget_exhausted(capsys, tools, no_sleep, kind):
-    tools.on(TOOL[kind], *VIEW[kind], answer=ci_answer(kind, "running" if kind == "gitlab" else "IN_PROGRESS"))
+def test_ci_wait_with_no_budget_still_reads_once(capsys, tools, no_sleep, kind):
+    tools.on(TOOL[kind], *VIEW[kind], answer=ci_answer(kind, RUNNING_WORD[kind]))
     answer = good(capsys, kind, "ci-wait", id="7", budget=0)
     assert answer["status"] == "running" and "budget" in answer["reason"]
+    assert len(tools.calls) == 1 and no_sleep == []
+
+
+@pytest.mark.parametrize("kind,word", [("gitlab", "success"), ("github", "SUCCESS")])
+def test_ci_wait_with_no_budget_answers_a_final_status(capsys, tools, no_sleep, kind, word):
+    tools.on(TOOL[kind], *VIEW[kind], answer=ci_answer(kind, word))
+    assert good(capsys, kind, "ci-wait", id="7", budget=0)["status"] == "success"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_ci_wait_reads_once_more_when_the_budget_ends_and_never_sleeps_past_it(capsys, tools, no_sleep, kind):
+    reads = iter([ci_answer(kind, RUNNING_WORD[kind]), ci_answer(kind, {"gitlab": "failed", "github": "FAILURE"}[kind])])
+    tools.on(TOOL[kind], *VIEW[kind], answer=lambda *_: next(reads))
+    answer = good(capsys, kind, "ci-wait", id="7", budget=100, interval=180)
+    assert answer["status"] == "failed" and answer["elapsed"] == 100 and no_sleep == [100]
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_ci_wait_spends_the_budget_then_stops(capsys, tools, no_sleep, kind):
-    tools.on(TOOL[kind], *VIEW[kind], answer=ci_answer(kind, "running" if kind == "gitlab" else "IN_PROGRESS"))
+    tools.on(TOOL[kind], *VIEW[kind], answer=ci_answer(kind, RUNNING_WORD[kind]))
     answer = good(capsys, kind, "ci-wait", id="7", budget=3, interval=1)
     assert answer["status"] == "running" and answer["elapsed"] == 3 and no_sleep == [1, 1, 1]
 
@@ -558,10 +752,42 @@ def test_ci_wait_stops_at_once_when_the_command_is_absent(capsys, monkeypatch, n
     ("github", [{"conclusion": "SUCCESS"}, {"status": "IN_PROGRESS"}], "running"),
     ("github", [{"conclusion": "SUCCESS"}, {"conclusion": "NEUTRAL"}], "success"),
     ("github", [{"conclusion": "FAILURE"}, {"status": "IN_PROGRESS"}], "failed"),
+    ("github", [{"conclusion": "SUCCESS"}, {"conclusion": "SKIPPED"}], "success"),
+    ("github", [{"state": "SUCCESS"}], "success"),
+    ("github", [{"state": "ERROR"}], "failed"),
+    ("github", [{"conclusion": "STALE"}], "failed"),
+    ("github", [{"state": "EXPECTED"}], "running"),
+    ("github", [{"conclusion": "A_NEW_WORD"}], "running"),
+    ("github", [{"conclusion": "SUCCESS"}, {"state": "PENDING"}], "running"),
+    ("github", [{"conclusion": "CANCELLED"}, {"conclusion": "SUCCESS"}], "canceled"),
 ])
 def test_github_rollup(capsys, tools, kind, checks, status):
     tools.on("gh", "pr", "view", answer={"number": 7, "url": "u", "statusCheckRollup": checks})
     assert good(capsys, kind, "ci-status", id="7") == {"ok": True, "status": status, "url": "u"}
+
+
+@pytest.mark.parametrize("word,status", [
+    ("success", "success"), ("skipped", "success"), ("failed", "failed"), ("canceled", "canceled"),
+    ("created", "running"), ("waiting_for_resource", "running"), ("preparing", "running"), ("waiting_for_callback", "running"),
+    ("pending", "running"), ("running", "running"), ("canceling", "running"), ("manual", "running"), ("scheduled", "running"),
+    ("a_new_word", "running"), ("", ""),
+])
+def test_gitlab_pipeline_words_become_the_contract_words(capsys, tools, word, status):
+    tools.on("glab", "mr", "view", answer=ci_answer("gitlab", word))
+    assert good(capsys, "gitlab", "ci-status", id="7")["status"] == status
+    assert good(capsys, "gitlab", "change-view", id="7")["pipeline"] == {"status": status}
+
+
+@pytest.mark.parametrize("word", ["skipped", "failed", "canceled"])
+def test_gitlab_ci_wait_ends_on_a_final_contract_word(capsys, tools, no_sleep, word):
+    tools.on("glab", "mr", "view", answer=ci_answer("gitlab", word))
+    assert good(capsys, "gitlab", "ci-wait", id="7", budget=30, interval=1)["status"] != "running"
+    assert no_sleep == []
+
+
+def test_gitlab_ci_wait_keeps_waiting_on_a_manual_pipeline(capsys, tools, no_sleep):
+    tools.on("glab", "mr", "view", answer=ci_answer("gitlab", "manual"))
+    assert good(capsys, "gitlab", "ci-wait", id="7", budget=2, interval=1)["status"] == "running"
 
 
 def test_gitlab_ci_status_reads_the_head_pipeline(capsys, tools):
@@ -577,6 +803,22 @@ def test_change_create_draft_passes_the_assignee_when_set(capsys, tools, kind, u
     assert answer == {"ok": True, "url": url, "id": "7", "draft": True}
     args = tools.calls[0][1]
     assert args[args.index("--assignee") + 1] == "octocat" and "--draft" in args
+    assert args[args.index("--title") + 1] == "t"
+    target, source = {"github": ("--base", "--head"), "gitlab": ("--target-branch", "--source-branch")}[kind]
+    assert args[args.index(target) + 1] == "main" and args[args.index(source) + 1] == "b"
+
+
+def test_github_change_create_draft_sends_the_body_on_stdin(capsys, tools):
+    tools.on("gh", "pr", "create", answer="https://github.com/x/y/pull/7")
+    good(capsys, "github", "change-create-draft", title="t", body="the body")
+    assert tools.calls[0][2] == "the body" and "--body-file" in tools.calls[0][1]
+
+
+def test_gitlab_change_create_draft_sends_the_description(capsys, tools):
+    tools.on("glab", "mr", "create", answer="https://gitlab.example/x/y/-/merge_requests/7")
+    good(capsys, "gitlab", "change-create-draft", title="t", body="the body")
+    args = tools.calls[0][1]
+    assert args[args.index("--description") + 1] == "the body"
 
 
 @pytest.mark.parametrize("kind,url", [("gitlab", "https://gitlab.example/x/y/-/merge_requests/7"), ("github", "https://github.com/x/y/pull/7")])
@@ -608,13 +850,13 @@ def test_change_create_draft_without_a_url_is_a_bad_answer(capsys, tools, kind):
 def test_change_ready(capsys, tools, kind):
     tools.on(TOOL[kind], "pr" if kind == "github" else "mr", answer="")
     assert good(capsys, kind, "change-ready", id="7") == {"ok": True, "id": "7", "draft": False}
-    assert ("ready" in tools.calls[0][1]) if kind == "github" else ("--ready" in tools.calls[0][1])
+    assert {"github": "ready", "gitlab": "--ready"}[kind] in tools.calls[0][1]
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_auth_status(capsys, tools, kind):
     tools.on(TOOL[kind], "auth", "status", answer="logged in")
-    tools.on(TOOL[kind], "api", "user", answer={"login": "me", "username": "me"})
+    tools.on(TOOL[kind], "api", "user", answer={{"github": "login", "gitlab": "username"}[kind]: "me"})
     assert good(capsys, kind, "auth-status") == {"ok": True, "authenticated": True, "user": "me"}
 
 
@@ -634,6 +876,6 @@ def test_payload_repo_reaches_the_command(capsys, tools, kind):
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_the_answer_survives_text_outside_the_console_encoding(tools, capsys, kind):
+def test_an_answer_keeps_text_outside_the_console_encoding(tools, capsys, kind):
     tools.on(TOOL[kind], *VIEW[kind], answer={**CHANGE_META[kind], "title": "emoji \U0001f389"})
     assert good(capsys, kind, "change-view", id="7")["title"] == "emoji \U0001f389"

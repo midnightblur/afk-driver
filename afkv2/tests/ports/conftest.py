@@ -1,37 +1,20 @@
-"""Fixtures for the port tests: in-process fakes for gh and glab, a recorded Jira, a preview file."""
+"""Fixtures for the port tests: in-process fakes for gh and glab, a fake Jira, a preview file."""
 
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import sys
-import urllib.error
-from pathlib import Path
 
 import pytest
+from port_fakes import PORTS, http_error
 
-PORTS = Path(__file__).resolve().parents[2] / "ports"
 sys.path.insert(0, str(PORTS))
 
 from tracker import jira, shell  # noqa: E402
 
 
-class FakeResp:
-    def __init__(self, body=b"", location=None):
-        self._body = body if isinstance(body, bytes) else json.dumps(body).encode()
-        self.headers = {"Location": location} if location is not None else {}
-
-    def read(self):
-        return self._body
-
-
-def http_error(status, body=b"", location=None):
-    headers = {"Location": location} if location else {}
-    return urllib.error.HTTPError("https://n.test/x", status, "status", headers, io.BytesIO(body))
-
-
-class RecordedJira(jira.Jira):
+class FakeJira(jira.Jira):
     """The real client over a route table: (method, path prefix) -> response or error."""
 
     def __init__(self, routes=None):
@@ -53,9 +36,9 @@ class RecordedJira(jira.Jira):
 
 
 @pytest.fixture
-def recorded_jira(monkeypatch):
+def fake_jira(monkeypatch):
     def install(routes=None):
-        client = RecordedJira(routes)
+        client = FakeJira(routes)
         monkeypatch.setattr(jira, "client", lambda: client)
         return client
     return install
@@ -101,19 +84,21 @@ def tools(monkeypatch):
 @pytest.fixture
 def preview(tmp_path):
     """A preview file with its pictures; returns (path, receipt, picture paths)."""
-    def build(key="PROJ-1", description_hash="h" * 64, pictures=(b"\x89PNG one",)):
-        receipt = hashlib.sha256(f"{key}{description_hash}".encode()).hexdigest()
+    def build(key="PROJ-1", description_hash="h" * 64, pictures=(b"\x89PNG one",), text=""):
+        hashes = [hashlib.sha256(data).hexdigest() for data in pictures]
+        receipt = hashlib.sha256((key + text + "".join(hashes)).encode("utf-8")).hexdigest()
         folder = tmp_path / "preview"
         folder.mkdir(exist_ok=True)
         paths = []
         for n, data in enumerate(pictures, start=1):
-            path = folder / f"afkv2-fig-{receipt[:8]}-{n}.png"
+            tag = receipt[:8]
+            path = folder / f"afkv2-fig-{tag}-{n}.png"
             path.write_bytes(data)
             paths.append(path)
         file = folder / "preview.json"
         file.write_text(json.dumps({
             "ticket_key": key, "receipt": receipt, "description_hash": description_hash,
-            "picture_hashes": [hashlib.sha256(data).hexdigest() for data in pictures],
+            "picture_hashes": hashes,
         }), encoding="utf-8")
         return str(file), receipt, paths
     return build

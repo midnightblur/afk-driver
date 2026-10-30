@@ -9,7 +9,7 @@ import textwrap
 
 import pytest
 
-from conftest import PORTS, FakeResp
+from port_fakes import PORTS, FakeResp
 from tracker import cli, jira, settings
 
 CLI = PORTS / "tracker" / "cli.py"
@@ -80,7 +80,17 @@ def test_md_to_adf_substitutes_figures(capsys):
     figure = [{"type": "mediaSingle", "content": []}]
     code, answer = call(capsys, "md-to-adf", json.dumps({
         "markdown": "AFKV2FIGURE1ENDFIGURE", "figures": {"1": figure}}))
-    assert code == 0 and answer["content"] == figure
+    assert code == 0 and answer["content"] == figure and answer["block_text"] == ""
+
+
+def test_md_to_adf_answers_the_text_the_receipt_covers(capsys):
+    code, answer = call(capsys, "md-to-adf", json.dumps({"markdown": "# A\n\nb\n\nAFKV2FIGURE1ENDFIGURE"}))
+    assert code == 0 and answer["block_text"] == "A\nb"
+
+
+def test_a_tracker_kind_that_is_no_word_is_bad_payload(capsys):
+    code, answer = call(capsys, "issue-get", json.dumps({"key": "x", "tracker": {"kind": "jira"}}))
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
 
 
 def test_md_to_adf_needs_markdown(capsys):
@@ -98,9 +108,9 @@ def test_a_refusal_exits_1_and_never_shows_the_token(capsys, monkeypatch):
     assert "tok-secret" not in json.dumps(answer)
 
 
-def test_issue_get_goes_to_jira_when_the_config_says_jira(capsys, reader, recorded_jira):
+def test_issue_get_goes_to_jira_when_the_config_says_jira(capsys, reader, fake_jira):
     reader({"ok": True, "tracker": {"kind": "jira"}})
-    recorded_jira({("GET", "/rest/api/3/issue/PROJ-1"): FakeResp({"key": "PROJ-1", "fields": {}})})
+    fake_jira({("GET", "/rest/api/3/issue/PROJ-1"): FakeResp({"key": "PROJ-1", "fields": {}})})
     code, answer = call(capsys, "issue-get", '{"key":"PROJ-1"}')
     assert code == 0 and answer["key"] == "PROJ-1" and "description_hash" in answer
 
