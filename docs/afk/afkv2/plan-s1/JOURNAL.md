@@ -33,3 +33,4 @@
 2026-10-30 02:46 | autopilot | 0005-notes-ingest-live-test | park-inherited(waiting on 0003-engine-core-schema-show-poll) — this slice did not start because a slice it depends on is not finished
 2026-10-30 02:46 | autopilot | run | run end (0/5 done, 5 parked) — one slice waits for an owner ruling and the other four wait on it; the smoke check did not run
 2026-10-30 02:50 | autopilot | 0001-skeleton-manifests-hooks | decision(D-12) — the plan author ruled: the three seed files join the slice's file list as seed only, and the next slice owns their content; the slice goes back to pending so the run can resume
+2026-10-30 02:50 | autopilot | run | run start (5 runnable) — resumed after the plan author's ruling D-12; the first slice finishes its owed checks, then the other four run
