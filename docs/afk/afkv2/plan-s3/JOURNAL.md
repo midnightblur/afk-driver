@@ -160,3 +160,12 @@
 2026-10-30 12:15 | autopilot | run | heartbeat 4/5 done, starting 0015-autopilot-execute — the code review slice finished on its second try; the last slice starts now
 2026-10-30 12:15 | autopilot | 0015-autopilot-execute | decision(D-68) — the design document does not say how a plan marks a check as not applicable here, so this slice chooses the form and tells the other session
 2026-10-30 12:19 | autopilot | 0015-autopilot-execute | decision(D-69) — the owner added a rule to this slice: autopilot rules small reversible plan questions itself and reports them after
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-70) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-71) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-72) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-73) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-74) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-75) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-76) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | decision(D-77) — see plan-s3/DECISIONS.md
+2026-10-30 12:46 | execute | 0015-autopilot-execute | developing — gate, walk, test-first record and both skills written. The gate and the record were written before their tests; each rule was then proved by a test that fails when the rule is changed (20 changes, 0 survivors). The walk tests came first. In plain terms: the code is written, and each rule has a test that notices when the rule breaks

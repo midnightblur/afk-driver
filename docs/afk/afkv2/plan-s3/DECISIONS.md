@@ -482,3 +482,59 @@
 - Chosen: A — PRD SK-12 now names AC-072 and the owner asked for a unit test in this slice. The Acceptance bullet, the unit row and a verbatim excerpt are added; the SK-12 excerpt is refreshed to the new PRD text
 - Supersedes: 0015 `## Context excerpts` old SK-12 row
 - To reverse: revert this commit
+
+## D-70 — the form of a gate the plan names not applicable (the fork of D-68)
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — a new column in the `## Verification` table vs B — a section beside the table vs C — the check cell of the row reads `not applicable: <reason>`
+- Chosen: C — the frozen contract keeps its 3 columns and its section set (SDD §8), and a reader sees the reason in the row it replaces. The exact prefix is `start_gate.py` `NOT_APPLICABLE`; `is_not_applicable` parses it. Another form, or no reason, refuses `bad-not-applicable`. Tested with the recorded fake of the plan check. S2 0010 must emit and check it: IOU in `.claude/wiring-ious.md`
+- Supersedes: none
+- To reverse: `NOT_APPLICABLE` and `is_not_applicable` in `start_gate.py`, and the same form in 0010
+
+## D-71 — what counts as a gate the repository cannot run
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — a config key lists what the repository has vs B — read the row: a live tier needs a reachable `app`, and a bare program in a code span must be on PATH
+- Chosen: B — the S1 config reader answers no such key (`afkv2_config.py` on `feat/afkv2-s1`: spec folder, tracker, ownership). A live tier is `api`, `e2e`, `browser`, `e2e/browser` or `ui-e2e`; `app` is an input of the run. A path-named command (`./mvnw`, `scripts/x`) is not checked here: an earlier subtask can create it, and SDD §7 gives check paths to the 0010 plan check. Known limit: a code span of 2 or more words that starts with a lower-case word reads as a command, so prose in a code span can refuse. The fix is one cell. Unverified: how often this happens on a real plan
+- Supersedes: none
+- To reverse: `LIVE_TIERS`, `_programs` and `gate_failures` in `start_gate.py`
+
+## D-72 — how `check_start` calls the plan check of S2 0010
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — import `check_plan` in process vs B — run `<python> check_plan.py <plan folder>` and read one JSON object
+- Chosen: B — the 0010 contract and D-13 give exit 0, 1 or 2 and one JSON object, and these describe a command. They name no argument form and no field for the list, so this reader takes `failures` or `error.failures`, and every answer other than a clean pass refuses: no script, no JSON, exit 2, exit 0 with a listed failure. This reads the contract and changes no command of S2. The call form and the field go to S2 as an IOU, and S4 0016 runs against the real script. Unverified: the form S2 builds, because 0010 is pending
+- Supersedes: none
+- To reverse: `plan_check_failures` in `start_gate.py`
+
+## D-73 — the signs of a v1 plan folder
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — the PLAN.md header only vs B — the header, a materialized seam, or a folder that is not `plan/` at the root of a `<feature branch>-run` branch
+- Chosen: B — AC-071 puts a v2 plan only on a run branch, and SDD §8 removes materialized seams. A contract body is not read for a v1 skill name: the frozen `## Conflict procedure` text can carry one. A v1 plan gets only the `v1-plan` failure, with the 2 options: the other checks read a format it does not have. AC-060 "lists every failure" holds for a v2 plan
+- Supersedes: none
+- To reverse: `_v1_signs` in `start_gate.py`
+
+## D-74 — the review runs inside the subagent of the subtask
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — autopilot runs `/afkv2:code-review` between subagents vs B — the execute subagent runs it, and its reviewers are one level down
+- Chosen: B — the fixes need the subtask's context, and they would otherwise fill the orchestrator's context. The brief states the depth, and reviewers start no subagents. `done` refuses a subtask with no review report, so autopilot still gets the review per subtask. Unverified: a harness with no nested subagents (Codex is owner-run, D-S-8)
+- Supersedes: none
+- To reverse: move step 6 of `execute/SKILL.md` into the walk of `autopilot/SKILL.md`
+
+## D-75 — `done` is the one check of a finished subtask
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — trust the report of the subagent vs B — `walk.py done` lists every gap and sets the row
+- Chosen: B — it checks own commits, the test-first record, the push, one change, a CI watch record, the review report with no blocking finding, and each `## Produces` anchor. This closes the gap of D-55: a run with no `start` of the CI watch refuses `no-ci-watch`. `plan/run.json` holds the change, the base and attempts per subtask, order pairs and rulings. The walk does not push the run branch: no contract asks for it, so the run's record stays local until a human pushes it
+- Supersedes: none
+- To reverse: `_finish_failures` in `walk.py`
+
+## D-76 — how the test-first order is proved
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — prose only vs B — read commit order only vs C — `tdd_log.py` runs the test command at `red` and `green` and records the head
+- Chosen: C — `red` refuses a test that passes and refuses changed code files; `green` runs the same command; `done` refuses a code commit from the base to the first `red`. Work with no behavior records `no-test` with `why`. Known limit: an agent that wants to can still pass by a false test. The name rule for a test file is a list of path patterns (`TEST_FILE`)
+- Supersedes: none
+- To reverse: `verdict` in `tdd_log.py` and its call in `walk.py`
+
+## D-77 — the form of a plan call (AC-072)
+- 2026-10-30 · decided by execute (0015-autopilot-execute)
+- Options: A — the executor runs `rule` vs B — the executor ends with `RESULT: stopped` and one `CALL`, and autopilot runs `rule`
+- Chosen: B — PRD AC-072: "an executor never changes its own Scope". `rule` rules kinds `scope`, `file-owner` and `subtask-order`; kinds `acceptance`, `one-way` and `cost`, a call that is not reversible or leaves the approved goal, an order against `## Blocked by`, and a 4th call on one subtask each park with the dependents. The ruling reaches the executor in the `brief` of the next `start`, because the stopped subagent has ended. The contract file stays as it is: a ruling in the brief binds over it. A running `then` of an order ruling goes back to `pending`. The cap of 3 rulings per subtask is this slice's own limit, against a loop with no human
+- Supersedes: none
+- To reverse: `rule` in `walk.py` and the section "Rule the plan call" in `autopilot/SKILL.md`
