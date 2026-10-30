@@ -475,3 +475,10 @@
 - Chosen: B — SDD §7 says "the plan names it not applicable" and defines no form. 0010 is pending on `feat/afkv2-s2`, and a grep of its branch finds no such form, so no caller exists to break. The form is one edit in 0015 and one in 0010. Any other fork that 0015 parks on needs a new ruling
 - Supersedes: none
 - To reverse: change the parser in `start_gate.py` to the form S2 builds
+
+## D-69 — 0015 gets AC-072: autopilot rules reversible plan calls
+- 2026-10-30 · decided by the owner (commit ce72dc30), applied by autopilot
+- Options: A — add AC-072 to the 0015 contract while the slice runs vs B — leave it for S4 0016
+- Chosen: A — PRD SK-12 now names AC-072 and the owner asked for a unit test in this slice. The Acceptance bullet, the unit row and a verbatim excerpt are added; the SK-12 excerpt is refreshed to the new PRD text
+- Supersedes: 0015 `## Context excerpts` old SK-12 row
+- To reverse: revert this commit

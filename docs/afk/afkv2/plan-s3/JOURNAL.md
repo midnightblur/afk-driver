@@ -159,3 +159,4 @@
 2026-10-30 12:13 | execute | 0013-code-review-skill | gate-skip — this commit also used AFK_SKIP_PRECOMMIT_GATES=1 (ruling D-62). In plain terms: the commit checks did not run on this commit; the pull request's CI still runs
 2026-10-30 12:15 | autopilot | run | heartbeat 4/5 done, starting 0015-autopilot-execute — the code review slice finished on its second try; the last slice starts now
 2026-10-30 12:15 | autopilot | 0015-autopilot-execute | decision(D-68) — the design document does not say how a plan marks a check as not applicable here, so this slice chooses the form and tells the other session
+2026-10-30 12:19 | autopilot | 0015-autopilot-execute | decision(D-69) — the owner added a rule to this slice: autopilot rules small reversible plan questions itself and reports them after
