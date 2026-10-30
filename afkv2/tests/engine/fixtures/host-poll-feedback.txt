@@ -1,0 +1,7 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  status: feedback
+prompts[1]{uid,prompt,selector,tag,text}:
+  "1","[round R-1]\ni-a accept | C:\\Users\\x \"q\" trailing  \n  second\ttab | pipe é 中文 \\\\double\ni-b —",form#f,choice,Round R-1 answers
+next_step: Reply to the user.
+dom_snapshot: "<html>\n<body>page, with \"quotes\"</body>\n</html>"

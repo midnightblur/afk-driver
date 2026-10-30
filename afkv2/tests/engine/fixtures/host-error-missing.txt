@@ -1,0 +1,3 @@
+error: No active Lavish Editor session for this file
+code: NOT_FOUND
+help[1]: Run it first

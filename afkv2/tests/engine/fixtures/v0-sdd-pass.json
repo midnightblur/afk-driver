@@ -1,0 +1,711 @@
+{
+ "schema": "afkv2.page/0",
+ "session": {
+  "id": "sdd-pass",
+  "skill": "propose-solution",
+  "feature": "afkv2 solution design",
+  "ticket": "GH-153",
+  "started": "2026-10-29T15:00:00Z"
+ },
+ "maps": [],
+ "rounds": [
+  {
+   "n": 1,
+   "state": "settled",
+   "banner": {
+    "settled": [
+     "Requirements settled in PRD.md and ADR-0001..0007",
+     "Core-behaviors budget is 8,000 characters (your 'keep the hook')",
+     "Probes: Claude and Codex hooks re-run after compaction; Codex stops hooks when the plugin is off; both have a subagent-start hook"
+    ],
+    "unlocks": [
+     "round 2: the module seams checked against the v1 code (L7, L9)",
+     "/v1kit:to-sdd",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26 demo ticket by day 5",
+     "D-4 Jira test project by day 4"
+    ]
+   },
+   "items": [
+    {
+     "id": "L1-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "L1 is inherited: afkv2 is a local plugin with no server. It runs inside a Claude Code or Codex session on Windows, its scripts are Python (and .cmd only where speed needs it), and pages are shown through the same lavish host as v1."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "L2-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "The page seam: S1 delivers the engine as one command with 5 verbs (check, render, show, poll, ingest) and the frozen schema file for page documents. S2's skills write page documents against that schema file and call only these verbs. ingest is new: it reads the page's response and writes the raw text, each item's marks and notes, and every conflict into the document, with no judgement."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "L2-2",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "The tracker seam: S3 delivers one command per tracker kind with JSON in and JSON out. Jira verbs: issue-get, md-to-adf, attachment-list, attachment-put (returns the attachment id and media id), attachment-delete, description-put. GitHub-issue verbs: issue-get, issue-search. Every answer is {\"ok\": true, ...} or {\"ok\": false, \"error\": {\"code\", \"reason\"}}, with exit 0, 1 (error answer) or 2 (bad payload). S2's publish step owns the managed block, the pictures, the id check, the preview and the receipt."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "L2-3",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "You picked acli. Reopened as L2-3b: the acli command reference shows it cannot upload pictures, which the whole-PRD-with-pictures publish (your Y-1) needs."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: acli"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "L2-4",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "The hook seam: S1 delivers, per provider, a .cmd hook that prints a prebuilt file and writes a fired record; it runs on session start (startup, resume, clear, compact) and on subagent start. The core-behaviors file begins and ends with a marker line that carries its hash. A build check makes the provider files (plain text for session start, JSON for Claude subagent start), checks the 8,000-character cap, and refuses a stale prebuilt file. S3's setup proves the hook: the fired record is newer than the install, and the agent finds the end marker in its own context."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Signed: Page document schema v0 (persisted in the spec folder)."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: sign"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-3",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Signed: Who may write to Jira, and where it is enforced. The signed packet assumes the REST client; it stands if L2-3b keeps REST, and is re-packeted for you to sign again if not."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: sign"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-4",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Signed: States of a point on a page."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: sign"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-5",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Signed: Writes outside the branch: the Jira publish, the v1 block, the plugin switch. The signed packet assumes the REST client; it stands if L2-3b keeps REST, and is re-packeted for you to sign again if not."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: sign"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-0",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "HL-2 (API surface) and HL-6 (change to existing behaviour) are not triggered: the plugin adds no endpoint (the engine and tracker verbs are internal commands, settled as L2-1 and L2-2), and v2 changes no v1 code (it ports copies into afkv2/; the only v1-facing effect, the block removal, is in HL-5). Agree — Yes, HL-2 and HL-6 are n/a."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 1,
+      "signal": "accept"
+     }
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "state": "settled",
+   "banner": {
+    "settled": [
+     "L1, the page seam, the tracker seam and the hook seam (agent-decided, you accepted)",
+     "HL-1, HL-3, HL-4, HL-5 signed; HL-2 and HL-6 not triggered",
+     "Search tool: rg is in P0 (PRD AC-021)"
+    ],
+    "unlocks": [
+     "round 3: the module seams checked against the v1 code (L7, L9)",
+     "/v1kit:to-sdd"
+    ],
+    "parked": [
+     "Q26 demo ticket by day 5",
+     "D-4 Jira test project by day 4"
+    ]
+   },
+   "items": [
+    {
+     "id": "L2-3b",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "The ported v1 REST client handles every Jira call. No acli in P0; decision 40 changes. HL-3 and HL-5 stand as signed."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: rest. Your note: \"no acli at all then. JIRA is working just perfectly in v1, let's not change that\""
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 2,
+      "signal": "accept"
+     }
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "state": "settled",
+   "banner": {
+    "settled": [
+     "Jira client: the ported v1 REST client, no acli (your note: 'JIRA is working just perfectly in v1')"
+    ],
+    "unlocks": [
+     "/v1kit:to-sdd",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26 demo ticket by day 5",
+     "D-4 Jira test project by day 4"
+    ]
+   },
+   "items": [
+    {
+     "id": "SM-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Engine show and poll: port v1's page launcher as it is (lavish host pin 0.1.63, inject before open and poll, the Windows launch that resolves the npm shim and binds the child to a job object). Re-home the 2 v1 couplings under afkv2 names: the provider facts and the glossary tooltips. Verdict: extends. Your note asks for a newer pin: PIN-1."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept. Your note: \"update lavish pin to last version older than 30 days from now\""
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-2",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Engine render and check: a new build, not a port. v1 accepts only its own closed format (version 1, 6 fixed components, 3 states), so v0 needs a new validator and a new compiler from component trees to HTML. Reuse the page shell, the stylesheet, the browser script and the exit-code pattern. Subtask 03 is sized as new work."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-3",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "ingest, frozen: input is the page document path plus the raw response text. The engine mints each note id as N-<round>-<item>. A conflict is 2 lines for one item. A note line may run over several lines; '-' counts as the empty mark; '[btw]' lines are kept as raw text only. Mark rules: a lone accept, sign or option mark settles by mark; reopen, changes and a write-in go to needs-reading. The browser draft key carries the session id and the round, and the page clears it on send."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-4",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Tracker port: wrap v1's Jira client. Map every v1 answer into {ok, error{code, reason}} with an HTTP-status table. Remove the create, transition and comment verbs. Replace v1's credential-registration import with afkv2's own lookup (same keys, same order). Setup installs the markdown package and the diagram renderer; the publish never downloads it. New names: block markers afkv2:prd:start/end, pictures afkv2-fig-<receipt 8 chars>-<n>.png. Verdict: extends."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-5",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Hook: subtask 01 opens with a live check that a plugin can register a .cmd hook on Claude and on Codex (session start and subagent start). If either refuses, the fallback is a Python hook (about 60 ms) and AC-013's 50 ms limit comes back to you. Claude's subagent start returns JSON, so AC-013 now reads 'prints only the core-behaviors text, in the wrapper the provider requires'. The setup proof compares the fired record with setup's own install record. The test for AC-012 includes a Codex compaction."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-6",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Frozen on the morning of day 1, beside page schema v0: (1) the plan contract from to-subtasks (session 2) to execute (session 3): v1's subtask contract sections, without materialized seams; session 2 owns the format file and its check script, session 3 parses it. (2) The afkv2 data folder: %LOCALAPPDATA%\\afkv2 on both harnesses. (3) The marker hash: the first 12 hex characters of SHA-256 over the text between the markers. (4) The config reader for .afkv2 (spec folder, tracker kind) in subtask 01. (5) Python: setup checks python 3 on the path and records it; scripts start through it."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "SM-7",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "The no-v1-name rule (AC-019) checks names with one pattern: 'v1kit' or 'v1kit_' not followed by 'v2', in file names, environment variables, markers, storage keys and CSS classes. Every ported file is renamed in one pass per module (renderer, browser script, injector, stylesheet and tests move together)."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: accept"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "FRG-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Rewrite in Python only the forge commands the chain calls, for GitHub and GitLab, with v1's JSON answers. Decision 74 stands."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: python-used"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "CDX-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Not settled: reopened as CDX-1b. PR #147 makes Codex refuse to poll; it does not make Codex wake up."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: write-in. Your note: \"I believe this was fixed in https://github.com/midnightblur/v1kit-driver/pull/147? I haven't tested it though so not sure if it works\""
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "HL-5b",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Signed: the 4 changed HL-5 rows."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: sign"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 3,
+      "signal": "accept"
+     }
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "state": "settled",
+   "banner": {
+    "settled": [
+     "7 seam rows accepted",
+     "Forge: Python rewrite of the commands the chain calls",
+     "HL-5 changed rows signed"
+    ],
+    "unlocks": [
+     "/v1kit:to-sdd",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26 demo ticket by day 5",
+     "D-4 Jira test project by day 4"
+    ]
+   },
+   "items": [
+    {
+     "id": "CDX-1b",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Make the page wake Codex in P0. The mechanism is CDX-2."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: fix-resume"
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 4,
+      "signal": "accept"
+     }
+    },
+    {
+     "id": "PIN-1",
+     "kind": "decided",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Changes requested: pin 0.1.80, not 0.1.79. Re-packeted as PIN-2."
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "evidence: Your mark: changes. Your note: \"I pick 0.1.80. by the time it's implemented it's valid\""
+        }
+       }
+      ]
+     },
+     "state": "settled_by_mark",
+     "settled": {
+      "by": "mark",
+      "round": 4,
+      "signal": "accept"
+     }
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "state": "current",
+   "banner": {
+    "settled": [
+     "Pages on Codex: wake Codex in P0 (your pick)",
+     "Pin: 0.1.80 (your change)"
+    ],
+    "unlocks": [
+     "/v1kit:to-sdd",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26 demo ticket by day 5",
+     "D-4 Jira test project by day 4"
+    ]
+   },
+   "items": [
+    {
+     "id": "CDX-2",
+     "kind": "confirm",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "Codex wakes through a Stop hook: when the agent ends its turn while this session has a page waiting, an afkv2 Stop hook waits for the answer and hands it back as a 'block' reason, which Codex turns into the next prompt. Accept this mechanism?"
+      },
+      "children": [
+       {
+        "type": "text",
+        "props": {
+         "text": "why: Codex docs: a Stop hook that returns decision 'block' with a reason 'tells Codex to continue and automatically creates a new continuation prompt', and the reason becomes that prompt. The hook waits only when the session left a 'page waiting' record, so other turns end at once. Hook timeout is set to 3600 s (default 600 s; the docs state no maximum for Stop, not verified). Not verified live: how long a Stop hook may wait, and whether the developer can still type in chat while it waits. Session 1 checks both on day 1; if the check fails, the fallback is one chat message after Send (CDX-1's page-nudge), and you hear about it."
+        }
+       },
+       {
+        "type": "text",
+        "props": {
+         "text": "recommended: Yes: Stop-hook wait on Codex; Claude keeps its background poll"
+        }
+       },
+       {
+        "type": "text",
+        "props": {
+         "text": "context: Work: one more Codex hook and a 'page waiting' record that show and poll write; it lands in session 1 beside the page launcher. The Stop hook also needs the one-time Codex hook trust review that setup guides."
+        }
+       }
+      ]
+     },
+     "state": "open"
+    },
+    {
+     "id": "PIN-2",
+     "kind": "signoff",
+     "body": {
+      "type": "text",
+      "props": {
+       "text": "{\"component\": \"signoff_packet\", \"id\": \"PIN-2\", \"group\": \"pin\", \"hl_id\": \"HL-5\", \"aspect\": \"Lavish host pin 0.1.80 and its effect on v1 (reworked as you asked)\", \"tables\": [{\"caption\": \"Pin\", \"columns\": [\"Item\", \"Value\"], \"rows\": [[\"v1 pin\", \"0.1.63 (published 2026-08-29)\"], [\"afkv2 pin\", \"0.1.80 (published 2026-09-29 21:28 UTC); older than 30 days from 2026-10-30 on\"], [\"proof\", \"the S1 live brows"
+      },
+      "children": []
+     },
+     "state": "open"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+session:
+  file: "C:\\repo\\specs\\f\\pages\\grill-s1.html"
+  status: browser_disconnected
+next_step: Ask the user.
