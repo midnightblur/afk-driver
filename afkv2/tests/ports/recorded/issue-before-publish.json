@@ -1,0 +1,17 @@
+{
+  "_source": "hand-built from the Jira Cloud REST v3 issue shape; no live answer yet (the D-4 test project is not named). Replace from the live run of plan-s4 0016.",
+  "response": {
+    "id": "10042",
+    "key": "PROJ-1",
+    "fields": {
+      "summary": "A ticket",
+      "description": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {"type": "paragraph", "content": [{"type": "text", "text": "Short note before."}]}
+        ]
+      }
+    }
+  }
+}
