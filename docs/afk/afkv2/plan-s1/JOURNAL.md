@@ -80,3 +80,16 @@
 2026-10-30 11:30 | execute | 0002-core-behaviors | developing — writing failing tests first for the benchmark and the rule text
 2026-10-30 11:37 | execute | 0002-core-behaviors | decision(D-23) — the rule text carries the interim rules and each old rule that still applies; 5 old rules stay out, each with a recorded cause
 2026-10-30 11:37 | execute | 0002-core-behaviors | decision(D-24) — the benchmark counts matching text lines as hits, and it reports notices about binary files apart from the hits
+2026-10-30 11:37 | execute | 0002-core-behaviors | pushed d9446023..3fb21005 (1 commits) — the rule text, the rebuilt files and the benchmark are on the branch
+2026-10-30 11:37 | execute | 0002-core-behaviors | gate-skip(R-4) — commit 3fb21005 uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
+2026-10-30 11:37 | execute | 0002-core-behaviors | verifying — running each declared check
+2026-10-30 11:39 | execute | 0002-core-behaviors | verify — on 3fb21005: compile ok, own plugin check ok, 37 unit tests passed, both declared anchors found
+2026-10-30 11:39 | execute | 0002-core-behaviors | benchmark — search_bench.py on the benchmark repository, pattern Transactional, median of 5 with stdin closed: rg 1.99 s, git grep --untracked 3.82 s, ratio 0.521 against a limit of 0.60; 6377 same text lines; git grep also printed 1 notice for a binary file
+2026-10-30 11:39 | execute | 0002-core-behaviors | live-check(claude) — Claude Code 2.1.314, non-interactive, no tools available, afkv2 loaded from this worktree on 3fb21005: the session quoted the begin line, the first rule, the last rule and the end line with hash 24a66b9e53ae; the hook response held 4581 characters, so the text arrived whole
+2026-10-30 11:42 | execute | 0002-core-behaviors | reviewing — four independent readers checked the slice
+2026-10-30 11:42 | execute | 0002-core-behaviors | adversary: skipped (owner ruling R-1) — no run of the attack gate on this slice
+2026-10-30 11:51 | execute | 0002-core-behaviors | review advisory crit=0 high=0 med=3 low=3 — the 6 findings stay on the pull request as advice under owner ruling R-2, and no serious finding is open
+2026-10-30 11:51 | execute | 0002-core-behaviors | review: passed (owner ruling R-2) — round 1 on 3fb21005 found no critical or high finding; the closure gate did not run because the 6 advice findings stay open by that ruling
+2026-10-30 11:51 | execute | 0002-core-behaviors | wiring — the wiring scan exited 0 on 3fb21005
+2026-10-30 11:51 | execute | 0002-core-behaviors | gate-skip(R-4) — the plan commit that holds this line uses AFK_SKIP_PRECOMMIT_GATES=1 under ruling R-4, so its pre-commit gates did not run
+2026-10-30 11:51 | execute | 0002-core-behaviors | done — the rule text has 4503 characters, the live session and the benchmark passed; the human reviews and merges
