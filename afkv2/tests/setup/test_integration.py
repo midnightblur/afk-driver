@@ -1,5 +1,6 @@
 """End to end on a temporary home and repository through the command line verbs."""
 
+import errno
 import json
 import os
 import re
@@ -328,6 +329,7 @@ def test_a_git_failure_keeps_the_marker_until_the_ignore_line_is_gone(
     assert code == 1 and places.install_record.exists()
     answer = back["claude_settings"][0]
     assert answer["settings"] == "failed" and Path(answer["backup"], setup.IGNORE_ADDED).exists()
+    assert "safe.directory" in answer["reason"]
     runner.git_common_dir_fails = False
     assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
     assert exclude.read_bytes() == before
@@ -482,30 +484,42 @@ def test_write_atomic_keeps_the_file_mode(tmp_path):
     assert stat.S_IMODE(secret.stat().st_mode) == 0o600
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
-def test_write_atomic_replaces_a_read_only_file_and_keeps_its_mode(tmp_path):
+def test_write_atomic_replaces_a_read_only_file_and_keeps_it_read_only(tmp_path):
     secret = tmp_path / "secret"
     secret.write_bytes(b"old")
-    secret.chmod(0o400)
+    secret.chmod(stat.S_IREAD)
+    before = secret.stat().st_mode
     write_atomic(secret, b"new")
-    assert secret.read_bytes() == b"new" and stat.S_IMODE(secret.stat().st_mode) == 0o400
+    assert secret.read_bytes() == b"new" and secret.stat().st_mode == before
 
 
-@pytest.mark.parametrize("exists, mode", [(True, 0o600), (False, 0o666)])
-def test_write_atomic_keeps_the_data_private_until_the_mode_is_copied(tmp_path, monkeypatch, exists, mode):
-    target = tmp_path / "secret"
-    if exists:
-        target.write_bytes(b"old")
-    real = os.open
-    modes = []
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_write_atomic_keeps_the_data_private_until_the_mode_is_copied(tmp_path, monkeypatch):
+    target = tmp_path / "config"
+    target.write_bytes(b"old")
+    target.chmod(0o644)
+    real = shutil.copymode
+    at_copy = []
 
-    def spy(path, flags, *args, **kwargs):
-        modes.append(args[0])
-        return real(path, flags, *args, **kwargs)
+    def copymode(source, temp, **kwargs):
+        at_copy.append((stat.S_IMODE(os.stat(temp).st_mode), Path(temp).read_bytes()))
+        real(source, temp, **kwargs)
 
-    monkeypatch.setattr(os, "open", spy)
-    write_atomic(target, b"token\r\n")
-    assert modes == [mode] and target.read_bytes() == b"token\r\n"
+    monkeypatch.setattr(shutil, "copymode", copymode)
+    write_atomic(target, b"token")
+    assert at_copy == [(0o600, b"token")]
+    assert stat.S_IMODE(target.stat().st_mode) == 0o644
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_write_atomic_gives_a_new_file_the_umask_mode(tmp_path):
+    target = tmp_path / "config"
+    old = os.umask(0o027)
+    try:
+        write_atomic(target, b"new")
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
 
 
 def test_write_atomic_survives_a_read_only_temp_file_a_crash_left(tmp_path):
@@ -517,9 +531,12 @@ def test_write_atomic_survives_a_read_only_temp_file_a_crash_left(tmp_path):
     assert target.read_bytes() == b"new" and not stale.exists()
 
 
-def test_write_atomic_failure_leaves_the_target_and_no_temp_file(tmp_path, monkeypatch):
+@pytest.mark.parametrize("mode", [stat.S_IREAD, stat.S_IREAD | stat.S_IWRITE])
+def test_write_atomic_failure_leaves_the_target_and_no_temp_file(tmp_path, monkeypatch, mode):
     target = tmp_path / "config"
     target.write_bytes(b"old")
+    target.chmod(mode)
+    before = target.stat().st_mode
 
     def locked(_source, _target):
         raise PermissionError("locked")
@@ -527,6 +544,31 @@ def test_write_atomic_failure_leaves_the_target_and_no_temp_file(tmp_path, monke
     monkeypatch.setattr(os, "replace", locked)
     with pytest.raises(PermissionError):
         write_atomic(target, b"new")
+    assert target.read_bytes() == b"old" and target.stat().st_mode == before
+    assert [p.name for p in tmp_path.iterdir()] == ["config"]
+
+
+def test_write_atomic_on_a_full_disk_leaves_no_temp_file(tmp_path, monkeypatch):
+    target = tmp_path / "config"
+    target.write_bytes(b"old")
+    real = os.fdopen
+
+    class FullDisk:
+        def __init__(self, descriptor, mode):
+            self.stream = real(descriptor, mode)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            self.stream.close()
+
+        def write(self, _data):
+            raise OSError(errno.ENOSPC, "no space left")
+
+    monkeypatch.setattr(os, "fdopen", FullDisk)
+    with pytest.raises(OSError):
+        write_atomic(target, b"token")
     assert target.read_bytes() == b"old" and [p.name for p in tmp_path.iterdir()] == ["config"]
 
 

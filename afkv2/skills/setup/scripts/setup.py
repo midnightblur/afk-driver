@@ -543,7 +543,8 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str]) -> di
             dropped = _drop_ignore_line(repo, run)
             if dropped is None:
                 answer.update(settings="failed", backup=str(saved),
-                              reason="git could not name the ignore file; run switch-back again")
+                              reason="git cannot read this repository, so its ignore line stays; "
+                                     "fix git access (for example safe.directory), then run switch-back again")
                 continue
             answer["ignore_line"] = "removed" if dropped else "absent"
         failed = _remove_backup(saved)

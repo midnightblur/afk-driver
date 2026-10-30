@@ -82,16 +82,22 @@ def write_atomic(path: Path, data: bytes) -> None:
     tmp = path.with_name(path.name + ".afkv2-tmp")
     _drop_temp(tmp)
     exists = path.exists()
+    unlock = exists and os.name == "nt"  # os.replace refuses a read-only target there
+    mode = stat.S_IMODE(path.stat().st_mode) if unlock else 0
     # Private until the mode is copied: the file can hold a secret. New files take the umask.
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
-    with os.fdopen(os.open(tmp, flags, 0o600 if exists else 0o666), "wb") as out:
-        out.write(data)
     try:
+        with os.fdopen(os.open(tmp, flags, 0o600 if exists else 0o666), "wb") as out:
+            out.write(data)
         if exists:
             shutil.copymode(path, tmp)
+        if unlock:
+            os.chmod(path, stat.S_IWRITE)
         os.replace(tmp, path)
     except OSError:
         _drop_temp(tmp)
+        if unlock:
+            os.chmod(path, mode)
         raise
 
 

@@ -90,3 +90,10 @@
 - Chosen: A — the contract named no path for the execute test or its fakes, no check for fresh subagent, TDD order and own commits, and a static glob that does not parse. The `check_plan` input stays an Acceptance bullet and is not a `## Consumes` line, because `validate_plan.py` refuses it: A-UNKNOWN-PRODUCER, 0010 is in plan-s2. The fake contract comes from the 0010 Acceptance (one JSON object, every failure, exit 0/1/2, "SDD §3 envelope"); the SDD §3 table has no row for the check script. The optional 0011 fakes-path line is not applied: 0011 is in review round 2, its fakes are in `afkv2/tests/setup/conftest.py`, and `afkv2/tests/setup/**` is already in its scope
 - Supersedes: 0015 `## Verification` static row "every `afkv2/skills/autopilot afkv2/skills/execute/**/SKILL.md`"
 - To reverse: revert this commit; 0015 has not started
+
+## D-14 — a settings file whose `enabledPlugins` is not an object stops the takeover
+- 2026-10-30 · decided by execute (0011-setup-skill)
+- Options: A — read every falsy `enabledPlugins` (`[]`, `""`, `0`, `false`) as empty vs B — accept only an object or null, and refuse every other value
+- Chosen: B — the takeover writes this key, and under A it replaces a value it cannot read without a message. Null reads as empty because it holds no value to lose. A refusal stops the takeover before any change and names the file. Unverified: whether Claude itself accepts such values
+- Supersedes: none
+- To reverse: test `data.get("enabledPlugins") or {}` in `plugins._read_json`
