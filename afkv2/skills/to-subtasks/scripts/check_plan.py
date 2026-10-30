@@ -264,7 +264,7 @@ class Base:
     @cached_property
     def _tree(self):
         """Every file and folder of the feature branch."""
-        out = _git(self.plan, "ls-tree", "-r", "-z", "--name-only", self.source[1]) or b""
+        out = _git(self.plan, "ls-tree", "-r", "-z", "--full-tree", "--name-only", self.source[1]) or b""
         found = set()
         for name in out.decode("utf-8", "replace").split("\0"):
             while name and name not in found:

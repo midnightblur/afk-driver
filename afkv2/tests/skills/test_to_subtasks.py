@@ -6,10 +6,17 @@ recorded fakes of the page engine and the config reader (fakes/). Once S1 and S3
 also goes through the real engine and the real start gate.
 """
 
+import importlib.util
 import json
+import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -23,6 +30,9 @@ FIXTURES = HERE / "fixtures"
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
 
 import check_plan as cp  # noqa: E402
+import plan_files  # noqa: E402
+
+import design_files  # noqa: E402
 
 STATIC_ROW = "| static | `git --version` | the tool runs |"
 
@@ -368,3 +378,729 @@ def test_other_words_of_a_check_cell_are_no_paths(tmp_path, cell):
 def test_a_not_applicable_row_needs_no_path_owner(tmp_path):
     rows = "| unit | not applicable: `python tests/x.py` needs a service | it passes |"
     assert check(tmp_path, {"0001-a": contract("0001-a", rows=rows)})["ok"]
+
+
+# The disk and git side: every command comes from a fence of SKILL.md.
+
+SKILL_MD = SKILL_DIR / "SKILL.md"
+PLAN_FORMAT = SKILL_DIR / "PLAN-FORMAT.md"
+SPEC_FIXTURES = FIXTURES / "propose_solution"
+PLAN_FIXTURES = FIXTURES / "to_subtasks"
+START_GATE = SKILLS / "autopilot" / "scripts" / "start_gate.py"
+PLAN_CONTRACT = SKILLS / "autopilot" / "scripts" / "plan_contract.py"
+ENGINE = PLUGIN / "engine" / "engine.py"
+PLAN_FILES = "scripts/plan_files.py"
+STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
+STEP_ORDER = ["start", "check", "citations", "commit", "division", "present", "wait", "ingest", "apply-readings", "approve"]
+FEATURE = "feat/PROJ-1"
+RUN = "feat/PROJ-1-run"
+APPROVAL_LINE = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
+
+
+def skill_steps():
+    return dict(STEP.findall(SKILL_MD.read_text("utf-8")))
+
+
+def git(cwd, *args):
+    done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert done.returncode == 0, f"git {args}: {done.stderr}"
+    return done.stdout.strip()
+
+
+def new_repo(path, branch=FEATURE):
+    path.mkdir(parents=True)
+    git(path, "init", "-q", "-b", branch)
+    for key, value in (("user.name", "Test"), ("user.email", "test@example.test"), ("core.autocrlf", "false")):
+        git(path, "config", key, value)
+    return path
+
+
+def commit_all(path, message="work"):
+    git(path, "add", "-A")
+    git(path, "commit", "-q", "-m", message)
+
+
+class World:
+    """A plugin tree with the fakes, and a feature branch that holds the code and the spec folder."""
+
+    def __init__(self, root, prd=True, sdd=True, config=True):
+        self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
+        self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
+        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd"):
+            shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
+        for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
+            (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(FAKES / fake, self.plugin / target)
+        new_repo(self.repo)
+        if config:
+            (self.repo / ".afkv2").mkdir()
+            (self.repo / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs", "tracker": {"kind": "jira"}}), "utf-8")
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "export.py").write_text("# the export\n", "utf-8")
+        self.spec = self.repo / "specs" / "PROJ-1"
+        self.spec.mkdir(parents=True)
+        if prd:
+            for name in ("PRD.md", "INDEX.md"):
+                shutil.copy(SPEC_FIXTURES / "spec" / name, self.spec / name)
+        if sdd:
+            shutil.copy(SPEC_FIXTURES / "design" / "SDD.md", self.spec / "SDD.md")
+            shutil.copytree(SPEC_FIXTURES / "design" / "adr", self.spec / "adr" / "design")
+        (self.repo / "README.md").write_text("A repository.\n", "utf-8")
+        commit_all(self.repo, "the feature branch")
+        self.env = {"FAKE_CALL_LOG": str(self.calls), "FAKE_POLL_RAW": str(self.raw)}
+        self.scratch = root / "scratch"
+        self.scratch.mkdir()
+
+    def run(self, step, expect=0, **values):
+        """Run one stated command with its placeholders filled; return its one JSON answer."""
+        command = skill_steps()[step]
+        filled = {"python": Path(sys.executable), "this skill's folder": self.plugin / "skills" / "to-subtasks",
+                  **{key.replace("_", " "): value for key, value in values.items()}}
+        for name, value in filled.items():
+            command = command.replace(f"<{name}>", Path(value).as_posix() if isinstance(value, Path) else str(value))
+        left = re.findall(r"<[^<>]+>", command)
+        assert not left, f"{step}: unfilled {left}"
+        return self._answer(shlex.split(command), self.repo, expect, step)
+
+    def _answer(self, command, cwd, expect, label):
+        done = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=120,
+                              env={**os.environ, **self.env}, encoding="utf-8")
+        assert done.returncode == expect, f"{label}: {done.returncode}\n{done.stdout}\n{done.stderr}"
+        return json.loads(done.stdout)
+
+    def plan_files(self, *args, cwd=None, expect=0):
+        """A verb or a flag that no fence states."""
+        script = self.plugin / "skills" / "to-subtasks" / PLAN_FILES
+        return self._answer([sys.executable, str(script), *args], cwd or self.repo, expect, args[0])
+
+    def start(self, expect=0):
+        return self.run("start", expect=expect, ticket_key="PROJ-1")
+
+    def cut(self, started):
+        """Write the fixture plan into the run worktree: the work of the agent at the cut."""
+        plan = Path(started["plan"])
+        plan.mkdir(exist_ok=True)
+        for path in (PLAN_FIXTURES / "plan").glob("*.md"):
+            shutil.copy(path, plan / path.name)
+        return plan
+
+    def committed_plan(self):
+        started = self.start()
+        self.cut(started)
+        self.run("commit", plan=started["plan"], message="the plan")
+        return started
+
+    def division(self, started, expect=0, why=None, replace=False):
+        why_file = self.scratch / "why.json"
+        why_file.write_text(json.dumps(why) if why is not None else (PLAN_FIXTURES / "why.json").read_text("utf-8"), "utf-8")
+        if replace:
+            return self.plan_files("division", "--replace", "--plan", started["plan"], "--doc", started["doc"], "--session", started["session"],
+                                   "--ticket", "PROJ-1", "--why", str(why_file), expect=expect)
+        return self.run("division", expect=expect, plan=started["plan"], doc=started["doc"], session=started["session"],
+                        ticket_key="PROJ-1", why_file=why_file)
+
+    def doc(self, started):
+        return json.loads((self.repo / started["doc"]).read_text("utf-8"))
+
+    def card(self, started):
+        current = next(rnd for rnd in self.doc(started)["rounds"] if rnd["state"] == "current")
+        return next(item for item in current["items"] if item["kind"] == "signoff")
+
+    def answer(self, started, raw):
+        self.raw.write_bytes(raw.encode("utf-8"))
+        self.run("present", doc=started["doc"])
+        self.run("wait", doc=started["doc"], raw_file=started["raw_file"])
+        return self.run("ingest", doc=started["doc"], raw_file=started["raw_file"])
+
+    def sign(self, started):
+        card_id = self.card(started)["id"]
+        self.answer(started, f"{card_id}: sign")
+        return card_id
+
+    def readings(self, started, content):
+        path = self.scratch / "readings.json"
+        path.write_text(json.dumps(content), "utf-8")
+        return self.run("apply-readings", doc=started["doc"], readings=path)
+
+    def approve(self, started, expect=0):
+        return self.run("approve", expect=expect, plan=started["plan"], doc=started["doc"], spec_dir=self.spec)
+
+    def plan_file(self, started):
+        return Path(started["plan"]) / "PLAN.md"
+
+    def header(self, started):
+        return self.plan_file(started).read_text("utf-8").split("## ")[0].splitlines()
+
+    def change_plan(self, started):
+        path = Path(started["plan"]) / "0001-export-rows.md"
+        path.write_text(path.read_text("utf-8").replace("one row per order", "one row per order line"), "utf-8")
+        self.run("commit", plan=started["plan"], message="changed")
+
+
+@pytest.fixture
+def world(tmp_path):
+    return World(tmp_path)
+
+
+def error_of(answer):
+    assert answer["ok"] is False
+    return answer["error"]
+
+
+# Start: the inputs and the run branch.
+
+def test_the_run_branch_name_is_the_feature_branch_with_run(world):
+    started = world.start()
+    assert (started["branch"], started["run_branch"]) == (FEATURE, RUN)
+    assert Path(started["worktree"]).resolve() == Path(f"{world.repo}-run").resolve()
+    assert git(started["worktree"], "rev-parse", "--abbrev-ref", "HEAD") == RUN
+
+
+def test_start_answers_the_input_paths_and_the_paths_a_contract_cites(world):
+    started = world.start()
+    assert (Path(started["prd"]), Path(started["sdd"])) == (world.spec / "PRD.md", world.spec / "SDD.md")
+    assert (started["parent_prd"], started["parent_sdd"]) == ("specs/PROJ-1/PRD.md", "specs/PROJ-1/SDD.md")
+    assert Path(started["doc"]).parent == world.spec / "pages" and Path(started["doc"]).name.startswith("propose-solution-division-")
+    assert started["resume"] is False
+
+
+def test_the_run_branch_is_an_orphan_with_no_file(world):
+    started = world.start()
+    assert git(started["worktree"], "ls-files") == ""
+    assert git(started["worktree"], "rev-list", "--count", "HEAD") == "1"
+    done = subprocess.run(["git", "merge-base", FEATURE, RUN], cwd=world.repo, capture_output=True, timeout=60)
+    assert done.returncode == 1, "the run branch shares no commit with the feature branch"
+
+
+def test_a_second_start_reuses_the_run_worktree(world):
+    first, second = world.start(), world.start()
+    assert (first["created"], second["created"]) == (True, False)
+    assert Path(first["worktree"]).resolve() == Path(second["worktree"]).resolve()
+
+
+def test_start_needs_no_grill_log(world):
+    assert not (world.spec / "GRILL-LOG.md").exists()
+    assert world.start()["ok"]
+
+
+@pytest.mark.parametrize("kwargs, name, writer", [
+    ({"prd": False}, "PRD.md", "/afkv2:to-prd"),
+    ({"sdd": False}, "SDD.md", "/afkv2:propose-solution"),
+])
+def test_a_missing_input_stops_and_names_its_writer(tmp_path, kwargs, name, writer):
+    error = error_of(World(tmp_path, **kwargs).start(expect=1))
+    assert error["code"] == "missing-input"
+    assert error["missing"].endswith(name) and error["writer"] == writer and writer in error["reason"]
+
+
+@pytest.mark.parametrize("source, link, writer", [
+    ("PRD.md", "adr/requirements/0009-gone.md", "/afkv2:to-prd"),
+    ("SDD.md", "adr/design/0009-gone.md", "/afkv2:propose-solution"),
+])
+def test_a_linked_adr_that_is_missing_names_its_writer(world, source, link, writer):
+    with open(world.spec / source, "a", encoding="utf-8") as out:
+        out.write(f"\nSee [the ADR]({link}).\n")
+    error = error_of(world.start(expect=1))
+    assert error["code"] == "missing-input"
+    assert Path(error["missing"]) == world.spec / link and error["writer"] == writer
+
+
+def test_a_missing_config_names_setup(tmp_path):
+    error = error_of(World(tmp_path, config=False).start(expect=1))
+    assert error["code"] == "missing-input" and "/afkv2:setup" in error["reason"]
+
+
+def test_no_run_branch_exists_after_a_refused_start(tmp_path):
+    world = World(tmp_path, sdd=False)
+    world.start(expect=1)
+    assert git(world.repo, "branch", "--list", RUN) == ""
+
+
+def test_an_sdd_with_a_blocker_goes_back_to_its_writer(world):
+    sdd = world.spec / "SDD.md"
+    sdd.write_text(sdd.read_text("utf-8").replace("## §14 L9", "TODO later.\n\n## §14 L9"), "utf-8")
+    error = error_of(world.start(expect=1))
+    assert error["code"] == "sdd-not-ready" and error["writer"] == "/afkv2:propose-solution" and error["problems"]
+
+
+def test_start_refuses_on_a_run_branch(world):
+    started = world.start()
+    answer = world.plan_files("start", "--ticket", "PROJ-1", cwd=started["worktree"], expect=1)
+    assert error_of(answer)["code"] == "not-feature-branch"
+
+
+def test_start_with_no_ticket_names_the_invocation(world):
+    assert "invocation" in error_of(world.plan_files("start", expect=1))["writer"]
+
+
+# The plan lands on the run branch only.
+
+def test_the_plan_lands_on_the_run_branch_only(world):
+    started = world.committed_plan()
+    tree = git(world.repo, "ls-tree", "-r", "--name-only", RUN).splitlines()
+    assert sorted(tree) == ["plan/0001-export-rows.md", "plan/0002-export-endpoint.md", "plan/PLAN.md"]
+    feature = git(world.repo, "ls-tree", "-r", "--name-only", FEATURE).splitlines()
+    assert not [name for name in feature if name.startswith("plan/")]
+    assert git(started["worktree"], "status", "--porcelain") == ""
+
+
+def test_the_slice_of_a_fixture_passes_the_check(world):
+    started = world.committed_plan()
+    answer = world.run("check", plan=started["plan"])
+    assert answer["ok"] and answer["subtasks"] == ["0001-export-rows", "0002-export-endpoint"]
+    assert answer["base"] == f"refs/heads/{FEATURE}"
+    assert world.run("citations", plan=started["plan"], spec_dir=world.spec)["contracts"] == 2
+
+
+@pytest.mark.parametrize("name", ["PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "adr/design/0001-a.md", "pages/round.json"])
+def test_commit_refuses_a_spec_folder_file_in_the_plan(world, name):
+    started = world.start()
+    plan = world.cut(started)
+    (plan / name).parent.mkdir(parents=True, exist_ok=True)
+    (plan / name).write_text("spec\n", "utf-8")
+    error = error_of(world.run("commit", expect=1, plan=plan, message="the plan"))
+    assert error["code"] == "not-a-run-file" and error["files"] == [f"plan/{name}"]
+    assert git(started["worktree"], "rev-list", "--count", "HEAD") == "1"
+
+
+def test_commit_refuses_a_file_outside_the_plan_folder(world):
+    started = world.start()
+    plan = world.cut(started)
+    (Path(started["worktree"]) / "notes.md").write_text("notes\n", "utf-8")
+    assert error_of(world.run("commit", expect=1, plan=plan, message="the plan"))["files"] == ["notes.md"]
+
+
+def test_commit_refuses_outside_the_run_branch(world):
+    folder = world.repo / "plan"
+    folder.mkdir()
+    (folder / "PLAN.md").write_text("# plan\n", "utf-8")
+    assert error_of(world.run("commit", expect=1, plan=folder, message="the plan"))["code"] == "not-run-branch"
+
+
+def test_commit_refuses_a_plan_folder_below_the_top(world):
+    started = world.start()
+    folder = Path(started["worktree"]) / "docs" / "plan"
+    folder.mkdir(parents=True)
+    assert error_of(world.run("commit", expect=1, plan=folder, message="the plan"))["code"] == "not-run-branch"
+
+
+def test_commit_with_no_change_commits_nothing(world):
+    started = world.committed_plan()
+    assert world.run("commit", plan=started["plan"], message="again")["committed"] is False
+
+
+# The check reads the code from the feature branch when it runs on the run branch.
+
+def test_on_the_run_branch_an_anchor_is_read_from_the_feature_branch(world):
+    (world.repo / "src" / "twice.py").write_text("def twice_defined_here(\ndef twice_defined_here(\n", "utf-8")
+    commit_all(world.repo)
+    started = world.start()
+    plan = world.cut(started)
+    (plan / "0001-export-rows.md").write_text(contract("0001-export-rows", produces=["src/twice.py#def twice_defined_here( — it"]), "utf-8")
+    assert "B-AMBIGUOUS" in codes_of(cp.check_plan(plan))
+
+
+def test_on_the_run_branch_a_path_on_the_feature_branch_passes(world):
+    started = world.start()
+    plan = world.cut(started)
+    rows = "| unit | `git grep -n a README.md` | it passes |"
+    (plan / "0001-export-rows.md").write_text(contract("0001-export-rows", rows=rows), "utf-8")
+    assert "check-path-unowned" not in codes_of(cp.check_plan(plan))
+
+
+def test_on_the_run_branch_a_path_nothing_owns_is_refused(world):
+    started = world.start()
+    plan = world.cut(started)
+    rows = "| unit | `git grep -n a docs/gone.md` | it passes |"
+    (plan / "0001-export-rows.md").write_text(contract("0001-export-rows", rows=rows), "utf-8")
+    assert "check-path-unowned" in codes_of(cp.check_plan(plan))
+
+
+def test_a_run_branch_with_no_feature_branch_owns_nothing(tmp_path):
+    repo = new_repo(tmp_path / "repo", branch=RUN)
+    rows = "| unit | `git grep -n a README.md` | it passes |"
+    plan = write_plan(repo / "plan", {"0001-a": contract("0001-a", rows=rows)})
+    assert "check-path-unowned" in codes_of(cp.check_plan(plan))
+
+
+# Citations.
+
+def citation_answer(world, edit):
+    started = world.start()
+    plan = world.cut(started)
+    path = plan / "0001-export-rows.md"
+    path.write_text(edit(path.read_text("utf-8")), "utf-8")
+    return world.run("citations", expect=1, plan=plan, spec_dir=world.spec)
+
+
+@pytest.mark.parametrize("old, new, code", [
+    ("(PRD §AC-001)\n", "\n", "C-NO-CITATION"),
+    ("(PRD §AC-001)\n", "(PRD §AC-999)\n", "C-UNRESOLVED"),
+    ("(PRD §WE-01; SDD §8)", "(PRD §WE-01; SDD §99)", "C-UNRESOLVED"),
+    ("(PRD §WE-01; SDD §8)", '(PRD §WE-01; SDD §8 row "no such row")', "C-UNRESOLVED"),
+    ("(ADR-0001 design)", "(ADR-0009 design)", "C-UNRESOLVED"),
+    ("(PRD §WE-01; SDD §8)", "(PRD §WE-01; GRILL-LOG §1)", "C-UNRESOLVED"),
+    ("(PRD §WE-01; SDD §8)", "(PRD §WE-01; PLAN.md decision D-404)", "C-UNRESOLVED"),
+    ("SDD.md#§8 L7", "SDD.md#§99 L7", "C-UNRESOLVED"),
+    ("adr/design/0001-join-table-for-export-runs.md", "adr/design/0009-gone.md", "C-UNRESOLVED"),
+    ("specs/PROJ-1/PRD.md", "specs/PROJ-1/OTHER.md", "C-PARENT"),
+    ("## Parent SDD\nspecs/PROJ-1/SDD.md", "## Parent SDD\n", "C-PARENT"),
+])
+def test_a_citation_that_does_not_resolve_is_refused(world, old, new, code):
+    def edit(text):
+        assert old in text
+        return text.replace(old, new)
+    assert code in codes_of(citation_answer(world, edit))
+
+
+def test_a_contract_with_no_sdd_citation_is_refused(world):
+    def edit(text):
+        return text.replace("(PRD §WE-01; SDD §8)", "(PRD §WE-01)").replace("- SDD: SDD.md#§8 L7 — Module Decomposition — the one module\n", "")
+    assert "C-NOT-CITED" in codes_of(citation_answer(world, edit))
+
+
+def test_a_contract_with_no_prd_citation_is_refused(world):
+    def edit(text):
+        return text.replace("(PRD §AC-001)", "(SDD §8)").replace("(PRD §WE-01; SDD §8)", "(SDD §8)")
+    assert "C-NOT-CITED" in codes_of(citation_answer(world, edit))
+
+
+def test_a_wrapped_acceptance_bullet_reads_as_one_bullet(world):
+    started = world.start()
+    plan = world.cut(started)
+    path = plan / "0001-export-rows.md"
+    path.write_text(path.read_text("utf-8").replace("gives 2 rows. (PRD", "gives\n  2 rows. (PRD"), "utf-8")
+    assert world.run("citations", plan=plan, spec_dir=world.spec)["ok"]
+
+
+def test_every_citation_failure_is_listed(world):
+    def edit(text):
+        return text.replace("(PRD §AC-001)\n", "(PRD §AC-999)\n").replace("(PRD §WE-01; SDD §8)", "(PRD §WE-99; SDD §99)")
+    assert len(failures_of(citation_answer(world, edit))) == 3
+
+
+# The division.
+
+def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
+    started = world.committed_plan()
+    answer = world.division(started)
+    doc = world.doc(started)
+    card = world.card(started)
+    assert answer["card"] == card["id"] == answer["items"][0]
+    assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "propose-solution")
+    rows = card["body"]["props"]["rows"]
+    assert [row[0] for row in rows] == ["0001-export-rows", "0002-export-endpoint"]
+    assert rows[1][3] == "0001-export-rows" and rows[1][4] == "static, unit, api (not applicable)"
+    assert all(len(row) == len(card["body"]["props"]["columns"]) for row in rows)
+    assert "app: none" in card["body"]["children"][0]["props"]["text"]
+
+
+@pytest.mark.parametrize("why", [{"0001-export-rows": "Only one."}, {"0001-export-rows": "a", "0002-export-endpoint": " "},
+                                 {"0001-export-rows": "a", "0002-export-endpoint": "b", "0009-x": "c"}])
+def test_division_needs_one_sentence_per_subtask(world, why):
+    started = world.committed_plan()
+    assert error_of(world.division(started, expect=1, why=why))["code"] == "bad-why"
+
+
+def test_division_refuses_a_plan_that_fails_its_check(world):
+    started = world.committed_plan()
+    path = Path(started["plan"]) / "0002-export-endpoint.md"
+    path.write_text(path.read_text("utf-8").replace("def export_rows_for_day(", "def another_name_here("), "utf-8")
+    assert error_of(world.division(started, expect=1))["code"] == "plan-check-failed"
+    assert not (world.repo / started["doc"]).exists()
+
+
+def test_division_refuses_a_plan_that_is_not_committed(world):
+    started = world.committed_plan()
+    path = Path(started["plan"]) / "0001-export-rows.md"
+    path.write_text(path.read_text("utf-8") + "\nMore.\n", "utf-8")
+    assert error_of(world.division(started, expect=1))["code"] == "plan-not-committed"
+
+
+def test_the_digest_ignores_the_division_line_and_the_date_and_line_ends(world):
+    started = world.committed_plan()
+    before = plan_files.plan_digest(started["plan"])
+    path = world.plan_file(started)
+    text = path.read_text("utf-8")
+    stamped = text.replace("> Last updated: 2026-01-05", "> Last updated: 2026-02-02\n> Division: approved 2026-02-02")
+    path.write_bytes(stamped.replace("\n", "\r\n").encode("utf-8"))
+    assert plan_files.plan_digest(started["plan"]) == before
+    path.write_text(text.replace("The export rows", "Other title"), "utf-8")
+    assert plan_files.plan_digest(started["plan"]) != before
+
+
+# The approval.
+
+def test_a_sign_mark_writes_the_division_line(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    answer = world.approve(started)
+    day = date.today().isoformat()
+    assert answer["approved"] == day and answer["index_missing"] is False
+    assert [line for line in world.header(started) if APPROVAL_LINE.fullmatch(line)] == [f"> Division: approved {day}"]
+    assert world.run("check", plan=started["plan"])["division"] == {"approved": True, "date": day}
+    assert git(started["worktree"], "status", "--porcelain") == ""
+    assert f"> Division: approved {day}" in git(world.repo, "show", f"{RUN}:plan/PLAN.md")
+
+
+def test_a_second_approve_writes_nothing_new(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    first, second = world.approve(started), world.approve(started)
+    assert first["head"] == second["head"]
+    assert world.plan_file(started).read_text("utf-8").count("> Division:") == 1
+
+
+def test_the_approval_writes_the_plan_row_of_the_index(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.approve(started)
+    index = (world.spec / "INDEX.md").read_text("utf-8")
+    assert f"| Plan | {RUN}:plan/PLAN.md | 2 subtasks; division approved {date.today().isoformat()} |" in index
+    assert "| PRD | PRD.md | draft |" in index
+
+
+def test_an_approval_with_no_index_says_so(world):
+    (world.spec / "INDEX.md").unlink()
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    assert world.approve(started)["index_missing"] is True
+
+
+def test_without_the_division_line_the_plan_is_not_approved(world):
+    started = world.committed_plan()
+    world.division(started)
+    assert world.run("check", plan=started["plan"])["division"]["approved"] is False
+    assert not [line for line in world.header(started) if line.startswith("> Division:")]
+
+
+def test_approve_refuses_a_plan_nobody_has_seen(world):
+    started = world.committed_plan()
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+    assert "Division" not in world.plan_file(started).read_text("utf-8")
+
+
+def test_approve_refuses_an_unanswered_card(world):
+    started = world.committed_plan()
+    world.division(started)
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+
+
+def test_a_changes_mark_is_no_approval(world):
+    started = world.committed_plan()
+    world.division(started)
+    card_id = world.card(started)["id"]
+    world.answer(started, f"{card_id}: changes")
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+    world.readings(started, {"open": [{"item": card_id, "reply": "I will cut it again."}]})
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+    assert "Division" not in world.plan_file(started).read_text("utf-8")
+
+
+def test_a_sign_on_an_older_plan_does_not_approve_a_changed_plan(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.change_plan(started)
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+    assert "Division" not in world.plan_file(started).read_text("utf-8")
+
+
+def test_a_clear_note_settles_the_card_and_approves(world):
+    started = world.committed_plan()
+    world.division(started)
+    card_id = world.card(started)["id"]
+    world.answer(started, f"{card_id}: note: Fine, go ahead.")
+    note = world.card(started)["notes"][0]["id"]
+    world.readings(started, {"settle": [{"item": card_id, "note": note, "reading": "Approves the division as shown."}]})
+    assert world.approve(started)["ok"]
+
+
+def test_a_note_that_changes_the_card_returns_it_for_a_sign_mark(world):
+    """The plan changes, so only the new card, marked with sign, approves it."""
+    started = world.committed_plan()
+    world.division(started)
+    old = world.card(started)["id"]
+    world.answer(started, f"{old}: note: Merge the 2 subtasks.")
+    world.readings(started, {"open": [{"item": old, "reply": "I cut it again with your change."}]})
+    world.change_plan(started)
+    world.division(started)
+    new = world.card(started)
+    assert new["id"] != old
+    assert old in new["body"]["children"][-1]["props"]["text"], "the new card carries the old one"
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+    world.sign(started)
+    assert world.approve(started)["ok"]
+
+
+def test_only_the_newest_card_of_the_same_plan_counts(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.division(started)
+    world.answer(started, f"{world.card(started)['id']}: changes")
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+
+
+def test_division_takes_back_an_earlier_approval(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.approve(started)
+    world.division(started)
+    assert "> Division:" not in world.plan_file(started).read_text("utf-8")
+    assert git(started["worktree"], "status", "--porcelain") == ""
+    assert "> Division:" not in git(world.repo, "show", f"{RUN}:plan/PLAN.md")
+
+
+def test_a_corrected_round_replaces_an_unanswered_one(world):
+    started = world.committed_plan()
+    first = world.division(started)
+    second = world.division(started, replace=True)
+    assert first["round"] == second["round"] == 1
+    assert len(world.doc(started)["rounds"]) == 1
+
+
+def test_a_corrected_round_keeps_carrying_a_returned_card(world):
+    started = world.committed_plan()
+    world.division(started)
+    old = world.card(started)["id"]
+    world.answer(started, f"{old}: changes")
+    world.readings(started, {"open": [{"item": old, "reply": "Again."}]})
+    world.division(started)
+    assert world.division(started, replace=True)["round"] == 2
+    assert old in world.card(started)["body"]["children"][-1]["props"]["text"]
+
+
+def test_start_resumes_an_unapproved_session(world):
+    started = world.committed_plan()
+    world.division(started)
+    again = world.start()
+    assert (again["resume"], again["session"], again["doc"]) == (True, started["session"], started["doc"])
+
+
+def test_an_approved_plan_starts_a_new_session(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.approve(started)
+    assert world.start()["resume"] is False
+
+
+def test_a_design_session_after_the_division_session_stays_the_newest(world):
+    """The engine names the file by the session skill, so propose-solution sees the division document too."""
+    started = world.committed_plan()
+    world.division(started)
+    pages = Path(started["doc"]).parent
+    (pages / f"{design_files.DOC_PREFIX}s-20200101-000000.json").write_text("{}", "utf-8")
+    log = world.scratch / "log.md"
+    log.write_text("", "utf-8")
+    assert design_files._open_session(pages, log) == "s-20200101-000000"
+
+
+def test_a_polled_answer_on_disk_is_pending_at_start(world):
+    started = world.committed_plan()
+    world.division(started)
+    (world.repo / started["raw_file"]).write_text("an answer", "utf-8")
+    assert world.start()["raw_pending"] is True
+
+
+# The skill text and the format files.
+
+def test_the_skill_states_each_step_in_order():
+    assert list(skill_steps()) == STEP_ORDER
+
+
+def test_the_skill_frontmatter_has_name_and_description():
+    head = SKILL_MD.read_text("utf-8").split("---")[1]
+    assert "name: to-subtasks" in head and "description: /afkv2:to-subtasks" in head
+
+
+def test_the_links_of_the_skill_resolve():
+    for path in SKILL_DIR.glob("*.md"):
+        for target in re.findall(r"\]\(([^)#]+\.md)\)", path.read_text("utf-8")):
+            assert (path.parent / target).is_file(), f"{path.name}: {target}"
+
+
+def test_the_grill_step_named_for_the_reading_keys_states_them():
+    grill = (SKILLS / "grill" / "SKILL.md").read_text("utf-8")
+    step = re.search(r"^7\. .*?(?=^8\. )", grill, re.S | re.M).group(0)
+    assert "apply-readings" in step and "settle" in step
+
+
+def test_the_conflict_procedure_heading_stands_once():
+    assert (SKILL_DIR / "SUBTASK-CONTRACT.md").read_text("utf-8").count("## Conflict procedure") == 1
+
+
+def test_the_plan_template_has_each_line_autopilot_reads():
+    template = PLAN_FORMAT.read_text("utf-8").split("```")[1]
+    assert "> App: " in template and "## Progress tracker" in template and "| Subtask |" in template and "| Status |" in template
+    assert "> Division:" not in template, "only approve writes the division line"
+    assert not re.search("/af[k]:", template), "autopilot reads this in a header as a v1 plan"
+
+
+@pytest.mark.parametrize("path", [path for path in sorted(SKILL_DIR.glob("**/*"), key=str) if path.is_file() and path.suffix in {".md", ".py"}], ids=lambda path: path.name)
+def test_no_file_names_the_v1_plugin(path):
+    assert not re.search(r"\bafk(?!v2)\b", path.read_text("utf-8"))
+
+
+def test_the_fixture_contract_holds_each_section_of_the_format():
+    sections = cp.sections_of((PLAN_FIXTURES / "plan" / "0002-export-endpoint.md").read_text("utf-8"))
+    required, optional = cp.contract_sections()
+    assert not set(required) - set(sections)
+    assert "Consumes" in optional and "Review" in optional
+
+
+# The S3 and S1 contracts: these run once those sessions merge.
+
+def load_by_path(path):
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[path.stem] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.skipif(not START_GATE.exists(), reason="S3 has not merged: start_gate.py")
+def test_the_not_applicable_form_is_in_lockstep_with_the_start_gate():
+    gate = load_by_path(START_GATE)
+    assert gate.NOT_APPLICABLE == cp.NOT_APPLICABLE and set(gate.LIVE_TIERS) == cp.LIVE_TIERS
+    for cell in ("not applicable: no app", "not applicable:", "n/a", "Not applicable: x"):
+        assert gate.is_not_applicable(SimpleNamespace(check=cell)) == cp.is_not_applicable(cell), cell
+
+
+@pytest.mark.skipif(not START_GATE.exists(), reason="S3 has not merged: start_gate.py")
+def test_an_approved_plan_passes_each_plan_rule_of_the_real_start_gate(world):
+    gate = load_by_path(START_GATE)
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
+    world.approve(started)
+    plan, text = Path(started["plan"]), world.plan_file(started).read_text("utf-8")
+    assert gate._v1_signs(plan, text) == []
+    assert gate.plan_check_failures(plan) == []
+    assert gate.approval_failures(text) == []
+    rows, contracts, failures = gate.contracts_of(plan)
+    assert failures == [] and [item.id for item in contracts] == ["0001-export-rows", "0002-export-endpoint"]
+    assert [item for each in contracts for item in gate.gate_failures(each)] == []
+
+
+@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
+def test_the_contract_headings_are_in_lockstep_with_autopilot():
+    module = load_by_path(PLAN_CONTRACT)
+    required, optional = cp.contract_sections()
+    assert set(module.REQUIRED_SECTIONS) == set(required)
+    assert set(module.OPTIONAL_SECTIONS) == set(optional)
+
+
+@pytest.mark.skipif(not ENGINE.exists(), reason="S1 has not merged: the page engine")
+def test_the_division_document_passes_the_real_engine(world):
+    started = world.committed_plan()
+    world.division(started)
+    for verb in ("check", "render"):
+        done = subprocess.run([sys.executable, str(ENGINE), verb, started["doc"]], cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
+        assert done.returncode == 0, done.stdout + done.stderr
