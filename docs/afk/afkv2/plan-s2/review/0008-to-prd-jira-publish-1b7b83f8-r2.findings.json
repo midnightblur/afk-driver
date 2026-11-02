@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only / missing negative case: new `all(name in uploads ...)` check in _already_published",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/tests/skills/test_to_prd.py",
+  "line": 696,
+  "side": "new",
+  "finding": "The new test uses a one-picture PRD with the upload record fully missing. It never tests a record that lists only some of the pictures. It also never tests a record whose media ids differ from the block's.",
+  "why": "Changing `all(name in uploads for name in names)` to `any(...)` leaves this test green, because with one picture `all` and `any` give the same answer. A record with only some pictures would then count as published with no test failing.",
+  "fix": "Add a case with 2 diagrams where uploads.json is edited to keep only the first picture. Assert `already_published` is False. Add one case where the recorded media id differs from the block's media id.",
+  "evidence": "return all(name in uploads for name in names) and media == [uploads[name][\"media_id\"] for name in names]   /   (world.run_dir / \"uploads.json\").unlink()",
+  "id": "r-001"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths: the already-published check trusts a filename, not the recorded attachment id",
+  "severity": "low",
+  "class": "correctness",
+  "file": "afkv2/skills/to-prd/scripts/publish.py",
+  "line": 239,
+  "side": "new",
+  "finding": "`_already_published` checks that each picture NAME is on the ticket (line 237), not that the recorded `attachment_id` is. If the recorded attachment was deleted by hand and a same-named copy exists, the check can return True. The live block then points at a dead media id, and the cleanup deletes the surviving copy.",
+  "why": "This needs a same-named duplicate and a hand-deleted recorded attachment. A sequence of publish tool calls cannot produce it, because `_upload_pictures` rewrites `uploads.json` whenever it re-uploads. So it is not load-bearing.",
+  "fix": "Also require `{str(uploads[n]['attachment_id']) for n in names} <= {str(a.get('id')) for a in attachments}` before returning True.",
+  "evidence": "return all(name in uploads for name in names) and media == [uploads[name][\"media_id\"] for name in names]",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Assertion strength: final media check is only a negation",
+  "severity": "low",
+  "class": "test",
+  "file": "afkv2/tests/skills/test_to_prd.py",
+  "line": 714,
+  "side": "new",
+  "finding": "After the second publish the test asserts only that the media ids differ from the old ones. It does not assert the block holds the media id of the picture kept on the ticket.",
+  "why": "Any wrong media id would pass this, so a block that points at a different or deleted picture could still pass as long as the id is not the old one.",
+  "fix": "Assert `_block_media(world)` equals the media id of the attachment now on the ticket. In the fake that is `media-<attachment id>`.",
+  "evidence": "assert _block_media(world) != old_media",
+  "id": "r-003"
+ }
+]

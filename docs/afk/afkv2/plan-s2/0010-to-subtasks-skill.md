@@ -17,6 +17,8 @@ complex
 ## Scope
 - afkv2/skills/to-subtasks/**
 - afkv2/tests/skills/test_to_subtasks.py
+- afkv2/tests/skills/fakes/*
+- afkv2/tests/skills/fixtures/**
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
@@ -28,6 +30,9 @@ complex
 - [ ] After the developer approves the division on the page, the skill writes the PLAN.md header line `> Division: approved <YYYY-MM-DD>`; without it the plan is not approved (PRD §AC-060; PLAN.md decision D-S-2)
 - [ ] Every subtask contract cites PRD and SDD sections; acceptance bullets end with a resolving citation (PRD §SK-10)
 - [ ] The skill reads only PRD.md, SDD.md and ADRs on disk and stops naming any missing input and its writer (PRD §AC-002, §AC-003)
+- [ ] The check script refuses a gate that needs something the repository does not have (for example a running app), unless the plan names that gate not applicable; one unit test proves this refusal (SDD §7 v1 defects)
+- [ ] The check script refuses a check path that no Scope in the subtask's own chain owns (its Scope or the Scope of a subtask it waits on); one unit test proves this refusal (SDD §7 v1 defects)
+- [ ] A gate the repository cannot run is named by the check cell of its `## Verification` row, which reads `not applicable: <reason>` (the form S3 0015 reads: `NOT_APPLICABLE` in `afkv2/skills/autopilot/scripts/start_gate.py`, plan-s3 D-70). The skill emits this form, and the check script refuses another form or an empty reason. A cannot-run gate is a live tier (`api`, `e2e`, `browser`, `e2e/browser`, `ui-e2e`) when the repository has no app, or a bare program in a code span that is not on PATH (plan-s3 D-71). One unit test each for the accepted form and the refused forms (SDD §7 v1 defects)
 
 ## Produces
 - afkv2/skills/to-subtasks/SKILL.md#name: to-subtasks — the slicing skill
@@ -42,7 +47,7 @@ complex
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | every `afkv2/skills/to-subtasks/**/SKILL.md` has Agent Skills frontmatter (`name`, `description`); `afk-python -m compileall -q afkv2/skills/to-subtasks`; `rg -F` each ## Produces anchor | skill files parse; declared symbols present |
-| unit | `afk-python -m pytest afkv2/tests/skills/test_to_subtasks.py -q` | check (a)/(b) findings on fixture plans; approval line parse; run-branch name |
+| unit | `afk-python -m pytest afkv2/tests/skills/test_to_subtasks.py -q` | check (a)/(b) findings on fixture plans; approval line parse; run-branch name; one refusal test each for a gate the repository cannot run and for a check path no Scope in the chain owns |
 | integration | slice a fixture PRD + SDD into a temp repo: plan lands on `<branch>-run` only, check exit 0, approval line written after a fake page mark | the plan contract S3 reads |
 
 ## Context excerpts

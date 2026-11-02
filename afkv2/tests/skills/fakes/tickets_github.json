@@ -1,0 +1,22 @@
+{
+  "issues": {
+    "7": {
+      "key": "7",
+      "number": 7,
+      "title": "Export orders to a file",
+      "state": "OPEN",
+      "body": "Users need their orders in a file. See #8 and acme/other#9.",
+      "url": "https://example.invalid/issues/7",
+      "comments": [
+        {"author": {"login": "ana"}, "body": "One file per order.", "createdAt": "2026-01-02T09:00:00Z"},
+        {"author": {"login": "quinn"}, "body": "What about cancelled orders? Also see #8.", "createdAt": "2026-01-03T09:00:00Z"}
+      ]
+    },
+    "8": {"key": "8", "number": 8, "title": "Order archive", "state": "CLOSED", "body": "Archive closed orders.", "comments": []},
+    "10": {"key": "10", "number": 10, "title": "Export audit", "state": "OPEN", "body": "Follows #7.", "comments": []}
+  },
+  "search": [
+    {"number": 7, "title": "Export orders to a file", "state": "OPEN"},
+    {"number": 10, "title": "Export audit", "state": "OPEN"}
+  ]
+}

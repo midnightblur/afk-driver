@@ -97,8 +97,16 @@ A diagram that keeps the high-level view of a session's topic — a scope tree, 
 `Avoid:` big-picture map
 
 **Steer**:
-A human note about the whole session rather than one card. The agent records it word for word and treats it as a standing rule until the session ends.
+A human note on a map node or about the whole session, rather than on one card. The agent records it word for word and treats it as a standing rule for that node or that session until the session ends.
 
 **Mark**:
-A human's explicit answer on a card: accept, an option, reopen or a write-in. A clear, unambiguous note settles a point too; the agent states how it read the note, and a point with conflicting signals stays open.
+A human's explicit answer on a card: accept, sign, an option, reopen, changes or a write-in. A clear, unambiguous note settles a point too; the agent states how it read the note, and a point with conflicting signals stays open.
 `Related:` Steer
+
+**Claim ledger**:
+The list in the grill log of every load-bearing statement about how something works now, each with its status: pending, verified with a citation, refuted with a citation, or external and acknowledged by the human. Nothing settles on a pending claim.
+`Related:` Exit gate
+
+**Exit gate**:
+The check that ends a grill: every claim verified or acknowledged, every term verified, the policy, staples, examples and devil's-advocate rows present, and no point left open in the current round.
+`Related:` Claim ledger
