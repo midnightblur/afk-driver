@@ -187,3 +187,6 @@
 2026-11-02 00:44 | autopilot | run | decision(D-72) — a publish no longer downloads the diagram tool; when the tool is absent it stops and says how to install it
 2026-11-02 00:56 | autopilot | run | decision(D-73) — a plan with a broken shape now fails when it is written, not when the run tries to start
 2026-11-02 00:59 | autopilot | run | decision(D-74) — a change to only a link's target now changes the approval code, and a publish with a picture or an unchanged re-run still works
+2026-11-02 01:30 | autopilot | run | delta check confirm 21e31e22, e4656b9b, 8f9b719a, caa9d878, 92a002b8; reopen ddf729c8 (high) — a fresh reader found that the id check read list and table text glued together, so a real requirements document could never publish
+2026-11-02 01:30 | autopilot | run | decision(D-75) — the id check now reads list items, table cells and line breaks apart; this is the one more fix the owner's rule allows
+2026-11-02 01:30 | autopilot | run | gate-skip — commits 21e31e22, e4656b9b, 8f9b719a, 92a002b8, ddf729c8, caa9d878, 86571066 and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
