@@ -52,12 +52,22 @@ you ask in this session; the Jira token never passes through you.
    stubs aside, switches the plugins (Claude: this project's
    `.claude/settings.local.json`, kept out of git by a line in `.git/info/exclude`
    when git does not already ignore it; Codex: the global config) and installs
-   lavish host 0.1.80 — each with a backup.
+   lavish host 0.1.80 — each with a backup. It also writes `codex_rules`, which lets
+   the plugin's own scripts run outside the Codex sandbox with no prompt: tell the
+   developer this in the report. After a plugin update, run setup again.
    - `proof.proved` false: the v1 block stays and its backup is kept. Tell the
      developer each line of `proof.reasons`, then to start a new session and run
      `/afkv2:setup` again.
    - Another step failed: report its `error`; a re-run continues where it stopped.
 8. **Report.** One line per step: done, already done, or why not.
+
+## Return to afkv2 after a switch-back
+
+Switch-back hides this skill. Tell the developer to enable afkv2 first: on Codex
+`codex plugin add afkv2@<marketplace>`; on Claude
+`claude plugin enable afkv2@<marketplace> --scope local` in that repository. Then
+start a new session and run `/afkv2:setup`. When it answers that the hook fired
+before the install record, start one more new session and run it again.
 
 ## Switch back to v1
 
@@ -68,7 +78,8 @@ keeps those changes (`merged`); a deleted repository is skipped (`repo-missing`)
 `.claude/settings.local.json` that holds the off value stays, with its ignore
 line. Report each restored item and each `conflict` or `failed` entry with its `backup`
 path. For `codex_config: failed` the backup is `codex/config.toml` under the
-top-level `backup_dir`; for a failed `lavish` report its `error`. `jira_values`
+top-level `backup_dir`; for a failed `lavish` report its `error`; `codex_rules: failed`
+names the file to delete by hand, `~/.codex/rules/afkv2.rules`. `jira_values`
 names each key's outcome and never a value. An `error.code` of `backup-not-private`
 means setup could not limit the backup folder to the current user and wrote no token
 backup: report its `reason` and do not work around it. In a takeover it is under

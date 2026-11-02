@@ -23,6 +23,8 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
    holds the config from before.
 4. Start a new Codex session. Expect: the afkv2 end marker is in context and no
    v1 rule text is.
+5. Expect: `~/.codex/rules/afkv2.rules` exists. Send: `Run: python <afkv2 plugin
+   folder>\engine\engine.py --help`. Expect: no approval prompt.
 
 ## 3. Untrusted hook keeps the v1 block
 
@@ -34,14 +36,15 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
 ## 4. Switch back
 
 1. Run `/afkv2:setup switch-back`.
-2. Expect: `codex plugin list` shows only `afk@afk-toolkit` enabled; the v1 block
+2. Expect: `~/.codex/rules/afkv2.rules` is gone. `codex plugin list` shows only
+   `afk@afk-toolkit` enabled; the v1 block
    is back in both instruction files; `npm ls -g lavish-axi` shows the version
    from before setup.
 
 ## 5. Only you can open the backup folder
 
-1. Run `setup.py secrets` in your own terminal, not through the agent. Enter
-   test values.
+1. Run `setup.py secrets` in your own terminal, not through the agent. Press
+   Enter at each prompt to keep the stored values.
 2. Run `icacls "%LOCALAPPDATA%\afkv2\backup"`.
 3. Expect: one entry, your own account with `(OI)(CI)(F)`. No entry for
    `CodexSandboxUsers`, `SYSTEM` or `Administrators`, and no `(I)` mark.

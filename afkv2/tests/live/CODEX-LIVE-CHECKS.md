@@ -58,6 +58,6 @@ On fail: the wait was refused or cut, or the hook found no record. The fallback 
 
 | Check | Date | Codex version | Result | Notes |
 |-------|------|---------------|--------|-------|
-| 1 | | | | |
-| 2 | | | | |
-| 3 | | | | |
+| 1 | 2026-11-02 | 0.166.0 | pass | beta.3; session and subagent |
+| 2 | 2026-11-02 | 0.166.0 | pass | beta.3; new fired record after the compaction |
+| 3 | 2026-11-02 | 0.166.0 | pass | beta.4; 31 min 51 s wait, no approval prompt, with the rules file |
