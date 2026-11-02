@@ -664,3 +664,10 @@
 - Chosen: B — lines 29 and 32 of `.claude/wiring-ious.md` now say "the second provider". The file is outside the afkv2 out-of-tree filter of the v1 native-contract gate. Run 41392930131 names only these 2 lines as forbidden vocabulary. A grep of the file for the gate's other harness words matched nothing
 - Supersedes: none
 - To reverse: reword `.claude/wiring-ious.md`
+
+## D-96 — orchestrator ruling: the setup tests keep their v1 strings in one test-side module
+- 2026-11-02 · decided by orchestrator (the rule); the form by execute
+- Options: A — the tests import `setup_v1_facts` vs B — literals in a new test module whose name ends in `v1_facts.py`
+- Chosen: B — `afkv2/tests/setup/setup_test_v1_facts.py`. A changed name in `setup_v1_facts.py` must fail a test, so the tests do not import it. `afk_on` in `write_codex_config` became `v1_on`. S1's `plugin_check.py` at 4af3dce7, run over this tree, now reports under `tests/setup/` only 4 lines of `live/CODEX-SETUP-LIVE-CHECKS.md`, which S1 exempts by exact path; the marker hit at `test_integration.py:244` is gone. The other 4 problems name S1's own files, which this branch does not hold. Not verified on the merged tree
+- Supersedes: none
+- To reverse: orchestrator ruling only

@@ -210,3 +210,5 @@
 2026-11-02 01:32 | execute | R-5 delta | decision(D-94) — orchestrator ruling: fix r5-delta/f005. In plain terms: the tracker contract no longer contradicts itself about the receipt.
 2026-11-02 01:32 | execute | R-5 delta | decision(D-95) — orchestrator ruling: reword 2 IOU lines. In plain terms: the old gate that failed the PR's CI should stop refusing these 2 lines.
 2026-11-02 01:32 | execute | R-5 delta | gate-skip — commits 65de16da, c46de9dd, e2d5481a and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4): the installed 1.16.0 hook has no afkv2 out-of-tree filter; the branch's own gates passed on the staged IOU tree
+2026-11-02 01:49 | execute | integration | decision(D-96) — orchestrator ruling: move the setup tests' v1 strings to one test module. In plain terms: the name check of the first session's branch no longer refuses the setup tests' code.
+2026-11-02 01:49 | execute | integration | gate-skip — commit 3487ff92 and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
