@@ -4,6 +4,7 @@
     engine.py render DOC
     engine.py show DOC [--no-open|--reopen]
     engine.py poll DOC
+    engine.py ingest DOC --raw-file FILE
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -25,6 +26,7 @@ for folder in (ENGINE_DIR.parent / "scripts", ENGINE_DIR):
 
 from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E402
 
+import ingest  # noqa: E402
 import launcher  # noqa: E402
 import registry  # noqa: E402
 from schema import invariants  # noqa: E402
@@ -95,29 +97,33 @@ def _refuse(doc: dict, found: list[tuple], code: str) -> Refusal:
 
 
 def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
-    """(uniqueness problems, every id with its path, the map nodes with theirs)."""
+    """(uniqueness problems, every id with its path, the map nodes with theirs). A map held in a card
+    or a table cell counts as a map; an entry of the `maps` list is a map whatever its type."""
     found, ids, nodes = [], {}, {}
+    last_round = len(doc["rounds"])
 
     def add(identifier, path) -> None:
         if identifier in ids:
             found.append(((*path, "id"), f"id {identifier!r} is not unique"))
         ids[identifier] = path
 
-    def add_tree(component, base) -> None:
-        for sub, part in registry.walk(component, base):
-            if part.get("id"):
-                add(part["id"], sub)
-
-    for m, map_ in enumerate(doc.get("maps") or []):
-        base = ("maps", m)
-        add_tree(map_, base)
-        props = map_.get("props") or {}
-        for n, node in enumerate(props.get("nodes") or []):
+    def add_nodes(map_, base) -> None:
+        for n, node in enumerate((map_.get("props") or {}).get("nodes") or []):
             where = (*base, "props", "nodes", n)
-            found += _map_node(node, where, len(doc["rounds"]))
+            found.extend(_map_node(node, where, last_round))
             if isinstance(node, dict) and isinstance(node.get("id"), str):
                 add(node["id"], where)
                 nodes[node["id"]] = where
+
+    def add_tree(component, base, root_is_map=False) -> None:
+        for sub, part in registry.walk(component, base):
+            if part.get("id"):
+                add(part["id"], sub)
+            if part["type"] == "map" or (root_is_map and sub == base):
+                add_nodes(part, sub)
+
+    for m, map_ in enumerate(doc.get("maps") or []):
+        add_tree(map_, ("maps", m), root_is_map=True)
     for r, round_ in enumerate(doc["rounds"]):
         for i, item in enumerate(round_["items"]):
             base = ("rounds", r, "items", i)
@@ -165,9 +171,8 @@ def save_settled_copy(document: Path, doc: dict) -> None:
         inject.write_if_changed(_copy_path(document), json.dumps(record).encode("utf-8"))
 
 
-def check_document(path: str) -> tuple[dict, str]:
-    """A document that passed every check, and what its settled rounds were compared with."""
-    raw, doc = load_document(path)
+def _content_problems(raw: dict, doc: dict) -> list[tuple]:
+    """The invariant problems of a document. A problem of schema or component shape is refused here."""
     schema = json.loads(SCHEMA_FILES[raw["schema"]].read_text(encoding="utf-8"))
     found = problems(raw, schema)
     if found:
@@ -181,7 +186,13 @@ def check_document(path: str) -> tuple[dict, str]:
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    found += invariants.check_invariants(doc, ids, nodes)
+    return found + invariants.check_invariants(doc, ids, nodes)
+
+
+def check_document(path: str) -> tuple[dict, str]:
+    """A document that passed every check, and what its settled rounds were compared with."""
+    raw, doc = load_document(path)
+    found = _content_problems(raw, doc)
     copy_state = "unavailable"
     try:
         saved = read_saved_copy(Path(path))
@@ -194,6 +205,21 @@ def check_document(path: str) -> tuple[dict, str]:
     if found:
         raise _refuse(raw, found, "invariant")
     return doc, copy_state
+
+
+def _check_changed(doc: dict) -> None:
+    """Every check but the settled-round compare: ingest may change a settled round, and saves the copy."""
+    found = _content_problems(doc, doc)
+    if found:
+        raise _refuse(doc, found, "invariant")
+
+
+def _save_settled_copy_if_possible(document: Path, doc: dict) -> None:
+    try:
+        save_settled_copy(document, doc)
+    except Refusal as refusal:
+        if refusal.code != "no-data-folder":
+            raise
 
 
 def _require_home(path: str, doc: dict) -> Path:
@@ -281,6 +307,11 @@ def cmd_poll(args) -> dict:
             "prompts": detail["prompts"], "session_ended": detail["session_ended"]}
 
 
+def _ingest(args) -> dict:
+    return ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed, elements=_element_ids,
+                             save_copy=_save_settled_copy_if_possible)
+
+
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         raise Refusal("usage", message)
@@ -289,7 +320,8 @@ class _Parser(argparse.ArgumentParser):
 def _parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="engine.py", add_help=False)
     verbs = parser.add_subparsers(dest="verb", required=True, parser_class=_Parser)
-    for verb, handler in (("check", cmd_check), ("render", cmd_render), ("show", cmd_show), ("poll", cmd_poll)):
+    for verb, handler in (("check", cmd_check), ("render", cmd_render), ("show", cmd_show), ("poll", cmd_poll),
+                          ("ingest", _ingest)):
         sub = verbs.add_parser(verb, add_help=False)
         sub.add_argument("document")
         sub.set_defaults(handler=handler)
@@ -297,6 +329,8 @@ def _parser() -> argparse.ArgumentParser:
             mode = sub.add_mutually_exclusive_group()
             mode.add_argument("--no-open", action="store_true")
             mode.add_argument("--reopen", action="store_true")
+        if verb == "ingest":
+            sub.add_argument("--raw-file", required=True)
     return parser
 
 
