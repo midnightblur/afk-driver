@@ -391,3 +391,17 @@
 - Chosen: A — a blind reader listed these without a code consumer: `plugin_check.py` outside its tests, `search_bench.py`, config keys `ownership`, `repo_root` and `config_file`, and engine answer keys that S2 ignores. I read S2's `page_round.py`: it reads `page`, `raw` and `error`. A failed `show` still reaches it as a refusal, so ignoring the `show` answer loses no failure. `plugin_check.py` with no verb exits 0, so the 0016 row works as written. The reader was given no per-symbol investigation ledgers, which departs from the skill text; it listed the consumers itself. The plan author can remove the unread fields at the chain smoke run
 - Supersedes: none
 - To reverse: remove the rows from `.claude/wiring-ious.md`
+
+## D-57 — a slash command is not a marker, in the narrow shape
+- 2026-11-02 · decided by the plan author, as orchestrator; the exact shape by autopilot
+- Options: A — skip a token only in the shape of a slash command: a slash, one colon, one word, and no path before it or closing slash after it vs B — skip any token with a slash before it, as the ruling worded it
+- Chosen: A — the ruling also says to keep real marker forms caught, and B loses some: the existing test `/afkv2-core-behaviors/.test(line)` has a slash before the marker. Kept as hits: hyphen markers, `name:part:part` block markers, a regex literal and a path. A known gap: a regex literal with a space, such as `/name:word text/.test(line)`, passes as a slash command. Only 13 of the 14 hits on the trial tree are slash commands. The 14th is `tests/setup/test_integration.py:244`, whose token is the marketplace id after `@`, so this rule does not touch it. It stays until S3 moves that string, which I infer closes it (not verified)
+- Supersedes: none
+- To reverse: restore the one-line `MARKER_TOKEN` in `afkv2/scripts/plugin_check.py`
+
+## D-58 — one exact-path exemption for S3's Codex checklist
+- 2026-11-02 · decided by the plan author, as orchestrator
+- Options: A — exempt `tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md` from the content rule at that exact path vs B — exempt its folder
+- Chosen: A — a human checklist must name the v1 plugin id, and it cannot import a facts file. A sibling file, or the same name in another folder, still fails. Same style as the prose exception of D-13. The file-name rule and the unreadable-file problem still apply to it. Trial tree after D-57 and D-58: 52 problems became 35, all on S3 and S2's list: 34 v1 names and the 1 hit above
+- Supersedes: none
+- To reverse: remove `V1_NAME_EXEMPT_FILES` from `afkv2/scripts/plugin_check.py`

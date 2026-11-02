@@ -63,6 +63,8 @@ complex
 - [ ] The plugin check fails when 2 afkv2 script modules have one file name anywhere in the plugin tree. `__init__.py` and `afkv2/tests/` do not count (SDD §7 v1 defects)
 - [ ] The no-v1-name check exempts only files named `*v1_facts.py` and their test files named `test_*v1_facts*.py`; a v1 name in such a file passes and the same name in any other file fails (PRD §AC-019)
 - [ ] The config reader answers `forge` beside the required `spec_folder`: `github` or `gitlab`, `null` when the key is absent, and it refuses another value with `bad-value` (SDD §8 row "config file")
+- [ ] A slash command is not a marker: the marker rule skips `/name:one-word` and still counts a hyphen marker, a marker of 2 or more colon parts, a path and a regex literal (SDD §7 v1 defects)
+- [ ] The no-v1-name check also exempts the one human checklist `tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md`, at that exact path and never its folder (PRD §AC-019)
 
 ## Produces
 - afkv2/.claude-plugin/plugin.json#"name": "afkv2" — Claude manifest
