@@ -335,3 +335,38 @@
 - Chosen: A — D-43 passed the gap to 0005, but the contract said `engine.py` was only for the ingest verb, so an executor had no instruction to fix it. Review finding f001 and the open row in `.claude/wiring-ious.md` close on this work
 - Supersedes: none
 - To reverse: remove the bullet and the Scope note
+
+## D-49 — the raw grammar takes notes on any element and edits of sent notes
+- 2026-10-30 · decided by execute (0005-notes-ingest-live-test)
+- Options: A — D-32's lines, plus `<element id> — | <note>` for any element and `<note id> edit | <text>` and `<note id> delete` vs B — a second channel for notes outside the raw text
+- Chosen: A — the raw text stays the one record (D-32). A line is a new line only when its id is known and takes that token; any other line continues the open note, and with no open note it is refused. A response for another round is refused as `stale-round`. Known limit: a note line that reads exactly as a valid line of a known id starts a new line. The page sends one line per current card, so on a current card that gives 2 lines, a conflict, and the point cannot settle by it. On an older card such a line is a signal for that card, and a line that names a note id edits or deletes that note; no check catches this, and the raw text keeps what the human sent. An `--raw-file` argument carries the text, because the caller holds it in a file
+- Supersedes: none
+- To reverse: change `parse_response` and `shell/notes.js` together
+
+## D-50 — one note per item per round: a second note folds, and a steer finds a home
+- 2026-10-30 · decided by execute (0005-notes-ingest-live-test)
+- Options: A — keep the frozen schema: fold a second note into the note of that round, and store a steer on the linked card, then the holder of the node, then a free card, newest first vs B — change `afkv2.page/0` to hold more notes vs C — refuse the second note
+- Chosen: A — the schema is frozen and the invariants make `N-<round>-<item>` unique; C would lose what the human typed. When no card in the document has a free note for that round, a steer folds into a card note, and the note target becomes the item id. The text stays, and the signal keeps `steer` and the node id. The write-in text is a note, so a write-in is a mark plus a note, and it gets a note id
+- Supersedes: none
+- To reverse: mint more note ids per round after a schema version change
+
+## D-51 — a point in conflict is needs-reading until the agent returns it to open
+- 2026-10-30 · decided by execute (0005-notes-ingest-live-test)
+- Options: A — the SDD §6 table: a mark plus a note, or 2 lines for an open point, is needs-reading, with `conflict` on the signal, and the agent writes `open` vs B — ingest writes `open` when it judges that 2 signals disagree
+- Chosen: A — ADR-0001 design says ingest writes signals without judgement. AC-037's "keep the point open" holds as "not settled": only the agent's reading settles it. A settled point with a note or a different mark goes to `open` in the same ingest (WE-02 round 4). A reopen is in the signals of the current round, and the caller carries the card to the next round. Owner ruling R-3 holds through the same table: a note on a sign-off card removes the sign mark, and the card asks for it again
+- Supersedes: none
+- To reverse: add a judgement step to `apply_mark_table`
+
+## D-52 — the note controls use the attribute contract of the send runtime
+- 2026-10-30 · decided by execute (0005-notes-ingest-live-test)
+- Options: A — `shell/notes.js` adds an entry with the contract attributes above the send bar for each unsent note, and `runtime.js` stays unchanged vs B — change `runtime.js`
+- Chosen: A — `runtime.js` is outside Scope, and it looks up the cards at each send. A page with no answerable card gets a hidden form in the notes slot, shown when a note exists. Node boxes carry `data-lavish-action`, because the host treats a click on a custom element as an annotation. Known gap: on a page with no answerable card, the runtime's "already sent" state stays until the next render, because the runtime binds its listeners to the cards it finds at load
+- Supersedes: none
+- To reverse: move the entry list into `runtime.js`
+
+## D-53 — the live browser test drives Edge through raw DevTools protocol calls
+- 2026-10-30 · decided by execute (0005-notes-ingest-live-test), on the orchestrator's instruction
+- Options: A — a Node driver with the global `WebSocket`, in `afkv2/tests/live/test_page_live.md` vs B — the Playwright MCP tool named in the contract vs C — `playwright-core`
+- Chosen: A — no Playwright MCP tool is in this run (as in D-35), and C puts an `.exe` under Temp. The driver sends real mouse events and real text input, and each click checks `elementFromPoint`. The contract's browser steps hold. The host's layout audit reads only the first 800 elements and reports only severe findings, so the driver also runs it on a page of only diagrams, and runs its own layout checks over every element
+- Supersedes: none
+- To reverse: replace the driver block with Playwright steps
