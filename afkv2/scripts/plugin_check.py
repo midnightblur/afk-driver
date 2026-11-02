@@ -38,8 +38,14 @@ V1_PROSE_WORD = re.compile(r"(?:^|(?<=[\s(`\"']))af[k](?=$|[\s)`,;!?]|[.:](?:\s|
 V1_CSS_CLASS = re.compile(r"class(?:Name)?\s*=\s*[\"'][^\"']*(?<![a-z0-9-])af[k](?![a-z0-9-])", re.IGNORECASE)
 URL = re.compile(r"https?://[^\s\"'`,;()<>{}$]+")
 V1_FACTS_FILES = ("*v1_facts.py", "test_*v1_facts*.py")
+# A human checklist that must name the v1 plugin id; only this exact path, never its folder.
+V1_NAME_EXEMPT_FILES = frozenset({"tests/setup/live/CODEX-SETUP-LIVE-CHECKS.md"})
 
-MARKER_TOKEN = re.compile(r"(?<![a-z0-9])af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*", re.IGNORECASE)
+# A slash command is `/name:one-word`, not part of a path or a regex literal, so it is no marker.
+MARKER_TOKEN = re.compile(
+    r"(?<![a-z0-9])(?!(?<=/)(?<![\w./-]/)af[k](?:v2)?:[a-z0-9-]+(?![a-z0-9:/-]))af[k](?:v2)?[-:][a-z0-9][a-z0-9:-]*",
+    re.IGNORECASE,
+)
 SUBSTRING_MATCH = re.compile(
     r"\.(?:startswith|endswith|rfind|findall|finditer|index|rindex|count|search|match|matchall|exec|test"
     r"|sub|subn|split|rsplit|partition|rpartition|replace|replaceall|removeprefix|removesuffix"
@@ -90,7 +96,7 @@ def check_no_v1_names(root: Path) -> list[str]:
         lines, problem = _read_lines(path)
         if problem:
             problems.append(f"{relative.as_posix()}: {problem}")
-        if is_v1_facts:
+        if is_v1_facts or relative.as_posix() in V1_NAME_EXEMPT_FILES:
             continue
         for number, line in lines:
             if _holds_v1_name(URL.sub("", line), _is_prose(relative)):

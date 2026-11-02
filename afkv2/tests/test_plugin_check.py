@@ -407,6 +407,45 @@ def test_prefix_or_substring_marker_match_fails(tree, line):
     assert any("sample.py:1" in p for p in plugin_check.check_marker_matching(tree))
 
 
+SETUP_COMMAND = "afkv2:" + "setup"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        f'assert "/{SETUP_COMMAND}" in text',
+        f'assert "/{SETUP_COMMAND}" in reason and "x" in reason',
+        f'assert re.search(r"^description: /{SETUP_COMMAND}", head)',
+        f"# it runs in /{SETUP_COMMAND}, not here",
+        f'assert "/{V1}:setup" in text',
+    ],
+)
+def test_a_slash_command_is_not_a_marker(tree, line):
+    (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
+    assert plugin_check.check_marker_matching(tree) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        f'assert "{SETUP_COMMAND}" in text',
+        f'assert "/{MARKER}" in text',
+        f"/{MARKER}/.test(line)",
+        f"/{SETUP_COMMAND}/.test(line)",
+        f'assert "/{PRD_START}" in text',
+        f'assert "{PRD_START}" in text',
+        f'assert "dir/{SETUP_COMMAND}" in text',
+        f'assert "/dir/{SETUP_COMMAND}" in text',
+        f'assert "/{V1}:behaviors:start" in text',
+        f'assert "{V1}:behaviors:start" in text',
+        f'assert "/{V1}-branch-name-gate" in text',
+    ],
+)
+def test_a_marker_next_to_a_slash_still_fails(tree, line):
+    (tree / "scripts" / "sample.py").write_text(line + "\n", encoding="utf-8")
+    assert any("sample.py:1" in p for p in plugin_check.check_marker_matching(tree))
+
+
 @pytest.mark.parametrize(
     "operator",
     [
@@ -584,6 +623,21 @@ def test_init_files_tests_and_other_suffixes_do_not_count_as_a_clash(tree, paths
     for relative in paths:
         write_tree_file(tree, relative)
     assert plugin_check.check_unique_module_names(tree) == []
+
+
+def test_the_one_exempt_checklist_may_name_v1_and_only_at_its_exact_path(tree):
+    line = f"`codex plugin list` shows `{V1}@{V1}-toolkit` disabled\n"
+    exempt = tree / "tests" / "setup" / "live" / "CODEX-SETUP-LIVE-CHECKS.md"
+    exempt.parent.mkdir(parents=True)
+    exempt.write_text(line, encoding="utf-8")
+    assert plugin_check.check_no_v1_names(tree) == []
+    for relative in ("tests/setup/live/OTHER.md", "tests/setup/CODEX-SETUP-LIVE-CHECKS.md",
+                     "tests/setup/live/more/CODEX-SETUP-LIVE-CHECKS.md"):
+        other = tree / relative
+        other.parent.mkdir(parents=True, exist_ok=True)
+        other.write_text(line, encoding="utf-8")
+        assert any(p.startswith(f"{relative}:1:") for p in plugin_check.check_no_v1_names(tree))
+        other.unlink()
 
 
 @pytest.mark.parametrize(
