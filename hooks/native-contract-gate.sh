@@ -34,6 +34,8 @@
 #   N. no plugin script, workflow or agent prose runs `lavish-axi` (guard's reader) except
 #      scripts/lavish_show.py and tests; exceptions use rule lavish-direct.
 #
+# Tree walks (A, I, J, K, N) skip afkv2/ and docs/afk/afkv2/.
+#
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
 
@@ -75,6 +77,14 @@ def rel(path: Path) -> str:
     return path.relative_to(plugin).as_posix()
 
 
+# afkv2 is a separate plugin tree with its own check (docs/afk/afkv2/SDD.md §7).
+out_of_tree = ("afkv2/*", "docs/afk/afkv2/*")
+
+
+def in_tree(path: Path) -> bool:
+    return not any(fnmatch.fnmatchcase(rel(path), glob) for glob in out_of_tree)
+
+
 def read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -90,7 +100,7 @@ def read(path: Path) -> str:
 excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
-    if rel(path) not in excluded_prose
+    if rel(path) not in excluded_prose and in_tree(path)
 ]
 
 allow_file = plugin / "hooks/native-contract-allow.txt"
@@ -444,7 +454,7 @@ for path in sorted(plugin.rglob("*")):
     path_rel = rel(path)
     if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
             or any(fnmatch.fnmatchcase(path_rel, glob) for glob in history)
-            or path_rel.startswith(".git/")):
+            or path_rel.startswith(".git/") or not in_tree(path)):
         continue
     is_ci = path_rel.startswith(".github/")
     kind = source_kind(path)
@@ -529,6 +539,8 @@ else:
 # the failure is silent: the harness reports a failed hook, never a gate verdict.
 # Judge the working tree, which is what a harness copies, not the index.
 for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.py"))):
+    if not in_tree(script):
+        continue
     try:
         if b"\r" in script.read_bytes():
             problems.append(
@@ -551,7 +563,7 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
             f"{rel(helper)}: no hooks/lib/providers/{name}.sh references it by name"
         )
     for candidate in plugin.rglob("*"):
-        if not candidate.is_file() or candidate in (helper, adapter):
+        if not candidate.is_file() or candidate in (helper, adapter) or not in_tree(candidate):
             continue
         if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
             continue
@@ -674,7 +686,8 @@ def python_runs(text: str) -> list[int]:
 for path in sorted(plugin.rglob("*")):
     path_rel = rel(path)
     if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
-            or path_rel.startswith(".git/") or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):
+            or path_rel.startswith(".git/") or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)
+            or not in_tree(path)):
         continue
     kind = source_kind(path)
     is_workflow = path_rel.startswith(".github/") and path.suffix in (".yml", ".yaml")

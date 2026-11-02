@@ -5,7 +5,8 @@
 # was still violated by an agent hardening the harness after an incident —
 # instruction alone demonstrably isn't enough, hence enforcement.
 #
-# Checks ADDED lines of changed/untracked plugin .md files for:
+# Checks ADDED lines of changed/untracked plugin .md files (outside afkv2/ and
+# docs/afk/afkv2/) for:
 #   0. build-system commands in the generic worktree scripts (scripts/*), whose
 #      whole design is that every such command lives in a build-gate adapter
 #  0b. a person named anywhere in the plugin tree - a tracker account id, an
@@ -161,7 +162,10 @@ gate_genericity() {
   changed_md=$(
     { git diff --name-only "$AFK_CTX_MERGEBASE" -- "$PLUGIN_SCOPE*.md" "$PLUGIN_SCOPE**/*.md" 2>/dev/null
       gate_ctx_filter AFK_CTX_NEW "$PLUGIN_SCOPE*.md"
-    } | sort -u
+    } | sort -u | while IFS= read -r f; do
+      # afkv2 is a separate plugin tree with its own check (docs/afk/afkv2/SDD.md §7).
+      case "$f" in "${PLUGIN_SCOPE}afkv2/"*|"${PLUGIN_SCOPE}docs/afk/afkv2/"*) ;; *) printf '%s\n' "$f" ;; esac
+    done
   )
   [ -z "$changed_md" ] && return 0   # scope no-op
 

@@ -3,7 +3,9 @@ or docstrings — a citation like ``A3-004`` or ``CA2-3`` describes who reviewed
 a line, not what the line does, and goes stale the moment the round ends.
 
 ``scripts/tests`` is exempt: a test fixture legitimately pins the scenario one
-specific finding covers, and that citation is useful there."""
+specific finding covers, and that citation is useful there. ``afkv2/`` and
+``docs/afk/afkv2/`` are out of scope too: afkv2 is a separate plugin tree with
+its own check (docs/afk/afkv2/SDD.md §7)."""
 
 import re
 import subprocess
@@ -13,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 TESTS_DIR = Path(__file__).resolve().parent
 
 PATTERN = re.compile(r"\b(?:C?A[0-9]-[0-9]{3}|CA[0-9]-[0-9])\b")
+OUT_OF_TREE = ("afkv2/", "docs/afk/afkv2/")
+
+
+def _in_tree(rel: str) -> bool:
+    return not rel.startswith(OUT_OF_TREE)
 
 
 def _iter_scanned_files():
@@ -29,7 +36,10 @@ def _iter_scanned_files():
     for name in listed.split(b"\0"):
         if not name:
             continue
-        path = ROOT / name.decode("utf-8", errors="surrogateescape")
+        rel = name.decode("utf-8", errors="surrogateescape")
+        if not _in_tree(rel):
+            continue
+        path = ROOT / rel
         if not path.is_file():
             continue
         if TESTS_DIR in path.parents:
@@ -52,3 +62,11 @@ def test_no_review_id_citations_outside_scripts_tests():
             line_no = text.count("\n", 0, match.start()) + 1
             hits.append(f"{path.relative_to(ROOT)}:{line_no}: {match.group(0)}")
     assert not hits, "review-ID citation(s) outside scripts/tests:\n" + "\n".join(hits)
+
+
+def test_only_the_afkv2_trees_are_out_of_scope():
+    assert not _in_tree("afkv2/x.md")
+    assert not _in_tree("docs/afk/afkv2/investigations/x/COVERAGE.json")
+    assert _in_tree("docs/afk/other/x.md")
+    assert _in_tree("afkv2.md")
+    assert _in_tree("skills/afkv2/x.md")
