@@ -35,7 +35,6 @@ PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 FENCE = re.compile(r"^ *(`{3,}|~{3,})[ \t]*(\S*)[ \t]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PUBLISHED_TICKETS = "published-tickets.txt"
-RENDERER_PACKAGE = "@mermaid-js/mermaid-cli"
 
 
 def call_tracker(verb, payload):
@@ -132,17 +131,24 @@ def _digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _renderer_config():
+    """The browser settings that setup writes for `mmdc`, or None when the file is not there."""
+    root = os.environ.get("LOCALAPPDATA")
+    config = Path(root) / "afkv2" / "puppeteer-config.json" if root else None
+    return config if config and config.is_file() else None
+
+
 def render_mermaid(source, out_png, work_dir):
     """Render one diagram with `mmdc` on this machine: no diagram leaves the network, and a publish downloads nothing."""
-    mmdc = shutil.which("mmdc")
-    if not mmdc:
-        raise Refusal("no-renderer", f"the diagram renderer `mmdc` is not on the path: run {SETUP}, or install {RENDERER_PACKAGE}",
-                      setup=SETUP, install=RENDERER_PACKAGE)
+    mmdc, config = shutil.which("mmdc"), _renderer_config()
+    if not mmdc or not config:
+        missing = "`mmdc` is not on the path" if not mmdc else "%LOCALAPPDATA%\\afkv2\\puppeteer-config.json is missing"
+        raise Refusal("no-renderer", f"the diagram renderer is not set up, {missing}: run {SETUP}", setup=SETUP)
     script = Path(work_dir) / "diagram.mmd"
     write_text(script, source)
     try:
-        run = subprocess.run([mmdc, "-i", str(script), "-o", str(out_png), "-b", "white"], capture_output=True,
-                             text=True, encoding="utf-8", errors="replace", timeout=RENDER_TIMEOUT)
+        run = subprocess.run([mmdc, "-p", str(config), "-i", str(script), "-o", str(out_png), "-b", "white"],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=RENDER_TIMEOUT)
     except subprocess.TimeoutExpired as error:
         raise Refusal("render-failed", f"{mmdc}: no answer after {RENDER_TIMEOUT} s") from error
     finally:

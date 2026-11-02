@@ -1,4 +1,6 @@
-"""Recorded fake of mermaid-cli: `fake_mmdc.py -i IN -o OUT -b white` writes a small PNG from the source text.
+"""Recorded fake of mermaid-cli: `fake_mmdc.py -p CONFIG -i IN -o OUT -b white` writes a small PNG from the source text.
+
+A CONFIG that is not a file fails, as the real renderer with no browser settings would (not verified on the real one).
 
 Environment: FAKE_MMDC_FAIL makes it exit 1. FAKE_MMDC_LOG gets one line per render. FAKE_MMDC_VARY puts a
 fresh value in each file, as a real renderer may.
@@ -12,6 +14,9 @@ import uuid
 
 
 def main(argv):
+    if "-p" not in argv or not os.path.isfile(argv[argv.index("-p") + 1]):
+        print("the fake renderer has no browser settings", file=sys.stderr)
+        return 1
     with open(argv[argv.index("-i") + 1], "rb") as source_file:
         source = source_file.read()
     if os.environ.get("FAKE_MMDC_FAIL"):

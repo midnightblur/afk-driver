@@ -141,8 +141,11 @@ class World:
         script = bin_dir / "mmdc"
         script.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$(dirname "$0")/fake_mmdc.py" "$@"\n', "utf-8")
         script.chmod(0o755)
+        self.renderer_config = root / "local" / "afkv2" / "puppeteer-config.json"
+        self.renderer_config.parent.mkdir(parents=True)
+        self.renderer_config.write_text("{}", "utf-8")
         self.env = {"FAKE_CALL_LOG": str(self.calls), "FAKE_JIRA_STATE": str(self.state_file),
-                    "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+                    "LOCALAPPDATA": str(root / "local"), "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
         self.set_ticket(None)
 
     def set_ticket(self, description, attachments=()):
@@ -914,24 +917,70 @@ def test_a_render_failure_is_named(world):
     assert world.writes() == []
 
 
-def test_no_renderer_refuses_and_downloads_nothing(tmp_path, monkeypatch):
+def with_renderer_config(tmp_path, monkeypatch):
+    config = tmp_path / "local" / "afkv2" / "puppeteer-config.json"
+    config.parent.mkdir(parents=True)
+    config.write_text("{}", "utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    return config
+
+
+def refusal_with_no_download(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr(publish.shutil, "which", lambda name: name if name == "npx" else None)
     monkeypatch.setattr(publish.subprocess, "run", lambda command, **kwargs: calls.append(command))
     with pytest.raises(publish.Refusal) as refused:
         publish.render_mermaid("x", tmp_path / "out.png", tmp_path)
-    assert refused.value.code == "no-renderer"
-    assert "/afkv2:setup" in refused.value.reason and "@mermaid-js/mermaid-cli" in refused.value.reason
-    assert refused.value.extra == {"setup": "/afkv2:setup", "install": "@mermaid-js/mermaid-cli"}
+    assert refused.value.code == "no-renderer" and "run /afkv2:setup" in refused.value.reason
+    assert refused.value.extra == {"setup": "/afkv2:setup"}
     assert calls == [] and not (tmp_path / "diagram.mmd").exists()
+    return refused.value.reason
 
 
-def test_a_preview_with_no_renderer_writes_nothing(world, tmp_path):
+def test_no_mmdc_refuses_and_downloads_nothing(tmp_path, monkeypatch):
+    with_renderer_config(tmp_path, monkeypatch)
+    monkeypatch.setattr(publish.shutil, "which", lambda name: name if name == "npx" else None)
+    assert "`mmdc` is not on the path" in refusal_with_no_download(tmp_path, monkeypatch)
+
+
+def test_no_config_file_refuses_and_downloads_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    monkeypatch.setattr(publish.shutil, "which", lambda name: name)
+    assert "puppeteer-config.json is missing" in refusal_with_no_download(tmp_path, monkeypatch)
+
+
+def test_no_local_app_data_folder_refuses(tmp_path, monkeypatch):
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.setattr(publish.shutil, "which", lambda name: name)
+    assert "puppeteer-config.json is missing" in refusal_with_no_download(tmp_path, monkeypatch)
+
+
+def test_mmdc_gets_the_config_file(tmp_path, monkeypatch):
+    config = with_renderer_config(tmp_path, monkeypatch)
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(publish.shutil, "which", lambda name: name)
+    monkeypatch.setattr(publish.subprocess, "run", fake_run)
+    publish.render_mermaid("x", tmp_path / "out.png", tmp_path)
+    assert calls[0][:3] == ["mmdc", "-p", str(config)]
+
+
+def test_a_preview_with_no_mmdc_writes_nothing(world, tmp_path):
     empty = tmp_path / "no-programs"
     empty.mkdir()
     world.env["PATH"] = str(empty)
     error = world.preview(expect=1)["error"]
-    assert (error["code"], error["setup"], error["install"]) == ("no-renderer", "/afkv2:setup", "@mermaid-js/mermaid-cli")
+    assert (error["code"], error["setup"]) == ("no-renderer", "/afkv2:setup")
+    assert world.writes() == []
+
+
+def test_a_preview_with_no_config_file_writes_nothing(world):
+    world.renderer_config.unlink()
+    error = world.preview(expect=1)["error"]
+    assert (error["code"], error["setup"]) == ("no-renderer", "/afkv2:setup")
     assert world.writes() == []
 
 
@@ -947,6 +996,7 @@ def test_a_failed_mmdc_does_not_fall_back_to_a_download(tmp_path, monkeypatch):
         calls.append(command[0])
         return subprocess.CompletedProcess(command, 1, "", "syntax error in the diagram")
 
+    with_renderer_config(tmp_path, monkeypatch)
     monkeypatch.setattr(publish.shutil, "which", lambda name: name)
     monkeypatch.setattr(publish.subprocess, "run", fake_run)
     with pytest.raises(publish.Refusal) as refused:
