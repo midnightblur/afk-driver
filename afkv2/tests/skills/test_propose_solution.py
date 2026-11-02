@@ -792,11 +792,12 @@ def test_replace_refuses_a_shown_round_with_no_answer(world):
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake engine checks")
-def test_the_real_engine_accepts_the_round_document(world):
+def test_the_real_engine_accepts_the_round_document(world, tmp_path):
     started = world.run("start", ticket_key="PROJ-1")
     world.build(started, json.loads((FIXTURES / "design" / "round-1.json").read_text("utf-8")))
     run = subprocess.run([sys.executable, str(ENGINE), "check", str(world.repo / started["doc"])],
-                         capture_output=True, text=True, encoding="utf-8", cwd=world.repo)
+                         capture_output=True, text=True, encoding="utf-8", cwd=world.repo,
+                         env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert run.returncode == 0, run.stdout + run.stderr
 
 

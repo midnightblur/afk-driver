@@ -1277,9 +1277,10 @@ def test_the_copies_are_in_lockstep_with_plan_contract():
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="S1 has not merged: the page engine")
-def test_the_division_document_passes_the_real_engine(world):
+def test_the_division_document_passes_the_real_engine(world, tmp_path):
     started = world.committed_plan()
     world.division(started)
     for verb in ("check", "render"):
-        done = subprocess.run([sys.executable, str(ENGINE), verb, started["doc"]], cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
+        done = subprocess.run([sys.executable, str(ENGINE), verb, started["doc"]], cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                              env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
         assert done.returncode == 0, done.stdout + done.stderr

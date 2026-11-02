@@ -7,6 +7,7 @@ exists, every example also goes through `engine check` and must answer ok.
 
 import copy
 import json
+import os
 import re
 import subprocess
 import sys
@@ -603,14 +604,16 @@ def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
     doc.write_text(json.dumps(_next_round(_example())), "utf-8")
     raw.write_text("[round R-2]\ni-data — | Accepts it.", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
-                         capture_output=True, text=True, encoding="utf-8", timeout=60)
+                         capture_output=True, text=True, encoding="utf-8", timeout=60,
+                         env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert run.returncode == 0, run.stdout + run.stderr
     assert json.loads(run.stdout)["reopened"] == ["i-data"]
     after = json.loads(doc.read_text("utf-8"))
     assert _find(after, "i-data") == _at("i-data")(_note_on_an_older_card())
     assert [rnd["state"] for rnd in after["rounds"]] == ["settled", "current"]
     check = subprocess.run([sys.executable, str(ENGINE), "check", str(doc)], capture_output=True, text=True,
-                           encoding="utf-8", timeout=60)
+                           encoding="utf-8", timeout=60,
+                           env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert check.returncode == 0, check.stdout + check.stderr
 
 
@@ -791,6 +794,7 @@ def test_engine_check_accepts_every_example(label, doc, tmp_path):
     path = tmp_path / "doc.json"
     path.write_text(json.dumps(doc), "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "check", str(path)],
-                         capture_output=True, text=True, timeout=60)
+                         capture_output=True, text=True, timeout=60,
+                         env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert run.returncode == 0, run.stdout + run.stderr
     assert json.loads(run.stdout)["ok"] is True

@@ -567,7 +567,8 @@ def test_the_real_ingest_returns_an_older_card(tmp_path, line):
     doc.write_text(json.dumps(_next_round(_example())), "utf-8")
     raw.write_text(f"[round R-2]\n{line}", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
-                         capture_output=True, text=True, encoding="utf-8", timeout=60)
+                         capture_output=True, text=True, encoding="utf-8", timeout=60,
+                         env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert run.returncode == 0, run.stdout + run.stderr
     after = json.loads(doc.read_text("utf-8"))
     for rnd in after["rounds"]:
@@ -930,7 +931,8 @@ def test_real_engine_accepts_the_built_document(tmp_path):
     path = tmp_path / "doc.json"
     rd.build_round_document(path, session(), round_one())
     run = subprocess.run([sys.executable, str(ENGINE), "check", str(path)],
-                         capture_output=True, text=True, timeout=60)
+                         capture_output=True, text=True, timeout=60,
+                         env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert run.returncode == 0, run.stdout + run.stderr
 
 
