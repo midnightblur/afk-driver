@@ -61,6 +61,14 @@ you ask in this session; the Jira token never passes through you.
    - Another step failed: report its `error`; a re-run continues where it stopped.
 8. **Report.** One line per step: done, already done, or why not.
 
+## Return to afkv2 after a switch-back
+
+Switch-back hides this skill. Tell the developer to enable afkv2 first: on Codex
+`codex plugin add afkv2@<marketplace>`; on Claude
+`claude plugin enable afkv2@<marketplace> --scope local` in that repository. Then
+start a new session and run `/afkv2:setup`. When it answers that the hook fired
+before the install record, start one more new session and run it again.
+
 ## Switch back to v1
 
 `/afkv2:setup switch-back`: run `setup.py switch-back`. It restores the v1 block,

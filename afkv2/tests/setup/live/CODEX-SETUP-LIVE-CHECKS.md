@@ -43,8 +43,8 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
 
 ## 5. Only you can open the backup folder
 
-1. Run `setup.py secrets` in your own terminal, not through the agent. Enter
-   test values.
+1. Run `setup.py secrets` in your own terminal, not through the agent. Press
+   Enter at each prompt to keep the stored values.
 2. Run `icacls "%LOCALAPPDATA%\afkv2\backup"`.
 3. Expect: one entry, your own account with `(OI)(CI)(F)`. No entry for
    `CodexSandboxUsers`, `SYSTEM` or `Administrators`, and no `(I)` mark.
