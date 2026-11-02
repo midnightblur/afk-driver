@@ -172,3 +172,4 @@
 2026-11-02 00:22 | autopilot | 0005-notes-ingest-live-test | decision(D-54) — adding the real notes part broke one older test that stood in a pretend one; I reproduced it and allowed that one test edit, so the slice resumes
 2026-11-02 00:22 | autopilot | 0005-notes-ingest-live-test | decision(D-55) — the owner added one narrow re-check of fixes made after the review rounds end
 2026-11-02 00:22 | autopilot | feat/afkv2-s1 | merged origin/feat/afkv2 — takes the change that lets the older checks skip the new code, so CI on the pull request can pass; gate-skip(R-4): the plan commit that holds this line
+2026-11-02 00:24 | execute | 0005-notes-ingest-live-test | verifying — D-54 test edit in; Produces preflight, live test and review on the merged tip

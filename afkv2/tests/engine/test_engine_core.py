@@ -607,10 +607,13 @@ def test_page_order_is_banner_slot_maps_cards():
     assert positions == sorted(positions)
 
 
-def test_the_slot_holds_what_its_registered_component_renders(scratch_type):
-    assert holds(page.build(two_rounds()), '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>')
-    scratch_type("notes-and-replies", render=lambda props, children: f"<p>{props['document']['session']['id']}</p>")
-    assert holds(page.build(two_rounds()), 'id="afkv2-notes-replies"><p>s1</p></section>')
+def test_the_slot_holds_what_its_registered_component_renders():
+    doc = two_rounds()
+    assert holds(page.build(doc), '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>')
+    doc["rounds"][1]["replies"] = [{"text": "A reply of the agent."}]
+    drawn = registry.lookup("notes-and-replies").render({"document": doc}, [])
+    assert holds(drawn, "A reply of the agent.")
+    assert holds(page.build(doc), f'id="afkv2-notes-replies">{drawn}</section>')
 
 
 def test_each_round_has_its_own_colour():
