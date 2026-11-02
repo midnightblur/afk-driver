@@ -199,3 +199,4 @@
 2026-11-02 02:24 | autopilot | run | decision(D-77) — the plan check now reads files with Windows line ends the same as others, so a fresh Windows checkout passes
 2026-11-02 02:24 | autopilot | run | decision(D-78) — diagrams render with the browser settings file that setup writes; with no renderer or no such file, the preview stops and says to run setup
 2026-11-02 02:24 | autopilot | run | gate-skip — commits cceb9c38, b01291ed and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-11-02 02:26 | autopilot | run | delta check (R-5) confirm cceb9c38, b01291ed — a fresh reader of only those changes found both rulings met and no serious defect
