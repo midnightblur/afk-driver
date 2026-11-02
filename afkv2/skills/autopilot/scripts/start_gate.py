@@ -185,12 +185,13 @@ def gate_failures(contract, app=None):
     failures = []
     fix = f"correct the plan: mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
     for row in contract.rows:
-        where = f"{contract.id} tier {row.tier}"
+        tier = row.tier.strip("` ").lower()
+        where = f"{contract.id} tier {tier}"
         if row.check.lower().startswith("not applicable"):
             if not is_not_applicable(row):
                 failures.append(failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason"))
             continue
-        if row.tier.lower() in LIVE_TIERS:
+        if tier in LIVE_TIERS:
             if not app:
                 failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                         next=f"{fix}, or name the app in the `{APP_MARK}` line"))

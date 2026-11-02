@@ -217,3 +217,5 @@
 2026-11-02 02:25 | execute | owner rulings | gate-skip — the commits of D-97 and D-98 and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
 2026-11-02 05:33 | execute | integration | decision(D-99) — S1 and S2 merged in; the tests run the real plan check and config reader, and 3 gaps are fixed. In plain terms: the sessions' code now runs together in the tests, and that found 3 small disagreements, which are fixed.
 2026-11-02 05:33 | execute | integration | gate-skip — the commits of D-99 used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); plugin_check.py exits 0 on the merged tree
+2026-11-02 05:56 | execute | integration | decision(D-100) — delta check of D-99 reopened 2 items: 1 defect fixed, 1 kept as a rule and stated in the skill. In plain terms: a fresh reader found a small bug in the fix, which is now fixed, and a skill sentence that was not exact.
+2026-11-02 05:56 | execute | integration | gate-skip — the commit of D-100 used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)

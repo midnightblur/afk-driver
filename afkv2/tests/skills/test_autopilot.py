@@ -292,6 +292,18 @@ def test_the_app_line_of_the_plan_header(line, app):
     assert start_gate.plan_app(plan_fixture.plan_text(["0001-a"], header_extra=f"> App: {line}")) == app
 
 
+@pytest.mark.parametrize("cell", ["`api`", "API", "`Api`"])
+def test_a_live_tier_cell_in_any_form_is_one_failure_at_the_same_place(tmp_path, monkeypatch, cell):
+    answer = gate_rows(tmp_path, monkeypatch, f"| {cell} | `git --version` | the api |")
+    assert [(item["code"], item["where"]) for item in failures_of(answer)] == [("gate-cannot-run", "0001-a tier api")]
+
+
+def test_the_gate_alone_finds_a_live_tier_in_a_code_span(tmp_path, monkeypatch):
+    built = plan_of(tmp_path, monkeypatch, {"0001-a": contract_text("0001-a", rows="| `api` | `git --version` | the api |")})
+    contract = plan_contract.read_contract(built.plan, "0001-a")
+    assert [item["code"] for item in start_gate.gate_failures(contract)] == ["gate-cannot-run"]
+
+
 def test_a_row_both_sides_refuse_is_one_failure_with_the_fix_of_the_gate(tmp_path, monkeypatch):
     answer = gate_rows(tmp_path, monkeypatch, "| unit | `nosuchtool-xyz --run` and `nosuchtool-abc --run` | tests |")
     reasons = [item["reason"] for item in failures_of(answer)]

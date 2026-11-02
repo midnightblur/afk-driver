@@ -628,7 +628,7 @@ def test_init_files_tests_and_other_suffixes_do_not_count_as_a_clash(tree, paths
 def test_the_one_exempt_checklist_may_name_v1_and_only_at_its_exact_path(tree):
     line = f"`codex plugin list` shows `{V1}@{V1}-toolkit` disabled\n"
     exempt = tree / "tests" / "setup" / "live" / "CODEX-SETUP-LIVE-CHECKS.md"
-    exempt.parent.mkdir(parents=True)
+    exempt.parent.mkdir(parents=True, exist_ok=True)
     exempt.write_text(line, encoding="utf-8")
     assert plugin_check.check_no_v1_names(tree) == []
     for relative in ("tests/setup/live/OTHER.md", "tests/setup/CODEX-SETUP-LIVE-CHECKS.md",
@@ -706,7 +706,7 @@ def test_the_marker_rule_still_reads_a_v1_facts_file(tree):
 
 
 def test_check_command_passes_a_v1_facts_file_and_fails_the_same_name_elsewhere(tree):
-    write_tree_file(tree, "scripts/v1_facts.py", V1_FACTS_LINE)
+    write_tree_file(tree, "scripts/check_v1_facts.py", V1_FACTS_LINE)
     code, answer = run_tree_check(tree, "check")
     assert code == 0, answer
     write_tree_file(tree, "scripts/v1_facts_extra.py", V1_FACTS_LINE)

@@ -12,7 +12,7 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
 | Value | Source |
 |-------|--------|
 | plan folder | the invocation; else `plan` in the answer of `locate` |
-| `app`, the address of a running app | the invocation; else the `> App:` line of PLAN.md. A line that names a start command: start the app and pass its address. No app: a live tier (`api`, `e2e`, `browser`) refuses at the gate |
+| `app`, the address of a running app | the `> App:` line of PLAN.md; an `app` in the invocation replaces its address. A line that names a start command: start the app and pass its address. A live tier (`api`, `e2e`, `browser`) in a plan whose line names no app refuses at the gate, even with an `app` in the invocation |
 
 ## The commands
 
