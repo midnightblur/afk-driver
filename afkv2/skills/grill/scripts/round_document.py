@@ -17,7 +17,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import Parser, Refusal, read_json, serve, write_json
+from grill_common import Parser, Refusal, read_json, serve, write_json, write_text
 
 SCHEMA = "afkv2.page/0"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
@@ -219,13 +219,33 @@ def _close_current(doc, new_items):
     current["state"] = "settled"
 
 
-def _drop_unanswered_round(doc):
-    """Take back the current round so a corrected one replaces it; the round before it is current again."""
+def shown_record(doc_path):
+    """The file that names the round `present` tried to show; schema afkv2.page/0 has no field for it."""
+    return Path(doc_path).with_suffix(".shown.txt")
+
+
+def record_shown(doc_path):
+    write_text(shown_record(doc_path), f"{current_round(read_json(doc_path))['n']}\n")
+
+
+def _was_shown(doc_path, current):
+    record = shown_record(doc_path)
+    return record.is_file() and record.read_text("utf-8").strip() == str(current["n"])
+
+
+def _drop_unanswered_round(doc, doc_path):
+    """Take back a current round the human never saw, so a corrected one replaces it; the round before it is current again.
+
+    The scripts cannot see unsent marks: they live only in the browser. So a shown round with no answer refuses.
+    """
     current = current_round(doc)
     if current is None:
         raise Refusal("round-not-replaceable", "no round is current")
     if current.get("responses"):
         raise Refusal("round-answered", f"round {current['n']} has an answer; a new round carries its points")
+    if _was_shown(doc_path, current):
+        raise Refusal("round-shown", f"round {current['n']} was shown and has no answer; an answer may be in progress "
+                                     "in the browser, so wait for it; a new round then carries its points")
     doc["rounds"].remove(current)
     if doc["rounds"]:
         doc["rounds"][-1]["state"] = "current"
@@ -248,7 +268,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     `round_input` holds banner, items and optional maps, replies, colour. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
-    ticket card to round 1. `replace` rewrites a current round that has no answer.
+    ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -270,7 +290,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         doc = {"schema": SCHEMA, "session": {**session, "started": started}, "maps": [], "rounds": []}
     if replace:
-        _drop_unanswered_round(doc)
+        _drop_unanswered_round(doc, doc_path)
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)

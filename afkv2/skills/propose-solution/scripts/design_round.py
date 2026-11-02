@@ -95,7 +95,7 @@ def _view(doc_path, replace=False):
     """The document as the next round will find it."""
     doc = read_json(doc_path) if Path(doc_path).exists() else _empty()
     if replace:
-        rd._drop_unanswered_round(doc)
+        rd._drop_unanswered_round(doc, doc_path)
     return doc
 
 

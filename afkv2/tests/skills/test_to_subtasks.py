@@ -987,6 +987,13 @@ def test_a_corrected_round_replaces_an_unanswered_one(world):
     assert len(world.doc(started)["rounds"]) == 1
 
 
+def test_a_shown_round_is_not_replaced(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.run("present", doc=started["doc"])
+    assert error_of(world.division(started, expect=1, replace=True))["code"] == "round-shown"
+
+
 def test_a_corrected_round_keeps_carrying_a_returned_card(world):
     started = world.committed_plan()
     world.division(started)

@@ -779,6 +779,18 @@ def test_a_refused_round_is_corrected_with_replace(world):
     assert answer["round"] == 1 and answer["items"] == ["a-entities-2"]
 
 
+def test_replace_refuses_a_shown_round_with_no_answer(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.build(started, round_of(aspect_card("entities")))
+    world.run("present", doc=started["doc"])
+    before = (world.repo / started["doc"]).read_bytes()
+    answer = world.run("build", expect=1, swap=['--round-input', '--replace --round-input'], doc=started["doc"],
+                       session=started["session"], ticket_key=started["ticket"],
+                       round_input=world.file("round.json", round_of(aspect_card("entities", "a-entities-2"))))
+    assert answer["error"]["code"] == "round-shown"
+    assert (world.repo / started["doc"]).read_bytes() == before
+
+
 @pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake engine checks")
 def test_the_real_engine_accepts_the_round_document(world):
     started = world.run("start", ticket_key="PROJ-1")

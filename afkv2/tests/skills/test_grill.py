@@ -766,6 +766,54 @@ def test_replace_refuses_a_round_with_an_answer(world):
     assert Path(started["doc"]).read_bytes() == before
 
 
+def replace_round(world, started, expect=0, content=None):
+    return world.run("build", expect=expect, swap=REPLACE, doc=started["doc"], session=started["session"],
+                     ticket_key=started["ticket"], round_input=world.file("round.json", content or round_one()),
+                     ticket_file=world.file("t.json", {}))
+
+
+def test_replace_refuses_a_shown_round_with_no_answer(world):
+    started = first_round(world)
+    before = Path(started["doc"]).read_bytes()
+    assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
+    assert Path(started["doc"]).read_bytes() == before
+
+
+def test_replace_refuses_a_round_whose_show_failed_because_chat_shows_it(world):
+    started = world.start_and_read()
+    world.build_round(started, round_one())
+    world.env["FAKE_ENGINE_REFUSE"] = "show"
+    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "show"
+    del world.env["FAKE_ENGINE_REFUSE"]
+    assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
+
+
+def test_replace_works_on_a_later_round_the_engine_refused(world):
+    started = first_round(world)
+    answered(world, started, "i-scope: accept\ni-format: accept\n")
+    world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
+    world.env["FAKE_ENGINE_REFUSE"] = "render"
+    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "render"
+    del world.env["FAKE_ENGINE_REFUSE"]
+    corrected = next_round([{"id": "i-two", "kind": "confirm", "body": text("Two, corrected.")}])
+    assert replace_round(world, started, content=corrected)["round"] == 2
+
+
+def test_ingest_removes_the_shown_record(world):
+    started = first_round(world)
+    record = rd.shown_record(started["doc"])
+    assert record.read_text("utf-8").strip() == "1"
+    answered(world, started, "i-scope: accept\ni-format: accept\n")
+    assert not record.exists()
+
+
+def test_resume_of_a_shown_round_presents_again_with_no_replace(world):
+    started = first_round(world)
+    assert world.start_and_read()["session"] == started["session"]
+    assert world.run("present", doc=started["doc"])["ok"] is True
+    assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
+
+
 def signoff_session(world):
     started = world.start_and_read()
     world.build_round(started, {"banner": {"settled": [], "unlocks": [], "parked": []},

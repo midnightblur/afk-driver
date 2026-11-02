@@ -68,7 +68,7 @@ Run each command from the worktree of the feature branch, at the repository root
    <python> "<this skill's folder>/../grill/scripts/page_round.py" present --doc "<doc>"
    ```
 
-   A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field, then run `division` again with `--replace`. On `show`, the page host is not available: print the card as Markdown in chat, with its id, take the human's reply as the raw response, write it to `raw_file`, and go to step 9 (the raw response form of this path is not verified until the page engine merges).
+   A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field, then run `division` again with `--replace`. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the card as Markdown in chat, with its id, take the human's reply as the raw response, write it to `raw_file`, and go to step 9 (the raw response form of this path is not verified until the page engine merges).
 
 8. **Wait for the answer.** The answer reaches you with no chat message from the human.
 

@@ -1,8 +1,9 @@
 """Drive one page round through the engine verbs (SDD §3), from the repository root.
 
-  present --doc D                 check, render, show, in that order; stops at the first refusal
+  present --doc D                 check, render, show, in that order; stops at the first refusal.
+                                  It records the round before show: after a failed show, chat shows the round.
   wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte
-  ingest  --doc D --raw-file F    ingest; deletes F; answers what the round pass must read
+  ingest  --doc D --raw-file F    ingest; deletes F and the shown record; answers what the round pass must read
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
 limit here: it returns when the human sends the round.
@@ -14,7 +15,7 @@ import sys
 from pathlib import Path
 
 from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve
-from round_document import pending
+from round_document import pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
@@ -30,6 +31,7 @@ def _engine(verb, doc, *args, timeout=TIMEOUT_S):
 def present(doc):
     _engine("check", doc)
     page = _engine("render", doc).get("page")
+    record_shown(doc)
     _engine("show", doc)
     return {"ok": True, "page": page}
 
@@ -50,6 +52,7 @@ def ingest(doc, raw_file):
         raise Refusal("unreadable", f"no raw response at {raw_file}", 2, verb="ingest")
     _engine("ingest", doc, "--raw-file", raw_file)
     Path(raw_file).unlink()
+    shown_record(doc).unlink(missing_ok=True)
     return {"ok": True, **pending(read_json(doc))}
 
 

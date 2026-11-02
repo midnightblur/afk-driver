@@ -183,3 +183,4 @@
 2026-10-30 17:28 | smoke-test | gate | smoke smoke_green (2/2 scenarios) — run again at 9f70068c after the late fixes and the merge: the code compiles and the afkv2 tests pass (508 passed, 22 skipped)
 2026-10-30 17:28 | autopilot | run | run end (5/5 done, 0 parked) — all five slices are built and the smoke check is green at the final code; the ship check is left out by the session brief, and the pull request stays Draft
 2026-11-02 00:34 | autopilot | run | decision(D-70) — a note, even one the agent read, no longer signs a sign-off card; only the human's own sign mark does
+2026-11-02 00:44 | autopilot | run | decision(D-71) — correcting a round now works only if the human has never seen it, because the agent cannot see an answer still being typed

@@ -397,7 +397,7 @@ def build_division_round(plan, doc_path, session, ticket, why, replace=False):
     doc_path = Path(doc_path)
     doc = read_json(doc_path) if doc_path.exists() else {"rounds": []}
     if replace:
-        rd._drop_unanswered_round(doc)
+        rd._drop_unanswered_round(doc, doc_path)
     shown = [item["id"] for rnd in doc["rounds"] for item in rnd["items"]]
     digest = plan_digest(plan)
     card_id = f"{CARD_PREFIX}{digest}-{len(shown) + 1}"
