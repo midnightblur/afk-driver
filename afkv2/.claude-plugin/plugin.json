@@ -1,0 +1,9 @@
+{
+  "name": "afkv2",
+  "version": "2.0.0-beta.1",
+  "description": "AFK 2.0 beta: a ticket-to-change workflow for Claude Code and Codex CLI, with the core behaviors loaded by a session-start hook.",
+  "author": {
+    "name": "midnightblur"
+  },
+  "repository": "https://github.com/midnightblur/afk-driver"
+}

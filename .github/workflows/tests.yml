@@ -60,6 +60,17 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git --version
 
+      - name: afkv2 tests
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "Windows" ]; then
+              choco install ripgrep -y --no-progress
+            else
+              sudo apt-get update && sudo apt-get install -y ripgrep
+            fi
+          fi
+          afk-python -m pytest afkv2/tests -q -rs
+
       - name: Unit tests
         run: afk-python -m pytest scripts/tests -q
 

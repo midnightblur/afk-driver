@@ -1,0 +1,44 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/tests/engine/test_engine_core.py",
+  "line": 496,
+  "side": "new",
+  "finding": "Map-entry name test puts the bad entry at index 0 only, so the index fallback is not proven.",
+  "why": "Every fallback case expects \"map 0\"; a change that returns a constant 0 or ignores path[1] in describe still passes, and no case has a non-string id.",
+  "fix": "Add a case with doc[\"maps\"] = [valid_map, \"abc\"] expecting \"map 1\", and one with {\"id\": 5} expecting the id name the code gives.",
+  "evidence": "@pytest.mark.parametrize(\"entry, name\", [(\"abc\", \"map 0\"), (5, \"map 0\"), (0, \"map 0\"), ([\"x\"], \"map 0\"), ({}, \"map 0\"), ({\"id\": \"m-1\"}, \"map m-1\")]) ; doc[\"maps\"] = [entry]; engine.py:70 name = f\"map {(entry.get('id') if isinstance(entry, dict) else None) or path[1]}\" (unverified by run: read only, no mutation probe, no Java)"
+ },
+ {
+  "id": "r-002",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "afkv2/engine/engine.py",
+  "line": 71,
+  "side": "new",
+  "finding": "describe() names a map by any truthy id, so a non-string id is shown as the map name instead of its index.",
+  "why": "A map entry {\"id\": 7} fails the schema (id must be string or null) and the refusal reads \"map 7, field id\"; the new test covers only string ids, objects without id, and non-objects.",
+  "fix": "Use entry.get('id') only when it is a non-empty str; else path[1]. Add the {\"id\": 7} case to test_a_bad_map_entry_is_refused_by_name.",
+  "evidence": "name = f\"map {(entry.get('id') if isinstance(entry, dict) else None) or path[1]}\"  (unverified by run; read of page-v0.schema.json component.id type [\"string\",\"null\"])"
+ },
+ {
+  "id": "r-003",
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "afkv2/engine/registry.py",
+  "line": 19,
+  "side": "new",
+  "finding": "Possible drifted twin: registry hard-wires page-v0.schema.json while engine.py selects the schema file by document version.",
+  "why": "engine.py SCHEMA_FILES maps each schema value to its own file (\"A change is a new schema value with its own file and reader\"), but registry.validate always checks component shape against the v0 file, so a second schema version needs a second edit here.",
+  "fix": "Pass the version's schema (or its component shape) into registry.validate from check_document, or note in a comment that components are shared across versions.",
+  "evidence": "PAGE_SCHEMA = json.loads((COMPONENTS.parent / \"schema\" / \"page-v0.schema.json\")...) vs SCHEMA_FILES = {SCHEMA_V0: ENGINE_DIR / \"schema\" / \"page-v0.schema.json\"} (engine.py:35)"
+ }
+]
