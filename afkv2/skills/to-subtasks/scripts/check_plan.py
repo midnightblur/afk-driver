@@ -7,7 +7,9 @@ with every failure listed. Exit 2: the folder, PLAN.md or a contract cannot be r
 Rule codes:
   A-UNKNOWN-PRODUCER, A-FORWARD, A-NOT-PRODUCED, A-COLLISION  the contract graph
   B-GENERIC, B-SHORT, B-AMBIGUOUS                             the anchor quality
-  SYNTAX, MATERIALIZED-SEAM, SECTION, TRACKER, bad-approval   the shape of the plan
+  SYNTAX, MATERIALIZED-SEAM, TRACKER                          the shape of the plan
+  bad-contract, no-tracker, no-contract, unknown-blocker,     the shape of the plan, in the start gate's codes
+  blocked-by-cycle, v1-plan, bad-approval
   gate-cannot-run, bad-not-applicable                         a gate the repository cannot run
   check-path-unowned                                          a check path with no owner in the chain
 
@@ -16,8 +18,11 @@ itself. `base` names what the anchors and the check paths were compared with: on
 feature branch, because the run branch holds no code.
 
 Lockstep copies of `start_gate.py` in `/afkv2:autopilot`, which is not merged yet and so is not imported:
-`NOT_APPLICABLE`, `is_not_applicable`, `LIVE_TIERS`, `SPAN`, `PROGRAM`, the rule of `_programs`, `RUN_SUFFIX`
-and the division line. `plan_contract.py` there holds a copy of the contract headings.
+`NOT_APPLICABLE`, `is_not_applicable`, `LIVE_TIERS`, `SPAN`, `PROGRAM`, the rule of `_programs`, `RUN_SUFFIX`,
+the division line, its date check, and `_v1_failures` (of `_v1_signs`, with no run-branch sign, which reads the
+checkout and not the plan). Lockstep copies of `plan_contract.py` there: `NO_ID`, `read_tracker` (of `_tracker_table`
+and `read_tracker`) and `cycle_of`, whose failure codes `contracts_of` in `start_gate.py` names. `plan_contract.py`
+holds a copy of the contract headings.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import date
 from functools import cached_property
 from pathlib import Path
 
@@ -34,6 +40,10 @@ SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
 
 from grill_common import EXIT_UNREADABLE, Parser, Refusal, serve  # noqa: E402
+
+sys.path.insert(0, str(SKILL / "scripts"))
+
+from to_subtasks_v1_facts import V1_HEADER_MARK  # noqa: E402
 
 FORMAT_FILE = SKILL / "SUBTASK-CONTRACT.md"
 TEMPLATE = re.compile(r"^```markdown contract-template\n(.*?)^```$", re.S | re.M)
@@ -63,6 +73,8 @@ FILE_NAME = re.compile(r"[A-Za-z_][\w-]*\.[a-z][a-z0-9]{0,4}")
 NOT_A_PATH = re.compile(r"^[-/~]|^[A-Za-z]:|^origin/|://|[\"'<>{}$%=|&]")
 WILDCARD = re.compile(r"[*?]")
 NEXT_IS_NO_PATH = {">", ">>", "2>", "-m"}
+NO_ID = {"none", "(none)", "-", "—"}
+TRACKER_HEADING = "## Progress tracker"
 
 
 def failure(code, where, reason, **extra):
@@ -154,7 +166,8 @@ class Subtask:
 
     @property
     def blocked_by(self):
-        return [bullet.split()[0] for bullet in self.bullets("Blocked by")]
+        ids = (bullet.split()[0] for bullet in self.bullets("Blocked by"))
+        return [item for item in ids if item.lower() not in NO_ID]
 
     @property
     def scope(self):
@@ -192,6 +205,10 @@ def division_of(plan_text):
     if len(lines) > 1 or not match:
         return {"approved": False, "date": None}, [failure(
             "bad-approval", "PLAN.md", f"the header needs one `{DIVISION_MARK}` line with the word approved and a date; it has: {lines}")]
+    try:
+        date.fromisoformat(match.group(1))
+    except ValueError:
+        return {"approved": False, "date": None}, [failure("bad-approval", "PLAN.md", f"the approval date {match.group(1)} is no date")]
     return {"approved": True, "date": match.group(1)}, []
 
 
@@ -355,21 +372,74 @@ def _section_failures(subtasks):
     failures = []
     for subtask in subtasks:
         where = f"{subtask.id}.md"
-        failures += [failure("SECTION", where, f"no section `## {name}`") for name in required if name not in subtask.sections]
-        failures += [failure("SECTION", where, f"section `## {name}` is not in the contract format")
+        failures += [failure("bad-contract", where, f"no section `## {name}`") for name in required if name not in subtask.sections]
+        failures += [failure("bad-contract", where, f"section `## {name}` is not in the contract format")
                      for name in subtask.sections if name not in required + optional]
     return failures
 
 
+def read_tracker(plan_text):
+    """The subtask id of each tracker row, or None when PLAN.md has no table with `Subtask` and `Status` under the heading."""
+    lines = plan_text.split("\n")
+    start = next((index for index, line in enumerate(lines) if line.strip() == TRACKER_HEADING), None)
+    if start is None:
+        return None
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith("## "):
+            return None
+        if lines[index].lstrip().startswith("|"):
+            cells = split_cells(lines[index])
+            if "Subtask" not in cells or "Status" not in cells:
+                return None
+            id_column, status_column = cells.index("Subtask"), cells.index("Status")
+            ids = []
+            for line in lines[index + 1:]:
+                if not line.lstrip().startswith("|"):
+                    break
+                row = split_cells(line)
+                if not all(SEPARATOR.fullmatch(cell) for cell in row) and len(row) > max(id_column, status_column):
+                    ids.append(row[id_column])
+            return ids
+    return None
+
+
 def _tracker_failures(plan_text, subtasks):
-    rows = table_rows(sections_of(plan_text).get("Progress tracker", ""))
-    if not rows or "Subtask" not in rows[0]:
-        return [failure("TRACKER", "PLAN.md", "`## Progress tracker` has no table with a `Subtask` column")]
-    column = rows[0].index("Subtask")
-    tracked = [row[column] for row in rows[1:] if len(row) > column]
+    tracked = read_tracker(plan_text)
+    if tracked is None:
+        return [failure("no-tracker", "PLAN.md", f"`{TRACKER_HEADING}` has no table with the columns `Subtask` and `Status`")]
     files = [subtask.id for subtask in subtasks]
-    return ([failure("TRACKER", "PLAN.md", f"the tracker row {item} has no contract file") for item in tracked if item not in files]
-            + [failure("TRACKER", f"{item}.md", "this contract has no tracker row") for item in files if item not in tracked])
+    return ([failure("no-contract", item, f"the tracker row {item} has no contract file") for item in tracked if item not in files]
+            + [failure("TRACKER", f"{item}.md", "this contract has no tracker row") for item in files if item not in tracked]
+            + [failure("unknown-blocker", subtask.id, f"`## Blocked by` names {blocker}, which has no tracker row")
+               for subtask in subtasks for blocker in subtask.blocked_by if blocker not in tracked])
+
+
+def cycle_of(subtasks):
+    """A subtask that waits on itself through the `## Blocked by` graph, or None."""
+    waits = {subtask.id: subtask.blocked_by for subtask in subtasks}
+    for start in waits:
+        seen, todo = set(), list(waits[start])
+        while todo:
+            item = todo.pop()
+            if item == start:
+                return start
+            if item not in seen:
+                seen.add(item)
+                todo.extend(waits.get(item, ()))
+    return None
+
+
+def _cycle_failures(subtasks):
+    loop = cycle_of(subtasks)
+    return [failure("blocked-by-cycle", loop, "this subtask waits on itself through `## Blocked by`")] if loop else []
+
+
+def _v1_failures(plan, plan_text):
+    """Each sign in the plan's own files that the folder was cut for v1."""
+    failures = [failure("v1-plan", "PLAN.md", f"the PLAN.md header names `{V1_HEADER_MARK}`")
+                for line in _header_lines(plan_text) if V1_HEADER_MARK in line]
+    return failures + [failure("v1-plan", path.name, "this file holds a materialized seam")
+                       for path in sorted(Path(plan).glob("*.md")) if path.name != "PLAN.md" and V1_SEAM_MARK in read_text(path)]
 
 
 def check_paths(cell):
@@ -464,8 +534,8 @@ def check_plan(plan):
     plan_text = read_text(plan / "PLAN.md")
     subtasks, base = read_subtasks(plan), Base(plan)
     division, failures = division_of(plan_text)
-    failures += (_section_failures(subtasks) + _tracker_failures(plan_text, subtasks)
-                 + _graph_failures(subtasks, base) + _gate_failures(subtasks, plan_text, base))
+    failures += (_v1_failures(plan, plan_text) + _section_failures(subtasks) + _tracker_failures(plan_text, subtasks)
+                 + _cycle_failures(subtasks) + _graph_failures(subtasks, base) + _gate_failures(subtasks, plan_text, base))
     if failures:
         return {"ok": False, "error": {"code": "plan-check-failed", "reason": f"{len(failures)} failures in this plan", "failures": failures}}
     return {"ok": True, "subtasks": [subtask.id for subtask in subtasks], "division": division, "base": base.name}

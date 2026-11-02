@@ -33,6 +33,7 @@ import check_plan as cp  # noqa: E402
 import plan_files  # noqa: E402
 
 import design_files  # noqa: E402
+from to_subtasks_v1_facts import V1_HEADER_MARK  # noqa: E402
 
 STATIC_ROW = "| static | `git --version` | the tool runs |"
 
@@ -180,7 +181,7 @@ def test_a_produces_bullet_with_no_anchor_is_refused(tmp_path):
 
 def test_a_materialized_seam_is_refused(tmp_path):
     contracts = {"0001-a": contract("0001-a", produces=["src/a.py#def build_alpha( — the code [materialized]"])}
-    assert codes_of(check(tmp_path, contracts)) == ["MATERIALIZED-SEAM"]
+    assert codes_of(check(tmp_path, contracts)) == ["MATERIALIZED-SEAM", "v1-plan"]
 
 
 # The section set of the format file.
@@ -203,7 +204,7 @@ def test_the_format_file_has_no_materialized_seams():
 def test_a_missing_or_foreign_section_is_refused(tmp_path, clean):
     clean["0001-a"] = clean["0001-a"].replace("## Seams", "## Sea")
     failures = failures_of(check(tmp_path, clean))
-    assert {failure["code"] for failure in failures} == {"SECTION"}
+    assert {failure["code"] for failure in failures} == {"bad-contract"}
     assert len(failures) == 2
 
 
@@ -223,7 +224,95 @@ def test_a_contract_with_no_tracker_row_is_refused(tmp_path, clean):
 def test_a_tracker_row_with_no_contract_is_refused(tmp_path, clean):
     plan = write_plan(tmp_path / "plan", clean)
     (plan / "0002-b.md").unlink()
-    assert codes_of(cp.check_plan(plan)) == ["TRACKER"]
+    assert codes_of(cp.check_plan(plan)) == ["no-contract"]
+
+
+# Plan check parity: the check refuses each plan the start gate of /afkv2:autopilot refuses on the plan's own shape.
+
+def with_tracker(plan, old, new):
+    text = (plan / "PLAN.md").read_text("utf-8")
+    assert old in text
+    (plan / "PLAN.md").write_text(text.replace(old, new), "utf-8")
+
+
+def test_a_blocker_with_no_tracker_row_is_refused(tmp_path, clean):
+    clean["0002-b"] = contract("0002-b", blocked=["0009-gone"])
+    failures = failures_of(check(tmp_path, clean))
+    assert [(item["code"], item["where"]) for item in failures] == [("unknown-blocker", "0002-b")]
+
+
+@pytest.mark.parametrize("word", ["none", "(none)", "None", "-", "—"])
+def test_a_blocked_by_bullet_that_names_no_id_is_no_blocker(tmp_path, clean, word):
+    clean["0001-a"] = contract("0001-a", blocked=[word])
+    assert check(tmp_path, clean)["ok"]
+
+
+def test_a_blocked_by_cycle_is_refused(tmp_path):
+    contracts = {"0001-a": contract("0001-a", blocked=["0002-b"]), "0002-b": contract("0002-b", blocked=["0001-a"])}
+    failures = failures_of(check(tmp_path, contracts))
+    assert [(item["code"], item["where"]) for item in failures] == [("blocked-by-cycle", "0001-a")]
+
+
+def test_a_subtask_that_waits_on_itself_is_a_cycle(tmp_path):
+    assert codes_of(check(tmp_path, {"0001-a": contract("0001-a", blocked=["0001-a"])})) == ["blocked-by-cycle"]
+
+
+def test_a_chain_that_waits_on_a_cycle_names_the_cycle_only(tmp_path):
+    contracts = {"0001-x": contract("0001-x", blocked=["0002-a"]), "0002-a": contract("0002-a", blocked=["0003-b"]),
+                 "0003-b": contract("0003-b", blocked=["0002-a"])}
+    assert [item["where"] for item in failures_of(check(tmp_path, contracts))] == ["0002-a"]
+
+
+def test_a_tracker_with_no_status_column_is_refused(tmp_path, clean):
+    plan = write_plan(tmp_path / "plan", clean)
+    with_tracker(plan, "| Status |", "| State |")
+    assert codes_of(cp.check_plan(plan)) == ["no-tracker"]
+
+
+def test_a_tracker_with_no_subtask_column_is_refused(tmp_path, clean):
+    plan = write_plan(tmp_path / "plan", clean)
+    with_tracker(plan, "| Subtask |", "| Item |")
+    assert codes_of(cp.check_plan(plan)) == ["no-tracker"]
+
+
+def test_a_plan_with_no_tracker_section_is_refused(tmp_path, clean):
+    plan = write_plan(tmp_path / "plan", clean)
+    with_tracker(plan, "## Progress tracker", "## Progress")
+    assert codes_of(cp.check_plan(plan)) == ["no-tracker"]
+
+
+def test_a_tracker_row_with_no_status_cell_is_no_row(tmp_path, clean):
+    plan = write_plan(tmp_path / "plan", clean)
+    with_tracker(plan, "| 2 | 0002-b | title | pending | — | static | — |", "| 2 | 0002-b | title |")
+    assert [(item["code"], item["where"]) for item in failures_of(cp.check_plan(plan))] == [("TRACKER", "0002-b.md")]
+
+
+def test_a_v1_mark_in_the_plan_header_is_refused(tmp_path, clean):
+    assert codes_of(check(tmp_path, clean, header=f"> Made by {V1_HEADER_MARK}to-subtasks")) == ["v1-plan"]
+
+
+def test_a_v1_mark_below_the_plan_header_passes(tmp_path, clean):
+    plan = write_plan(tmp_path / "plan", clean)
+    (plan / "PLAN.md").write_text((plan / "PLAN.md").read_text("utf-8") + f"\nA note on {V1_HEADER_MARK}x.\n", "utf-8")
+    assert cp.check_plan(plan)["ok"]
+
+
+@pytest.mark.parametrize("name, where", [("0001-a.md", "0001-a.md"), ("JOURNAL.md", "JOURNAL.md")])
+def test_a_materialized_mark_anywhere_in_a_folder_file_is_refused(tmp_path, clean, name, where):
+    plan = write_plan(tmp_path / "plan", clean)
+    path = plan / name
+    path.write_text((path.read_text("utf-8") if path.exists() else "") + "\nOld words: [materialized]\n", "utf-8")
+    assert [(item["code"], item["where"]) for item in failures_of(cp.check_plan(plan))] == [("v1-plan", where)]
+
+
+def test_an_approval_date_that_is_no_date_is_refused(tmp_path, clean):
+    answer = check(tmp_path, clean, header="> Division: approved 2026-13-45")
+    assert codes_of(answer) == ["bad-approval"]
+
+
+def test_the_fixture_plan_passes_the_new_refusals():
+    answer = cp.check_plan(PLAN_FIXTURES / "plan")
+    assert not {item["code"] for item in failures_of(answer)} & {"no-tracker", "no-contract", "bad-contract", "unknown-blocker", "blocked-by-cycle", "v1-plan", "bad-approval"}
 
 
 # SDD §7 v1 defects: a gate the repository cannot run is decided when the plan is cut.
@@ -331,7 +420,7 @@ def test_a_later_subtask_owns_nothing_for_an_earlier_one(tmp_path):
 def test_a_wait_in_a_circle_ends_the_chain(tmp_path):
     contracts = {"0001-a": contract("0001-a", scope="src/**", rows=path_row("tests/x.py"), blocked=["0002-b"]),
                  "0002-b": contract("0002-b", scope="lib/**", blocked=["0001-a"])}
-    assert codes_of(check(tmp_path, contracts)) == ["check-path-unowned"]
+    assert codes_of(check(tmp_path, contracts)) == ["blocked-by-cycle", "check-path-unowned"]
 
 
 @pytest.mark.parametrize("scope, path, owned", [
@@ -1072,7 +1161,7 @@ def test_the_plan_template_has_each_line_autopilot_reads():
     assert not re.search("/af[k]:", template), "autopilot reads this in a header as a v1 plan"
 
 
-@pytest.mark.parametrize("path", [path for path in sorted(SKILL_DIR.glob("**/*"), key=str) if path.is_file() and path.suffix in {".md", ".py"}], ids=lambda path: path.name)
+@pytest.mark.parametrize("path", [path for path in sorted(SKILL_DIR.glob("**/*"), key=str) if path.is_file() and path.suffix in {".md", ".py"} and not path.name.endswith("v1_facts.py")], ids=lambda path: path.name)
 def test_no_file_names_the_v1_plugin(path):
     assert not re.search(r"\bafk(?!v2)\b", path.read_text("utf-8"))
 
@@ -1124,6 +1213,39 @@ def test_the_contract_headings_are_in_lockstep_with_autopilot():
     required, optional = cp.contract_sections()
     assert set(module.REQUIRED_SECTIONS) == set(required)
     assert set(module.OPTIONAL_SECTIONS) == set(optional)
+
+
+PARITY_PLANS = {
+    "unknown-blocker": lambda plan: replace_in(plan / "0002-b.md", "- 0001-a", "- 0009-gone"),
+    "blocked-by-cycle": lambda plan: replace_in(plan / "0001-a.md", "## Blocked by\n(none)", "## Blocked by\n- 0002-b"),
+    "no-tracker": lambda plan: replace_in(plan / "PLAN.md", "| Status |", "| State |"),
+    "no-contract": lambda plan: (plan / "0002-b.md").unlink(),
+    "bad-contract": lambda plan: replace_in(plan / "0001-a.md", "## Seams", "## Sea"),
+}
+
+
+def replace_in(path, old, new):
+    text = path.read_text("utf-8")
+    assert old in text
+    path.write_text(text.replace(old, new), "utf-8")
+
+
+@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
+@pytest.mark.parametrize("code", sorted(PARITY_PLANS))
+def test_the_start_gate_and_the_check_give_one_code_on_a_bad_plan(tmp_path, clean, code):
+    plan = write_plan(tmp_path / "plan", clean)
+    PARITY_PLANS[code](plan)
+    gate = load_by_path(START_GATE)
+    assert code in {item["code"] for item in gate.contracts_of(plan)[2]}
+    assert code in codes_of(cp.check_plan(plan))
+
+
+@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
+def test_the_copies_are_in_lockstep_with_plan_contract():
+    module = load_by_path(PLAN_CONTRACT)
+    assert set(module.NO_ID) == cp.NO_ID
+    facts = load_by_path(SKILLS / "autopilot" / "scripts" / "autopilot_v1_facts.py")
+    assert (facts.V1_HEADER_MARK, facts.V1_SEAM_MARK) == (V1_HEADER_MARK, cp.V1_SEAM_MARK)
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="S1 has not merged: the page engine")

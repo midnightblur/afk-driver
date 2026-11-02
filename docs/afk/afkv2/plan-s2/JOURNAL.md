@@ -185,3 +185,4 @@
 2026-11-02 00:34 | autopilot | run | decision(D-70) — a note, even one the agent read, no longer signs a sign-off card; only the human's own sign mark does
 2026-11-02 00:44 | autopilot | run | decision(D-71) — correcting a round now works only if the human has never seen it, because the agent cannot see an answer still being typed
 2026-11-02 00:44 | autopilot | run | decision(D-72) — a publish no longer downloads the diagram tool; when the tool is absent it stops and says how to install it
+2026-11-02 00:56 | autopilot | run | decision(D-73) — a plan with a broken shape now fails when it is written, not when the run tries to start
