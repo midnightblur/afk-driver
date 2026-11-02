@@ -1305,8 +1305,9 @@ def test_gitlab_a_final_pipeline_of_another_commit_reads_running(capsys, tools, 
     assert good(capsys, "gitlab", "ci-wait", id="7", budget=0)["status"] == "running"
 
 
-def test_gitlab_a_pipeline_of_the_change_head_keeps_its_word(capsys, tools):
-    gitlab_pipeline(tools, {"status": "failed", "sha": "new", "ref": "feature"})
+@pytest.mark.parametrize("ref", ["feature", "refs/merge-requests/7/head"])
+def test_gitlab_a_pipeline_of_the_change_head_keeps_its_word(capsys, tools, ref):
+    gitlab_pipeline(tools, {"status": "failed", "sha": "new", "ref": ref})
     assert good(capsys, "gitlab", "ci-status", id="7")["status"] == "failed"
 
 
@@ -1314,6 +1315,12 @@ def test_gitlab_a_pipeline_of_the_change_head_keeps_its_word(capsys, tools):
 def test_gitlab_a_merged_results_pipeline_keeps_its_word(capsys, tools, ref):
     gitlab_pipeline(tools, {"status": "success", "sha": "merge-commit", "ref": ref})
     assert good(capsys, "gitlab", "ci-status", id="7")["status"] == "success"
+
+
+@pytest.mark.parametrize("ref", ["refs/merge-requests/7/head", "feature/merge", "feature/train"])
+def test_gitlab_a_ref_with_no_merge_commit_of_its_own_reads_running(capsys, tools, ref):
+    gitlab_pipeline(tools, {"status": "success", "sha": "old", "ref": ref})
+    assert good(capsys, "gitlab", "ci-status", id="7")["status"] == "running"
 
 
 @pytest.mark.parametrize("pipeline", [{"status": "failed"}, {"status": "failed", "sha": ""}])

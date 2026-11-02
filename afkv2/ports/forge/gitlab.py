@@ -53,10 +53,16 @@ def _pipeline(data):
 _CI_WORDS = {"success": "success", "skipped": "success", "failed": "failed", "canceled": "canceled"}
 
 
+def _runs_on_a_merge_commit(pipeline):
+    """A merged-results or merge-train ref has a merge commit of its own. A `/head` ref runs on the source commit."""
+    ref = str(pipeline.get("ref") or "")
+    return ref.startswith("refs/merge-requests/") and ref.endswith(("/merge", "/train"))
+
+
 def _of_another_commit(pipeline, data):
-    """`head_pipeline` can stay the last commit's after a push. A merge-request ref runs on a merge commit of its own."""
+    """`head_pipeline` can stay the last commit's after a push."""
     sha, head = pipeline.get("sha"), data.get("sha")
-    return bool(sha and head and sha != head and not str(pipeline.get("ref") or "").startswith("refs/merge-requests/"))
+    return bool(sha and head and sha != head and not _runs_on_a_merge_commit(pipeline))
 
 
 def _ci_word(data):
