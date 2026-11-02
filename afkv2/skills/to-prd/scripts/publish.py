@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"
 
 import to_prd_v1_facts  # noqa: E402
 from grill_common import EXIT_REFUSED, EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text  # noqa: E402
-from grill_start import read_config  # noqa: E402
+from grill_start import SETUP, read_config  # noqa: E402
 from prd_files import ID, set_row  # noqa: E402
 
 TRACKER = PLUGIN_ROOT / "ports" / "tracker" / "cli.py"
@@ -35,6 +35,7 @@ PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 FENCE = re.compile(r"^ *(`{3,}|~{3,})[ \t]*(\S*)[ \t]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PUBLISHED_TICKETS = "published-tickets.txt"
+RENDERER_PACKAGE = "@mermaid-js/mermaid-cli"
 
 
 def call_tracker(verb, payload):
@@ -115,22 +116,22 @@ def _digest(path):
 
 
 def render_mermaid(source, out_png, work_dir):
-    """Render one diagram on this machine: no diagram leaves the network."""
+    """Render one diagram with `mmdc` on this machine: no diagram leaves the network, and a publish downloads nothing."""
+    mmdc = shutil.which("mmdc")
+    if not mmdc:
+        raise Refusal("no-renderer", f"the diagram renderer `mmdc` is not on the path: run {SETUP}, or install {RENDERER_PACKAGE}",
+                      setup=SETUP, install=RENDERER_PACKAGE)
     script = Path(work_dir) / "diagram.mmd"
     write_text(script, source)
-    mmdc, npx = shutil.which("mmdc"), shutil.which("npx")
-    command = [mmdc] if mmdc else [npx, "-y", "@mermaid-js/mermaid-cli"] if npx else None
     try:
-        if command is None:
-            raise Refusal("render-failed", "mmdc and npx are not on the path; install @mermaid-js/mermaid-cli")
-        run = subprocess.run([*command, "-i", str(script), "-o", str(out_png), "-b", "white"], capture_output=True,
+        run = subprocess.run([mmdc, "-i", str(script), "-o", str(out_png), "-b", "white"], capture_output=True,
                              text=True, encoding="utf-8", errors="replace", timeout=RENDER_TIMEOUT)
     except subprocess.TimeoutExpired as error:
-        raise Refusal("render-failed", f"{command[0]}: no answer after {RENDER_TIMEOUT} s") from error
+        raise Refusal("render-failed", f"{mmdc}: no answer after {RENDER_TIMEOUT} s") from error
     finally:
         script.unlink(missing_ok=True)
     if run.returncode != 0:
-        raise Refusal("render-failed", f"{command[0]}: {run.stderr[-500:]}")
+        raise Refusal("render-failed", f"{mmdc}: {run.stderr[-500:]}")
 
 
 def _rendered(sources, run_dir, renderer):

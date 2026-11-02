@@ -749,12 +749,30 @@ def test_a_render_failure_is_named(world):
     assert world.writes() == []
 
 
-def test_no_renderer_is_named(tmp_path, monkeypatch):
-    monkeypatch.setattr(publish.shutil, "which", lambda name: None)
+def test_no_renderer_refuses_and_downloads_nothing(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(publish.shutil, "which", lambda name: name if name == "npx" else None)
+    monkeypatch.setattr(publish.subprocess, "run", lambda command, **kwargs: calls.append(command))
     with pytest.raises(publish.Refusal) as refused:
         publish.render_mermaid("x", tmp_path / "out.png", tmp_path)
-    assert refused.value.code == "render-failed" and "mermaid-cli" in refused.value.reason
-    assert not (tmp_path / "diagram.mmd").exists()
+    assert refused.value.code == "no-renderer"
+    assert "/afkv2:setup" in refused.value.reason and "@mermaid-js/mermaid-cli" in refused.value.reason
+    assert refused.value.extra == {"setup": "/afkv2:setup", "install": "@mermaid-js/mermaid-cli"}
+    assert calls == [] and not (tmp_path / "diagram.mmd").exists()
+
+
+def test_a_preview_with_no_renderer_writes_nothing(world, tmp_path):
+    empty = tmp_path / "no-programs"
+    empty.mkdir()
+    world.env["PATH"] = str(empty)
+    error = world.preview(expect=1)["error"]
+    assert (error["code"], error["setup"], error["install"]) == ("no-renderer", "/afkv2:setup", "@mermaid-js/mermaid-cli")
+    assert world.writes() == []
+
+
+def test_the_skill_states_no_download_at_publish():
+    text = SKILL_MD.read_text("utf-8")
+    assert "npx" not in text and "no-renderer" in text and "npx" not in Path(publish.__file__).read_text("utf-8")
 
 
 def test_a_failed_mmdc_does_not_fall_back_to_a_download(tmp_path, monkeypatch):
