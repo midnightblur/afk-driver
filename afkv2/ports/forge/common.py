@@ -38,6 +38,22 @@ def body_text(payload):
     return body
 
 
+def _comparable(text):
+    """A forge may change line ends or trim the end of a description: neither is a lost write."""
+    return str(text or "").replace("\r\n", "\n").rstrip()
+
+
+def check_body_kept(sent, read, change):
+    """A write is finished when the forge shows the text. The text stays out of the error."""
+    try:
+        seen = read()
+    except Refusal as refusal:
+        raise Refusal("body-not-kept", f"the write to {change} ran, but its description could not be read back: "
+                                       f"{refusal.reason}", id=change) from None
+    if _comparable(seen) != _comparable(sent):
+        raise Refusal("body-not-kept", f"the write to {change} ran, but its description is not the text sent", id=change)
+
+
 def joined(value):
     return ",".join(str(item) for item in value) if isinstance(value, (list, tuple)) else str(value or "")
 

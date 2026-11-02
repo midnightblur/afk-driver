@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import urllib.parse
@@ -13,6 +14,20 @@ from forge import github, gitlab  # noqa: E402
 from tracker import envelope, settings, shell  # noqa: E402
 
 KINDS = {"github": github, "gitlab": gitlab}
+_EVERY_VERB = ("forge", "repo")
+_FIELDS = {
+    "auth-status": (),
+    "change-view": ("id",),
+    "change-diff": ("id",),
+    "change-create-draft": ("title", "body", "target", "source", "reviewer", "assignee"),
+    "change-update-body": ("id", "body"),
+    "change-ready": ("id",),
+    "change-comment": ("id", "text", "file", "old_path", "new_path", "side", "line", "old_line", "require_inline"),
+    "note-list": ("id",),
+    "thread-list": ("id",),
+    "ci-status": ("id",),
+    "ci-wait": ("id", "budget", "interval"),
+}
 
 
 def _host(url):
@@ -46,14 +61,24 @@ def _kind(payload):
 
 
 def _dispatch(verb):
-    return lambda payload: KINDS[_kind(payload)].VERBS[verb](payload)
+    def run(payload):
+        unknown = sorted(set(payload) - set(_EVERY_VERB) - set(_FIELDS[verb]))
+        if unknown:
+            raise envelope.Refusal("bad-payload", f"{verb} takes no {', '.join(unknown)}: nothing was written")
+        return KINDS[_kind(payload)].VERBS[verb](payload)
+    return run
 
 
 VERBS = {verb: _dispatch(verb) for verb in github.VERBS}
 
 
 def forge_main(argv=None):
-    return envelope.serve(VERBS, sys.argv[1:] if argv is None else argv)
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) > 2:
+        answer = envelope.fail("bad-payload", f"{args[0]} takes one JSON payload and no other argument: nothing was written")
+        print(json.dumps(answer))
+        return envelope.exit_code(answer)
+    return envelope.serve(VERBS, args)
 
 
 if __name__ == "__main__":

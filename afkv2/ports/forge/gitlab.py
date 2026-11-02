@@ -53,12 +53,19 @@ def _pipeline(data):
 _CI_WORDS = {"success": "success", "skipped": "success", "failed": "failed", "canceled": "canceled"}
 
 
-def _ci_word(pipeline):
+def _of_another_commit(pipeline, data):
+    """`head_pipeline` can stay the last commit's after a push. A merge-request ref runs on a merge commit of its own."""
+    sha, head = pipeline.get("sha"), data.get("sha")
+    return bool(sha and head and sha != head and not str(pipeline.get("ref") or "").startswith("refs/merge-requests/"))
+
+
+def _ci_word(data):
     """The contract word. GitLab has more: all that is not final reads `running`, and `skipped` is GitHub's success."""
+    pipeline = _pipeline(data)
     word = pipeline.get("status")
     if not word:
         return ""
-    return _CI_WORDS.get(word, "running")
+    return "running" if _of_another_commit(pipeline, data) else _CI_WORDS.get(word, "running")
 
 
 def _blob_base(data):
@@ -99,7 +106,7 @@ def _normalize(data):
         "head_ref": f"merge-requests/{number}/head",
         "cross_fork": bool(source_id and target_id and source_id != target_id),
         "blob_base": _blob_base(data),
-        "pipeline": {"status": _ci_word(_pipeline(data))},
+        "pipeline": {"status": _ci_word(data)},
     }
 
 
@@ -158,9 +165,9 @@ def _target_branch(payload, project):
 
 def change_create_draft(payload):
     """The API has no draft field: a title prefix sets the flag (docs: user/project/merge_requests/drafts)."""
-    title, project = str(need(payload, "title")), _project(payload)
+    title, project, body = str(need(payload, "title")), _project(payload), common.body_text(payload)
     fields = {"title": title if _draft({"title": title}) else f"Draft: {title}",
-              "description": str(payload.get("body") or ""),
+              "description": body,
               "source_branch": _source_branch(payload),
               "target_branch": _target_branch(payload, project)}
     for key, field in (("assignee", "assignee_ids"), ("reviewer", "reviewer_ids")):
@@ -171,6 +178,7 @@ def change_create_draft(payload):
     url, iid = (data.get("web_url"), data.get("iid")) if isinstance(data, dict) else (None, None)
     if not url or not iid:
         raise Refusal("bad-answer", "the GitLab API answered no change URL and number")
+    common.check_body_kept(body, lambda: _view(str(iid), payload).get("description"), str(iid))
     return ok(url=url, id=str(iid), draft=True)
 
 
@@ -198,6 +206,7 @@ def change_update_body(payload):
         if shell.run_tool("glab", repair).returncode != 0:
             return fail("draft-lost", f"the body changed, but the draft flag is off and could not be set again: run `glab {' '.join(repair)}`", id=change)
         restored = True
+    common.check_body_kept(body, lambda: _view(change, payload).get("description"), change)
     return ok(id=change, was_draft="true" if was_draft else "false", draft_restored=restored)
 
 
@@ -353,12 +362,12 @@ def thread_list(payload):
 
 
 def ci_status(payload):
-    pipeline = _pipeline(_view(common.ref(payload), payload))
-    return ok(status=_ci_word(pipeline), url=pipeline.get("web_url") or "")
+    data = _view(common.ref(payload), payload)
+    return ok(status=_ci_word(data), url=_pipeline(data).get("web_url") or "")
 
 
 def ci_wait(payload):
-    return common.ci_wait(payload, lambda change: _ci_word(_pipeline(_view(change, payload))))
+    return common.ci_wait(payload, lambda change: _ci_word(_view(change, payload)))
 
 
 VERBS = {

@@ -140,23 +140,31 @@ def change_diff(payload):
     return common.diff_answer(diff)
 
 
+def _body_on_the_forge(change, payload):
+    return _view(change, payload, "body").get("body")
+
+
 def change_create_draft(payload):
+    body = common.body_text(payload)
     args = ["pr", "create", *_flag(payload), "--draft", "--title", str(need(payload, "title")), "--body-file", "-"]
     for key, flag in (("target", "--base"), ("source", "--head"), ("reviewer", "--reviewer"), ("assignee", "--assignee")):
         value = common.joined(payload.get(key))
         if value:
             args += [flag, value]
-    out = shell.checked("gh", args, stdin_text=str(payload.get("body") or ""))
+    out = shell.checked("gh", args, stdin_text=body)
     found = _CHANGE_URL.findall(out)
     if not found:
         raise Refusal("bad-answer", f"gh pr create printed no change URL: {out[:300]}")
-    return ok(url=found[-1], id=found[-1].rsplit("/", 1)[-1], draft=True)
+    change = found[-1].rsplit("/", 1)[-1]
+    common.check_body_kept(body, lambda: _body_on_the_forge(change, payload), change)
+    return ok(url=found[-1], id=change, draft=True)
 
 
 def change_update_body(payload):
     change, body = common.ref(payload), common.body_text(payload)
     was_draft = "true" if _view(change, payload, "isDraft").get("isDraft") else "false"
     shell.checked("gh", ["pr", "edit", change, *_flag(payload), "--body-file", "-"], stdin_text=body)
+    common.check_body_kept(body, lambda: _body_on_the_forge(change, payload), change)
     return ok(id=change, was_draft=was_draft, draft_restored=False)
 
 

@@ -55,6 +55,7 @@ class FakeTools:
         self.rules = []
         self.calls = []
         self.real_run = real_run
+        self.written = None
 
     def on(self, tool, *prefix, answer=""):
         self.rules.insert(0, (tool, prefix, answer))
@@ -68,10 +69,30 @@ class FakeTools:
                     answer = answer(list(args), stdin_text)
                 if isinstance(answer, tuple):
                     return shell.Done(*answer)
+                self._keep_body(tool, args, stdin_text)
+                answer = self._with_kept_body(tool, args, answer)
                 return shell.Done(0, answer if isinstance(answer, str) else json.dumps(answer), "")
         if tool == "git":
             return self.real_run(tool, args, stdin_text=stdin_text, timeout=timeout)
+        if self.written is not None and self._is_view(tool, args):
+            return shell.Done(0, json.dumps(self._with_kept_body(tool, args, {})), "")
         return shell.Done(1, "", f"no fake answer for {tool} {' '.join(args)}")
+
+    def _keep_body(self, tool, args, stdin_text):
+        if tool == "gh" and args[:2] in (["pr", "edit"], ["pr", "create"]):
+            self.written = stdin_text
+        elif tool == "glab" and args[:2] == ["api", "-X"] and "description" in (stdin_text or ""):
+            self.written = json.loads(stdin_text).get("description", self.written)
+
+    @staticmethod
+    def _is_view(tool, args):
+        return (tool == "gh" and args[:2] == ["pr", "view"]) or (tool == "glab" and args[:2] == ["mr", "view"])
+
+    def _with_kept_body(self, tool, args, answer):
+        """A view after a body write shows that body, unless the rule names another."""
+        if self.written is None or not self._is_view(tool, args) or not isinstance(answer, dict):
+            return answer
+        return {"gh": {"body": self.written}, "glab": {"description": self.written}}[tool] | answer
 
     def calls_to(self, tool, *prefix):
         return [call for call in self.calls

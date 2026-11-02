@@ -13,7 +13,7 @@ Every payload can hold `forge` (`github` or `gitlab`) and `repo`. Without `forge
 | `auth-status` | none | `authenticated, user`, or `authenticated: false, reason` |
 | `change-view` | `id` | `id, url, title, draft, state, source, target, author, head_sha, base_sha, head_ref, cross_fork, blob_base, pipeline.status` |
 | `change-diff` | `id` | `diff, lines, bytes` |
-| `change-create-draft` | `title`; optional `body, target, source, reviewer, assignee` (`reviewer` and `assignee`: a word or a list) | `url, id, draft` |
+| `change-create-draft` | `title, body` (never blank); optional `target, source, reviewer, assignee` (`reviewer` and `assignee`: a word or a list) | `url, id, draft` |
 | `change-update-body` | `id, body` (never blank) | `id, was_draft, draft_restored`; `was_draft` is `"true"` or `"false"`. A failed read of the flag refuses, and nothing is written |
 | `change-ready` | `id` | `id, draft` |
 | `change-comment` | `id, text`; for an inline comment `file` or `old_path`/`new_path`, `side` (`new` by default, `old`, `context`), `line` (for `new`, `context`), `old_line` (for `old`, `context`), `require_inline` | `inline, thread, comment, url`, and `reason` when a position landed as a plain note |
@@ -35,6 +35,10 @@ A position the forge rejects: with `require_inline`, the verb refuses `position-
 ## Error codes
 
 The tracker table, plus `no-forge`, `bad-position`, `position-rejected`, `unreadable` and `draft-lost`.
+
+A field that the verb does not name, or an argument after the payload, is `bad-payload` before any forge call.
+
+`body-not-kept` means a write ran, and the description read back after it was not the text sent or could not be read. It carries `id`. Line ends and whitespace at the end do not count as a change.
 
 `draft-lost` means `change-update-body` wrote the body on GitLab, the draft flag then read as off, and the port could not set it again. The change is open for review until a human sets it: `reason` names the command. A retry does not set it, because the flag then reads as off.
 
