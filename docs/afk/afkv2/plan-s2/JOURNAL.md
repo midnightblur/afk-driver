@@ -196,3 +196,6 @@
 2026-11-02 01:51 | autopilot | run | decision(D-76) — a pattern that two tests use to find old names moved into the one file allowed to hold such names, so the plugin check passes after the merge
 2026-11-02 01:51 | autopilot | run | gate-skip — commit a754eb8a and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
 2026-11-02 01:54 | autopilot | run | delta check (R-5) a754eb8a: confirmed — a separate reader of only that commit's change found the ruling met and no serious defect
+2026-11-02 02:24 | autopilot | run | decision(D-77) — the plan check now reads files with Windows line ends the same as others, so a fresh Windows checkout passes
+2026-11-02 02:24 | autopilot | run | decision(D-78) — diagrams render with the browser settings file that setup writes; with no renderer or no such file, the preview stops and says to run setup
+2026-11-02 02:24 | autopilot | run | gate-skip — commits cceb9c38, b01291ed and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4

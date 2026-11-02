@@ -531,3 +531,17 @@
 - Chosen: A — commit a754eb8a. S1 `check_no_v1_names` from `origin/feat/afkv2-s1` now gives 0 hits on `afkv2/` of this branch; this is a run on this tree, not on the merged tree. `test_grill.py`, `test_visualize.py` and `test_to_prd.py` are green. The 11 marker hits are slash commands: by the same ruling S1 narrows its rule, and this branch changes nothing for them
 - Supersedes: none
 - To reverse: revert commit a754eb8a
+
+## D-77 — orchestrator ruling: every reader of a shipped text file in the S2 skills accepts CRLF
+- 2026-11-02 · decided by the session orchestrator (integration item 2, after a trial merge on a fresh Windows checkout)
+- Options: A — normalize in `check_plan.read_text` and in the read of a base file through `git show`; `Path.read_text` readers stay as they are, because Python text mode already turns CRLF into LF vs B — add a replace call at every reader
+- Chosen: A — commit cceb9c38. The other format readers (`prd_files._template`, `design_files.sdd_template`, `design_round.group_rows`) get a CRLF test and pass with no code change. A copy of `afkv2/` exported with CRLF: `afkv2/tests/skills` 134 failed before the fix (all in `test_to_subtasks.py`), 560 passed and 30 skipped after it. Left byte for byte, neither is a shipped file: `grill_start._raw_pending` compares a raw answer with its stored copy, and `grill_log --text-file` reads agent text that `write_row` splits on white space (a `Round 0` row keeps CR inside its JSON string)
+- Supersedes: none
+- To reverse: revert commit cceb9c38
+
+## D-78 — owner ruling: to-prd renders with `mmdc -p` and the config file that setup writes
+- 2026-11-02 · decided by the owner (SDD frozen row "diagram renderer", merged at 135b91ed)
+- Options: A — run `mmdc -p` with `puppeteer-config.json` under `LOCALAPPDATA`; no `mmdc` or no config file refuses `no-renderer` with the hint `run /afkv2:setup` vs B — run `mmdc` with its own default browser
+- Chosen: A — commit b01291ed. The `npx` branch was already gone (D-72), so this commit adds the config file and its refusal. The refusal drops `install`: the package alone does not write the config file. `LOCALAPPDATA` not set counts as no config file. The real `mmdc` with `-p` is not verified here; the tests use a fake. At origin/feat/afkv2-s3 a8085f38 `afkv2/` has no `puppeteer` text, so the writer is not there yet
+- Supersedes: the refusal text and the `install` field of D-72; this closes the advisory of D-45
+- To reverse: revert commit b01291ed
