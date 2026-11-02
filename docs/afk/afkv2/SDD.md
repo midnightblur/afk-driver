@@ -207,7 +207,7 @@ Data-scoping: not applicable — scope is the repository, graded by ownership (P
 
 | Surface | Key shape | Dedup window | Side-effect ledger |
 |---------|-----------|--------------|--------------------|
-| Jira publish | receipt = SHA-256 of ticket key + block text + picture hashes | until the next publish | a re-run after success finds an equal read-back and writes nothing |
+| Jira publish | receipt = SHA-256 of ticket key + block text + picture hashes; block text is the canonical JSON of the ADF block with every mark kept (a link target is part of it), so a link-only edit changes the receipt (orchestrator ruling 2026-10-30) | until the next publish | a re-run after success finds an equal read-back and writes nothing |
 | v1 rule block removal | the block's begin and end markers | permanent | absent markers = already removed |
 | v1 git hook move | the moved file in the backup folder | until switch-back | a present backup = already moved |
 | plugin switch | the settings key value | permanent | equal value = no write |
@@ -344,6 +344,8 @@ sequenceDiagram
 | a text file the hook prints is turned to CRLF on a Windows checkout, its hash no longer matches its marker, and the check still passes | built files are LF by a `.gitattributes` rule; the plugin check fails on a CR byte or a hash mismatch | 0001 plugin-check test |
 | the forge port passes a large thread list or a body as one command argument, so a change with many threads fails with "argument list too long", and carriage returns are doubled on Windows | the forge port pages thread lists and passes every body through a file or stdin, never an argument; text keeps its line ends byte for byte | 0012 port tests: more than 240 threads; a body with CRLF round-trips unchanged |
 | two flat script modules with one name shadow each other when one process loads both | every afkv2 script module name is unique across the plugin tree | plugin-check test |
+| a forge body update takes unknown flags and writes an empty change description | the forge port refuses an unknown flag or field and never writes an empty description; it reads the description back after each write | 0012 port tests |
+| a script crashes on Windows when it prints a non-ASCII character (charmap) | every afkv2 script reads and writes text as UTF-8 explicitly, whatever the console code page | plugin-check test |
 
 ## §8 L7 — Module Decomposition
 
