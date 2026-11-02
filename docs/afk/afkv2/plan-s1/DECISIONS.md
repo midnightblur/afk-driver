@@ -384,3 +384,10 @@
 - Chosen: A — the check reads only the fix commits' diff and may only confirm or reopen the findings or rulings they answer. It raises no new finding unless a fix adds a critical or high defect. A reopened critical or high finding gets one more fix, and the slice parks if the next delta check still fails. It applies from 2026-11-02 on. No finished slice owes a check: 0004 made no fix in round 3, and the 0001 change was reviewed after its rulings
 - Supersedes: none; it adds to R-2
 - To reverse: the owner withdraws R-5
+
+## D-56 — how the orphan hunt's rows without a code consumer close
+- 2026-11-02 · decided by autopilot, as orchestrator
+- Options: A — one open row for `plugin_check.py`, anchored on the 0016 static row, and waivers with a reason for the rest vs B — remove the fields with no reader now, which changes reviewed code after the smoke gate and needs the gate run again
+- Chosen: A — a blind reader listed these without a code consumer: `plugin_check.py` outside its tests, `search_bench.py`, config keys `ownership`, `repo_root` and `config_file`, and engine answer keys that S2 ignores. I read S2's `page_round.py`: it reads `page`, `raw` and `error`. A failed `show` still reaches it as a refusal, so ignoring the `show` answer loses no failure. `plugin_check.py` with no verb exits 0, so the 0016 row works as written. The reader was given no per-symbol investigation ledgers, which departs from the skill text; it listed the consumers itself. The plan author can remove the unread fields at the chain smoke run
+- Supersedes: none
+- To reverse: remove the rows from `.claude/wiring-ious.md`

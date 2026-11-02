@@ -16,3 +16,8 @@ waive: `afkv2/engine/components/base_banner.py` — `registry.load_components` l
 waive: `afkv2/engine/components/base_chip.py` — `registry.load_components` loads `components/*.py` by glob, so a name scan cannot see this consumer
 waive: `afkv2/engine/components/base_freestyle.py` — `registry.load_components` loads `components/*.py` by glob, so a name scan cannot see this consumer
 waive: `afkv2/tests/engine/fixtures/host-poll-waiting.txt` — the test reads it through the formatted name `host-poll-{name}.txt`, so a name scan cannot see this consumer
+- [x] `afkv2/scripts/plugin_check.py` -> anchor: contract "docs/afk/afkv2/plan-s4/0016-chain-smoke-run.md" `## Verification` static row runs `afk-python afkv2/scripts/plugin_check.py` on the merged tree; until then only `afkv2/tests/test_plugin_check.py` runs it, in CI
+waive: `afkv2/scripts/search_bench.py` — a measuring tool the 0002 contract integration row runs by hand for AC-021; it ran on 2026-10-30 (ratio 0.521), and no program must call it
+waive: config answer key `ownership` — SDD §8 row "config reader" and the 0001 Acceptance require it; the reader is an agent that follows the Ownership section of `afkv2/core/CORE-BEHAVIORS.md`, not code
+waive: config answer keys `repo_root`, `config_file` — they tell a reader which file answered; no code reads them, and the plan author may remove them at the chain smoke run
+waive: engine answer keys `check.saved_copy`, `show.url`, `show.status`, `show.waiting_record`, `poll.prompts`, `poll.session_ended` and the `ingest` keys — detail for a reader of the JSON answer; session S2 reads only `page`, `raw` and `error`, and the plan author may remove them at the chain smoke run

@@ -183,3 +183,4 @@
 2026-11-02 00:59 | execute | 0005-notes-ingest-live-test | done — notes, ingest and the live test are built and tested; known limits are in D-49 and D-52; gate-skip(R-4): b5a4069c, 3b336005 and the plan commit that holds this line
 2026-11-02 01:00 | autopilot | 0005-notes-ingest-live-test | heartbeat 5/5 done, starting the smoke gate — all five slices are finished; the feature check is next
 2026-11-02 01:08 | smoke-test | feature | smoke green (minimal gate) on 84279e0e — compile passes and all afkv2 tests pass: 1129 passed, 1 skipped, 2 expected failures; this covers plan-s1 only, not the merged S1, S2 and S3 tree; gate-skip(R-4): the plan commit that holds this line
+2026-11-02 01:14 | autopilot | feat/afkv2-s1 | decision(D-56) — the check for unused parts found a few details nothing reads yet; I recorded each with its reason instead of changing reviewed code; gate-skip(R-4): the plan commit that holds this line
