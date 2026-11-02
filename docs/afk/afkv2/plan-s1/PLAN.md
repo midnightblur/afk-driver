@@ -3,8 +3,8 @@
 > Parent ticket: GitHub #153   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2-s1
-> Last updated: 2026-10-30 (status column maintained by /afk:execute)
-> Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Last updated: 2026-11-02 (status column maintained by /afk:execute)
+> Feature: complete (minimal gate, 2026-11-02)   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 This is one of 4 plan folders for afkv2 (`plan-s1`..`plan-s4`, decision D-S-4).
@@ -50,7 +50,7 @@ Steps are written by 0001 and 0003 to `afkv2/tests/live/CODEX-LIVE-CHECKS.md`.
 
 | # | Check | Pass | On fail |
 |---|-------|------|---------|
-| 1 | Codex accepts the `.cmd` session-start hook after the trust review; a new session reports the end marker with the right sha12 | marker + sha12 match | Python hook; the 50 ms limit goes back to the owner (SDD §7) |
+| 1 | Codex accepts the `.cmd` session-start hook after the trust review; a new session reports the end marker with the right sha12 | marker + sha12 match | Python hook (SDD §7) |
 | 2 | Codex re-runs the hook after a compaction | marker present after compaction | record as AC-012 gap; owner decides |
 | 3 | Codex Stop hook: a page answer sent after 10 minutes reaches the agent with no chat message | answer arrives | fallback: one chat message after Send (ADR-0006) |
 ## Solution map
@@ -93,11 +93,11 @@ seams are the ones S2 and S3 depend on.*
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | pending | — | static, unit, integration | — |
-| 2 | 0002-core-behaviors | core behaviors | pending | 0001-skeleton-manifests-hooks | static, unit, integration | — |
-| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | pending | 0001-skeleton-manifests-hooks | static, unit, integration | — |
-| 4 | 0004-diagram-components | diagram components | pending | 0003-engine-core-schema-show-poll | static, unit | — |
-| 5 | 0005-notes-ingest-live-test | notes ingest live test | pending | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
+| 1 | 0001-skeleton-manifests-hooks | skeleton manifests hooks | done | — | static, unit, integration | — |
+| 2 | 0002-core-behaviors | core behaviors | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
+| 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
+| 4 | 0004-diagram-components | diagram components | done | 0003-engine-core-schema-show-poll | static, unit | — |
+| 5 | 0005-notes-ingest-live-test | notes ingest live test | done | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
@@ -112,7 +112,10 @@ name the afkv2 tree directly.
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `afk-python -m compileall -q afkv2` | |
-| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | |
+| 1 | compile | `afk-python -m compileall -q afkv2` | pass |
+| 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | pass |
 
-Last run: —
+Last run: 2026-11-02, target=local (no app; the 2 rows run on the afkv2 tree at 84279e0e)
+
+Run history:
+- 2026-11-02 local — green, failing: none

@@ -1,0 +1,1619 @@
+{
+ "schema": 1,
+ "purpose": "Requirements grill",
+ "feature": "afkv2",
+ "spec_dir": "docs/v1kit/afkv2",
+ "stage": "requirements",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "header": {
+    "component": "round_header",
+    "round": 1,
+    "settled_last_round": [
+     "Decisions 1 to 98 in issue 153 are binding and are not asked again"
+    ],
+    "unlocks": [
+     "SPEC.md (to-spec)",
+     "a short design pass on the seams between the 3 build sessions",
+     "the 4 plan folders (S1, S2, S3 in parallel, S4 smoke)"
+    ],
+    "parked": [
+     "Q26, the demo ticket: you give it by day 5"
+    ],
+    "fork": "Issue 153 fixes the rules and the build plan, but it does not say what each P0 skill takes in, writes and stops on. The build sessions start from plans, and a plan cannot cite a behavior nobody wrote down.\n\nThree more things need a call. Some of your decisions disagree with each other (evals, redaction, Jira read). Running v1 and v2 side by side has a conflict nobody decided: both want to write the same always-loaded user files. And the lane rule, on the gap list, turns out not to be needed for the beta.\n\nNo staples file exists in this repository, so there are no staple calls.",
+    "touches": [
+     {
+      "name": "Issue 153 (the ticket)",
+      "anchor": "github.com midnightblur/v1kit-driver issue 153"
+     },
+     {
+      "name": "Owner decisions 1 to 98",
+      "anchor": "issue 153 Evidence, first details block"
+     },
+     {
+      "name": "v1 skills being ported",
+      "anchor": "skills/v1kit/*/SKILL.md"
+     },
+     {
+      "name": "v1 forge contract",
+      "anchor": "adapters/forge/github/CONTRACT.md"
+     },
+     {
+      "name": "Grill log",
+      "anchor": "docs/v1kit/afkv2/GRILL-LOG.md"
+     }
+    ],
+    "size_note": "Large round: it covers every P0 skill at once because the plan needs all of them, and the 13 skill cards depend only on the scope group. The 20 term rows are one click each.",
+    "groups": [
+     {
+      "id": "scope",
+      "title": "What is in the beta"
+     },
+     {
+      "id": "coexist",
+      "title": "How v1 and v2 live side by side",
+      "after": [
+       "scope"
+      ]
+     },
+     {
+      "id": "skills",
+      "title": "What each P0 skill does",
+      "after": [
+       "scope"
+      ]
+     },
+     {
+      "id": "access",
+      "title": "Who may do what",
+      "after": [
+       "skills"
+      ]
+     },
+     {
+      "id": "terms",
+      "title": "Words: check my definitions",
+      "layout": "table"
+     }
+    ]
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "S-1",
+     "group": "scope",
+     "decision": "Jira read goes into subtask 09 (forge port) as a read-only tracker port that uses acli.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-2",
+     "group": "scope",
+     "decision": "Also read GitHub issues in the beta, in the same tracker port as Jira read — Yes, read GitHub issues too.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-3",
+     "group": "scope",
+     "decision": "The release gate port goes into subtask 01, rewritten in Python.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-4",
+     "group": "scope",
+     "decision": "Move the redaction port out of the beta, to 2.1 together with report-issue — Yes, move it to 2.1.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-5",
+     "group": "scope",
+     "decision": "The beta ships the medium lane only, and the rule that picks a lane is 2.1 work.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-6",
+     "group": "scope",
+     "decision": "Which live-agent evals must the beta ship — your ruling: we might have misunderstood here. the eval is not for skills, at least for now. what I meant is the eval for contextual instructions/information (such as nested AGENTS.md in the repos). v1kit's own skills do not need eval for now",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"we might have misunderstood here. the eval is not for skills, at least for now. what I meant is the eval for contextual instructions/information (such as nested AGENTS.md in the repos). v1kit's own skills do not need eval for now\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-7",
+     "group": "scope",
+     "decision": "One shared set of eval case files runs on both Claude and Codex.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept. Your note: \"with the context above that eval is not for skills, but for repo's AGENTS.md\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-8",
+     "group": "scope",
+     "decision": "Run the chain smoke run (subtask 13) on a toy repository with a written test ticket, not on the demo ticket — Yes, a toy repository and a test ticket.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "S-9",
+     "group": "scope",
+     "decision": "The chain smoke run passes when one ticket reaches a Draft change with green local tests, on Claude and on Codex, with you answering the grill and approving the plan — Yes, this is the pass rule.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-1",
+     "group": "coexist",
+     "decision": "How do v1 and v2 share the always-loaded user instruction files — your ruling: v2 takes over, v1 block removed",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"v2 takes over, v1 block removed\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-2",
+     "group": "coexist",
+     "decision": "v2 uses its own names everywhere: plugin afkv2, config folder .afkv2, environment prefix AFKV2_, and its own plugin data folder.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-3",
+     "group": "coexist",
+     "decision": "In a repository with v1 config (.v1kit/config.yaml), does v2 setup offer to copy the values it needs once, and never change the v1 file — Yes, offer a one-time copy.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-4",
+     "group": "coexist",
+     "decision": "Turn on v1 or v2 per session, never both: Claude by the project's enabled-plugins setting, Codex by a named profile (codex -p afkv2) — Yes, one plugin per session.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"I have a question, Claude and Codex plugin, do they allow to have hooks in the plugin itself, that we don't need to copy over to the repos, and they will run depending on whether the plugin is enabled or disabled? verify in official docs\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "C-5",
+     "group": "coexist",
+     "decision": "v2 does not run v1 plans: a feature started on v1 finishes on v1 — Yes, no cross-version plans.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"as long as we can slice again, that's good\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-1",
+     "group": "skills",
+     "decision": "setup runs in any repository, also in a main checkout, and one run sets up both Claude and Codex.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-2",
+     "group": "skills",
+     "decision": "The core block is one rule text of at most 200 lines, the same in both user files, grown from the interim block.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-3",
+     "group": "skills",
+     "decision": "grill takes a ticket id, a link or free text, reads the ticket with its comments and links, and settles requirements in rounds shown in the terminal.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "decided_card",
+     "id": "K-4",
+     "group": "skills",
+     "decision": "A worked example is a short table: the use-case kind (frequent, edge or risky), the starting data, the action and the result; you check each one in a round, and to-spec copies them into the spec.",
+     "alternatives": [
+      {
+       "id": "prose",
+       "label": "Examples as prose",
+       "why": "hard to check line by line"
+      },
+      {
+       "id": "tests",
+       "label": "Examples as runnable tests now",
+       "why": "needs a design that does not exist at grill time"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "decision 38: 'Requirements grill shows worked examples of high-value use cases (frequent, edge, risky), with sample data when the feature makes data.'",
+      "sentence": "Decision 38 names the three kinds and the sample data; a table holds all four parts in one view."
+     },
+     "why_beat": {
+      "runner_up_id": "tests",
+      "sentence": "At grill time the data shape is a requirement, not code; the tests come from the examples later."
+     },
+     "reverse": "Change the example format in grill and to-spec.",
+     "scope": {
+      "hl": "none",
+      "depends_on": []
+     },
+     "context": "At least one example per kind for each story that makes or changes data. A story with no data gets one frequent example only.",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "decided_card",
+     "id": "K-5",
+     "group": "skills",
+     "decision": "to-spec writes one local SPEC.md: pain, actors, stories with access and validation rules, worked examples, scope in and out, non-functional needs, decisions with reasons, and open items.",
+     "alternatives": [
+      {
+       "id": "v1-prd",
+       "label": "Port v1 to-prd with INDEX.md, separate requirement ADR files and staples",
+       "why": "files nobody in the beta reads"
+      },
+      {
+       "id": "ticket",
+       "label": "Write the spec into the tracker",
+       "why": "Jira write is 2.1"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "issue #153 Tiers P0: 'to-spec (local PRD)'; 2.1: 'Jira write'; design rule: one fact, one home",
+      "sentence": "The P0 list names a local spec, and the design rule puts each decision in one place."
+     },
+     "why_beat": {
+      "runner_up_id": "v1-prd",
+      "sentence": "Decisions with their reasons sit in the spec itself, so separate ADR files and an index would be a second home."
+     },
+     "reverse": "Split the decisions into ADR files.",
+     "scope": {
+      "hl": "none",
+      "depends_on": []
+     },
+     "context": "to-spec does not ask new questions; it writes what the grill settled. The file lives with the feature's run files (on the run branch, decision 73).",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "decided_card",
+     "id": "K-6",
+     "group": "skills",
+     "decision": "propose-solution asks a short set of critical-aspect questions first, then drafts the full design top down, shows each open choice as a fork card, and writes DESIGN.md after you vet it.",
+     "alternatives": [
+      {
+       "id": "two-skills",
+       "label": "Port v1 grill-solution and to-sdd as two skills",
+       "why": "a hand-off with no reader in between"
+      },
+      {
+       "id": "draft-only",
+       "label": "Draft with no questions first",
+       "why": "breaks decision 49"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "decision 14: agent proposes a complete plan, human vets; decision 49: critical-aspect Q&A first; decision 94: keep the grill-solution approach in propose-solution; decision 97: a slot for a second provider",
+      "sentence": "Decisions 14, 49 and 94 together give this exact order: questions, top-down draft, fork cards, human vet."
+     },
+     "why_beat": {
+      "runner_up_id": "two-skills",
+      "sentence": "Decision 94 puts the grill-solution approach inside one propose-solution skill."
+     },
+     "reverse": "Split the skill into a grill step and a write step.",
+     "scope": {
+      "hl": "none",
+      "depends_on": []
+     },
+     "context": "DESIGN.md has clear reasons and extra depth on entities and the DB schema, API endpoints, public interfaces and high-blast-radius code (decision 37). Diagrams are Mermaid with prose, updated together (decisions 7, 17). A premise the design rests on is checked before the design locks (decision 33). The second-provider slot stays empty in P0 and is filled in P1 (decision 97).",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "settled_card",
+     "id": "K-7",
+     "group": "skills",
+     "decision": "propose-solution asks about these critical aspects: entities, relations, keys, constraints and cascade first, then API contract and compatibility, data migration, authorization, entity life cycle and states, other teams' modules, and large data — Yes, use this list.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-8",
+     "group": "skills",
+     "decision": "to-subtasks writes plan/ with PLAN.md and one contract per subtask, always cited to SPEC.md and DESIGN.md, checks the plan with a script, and waits for you to approve the division.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-9",
+     "group": "skills",
+     "decision": "autopilot is the one way to build: it walks the plan one subtask at a time with a fresh subagent each, uses TDD, commits often, pushes to one Draft change, decides two-way doors and records them, and parks a one-way door with its dependents.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-10",
+     "group": "skills",
+     "decision": "code-review picks its concerns per subtask, fixes critical and high findings, posts medium and low findings on the change, and stops after 3 rounds.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-11",
+     "group": "skills",
+     "decision": "create-change-request opens a Draft change with a description, a request per person (the assignee and each reviewer), proofs and a mergeability case, and critiques its own description once before it posts.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-12",
+     "group": "skills",
+     "decision": "CI watch starts a background check after each push, keeps working, and reports when CI ends; a red feature-branch CI is fine during work and must be green at ship.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-13",
+     "group": "skills",
+     "decision": "At ship, when review is settled and CI is green, does the agent mark the change Ready and ask the reviewers, and the human merges — Yes, the agent marks it Ready.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-14",
+     "group": "skills",
+     "decision": "gc keeps the run branch (it is the record a later retro reads) and deletes everything else the run made: the worktree, and the local and remote feature branches — Yes, keep the run branch.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "K-15",
+     "group": "skills",
+     "decision": "The forge port is Python code with the same commands and JSON answers as the v1 forge contract, for GitHub through gh and GitLab through glab.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-1",
+     "group": "access",
+     "decision": "The beta has four actors: the developer who drives the chain, the agent (a Claude or Codex session and its subagents), the reviewer who reviews and merges the change, and the plugin owner who builds and releases afkv2.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-2",
+     "group": "access",
+     "decision": "The agent may commit, push to its own branch, open and update a Draft change, comment, and start manual CI jobs; it may never merge, force-push, rebase a pushed branch, push to a protected branch, write to Jira, or change files in a main checkout (setup excepted).",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept. Your note: \"it may write to JIRA in to-spec, no?\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-3",
+     "group": "access",
+     "decision": "Nothing in the plugin is scoped by company or vendor; the agent's scope is the repository, graded by ownership: own (change freely), shared (minimal diff, tell the co-owners), not owned (minimal diff, follow that code's rules, state the facts in the change).",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-4",
+     "group": "access",
+     "decision": "Ownership comes from the repository config: setup suggests it from CODEOWNERS when that file exists, asks the developer to correct it, and anything not listed counts as not owned — Yes, config with CODEOWNERS as the suggestion.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "A-5",
+     "group": "access",
+     "decision": "Before autopilot starts, the plan check must pass and you must have approved the division; a failing check stops autopilot with the list of failures.",
+     "round": 1,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-0",
+     "group": "terms",
+     "decision": "Put the terms below in afkv2/GLOSSARY.md, the v2 tree's own glossary, written now, before the spec — Yes, afkv2/GLOSSARY.md.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-1",
+     "group": "terms",
+     "decision": "I take 'lane' to mean: the size class of a piece of work (small, medium or large) that decides which chain steps it runs. The beta has only the medium lane. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-2",
+     "group": "terms",
+     "decision": "I take 'core block' to mean: the always-loaded rule text, at most 200 lines, that setup writes into each user instruction file. Correct — your ruling: core behaviors",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"core behaviors\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-3",
+     "group": "terms",
+     "decision": "I take 'interim block' to mean: the temporary rule text used during the build in place of the core block; deleted when setup installs the core block. Correct — your ruling: interim brhaviors",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"interim brhaviors\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-4",
+     "group": "terms",
+     "decision": "I take 'friction switch' to mean: an environment variable or a file edit that turns off one v1 gate, for the build only. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-5",
+     "group": "terms",
+     "decision": "I take 'two-way door / one-way door' to mean: a two-way door is a choice you can undo on the branch at low cost, so the agent decides it and records why; a one-way door is hard to undo or reaches outside the branch, so the agent parks it for a human. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-6",
+     "group": "terms",
+     "decision": "I take 'parked subtask' to mean: a subtask autopilot stops on because it needs a human decision; its dependents stop with it, and it counts as a grill or plan failure for retro. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-7",
+     "group": "terms",
+     "decision": "I take 'fork card' to mean: a card that shows the human a design choice the agent could not settle, with the options side by side. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-8",
+     "group": "terms",
+     "decision": "I take 'round 0' to mean: an optional first grill round where the human writes their own reading of the ticket; the agent treats it as unverified. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-9",
+     "group": "terms",
+     "decision": "I take 'worked example' to mean: a small table that walks one use case (frequent, edge or risky) from its starting data to its result. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-10",
+     "group": "terms",
+     "decision": "I take 'ownership grade' to mean: own, shared or not owned: how freely the agent may change a piece of code. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-11",
+     "group": "terms",
+     "decision": "I take 'good guest' to mean: working in code you do not own: a minimal diff, that code's own standards, the facts in the change, and no reference to our plan. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-12",
+     "group": "terms",
+     "decision": "I take 'collaboration branch' to mean: an unprotected branch that several teams merge into; its CI must stay passable. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-13",
+     "group": "terms",
+     "decision": "I take 'run branch' to mean: an orphan branch per feature that holds the run files (spec, design, plan, decision log), so the feature branch holds only product changes. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-14",
+     "group": "terms",
+     "decision": "I take 'change request' to mean: the forge's review unit: a merge request on GitLab, a pull request on GitHub. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-15",
+     "group": "terms",
+     "decision": "I take 'chain' to mean: the fixed order of skills from ticket to merged change: grill, to-spec, propose-solution, to-subtasks, autopilot (with code-review), create-change-request, gc. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-16",
+     "group": "terms",
+     "decision": "I take 'chain smoke run' to mean: one ticket taken through the whole chain, to prove the chain works end to end. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-17",
+     "group": "terms",
+     "decision": "I take 'smart zone' to mean: the context size where an agent still works well, about 300k tokens; a subtask must fit in it. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-18",
+     "group": "terms",
+     "decision": "I take 'agent pane' to mean: a second agent session, of another provider or a higher model tier, that the agent starts and talks to. Correct — Yes, use this definition.",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-19",
+     "group": "terms",
+     "decision": "I take 'spec / design' to mean: the spec is SPEC.md, the requirements file to-spec writes; the design is DESIGN.md, the solution file propose-solution writes. Correct — your ruling: I want to keep current artifacts separation and naming so this does not apply",
+     "round": 1,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"I want to keep current artifacts separation and naming so this does not apply\"",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "header": {
+    "component": "round_header",
+    "round": 2,
+    "settled_last_round": [
+     "46 of 54 round-1 items settled; your write-ins on S-6, C-1, T-2, T-3 and T-19 recorded as your rulings",
+     "Glossary written: afkv2/GLOSSARY.md (core behaviors, interim behaviors, 16 more terms)",
+     "Your page-level steer recorded in the grill log"
+    ],
+    "unlocks": [
+     "PRD.md and the requirement ADRs",
+     "the short design pass on the seams between sessions",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26, the demo ticket: you give it by day 5"
+    ],
+    "fork": "Your steer moves a minimal visualize into P0 and asks for one page model across 3 skills. That is real work in a 1-week plan, so P-4 says what it costs and what I would cut. The page cards below it depend on P-4.\n\nYour notes also reopened the artifact files (keep the v1 names and split) and the eval scope (contextual instructions, not skills), and asked 2 questions (Jira write, plugin hooks). The answers are in J-1 and H-1. H-1 can reverse 2 items you accepted in round 1, so it is a debate, not a decision.\n\nThis page is still the v1 kit shape. The map you asked for is what P-1 to P-3 decide.",
+    "touches": [
+     {
+      "name": "Your page-level steer",
+      "anchor": "docs/v1kit/afkv2/GRILL-LOG.md, Open row, steer line"
+     },
+     {
+      "name": "The wayfinder scope page",
+      "anchor": "scratchpad page/v1kit-v2-scope.html (card S scope map, card R notes and answers)"
+     },
+     {
+      "name": "v1 page kit",
+      "anchor": "scripts/lavish_render.py, scripts/lavish/"
+     },
+     {
+      "name": "Plugin hooks, Claude",
+      "anchor": "code.claude.com/docs/en/hooks.md (Plugin hooks/hooks.json: When plugin is enabled)"
+     },
+     {
+      "name": "Plugin hooks, Codex",
+      "anchor": "learn.chatgpt.com/docs/hooks"
+     }
+    ],
+    "size_note": "21 cards. The page group waits on P-4; the other groups are independent of it.",
+    "groups": [
+     {
+      "id": "page",
+      "title": "The big-picture page in P0"
+     },
+     {
+      "id": "artifacts",
+      "title": "Artifact files: back to the v1 names and split",
+      "after": [
+       "page"
+      ]
+     },
+     {
+      "id": "jira",
+      "title": "Jira write"
+     },
+     {
+      "id": "coexist",
+      "title": "Plugin hooks and the v1/v2 switch"
+     },
+     {
+      "id": "evals",
+      "title": "Evals for contextual instructions"
+     },
+     {
+      "id": "terms",
+      "title": "New words",
+      "layout": "table"
+     }
+    ]
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "P-4",
+     "group": "page",
+     "decision": "Move a minimal visualize into P0: what does it cost, and what do we cut to pay for it — your pick: Visualize in P0 as a port of the v1 page kit plus the map; gc and the release gate move to P1",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: port-cut",
+     "audit": "explicit"
+    },
+    {
+     "component": "decided_card",
+     "id": "P-1",
+     "group": "page",
+     "decision": "grill, propose-solution and propose-verification share one page model: a big-picture map on top, updated in place each round, then the current round's cards, each card linked to the map node it settles.",
+     "alternatives": [
+      {
+       "id": "kit-as-is",
+       "label": "Keep the v1 kit shape: rounds on top, settled history below, no map",
+       "why": "the human sees one round, not the whole picture"
+      },
+      {
+       "id": "per-skill",
+       "label": "A different page shape per skill",
+       "why": "three shapes to build and learn"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "your R-1 page-level steer, points 2 and 3; the wayfinder scope page (scratchpad page/v1kit-v2-scope.html): scope map card S with a run-order graph and a status table",
+      "sentence": "Your steer states the shape and that only the map content differs between the 3 skills."
+     },
+     "why_beat": {
+      "runner_up_id": "kit-as-is",
+      "sentence": "The v1 kit shows only the round in play, which is the gap your steer names."
+     },
+     "reverse": "Remove the map section from the page; the round cards stay as they are.",
+     "scope": {
+      "hl": "none",
+      "depends_on": [
+       "P-4"
+      ]
+     },
+     "context": "What the wayfinder page did that this keeps: one page that grows round by round instead of a new page each round; a map of the whole scope with status per node (decided, open, later); a graph of how the parts connect, where a box jumps to its row; your notes and the agent's answer to each note in one section, newest round on top (you said you liked how that section showed both); changed rows marked new, kept or removed by colour and strike-through.\n\nWhat it adds from the grill rules: decided, confirm and debate cards with explicit marks, which the wayfinder page did not have (it took free notes only).",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "decided_card",
+     "id": "P-2",
+     "group": "page",
+     "decision": "The map content per skill: grill shows the requirement tree (pain, actors, stories, rules, worked examples, terms), propose-solution shows the design layers with their fork cards, propose-verification shows the scenarios; each map also shows the decisions so far, the open items, and one diagram of how the parts connect.",
+     "alternatives": [
+      {
+       "id": "free-map",
+       "label": "Each skill draws whatever map it likes",
+       "why": "no common reading habit across skills"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "your R-1 page-level steer, points 2 and 3",
+      "sentence": "Your steer names the map content for each of the 3 skills."
+     },
+     "why_beat": {
+      "runner_up_id": "free-map",
+      "sentence": "A fixed map per skill lets you read every page the same way."
+     },
+     "reverse": "Change the map content in the skill that owns it.",
+     "scope": {
+      "hl": "none",
+      "depends_on": [
+       "P-4"
+      ]
+     },
+     "context": "In P0 the diagram is one kind: a node-and-arrow graph drawn from the map data, with fill colour for status, like the scope-map graph on the wayfinder page (scratchpad page/r3_svg.py). More diagram kinds (flow charts, sequence diagrams, data tables for worked examples) come with full visualize in P1.",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "decided_card",
+     "id": "P-3",
+     "group": "page",
+     "decision": "You can annotate anything on the page: a note on a map node is a steer, a note on a settled item reopens it, a note on a current card follows the round rules, and a free note never stands in for a mark.",
+     "alternatives": [
+      {
+       "id": "cards-only",
+       "label": "Notes only on the current cards",
+       "why": "the scope page proved that notes land everywhere"
+      }
+     ],
+     "evidence": {
+      "grade": "repo",
+      "cite": "LAVISH.md:379 (the editor's annotation toggle works on any element); LAVISH-KIT.md 'Round response' rule 2 (an annotation resolves to its enclosing card); your R-1 steer, point 2",
+      "sentence": "The page editor already lets you annotate any element; the page only needs ids on map nodes and settled items so each note resolves to the thing it is on."
+     },
+     "why_beat": {
+      "runner_up_id": "cards-only",
+      "sentence": "Your page-level steer in round 1 arrived as a note on the page title, so notes off the cards happen in real use."
+     },
+     "reverse": "Drop the ids on map nodes and settled items; their notes then pin to the page.",
+     "scope": {
+      "hl": "none",
+      "depends_on": [
+       "P-4"
+      ]
+     },
+     "context": "Round 1 shows the gap: your steer landed on the title line, outside every card, and could only pin to the page. With ids on every map node and settled item, a note on decision S-4 reopens S-4, and a note on the 'evals' node of the map becomes a steer for evals.",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "settled_card",
+     "id": "P-5",
+     "group": "page",
+     "decision": "grill shows each round on the big-picture page, and falls back to the terminal only when a render fails or you opt out.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "P-7",
+     "group": "page",
+     "decision": "The P0 division becomes: S1 builds 01 skeleton and manifests, 02 core behaviors, 03 setup, 04 eval harness, 05 visualize; S2 builds 06 grill, 07 to-spec, 08 propose-solution, 09 to-subtasks; S3 builds 10 forge and tracker-read port, 11 autopilot and execute, 12 code-review, 13 change request and CI watch; S4 runs 14 chain smoke; gc and the release gate move to P1.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "decided_card",
+     "id": "P-8",
+     "group": "page",
+     "decision": "The page gets deterministic tests only (schema checks, a render snapshot, and a response-parse test for marks and notes), not live-agent evals.",
+     "alternatives": [
+      {
+       "id": "live-eval",
+       "label": "A live-agent eval of the page",
+       "why": "evals are for contextual instructions, not skills (your S-6 note)"
+      }
+     ],
+     "evidence": {
+      "grade": "spec",
+      "cite": "your S-6 note: 'the eval is not for skills... v1kit's own skills do not need eval for now'; v1 scripts/tests/test_lavish_render.py (117 tests) ports with the kit",
+      "sentence": "Your S-6 note rules out skill evals, and the page is code with exact outputs, which plain tests prove."
+     },
+     "why_beat": {
+      "runner_up_id": "live-eval",
+      "sentence": "A page render is a pure function of its JSON, so a snapshot test proves it exactly."
+     },
+     "reverse": "Add a live eval case that drives a grill round on the page.",
+     "scope": {
+      "hl": "none",
+      "depends_on": [
+       "P-4"
+      ]
+     },
+     "context": "The response-parse test checks your rules: a decided card with no mark is refused by name, a note on a settled item turns into a reopen, a note on a map node turns into a steer.",
+     "state": "open",
+     "fresh": false
+    },
+    {
+     "component": "settled_card",
+     "id": "F-1",
+     "group": "artifacts",
+     "decision": "v2 keeps the v1 artifact set, names and split of duties: GRILL-LOG.md, PRD.md with requirement ADRs, SDD.md with design ADRs, plan/ with PLAN.md and one contract per subtask, and VERIFICATION-PLAN.md in P1; only the structure and format inside each file may change.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-2",
+     "group": "artifacts",
+     "decision": "to-spec writes PRD.md and the requirement ADRs from the settled grill: pain, actors, stories with access and validation rules, worked examples, scope in and out, non-functional needs, and open items; it asks no new questions.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-3",
+     "group": "artifacts",
+     "decision": "propose-solution asks the critical-aspect questions first, then drafts the full design top down, shows each open choice as a fork card on the page, and after you vet it writes SDD.md and the design ADRs.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept. Your note: \"same principal like grill skill when asking critical aspects questions, I know there's no draft yet, but agents still should render the context to provoke thoughts, encourage giving notes, etc to human\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-4",
+     "group": "artifacts",
+     "decision": "Rename to-spec to to-prd, so the skill name matches the file it writes (PRD.md) — Yes, call it to-prd.",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-5",
+     "group": "artifacts",
+     "decision": "Keep INDEX.md, the read-this-first file in the spec folder that lists each artifact and its state — Yes, keep INDEX.md.",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "F-6",
+     "group": "artifacts",
+     "decision": "A worked example uses the picture that fits it: a flow chart for a user flow, a table for data the feature produces, and more than one when one does not show the whole case; you check each in a round, and to-spec copies it into the PRD.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-1",
+     "group": "jira",
+     "decision": "You asked: 'it may write to JIRA in to-spec, no?' Where does the Jira write go — your pick: P0: to-spec writes into the ticket itself",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: p0-in-spec",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "H-1",
+     "group": "coexist",
+     "decision": "You asked whether plugins can carry their own hooks. They can on both providers. Should the core behaviors load from a plugin hook instead of the user files — your pick: A plugin session-start hook prints the core behaviors; setup only removes the v1 block from the user files",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: plugin-hook. Your note: \"I did not know about this mechanism before, but it's clearly a superior solution. it keeps a central place so we don't have to maintain or cleanup afterward, it is natively supported by both harnesses. agents should have suggested this option in the first place\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "H-2",
+     "group": "coexist",
+     "decision": "Until a live probe proves a per-session Codex switch, setup turns plugins on and off globally on Codex: one of v1kit or afkv2 enabled at a time on the machine — Yes, a global switch on Codex for now.",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-1",
+     "group": "evals",
+     "decision": "The beta eval harness proves contextual instructions: the core behaviors and a repository's instruction files (root and nested AGENTS.md); a case runs the same prompt with and without the instruction file on Claude and on Codex, and checks the behavior the instruction claims.",
+     "round": 2,
+     "by": "agent",
+     "evidence": "Your mark: accept. Your note: \"the eval is part of the contextual instructions writing/editing capability of the plugin, which is mainly exercised in the sync harness subtask, or adopt process to get a repo become v1kit ready\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-2",
+     "group": "evals",
+     "decision": "In the beta the harness runs on any repository from one command, with the cases stored in that repository; the week-1 set is the core behaviors plus the nested AGENTS.md files of the toy repository; a skill that drafts cases from AGENTS.md lines is 2.1 — Yes, this is the beta eval scope.",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-20",
+     "group": "terms",
+     "decision": "I take 'big-picture map' to mean: the section on top of a grill or design page that shows the whole tree (requirements, design layers or scenarios), with each node's status, the decisions so far, the open items, and one diagram of how the parts connect; it is updated in place each round. Correct — your ruling: there's no single big picture map, as noted abvove",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"there's no single big picture map, as noted abvove\"",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-21",
+     "group": "terms",
+     "decision": "I take 'steer' to mean: a note that changes what the agent decides, not whether it decides: guidance, an instruction or a reference; a note on a map node is a steer for that node, a page-level note binds the rest of the session. Correct — Yes, use this definition.",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-22",
+     "group": "terms",
+     "decision": "I take 'mark / note' to mean: a mark is the explicit answer on a card (accept, reopen, reverse, an option, write-in) and is the only thing that settles it; a note is free text on any element and never stands in for a mark. Correct — your ruling: a note can settle it if it's clear and not ambiguious",
+     "round": 2,
+     "by": "human",
+     "evidence": "Your mark: write-in. Your note: \"a note can settle it if it's clear and not ambiguious\"",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "settled",
+   "header": {
+    "component": "round_header",
+    "round": 3,
+    "settled_last_round": [
+     "16 of 21 round-2 items settled; your engine note on P-1 is now the source for the engine cards",
+     "Plugin session-start hook chosen for the core behaviors (H-1)",
+     "Jira write moves into to-prd in P0 (J-1)",
+     "Devil's-advocate pass ran over the settled set: 12 findings; the ones not already covered are the 'devil' group and notes on V-5, V-6, V-8 and X-2"
+    ],
+    "unlocks": [
+     "PRD.md and the requirement ADRs",
+     "the seam design pass",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26, the demo ticket: you give it by day 5"
+    ],
+    "fork": "Your engine note turns 'minimal visualize' into a real page engine: composable components, a freestyle part, several maps, your notes and the replies on top, and re-opening past sessions. That is the right engine, and it costs about twice what round 2 paid. With Jira write in P0 as well, about 3 subtasks are unpaid. X-1 says what I would cut, and it follows your own E-1 note.\n\nYour note also changes one of your round-1 rules: a clear note can now settle a point. V-5 says how that stays auditable.\n\nThis page is still the v1 kit. The engine you described is what V-1 to V-10 decide.",
+    "touches": [
+     {
+      "name": "Your round-2 engine note",
+      "anchor": "docs/v1kit/afkv2/GRILL-LOG.md, R-2 response"
+     },
+     {
+      "name": "v1 page kit",
+      "anchor": "scripts/lavish_render.py, scripts/lavish/"
+     },
+     {
+      "name": "v1 to-ticket (managed block, ADF)",
+      "anchor": "skills/v1kit/to-ticket/SKILL.md, adapters/tracker/jira/api.py"
+     },
+     {
+      "name": "Codex hooks",
+      "anchor": "learn.chatgpt.com/docs/hooks"
+     }
+    ],
+    "size_note": "28 cards. The engine, Jira, hooks and devil groups stand alone; X-2 waits on X-1, and E-3 depends on X-1.",
+    "groups": [
+     {
+      "id": "engine",
+      "title": "The page engine"
+     },
+     {
+      "id": "cost",
+      "title": "What it costs and what we cut",
+      "after": [
+       "engine"
+      ]
+     },
+     {
+      "id": "jira",
+      "title": "Jira write in to-prd"
+     },
+     {
+      "id": "hooks",
+      "title": "Core behaviors from a plugin hook"
+     },
+     {
+      "id": "evals",
+      "title": "Evals and the sync-harness subtask",
+      "after": [
+       "cost"
+      ]
+     },
+     {
+      "id": "devil",
+      "title": "Devil's-advocate findings"
+     },
+     {
+      "id": "terms",
+      "title": "New words",
+      "layout": "table"
+     }
+    ]
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "V-1",
+     "group": "engine",
+     "decision": "Every grill and design page is made by one page engine: the agent writes only a page document (JSON), and the engine turns it into the page; no agent writes page HTML.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-2",
+     "group": "engine",
+     "decision": "Any HTML and CSS renders: the freestyle component plus an open style field on every component, not only the listed styles and components.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"obviously we want to fully support what HTML can render, not limited to what style and components listed here\". Settled by your note; my reading is the decision above.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-3",
+     "group": "engine",
+     "decision": "A freestyle component takes any HTML or SVG fragment the agent writes, for what no component covers, and the engine marks each freestyle use so that a later version can turn a repeated use into a component.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-4",
+     "group": "engine",
+     "decision": "The page shows, top to bottom: the round banner, your notes and the agent's replies (newest round first, each round collapsible), the maps (as many as the topic needs, coloured by settled, open and current focus), then one card per map node; every round has its own colour, a round chip marks what needs you this round, and nothing is removed, so the whole session's history stays on the page.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-5",
+     "group": "engine",
+     "decision": "You can write a note on anything on the page, and a point settles either by a mark or by a note that is clear and not ambiguous; the agent writes how it read each such note in its reply ('settled by your note: ...'), so you can reverse it, and a point with conflicting signals stays open.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-6",
+     "group": "engine",
+     "decision": "Page documents are kept in the feature's spec folder next to the PRD, not as run files; the engine reopens any past session from there.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"not as run files though, in the feature's specs folder instead (along with other artifacts like PRD)\". Settled by your note; my reading is the decision above.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-7",
+     "group": "engine",
+     "decision": "The authoring guide is the visualize skill itself (its SKILL.md and component pages); every skill that renders a page loads it first.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"the guide could be the lavish skill itself\". Settled by your note; my reading is the decision above.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-8",
+     "group": "engine",
+     "decision": "The engine is verified two ways: deterministic tests (schema checks, render snapshots, the response parser), and a live test in which an agent drives the page in a real browser and checks what a user sees: no hidden or cut-off content, every action works (mark, note, edit and delete a note, collapse, send), and edge cases such as many notes, long text, wide tables, many rounds and big diagrams.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-9",
+     "group": "engine",
+     "decision": "The grill and propose-solution render context before they ask: before a critical-aspect question, the page shows the current state (the code area, the data, the flow) as pictures, to start your thinking and invite notes.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-10",
+     "group": "engine",
+     "decision": "In P0 the engine draws these diagram kinds: node-and-arrow graphs (maps, flow charts, module structure with grouped boxes) and tables; sequence diagrams and simulated-run strips come in P1, and the freestyle component covers them until then — All 4 kinds in P0.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: all-p0",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "X-1",
+     "group": "cost",
+     "decision": "The engine you described and Jira write in P0 cost about 3 more subtasks than round 2 paid for. What do we cut — your pick: Keep everything in P0; the chain smoke run moves from day 3 to day 4",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: slip-day",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "X-2",
+     "group": "cost",
+     "decision": "Void: this division held only if X-1 was 'move-evals'; your pick was 'slip-day', so the division is re-derived as W-2.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-2",
+     "group": "jira",
+     "decision": "to-prd publishes the requirements into the ticket: it shows you the exact text first and writes only after your yes, it writes only inside an v1kit-managed block of the ticket description and keeps all other text, and it reads the ticket back to check the text arrived unchanged.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-3",
+     "group": "jira",
+     "decision": "The text published into the ticket is a requirements-level summary of the PRD (the v1 ticket-description form), not the whole PRD — The whole PRD.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: whole-prd",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "J-4",
+     "group": "jira",
+     "decision": "The agent may write to Jira only the managed block of the ticket description, only through to-prd, and only after your yes to the shown text; creating tickets, changing their status and commenting stay denied in the beta.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "H-3",
+     "group": "hooks",
+     "decision": "The core behaviors load from a plugin session-start hook on Claude and on Codex: the hook prints one file and stops, in under 50 ms, without parsing a shell command; setup removes the v1 block from the user files once and writes nothing else there.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "H-4",
+     "group": "hooks",
+     "decision": "On Codex, setup guides the developer through the one-time hook trust review, and the seam design pass proves live, before the plan locks, that the hook stops when the plugin is off and that it loads again after a compaction on both providers.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-3",
+     "group": "evals",
+     "decision": "Your E-1 note puts the evals in the sync-harness subtask, but K-8 (accepted in round 1) dropped that subtask from v2 to-subtasks. Which holds — your pick: P0 keeps K-8 (no sync-harness subtask); the sync-harness subtask and the eval harness both arrive in P1",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: p1-both",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "E-4",
+     "group": "evals",
+     "decision": "The adopt process (making a brand-new repository ready for v1kit: glossaries, nested AGENTS.md, its evals) stays 2.1 — Yes, 2.1.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-23",
+     "group": "terms",
+     "decision": "I take 'page engine / page document' to mean: the page engine is the plugin part that turns a page document into a page; the page document is the JSON the agent writes for one session, kept with the run files, and the only thing an agent writes to show a page. Correct — Yes, use this definition.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-24",
+     "group": "terms",
+     "decision": "I take 'freestyle component' to mean: the one component that holds any HTML or SVG the agent writes, for what no other component covers; each use is marked so a repeated one can become a component. Correct — Yes, use this definition.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "T-25",
+     "group": "terms",
+     "decision": "I take 'map' to mean: a diagram that keeps the high-level view of a session's topic (a scope tree, a module structure, a simulated run), coloured by settled, open and current focus; a page has as many maps as the topic needs. Correct — Yes, use this definition.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "V-11",
+     "group": "engine",
+     "decision": "The engine grows out of the v1 kit: it keeps the kit's wrapper, send runtime, saved drafts, layout-audit fixes and tooltip layer, and replaces the 6 fixed components with a registry of composable components.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-1",
+     "group": "devil",
+     "decision": "During the build, nobody updates the v1 plugin, and each session checks the friction switches at start — Yes, freeze v1 and check the switches.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-2",
+     "group": "devil",
+     "decision": "setup removes the v1 block only after it has proven that the afkv2 hook fired (a marker text the session can see), and it keeps a backup so a 'switch back to v1' step can restore the block.",
+     "round": 3,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-3",
+     "group": "devil",
+     "decision": "When a repository has no ownership config, setup asks for it once; if the developer skips it, the agent asks at its first edit outside the files the ticket names, instead of treating all code as not owned — Yes, ask instead of assuming.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-4",
+     "group": "devil",
+     "decision": "The chain smoke run publishes to a throwaway Jira test ticket in a project you name, so the Jira write path is proven before the demo — Yes, a Jira test ticket.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-5",
+     "group": "devil",
+     "decision": "The eval runs that need the plugin off (the 'without' arm) use a separate, throwaway Codex and Claude home folder, never your own settings — Yes, isolated home folders.",
+     "round": 3,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 4,
+   "state": "settled",
+   "header": {
+    "component": "round_header",
+    "round": 4,
+    "settled_last_round": [
+     "All 28 round-3 cards settled; 3 of them by your notes (V-2, V-6, V-7), with my reading on each card",
+     "The chain smoke run moves to day 4 (X-1); all 4 diagram kinds in P0 (V-10); the whole PRD goes into the ticket (J-3)",
+     "X-2's division is void, because it waited on a different X-1 pick"
+    ],
+    "unlocks": [
+     "the glossary commit",
+     "PRD.md and the requirement ADRs",
+     "the seam design pass",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26, the demo ticket: you give it by day 5",
+     "D-4, the Jira project for the throwaway test ticket: you name it by day 4"
+    ],
+    "fork": "Your round-3 picks leave one conflict: 'slip-day' keeps everything in P0, but 'p1-both' moves the eval harness to P1. W-1 says how I read them together, and W-2 is the division that follows.\n\nYour V-6 note also corrects my glossary: the PRD is not a run file. W-3 says where the spec folder lives.\n\nThis is the last round. After it: the glossary commit, then the PRD.",
+    "touches": [
+     {
+      "name": "Grill log",
+      "anchor": "docs/v1kit/afkv2/GRILL-LOG.md"
+     },
+     {
+      "name": "v2 glossary",
+      "anchor": "afkv2/GLOSSARY.md"
+     },
+     {
+      "name": "v1 Jira converter",
+      "anchor": "adapters/tracker/jira/api.py"
+     }
+    ],
+    "size_note": "5 cards. W-2 waits on W-1; the others stand alone.",
+    "groups": [
+     {
+      "id": "plan",
+      "title": "Timing and the P0 division"
+     },
+     {
+      "id": "files",
+      "title": "Where the files live, and the Jira publish"
+     },
+     {
+      "id": "ledger",
+      "title": "Premises not verified yet"
+     }
+    ]
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "W-1",
+     "group": "plan",
+     "decision": "I read your X-1 and E-3 picks together like this: the eval harness moves to P1 with the sync-harness subtask (your E-3 pick), everything else stays in P0, and the chain smoke run is on day 4. Correct — Yes: evals in P1, everything else in P0, smoke on day 4.",
+     "round": 4,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-2",
+     "group": "plan",
+     "decision": "The P0 division: S1 builds 01 skeleton, manifests and the session-start hook, 02 core behaviors, 03 engine core (the v1 kit port, the component registry, the round cards, page-document schema v0), 04 diagram components (graphs, tables, sequence diagrams, simulated-run strips), 05 notes and replies, settle by note, reopen of past sessions, and the live browser test; S2 builds 06 the visualize skill (the authoring guide), 07 grill, 08 to-prd with the Jira publish, 09 propose-solution, 10 to-subtasks; S3 builds 11 setup, 12 the forge and tracker port (GitHub-issue read, Jira read and the managed-block write), 13 autopilot and execute, 14 code-review, 15 change request and CI watch; S4 runs 16 the chain smoke run on day 4; P1 (days 5-6) adds the eval harness with the sync-harness subtask, gc and the release gate.",
+     "round": 4,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-3",
+     "group": "files",
+     "decision": "The feature's spec folder (grill log, PRD and requirement ADRs, SDD and design ADRs, page documents, the ticket index) sits on the feature branch and merges with the change, as in v1; the run branch keeps only run files (the plan folder, journal, decision ledger, review telemetry).",
+     "round": 4,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-4",
+     "group": "files",
+     "decision": "The ticket gets a summary of the PRD, not the whole PRD (your W-4 note reverses J-3); the PRD structure and the summary rule are Y-2 and Y-3.",
+     "round": 4,
+     "by": "human",
+     "evidence": "Your mark: accept. Your note: \"I see the problem is the diagrams. then I think a summarized PRD is fine. we need to work on what is the structure of PRD, and how it could be summarized to ensure critical info is preserved. I know for sure Acceptance Criteria as well as worked use cases/scenarios are critical\". Settled by your note. Correction: the card said diagrams go in as code blocks; v1 already attaches them as images, see Y-1.",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "W-5",
+     "group": "ledger",
+     "decision": "These premises stay not verified until the seam design pass probes them (H-4), and the PRD marks each one as an open premise with its probe. Do you accept that — Yes, carry them as open premises.",
+     "round": 4,
+     "by": "human",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    }
+   ]
+  },
+  {
+   "round": 5,
+   "state": "settled",
+   "header": {
+    "component": "round_header",
+    "round": 5,
+    "settled_last_round": [
+     "W-1, W-2, W-3, W-5 accepted: evals in P1, smoke on day 4, the 5-5-5 division, the spec folder on the feature branch, 3 open premises",
+     "W-4: your note chose a summary of the PRD for the ticket"
+    ],
+    "unlocks": [
+     "the glossary commit",
+     "PRD.md and the requirement ADRs",
+     "the seam design pass",
+     "the 4 plan folders"
+    ],
+    "parked": [
+     "Q26, the demo ticket: you give it by day 5",
+     "D-4, the Jira project for the throwaway test ticket: you name it by day 4"
+    ],
+    "fork": "I got a fact wrong in W-4. I wrote that diagrams go into the ticket as code blocks, as if the tools could do no better. v1 already puts them in as pictures. Only J-4 (managed block only, no attachments) blocked that, and I did not say so. Your note chose a summary because of the diagrams, so Y-1 brings the choice back with the right facts.\n\nY-2 and Y-3 answer your note: the PRD structure, and how the summary keeps the acceptance criteria and the worked examples.",
+    "touches": [
+     {
+      "name": "v1 PRD template",
+      "anchor": "skills/v1kit/to-prd/PRD-TEMPLATE.md"
+     },
+     {
+      "name": "v1 ticket publish (pictures)",
+      "anchor": "skills/v1kit/to-ticket/scripts/publish_prd.py"
+     }
+    ],
+    "size_note": "3 cards. Y-3 uses the ids from Y-2.",
+    "groups": [
+     {
+      "id": "ticket",
+      "title": "The PRD and the ticket"
+     }
+    ]
+   },
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "Y-1",
+     "group": "ticket",
+     "decision": "The ticket gets the whole PRD, with its diagrams as pictures; J-4 widens to let to-prd upload and replace the diagram pictures on that one ticket (your pick: whole-images).",
+     "round": 5,
+     "by": "human",
+     "evidence": "Your mark: whole-images",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "Y-2",
+     "group": "ticket",
+     "decision": "The v2 PRD keeps the v1 sections (problem, solution, catalog, user stories, acceptance criteria, access and validation policy, implementation decisions, testing decisions, out of scope, notes) and adds a Worked examples section after the acceptance criteria; every acceptance criterion and every worked example carries a stable id.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "Your mark: accept",
+     "audit": "explicit"
+    },
+    {
+     "component": "settled_card",
+     "id": "Y-3",
+     "group": "ticket",
+     "decision": "Read with your Y-1 pick: there is no separate summary; the publish check refuses when any acceptance-criterion id or worked-example id is missing from the published text, and the preview shows the text before your yes.",
+     "round": 5,
+     "by": "agent",
+     "evidence": "Your mark: accept. Your Y-1 pick removes the summary, so only the id check survives; my reading, reversible.",
+     "audit": "explicit"
+    }
+   ]
+  }
+ ]
+}

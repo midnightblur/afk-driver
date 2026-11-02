@@ -35,7 +35,7 @@ complex
 - [ ] A picture of the current state comes before a critical-aspect question (PRD §AC-043)
 
 ## Produces
-- afkv2/skills/grill/SKILL.md#/afkv2:grill — the grill skill
+- afkv2/skills/grill/SKILL.md#description: /afkv2:grill — the grill skill
 - afkv2/skills/grill/scripts/round_document.py#def build_round_document( — writes a schema-v0 round document
 
 ## Consumes

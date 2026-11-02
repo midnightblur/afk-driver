@@ -6,6 +6,12 @@
   "description": "AFK Toolkit — harness-agnostic workflow skills, agents, hooks, and adapters for Claude Code and Codex CLI.",
   "plugins": [
     {
+      "name": "afkv2",
+      "source": "./afkv2",
+      "version": "2.0.0-beta.1",
+      "description": "AFK 2.0 beta: a ticket-to-change workflow for Claude Code and Codex CLI, with the core behaviors loaded by a session-start hook."
+    },
+    {
       "name": "afk",
       "source": "./",
       "version": "1.16.1",

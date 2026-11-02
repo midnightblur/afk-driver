@@ -1,0 +1,41 @@
+/* Notes and replies (CMP-2), the note controls on every element, and the list of unsent notes. */
+
+.afkv2-nr-round {
+  margin: 0 0 .75rem; padding: .55rem .85rem; border: 1px solid var(--line);
+  border-left: 4px solid var(--afkv2-round, var(--neutral)); border-radius: 6px; background: var(--surface);
+}
+.afkv2-nr-round > summary { cursor: pointer; font-weight: 600; }
+.afkv2-nr-replies, .afkv2-nr-notes, .afkv2-nr-signals { margin: .5rem 0 0; padding: 0; list-style: none; }
+.afkv2-nr-reply, .afkv2-nr-note { margin: 0 0 .5rem; padding: .4rem .6rem; border-radius: 4px; background: var(--surface-2); }
+.afkv2-nr-reply { border-left: 3px solid var(--accent); }
+.afkv2-nr-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.afkv2-nr-head, .afkv2-nr-about { margin: 0 0 .2rem; font-size: .78rem; color: var(--fg-dim); overflow-wrap: anywhere; }
+.afkv2-nr-about { margin: .2rem 0 0; }
+.afkv2-nr-actions { margin: .3rem 0 0; }
+.afkv2-nr-note--deleted .afkv2-nr-text { color: var(--fg-dim); text-decoration: line-through; }
+.afkv2-nr-h { margin: .5rem 0 0; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim); }
+.afkv2-nr-signal { margin: .1rem 0; font-size: .85rem; overflow-wrap: anywhere; }
+
+.afkv2-nr-actions button, .afkv2-note-add, .afkv2-note-draft button {
+  font: inherit; font-size: .75rem; padding: .05rem .4rem; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg-dim);
+}
+.afkv2-note-add { margin: 0 0 .2rem .35rem; }
+.afkv2-note-add:hover, .afkv2-nr-actions button:hover, .afkv2-note-draft button:hover { color: var(--fg); border-color: var(--accent); }
+.afkv2-note-hint { margin: 0 0 .25rem; font-size: .78rem; color: var(--fg-dim); }
+.afkv2-box[data-afkv2-element] { cursor: pointer; }
+.afkv2-box[data-afkv2-element]:hover { border-color: var(--accent); }
+
+.afkv2-note-drafts { margin: 1rem 0 .75rem; padding: .6rem .85rem; border: 1px dashed var(--accent); border-radius: 6px; }
+.afkv2-note-drafts[hidden] { display: none; }
+.afkv2-note-drafts > h3 { margin: 0 0 .4rem; font-size: .95rem; }
+.afkv2-note-draft { margin: 0 0 .6rem; }
+.afkv2-note-draft-head { margin: 0; font-size: .85rem; overflow-wrap: anywhere; }
+.afkv2-note-draft-actions { margin: .1rem 0 .25rem; }
+.afkv2-note-draft fieldset { border: 0; margin: 0 0 .2rem; padding: 0; display: flow-root; }
+.afkv2-note-draft fieldset[hidden] { display: none; }
+.afkv2-note-draft label { margin-right: .75rem; font-size: .85rem; }
+.afkv2-note-draft textarea {
+  display: block; width: 100%; padding: .4rem .5rem; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 4px; font: inherit; resize: vertical;
+}

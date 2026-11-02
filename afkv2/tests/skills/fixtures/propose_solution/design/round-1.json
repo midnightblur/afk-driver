@@ -1,0 +1,18 @@
+{"banner": {"settled": [], "unlocks": ["the order export design"], "parked": []},
+ "items": [
+  {"id": "a-entities", "aspect": "entities", "kind": "confirm",
+   "body": {"type": "table", "id": "a-entities-now",
+            "props": {"columns": ["Entity", "Field", "After the change"],
+                      "rows": [["order", "id", {"type": "chip", "props": {"text": "kept", "tone": "kept"}}],
+                               ["export run", "—", {"type": "chip", "props": {"text": "new", "tone": "new"}}]]},
+            "children": [{"type": "text", "id": "a-entities-question",
+                          "props": {"text": "The feature adds one entity, export run. Is that the whole set?"}}]}},
+  {"id": "f-relations", "aspect": "relations",
+   "fork": {"question": "How does an export run link to its orders?",
+            "picture": {"type": "table", "id": "f-relations-now",
+                        "props": {"columns": ["From", "To", "Today"], "rows": [["order", "customer", "foreign key"]]}},
+            "options": [{"name": "Join table", "text": "One row per order per run; keeps every past run."},
+                        {"name": "Run id on the order", "text": "One new column; keeps only the last run."}],
+            "recommended": "a",
+            "why_open": "2 live options; the choice is hard to reverse after the first export."}}
+ ]}

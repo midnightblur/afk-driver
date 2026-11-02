@@ -18,6 +18,7 @@ standard
 - afkv2/engine/components/diagram_*.py
 - afkv2/engine/shell/diagram*
 - afkv2/tests/engine/test_diagram_components.py
+- afkv2/tests/engine/test_engine_core.py   # orchestrator ruling: only remove the scratch map registration from test_page_order_is_banner_slot_maps_cards
 
 ## Seams
 (none — this slice touches no SDD §14 seam row; its §9b rows are in ## Acceptance and the PLAN.md seam register)
