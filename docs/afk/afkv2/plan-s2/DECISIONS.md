@@ -552,3 +552,10 @@
 - Chosen: A — commit 87d1fa8a. Real ingest with a note on a settled-round card: `state` becomes `open`, `settled` is removed, the note stays on that card with the current round number, the round stays `settled`, the signal has `reopened: true`, and `engine check` accepts the result. The older shape kept `settled` and state unchanged, and the fake kept `settled`. So a bare `reopen` on an older card gave an empty `returning` against the real engine, and the point could be lost with no refusal. Run on the real engine before the fix; a test now covers both a note and a reopen. Fake aligned for a settled older card only: a note on an older card that is not settled gives `open` in the fake and `needs_reading` in real ingest
 - Supersedes: none
 - To reverse: revert commit 87d1fa8a
+
+## D-80 — orchestrator ruling: every real-engine test uses a data folder under tmp_path
+- 2026-11-02 · decided by the session orchestrator (integration, PR #154 CI at 23f3c3d5: ubuntu red, windows green)
+- Options: A — every test that runs the real engine, or any afkv2 script that reads LOCALAPPDATA, passes LOCALAPPDATA under tmp_path vs B — change only the test that failed on ubuntu
+- Chosen: A — commit 3fcc41f5, 7 sites in test_grill.py, test_propose_solution.py, test_to_subtasks.py and test_visualize.py. The engine is right to refuse: the PRD puts Linux and macOS out of scope. The tests were wrong. `render` needs the data folder and `ingest` saves a copy there when it can. `check` reads a saved copy from it when it can, and without the folder it skips that compare with no refusal, so only the `render` site failed on ubuntu and the others used the real folder on Windows. The to-prd world and its in-process renderer tests already set their own value.
+- Supersedes: none
+- To reverse: revert commit 3fcc41f5
