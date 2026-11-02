@@ -11,7 +11,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | Live check 1, hook text in context | Codex 0.166 | beta.3 | pass | session and subagent quote `afkv2-core-behaviors end 24a66b9e53ae`; new `fired-codex.txt` at 12:58 |
 | Live check 2, after a compaction | Codex 0.166 | beta.3 | pass | same line after `/compact`; new session-start record at 13:00:16 |
 | Setup, takeover | Codex | beta.3 | pass | v1 disabled, afkv2 enabled, backup of `config.toml`, lavish 0.1.80; a new session holds the marker, and the only `afk:behaviors` text is a comment in the interim block |
-| Switch-back, setup again | Codex | | not run | |
+| Backup folder permissions (setup check 5) | Codex | beta.4 | pass, one part not checked | `backup` has one entry, the owner's account with `(OI)(CI)(F)`, no `(I)`. Per-file permissions not checked: switch-back had restored the values file. Check 5 step 5 no longer tests the sandbox account, because the rules run setup outside the sandbox |
+| Switch-back, setup again (setup check 4) | Codex | beta.4 | pass | rules file removed, v1 on, afkv2 off, lavish 0.1.63, no conflict; after F-14, setup again: v1 off, afkv2 on, lavish 0.1.80, 32 scripts in the rules file |
 | Live check 3, sandboxed | Codex | beta.3 | fail | F-6 |
 | Live check 3, page answer after 10 minutes | Codex | beta.3, one approval, run outside the sandbox | not proved | the hook waited from 14:12:32; Codex restarted at 14:23:13 in a new pane and the turn was interrupted; on the next turn the hook handed the answer back with no chat message about it; see F-7, F-9 |
 | Setup again, rules file | Codex | beta.4 | pass | v1 disabled, afkv2 enabled; `~/.codex/rules/afkv2.rules` holds 64 rules; see F-13 |
@@ -36,4 +37,5 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | F-11 | Removing and adding the marketplace turns v1 on again next to afkv2. Setup must run after each beta install. | recorded | afkv2 setup |
 | F-12 | Card PIN-2 of the check page shows raw JSON (owner's note). The text comes from the fixture `v0-sdd-pass.json`, where a `signoff_packet` is stored as plain text. The renderer did what the document said. | fixture only, no fix needed for the run | afkv2 tests |
 | F-13 | After a plugin update, the rules name the old folder, so the first `setup.py status` runs in the sandbox and answers `unreadable-input` (`WinError 5` on `backup`). The agent ran it again with an approval, and setup then wrote the new rules. | recorded: setup recovers with one approval | afkv2 setup |
+| F-14 | Switch-back disables afkv2, so `/afkv2:setup` is gone, and nothing says how to return. Codex has no enable command: `codex plugin add afkv2@<marketplace>` enabled it. Setup then needs one more new session, because prepare writes a new install record. | fix on PR #161: the setup skill states the route | afkv2 setup |
 | F-8 | The interim rule block stays in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so a dogfood session holds it next to the afkv2 core behaviors. | open: remove it from the file for that harness before its dogfood ticket | owner build setup |
