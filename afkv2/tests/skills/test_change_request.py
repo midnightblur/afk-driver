@@ -1042,18 +1042,21 @@ class Tools:
         self.real_run, self.kind, self.head = real_run, kind, head
         self.draft, self.exists, self.ci = True, False, "success"
         self.commands = []
+        self.body = ""
 
     def _view(self):
         if not self.exists:
             return shell.Done(1, "", "no pull requests found" if self.kind == "github" else "no open merge request available")
         if self.kind == "github":
             rollup = [{"conclusion": {"success": "SUCCESS", "failed": "FAILURE", "running": ""}[self.ci], "status": "COMPLETED"}]
-            return shell.Done(0, json.dumps({"number": 7, "url": "https://f.test/7", "title": "t", "state": "OPEN", "isDraft": self.draft,
+            return shell.Done(0, json.dumps({"number": 7, "url": "https://f.test/7", "title": "t", "state": "OPEN", "isDraft": self.draft, "body": self.body,
                                              "headRefOid": self.head, "statusCheckRollup": rollup}), "")
-        return shell.Done(0, json.dumps({"iid": 7, "web_url": "https://f.test/7", "title": "t", "state": "opened", "draft": self.draft,
+        return shell.Done(0, json.dumps({"iid": 7, "web_url": "https://f.test/7", "title": "t", "state": "opened", "draft": self.draft, "description": self.body,
                                          "sha": self.head, "head_pipeline": {"status": self.ci, "web_url": "https://f.test/ci"}}), "")
 
     def _gitlab_api(self, args, stdin_text):
+        if "-X" in args:
+            self.body = json.loads(stdin_text).get("description", self.body)
         if args[1].startswith("users?username="):
             name = args[1].split("=", 1)[1]
             return shell.Done(0, json.dumps([{"id": len(name), "username": name}]), "")
@@ -1072,6 +1075,8 @@ class Tools:
             return self._gitlab_api(args, stdin_text)
         if args[1] == "view":
             return self._view()
+        if args[1] in ("create", "edit"):
+            self.body = stdin_text
         if args[1] == "create":
             self.exists = True
             assert "--draft" in args
