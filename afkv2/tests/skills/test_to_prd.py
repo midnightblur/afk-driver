@@ -1096,3 +1096,11 @@ def test_real_port_replaces_a_v1_block(real_port_world):
     content = _LocalJira.issue["description"]["content"]
     assert content[0] == outside[0] and content[-1] == outside[1]
     assert sorted(_LocalJira.attachments.values()) == sorted(["design.pdf", picture(answer)])
+
+
+def test_crlf_in_the_index_format_file_changes_nothing(tmp_path, monkeypatch):
+    template = prd_files._template("PROJ-1")
+    copy = tmp_path / prd_files.FORMAT_FILE.name
+    copy.write_bytes(prd_files.FORMAT_FILE.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    monkeypatch.setattr(prd_files, "FORMAT_FILE", copy)
+    assert prd_files._template("PROJ-1") == template

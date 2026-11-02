@@ -107,6 +107,34 @@ def test_a_clean_plan_exits_0(tmp_path, clean):
     assert answer["subtasks"] == ["0001-a", "0002-b"]
 
 
+def with_crlf(source, target):
+    """`target` holds `source` as a Windows checkout writes it."""
+    target.write_bytes(source.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    return target
+
+
+def test_crlf_in_the_format_file_and_the_plan_changes_nothing(tmp_path, clean, monkeypatch):
+    plan = write_plan(tmp_path / "plan", clean)
+    digest = plan_files.plan_digest(plan)
+    monkeypatch.setattr(cp, "FORMAT_FILE", with_crlf(cp.FORMAT_FILE, tmp_path / cp.FORMAT_FILE.name))
+    for path in plan.glob("*.md"):
+        with_crlf(path, path)
+    assert cp.check_plan(plan)["ok"] is True
+    assert plan_files.plan_digest(plan) == digest
+
+
+def test_a_base_file_committed_with_crlf_reads_as_lf(tmp_path):
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitattributes").write_bytes(b"*.txt -text\n")
+    (tmp_path / "a.txt").write_bytes(b"one\r\ntwo\r\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x"],
+                   check=True)
+    base = cp.Base(tmp_path)
+    base.__dict__["source"] = ("ref", "HEAD")
+    assert base.read("a.txt") == "one\ntwo\n"
+
+
 def test_every_failure_is_listed_with_exit_1(tmp_path, clean):
     clean["0002-b"] = contract("0002-b", produces=["src/b.py#short — the code"],
                                consumes=["0009-x src/x.py#def nothing_at_all( — it"])

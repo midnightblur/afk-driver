@@ -335,7 +335,7 @@ def plan_digest(plan):
     """8 characters over PLAN.md and the contracts; the division line and the date do not count."""
     plan, digest = Path(plan), hashlib.sha256()
     for path in [plan / "PLAN.md", *cp.contract_paths(plan)]:
-        lines = cp.read_text(path).replace("\r\n", "\n").split("\n")
+        lines = cp.read_text(path).split("\n")
         kept = [line for line in lines if not line.startswith(UNSTAMPED_LINES)] if path.name == "PLAN.md" else lines
         digest.update(path.name.encode("utf-8") + b"\0" + "\n".join(kept).encode("utf-8") + b"\0")
     return digest.hexdigest()[:8]

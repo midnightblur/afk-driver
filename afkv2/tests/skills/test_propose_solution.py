@@ -850,6 +850,17 @@ def test_each_form_of_a_blocking_open_question_is_found(layer, blocks):
     assert any("open question blocks the executor" in problem for problem in design_files._open_question_problems(table))
 
 
+def test_crlf_in_the_format_files_changes_nothing(tmp_path, monkeypatch):
+    template, rows = design_files.sdd_template(), {group: dr.group_rows(group) for group in dr.GROUPS}
+    for name in ["SDD-FORMAT.md", *{spec["file"] for spec in dr.GROUPS.values()}]:
+        text = (SKILL_DIR / name).read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+        (tmp_path / name).write_bytes(text)
+    monkeypatch.setattr(design_files, "SKILL", tmp_path)
+    monkeypatch.setattr(dr, "SKILL", tmp_path)
+    assert design_files.sdd_template() == template
+    assert {group: dr.group_rows(group) for group in dr.GROUPS} == rows
+
+
 @pytest.mark.parametrize("layer, blocks", [("L3", "no: a named fallback exists"), ("L8", "yes: a font"), ("L1", "yes")])
 def test_a_harmless_open_question_passes(layer, blocks):
     table = f"## §13 Open Questions\n\n| Question | Layer | Blocks? | Owner | Date |\n|---|---|---|---|---|\n| Q | {layer} | {blocks} | o | d |\n"

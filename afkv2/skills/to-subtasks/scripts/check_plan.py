@@ -83,7 +83,7 @@ def failure(code, where, reason, **extra):
 
 def read_text(path):
     try:
-        return Path(path).read_bytes().decode("utf-8")
+        return Path(path).read_bytes().decode("utf-8").replace("\r\n", "\n")
     except (OSError, UnicodeDecodeError) as error:
         raise Refusal("unreadable", f"cannot read {path}: {error}", EXIT_UNREADABLE) from error
 
@@ -302,7 +302,7 @@ class Base:
         kind, where = self.source
         if kind == "ref":
             out = _git(self.plan, "show", f"{where}:{path}")
-            return out.decode("utf-8", "replace") if out is not None else None
+            return out.decode("utf-8", "replace").replace("\r\n", "\n") if out is not None else None
         target = Path(where) / path if kind else None
         return target.read_text("utf-8", "replace") if target and target.is_file() else None
 
