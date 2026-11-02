@@ -1,0 +1,3 @@
+[
+  {"id": "r-001", "concern": "test-veracity", "criterion": "Fragile test", "severity": "medium", "class": "test", "file": "afkv2/tests/test_plugin_check.py", "line": 421, "side": "new", "finding": "No test pins the new hyphen lookbehind in SUBSTRING_MATCH.", "why": "The existing hyphen-word negatives also end in a hyphen, so the trailing lookahead already rejects them. Deleting the lookbehind leaves every test green, although the regex would then flag a marker name that ends in an operator word.", "fix": "Add passing cases where the operator word ends the marker name.", "evidence": "The reviewer probe with the lookbehind removed: the two existing names match neither regex; a name ending in -in or -find matches only the mutated regex."}
+]

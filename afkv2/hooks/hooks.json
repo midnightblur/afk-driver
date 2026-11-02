@@ -1,0 +1,45 @@
+{
+  "description": "afkv2 core behaviors: printed at session start and at subagent start; on Codex, the page wait at Stop.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe",
+            "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\session-start.cmd", "claude"],
+            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\session-start.cmd\" codex",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe",
+            "args": ["/d", "/c", "exit", "0"],
+            "commandWindows": "python \"%PLUGIN_ROOT%\\hooks\\codex_stop.py\"",
+            "timeout": 3610
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd.exe",
+            "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\subagent-start.cmd", "claude"],
+            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\subagent-start.cmd\" codex",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
