@@ -75,13 +75,13 @@ Every component may hold others and owns its styling. Every component takes an o
 4. As a developer, I want to reopen a past session's page, so that I can check whether an aspect was discussed and what was decided.
 5. As a developer, I want the PRD published into the Jira ticket after my yes, so that the product owner and QA read the requirements where they work.
 6. As a developer, I want afkv2 to load its rules by itself and to stop them when it is off, so that v1 and v2 never mix in one session.
-7. As a plugin owner, I want the chain proven by one smoke run on a toy repository, on both providers, before the demo.
+7. As a plugin owner, I want the chain proven by building real afkv2 work with the installed beta, on both providers, before the demo.
 
 ## Acceptance Criteria
 
 ### Chain and lane
 
-- [ ] AC-001 A chain smoke run passes when one written test ticket on the toy repository reaches a Draft change with green local tests, on Claude and on Codex, with a human who answers the grill and approves the plan. Any other end state fails the run.
+- [ ] AC-001 The dogfood run passes when `/afkv2:gc`, built with the installed beta from GitHub issues on this repository, reaches a Draft change with green local tests, on Claude and on Codex, with a human who answers the grill and approves the plan. Any other end state fails the run (owner, 2026-11-02; replaces the toy-repository smoke run).
 - [ ] AC-002 Each chain skill reads only what earlier skills wrote to disk. A skill run on a spec folder that has the required input succeeds without the earlier skill's session.
 - [ ] AC-003 A skill that is run without its required input stops and names the missing file and the skill that writes it.
 - [ ] AC-004 The beta offers the medium lane only. No skill asks for a lane or chooses one.
@@ -235,7 +235,7 @@ Actors (A-1): developer, agent (a Claude or Codex session and its subagents), re
 | S1 | 01 skeleton, manifests, session-start hook (SK-01, SK-02); 02 core behaviors (SK-03); 03 engine core and page-document schema v0 (SK-05); 04 diagram components CMP-5..CMP-8; 05 notes and replies, settle by note, reopen of past sessions, live browser test |
 | S2 | 06 `/afkv2:visualize` (SK-06); 07 `/afkv2:grill`; 08 `/afkv2:to-prd` with the Jira publish; 09 `/afkv2:propose-solution`; 10 `/afkv2:to-subtasks` |
 | S3 | 11 `/afkv2:setup`; 12 forge and tracker port (SK-11); 13 `/afkv2:autopilot` and execute; 14 `/afkv2:code-review`; 15 `/afkv2:create-change-request` and CI watch |
-| S4 | 16 chain smoke run (AC-001), day 4 |
+| S4 | 16 dogfood run (AC-001), day 4 |
 
 - Seams between sessions, fixed by the seam design pass before the sessions start: page-document schema v0 (S1 to S2, frozen on the morning of day 1), the tracker command shape (S3 to S2, for the publish in 08), the hook marker that setup checks (S1 to S3).
 - Build layout: integration branch `feat/afkv2`; the v2 tree in folder `afkv2/`; session branches `feat/afkv2-s1`..`s3` open Draft pull requests into it. During the build, nobody updates the v1 plugin, and each session checks the friction switches at start (D-1).
@@ -247,15 +247,15 @@ Actors (A-1): developer, agent (a Claude or Codex session and its subagents), re
 - Python scripts: unit tests, run selectively by change. CI runs the full suite (decision 5).
 - Page engine: deterministic tests (schema checks, render snapshots, the response parser), with real page documents from this grill as fixtures. Plus the live browser test of AC-042, with Playwright MCP and Edge (decision 70).
 - Forge and tracker port: the ported v1 tests, plus one live round-trip on a real pull request before merge. Stubs alone missed a live bug in v1.
-- Jira publish: proven on a throwaway Jira test ticket during the chain smoke run (D-4).
-- Chain: the chain smoke run (AC-001) is the end-to-end test.
+- Jira publish: proven on a throwaway Jira test ticket next to the dogfood run; the ticket is closed afterward (D-4; owner, 2026-11-02).
+- Chain: the dogfood run (AC-001) is the end-to-end test.
 - Prior art: v1 `scripts/lavish/` tests (about 190), v1 `adapters/forge/` and `adapters/tracker/` tests.
 
 ## Out of Scope
 
 - P1 (days 5-6, built by v2):
   - the eval harness and the sync-harness subtask (ADR-0007);
-  - gc;
+  - gc moved into the beta: it is the dogfood run (AC-001);
   - the release gate;
   - `/afkv2:propose-verification`;
   - the to-meeting family;
@@ -291,7 +291,7 @@ The owner acknowledged these in W-5 (2026-10-29). The seam design pass probed th
 - Not verified live: Codex re-runs the hook after a compaction (docs say yes, for root sessions; the probe had no login) and Codex subagent sessions — AC-012.
 - A separate Codex home folder isolates config and plugins (verified by probe), but it needs its own login or an API key — P1 eval harness (D-5).
 - Codex has no proven per-session plugin switch: a config flag probe still listed the plugin as enabled (ledger, 2026-10-29). AC-017 therefore uses one global switch on Codex (H-2).
-- Not verified: how Jira shows a very long description. The Jira test ticket in the chain smoke run shows it before the demo.
+- Not verified: how Jira shows a very long description. The Jira test ticket next to the dogfood run shows it before the demo.
 
 - Search benchmark, 2026-10-29, Windows, rg 15.2.0, median of 5-7 runs. Repository of about 53,000 files: a full search (with untracked and hidden files) took 2.0 s with rg and 3.8 s with git grep; a search of tracked files only took 1.8 s with rg and 1.4 s with git grep (rg about 25% slower); listing files took 0.2 s with rg and 1.4 s with git. Repository of about 500 files: both tools took under 100 ms. The probe confirmed that rg with no path reads stdin. Not verified: whether each provider's built-in search tool sees hidden files (AC-021).
 
@@ -306,6 +306,6 @@ The owner acknowledged these in W-5 (2026-10-29). The seam design pass probed th
 |-----|------|
 | 1 morning | seam design pass: schema v0, tracker command shape, hook marker, live probes |
 | 1-4 | S1, S2, S3 in parallel |
-| 4 | S4 chain smoke run |
+| 4 | S4 dogfood run |
 | 5-6 | P1, built by v2 |
 | 5 | demo ticket from the owner |

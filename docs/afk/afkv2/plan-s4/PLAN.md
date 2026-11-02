@@ -1,4 +1,4 @@
-# Execution Plan — afkv2 S4 — chain smoke run, harness sync
+# Execution Plan — afkv2 S4 — dogfood run, harness sync
 
 > Parent ticket: GitHub #153   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
@@ -26,8 +26,8 @@ real producer; S4 subtask 0016 repeats that run for every session.
 |-------|-------|--------|
 | Benchmark repository (AC-021) | `C:\Users\mvu\IdeaProjects\core-services` (about 53,000 files) | benchmark of 2026-10-29 |
 | v1 round documents for engine fixtures | `C:\Users\mvu\AppData\Local\Temp\claude\C--Users-mvu-PersonalProjects-afk-driver\23e372bc-cde6-4631-9ea7-43a4a91d8684\scratchpad\grill\grill-final.json`, `...\grill\sdd.json` (copy into the fixtures folder; the scratchpad is temporary) | SDD §4 "Migration & backfill" |
-| Toy repository, written test ticket | owner names it by day 4 | PRD AC-001 |
-| Jira test project (D-4) | owner names it by day 4 | PRD Further Notes, Parked |
+| Dogfood tickets | two GitHub issues on this repository, one `/afkv2:gc` part each | PRD AC-001, D-S-10 |
+| Jira test project (D-4) | `P2P`, the project in the work repository's v1 config; the ticket is closed afterward | owner, 2026-11-02 |
 | Demo ticket (Q26) | owner gives it by day 5 | PRD Further Notes, Parked |
 
 ## Decisions taken at slicing (two-way doors, reversible on the branch)
@@ -42,33 +42,36 @@ real producer; S4 subtask 0016 repeats that run for every session.
 | D-S-6 | The page engine (one SDD §8 module) is cut in 3 slices along the SDD §8 "Ported vs new" rows and the registry: 0003 render / check + show / poll, 0004 diagram registry entries, 0005 ingest | owner-approved division W-2; each slice is one public verb set or registry entries | merge 0003-0005 |
 | D-S-7 | `## Seams` lists only SDD §14 rows (the plan check requires a §14 row + its investigation); §9b rows go to `## Acceptance`, `## Verification` and the seam register below | the v1 plan check grounds every `## Seams` bullet on §14 | — |
 | D-S-8 | Codex live checks (hook after the trust review, compaction, Stop-hook wait) are owner-run steps: they need afkv2 enabled in the owner's global Codex config | a global switch on the owner's machine is the owner's call; no credentials are copied | the agent runs them with the owner's approval |
+| D-S-10 | The dogfood run has two tickets: Claude builds the part that removes a merged feature's run branch, Codex builds the part that retires its worktree and local branch | AC-001 needs a full chain on each provider, and one ticket cannot reach two Draft changes without building it twice | one ticket built twice |
+| D-S-11 | The beta is installed from the git tag `afkv2-2.0.0-beta.1` on `feat/afkv2`; `feat/afkv2` does not merge into `main` for the beta | owner, 2026-11-02. A tag means a bad commit on the branch cannot break the tool that fixes it. A tag that starts with `v` starts the v1 release workflow and fails its version gate | pin the branch |
+| D-S-12 | v1 is frozen: no v1 updates and no v1 issues; a v1 defect goes only to the SDD §7 table | owner, 2026-11-02 | owner call |
 | D-S-9 | One `0017-sync-harness` subtask, in plan-s4 only, not one per plan | 4 harness syncs would edit the same AGENTS.md lines; S4 runs after all sessions merged | — |
 
 ## Solution map
 
 ```mermaid
 flowchart LR
-  M["feat/afkv2 with S1-S3 merged"] --> T16([0016 chain-smoke-run])
+  M["feat/afkv2 with S1-S3 merged"] --> T16([0016 dogfood-run])
   T16 --> T17([0017 sync-harness])
   T16 -. seam .-> S1{{"§14 rows + §9b rows on real output"}}
 ```
 
-*S4 proves the merged chain on both providers, then records it.*
+*S4 proves the merged chain on both providers by building real work, then records it.*
 
 ## Seam register
 
 | § | Seam (SDD row) | Implemented by | Used by |
 |---|----------------|----------------|---------|
-| §14 | "v1 rule block written by install_block" | S3 0011 | 0016-chain-smoke-run (real machine) |
-| §14 | "v1 PRD block written by build_description" | S3 0012 | 0016-chain-smoke-run (D-4 ticket) |
-| §9b | every row | S1, S3 (see their plans) | 0016-chain-smoke-run (real output) |
+| §14 | "v1 rule block written by install_block" | S3 0011 | 0016-dogfood-run (real machine) |
+| §14 | "v1 PRD block written by build_description" | S3 0012 | 0016-dogfood-run (D-4 ticket) |
+| §9b | every row | S1, S3 (see their plans) | 0016-dogfood-run (real output) |
 
 ## Progress tracker
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0016-chain-smoke-run | chain smoke run | pending | — | static, unit, integration | use §14, use §14 |
-| 2 | 0017-sync-harness | sync harness | pending | 0016-chain-smoke-run | static | — |
+| 1 | 0016-dogfood-run | dogfood run | pending | — | static, unit, integration | use §14, use §14 |
+| 2 | 0017-sync-harness | sync harness | pending | 0016-dogfood-run | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->

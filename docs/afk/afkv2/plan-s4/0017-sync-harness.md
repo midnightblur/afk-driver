@@ -40,7 +40,7 @@ mechanical
 - docs/afk/afkv2/plan-s4/TRACE.md#Criterion (verbatim) — the trace matrix
 
 ## Consumes
-- 0016-chain-smoke-run docs/afk/afkv2/plan-s4/SMOKE-RUN.md#Chain smoke run — proof rows for AC-001 and the live checks
+- 0016-dogfood-run docs/afk/afkv2/plan-s4/DOGFOOD-RUN.md#Dogfood run — proof rows for AC-001 and the live checks
 
 ## Verification
 | Tier | Check (command or method) | Proves |
@@ -58,7 +58,7 @@ docs/afk/afkv2/PRD.md
 docs/afk/afkv2/SDD.md
 
 ## Blocked by
-- 0016-chain-smoke-run
+- 0016-dogfood-run
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality
