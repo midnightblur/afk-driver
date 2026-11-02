@@ -41,6 +41,10 @@ class Places:
         return self.data / f"fired-{provider}.txt"
 
     @property
+    def puppeteer_config(self) -> Path:
+        return self.data / "puppeteer-config.json"
+
+    @property
     def backup(self) -> Path:
         return self.data / "backup"
 

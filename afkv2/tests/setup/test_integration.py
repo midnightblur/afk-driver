@@ -725,3 +725,20 @@ def test_write_atomic_writes_through_a_symlink(tmp_path):
         pytest.skip("this account cannot make a symbolic link")
     write_atomic(link, b"new")
     assert link.is_symlink() and real.read_bytes() == b"new"
+
+
+def test_the_renderer_verb_installs_and_switch_back_leaves_the_package(env, system, places, plugin_root, repo, runner, capsys, tmp_path):
+    edge = tmp_path / "pf" / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+    edge.parent.mkdir(parents=True)
+    edge.write_bytes(b"")
+    code, answer = _cli(["diagram-renderer"], {**env, "ProgramFiles": str(tmp_path / "pf")}, system, plugin_root, repo, capsys)
+    assert code == 0 and answer["action"] == "installed"
+    code, back = _cli(["switch-back"], env, system, plugin_root, repo, capsys)
+    assert back["diagram_renderer"] == "left-installed"
+    assert not any(call[:2] == ["npm", "uninstall"] and tools.MERMAID_PACKAGE in call for call in runner.calls)
+    assert places.puppeteer_config.exists()
+
+
+def test_the_renderer_verb_refuses_with_no_edge(env, system, plugin_root, repo, capsys, tmp_path):
+    code, answer = _cli(["diagram-renderer"], {**env, "ProgramFiles": str(tmp_path / "none")}, system, plugin_root, repo, capsys)
+    assert (code, answer["error"]["code"]) == (1, "no-edge")

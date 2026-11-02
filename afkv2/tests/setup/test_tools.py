@@ -1,3 +1,4 @@
+import json
 import os
 import stat
 import sys
@@ -222,3 +223,72 @@ def test_lock_on_posix_is_mode_0700_with_no_command(tmp_path, runner):
     folder = tmp_path / "backup"
     tools.lock_to_current_user(folder, runner, False, {})
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700 and runner.calls == []
+
+
+def _edge(tmp_path, root="ProgramFiles"):
+    """An environment whose one known install path holds a file named as Edge."""
+    edge = tmp_path / root / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+    edge.parent.mkdir(parents=True)
+    edge.write_bytes(b"")
+    return {root: str(tmp_path / root)}, edge
+
+
+@pytest.mark.parametrize("root", ["ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"])
+def test_edge_is_found_at_each_known_install_path(tmp_path, root):
+    env, edge = _edge(tmp_path, root)
+    assert tools.find_edge(env) == edge
+
+
+def test_a_path_with_no_edge_file_finds_no_edge(tmp_path):
+    assert tools.find_edge({"ProgramFiles": str(tmp_path), "PATH": str(tmp_path)}) is None
+
+
+def test_no_edge_refuses_and_neither_installs_nor_downloads(places, runner, tmp_path):
+    answer = tools.ensure_diagram_renderer(places, runner, {"ProgramFiles": str(tmp_path)})
+    assert answer["error"]["code"] == "no-edge"
+    assert runner.calls == [] and not places.puppeteer_config.exists()
+
+
+def test_the_package_installs_with_the_browser_download_off_and_the_config_names_edge(places, runner, tmp_path):
+    env, edge = _edge(tmp_path)
+    answer = tools.ensure_diagram_renderer(places, runner, env)
+    assert answer["ok"] and answer["action"] == "installed" and answer["edge"] == str(edge)
+    assert ["npm", "install", "-g", tools.MERMAID_PACKAGE] in runner.calls
+    assert runner.mermaid_install_env["PUPPETEER_SKIP_DOWNLOAD"] == "true"
+    assert json.loads(places.puppeteer_config.read_text(encoding="utf-8"))["executablePath"] == str(edge)
+    assert answer["config"] == str(places.puppeteer_config)
+
+
+def test_the_config_file_is_in_the_setup_data_folder(places):
+    assert places.puppeteer_config == places.data / "puppeteer-config.json"
+
+
+def test_a_present_package_is_kept_and_the_config_is_written_again(places, runner, tmp_path):
+    runner.mermaid = "10.0.0"
+    runner.paths["mmdc"] = "/npm/mmdc"
+    env, edge = _edge(tmp_path)
+    places.puppeteer_config.parent.mkdir(parents=True, exist_ok=True)
+    places.puppeteer_config.write_text('{"executablePath": "old"}', encoding="utf-8")
+    answer = tools.ensure_diagram_renderer(places, runner, env)
+    assert answer["ok"] and answer["action"] == "present" and answer["version"] == "10.0.0"
+    assert not any("install" in call for call in runner.calls)
+    assert json.loads(places.puppeteer_config.read_text(encoding="utf-8"))["executablePath"] == str(edge)
+
+
+def test_a_failed_install_is_named_and_writes_no_config(places, runner, tmp_path):
+    runner.npm_fails = True
+    env, _ = _edge(tmp_path)
+    answer = tools.ensure_diagram_renderer(places, runner, env)
+    assert answer["error"]["code"] == "renderer-install-failed" and not places.puppeteer_config.exists()
+
+
+def test_no_answer_from_npm_is_named(places, runner, tmp_path):
+    runner.npm_ls_fails = True
+    env, _ = _edge(tmp_path)
+    assert tools.ensure_diagram_renderer(places, runner, env)["error"]["code"] == "npm-unavailable"
+
+
+def test_an_installed_package_with_no_command_on_the_path_is_named(places, runner, tmp_path):
+    runner.mermaid = "10.0.0"
+    env, _ = _edge(tmp_path)
+    assert tools.ensure_diagram_renderer(places, runner, env)["error"]["code"] == "mmdc-not-found"

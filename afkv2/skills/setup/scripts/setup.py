@@ -4,6 +4,7 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
 
   status                                   read-only report
   prepare                                  Python 3, rg on every shell, install record
+  diagram-renderer                         the diagram command, and its config that names the installed Edge
   secrets                                  the developer's own terminal only: Jira values
   copy-config [--spec-folder PATH] [--no-v1-values]
                                            write .afkv2/config.json once, with its spec_folder
@@ -568,6 +569,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
             "codex_config": codex, "jira_values": jira, "lavish": lavish, "plugins": one_on,
+            "diagram_renderer": "left-installed",
             "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
 
@@ -670,7 +672,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     env = os.environ if env is None else env
     system = system or default_system()
     parser = argparse.ArgumentParser(prog="setup.py", description=__doc__.splitlines()[0])
-    parser.add_argument("verb", choices=("status", "prepare", "secrets", "copy-config",
+    parser.add_argument("verb", choices=("status", "prepare", "diagram-renderer", "secrets", "copy-config",
                                          "ownership", "takeover", "switch-back"))
     parser.add_argument("--repo")
     parser.add_argument("--provider", choices=PROVIDERS)
@@ -687,7 +689,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         return 2
     places = Places.from_env(env)
     repo = None
-    if args.verb not in ("prepare", "secrets", "switch-back"):
+    if args.verb not in ("prepare", "diagram-renderer", "secrets", "switch-back"):
         repo = repo_top(system.run, Path(args.repo) if args.repo else (cwd or Path.cwd()))
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
@@ -700,6 +702,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
             answer = status(places, repo, system, env)
         elif args.verb == "prepare":
             answer = prepare(places, system, env)
+        elif args.verb == "diagram-renderer":
+            answer = tools.ensure_diagram_renderer(places, system.run, env)
         elif args.verb == "secrets":
             answer = secrets(places, system, env)
         elif args.verb == "copy-config":

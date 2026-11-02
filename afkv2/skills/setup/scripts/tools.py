@@ -1,4 +1,4 @@
-"""Machine tools setup checks or installs: Python 3, rg and the lavish host.
+"""Machine tools setup checks or installs: Python 3, rg, the lavish host and the diagram renderer.
 
 Every outside command goes through a `Runner`, so a test replaces it with an
 in-process fake.
@@ -15,11 +15,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
-from places import Places, has_backup
+from places import Places, has_backup, write_atomic
 
 LAVISH_PACKAGE = "lavish-axi"
 LAVISH_PIN = "0.1.80"
 RG_WINGET_ID = "BurntSushi.ripgrep.MSVC"
+MERMAID_PACKAGE = "@mermaid-js/mermaid-cli"
+# https://pptr.dev/api/puppeteer.configuration: this variable overrides `skipDownload`.
+NO_BROWSER_DOWNLOAD = {"PUPPETEER_SKIP_DOWNLOAD": "true"}
+EDGE_ROOTS = ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")
 
 
 @dataclass
@@ -192,17 +196,21 @@ def fresh_windows_env(env: Mapping[str, str]) -> dict[str, str]:
 
 # ------------------------------------------------------------- lavish host
 
-def lavish_version(run: Runner, env: Mapping[str, str]) -> str | None:
-    """The installed version, or None when npm says it is absent.
+def global_version(run: Runner, env: Mapping[str, str], package: str) -> str | None:
+    """The globally installed version, or None when npm says it is absent.
 
     ValueError when npm gives no answer, because then nothing is known.
     """
-    got = run(["npm", "ls", "-g", LAVISH_PACKAGE, "--json", "--depth=0"], env=env, timeout=120)
+    got = run(["npm", "ls", "-g", package, "--json", "--depth=0"], env=env, timeout=120)
     try:
         deps = json.loads(got.out).get("dependencies") or {}
     except ValueError:
         raise ValueError(f"npm ls gave no answer: {(got.err or got.out).strip()[:200]}") from None
-    return (deps.get(LAVISH_PACKAGE) or {}).get("version")
+    return (deps.get(package) or {}).get("version")
+
+
+def lavish_version(run: Runner, env: Mapping[str, str]) -> str | None:
+    return global_version(run, env, LAVISH_PACKAGE)
 
 
 def _npm_unavailable(exc: ValueError) -> dict:
@@ -257,3 +265,40 @@ def restore_lavish(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
                                        "reason": (got.err or got.out).strip()[:300]}}
     record.unlink()
     return {"ok": True, "action": "restored", "version": prior}
+
+
+# ---------------------------------------------------------- diagram renderer
+
+def find_edge(env: Mapping[str, str]) -> Path | None:
+    """The installed Edge at a known install path. No lookup on the path, and no download."""
+    for root in EDGE_ROOTS:
+        if env.get(root):
+            edge = Path(env[root], "Microsoft", "Edge", "Application", "msedge.exe")
+            if edge.is_file():
+                return edge
+    return None
+
+
+def ensure_diagram_renderer(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
+    """The diagram command with the browser download off, and a config that points it at Edge."""
+    edge = find_edge(env)
+    if edge is None:
+        return {"ok": False, "error": {"code": "no-edge", "reason": "no Microsoft Edge at its known install paths. "
+                                       "Install Edge, then run this step again; setup downloads no browser"}}
+    try:
+        prior = global_version(run, env, MERMAID_PACKAGE)
+        if not prior:
+            got = run(["npm", "install", "-g", MERMAID_PACKAGE], env={**env, **NO_BROWSER_DOWNLOAD}, timeout=600)
+            version = global_version(run, env, MERMAID_PACKAGE)
+            if got.code != 0 or not version:
+                return {"ok": False, "error": {"code": "renderer-install-failed", "reason": (got.err or got.out).strip()[:300]}}
+        else:
+            version = prior
+    except ValueError as exc:
+        return _npm_unavailable(exc)
+    if run(["mmdc", "--version"], env=env, timeout=120).code != 0:
+        return {"ok": False, "error": {"code": "mmdc-not-found", "reason": "the package is installed, but `mmdc` does not run: "
+                                       "put the npm global folder on the path, then run this step again"}}
+    write_atomic(places.puppeteer_config, json.dumps({"executablePath": str(edge)}, indent=2).encode("utf-8") + b"\n")
+    return {"ok": True, "action": "present" if prior else "installed", "version": version, "edge": str(edge),
+            "config": str(places.puppeteer_config)}

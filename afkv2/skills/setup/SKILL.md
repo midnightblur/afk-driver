@@ -21,6 +21,9 @@ you ask in this session; the Jira token never passes through you.
    and puts it on the path of every shell, writes the install record. A red
    `rg.shells` entry: tell the developer to open a new terminal and harness, then
    run setup again.
+   Then `setup.py diagram-renderer` — installs the diagram command with the browser
+   download off, and writes `puppeteer-config.json` that names the installed Edge.
+   A refusal `no-edge` installs nothing and downloads nothing: report its `reason`.
 3. **Jira values.** `jira.complete` false: ask the developer to run
    `python <this skill's folder>/scripts/setup.py secrets` in their own terminal
    (it asks for `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` and stores them
@@ -73,4 +76,5 @@ backup: report its `reason` and do not work around it. In a takeover it is under
 token in plain text under `backup_dir`: never open or print it. Restored user
 environment values reach a new terminal, not a running one. Report the
 `published_tickets` list: on those tickets the developer
-must not run v1's publish, because v1 does not find afkv2's block.
+must not run v1's publish, because v1 does not find afkv2's block. The diagram
+package and its config stay installed (`diagram_renderer: left-installed`); v1 does not read them.

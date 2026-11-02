@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Mapping
 
 import pytest
 
@@ -42,6 +43,8 @@ class FakeRunner(tools.Runner):
         self.paths: dict[str, str] = {"bash": "/bin/bash", "rg": "/tools/rg/rg"}
         self.shell_has_rg: dict[str, bool] = {"bash": True}
         self.lavish: str | None = "0.1.63"
+        self.mermaid: str | None = None
+        self.mermaid_install_env: Mapping[str, str] | None = None
         self.codex_cli = True
         self.winget_installs = True
         self.npm_fails = False
@@ -58,6 +61,7 @@ class FakeRunner(tools.Runner):
     def __call__(self, argv, env=None, timeout=300):
         argv = list(argv)
         self.calls.append(argv)
+        self.last_env = env
         name = os.path.basename(argv[0]).split(".")[0]
         if name == "git":
             if self.git_common_dir_fails and "--git-common-dir" in argv:
@@ -70,6 +74,8 @@ class FakeRunner(tools.Runner):
             return self._codex()
         if name == "npm":
             return self._npm(argv)
+        if name == "mmdc":
+            return tools.Result(0, f"{self.mermaid}\n") if "mmdc" in self.paths else tools.Result(127, "", "mmdc not found")
         if name == "winget":
             if self.winget_installs:
                 self.paths["rg"] = "/winget/links/rg"
@@ -93,6 +99,8 @@ class FakeRunner(tools.Runner):
         return tools.Result(0, "\n".join(rows) + "\n")
 
     def _npm(self, argv):
+        if tools.MERMAID_PACKAGE in " ".join(argv):
+            return self._npm_mermaid(argv)
         if argv[1] == "ls":
             if self.npm_ls_fails:
                 return tools.Result(127, "", "npm not found")
@@ -105,6 +113,19 @@ class FakeRunner(tools.Runner):
             self.lavish = argv[3].split("@", 1)[1]
         elif argv[1] == "uninstall":
             self.lavish = None
+        return tools.Result(0)
+
+    def _npm_mermaid(self, argv):
+        if argv[1] == "ls":
+            if self.npm_ls_fails:
+                return tools.Result(127, "", "npm not found")
+            if not self.mermaid:
+                return tools.Result(1, "{}")
+            return tools.Result(0, json.dumps({"dependencies": {tools.MERMAID_PACKAGE: {"version": self.mermaid}}}))
+        if self.npm_fails:
+            return tools.Result(1, "", "npm failed")
+        self.mermaid, self.mermaid_install_env = "11.4.2", self.last_env
+        self.paths["mmdc"] = "/npm/mmdc"
         return tools.Result(0)
 
 
