@@ -13,7 +13,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | Setup, takeover | Codex | beta.3 | pass | v1 disabled, afkv2 enabled, backup of `config.toml`, lavish 0.1.80; a new session holds the marker, and the only `afk:behaviors` text is a comment in the interim block |
 | Switch-back, setup again | Codex | | not run | |
 | Live check 3, sandboxed | Codex | beta.3 | fail | F-6 |
-| Live check 3, page answer after 10 minutes | Codex | beta.3, one approval, run outside the sandbox | in progress | Stop hook waiting since 14:12:32; see F-7 |
+| Live check 3, page answer after 10 minutes | Codex | beta.3, one approval, run outside the sandbox | not proved | the hook waited from 14:12:32; Codex restarted at 14:23:13 in a new pane and the turn was interrupted; on the next turn the hook handed the answer back with no chat message about it; see F-7, F-9 |
+| Live check 3, again with no approval | Codex | beta.4 | not run | |
 | Publish on the test ticket P2P-2107 | Claude | | not run | |
 | `/afkv2:gc` part 1, GitHub #158 | Claude | | not run | |
 | `/afkv2:gc` part 2, GitHub #159 | Codex | | not run | |
@@ -29,4 +30,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | F-5 | An isolated `CODEX_HOME` has no login, so a turn fails before SessionStart. It cannot test hooks. The real home with the normal trust review is the only live route. | recorded | afkv2 live checks |
 | F-6 | A sandboxed Codex tool command cannot run the engine. `%LOCALAPPDATA%\afkv2` is read-only for the sandbox account (`WinError 5`), and with that folder writable the engine answers `lavish-axi is not on PATH`. No design document named the sandbox. | fix in beta.4: setup writes `~/.codex/rules/afkv2.rules`; live run pending | afkv2 setup |
 | F-7 | Run with an approval, the agent ended its turn at 19:10:28 while `show` still ran, and the waiting record appeared at 19:10:29. The Stop hook found no record and did not wait. Time on the approval prompt used up the tool's wait (inferred). | the rules file removes the prompt; no separate fix | afkv2 engine |
+| F-9 | Codex restarted at 14:23:13 during the page wait and came back as a new pane on the same session. The cause is not known. The waiting record survived, and the next turn's Stop hook delivered the answer, so an interrupted wait loses nothing. | open: the owner says what happened; the beta.4 run repeats the wait | owner, afkv2 engine |
+| F-10 | The hook prompt reaches the agent as `<hook_prompt ...>` around the raw text, and the agent acts on it as work: it started a grill from `[round R-5]`. A free note before the marker means the text does not start with `[round R-`, as the live check expected. | the check's wording to correct; the behaviour is wanted | afkv2 live checks |
+| F-11 | Removing and adding the marketplace turns v1 on again next to afkv2. Setup must run after each beta install. | recorded | afkv2 setup |
+| F-12 | Card PIN-2 of the check page shows raw JSON (owner's note). The text comes from the fixture `v0-sdd-pass.json`, where a `signoff_packet` is stored as plain text. The renderer did what the document said. | fixture only, no fix needed for the run | afkv2 tests |
 | F-8 | The interim rule block stays in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so a dogfood session holds it next to the afkv2 core behaviors. | open: remove it from the file for that harness before its dogfood ticket | owner build setup |
