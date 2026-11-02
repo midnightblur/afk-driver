@@ -35,6 +35,7 @@ PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 FENCE = re.compile(r"^ *(`{3,}|~{3,})[ \t]*(\S*)[ \t]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PUBLISHED_TICKETS = "published-tickets.txt"
+JIRA_TEXT_LIMIT = 32767
 
 
 def call_tracker(verb, payload):
@@ -302,7 +303,7 @@ def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_me
     attachments = tracker("attachment-list", {"key": ticket}).get("attachments") or []
     return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
             "page": str(page), "page_url": page.resolve().as_uri(), "pictures": [str(pictures / name) for name in names],
-            "action": action, "ids": len(ids),
+            "action": action, "ids": len(ids), "over_jira_limit": len(json.dumps(adf["content"])) > JIRA_TEXT_LIMIT,
             "already_published": _already_published(issue.get("block"), preview, attachments, _uploads(run_dir, receipt))}
 
 

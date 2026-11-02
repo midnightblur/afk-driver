@@ -760,6 +760,12 @@ def test_an_id_on_a_later_line_of_a_code_block_is_present(world):
     assert world.preview()["ok"] is True
 
 
+def test_the_preview_warns_when_jira_may_refuse_the_length(world):
+    assert world.preview()["over_jira_limit"] is False
+    world.prd.write_text(PRD + "\n" + "A long paragraph of plain words.\n\n" * 1100, "utf-8")
+    assert world.preview()["over_jira_limit"] is True
+
+
 def test_real_port_block_text_is_the_canonical_form():
     tree = PORT_TREE
     pytest.importorskip("markdown_it")
