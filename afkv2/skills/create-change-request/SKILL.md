@@ -59,7 +59,7 @@ A red CI does not stop work on the branch. Report it to the developer in one lin
 
 ## Ship
 
-Ship needs each subtask's review finished. `mark-ready` runs the review's `finish` for each subtask contract in the plan folder once the change and its head pass, so a review that owes no more work stops here. A commit pushed after a review stopped gets no review round: list each such commit in `proofs`, so that the developer sees it.
+Ship needs each subtask's review finished, with no delta check owed or parked. `mark-ready` runs the review's `finish` for each subtask contract in the plan folder once the change and its head pass, so a review that owes no more work stops here. A commit pushed after a review stopped gets no review round: list each such commit in `proofs`, so that the developer sees it.
 
 Each push during ship goes back to step 1.
 

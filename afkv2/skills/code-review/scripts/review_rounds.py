@@ -18,6 +18,8 @@ from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
 
 CAP = 3
+DELTA_CHECKS = 2
+VERDICTS = ("confirmed", "reopened")
 FORGE_LIMIT = 300
 SEVERITIES = ("critical", "high", "medium", "low")
 TO_FIX = SEVERITIES[:2]
@@ -278,7 +280,7 @@ def record(payload):
 def _next_step(fix, number):
     if not fix:
         return "stop"
-    return "fix" if next_round(number) else "fix-then-finish"
+    return "fix" if next_round(number) else "fix-then-delta"
 
 
 def _for_the_fixer(entry):
@@ -295,17 +297,168 @@ def outcome(payload):
     state = _started(path, payload["subtask"])
     _refuse_unless_running(state)
     ident, result = need(payload, "id"), need(payload, "result")
-    entry = next((item for item in state["findings"] if item["id"] == ident), None)
+    entry = _finding(state, ident)
     if entry is None or entry["severity"] not in TO_FIX:
         raise Refusal("no-such-finding", f"no critical or high finding has the id {ident}")
+    if any(item["id"] == ident and (item["checks"] or item["status"] != "owed") for item in _delta(state)["items"]) or ident in _open_check_ids(state):
+        raise Refusal("delta-started", f"the delta check of {ident} has started: use `delta-fix` when it reopens")
+    _set_outcome(entry, payload, result)
+    _owe_for_last_round(state, entry)
+    _save(path, state)
+    return ok(id=ident, result=result)
+
+
+def _finding(state, ident):
+    return next((item for item in state["findings"] if item["id"] == ident), None)
+
+
+def _set_outcome(entry, payload, result):
     if result == "fixed":
         entry.update(outcome="fixed", sha=str(need(payload, "sha")), reason=None)
     elif result == "unfixed":
         entry.update(outcome="unfixed", sha=None, reason=str(need(payload, "reason")))
     else:
         raise _bad("`result` must be fixed or unfixed")
+
+
+def _delta(state):
+    """The delta checks: `items` are what fix commits answer, and `open` holds the ids of the running check."""
+    return state.setdefault("delta", {"items": [], "open": None})
+
+
+def _open_check_ids(state):
+    return _delta(state)["open"] or []
+
+
+def _delta_item(ident, kind, answers, shas, finding):
+    return {"id": ident, "kind": kind, "answers": answers, "shas": shas, "finding": finding, "status": "owed", "checks": 0, "why": None}
+
+
+def _owe_for_last_round(state, entry):
+    """No round reads a fix of the last round, so a delta check does."""
+    if entry["last_round"] != CAP:
+        return
+    delta = _delta(state)
+    delta["items"] = [item for item in delta["items"] if item["id"] != entry["id"]]
+    if entry["outcome"] == "fixed":
+        delta["items"].append(_delta_item(entry["id"], "finding", entry["finding"], [entry["sha"]], entry["id"]))
+
+
+def _for_the_checker(item):
+    return {"id": item["id"], "kind": item["kind"], "answers": item["answers"], "commits": item["shas"]}
+
+
+def _delta_items(state, status):
+    return [item for item in _delta(state)["items"] if item["status"] == status]
+
+
+def delta_begin(payload):
+    """Open the delta check of every owed item, or answer the open one again."""
+    path = _state_path(payload)
+    state = _started(path, payload["subtask"])
+    delta = _delta(state)
+    if not delta["open"]:
+        if _open_round(state) is not None:
+            raise Refusal("round-open", "a round has no findings yet: run `record`")
+        checked = {item["finding"] for item in delta["items"]}
+        no_outcome = [entry["id"] for entry in state["findings"] if _is_open_fix(entry) and entry["id"] not in checked]
+        if state["stopped_by"] is None and no_outcome:
+            raise Refusal("fix-open", f"these findings have no outcome: {', '.join(no_outcome)}")
+        waiting = _delta_items(state, "reopened")
+        if waiting:
+            raise Refusal("fix-open", f"these reopened items have no outcome: {', '.join(item['id'] for item in waiting)}")
+        owed = _delta_items(state, "owed")
+        if not owed:
+            raise Refusal("no-delta-owed", "no fix waits for a delta check")
+        delta["open"] = [item["id"] for item in owed]
+        _save(path, state)
+    items = [item for item in delta["items"] if item["id"] in delta["open"]]
+    return ok(items=[_for_the_checker(item) for item in items], commits=[sha for item in items for sha in item["shas"]])
+
+
+def _checked_verdicts(payload):
+    verdicts = payload.get("verdicts")
+    if not isinstance(verdicts, list) or not all(
+            isinstance(item, dict) and item.get("verdict") in VERDICTS and _is_text(item.get("id")) and _is_text(item.get("why")) for item in verdicts):
+        raise _bad(f"`verdicts` must be a list of objects with `id`, `why` and `verdict`, one of {', '.join(VERDICTS)}")
+    return verdicts
+
+
+def _reopen(state, item, why):
+    item["checks"] += 1
+    item.update(status="parked" if item["checks"] >= DELTA_CHECKS else "reopened", why=why)
+    entry = _finding(state, item["finding"])
+    if entry is not None:
+        entry["reopened"] += 1
+        entry.update(outcome=None, sha=None, reason=why)
+
+
+def delta_record(payload):
+    """A delta check only confirms or reopens what its commits answer: a verdict on anything else is refused."""
+    path = _state_path(payload)
+    verdicts = _checked_verdicts(payload)
+    state = _started(path, payload["subtask"])
+    delta = _delta(state)
+    if not delta["open"]:
+        raise Refusal("no-open-check", "no delta check is open: run `delta-begin`")
+    named = [item["id"] for item in verdicts]
+    if sorted(named) != sorted(delta["open"]):
+        raise Refusal("delta-scope", f"a delta check gives one verdict on each of {', '.join(delta['open'])} and on nothing else, not {', '.join(named) or 'none'}")
+    items = {item["id"]: item for item in delta["items"]}
+    for verdict in verdicts:
+        item = items[verdict["id"]]
+        if verdict["verdict"] == "reopened":
+            _reopen(state, item, verdict["why"])
+        else:
+            item["checks"] += 1
+            item.update(status="confirmed", why=verdict["why"])
+    delta["open"] = None
+    _save(path, state)
+    parked, reopened = _delta_items(state, "parked"), _delta_items(state, "reopened")
+    return ok(next="park" if parked else "fix" if reopened else "stop",
+              fix=[_for_the_checker(item) for item in reopened], parked=[_delta_summary(item) for item in parked])
+
+
+def delta_fix(payload):
+    """The one more fix of a reopened item. A fix that cannot be made parks at once."""
+    path = _state_path(payload)
+    state = _started(path, payload["subtask"])
+    ident, result = need(payload, "id"), need(payload, "result")
+    item = next((item for item in _delta_items(state, "reopened") if item["id"] == ident), None)
+    if item is None:
+        raise Refusal("no-reopened-item", f"{ident} is not a reopened item that waits for its fix")
+    entry = _finding(state, item["finding"]) or {}
+    _set_outcome(entry, payload, result)
+    if result == "fixed":
+        item.update(status="owed", shas=[str(payload["sha"])])
+    else:
+        item.update(status="parked", why=str(payload["reason"]))
     _save(path, state)
     return ok(id=ident, result=result)
+
+
+def ruling_fix(payload):
+    """A fix made for a ruling after the review stopped. It can close a finding the review left open."""
+    path = _state_path(payload)
+    ruling, shas = payload.get("ruling"), payload.get("shas")
+    if not _is_text(ruling) or not isinstance(shas, list) or not shas or not all(_is_text(sha) for sha in shas):
+        raise _bad("the payload needs `ruling`, a text, and `shas`, the list of its fix commits")
+    state = _started(path, payload["subtask"])
+    if state["stopped_by"] is None:
+        raise Refusal("review-running", "this review has not stopped: fix inside its rounds")
+    ident = payload.get("finding")
+    entry = None
+    if ident is not None:
+        entry = _finding(state, ident)
+        if entry is None:
+            raise Refusal("no-such-finding", f"no finding has the id {ident}")
+    delta = _delta(state)
+    number = sum(1 for item in delta["items"] if item["kind"] == "ruling") + 1
+    delta["items"].append(_delta_item(f"r{number}", "ruling", ruling, shas, ident))
+    if entry is not None:
+        entry.update(outcome="fixed", sha=shas[-1], reason=None)
+    _save(path, state)
+    return ok(id=f"r{number}", next="delta")
 
 
 def _stop_reason(state):
@@ -328,10 +481,18 @@ def _summary(entry):
             "post_error": entry["post_error"]}
 
 
+def _delta_summary(item):
+    return {"id": item["id"], "kind": item["kind"], "answers": item["answers"], "commits": item["shas"], "status": item["status"], "why": item["why"]}
+
+
 def _report(state):
     done = _done(state)
     findings = state["findings"]
-    fixed = [{"id": entry["id"], "sha": entry["sha"], "finding": entry["finding"], "reviewed": entry["last_round"] < done}
+    checked = _delta(state)["items"]
+    confirmed = {item["finding"] for item in checked if item["status"] == "confirmed"}
+    waiting = {item["finding"] for item in checked if item["status"] != "confirmed"}
+    fixed = [{"id": entry["id"], "sha": entry["sha"], "finding": entry["finding"],
+              "reviewed": entry["id"] in confirmed or (entry["last_round"] < done and entry["id"] not in waiting)}
              for entry in findings if entry["outcome"] == "fixed"]
     left = [entry for entry in findings if entry["outcome"] != "fixed"]
     ran = {concern["name"] for entry in state["rounds"] for concern in entry["concerns"]}
@@ -340,6 +501,9 @@ def _report(state):
               concerns=[{"round": entry["round"], "concerns": entry["concerns"]} for entry in state["rounds"]],
               deferred=list(deferred.values()), fixed=fixed,
               reopened=[entry["id"] for entry in findings if entry["reopened"]],
+              delta={"owed": [_delta_summary(item) for item in checked if item["status"] in ("owed", "reopened")],
+                     "confirmed": [item["id"] for item in checked if item["status"] == "confirmed"],
+                     "parked": [_delta_summary(item) for item in checked if item["status"] == "parked"]},
               left={"blocking": [_summary(entry) for entry in left if entry["severity"] in TO_FIX],
                     "posted": [_summary(entry) for entry in left if entry["severity"] in TO_POST and entry["comment"]],
                     "not_posted": [_summary(entry) for entry in left if not entry["comment"]]})
@@ -357,7 +521,8 @@ def finish(payload):
     return _report(state)
 
 
-VERBS = {"begin": begin, "record": record, "outcome": outcome, "finish": finish}
+VERBS = {"begin": begin, "record": record, "outcome": outcome, "finish": finish, "delta-begin": delta_begin, "delta-record": delta_record,
+         "delta-fix": delta_fix, "ruling-fix": ruling_fix}
 
 
 def main(argv=None):

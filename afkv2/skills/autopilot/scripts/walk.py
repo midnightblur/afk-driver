@@ -411,6 +411,10 @@ def _finish_failures(plan, subtask, record, change):
         failures.append({"code": error.get("code") or "no-review", "reason": error.get("reason") or "the review gave no report"})
     elif (report.get("left") or {}).get("blocking"):
         failures.append({"code": "review-blocking", "reason": "critical or high findings stay open: park this subtask", "findings": report["left"]["blocking"]})
+    if (report.get("delta") or {}).get("parked"):
+        failures.append({"code": "delta-parked", "reason": "a delta check failed twice: park this subtask", "items": report["delta"]["parked"]})
+    elif (report.get("delta") or {}).get("owed"):
+        failures.append({"code": "delta-owed", "reason": "a fix waits for its delta check: run the review's delta check", "items": report["delta"]["owed"]})
     for path, anchor in read_contract(plan, subtask).produces:
         if not _holds(path, anchor):
             failures.append({"code": "produces-missing", "reason": f"{path} has no `{anchor}`"})

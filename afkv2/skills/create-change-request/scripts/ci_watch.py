@@ -317,6 +317,11 @@ def _why_open(plan, subtask, change_ids):
         return "critical or high findings are not fixed: " + _ids(left["blocking"]), "developer"
     if left.get("not_posted"):
         return "findings are not on the change: " + _ids(left["not_posted"]), "mark-again"
+    delta = answer.get("delta") or {}
+    if delta.get("parked"):
+        return "a delta check parked these fixes: " + _ids(delta["parked"]), "developer"
+    if delta.get("owed"):
+        return "these fixes wait for a delta check: " + _ids(delta["owed"]), "run-review"
     return None
 
 

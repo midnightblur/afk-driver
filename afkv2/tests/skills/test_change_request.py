@@ -821,6 +821,8 @@ def test_ready_is_refused_when_the_ci_read_fails(ship, capsys):
     ({**SETTLED, "stopped_by": "unfixed", "left": {"blocking": [{"id": "f1"}], "posted": [], "not_posted": []}}, "f1", "developer"),
     ({**SETTLED, "left": {"blocking": [], "posted": [], "not_posted": [{"id": "f2"}]}}, "f2", "mark-again"),
     ({**SETTLED, "change": "9"}, "9", "developer"),
+    ({**SETTLED, "delta": {"owed": [{"id": "f1"}], "confirmed": [], "parked": []}}, "f1", "run-review"),
+    ({**SETTLED, "delta": {"owed": [], "confirmed": [], "parked": [{"id": "r1"}]}}, "r1", "developer"),
     ({"ok": True}, "report", "developer"),
 ])
 def test_ready_is_refused_while_a_review_is_open(ship, capsys, review, named, next_step):
@@ -877,8 +879,9 @@ def test_a_review_begun_with_the_url_matches_a_mark_by_number(ship, capsys):
     assert mark(ship, capsys)[1]["marked"] is True
 
 
-def test_a_capped_review_with_a_fix_no_round_read_allows_ready(ship, capsys):
-    ship["reviews"]["0001-a"] = {**SETTLED, "stopped_by": "cap", "fixed": [{"id": "f1", "sha": "abc", "reviewed": False}]}
+def test_a_capped_review_whose_delta_check_confirmed_allows_ready(ship, capsys):
+    ship["reviews"]["0001-a"] = {**SETTLED, "stopped_by": "cap", "fixed": [{"id": "f1", "sha": "abc", "reviewed": True}],
+                                 "delta": {"owed": [], "confirmed": ["f1"], "parked": []}}
     assert mark(ship, capsys)[1]["marked"] is True
 
 

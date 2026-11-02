@@ -23,7 +23,7 @@ You run in a fresh subagent, from the worktree of the feature branch. The brief 
    Work with no behavior to test, such as prose or a config value: `no-test` with `why`.
 4. **Open the change.** After the first commits, push. Never force-push. `change: none` in the brief: run "Open or update the change" of `/afkv2:create-change-request`, then `set-change` with `change`. After each push, run its "After each push" step: `start` of `ci_watch.py`.
 5. **Verify.** `status` with `status: "verifying"`. Run each row of `## Verification`, in order. A row whose check cell starts `not applicable:` does not run. Each other row must pass. Grep each `## Produces` anchor. A row stays red after one targeted fix: `park`.
-6. **Review.** `status` with `status: "reviewing"`. Run `/afkv2:code-review` with `subtask`, `plan`, `change` and `base`. Its `left.blocking` is not empty: `park` with the findings in `reason`. Each code fix there returns to step 5 for the rows it touches, and gets a push.
+6. **Review.** `status` with `status: "reviewing"`. Run `/afkv2:code-review` with `subtask`, `plan`, `change` and `base`. Its `left.blocking` or `delta.parked` is not empty: `park` with the findings in `reason`. Each code fix there returns to step 5 for the rows it touches, and gets a push.
 7. **Finish.** `done`. A refusal `not-finished` lists each gap in `error.failures`: close each gap, and run `done` again.
 8. **Report.** End with the lines below.
 

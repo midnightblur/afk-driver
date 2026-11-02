@@ -556,7 +556,7 @@ def test_a_context_side_and_a_null_side_post_on_the_new_side(review, forge, side
 
 def test_next_says_when_no_round_reads_the_fix(review):
     answers = run_to_the_cap(review)
-    assert [answer["next"] for answer in answers] == ["fix", "fix", "fix-then-finish"]
+    assert [answer["next"] for answer in answers] == ["fix", "fix", "fix-then-delta"]
 
 
 def test_the_same_text_at_another_line_of_one_round_is_another_defect(review, forge):
@@ -656,3 +656,220 @@ def test_an_earlier_unfixed_finding_at_the_cap_reports_unfixed(review):
     begin(review)
     review("record", findings=[])
     assert review("finish")[1]["stopped_by"] == "unfixed"
+
+
+def fixed_at_the_cap(review, sha="last123"):
+    """The review at round 3, with the one high finding of that round fixed; answers its id."""
+    answers = run_to_the_cap(review)
+    fix_all(review, answers[2], sha=sha)
+    return answers[2]["fix"][0]["id"]
+
+
+def verdicts(check, verdict="confirmed"):
+    return [{"id": item["id"], "verdict": verdict, "why": "read the commit"} for item in check["items"]]
+
+
+def test_a_fix_in_round_3_owes_one_delta_check_that_reads_only_that_commit(review):
+    ident = fixed_at_the_cap(review)
+    code, check = review("delta-begin")
+    assert code == 0 and check["commits"] == ["last123"]
+    assert [(item["id"], item["kind"], item["commits"]) for item in check["items"]] == [(ident, "finding", ["last123"])]
+    assert check["items"][0]["answers"] == "round 3"
+
+
+def test_a_fix_of_an_earlier_round_owes_no_delta_check(review):
+    begin(review)
+    fix_all(review, review("record", findings=[finding()])[1])
+    code, answer = review("delta-begin")
+    assert (code, answer["error"]["code"]) == (1, "no-delta-owed")
+
+
+def test_a_round_3_finding_left_unfixed_owes_no_delta_check(review):
+    answers = run_to_the_cap(review)
+    review("outcome", id=answers[2]["fix"][0]["id"], result="unfixed", reason="out of scope")
+    assert review("delta-begin")[1]["error"]["code"] == "no-delta-owed"
+
+
+def test_a_delta_check_waits_for_every_round_3_outcome(review):
+    run_to_the_cap(review)
+    code, answer = review("delta-begin")
+    assert (code, answer["error"]["code"]) == (1, "fix-open")
+
+
+def test_finish_reports_an_owed_delta_check_and_the_check_still_runs_after_the_stop(review):
+    ident = fixed_at_the_cap(review)
+    _, report = review("finish")
+    assert report["stopped_by"] == "cap" and [item["id"] for item in report["delta"]["owed"]] == [ident]
+    _, check = review("delta-begin")
+    assert review("delta-record", verdicts=verdicts(check))[1]["next"] == "stop"
+    _, report = review("finish")
+    assert report["delta"]["owed"] == [] and report["delta"]["confirmed"] == [ident]
+    assert [item["reviewed"] for item in report["fixed"]] == [True, True, True]
+
+
+@pytest.mark.parametrize("change", ["new", "missing", "extra"])
+def test_a_delta_check_may_only_confirm_or_reopen_what_the_commits_answer(review, change):
+    fixed_at_the_cap(review)
+    _, check = review("delta-begin")
+    answer = verdicts(check)
+    if change == "new":
+        answer[0]["id"] = "f999"
+    elif change == "missing":
+        answer = []
+    else:
+        answer.append({"id": "f1", "verdict": "confirmed", "why": "a finding this commit does not answer"})
+    code, refused = review("delta-record", verdicts=answer)
+    assert (code, refused["error"]["code"]) == (1, "delta-scope")
+    assert review("delta-begin")[1]["items"] == check["items"]
+
+
+@pytest.mark.parametrize("bad", [
+    [{"id": "f3", "verdict": "new-finding", "why": "x"}],
+    [{"id": "f3", "verdict": "confirmed"}],
+    ["f3"],
+    "f3",
+])
+def test_delta_record_refuses_a_verdict_it_cannot_read(review, bad):
+    fixed_at_the_cap(review)
+    review("delta-begin")
+    assert review("delta-record", verdicts=bad)[0] == 2
+
+
+def test_delta_record_needs_an_open_check(review):
+    fixed_at_the_cap(review)
+    assert review("delta-record", verdicts=[])[1]["error"]["code"] == "no-open-check"
+
+
+def test_delta_begin_answers_the_open_check_again_after_a_restart(review):
+    fixed_at_the_cap(review)
+    _, first = review("delta-begin")
+    assert review("delta-begin")[1]["items"] == first["items"]
+
+
+def test_outcome_refuses_a_finding_whose_delta_check_has_started(review):
+    ident = fixed_at_the_cap(review)
+    review("delta-begin")
+    code, answer = review("outcome", id=ident, result="fixed", sha="other")
+    assert (code, answer["error"]["code"]) == (1, "delta-started")
+
+
+def test_a_reopened_finding_gets_one_more_fix_and_a_check_of_only_that_commit(review, forge):
+    ident = fixed_at_the_cap(review)
+    _, check = review("delta-begin")
+    _, answer = review("delta-record", verdicts=verdicts(check, "reopened"))
+    assert answer["next"] == "fix" and [item["id"] for item in answer["fix"]] == [ident]
+    assert review("delta-begin")[1]["error"]["code"] == "fix-open"
+    assert review("delta-fix", id=ident, result="fixed", sha="again45")[0] == 0
+    _, second = review("delta-begin")
+    assert second["commits"] == ["again45"]
+    assert review("delta-record", verdicts=verdicts(second))[1]["next"] == "stop"
+    _, report = review("finish")
+    assert report["delta"]["parked"] == [] and report["left"]["blocking"] == []
+    assert report["reopened"] == [ident] and {"id": ident} .items() <= report["fixed"][-1].items()
+    assert report["fixed"][-1]["sha"] == "again45" and report["fixed"][-1]["reviewed"] is True
+
+
+def test_a_second_failed_check_parks_with_no_further_fix(review, forge):
+    ident = fixed_at_the_cap(review)
+    _, check = review("delta-begin")
+    review("delta-record", verdicts=verdicts(check, "reopened"))
+    review("delta-fix", id=ident, result="fixed", sha="again45")
+    _, second = review("delta-begin")
+    _, answer = review("delta-record", verdicts=verdicts(second, "reopened"))
+    assert answer["next"] == "park" and answer["fix"] == []
+    assert [item["id"] for item in answer["parked"]] == [ident]
+    code, refused = review("delta-fix", id=ident, result="fixed", sha="third67")
+    assert (code, refused["error"]["code"]) == (1, "no-reopened-item")
+    assert review("delta-begin")[1]["error"]["code"] == "no-delta-owed"
+    _, report = review("finish")
+    assert [item["id"] for item in report["delta"]["parked"]] == [ident]
+    assert [item["id"] for item in report["left"]["blocking"]] == [ident]
+    assert report["left"]["blocking"][0]["url"]
+
+
+def test_a_fix_that_cannot_be_made_parks_at_once(review):
+    ident = fixed_at_the_cap(review)
+    _, check = review("delta-begin")
+    review("delta-record", verdicts=verdicts(check, "reopened"))
+    assert review("delta-fix", id=ident, result="unfixed", reason="needs a human decision")[0] == 0
+    parked = review("finish")[1]["delta"]["parked"]
+    assert [(item["id"], item["why"]) for item in parked] == [(ident, "needs a human decision")]
+
+
+def stopped_clean(review):
+    begin(review)
+    review("record", findings=[])
+    return review("finish")[1]
+
+
+def test_a_ruling_fix_after_the_stop_owes_a_delta_check_of_its_commits(review):
+    assert stopped_clean(review)["delta"]["owed"] == []
+    code, added = review("ruling-fix", ruling="the owner asks for one name", shas=["rul1234", "rul5678"])
+    assert code == 0 and added["id"] == "r1"
+    assert [item["id"] for item in review("finish")[1]["delta"]["owed"]] == ["r1"]
+    _, check = review("delta-begin")
+    assert check["commits"] == ["rul1234", "rul5678"]
+    assert (check["items"][0]["kind"], check["items"][0]["answers"]) == ("ruling", "the owner asks for one name")
+    assert review("delta-record", verdicts=verdicts(check))[1]["next"] == "stop"
+    assert review("finish")[1]["delta"]["confirmed"] == ["r1"]
+
+
+def test_a_ruling_fix_that_fails_twice_parks(review):
+    stopped_clean(review)
+    review("ruling-fix", ruling="one name", shas=["rul1234"])
+    _, check = review("delta-begin")
+    assert review("delta-record", verdicts=verdicts(check, "reopened"))[1]["next"] == "fix"
+    review("delta-fix", id="r1", result="fixed", sha="rul5678")
+    _, second = review("delta-begin")
+    assert second["commits"] == ["rul5678"]
+    assert review("delta-record", verdicts=verdicts(second, "reopened"))[1]["next"] == "park"
+    assert [item["id"] for item in review("finish")[1]["delta"]["parked"]] == ["r1"]
+
+
+def test_a_ruling_fix_can_close_a_finding_that_stayed_unfixed_and_a_reopen_opens_it_again(review, forge):
+    begin(review)
+    _, answer = review("record", findings=[finding()])
+    ident = answer["fix"][0]["id"]
+    review("outcome", id=ident, result="unfixed", reason="needs a ruling")
+    assert [item["id"] for item in review("finish")[1]["left"]["blocking"]] == [ident]
+    assert review("ruling-fix", ruling="fix it", shas=["rul1234"], finding=ident)[0] == 0
+    _, report = review("finish")
+    assert report["left"]["blocking"] == [] and report["fixed"][0]["sha"] == "rul1234" and report["fixed"][0]["reviewed"] is False
+    _, check = review("delta-begin")
+    review("delta-record", verdicts=verdicts(check, "reopened"))
+    assert [item["id"] for item in review("finish")[1]["left"]["blocking"]] == [ident]
+
+
+def test_a_ruling_fix_names_a_finding_that_exists(review):
+    stopped_clean(review)
+    code, answer = review("ruling-fix", ruling="x", shas=["a"], finding="f9")
+    assert (code, answer["error"]["code"]) == (1, "no-such-finding")
+
+
+@pytest.mark.parametrize("payload", [{"shas": ["a"]}, {"ruling": "x"}, {"ruling": "x", "shas": []}, {"ruling": " ", "shas": ["a"]}, {"ruling": "x", "shas": [""]}])
+def test_a_ruling_fix_needs_the_ruling_and_its_commits(review, payload):
+    stopped_clean(review)
+    assert review("ruling-fix", **payload)[0] == 2
+
+
+def test_a_ruling_fix_waits_for_the_stop(review):
+    begin(review)
+    review("record", findings=[])
+    code, answer = review("ruling-fix", ruling="x", shas=["a"])
+    assert (code, answer["error"]["code"]) == (1, "review-running")
+
+
+def test_delta_verbs_need_a_started_review(review):
+    for verb, payload in (("delta-begin", {}), ("delta-record", {"verdicts": []}), ("delta-fix", {"id": "f1", "result": "fixed", "sha": "a"}),
+                          ("ruling-fix", {"ruling": "x", "shas": ["a"]})):
+        assert review(verb, **payload)[1]["error"]["code"] == "no-review"
+
+
+def test_delta_fix_refuses_what_it_cannot_record(review):
+    ident = fixed_at_the_cap(review)
+    _, check = review("delta-begin")
+    assert review("delta-fix", id=ident, result="fixed", sha="a")[1]["error"]["code"] == "no-reopened-item"
+    review("delta-record", verdicts=verdicts(check, "reopened"))
+    assert review("delta-fix", id=ident, result="maybe")[0] == 2
+    assert review("delta-fix", id=ident, result="fixed")[0] == 2
+    assert review("delta-fix", id=ident, result="unfixed")[0] == 2

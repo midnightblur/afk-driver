@@ -228,6 +228,16 @@ def test_a_blocking_finding_refuses_done_and_routes_to_a_park(run, monkeypatch):
     assert "review-blocking" in done_codes(call("done", plan=str(run.plan), subtask="0001-a"))
 
 
+@pytest.mark.parametrize("delta, code", [({"owed": [{"id": "f1"}], "confirmed": [], "parked": []}, "delta-owed"),
+                                         ({"owed": [], "confirmed": [], "parked": [{"id": "f1"}]}, "delta-parked")])
+def test_an_open_delta_check_refuses_done(run, monkeypatch, delta, code):
+    call("start", plan=str(run.plan), subtask="0001-a")
+    build_subtask(run, "0001-a")
+    call("set-change", plan=str(run.plan), change="7")
+    monkeypatch.setattr(walk, "review_report", lambda plan, subtask: envelope.ok(left={"blocking": [], "posted": [], "not_posted": []}, stopped_by="cap", delta=delta))
+    assert code in done_codes(call("done", plan=str(run.plan), subtask="0001-a"))
+
+
 def test_done_sets_the_row_and_commits_only_on_the_run_branch(run):
     call("start", plan=str(run.plan), subtask="0001-a")
     build_subtask(run, "0001-a")
