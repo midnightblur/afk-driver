@@ -28,7 +28,7 @@ def sent_block():
 def publish_then_read(fake_jira, preview, after):
     before = hand_built("issue-before-publish.json")["response"]
     previewed = jira.description_hash(before["fields"]["description"])
-    file, receipt, _ = preview(description_hash=previewed, pictures=(), text="Goal\nPublish the PRD.")
+    file, receipt, _ = preview(description_hash=previewed, pictures=(), text=jira.block_text(sent_block()))
     client = fake_jira({
         ("GET", "/rest/api/3/issue/PROJ-1"): FakeResp(before),
         ("PUT", "/rest/api/3/issue/PROJ-1"): FakeResp(b""),
@@ -101,3 +101,13 @@ def test_the_key_cannot_change_the_rest_path(fake_jira):
     client = fake_jira({("GET", "/rest/api/3/issue/"): FakeResp({"fields": {}})})
     jira.issue_get({"key": "../../myself"})
     assert client.calls[0][1].startswith("/rest/api/3/issue/..%2F..%2Fmyself")
+
+
+def test_a_read_back_with_a_link_only_edit_compares_different(fake_jira, preview):
+    after = hand_built("issue-after-publish.json")["response"]
+    text = json.dumps(after).replace('{"type": "text", "text": "Publish the PRD."',
+                                     '{"type": "text", "marks": [{"type": "link", "attrs": {"href": "https://a.example"}}], '
+                                     '"text": "Publish the PRD."')
+    assert text != json.dumps(after)
+    put, read = publish_then_read(fake_jira, preview, json.loads(text))
+    assert put["block"]["text"] != read["block"]["text"]

@@ -303,7 +303,8 @@ def test_the_hash_ignores_key_order_only():
 def test_the_receipt_is_the_hash_of_key_text_and_pictures(publish, preview):
     run = publish(doc())
     hashes = ["a" * 64, "b" * 64]
-    receipt = hashlib.sha256(("PROJ-1" + "the new PRD" + "a" * 64 + "b" * 64).encode("utf-8")).hexdigest()
+    text = jira.block_text([para("the new PRD")])
+    receipt = hashlib.sha256(("PROJ-1" + text + "a" * 64 + "b" * 64).encode("utf-8")).hexdigest()
     file = run.write_preview(receipt, hashes)
     assert jira.description_put(run.payload(receipt=receipt, preview=file))["ok"] is True
 
@@ -327,4 +328,48 @@ def test_pictures_the_receipt_does_not_cover_are_refused(publish, preview):
 
 def test_a_figure_does_not_change_the_block_text():
     figure = {"type": "mediaSingle", "content": [{"type": "media", "attrs": {"id": "m"}}]}
-    assert jira.block_text([para("a"), figure, para("b")]) == jira.block_text([para("a"), para("b")]) == "a\nb"
+    assert jira.block_text([para("a"), figure, para("b")]) == jira.block_text([para("a"), para("b")])
+    assert jira.block_text([figure]) == ""
+
+
+def linked(href, text="see this", **extra):
+    mark = {"type": "link", "attrs": {"href": href}}
+    return {"type": "paragraph", "content": [{"type": "text", "text": text, "marks": [mark]}], **extra}
+
+
+def test_a_link_only_edit_changes_the_block_text():
+    assert jira.block_text([linked("https://a.example")]) != jira.block_text([linked("https://b.example")])
+
+
+def test_a_new_mark_on_the_same_text_changes_the_block_text():
+    plain = {"type": "paragraph", "content": [{"type": "text", "text": "see this"}]}
+    assert jira.block_text([plain]) != jira.block_text([linked("https://a.example")])
+
+
+def test_a_heading_level_changes_the_block_text():
+    def heading(level):
+        return {"type": "heading", "attrs": {"level": level}, "content": [{"type": "text", "text": "a"}]}
+
+    assert jira.block_text([heading(1)]) != jira.block_text([heading(2)])
+
+
+def test_key_order_and_attributes_jira_adds_do_not_change_the_block_text():
+    sent = linked("https://a.example")
+    shuffled = dict(reversed(list(linked("https://a.example", attrs={"localId": "abc"}).items())))
+    assert jira.block_text([sent]) == jira.block_text([shuffled])
+
+
+def test_the_block_text_is_canonical_json_with_non_ascii_kept():
+    assert jira.block_text([para("é")]) == '[{"content":[{"text":"é","type":"text"}],"type":"paragraph"}]'
+
+
+def test_a_link_only_edit_after_the_preview_is_refused(publish, preview):
+    run = publish(doc())
+    file, receipt, _ = preview(description_hash=run.hash, pictures=(),
+                               text=jira.block_text([linked("https://a.example")]))
+    changed = run.payload(receipt=receipt, preview=file, adf=[linked("https://b.example")])
+    with pytest.raises(jira.Refusal) as caught:
+        jira.description_put(changed)
+    assert caught.value.code == "bad-receipt"
+    shown = run.payload(receipt=receipt, preview=file, adf=[linked("https://a.example")])
+    assert jira.description_put(shown)["ok"] is True

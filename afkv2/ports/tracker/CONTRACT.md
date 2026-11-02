@@ -25,7 +25,7 @@ The port has no create, transition or comment verb.
 
 - `preview` is the path of a JSON file with `ticket_key`, `receipt`, `description_hash` and `picture_hashes` (a list: the sha256 hex digest of each picture file).
 - `receipt` is the sha256 hex digest (64 lowercase characters) of the UTF-8 bytes of ticket key + `block_text` + the `picture_hashes` joined with no separator, in list order. `description-put` computes it again from `adf` and refuses `bad-receipt` when it differs. It binds the visible text and the picture bytes only: a link target, a node type or a media id in `adf` is not in the hash, and the read-back compares the media ids.
-- `block_text` is the text of the top-level nodes that hold text, one per line. Figure nodes hold none, so `md-to-adf` without `figures` gives the same `block_text` as the later call with `figures`.
+- `block_text` is the canonical JSON (sorted keys, no spaces, UTF-8 not escaped) of the block nodes: each node's `type`, `text`, every mark, the `level` and `language` attributes and its children. A link-only edit changes it. Figure nodes (`mediaSingle`, `mediaGroup`, `media`) stay out, because `picture_hashes` covers them, so `md-to-adf` without `figures` gives the same `block_text` as the later call with `figures`. Other attributes stay out, because Jira can add its own on read. The `text` of a `block` summary is the same form.
 - `expect_hash` is the `description_hash` that `issue-get` answered when the preview was built. It must equal the preview's `description_hash`.
 - The `png` file name is `afkv2-fig-<receipt 8 chars>-<n>.png`, and the hash of the file must be in `picture_hashes`.
 - `adf` is a list of ADF nodes or a doc. It holds only the text between the block lines; the port writes the lines.

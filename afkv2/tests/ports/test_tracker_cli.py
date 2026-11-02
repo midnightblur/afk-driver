@@ -85,7 +85,9 @@ def test_md_to_adf_substitutes_figures(capsys):
 
 def test_md_to_adf_answers_the_text_the_receipt_covers(capsys):
     code, answer = call(capsys, "md-to-adf", json.dumps({"markdown": "# A\n\nb\n\nAFKV2FIGURE1ENDFIGURE"}))
-    assert code == 0 and answer["block_text"] == "A\nb"
+    assert code == 0 and json.loads(answer["block_text"]) == [
+        {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "A"}]},
+        {"type": "paragraph", "content": [{"type": "text", "text": "b"}]}]
 
 
 def test_the_preview_text_equals_the_text_of_the_later_call_with_figures(capsys):
@@ -93,7 +95,7 @@ def test_the_preview_text_equals_the_text_of_the_later_call_with_figures(capsys)
     figure = [{"type": "mediaSingle", "content": []}]
     _, preview = call(capsys, "md-to-adf", json.dumps({"markdown": markdown}))
     _, write = call(capsys, "md-to-adf", json.dumps({"markdown": markdown, "figures": {"1": figure}}))
-    assert preview["block_text"] == write["block_text"] == "A\nb\nc"
+    assert preview["block_text"] == write["block_text"] and '"text":"c"' in write["block_text"]
     assert figure[0] in write["content"] and figure[0] not in preview["content"]
 
 
@@ -171,3 +173,9 @@ def test_an_absent_reader_is_a_named_refusal(capsys, tmp_path, monkeypatch):
 def test_an_unknown_kind_is_a_named_refusal(capsys):
     code, answer = call(capsys, "issue-get", '{"key":"7","tracker":"linear"}')
     assert code == 1 and answer["error"]["code"] == "no-tracker"
+
+
+def test_md_to_adf_answers_another_text_for_a_link_only_edit(capsys):
+    _, first = call(capsys, "md-to-adf", json.dumps({"markdown": "[see](https://a.example)"}))
+    _, second = call(capsys, "md-to-adf", json.dumps({"markdown": "[see](https://b.example)"}))
+    assert "https://a.example" in first["block_text"] and first["block_text"] != second["block_text"]

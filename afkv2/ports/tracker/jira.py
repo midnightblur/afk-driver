@@ -27,6 +27,8 @@ PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 DEFAULT_FIELDS = ("summary,status,issuetype,assignee,reporter,priority,created,updated,labels,components,"
                   "description,comment,issuelinks")
 _RECEIPT = re.compile(r"[0-9a-f]{64}")
+_FIGURE_NODES = {"mediaSingle", "mediaGroup", "media"}
+_READ_ATTRS = {"level", "language"}
 _BEGINS = {BEGIN_LINE: "afkv2", **{line: "v1" for line in v1_facts.BLOCK_BEGIN_LINES}}
 _ENDS = {END_LINE: "afkv2", v1_facts.BLOCK_END_LINE: "v1"}
 
@@ -265,9 +267,23 @@ def _media_ids(node):
     return found
 
 
+def _canonical_node(node):
+    """Type, text and every mark. Of the other attributes only those that change how text reads: Jira adds its own on read."""
+    kept = {key: node[key] for key in ("type", "text", "marks") if key in node}
+    attrs = {key: value for key, value in (node.get("attrs") or {}).items() if key in _READ_ATTRS}
+    children = _canonical_nodes(node.get("content") or [])
+    return {**kept, **({"attrs": attrs} if attrs else {}), **({"content": children} if children else {})}
+
+
+def _canonical_nodes(nodes):
+    return [_canonical_node(node) for node in nodes if isinstance(node, dict) and node.get("type") not in _FIGURE_NODES]
+
+
 def block_text(nodes):
-    """The text of a block. A figure node holds none, so a preview without pictures gives the same text."""
-    return "\n".join(text for text in map(node_text, nodes) if text)
+    """Canonical JSON of a block, so a link-only edit changes it. The picture hashes cover figures, so a preview
+    without pictures gives the same text."""
+    kept = _canonical_nodes(nodes)
+    return json.dumps(kept, sort_keys=True, separators=(",", ":"), ensure_ascii=False) if kept else ""
 
 
 def _summary(family, nodes):
