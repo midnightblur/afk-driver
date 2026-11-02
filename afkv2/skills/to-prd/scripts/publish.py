@@ -98,10 +98,19 @@ def check_ids_present(markdown, published_text):
     return sorted(set(ID.findall(markdown)))
 
 
+INLINE_HOLDERS = {"paragraph", "heading", "codeBlock"}
+
+
 def _visible_text(nodes):
-    """The words a reader sees. `block_text` does not serve: it is JSON, so it holds link targets and escapes line ends."""
+    """The words a reader sees. `block_text` does not serve: it is JSON, so it holds link targets and escapes line ends.
+    Text nodes of one block join whole, because a mark splits a word; blocks and line breaks part words."""
     def words(node):
-        return node.get("text") or "" if node.get("type") == "text" else "".join(map(words, node.get("content") or []))
+        kind = node.get("type")
+        if kind == "text":
+            return node.get("text") or ""
+        if kind == "hardBreak":
+            return "\n"
+        return ("" if kind in INLINE_HOLDERS else "\n").join(map(words, node.get("content") or []))
     return "\n".join(map(words, nodes))
 
 

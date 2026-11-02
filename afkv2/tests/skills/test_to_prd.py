@@ -226,6 +226,32 @@ def test_ids_present_reads_whole_ids():
     assert refused.value.extra["missing"] == ["AC-001", "WE-02"]
 
 
+def _para(*children):
+    return {"type": "paragraph", "content": list(children)}
+
+
+def _text(text, **extra):
+    return {"type": "text", "text": text, **extra}
+
+
+def test_visible_text_keeps_block_children_apart_and_inline_runs_whole():
+    """Shapes as the tracker port converts them: list items and table cells hold paragraphs, marks split text nodes."""
+    def cell(kind, *children):
+        return {"type": kind, "attrs": {}, "content": [_para(*children)]}
+    nodes = [
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [_para(_text("AC-003 reads it"))]},
+                                           {"type": "listItem", "content": [_para(_text("AC-004 writes"))]}]},
+        {"type": "table", "content": [{"type": "tableRow", "content": [cell("tableHeader", _text("AC-001")),
+                                                                       cell("tableCell", _text("user logs in"))]},
+                                      {"type": "tableRow", "content": [cell("tableCell", _text("AC-002")),
+                                                                       cell("tableCell", _text("x"))]}]},
+        _para(_text("AC-"), _text("005", marks=[{"type": "strong"}]), _text(" split by a mark")),
+        _para(_text("AC-006"), {"type": "hardBreak"}, _text("WE-01 after a line break")),
+    ]
+    markdown = "AC-001 AC-002 AC-003 AC-004 AC-005 AC-006 WE-01"
+    assert publish.check_ids_present(markdown, publish._visible_text(nodes)) == sorted(markdown.split())
+
+
 def test_receipt_is_the_sha256_of_key_text_and_picture_hashes():
     expected = hashlib.sha256(b"PROJ-1the textaabb").hexdigest()
     assert publish.compute_receipt("PROJ-1", "the text", ["aa", "bb"]) == expected
