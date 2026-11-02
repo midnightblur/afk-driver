@@ -202,3 +202,4 @@
 2026-11-02 02:26 | autopilot | run | delta check (R-5) confirm cceb9c38, b01291ed — a fresh reader of only those changes found both rulings met and no serious defect
 2026-11-02 02:57 | autopilot | run | decision(D-79) — the test that waited for the real answer reader is replaced; running that reader also showed that a reopen mark on an older card was lost, and that is fixed
 2026-11-02 02:57 | autopilot | run | gate-skip — merge 5bfb860c, commit 87d1fa8a and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-11-02 03:03 | autopilot | run | delta check (R-5) confirm 87d1fa8a — a fresh reader of only that change found the ruling met, the guide text true of the real answer reader, and no serious defect
