@@ -524,3 +524,10 @@
 - Chosen: A — commit 86571066. `_visible_text` glued list items and table cells, so `AC-001` beside `user logs in` read as `AC-001user` and `check_ids_present` refused. It failed closed, so nothing wrong was published. The new test fails on the old code with 5 missing ids. The shapes come from a read of S3 `adf.py` (`listItem`, `tableCell`), not from a run of it. This is the one extra fix R-5 allows: if the next delta check fails, this slice parks
 - Supersedes: the `_visible_text` part of D-74
 - To reverse: revert commit 86571066
+
+## D-76 — orchestrator ruling: the v1 name pattern moves into fake_v1_facts.py
+- 2026-11-02 · decided by the session orchestrator (integration ruling after a trial merge of S1, S2 and S3)
+- Options: A — move `afk(?!v2)` into `fake_v1_facts.py` and import it in `test_grill.py` and `test_visualize.py` vs B — wait for S1 to widen its rule
+- Chosen: A — commit a754eb8a. S1 `check_no_v1_names` from `origin/feat/afkv2-s1` now gives 0 hits on `afkv2/` of this branch; this is a run on this tree, not on the merged tree. `test_grill.py`, `test_visualize.py` and `test_to_prd.py` are green. The 11 marker hits are slash commands: by the same ruling S1 narrows its rule, and this branch changes nothing for them
+- Supersedes: none
+- To reverse: revert commit a754eb8a
