@@ -206,3 +206,7 @@
 2026-11-02 11:20 | execute | R-5 delta | park r5-delta/f004 (reopens f001) — the check after the one more fix still fails, so owner ruling R-5 parks it with no further fix. In plain terms: a one-line fix is known, and it waits for a ruling.
 2026-11-02 11:20 | smoke-test | gate | smoke green (2/2 rows) at 5fcca9f0 — compile pass; 1091 passed, 7 skipped. In plain terms: all tests pass, and they do not cover the parked GitLab case.
 2026-11-02 11:20 | execute | R-5 delta | gate-skip — the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-11-02 01:32 | execute | R-5 delta | decision(D-93) — orchestrator ruling: fix r5-delta/f004 with a failing-then-passing test and no third check. In plain terms: on GitLab, an old test result on a /head ref no longer counts for a new commit.
+2026-11-02 01:32 | execute | R-5 delta | decision(D-94) — orchestrator ruling: fix r5-delta/f005. In plain terms: the tracker contract no longer contradicts itself about the receipt.
+2026-11-02 01:32 | execute | R-5 delta | decision(D-95) — orchestrator ruling: reword 2 IOU lines. In plain terms: the old gate that failed the PR's CI should stop refusing these 2 lines.
+2026-11-02 01:32 | execute | R-5 delta | gate-skip — commits 65de16da, c46de9dd, e2d5481a and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4): the installed 1.16.0 hook has no afkv2 out-of-tree filter; the branch's own gates passed on the staged IOU tree

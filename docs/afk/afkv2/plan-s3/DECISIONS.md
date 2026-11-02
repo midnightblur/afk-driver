@@ -643,3 +643,24 @@
 - Chosen: B — a field the verb does not name, or an argument after the payload, is `bad-payload` before any forge call. `change-create-draft` now needs a `body` that is not blank, so a contract field changed from optional to required. After each body write the port reads the description and answers `body-not-kept` with `id` if it differs or cannot be read; line ends and end whitespace do not count. Live on PR 156 (GitHub): a real update with the same body answered ok, the body stayed the same and the Draft flag stayed on. GitLab is not verified live
 - Supersedes: none
 - To reverse: `_FIELDS` and `forge_main` in `afkv2/ports/forge/forge_cli.py`, `check_body_kept` in `afkv2/ports/forge/common.py`
+
+## D-93 — orchestrator ruling: only a /merge or /train ref keeps the merge-commit exemption (r5-delta/f004)
+- 2026-11-02 · decided by orchestrator (the rule); the form by execute
+- Options: A — any ref that ends in `/merge` or `/train` vs B — the same, and the ref must start with `refs/merge-requests/`
+- Chosen: B — a branch named `feature/merge` is not a merge-commit ref, and a test holds this. A `/head` ref runs on the source commit, so a final pipeline of the last commit now reads `running`. Proof: `test_gitlab_a_ref_with_no_merge_commit_of_its_own_reads_running` fails on the old condition and on A, and passes on B. No third reviewer check, by the same ruling; R-5's one-check cap stands. The limits in D-90 stay: a `/merge` or `/train` pipeline of the last commit still counts until a new one starts. The GitLab answer shape is not verified on a live GitLab
+- Supersedes: the exemption sentence of D-90
+- To reverse: `_runs_on_a_merge_commit` in `afkv2/ports/forge/gitlab.py`
+
+## D-94 — orchestrator ruling: the receipt sentence is fixed, not advisory (r5-delta/f005)
+- 2026-11-02 · decided by orchestrator
+- Options: A — leave f005 advisory by R-2 vs B — fix the one sentence
+- Chosen: B — other sessions read this contract file, so a self-contradiction there is not advisory. Line 27 of `afkv2/ports/tracker/CONTRACT.md` now says a link target and a node type are in the hash, and a media id is not
+- Supersedes: the advisory state of f005 under R-2
+- To reverse: orchestrator ruling only
+
+## D-95 — orchestrator ruling: IOU lines name no harness (cause of the red PR CI)
+- 2026-11-02 · decided by orchestrator (the rule); the wording by execute
+- Options: A — add the 2 lines to `hooks/native-contract-allow.txt` vs B — reword the lines
+- Chosen: B — lines 29 and 32 of `.claude/wiring-ious.md` now say "the second provider". The file is outside the afkv2 out-of-tree filter of the v1 native-contract gate. Run 41392930131 names only these 2 lines as forbidden vocabulary. A grep of the file for the gate's other harness words matched nothing
+- Supersedes: none
+- To reverse: reword `.claude/wiring-ious.md`
