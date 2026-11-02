@@ -615,3 +615,31 @@
 - Chosen: B, as ordered: `icacls <dir> /inheritance:r /grant:r <user>:(OI)(CI)F`; refusal code `backup-not-private`, nothing written. Scope details: the lock is on the whole `backup` folder and not only its token subfolders, because the Codex config copy (`backup/codex/config.toml`) can hold the token too, so `_switch_codex` also refuses; the lock runs on every token backup write, so a folder from an earlier run gets it; the user is `USERDOMAIN\USERNAME` when the domain is set, so a local account with the same name cannot match first; POSIX uses mode 0700. Checked once with the real `icacls` on a throwaway scratchpad folder: the folder shows only `HQ1\mvu:(OI)(CI)(F)`, files from before and after the lock show `(I)(F)`, a second lock has no error. Not verified: whether a Codex sandbox session can still run switch-back (live check 5 asks this)
 - Supersedes: none
 - To reverse: `lock_to_current_user` in `afkv2/skills/setup/scripts/tools.py`, its callers in `jira_values.py` and `setup.py`
+
+## D-89 — owner ruling R-5: one delta check of late fixes
+- 2026-10-30 · decided by owner ("yes review the delta")
+- Options: A — late fixes stay unread vs B — one delta check that reads only the fix commits' diff
+- Chosen: B — the check may only confirm or reopen the findings or rulings the commits answer, and raises no new finding unless a fix introduces a critical or high defect. A reopened critical or high finding gets one more fix, and parks if the next delta check still fails
+- Supersedes: none
+- To reverse: owner ruling only
+
+## D-90 — a GitLab pipeline of another commit reads running (delta finding r5-delta/f001)
+- 2026-11-02 · decided by execute (R-5 delta fix)
+- Options: A — `diff_head_pipeline` by another API read vs B — compare `head_pipeline.sha` with the change head in the status read
+- Chosen: B — no extra call. A pipeline of another commit reads `running` and not a final word, so a watch waits and a Ready gate refuses. A `refs/merge-requests/` ref runs on a merge commit of its own, so it keeps its word. Limits: a merged-results pipeline of the last commit still counts until a new one starts, and a push with no new pipeline stays `running` until the budget ends (safe side). The GitLab answer shape comes from the reviewer's read of GitLab source; not verified on a live GitLab. f002 and f003 (medium) stay advisory by R-2
+- Supersedes: none
+- To reverse: `_of_another_commit` in `afkv2/ports/forge/gitlab.py`
+
+## D-91 — what the canonical block text keeps
+- 2026-11-02 · decided by orchestrator (the receipt rule); the form by execute
+- Options: A — the JSON of each node whole vs B — each node's `type`, `text`, every mark, the `level` and `language` attributes and children
+- Chosen: B — `block_text` is one function for the receipt and for the read-back `text`, and the read-back test holds a `localId` attribute that Jira adds (hand-built answer, D-33). With A a real publish could fail its read-back with no edit. Figure nodes stay out, because the media ids change between preview and write and `picture_hashes` covers them. `publish.py` of S2 takes `block_text` from the port, so the two agree only if it keeps doing so; S2's new calculation was not on its branch or in its worktree when this was written, so the match is not verified. Jira's real answer is not verified live
+- Supersedes: none
+- To reverse: `block_text` and `_canonical_node` in `afkv2/ports/tracker/jira.py`, and the `block_text` line of `afkv2/ports/tracker/CONTRACT.md`
+
+## D-92 — where the forge port refuses and reads back (SDD §7 row)
+- 2026-11-02 · decided by orchestrator (the rule); the form by execute
+- Options: A — check fields in each forge form vs B — one field table in `forge_cli.py`, ahead of both forms
+- Chosen: B — a field the verb does not name, or an argument after the payload, is `bad-payload` before any forge call. `change-create-draft` now needs a `body` that is not blank, so a contract field changed from optional to required. After each body write the port reads the description and answers `body-not-kept` with `id` if it differs or cannot be read; line ends and end whitespace do not count. Live on PR 156 (GitHub): a real update with the same body answered ok, the body stayed the same and the Draft flag stayed on. GitLab is not verified live
+- Supersedes: none
+- To reverse: `_FIELDS` and `forge_main` in `afkv2/ports/forge/forge_cli.py`, `check_body_kept` in `afkv2/ports/forge/common.py`

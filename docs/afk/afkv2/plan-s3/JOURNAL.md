@@ -197,3 +197,8 @@
 2026-10-30 16:40 | execute | setup backups | decision(D-88) — only the current user can open the setup backup folder that can hold the Jira token; if setup cannot set this, it writes nothing
 2026-10-30 16:40 | execute | setup backups | gate-skip — commit 49684d4f and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); setup tests only (217 passed, 5 skipped); smoke gate not re-run
 2026-10-30 16:50 | execute | setup backups | gate-skip — commit ef60fd78 and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); it corrects the refusal text; setup tests only (217 passed, 5 skipped)
+2026-11-02 09:00 | execute | R-5 delta | decision(D-89) — the owner asked for one check of fixes made too late for a review round
+2026-11-02 09:00 | execute | R-5 delta | decision(D-90) — on GitLab, a test result that belongs to an older commit no longer counts for the new commit
+2026-11-02 09:00 | execute | R-5 delta | decision(D-91) — the publish receipt now covers link targets, so a change to only a link needs a new preview
+2026-11-02 09:00 | execute | R-5 delta | decision(D-92) — the forge command refuses input it does not know, never writes an empty description, and checks the text after each write
+2026-11-02 09:00 | execute | R-5 delta | gate-skip — commits 6d96e196, 3694afed, 22058e60 and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4). Commit 3694afed was pushed with 2 red tests in test_change_request.py; 22058e60 makes them green
