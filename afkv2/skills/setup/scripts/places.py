@@ -73,6 +73,10 @@ class Places:
     def codex_config(self) -> Path:
         return self.codex_dir / "config.toml"
 
+    @property
+    def codex_rules(self) -> Path:
+        return self.codex_dir / "rules" / "afkv2.rules"
+
 
 def place_key(path: Path) -> str:
     text = os.path.normcase(str(Path(path).resolve()))

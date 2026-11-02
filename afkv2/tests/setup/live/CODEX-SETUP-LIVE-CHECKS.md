@@ -23,6 +23,8 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
    holds the config from before.
 4. Start a new Codex session. Expect: the afkv2 end marker is in context and no
    v1 rule text is.
+5. Expect: `~/.codex/rules/afkv2.rules` exists. Send: `Run: python <afkv2 plugin
+   folder>\engine\engine.py --help`. Expect: no approval prompt.
 
 ## 3. Untrusted hook keeps the v1 block
 
@@ -34,7 +36,8 @@ from a work repository. Record each result in `docs/afk/afkv2/plan-s3/JOURNAL.md
 ## 4. Switch back
 
 1. Run `/afkv2:setup switch-back`.
-2. Expect: `codex plugin list` shows only `afk@afk-toolkit` enabled; the v1 block
+2. Expect: `~/.codex/rules/afkv2.rules` is gone. `codex plugin list` shows only
+   `afk@afk-toolkit` enabled; the v1 block
    is back in both instruction files; `npm ls -g lavish-axi` shows the version
    from before setup.
 

@@ -45,6 +45,8 @@ LOCAL_IGNORE_LINE = b"/" + LOCAL_IGNORE_PATH.encode("ascii")
 IGNORE_ADDED = "ignore-line-added"
 END_LINE = re.compile(r"afkv2-core-behaviors end ([0-9a-f]{12})")
 BEGIN_LINE = re.compile(r"afkv2-core-behaviors begin ([0-9a-f]{12})")
+CODEX_RULES_HEADER = "# Written by /afkv2:setup. /afkv2:setup switch-back deletes this file."
+CODEX_PYTHON_LAUNCHERS = (("python",), ("py", "-3"))
 TRUST_REVIEW = ("Codex skips an untrusted hook without a message: open a new Codex session, "
                 "trust the afkv2 hooks in the hook trust review, then run setup again")
 
@@ -462,6 +464,50 @@ def _switch_codex(places: Places, run: tools.Runner, enable: str, with_backup: b
     return {"ok": True, **answer}
 
 
+def _codex_script_paths(places: Places) -> list[Path]:
+    """The plugin's own scripts in each version Codex has installed."""
+    scripts: list[Path] = []
+    for root in sorted((places.codex_dir / "plugins" / "cache").glob(f"*/{plugins.NEW_NAME}/*")):
+        engine = root / "engine" / "engine.py"
+        scripts += [engine] if engine.is_file() else []
+        scripts += sorted(root.glob("skills/*/scripts/*.py"))
+    return scripts
+
+
+def write_codex_rules(places: Places) -> dict:
+    """Let the plugin's own scripts run outside the Codex sandbox.
+
+    They write to the data folder, start the page host, and reach the forge and the tracker.
+    A sandboxed command can do none of these, and an approval prompt that waits past the
+    tool's time limit lets the agent end its turn before the page exists.
+    """
+    scripts = _codex_script_paths(places)
+    if not scripts:
+        return {"ok": True, "action": "not-installed"}
+    lines = [CODEX_RULES_HEADER]
+    for script in scripts:
+        for launcher in CODEX_PYTHON_LAUNCHERS:
+            pattern = json.dumps([*launcher, str(script)], ensure_ascii=False)
+            lines.append(f'prefix_rule(pattern={pattern}, decision="allow")')
+    text = "\n".join(lines) + "\n"
+    target = places.codex_rules
+    if target.exists() and target.read_text(encoding="utf-8") == text:
+        return {"ok": True, "action": "unchanged", "file": str(target), "scripts": len(scripts)}
+    write_atomic(target, text.encode("utf-8"))
+    return {"ok": True, "action": "written", "file": str(target), "scripts": len(scripts),
+            "next": "start a new Codex session: Codex reads rules at startup"}
+
+
+def remove_codex_rules(places: Places) -> str:
+    try:
+        if not places.codex_rules.exists():
+            return "absent"
+        places.codex_rules.unlink()
+    except OSError:
+        return "failed"
+    return "removed"
+
+
 def switch_plugins(places: Places, repo: Path, run: tools.Runner) -> dict:
     """afkv2 on and v1 off: Claude in this project's local settings, Codex globally."""
     claude = _switch_claude(places, repo, run, plugins.NEW_NAME, with_backup=True)
@@ -540,6 +586,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
     settings = [_restore_repo_settings(saved) for saved in saved_dirs]
     live = [Path(s["repo"]) for s in settings if s["settings"] not in ("repo-missing", "failed")]
     codex = _restore_codex_config(places)
+    codex_rules = remove_codex_rules(places)
     jira = {"claude_user_config": jira_values.restore_claude_user_config(places),
             "user_environment": jira_values.restore_user_env(places, user_env)}
     lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
@@ -560,7 +607,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         failed = _remove_backup(saved)
         if failed:
             answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])
-    ok = (lavish["ok"] and one_on["ok"] and codex != "failed"
+    ok = (lavish["ok"] and one_on["ok"] and codex != "failed" and codex_rules != "failed"
           and not any(step["action"] == "failed" for step in jira.values())
           and not any(b["action"] == "failed" for b in blocks)
           and not any(h["action"] in ("conflict", "failed") for h in hooks)
@@ -568,7 +615,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
     if ok:
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
-            "codex_config": codex, "jira_values": jira, "lavish": lavish, "plugins": one_on,
+            "codex_config": codex, "codex_rules": codex_rules, "jira_values": jira, "lavish": lavish, "plugins": one_on,
             "diagram_renderer": "left-installed",
             "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
@@ -637,6 +684,7 @@ def takeover(places: Places, repo: Path, system: System, env: Mapping[str, str],
                        ("v1_block", lambda: remove_v1_block(places)),
                        ("git_hooks", lambda: move_v1_git_hooks(places, repo, system.run)),
                        ("plugins", lambda: switch_plugins(places, repo, system.run)),
+                       ("codex_rules", lambda: write_codex_rules(places)),
                        ("lavish", lambda: tools.install_lavish_pin(places, system.run, env))):
         steps[name] = _attempt(step)
         if not steps[name]["ok"]:
