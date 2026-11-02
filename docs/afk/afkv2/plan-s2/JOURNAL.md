@@ -195,3 +195,4 @@
 2026-11-02 01:41 | autopilot | run | run end (5/5 done, 0 parked) — the five ruled fixes are in and checked, and the smoke check is green; the pull request stays Draft
 2026-11-02 01:51 | autopilot | run | decision(D-76) — a pattern that two tests use to find old names moved into the one file allowed to hold such names, so the plugin check passes after the merge
 2026-11-02 01:51 | autopilot | run | gate-skip — commit a754eb8a and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-11-02 01:54 | autopilot | run | delta check (R-5) a754eb8a: confirmed — a separate reader of only that commit's change found the ruling met and no serious defect
