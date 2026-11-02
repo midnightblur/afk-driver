@@ -166,3 +166,6 @@
 2026-10-30 16:40 | autopilot | 0001-skeleton-manifests-hooks | heartbeat 4/5 done, starting 0005-notes-ingest-live-test — the small 0001 change is done; I re-ran its tests and check myself and they pass
 2026-10-30 16:48 | execute | 0005-notes-ingest-live-test | designing — contract read, consumes 3/3 pass, no ## Seams row so no ground diff; next: mark table, notes on the page, the held-map fix
 2026-10-30 16:53 | execute | 0005-notes-ingest-live-test | developing — tests first for the mark table and held maps
+2026-11-02 00:20 | execute | 0005-notes-ingest-live-test | gate-skip(R-4): 2cdd1d93, 9a3d3c84, d135a864, 305ba95c and the plan commit that holds this line — pre-commit gates skipped under owner ruling R-4 (native-contract gate fails on the older afkv2/tests/live/CODEX-LIVE-CHECKS.md); plugin check ran by hand
+2026-11-02 00:20 | execute | 0005-notes-ingest-live-test | live test on 305ba95c: 45 of 45 steps passed; host layout audit 0 severe findings at 1280 and 390, on the full page and on the page of only diagrams
+2026-11-02 00:20 | execute | 0005-notes-ingest-live-test | needs_decision: test_engine_core.py test_the_slot_holds_what_its_registered_component_renders cannot pass once the real notes-and-replies component registers; the file is outside Scope; asked the orchestrator for one edit

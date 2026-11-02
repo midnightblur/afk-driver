@@ -3,7 +3,7 @@
 > Parent ticket: GitHub #153   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2-s1
-> Last updated: 2026-10-30 (status column maintained by /afk:execute)
+> Last updated: 2026-11-02 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
@@ -97,7 +97,7 @@ seams are the ones S2 and S3 depend on.*
 | 2 | 0002-core-behaviors | core behaviors | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 3 | 0003-engine-core-schema-show-poll | engine core schema show poll | done | 0001-skeleton-manifests-hooks | static, unit, integration | — |
 | 4 | 0004-diagram-components | diagram components | done | 0003-engine-core-schema-show-poll | static, unit | — |
-| 5 | 0005-notes-ingest-live-test | notes ingest live test | developing | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
+| 5 | 0005-notes-ingest-live-test | notes ingest live test | blocked(needs_decision: test_engine_core.py slot test outside Scope) | 0003-engine-core-schema-show-poll, 0004-diagram-components | static, unit, e2e/browser | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
