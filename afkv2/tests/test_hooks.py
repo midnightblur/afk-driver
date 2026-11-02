@@ -261,7 +261,7 @@ def test_each_event_runs_its_cmd_hook_per_provider(event, hook):
     (handler,) = group["hooks"]
     assert handler["command"] == "cmd.exe"
     assert handler["args"] == ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\" + hook.name, "claude"]
-    assert handler["commandWindows"] == f'"%PLUGIN_ROOT%\\hooks\\{hook.name}" codex'
+    assert handler["commandWindows"] == '"${PLUGIN_ROOT}\\hooks\\' + hook.name + '" codex'
 
 
 def test_subagent_start_matches_every_agent_type():
