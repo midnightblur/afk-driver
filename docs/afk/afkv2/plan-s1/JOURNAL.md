@@ -187,3 +187,4 @@
 2026-11-02 01:51 | autopilot | 0001-skeleton-manifests-hooks | decision(D-57) — the marker check no longer mistakes a slash command for a marker, and real markers stay caught
 2026-11-02 01:51 | autopilot | 0001-skeleton-manifests-hooks | decision(D-58) — one human checklist may name the old plugin id, at its exact path only
 2026-11-02 01:51 | autopilot | 0001-skeleton-manifests-hooks | fix b9a52f92 — 6 new tests failed before the change; after it test_plugin_check has 506 passed, 2 xfailed, and the plugin check passes; on the trial merge 52 problems became 35; gate-skip(R-4): b9a52f92 and the plan commit that holds this line, the installed native-contract gate refused it
+2026-11-02 01:52 | autopilot | 0001-skeleton-manifests-hooks | delta check (R-5) on b9a52f92: both rulings confirmed, no new critical or high defect — S1 is done again and ready for the plan author to merge; gate-skip(R-4): the plan commit that holds this line
