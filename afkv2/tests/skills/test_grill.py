@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from test_visualize import V1_WORD, check_document
+from test_visualize import V1_WORD, _example, _find, _next_round, check_document
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
@@ -546,6 +546,35 @@ def test_a_note_on_an_older_card_returns_and_must_be_carried(world):
     world.run("sync", doc=started["doc"], log=started["log"])
     log = Path(started["log"]).read_text("utf-8")
     assert 'owner note on i-scope (N-2-i-scope): "only for open orders"' in log
+
+
+def test_a_reopen_on_an_older_card_returns_and_must_be_carried(world):
+    started = first_round(world)
+    answered(world, started, "i-scope: accept\ni-format: accept\n")
+    world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
+    pending = answered(world, started, "i-two: accept\ni-scope: reopen\n")
+    assert [p["id"] for p in pending["returned"]] == ["i-scope"]
+    with pytest.raises(AssertionError, match="missing-carry"):
+        world.build_round(started, next_round([{"id": "i-three", "kind": "confirm", "body": text("x")}]), ticket=False)
+    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
+                                            "body": text("Open again?")}]), ticket=False)
+    assert "i-scope" not in [p["id"] for p in rd.returning(json.loads(Path(started["doc"]).read_text("utf-8")))]
+
+
+@pytest.mark.parametrize("line", ["i-data reopen", "i-data — | Use the new name."])
+def test_the_real_ingest_returns_an_older_card(tmp_path, line):
+    doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
+    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    raw.write_text(f"[round R-2]\n{line}", "utf-8")
+    run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
+                         capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert run.returncode == 0, run.stdout + run.stderr
+    after = json.loads(doc.read_text("utf-8"))
+    for rnd in after["rounds"]:
+        for item in rnd["items"]:
+            item.setdefault("state", "open")
+    assert _find(after, "i-data").get("settled") is None
+    assert [item["id"] for item in rd.returning(after)] == ["i-data"]
 
 
 def test_a_steer_is_kept_word_for_word_and_settles_nothing(world):

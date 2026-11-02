@@ -24,6 +24,7 @@ SCHEMA = "afkv2.page/0"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 LONE_MARKS = ("accept", "sign", "option:")
+SETTLED = ("settled_by_mark", "settled_by_note")
 
 
 def answer(obj, code=0):
@@ -116,13 +117,20 @@ def ingest(doc, raw):
                     "id": f"N-{n}-{item_id}", "round": n, "target": item_id,
                     "text": line[len("note: "):], "deleted": False})
         lone = len(lines) == 1 and lines[0].startswith(LONE_MARKS)
-        if rnd is not current:
+        reopened = rnd is not current and item.get("state") in SETTLED
+        if reopened:
+            item["state"] = "open"
+            item.pop("settled", None)
+        elif rnd is not current:
             item["state"] = "open"
         elif lone:
             item["state"] = "settled_by_mark"
             item["settled"] = {"by": "mark", "round": n, "signal": lines[0]}
         else:
             item["state"] = "needs_reading"
+        for signal in signals:
+            if signal["target"] == item_id:
+                signal.update(item=item_id, reopened=reopened)
     current.setdefault("responses", []).append(
         {"received": "2026-01-05T10:00:00Z", "raw": raw, "signals": signals})
     return signals

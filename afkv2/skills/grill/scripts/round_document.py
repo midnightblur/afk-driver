@@ -183,6 +183,8 @@ def returning(doc):
     if not current:
         return []
     steer_targets = {node.get("id") for node in _map_nodes(doc)}
+    reopened = {signal.get("item") for response in current.get("responses") or []
+                for signal in response.get("signals") or [] if signal.get("reopened")}
     found = []
     for rnd in doc["rounds"]:
         if rnd is current:
@@ -190,8 +192,8 @@ def returning(doc):
         for item in rnd["items"]:
             noted = any(note.get("round") == current["n"] and note.get("target") not in steer_targets
                         for note in _live_notes(item))
-            reopened = item["state"] == "needs_reading" or (item["state"] == "open" and item.get("settled"))
-            if item["kind"] in ASKING and (noted or (reopened and not _carried(doc, item, rnd["n"]))):
+            unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
+            if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
     return found
 

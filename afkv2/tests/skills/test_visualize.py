@@ -24,7 +24,6 @@ SKILL_MD = SKILL_DIR / "SKILL.md"
 PAGES_DIR = SKILL_DIR / "components"
 ALL_COMPONENTS = SKILL_DIR / "examples" / "all-components.json"
 ENGINE = PLUGIN / "engine" / "engine.py"
-NOTES_INGEST = PLUGIN / "engine" / "components"
 
 SCHEMA = "afkv2.page/0"
 
@@ -587,14 +586,32 @@ def test_fake_accepts_a_settled_round_and_a_next_round():
 
 
 def _note_on_an_older_card():
+    """The card as the real ingest leaves it; the responses of the round are left out, because only ingest writes them."""
     doc = _next_round(_example())
-    _at("i-data")(doc)["notes"] = [_note("i-data", 2)]
+    item = _at("i-data")(doc)
+    del item["settled"]
+    item.update(state="open", notes=[_note("i-data", 2)])
     return doc
 
 
-def test_fake_accepts_the_unverified_shape_of_a_note_on_an_older_card():
-    """Not verified: the engine is not on this branch, and how it records this note is open."""
+def test_fake_accepts_a_note_on_an_older_card():
     check_document(_note_on_an_older_card())
+
+
+def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
+    doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
+    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    raw.write_text("[round R-2]\ni-data — | Accepts it.", "utf-8")
+    run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
+                         capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert json.loads(run.stdout)["reopened"] == ["i-data"]
+    after = json.loads(doc.read_text("utf-8"))
+    assert _find(after, "i-data") == _at("i-data")(_note_on_an_older_card())
+    assert [rnd["state"] for rnd in after["rounds"]] == ["settled", "current"]
+    check = subprocess.run([sys.executable, str(ENGINE), "check", str(doc)], capture_output=True, text=True,
+                           encoding="utf-8", timeout=60)
+    assert check.returncode == 0, check.stdout + check.stderr
 
 
 def test_examples_carry_no_note_and_no_response():
@@ -619,10 +636,13 @@ def test_card_page_settled_example_has_the_schema_shape():
 ROUND_PASS = """
 When the human sends a round, the engine settles a point with one `accept`,
 `sign` or option mark. It moves a point to `needs_reading` on `reopen`,
-`changes`, a write-in, a note, a mark plus a note, or 2 marks. Before you mark
-the round `settled`, go through the cards of the current round. Never change a
-card in a settled round. A note whose `target` is a map node id is a steer: leave
-it out when you read the signals, because it settles nothing.
+`changes`, a write-in, a note, a mark plus a note, or 2 marks. On a card that is
+already settled, a signal that changes the answer sets `state` to `open` and
+removes `settled`, and a note stays on that card, also in a settled round. Its
+signal has `reopened: true`. Before you mark the round `settled`, go through the
+cards of the current round. Never change a card in a settled round: only the
+engine writes there. A note whose `target` is a map node id is a steer: leave it
+out when you read the signals, because it settles nothing.
 
 - `needs_reading` with a clear note and no signal that disagrees with it: set
   `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
@@ -761,12 +781,6 @@ def test_guide_names_no_upstream_caller():
     refs = set(re.findall(r"/afkv2:[\w-]+", text))
     assert refs <= {"/afkv2:visualize"}, refs
     assert not re.search(r"\b(called|invoked|run) by\b", text, re.I)
-
-
-@pytest.mark.skipif(not list(NOTES_INGEST.glob("notes_*.py")), reason="ingest not merged yet")
-def test_older_card_shape_is_replaced_once_ingest_merges():
-    pytest.fail("Ingest is merged: run it with a note on a card of a settled round, replace "
-                "_note_on_an_older_card with its document, align card.md, and delete this test.")
 
 
 @pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake above checks")
