@@ -9,7 +9,7 @@
             "type": "command",
             "command": "cmd.exe",
             "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\session-start.cmd", "claude"],
-            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\session-start.cmd\" codex",
+            "commandWindows": "cmd.exe /d /c \"${PLUGIN_ROOT}\\hooks\\session-start.cmd\" codex",
             "timeout": 10
           }
         ]
@@ -22,7 +22,7 @@
             "type": "command",
             "command": "cmd.exe",
             "args": ["/d", "/c", "exit", "0"],
-            "commandWindows": "python \"%PLUGIN_ROOT%\\hooks\\codex_stop.py\"",
+            "commandWindows": "python \"${PLUGIN_ROOT}\\hooks\\codex_stop.py\"",
             "timeout": 3610
           }
         ]
@@ -35,7 +35,7 @@
             "type": "command",
             "command": "cmd.exe",
             "args": ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\subagent-start.cmd", "claude"],
-            "commandWindows": "\"%PLUGIN_ROOT%\\hooks\\subagent-start.cmd\" codex",
+            "commandWindows": "cmd.exe /d /c \"${PLUGIN_ROOT}\\hooks\\subagent-start.cmd\" codex",
             "timeout": 10
           }
         ]
