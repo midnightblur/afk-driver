@@ -14,7 +14,7 @@ Write what the grill settled, then show the developer exactly what the ticket wi
 | ticket key | the invocation | stop and name it |
 | `.afkv2/config.json`, with a tracker kind | written by `/afkv2:setup` | stop and name the file and `/afkv2:setup` |
 | `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill` | stop and name them and `/afkv2:grill` |
-| `mmdc` on the path, when the PRD has a diagram | installed by `/afkv2:setup` | the preview refuses `no-renderer` and names `setup` and `install`; a publish downloads nothing |
+| `mmdc` on the path, when the PRD has a diagram | the package in the refusal's `install`; `/afkv2:setup` is to install it (`.claude/wiring-ious.md`) | the preview refuses `no-renderer` and names `setup` and `install`; a publish downloads nothing |
 
 ## The commands
 
@@ -85,6 +85,6 @@ Run each command from the repository root. `<python>` is the Python in the setup
 | `bad-receipt` | the preview, its pictures or the converted text, link targets included, are not what the human saw; nothing was written | go to step 7: show the new preview and ask again |
 | `missing-ids` | an id in `missing` is not in the text the ticket would get; nothing was written | fix the PRD so the converter keeps that text, then go to step 4 |
 | `read-back-mismatch` | the publish failed: the ticket does not hold what was sent; old pictures stay | report a failed publish and `differs`; go to step 7 when the developer asks |
-| `no-renderer` | `mmdc` is not on the path; nothing was written | show `reason`; run `/afkv2:setup` or install the package in `install`, then go to step 7 |
+| `no-renderer` | `mmdc` is not on the path; nothing went to the ticket | show `reason`; run `/afkv2:setup` or install the package in `install`, then go to step 7 |
 | `render-failed` | a diagram did not render | show `reason`; fix the diagram, then go to step 7 |
 | any other code | a tracker call failed | show `code` and `reason`. Run the same step again when the developer asks: the receipt makes it safe, and a re-run adds no copy of a picture |
