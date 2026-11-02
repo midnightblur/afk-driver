@@ -280,7 +280,7 @@ def test_the_codex_command_line_runs_in_any_session_shell(event, shell, tmp_path
     env = dict(os.environ, LOCALAPPDATA=str(tmp_path))
     result = subprocess.run(argv, input=PAYLOAD, capture_output=True, env=env, cwd=tmp_path)
     assert result.returncode == 0, result.stderr
-    assert b"afkv2-core-behaviors end " in result.stdout
+    assert normalized(result.stdout).rstrip() == normalized(PLAIN.read_bytes()).rstrip()
 
 
 def test_subagent_start_matches_every_agent_type():
