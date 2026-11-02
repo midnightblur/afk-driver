@@ -10,9 +10,9 @@ def _install(places, version="2.0.0"):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"")
-    v1 = places.codex_dir / "plugins" / "cache" / "market" / "afk" / "1.0.0" / "skills" / "x" / "scripts"
-    v1.mkdir(parents=True)
-    (v1 / "v1.py").write_bytes(b"")
+    other = places.codex_dir / "plugins" / "cache" / "market" / "other" / "1.0.0" / "skills" / "x" / "scripts"
+    other.mkdir(parents=True)
+    (other / "other.py").write_bytes(b"")
     return root
 
 
