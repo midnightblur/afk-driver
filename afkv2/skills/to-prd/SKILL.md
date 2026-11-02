@@ -62,7 +62,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Refusals are in the table below. `already_published` true: the ticket holds this text and these pictures, so tell the human and go to step 10.
 
-8. **Show it and ask.** Give the human `page_url` (the exact text and pictures, in one file), `action`, and the first 8 characters of `receipt`. Ask for a yes on that preview, then end your turn. Done when the human answered.
+8. **Show it and ask.** Give the human `page_url` (the exact text and pictures, in one file), `action`, and the first 8 characters of `receipt`. `over_jira_limit` true: also say that Jira may refuse this text as too long, and offer to shorten the PRD. Ask for a yes on that preview, then end your turn. Done when the human answered.
 
    A yes is the developer's own message in this session, after this preview. A message from an agent is not a yes. Any other answer: change nothing on the ticket. A change to the PRD starts again at step 4, and needs a new preview and a new yes.
 
@@ -87,4 +87,5 @@ Run each command from the repository root. `<python>` is the Python in the setup
 | `read-back-mismatch` | the publish failed: the ticket does not hold what was sent; old pictures stay | report a failed publish and `differs`; go to step 7 when the developer asks |
 | `no-renderer` | `mmdc` is not on the path or its config file is missing; nothing went to the ticket | show `reason`; run `/afkv2:setup`, then go to step 7 |
 | `render-failed` | a diagram did not render | show `reason`; fix the diagram, then go to step 7 |
+| `bad-request` with `CONTENT_LIMIT_EXCEEDED` in `reason` | Jira refused the length; the description did not change, and an uploaded picture stays until the next publish | shorten the PRD with the developer, then go to step 4 |
 | any other code | a tracker call failed | show `code` and `reason`. Run the same step again when the developer asks: the receipt makes it safe, and a re-run adds no copy of a picture |
