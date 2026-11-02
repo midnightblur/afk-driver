@@ -219,3 +219,5 @@
 2026-11-02 05:33 | execute | integration | gate-skip — the commits of D-99 used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4); plugin_check.py exits 0 on the merged tree
 2026-11-02 05:56 | execute | integration | decision(D-100) — delta check of D-99 reopened 2 items: 1 defect fixed, 1 kept as a rule and stated in the skill. In plain terms: a fresh reader found a small bug in the fix, which is now fixed, and a skill sentence that was not exact.
 2026-11-02 05:56 | execute | integration | gate-skip — the commit of D-100 used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-11-02 07:11 | execute | integration | decision(D-101) — shell probe reads a Windows path as a Windows path. In plain terms: one setup test failed on Linux because Linux reads a Windows path differently, and the code now reads it the same way on both.
+2026-11-02 07:11 | execute | integration | gate-skip — the commit of D-101 used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)

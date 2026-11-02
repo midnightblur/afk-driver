@@ -12,7 +12,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable, Mapping, Sequence
 
 from places import Places, has_backup, write_atomic
@@ -101,7 +101,7 @@ def shell_probes(windows: bool, which: Callable[[str], str | None]) -> list[tupl
         probes.append(("cmd", [which("cmd") or "cmd", "/d", "/c", "where rg"]))
     for name in ("bash",) if windows else ("bash", "sh"):
         where = which(name)
-        if where and not (windows and Path(where).parent.name.lower() == "system32"):
+        if where and not (windows and PureWindowsPath(where).parent.name.lower() == "system32"):
             probes.append((name, [where, "-lc", "command -v rg"]))
     return probes
 

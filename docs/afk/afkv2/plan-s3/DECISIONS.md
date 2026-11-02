@@ -699,3 +699,10 @@
 - Chosen: B — `PLAN-FORMAT.md` requires a live tier in a plan with `> App: none` to read `not applicable: <reason>`, and the plan check reads only the plan. A would need the check to take an invocation value, and it would let a plan pass that names no app. The second reopened item was a defect: the gate read a tier cell raw and the check read it stripped and in lower case, so `API` was listed twice and the gate alone missed `` `api` ``. `gate_failures` now reads the cell as the check does (tests red first, then green). The 2 S1 tests in `test_plugin_check.py` built on a copy of the tree and collided with S3 files, which were not on S1's branch: one folder, and one module name. They are test-only fixes
 - Supersedes: none
 - To reverse: `gate_failures` in `afkv2/skills/autopilot/scripts/start_gate.py`
+
+## D-101 — the shell probe reads a Windows path as a Windows path
+- 2026-11-02 · decided by execute
+- Options: A — skip `test_windows_probes_skip_the_wsl_launcher` on POSIX vs B — read the path with `PureWindowsPath` when the probe runs for Windows
+- Chosen: B — the probe already takes `windows` as an argument, and the path form follows from it. `Path` on POSIX reads `C:\Windows\System32\bash.exe` as one name, so the parent name is empty and the test failed in CI run 41434042372 on ubuntu. This is the first ubuntu CI run of `afkv2/tests`: that CI step came with S1, so the runs on this branch before the merge ran only the v1 suites there. No product behaviour changes on Windows
+- Supersedes: none
+- To reverse: `shell_probes` in `afkv2/skills/setup/scripts/tools.py`
