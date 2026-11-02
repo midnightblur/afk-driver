@@ -22,7 +22,6 @@ import start_gate  # noqa: E402
 import walk  # noqa: E402
 from plan_fixture import contract_text, git  # noqa: E402
 
-FAKE = Path(__file__).resolve().parent / "fakes" / "fake_check_plan.py"
 TDD = AFKV2 / "skills" / "execute" / "scripts" / "tdd_log.py"
 REVIEW = AFKV2 / "skills" / "code-review" / "scripts" / "review_rounds.py"
 CI_WATCH = AFKV2 / "skills" / "create-change-request" / "scripts" / "ci_watch.py"
@@ -41,7 +40,6 @@ def test_one_done_one_parked_with_its_dependent_and_the_records_only_on_the_run_
     })
     plan, work = str(built.plan), built.work
     monkeypatch.chdir(work)
-    monkeypatch.setattr(start_gate, "CHECK_PLAN", FAKE)
     monkeypatch.setattr(start_gate, "forge_answer", lambda code: {"ok": True, "authenticated": True})
     feature_files_before = set(git(work, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
 
@@ -53,7 +51,7 @@ def test_one_done_one_parked_with_its_dependent_and_the_records_only_on_the_run_
     assert started["ok"] and started["base"] == git(work, "rev-parse", "HEAD")
     test_command = f'"{sys.executable}" -c "import os, sys; sys.exit(0 if os.path.exists(\'src/0001-a.py\') else 1)"'
     assert command(TDD, "red", work, plan=plan, subtask="0001-a", behavior="a", command=test_command)["ok"]
-    built.commit_code("src/0001-a.py", "def a():\n    return 1\n", "[0001-a] a")
+    built.commit_code("src/0001-a.py", "def build_a():\n    return 1\n", "[0001-a] a")
     assert command(TDD, "green", work, plan=plan, subtask="0001-a", behavior="a")["ok"]
     built.push()
     assert command(SCRIPTS / "walk.py", "decide", work, plan=plan, subtask="0001-a", fork="a name", options="A vs B", chosen="A", evidence="the contract", reverse="rename")["id"] == "D-1"

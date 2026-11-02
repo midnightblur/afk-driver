@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 import plugins
-import recorded_config_reader
+import afkv2_config
 import setup
 import tools
 from conftest import FakeUserEnv, NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
@@ -465,7 +465,7 @@ def test_prepare_records_the_python_it_found(world, env, places, repo, system, p
 def test_copy_config_verb_copies_once_and_keeps_the_v1_config(world, env, repo, system, plugin_root, capsys):
     code, copied = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
     assert code == 0 and copied["action"] == "copied"
-    config = recorded_config_reader.read_config(repo / ".afkv2" / "config.json")
+    config = afkv2_config.read_config(repo)
     assert config["spec_folder"] == str(repo / "docs/specs")
     assert config["tracker"] == {"kind": "github-issues", "repo": "o/r"}
     assert (repo / V1_CONFIG_FOLDER / "config.yaml").read_bytes() == V1_CONFIG
@@ -482,7 +482,7 @@ def test_copy_config_with_no_spec_folder_refuses_and_writes_nothing(env, repo, s
 def test_copy_config_takes_the_developers_spec_folder(env, repo, system, plugin_root, capsys):
     code, answer = _cli(["copy-config", "--spec-folder", "specs"], env, system, plugin_root, repo, capsys)
     assert code == 0 and answer["action"] == "written" and answer["spec_folder_source"] == "developer"
-    assert recorded_config_reader.read_config(repo / ".afkv2" / "config.json")["spec_folder"] == str(repo / "specs")
+    assert afkv2_config.read_config(repo)["spec_folder"] == str(repo / "specs")
 
 
 def test_copy_config_can_decline_the_v1_values(world, env, repo, system, plugin_root, capsys):
@@ -509,7 +509,7 @@ def test_ownership_verb_writes_both_grades(env, places, repo, system, plugin_roo
     code, answer = _cli(["ownership", "--own", "a/**", "b/**", "--shared", "c/**"],
                         env, system, plugin_root, repo, capsys)
     assert code == 0 and answer["action"] == "written"
-    config = recorded_config_reader.read_config(repo / ".afkv2" / "config.json")
+    config = afkv2_config.read_config(repo)
     assert config["ownership"] == {"own": ["a/**", "b/**"], "shared": ["c/**"]}
 
 

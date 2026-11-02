@@ -79,7 +79,7 @@ def build_subtask(built, subtask):
     passes_once_built = f'"{sys.executable}" -c "{script}"'
     assert log("red", plan=str(built.plan), subtask=subtask, behavior=name, command=passes_once_built)["ok"]
     assert code_of(log("green", plan=str(built.plan), subtask=subtask, behavior=name)) == "not-green"
-    built.commit_code(f"src/{subtask}.py", f"def {name}():\n    return 1\n", f"[{subtask}] {name}")
+    built.commit_code(f"src/{subtask}.py", f"def build_{name}():\n    return 1\n", f"[{subtask}] {name}")
     assert log("green", plan=str(built.plan), subtask=subtask, behavior=name)["ok"]
     built.push()
     finished_review(built, subtask)

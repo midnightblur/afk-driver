@@ -19,7 +19,7 @@ def git(cwd, *args):
 
 
 def contract_text(subtask, blocked=(), produces=None, consumes=(), rows=DEFAULT_ROWS, extra=""):
-    produces = produces if produces is not None else [f"src/{subtask}.py#def {subtask[5:]}( — the code"]
+    produces = produces if produces is not None else [f"src/{subtask}.py#def build_{subtask[5:]}( — the code"]
     blockers = "\n".join(f"- {item}" for item in blocked) or "(none)"
     wanted = "\n".join(f"- {line}" for line in produces) or "(none)"
     used = "\n".join(f"- {line}" for line in consumes) or "(none)"

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "execute" / "script
 
 import start_gate  # noqa: E402
 import tdd_log  # noqa: E402
-from plan_contract import PLUGIN, dependents, read_contract, read_text, read_tracker, write_atomic, write_status  # noqa: E402
+from plan_contract import PLUGIN, dependents, plan_file, read_contract, read_text, read_tracker, write_atomic, write_status  # noqa: E402
 from start_gate import RUN_SUFFIX, git_line, run_branch_of  # noqa: E402
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
@@ -208,7 +208,7 @@ def start(payload):
     for producer, path, anchor in contract.consumes:
         if not _holds(path, anchor):
             raise Refusal("contract-mismatch", f"{path} has no `{anchor}`, which {producer} must produce", producer=producer)
-    failures = start_gate.gate_failures(contract, payload.get("app"))
+    failures = start_gate.gate_failures(contract, start_gate.plan_app(read_text(plan_file(plan)), payload.get("app")))
     if failures:
         raise Refusal("gate-cannot-run", f"{subtask} has a gate that cannot run in this repository", failures=failures)
     record = state["subtasks"].setdefault(subtask, {"attempts": 0})

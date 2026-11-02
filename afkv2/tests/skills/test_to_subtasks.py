@@ -358,6 +358,13 @@ def test_a_live_tier_in_a_repository_with_no_app_is_refused(tmp_path, tier):
     assert "not applicable: <reason>" in failures[0]["next"]
 
 
+def test_a_finished_subtask_is_not_judged_again(tmp_path):
+    plan = write_plan(tmp_path / "plan", {"0001-a": contract("0001-a", rows=api_row())})
+    assert codes_of(cp.check_plan(plan)) == ["gate-cannot-run"]
+    replace_in(plan / "PLAN.md", "| pending |", "| done |")
+    assert cp.check_plan(plan)["ok"]
+
+
 def test_an_app_line_of_none_still_refuses_a_live_tier(tmp_path):
     answer = check(tmp_path, {"0001-a": contract("0001-a", rows=api_row())}, header="> App: none")
     assert codes_of(answer) == ["gate-cannot-run"]
@@ -1211,15 +1218,14 @@ def load_by_path(path):
     return module
 
 
-@pytest.mark.skipif(not START_GATE.exists(), reason="S3 has not merged: start_gate.py")
 def test_the_not_applicable_form_is_in_lockstep_with_the_start_gate():
     gate = load_by_path(START_GATE)
     assert gate.NOT_APPLICABLE == cp.NOT_APPLICABLE and set(gate.LIVE_TIERS) == cp.LIVE_TIERS
+    assert gate.APP_MARK == cp.APP_MARK and gate.NO_APP == cp.NO_APP
     for cell in ("not applicable: no app", "not applicable:", "n/a", "Not applicable: x"):
         assert gate.is_not_applicable(SimpleNamespace(check=cell)) == cp.is_not_applicable(cell), cell
 
 
-@pytest.mark.skipif(not START_GATE.exists(), reason="S3 has not merged: start_gate.py")
 def test_an_approved_plan_passes_each_plan_rule_of_the_real_start_gate(world):
     gate = load_by_path(START_GATE)
     started = world.committed_plan()
@@ -1235,7 +1241,6 @@ def test_an_approved_plan_passes_each_plan_rule_of_the_real_start_gate(world):
     assert [item for each in contracts for item in gate.gate_failures(each)] == []
 
 
-@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
 def test_the_contract_headings_are_in_lockstep_with_autopilot():
     module = load_by_path(PLAN_CONTRACT)
     required, optional = cp.contract_sections()
@@ -1258,7 +1263,6 @@ def replace_in(path, old, new):
     path.write_text(text.replace(old, new), "utf-8")
 
 
-@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
 @pytest.mark.parametrize("code", sorted(PARITY_PLANS))
 def test_the_start_gate_and_the_check_give_one_code_on_a_bad_plan(tmp_path, clean, code):
     plan = write_plan(tmp_path / "plan", clean)
@@ -1268,7 +1272,6 @@ def test_the_start_gate_and_the_check_give_one_code_on_a_bad_plan(tmp_path, clea
     assert code in codes_of(cp.check_plan(plan))
 
 
-@pytest.mark.skipif(not PLAN_CONTRACT.exists(), reason="S3 has not merged: plan_contract.py")
 def test_the_copies_are_in_lockstep_with_plan_contract():
     module = load_by_path(PLAN_CONTRACT)
     assert set(module.NO_ID) == cp.NO_ID
@@ -1276,7 +1279,6 @@ def test_the_copies_are_in_lockstep_with_plan_contract():
     assert (facts.V1_HEADER_MARK, facts.V1_SEAM_MARK) == (V1_HEADER_MARK, cp.V1_SEAM_MARK)
 
 
-@pytest.mark.skipif(not ENGINE.exists(), reason="S1 has not merged: the page engine")
 def test_the_division_document_passes_the_real_engine(world, tmp_path):
     started = world.committed_plan()
     world.division(started)

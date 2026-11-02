@@ -15,6 +15,7 @@ import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "skills" / "setup" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
 import tools  # noqa: E402
 from places import Places  # noqa: E402

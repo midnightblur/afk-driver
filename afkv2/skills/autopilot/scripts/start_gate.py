@@ -27,6 +27,8 @@ APP_LIMIT = 5
 RUN_SUFFIX = "-run"
 APPROVAL = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
 NOT_APPLICABLE = "not applicable:"
+APP_MARK = "> App:"
+NO_APP = {"", "none"}
 LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
@@ -84,10 +86,22 @@ def approval_failures(text):
                     next="approve the division through `/afkv2:to-subtasks`")]
 
 
+def plan_app(text, app=None):
+    """The `app` of the invocation, else the value of the `> App:` header line, else None."""
+    if app:
+        return app
+    for line in header_of(text):
+        if line.startswith(APP_MARK):
+            value = line[len(APP_MARK):].strip()
+            return None if value.lower() in NO_APP else value
+    return None
+
+
 def _check_item(item):
     if isinstance(item, dict):
         return failure(str(item.get("code") or "plan-check"), str(item.get("where") or item.get("file") or "plan"),
-                       str(item.get("reason") or item.get("message") or json.dumps(item)))
+                       str(item.get("reason") or item.get("message") or json.dumps(item)),
+                       **({"next": item["next"]} if item.get("next") else {}))
     return failure("plan-check", "plan", str(item))
 
 
@@ -174,18 +188,19 @@ def gate_failures(contract, app=None):
         where = f"{contract.id} tier {row.tier}"
         if row.check.lower().startswith("not applicable"):
             if not is_not_applicable(row):
-                failures.append(failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`"))
+                failures.append(failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason"))
             continue
         if row.tier.lower() in LIVE_TIERS:
             if not app:
-                failures.append(failure("gate-cannot-run", where, "this tier needs a running app, and the run has no `app`", next=f"{fix}, or pass `app`"))
+                failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
+                                        next=f"{fix}, or name the app in the `{APP_MARK}` line"))
             else:
                 problem = app_failure(where, app)
                 if problem:
                     failures.append(problem)
         for program in _programs(row.check):
             if not shutil.which(program):
-                failures.append(failure("gate-cannot-run", where, f"the command `{program}` is not on PATH", next=fix))
+                failures.append(failure("gate-cannot-run", where, f"the command `{program}` is not on the PATH", next=fix))
     return failures
 
 
@@ -217,6 +232,11 @@ def worktree_failures(code, run_branch):
     return failures
 
 
+def _once(failures):
+    """A row that the plan check and this gate both refuse is one failure; the gate's copy stays."""
+    return list({(item["code"], item["where"], item["reason"]): item for item in failures}.values())
+
+
 def check_start(plan, code=".", app=None):
     """Whether a run can start on this plan: one answer that lists every failure. It writes nothing."""
     plan = Path(plan)
@@ -230,12 +250,13 @@ def check_start(plan, code=".", app=None):
             failure("v1-plan", str(plan), "; ".join(signs), options=V1_OPTIONS)])
     rows, contracts, failures = contracts_of(plan)
     failures = [*plan_check_failures(plan), *approval_failures(text), *failures]
-    finished = {subtask for subtask, status in rows if status == "done"}
+    finished, app = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app)
     for contract in contracts:
         if contract.id not in finished:
             failures.extend(gate_failures(contract, app))
     failures.extend(worktree_failures(code, run_branch_of(plan)))
     failures.extend(forge_failures(code))
+    failures = _once(failures)
     if failures:
         return envelope.fail("start-refused", f"{len(failures)} failures stop this run", failures=failures)
     return ok(plan=str(plan), run_branch=run_branch_of(plan), subtasks=[item.id for item in contracts])

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-import recorded_config_reader as reader
+import afkv2_config as reader
 import repo_config
 
 V1 = (b"# v1 config\nschema: 1\ntracker: jira\nforge: github\nnotes: repo-files\n"
@@ -41,16 +41,17 @@ def test_copy_once_and_v1_file_byte_identical(repo):
 def test_the_copy_passes_the_config_reader_rules(repo):
     _v1(repo)
     repo_config.write_config(repo)
-    answer = reader.read_config(repo_config.afkv2_config(repo))
+    answer = reader.read_config(repo)
     assert answer["spec_folder"] == str(repo / "docs/specs")
     assert answer["tracker"]["kind"] == "jira"
+    assert answer["forge"] == "github"
 
 
 def test_the_config_and_ownership_pass_the_reader_rules_as_lf_json(repo, places):
     repo_config.write_config(repo, "specs")
     repo_config.write_ownership(repo, places, ["src/**"], ["lib/it's/**"])
     target = repo_config.afkv2_config(repo)
-    assert reader.read_config(target)["ownership"] == {"own": ["src/**"], "shared": ["lib/it's/**"]}
+    assert reader.read_config(repo)["ownership"] == {"own": ["src/**"], "shared": ["lib/it's/**"]}
     assert b"\r" not in target.read_bytes()
 
 
@@ -59,7 +60,7 @@ def test_a_tracker_the_reader_refuses_is_left_out(repo, kind):
     _v1(repo, b"tracker: " + kind + b"\nrepo-files:\n  spec-dir: docs\n")
     repo_config.write_config(repo)
     assert "tracker" not in _written(repo)
-    assert reader.read_config(repo_config.afkv2_config(repo))["tracker"] is None
+    assert reader.read_config(repo)["tracker"] is None
 
 
 @pytest.mark.parametrize("template,value", [

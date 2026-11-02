@@ -25,14 +25,17 @@ import walk  # noqa: E402
 from autopilot_v1_facts import V1_HEADER_MARK  # noqa: E402
 from plan_fixture import contract_text, git  # noqa: E402
 
-FAKE = AFKV2 / "tests" / "autopilot" / "fakes" / "fake_check_plan.py"
-
 
 @pytest.fixture(autouse=True)
 def recorded_inputs(monkeypatch):
-    """The plan check is the recorded fake, and the forge says yes, unless a test says other."""
-    monkeypatch.setattr(start_gate, "CHECK_PLAN", FAKE)
+    """The forge says yes, unless a test says other."""
     monkeypatch.setattr(start_gate, "forge_answer", lambda code: {"ok": True, "authenticated": True, "user": "t"})
+
+
+BAD_CONTRACTS = {
+    "0001-a": contract_text("0001-a", produces=["src/a.py#main — a generic anchor"]),
+    "0002-b": contract_text("0002-b", blocked=["0001-a"], consumes=["0009-gone src/x.py#def gone("]),
+}
 
 
 def plan_of(tmp_path, monkeypatch, contracts=None, **options):
@@ -62,21 +65,19 @@ def test_a_clean_plan_with_the_approval_starts(tmp_path, monkeypatch):
 
 
 def test_a_failed_check_lists_every_failure_and_the_gate_writes_nothing(tmp_path, monkeypatch):
-    built = plan_of(tmp_path, monkeypatch)
-    monkeypatch.setenv("FAKE_CHECK_PLAN_ANSWER", "fail")
+    built = plan_of(tmp_path, monkeypatch, BAD_CONTRACTS)
     head = git(built.run, "rev-parse", "HEAD")
     answer = start_gate.check_start(built.plan)
-    assert codes_of(answer) == ["A-UNKNOWN-PRODUCER", "B-GENERIC-ANCHOR"]
-    assert failures_of(answer)[0]["where"] == "0002-b.md"
+    assert {"A-UNKNOWN-PRODUCER", "B-SHORT"} <= set(codes_of(answer))
+    assert "0002-b" in next(item["where"] for item in failures_of(answer) if item["code"] == "A-UNKNOWN-PRODUCER")
     assert git(built.run, "rev-parse", "HEAD") == head and git(built.run, "status", "--porcelain") == ""
 
 
 def test_no_approval_line_refuses_with_every_other_failure_beside_it(tmp_path, monkeypatch):
-    built = plan_of(tmp_path, monkeypatch, approval="")
-    monkeypatch.setenv("FAKE_CHECK_PLAN_ANSWER", "fail")
+    built = plan_of(tmp_path, monkeypatch, BAD_CONTRACTS, approval="")
     codes = codes_of(start_gate.check_start(built.plan))
-    assert codes.count("no-approval") == 2  # the check's own failure and the gate's
-    assert {"A-UNKNOWN-PRODUCER", "B-GENERIC-ANCHOR"} <= set(codes)
+    assert codes.count("no-approval") == 1
+    assert {"A-UNKNOWN-PRODUCER", "B-SHORT"} <= set(codes)
 
 
 @pytest.mark.parametrize("approval, code", [
@@ -97,15 +98,15 @@ def test_an_approval_line_below_the_header_does_not_count(tmp_path, monkeypatch)
     assert "no-approval" in codes_of(start_gate.check_start(built.plan))
 
 
-def test_exit_2_of_the_check_refuses(tmp_path, monkeypatch):
-    built = plan_of(tmp_path, monkeypatch)
-    monkeypatch.setenv("FAKE_CHECK_PLAN_ANSWER", "unreadable")
-    assert codes_of(start_gate.check_start(built.plan)) == ["plan-check-unreadable"]
+def test_exit_2_of_the_check_refuses(tmp_path):
+    assert [item["code"] for item in start_gate.plan_check_failures(tmp_path / "absent")] == ["plan-check-unreadable"]
 
 
 def test_an_answer_that_is_no_json_refuses(tmp_path, monkeypatch):
     built = plan_of(tmp_path, monkeypatch)
-    monkeypatch.setenv("FAKE_CHECK_PLAN_ANSWER", "not-json")
+    script = tmp_path / "crash_check.py"
+    script.write_text('print("Traceback: the check crashed")\n', encoding="utf-8")
+    monkeypatch.setattr(start_gate, "CHECK_PLAN", script)
     assert codes_of(start_gate.check_start(built.plan)) == ["plan-check-unreadable"]
 
 
@@ -223,7 +224,8 @@ def test_a_cycle_in_blocked_by_refuses(tmp_path, monkeypatch):
 
 
 def gate_rows(tmp_path, monkeypatch, rows, **options):
-    built = plan_of(tmp_path, monkeypatch, {"0001-a": contract_text("0001-a", rows=rows)})
+    app_line = options.pop("app_line", None)
+    built = plan_of(tmp_path, monkeypatch, {"0001-a": contract_text("0001-a", rows=rows)}, header_extra=f"> App: {app_line}" if app_line else "")
     return start_gate.check_start(built.plan, **options)
 
 
@@ -252,7 +254,7 @@ def test_a_command_not_on_the_path_refuses(tmp_path, monkeypatch):
 
 
 def test_words_in_code_spans_that_are_no_command_pass(tmp_path, monkeypatch):
-    rows = "| static | every file has `name` and `afkv2/x/**/SKILL.md`; `> Division: approved <date>`; `git --version` | parse |"
+    rows = "| static | every file has `name` and `src/x/**/SKILL.md`; `> Division: approved <date>`; `git --version` | parse |"
     assert gate_rows(tmp_path, monkeypatch, rows)["ok"]
 
 
@@ -274,12 +276,38 @@ def local_app():
 
 
 def test_a_live_tier_passes_when_the_app_answers_even_with_an_error_status(tmp_path, monkeypatch, local_app):
-    assert gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app=local_app)["ok"]
+    assert gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app_line=local_app)["ok"]
+
+
+def test_the_invocation_app_replaces_the_plan_line(tmp_path, monkeypatch, local_app):
+    assert gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app_line="http://127.0.0.1:9/", app=local_app)["ok"]
+
+
+def test_an_app_given_only_at_the_invocation_refuses_because_the_plan_names_none(tmp_path, monkeypatch, local_app):
+    assert codes_of(gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app=local_app)) == ["gate-cannot-run"]
+
+
+@pytest.mark.parametrize("line, app", [("none", None), ("NONE", None), ("http://a.test", "http://a.test")])
+def test_the_app_line_of_the_plan_header(line, app):
+    assert start_gate.plan_app(plan_fixture.plan_text(["0001-a"], header_extra=f"> App: {line}")) == app
+
+
+def test_a_row_both_sides_refuse_is_one_failure_with_the_fix_of_the_gate(tmp_path, monkeypatch):
+    answer = gate_rows(tmp_path, monkeypatch, "| unit | `nosuchtool-xyz --run` and `nosuchtool-abc --run` | tests |")
+    reasons = [item["reason"] for item in failures_of(answer)]
+    assert len(reasons) == 2 and "nosuchtool-xyz" in reasons[0] and "nosuchtool-abc" in reasons[1]
+    assert all("next" in item for item in failures_of(answer))
+
+
+def test_a_failure_only_the_check_finds_keeps_its_fix(tmp_path, monkeypatch):
+    answer = gate_rows(tmp_path, monkeypatch, "| unit | `git status` over `lib/owned_by_nobody.py` | tests |")
+    item = next(item for item in failures_of(answer) if item["code"] == "check-path-unowned")
+    assert "Scope" in item["next"]
 
 
 @pytest.mark.parametrize("app", ["http://127.0.0.1:9/", "file:///etc/passwd", "not a url"])
 def test_a_live_tier_refuses_an_app_that_does_not_answer(tmp_path, monkeypatch, app):
-    answer = gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app=app)
+    answer = gate_rows(tmp_path, monkeypatch, "| api | `git --version` | the api |", app_line=app)
     assert codes_of(answer) == ["app-unreachable"]
 
 

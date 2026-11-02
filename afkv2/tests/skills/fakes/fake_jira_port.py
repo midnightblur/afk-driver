@@ -1,4 +1,4 @@
-"""Recorded fake of the Jira tracker command (SDD §3; payloads as the port's CONTRACT.md states), until S3 merges.
+"""Recorded fake of the Jira tracker command (SDD §3; payloads as the port's CONTRACT.md states). `real_port_world` in `test_to_prd.py` runs the real port.
 
 `cli.py <verb>` with the payload on stdin, or `cli.py <verb> <json-payload>`. The ticket lives in FAKE_JIRA_STATE:
 {"issues": {key: {"description": ADF doc or null, "attachments": [{"id", "filename"}]}}, "next": n}.
