@@ -18,10 +18,11 @@ sys.path.insert(0, str(SCRIPTS))
 import tools  # noqa: E402
 from places import Places  # noqa: E402
 import setup  # noqa: E402
+from setup_test_v1_facts import (  # noqa: E402
+    BEHAVIORS_END, BEHAVIORS_START, BRANCH_GATE_MARKER, NEW_ID, PRECOMMIT_MARKER, STUB_INSTALL_NOTE, STUB_ROOT_LINE,
+    V1_CONFIG_FOLDER, V1_ID)
 
 SHA = "0123456789ab"
-V1_ID = "afk@afk-toolkit"
-NEW_ID = "afkv2@afk-toolkit"
 
 
 def git_env(home: Path) -> dict:
@@ -175,22 +176,22 @@ def end_marker(sha: str = SHA) -> str:
 
 
 def v1_block(eol: str = "\n") -> str:
-    return eol.join(["<!-- afk:behaviors:start -->", "v1 rule", "<!-- afk:behaviors:end -->"]) + eol
+    return eol.join([BEHAVIORS_START, "v1 rule", BEHAVIORS_END]) + eol
 
 
 def v1_stub(hook: str) -> bytes:
-    marker = "afk-precommit-gates" if hook == "pre-commit" else "afk-branch-name-gate"
-    return (f"#!/usr/bin/env bash\n# {marker} (installed by afk-toolkit install-git-hooks.sh).\n"
-            "# afk-plugin-root: /v1\nexec bash /v1/hooks/gate \"$@\"\n").encode("utf-8")
+    marker = PRECOMMIT_MARKER if hook == "pre-commit" else BRANCH_GATE_MARKER
+    return (f"#!/usr/bin/env bash\n# {marker} {STUB_INSTALL_NOTE}\n"
+            f"{STUB_ROOT_LINE}\nexec bash /v1/hooks/gate \"$@\"\n").encode("utf-8")
 
 
 def hooks_dir(repo: Path) -> Path:
     return repo / ".git" / "hooks"
 
 
-def write_codex_config(places: Places, afk_on: bool = True, new_on: bool = True) -> str:
+def write_codex_config(places: Places, v1_on: bool = True, new_on: bool = True) -> str:
     text = ("model = \"x\"\n\n"
-            f"[plugins.\"{V1_ID}\"]\nenabled = {str(afk_on).lower()}\n\n"
+            f"[plugins.\"{V1_ID}\"]\nenabled = {str(v1_on).lower()}\n\n"
             f"[plugins.\"{NEW_ID}\"]\nenabled = {str(new_on).lower()}\n")
     places.codex_config.parent.mkdir(parents=True, exist_ok=True)
     places.codex_config.write_text(text, encoding="utf-8")
@@ -213,9 +214,9 @@ def make_world(places: Places, repo: Path) -> dict[Path, bytes]:
     for hook in ("pre-commit", "reference-transaction"):
         (hooks_dir(repo) / hook).write_bytes(v1_stub(hook))
         files[hooks_dir(repo) / hook] = v1_stub(hook)
-    (repo / ".afk").mkdir()
-    (repo / ".afk" / "config.yaml").write_bytes(V1_CONFIG)
-    files[repo / ".afk" / "config.yaml"] = V1_CONFIG
+    (repo / V1_CONFIG_FOLDER).mkdir()
+    (repo / V1_CONFIG_FOLDER / "config.yaml").write_bytes(V1_CONFIG)
+    files[repo / V1_CONFIG_FOLDER / "config.yaml"] = V1_CONFIG
     places.claude_user_settings.write_text(
         json.dumps({"enabledPlugins": {V1_ID: True, NEW_ID: True}}), encoding="utf-8")
     files[places.claude_user_settings] = places.claude_user_settings.read_bytes()

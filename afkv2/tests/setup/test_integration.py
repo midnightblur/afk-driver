@@ -16,6 +16,7 @@ import setup
 import tools
 from conftest import FakeUserEnv, NEW_ID, V1_CONFIG, V1_ID, end_marker, fire, hooks_dir, make_world, prepared_world
 from places import write_atomic
+from setup_test_v1_facts import BEHAVIORS_START, NEW_ID_ENABLED_LINE, V1_CONFIG_FOLDER, V1_PLUGIN_NAME
 
 
 def _cli(argv, env, system, plugin_root, repo, capsys):
@@ -100,7 +101,7 @@ def test_takeover_changes_every_v1_place(taken_over, world, places, repo, runner
     assert taken_over["plugins"]["codex"]["listed"] == {V1_ID: False, NEW_ID: True}
     assert runner.lavish == "0.1.80"
     assert places.claude_user_settings.read_bytes() == world[places.claude_user_settings]
-    assert (repo / ".afk" / "config.yaml").read_bytes() == V1_CONFIG
+    assert (repo / V1_CONFIG_FOLDER / "config.yaml").read_bytes() == V1_CONFIG
 
 
 def test_a_second_takeover_changes_nothing(taken_over, env, places, repo, system, plugin_root, capsys):
@@ -115,7 +116,7 @@ def test_a_bad_block_stops_the_takeover_before_any_change(
         env, places, repo, runner, system, plugin_root, capsys):
     files = prepared_world(places, repo)
     codex_file = places.instruction_file("codex")
-    codex_file.write_bytes(b"<!-- afk:behaviors:start -->\nno end\n")
+    codex_file.write_bytes(BEHAVIORS_START.encode() + b"\nno end\n")
     code, answer = _takeover(env, system, plugin_root, repo, capsys)
     assert code == 1 and answer["error"]["code"] == "bad-block"
     assert "git_hooks" not in answer and "plugins" not in answer
@@ -241,8 +242,7 @@ def test_switch_back_with_no_jira_backup_reports_it(taken_over, env, repo, syste
 
 def test_switch_back_leaves_only_v1_on(taken_over, world, env, places, repo, runner, system, plugin_root, capsys):
     assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
-    assert places.codex_config.read_bytes() == re.sub(rb'("afkv2@afk-toolkit"\]\r?\nenabled = )true',
-                                                      rb"\1false", world[places.codex_config])
+    assert places.codex_config.read_bytes() == re.sub(NEW_ID_ENABLED_LINE, rb"\1false", world[places.codex_config])
     local = json.loads((repo / ".claude" / "settings.local.json").read_text())
     assert local == {"enabledPlugins": {NEW_ID: False, V1_ID: True}}
     assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: True, NEW_ID: False}
@@ -357,7 +357,7 @@ def test_a_failed_codex_restore_keeps_its_backup_and_a_rerun_finishes(
     assert (places.backup / "codex" / "config.toml").exists()
     assert _cli(["switch-back"], env, system, plugin_root, repo, capsys)[0] == 0
     assert not (places.backup / "codex" / "config.toml").exists()
-    assert plugins.only_one_on(plugins.codex_config_state(places.codex_config.read_text(encoding="utf-8"))) == "afk"
+    assert plugins.only_one_on(plugins.codex_config_state(places.codex_config.read_text(encoding="utf-8"))) == V1_PLUGIN_NAME
 
 
 def test_a_git_failure_on_a_live_repository_still_restores_its_settings(
@@ -468,7 +468,7 @@ def test_copy_config_verb_copies_once_and_keeps_the_v1_config(world, env, repo, 
     config = recorded_config_reader.read_config(repo / ".afkv2" / "config.json")
     assert config["spec_folder"] == str(repo / "docs/specs")
     assert config["tracker"] == {"kind": "github-issues", "repo": "o/r"}
-    assert (repo / ".afk" / "config.yaml").read_bytes() == V1_CONFIG
+    assert (repo / V1_CONFIG_FOLDER / "config.yaml").read_bytes() == V1_CONFIG
     code, again = _cli(["copy-config"], env, system, plugin_root, repo, capsys)
     assert code == 0 and again["action"] == "exists"
 

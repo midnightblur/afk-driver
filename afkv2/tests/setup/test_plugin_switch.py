@@ -6,6 +6,7 @@ import pytest
 import plugins
 import setup
 from conftest import NEW_ID, V1_ID, write_codex_config
+from setup_test_v1_facts import CODEX_LIST_MARKETPLACE, CODEX_LIST_ROWS
 
 
 def _user_settings(places, data):
@@ -17,7 +18,7 @@ def test_claude_switch_writes_only_local_and_reads_back(places, repo, runner):
     _user_settings(places, {"enabledPlugins": {V1_ID: True, NEW_ID: True}})
     shared = repo / ".claude" / "settings.json"
     shared.parent.mkdir()
-    shared.write_text('{"enabledPlugins": {"afk@afk-toolkit": true}}\n', encoding="utf-8")
+    shared.write_text('{"enabledPlugins": {"%s": true}}\n' % V1_ID, encoding="utf-8")
     user_before = places.claude_user_settings.read_bytes()
     shared_before = shared.read_bytes()
     answer = setup._switch_claude(places, repo, runner, "afkv2", with_backup=True)
@@ -94,12 +95,10 @@ def test_parse_codex_list_reads_the_real_layout():
              "PLUGIN                                   STATUS              VERSION        SOURCE\n"
              "doc@other                                installed, enabled  26.1020.11348  C:\\cache\\doc\n"
              "\n"
-             "Marketplace `afk-toolkit`\n"
-             "C:\\cache\\afk-toolkit\\marketplace.json\n"
+             f"{CODEX_LIST_MARKETPLACE}"
              "\n"
              "PLUGIN             STATUS               VERSION  SOURCE\n"
-             "afk@afk-toolkit    installed, disabled  1.16.0   C:\\cache\\afk\n"
-             "afkv2@afk-toolkit  installed, enabled   0.1.0    C:\\cache\\afkv2\n")
+             f"{CODEX_LIST_ROWS}")
     assert plugins.parse_codex_list(table) == {V1_ID: False, NEW_ID: True}
 
 

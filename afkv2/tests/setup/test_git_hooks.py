@@ -3,6 +3,7 @@ import subprocess
 
 import setup
 from conftest import hooks_dir, v1_stub
+from setup_test_v1_facts import PRECOMMIT_MARKER, STUB_INSTALL_NOTE
 
 
 def _stubs(repo):
@@ -26,7 +27,7 @@ def test_stubs_move_into_the_backup_and_back(places, repo, runner):
 
 
 def test_marker_as_substring_is_a_foreign_hook(places, repo, runner):
-    foreign = b"#!/bin/sh\n# mentions afk-precommit-gates (installed by afk-toolkit install-git-hooks.sh). here\n"
+    foreign = f"#!/bin/sh\n# mentions {PRECOMMIT_MARKER} {STUB_INSTALL_NOTE} here\n".encode()
     (hooks_dir(repo) / "pre-commit").write_bytes(foreign)
     answer = setup.move_v1_git_hooks(places, repo, runner)
     assert answer["hooks"]["pre-commit"] == "foreign"

@@ -1,7 +1,7 @@
 import os
 
 import setup
-from conftest import SHA, end_marker, fire, v1_block
+from conftest import SHA, V1_ID, end_marker, fire, v1_block
 
 
 def _install(places):
@@ -52,7 +52,7 @@ def test_missing_codex_record_names_the_trust_review(places, plugin_root):
 
 def test_codex_is_required_when_it_still_uses_v1(places):
     assert setup.required_providers(places, "claude", {}) == ["claude"]
-    assert setup.required_providers(places, "claude", {"afk@afk-toolkit": True}) == ["claude", "codex"]
+    assert setup.required_providers(places, "claude", {V1_ID: True}) == ["claude", "codex"]
     path = places.instruction_file("codex")
     path.parent.mkdir(parents=True)
     path.write_text(v1_block(), encoding="utf-8")
