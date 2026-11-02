@@ -190,3 +190,6 @@
 2026-11-02 01:30 | autopilot | run | delta check confirm 21e31e22, e4656b9b, 8f9b719a, caa9d878, 92a002b8; reopen ddf729c8 (high) — a fresh reader found that the id check read list and table text glued together, so a real requirements document could never publish
 2026-11-02 01:30 | autopilot | run | decision(D-75) — the id check now reads list items, table cells and line breaks apart; this is the one more fix the owner's rule allows
 2026-11-02 01:30 | autopilot | run | gate-skip — commits 21e31e22, e4656b9b, 8f9b719a, 92a002b8, ddf729c8, caa9d878, 86571066 and this plan commit made with AFK_SKIP_PRECOMMIT_GATES=1, accepted by owner ruling R-4
+2026-11-02 01:41 | autopilot | run | delta check confirm 86571066 — a fresh reader traced every node type of the converter through the id check by reading and found the extra fix correct; it ran nothing
+2026-11-02 01:41 | smoke-test | gate | smoke smoke_green (2/2 scenarios) — run again at a74de3c6 after the five ruled fixes: the code compiles and the afkv2 tests pass (556 passed, 30 skipped)
+2026-11-02 01:41 | autopilot | run | run end (5/5 done, 0 parked) — the five ruled fixes are in and checked, and the smoke check is green; the pull request stays Draft

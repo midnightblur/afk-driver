@@ -4,7 +4,7 @@
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2-s2
 > Last updated: 2026-10-30 (status column maintained by /afk:execute)
-> Feature: complete (minimal gate, 2026-10-30)   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Feature: complete (minimal gate, 2026-11-02)   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 This is one of 4 plan folders for afkv2 (`plan-s1`..`plan-s4`, decision D-S-4).
@@ -102,8 +102,9 @@ name the afkv2 tree directly.
 | 1 | compile | `afk-python -m compileall -q afkv2` | pass |
 | 2 | regression | `afk-python -m pytest afkv2/tests -q` (the afkv2 tree is the changed module) | pass |
 
-Last run: 2026-10-30 local at 9f70068c — green: compile exit 0; regression 508 passed, 22 skipped
+Last run: 2026-11-02 local at a74de3c6 — green: compile exit 0; regression 556 passed, 30 skipped
 
 Run history:
 - 2026-10-30 local — smoke_green (minimal gate), failing: none
 - 2026-10-30 local — smoke_green (minimal gate, re-run at 9f70068c after the late fixes and the merge of #157), failing: none
+- 2026-11-02 local — smoke_green (minimal gate, re-run at a74de3c6 after the 5 ruled fixes and the delta-check fix), failing: none
