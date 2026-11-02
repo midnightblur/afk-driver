@@ -671,3 +671,17 @@
 - Chosen: B — `afkv2/tests/setup/setup_test_v1_facts.py`. A changed name in `setup_v1_facts.py` must fail a test, so the tests do not import it. `afk_on` in `write_codex_config` became `v1_on`. S1's `plugin_check.py` at 4af3dce7, run over this tree, now reports under `tests/setup/` only 4 lines of `live/CODEX-SETUP-LIVE-CHECKS.md`, which S1 exempts by exact path; the marker hit at `test_integration.py:244` is gone. The other 4 problems name S1's own files, which this branch does not hold. Not verified on the merged tree
 - Supersedes: none
 - To reverse: orchestrator ruling only
+
+## D-97 — owner ruling: setup installs the diagram renderer and drives the installed Edge
+- 2026-11-02 · decided by the owner (the rule, and this machine's install); the form by execute
+- Options: A — a step inside `prepare` vs B — its own verb `diagram-renderer`, one step of the skill
+- Chosen: B — the owner approved this install, so the live run touched neither rg nor the install record. Primary source for the variable: https://pptr.dev/api/puppeteer.configuration, "Tells Puppeteer to not download any of the browsers during installation", overridden by the env var `PUPPETEER_SKIP_DOWNLOAD`. Edge comes from `ProgramFiles(x86)`, `ProgramFiles` and `LOCALAPPDATA` plus `Microsoft\Edge\Application\msedge.exe`, in that order; no Edge refuses `no-edge` before any npm call. No version pin, because the SDD row names none: a present package stays, and the config is written on each run. Live result on the owner's machine, once: `action: installed`, version 12.0.0, Edge at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`. The puppeteer cache did not change (same builds, same times), and the package holds no .exe or .dll. `mmdc -p` with that file rendered a 2-node flowchart to a PNG, exit 0; I read the picture. With a wrong `executablePath`, mmdc exits 1 and writes nothing, so the file does select the browser. Switch-back leaves the package and the config (`diagram_renderer: left-installed`); the live run left both on this machine. Not verified: another machine, an Edge update, and S2's to-prd, which does not call mmdc yet
+- Supersedes: none
+- To reverse: `ensure_diagram_renderer` in `afkv2/skills/setup/scripts/tools.py`; on this machine `npm uninstall -g @mermaid-js/mermaid-cli` and delete `%LOCALAPPDATA%\afkv2\puppeteer-config.json`
+
+## D-98 — owner ruling: code-review carries the AC-063 delta check
+- 2026-11-02 · decided by the owner (the rule); the form by execute
+- Options: A — a delta check only in the skill's prose vs B — verbs of `review_rounds.py` that hold the state
+- Chosen: B — verbs `delta-begin`, `delta-record`, `delta-fix` and `ruling-fix`. A verdict on anything outside the open check is refused `delta-scope`, so a check raises no new finding. This is AC-063's wording, stricter than R-5's first text, which allowed a new critical or high defect. `next` for a round 3 fix is now `fix-then-delta`. The checks run after a stop, because `mark-ready` stops a review with `finish`; `delta.owed` and `delta.parked` are in the report, and `mark-ready` and autopilot's `done` refuse on them. `walk.py` is 0015's file, and it needed the same gate. `ruling-fix` takes an optional `finding`, so a ruling can close a finding the review left open. A parked finding is posted by `finish`; a parked ruling is in the report only, and is not posted on the change
+- Supersedes: none
+- To reverse: owner ruling for the rule; `delta_record` in `afkv2/skills/code-review/scripts/review_rounds.py` for the form

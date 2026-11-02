@@ -212,3 +212,6 @@
 2026-11-02 01:32 | execute | R-5 delta | gate-skip — commits 65de16da, c46de9dd, e2d5481a and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4): the installed 1.16.0 hook has no afkv2 out-of-tree filter; the branch's own gates passed on the staged IOU tree
 2026-11-02 01:49 | execute | integration | decision(D-96) — orchestrator ruling: move the setup tests' v1 strings to one test module. In plain terms: the name check of the first session's branch no longer refuses the setup tests' code.
 2026-11-02 01:49 | execute | integration | gate-skip — commit 3487ff92 and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
+2026-11-02 02:25 | execute | owner rulings | decision(D-97) — diagram renderer built and run live once: version 12.0.0, Edge rendered the proof diagram. In plain terms: setup can now install the diagram tool, and it uses Edge with no browser download.
+2026-11-02 02:25 | execute | owner rulings | decision(D-98) — AC-063 delta check built into code-review, Ready and autopilot's done. In plain terms: a late fix now gets one check of only its commits, and a second failure stops for a human.
+2026-11-02 02:25 | execute | owner rulings | gate-skip — the commits of D-97 and D-98 and the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)

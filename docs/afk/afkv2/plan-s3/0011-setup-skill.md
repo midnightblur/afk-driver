@@ -40,6 +40,7 @@ complex
 - [ ] The v1 pre-commit and reference-transaction stubs are moved aside into the backup folder; afkv2 writes no git hook and never copies v1's marker string (SDD §14 row "v1 git hook stubs from install-git-hooks")
 - [ ] Plugin switch: on Claude `enabledPlugins` in the project's `.claude/settings.local.json`, never the shared file; on Codex the global config, with backup; setup refuses to leave both `afk` and `afkv2` enabled (PRD §AC-017; ADR-0008 design)
 - [ ] It records the installed lavish host version, then installs lavish-axi 0.1.80 machine-wide (ADR-0008 design)
+- [ ] It installs `@mermaid-js/mermaid-cli` with the browser download off and writes `puppeteer-config.json` whose `executablePath` names the installed Edge; no Edge refuses `no-edge` and downloads nothing; switch-back leaves the package (SDD Frozen on day 1, row diagram renderer)
 - [ ] Every step is idempotent per SDD §5: absent markers = already removed; a present backup = already moved; an equal settings value = no write (SDD §5 Idempotency)
 - [ ] Switch-back restores the block, the git hook stubs, the settings and the host version from the backups, turns v1 on, and lists the tickets in `%LOCALAPPDATA%\afkv2\published-tickets.txt` (PRD §AC-016; SDD §14 accepted findings; PLAN.md decision D-S-3)
 - [ ] Seam-tests: the Claude switch reads back the effective `enabledPlugins` value; the Codex switch lists the plugin state after the switch (SDD §9b rows "Claude plugin switch", "Codex plugin switch")
