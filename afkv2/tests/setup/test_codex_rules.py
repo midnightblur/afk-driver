@@ -5,12 +5,12 @@ import setup
 
 
 def _install(places, version="2.0.0"):
-    root = places.codex_dir / "plugins" / "cache" / "afk-toolkit" / "afkv2" / version
+    root = places.codex_dir / "plugins" / "cache" / "market" / "afkv2" / version
     for relative in ("engine/engine.py", "skills/grill/scripts/page_round.py", "skills/grill/SKILL.md"):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"")
-    v1 = places.codex_dir / "plugins" / "cache" / "afk-toolkit" / "afk" / "1.0.0" / "skills" / "x" / "scripts"
+    v1 = places.codex_dir / "plugins" / "cache" / "market" / "afk" / "1.0.0" / "skills" / "x" / "scripts"
     v1.mkdir(parents=True)
     (v1 / "v1.py").write_bytes(b"")
     return root
@@ -49,7 +49,7 @@ def test_a_second_run_changes_nothing(places):
 def test_a_new_plugin_version_is_covered_on_the_next_run(places):
     _install(places, "2.0.0")
     setup.write_codex_rules(places)
-    engine_folder = places.codex_dir / "plugins" / "cache" / "afk-toolkit" / "afkv2" / "2.0.1" / "engine"
+    engine_folder = places.codex_dir / "plugins" / "cache" / "market" / "afkv2" / "2.0.1" / "engine"
     engine_folder.mkdir(parents=True)
     (engine_folder / "engine.py").write_bytes(b"")
     assert setup.write_codex_rules(places)["action"] == "written"
