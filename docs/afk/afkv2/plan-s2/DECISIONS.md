@@ -545,3 +545,10 @@
 - Chosen: A — commit b01291ed. The `npx` branch was already gone (D-72), so this commit adds the config file and its refusal. The refusal drops `install`: the package alone does not write the config file. `LOCALAPPDATA` not set counts as no config file. The real `mmdc` with `-p` is not verified here; the tests use a fake. At origin/feat/afkv2-s3 a8085f38 `afkv2/` has no `puppeteer` text, so the writer is not there yet
 - Supersedes: the refusal text and the `install` field of D-72; this closes the advisory of D-45
 - To reverse: revert commit b01291ed
+
+## D-79 — orchestrator ruling: the older-card shape comes from the real ingest; a bare reopen on an older card returns
+- 2026-11-02 · decided by the session orchestrator (integration item 3, after #155 merged at ed011688); the `returning` fix decided by autopilot under the same ruling
+- Options: A — replace the tripwire with a test that pins what real ingest writes, align `card.md`, fix `returning` to read `reopened` from the signals of this send vs B — do only the three steps the tripwire names and report the lost reopen
+- Chosen: A — commit 87d1fa8a. Real ingest with a note on a settled-round card: `state` becomes `open`, `settled` is removed, the note stays on that card with the current round number, the round stays `settled`, the signal has `reopened: true`, and `engine check` accepts the result. The older shape kept `settled` and state unchanged, and the fake kept `settled`. So a bare `reopen` on an older card gave an empty `returning` against the real engine, and the point could be lost with no refusal. Run on the real engine before the fix; a test now covers both a note and a reopen. Fake aligned for a settled older card only: a note on an older card that is not settled gives `open` in the fake and `needs_reading` in real ingest
+- Supersedes: none
+- To reverse: revert commit 87d1fa8a
