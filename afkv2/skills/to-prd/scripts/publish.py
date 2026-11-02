@@ -98,7 +98,15 @@ def check_ids_present(markdown, published_text):
     return sorted(set(ID.findall(markdown)))
 
 
+def _visible_text(nodes):
+    """The words a reader sees. `block_text` does not serve: it is JSON, so it holds link targets and escapes line ends."""
+    def words(node):
+        return node.get("text") or "" if node.get("type") == "text" else "".join(map(words, node.get("content") or []))
+    return "\n".join(map(words, nodes))
+
+
 def compute_receipt(ticket, block_text, picture_hashes):
+    """`block_text` is the port's answer, in the port's canonical form. This skill never computes that form."""
     return hashlib.sha256((ticket + block_text + "".join(picture_hashes)).encode("utf-8")).hexdigest()
 
 
@@ -255,7 +263,7 @@ def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_me
     body, sources = extract_mermaid(markdown, token)
     placeholders = {str(index): [_figure_node(f"preview-{index}")] for index in range(len(sources))}
     adf = tracker("md-to-adf", {"markdown": body, "figures": placeholders})
-    ids = check_ids_present(body, adf["block_text"])
+    ids = check_ids_present(body, _visible_text(adf["content"]))
 
     write_text(run_dir / ".gitignore", "*\n")
     rendered = _rendered(sources, run_dir, renderer)
@@ -397,7 +405,7 @@ def publish_after_yes(preview_path, receipt, log_path, tracker=call_tracker, now
                for index, name in enumerate(names)}
     markdown = (run_dir / "block.md").read_text("utf-8")
     final = tracker("md-to-adf", {"markdown": markdown, "figures": figures})
-    check_ids_present(markdown, final["block_text"])
+    check_ids_present(markdown, _visible_text(final["content"]))
     if final["block_text"] != preview["block_text"]:
         raise Refusal("bad-receipt", "the converted text differs from the preview: show a new preview")
     put = tracker("description-put", {"key": key, "adf": final["content"], "expect_hash": preview["description_hash"],

@@ -186,3 +186,4 @@
 2026-11-02 00:44 | autopilot | run | decision(D-71) — correcting a round now works only if the human has never seen it, because the agent cannot see an answer still being typed
 2026-11-02 00:44 | autopilot | run | decision(D-72) — a publish no longer downloads the diagram tool; when the tool is absent it stops and says how to install it
 2026-11-02 00:56 | autopilot | run | decision(D-73) — a plan with a broken shape now fails when it is written, not when the run tries to start
+2026-11-02 00:59 | autopilot | run | decision(D-74) — a change to only a link's target now changes the approval code, and a publish with a picture or an unchanged re-run still works

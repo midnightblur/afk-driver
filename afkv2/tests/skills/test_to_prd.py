@@ -424,7 +424,7 @@ def test_preview_page_shows_the_exact_text_and_the_pictures(world):
     assert answer["page_url"].startswith("file:")
     assert base64.b64encode(picture.read_bytes()).decode("ascii") in page
     preview = json.loads(Path(answer["preview"]).read_text("utf-8"))
-    for line in preview["block_text"].split("\n"):
+    for line in filter(None, map(publish_text, json.loads(preview["block_text"]))):
         assert line.replace("&", "&amp;") in page
     assert answer["receipt"][:8] in page
     assert picture.name == publish.picture_name(answer["receipt"], 1)
@@ -602,6 +602,145 @@ def test_a_changed_picture_or_preview_is_refused(world):
     preview_file.write_text(json.dumps(preview), "utf-8")
     assert world.publish(answer, expect=1)["error"]["code"] == "bad-receipt"
     assert world.verbs().count("attachment-put") == 0
+
+
+# The receipt covers marks: block text is the port's canonical JSON (decision D-74).
+
+CANONICAL_NODES = [
+    {"type": "heading", "attrs": {"level": 2, "localId": "added-by-jira"}, "content": [{"type": "text", "text": "Ziel é"}]},
+    {"content": [{"marks": [{"type": "link", "attrs": {"href": "https://a.example"}}], "type": "text", "text": "see"}],
+     "attrs": {"localId": "added-by-jira"}, "type": "paragraph"},
+    {"type": "mediaSingle", "attrs": {"layout": "center", "width": 640},
+     "content": [{"type": "media", "attrs": {"type": "file", "id": "media-1", "collection": ""}}]},
+    {"type": "codeBlock", "attrs": {"language": "python"}, "content": [{"type": "text", "text": "x"}]},
+]
+CANONICAL_TEXT = ('[{"attrs":{"level":2},"content":[{"text":"Ziel é","type":"text"}],"type":"heading"},'
+                  '{"content":[{"marks":[{"attrs":{"href":"https://a.example"},"type":"link"}],"text":"see","type":"text"}],"type":"paragraph"},'
+                  '{"attrs":{"language":"python"},"content":[{"text":"x","type":"text"}],"type":"codeBlock"}]')
+
+
+def linked_prd(href="https://a.example"):
+    return PRD.replace("Buyer only.", f"Buyer only, see [the rule]({href}).")
+
+
+def test_the_fake_port_gives_the_canonical_block_text(monkeypatch):
+    monkeypatch.syspath_prepend(str(FAKES))
+    spec = importlib.util.spec_from_file_location("fake_jira_port", FAKES / "fake_jira_port.py")
+    port = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(port)
+    assert port.block_text(CANONICAL_NODES) == CANONICAL_TEXT
+    assert port.block_text(CANONICAL_NODES[2:3]) == ""
+
+
+def test_a_link_only_edit_changes_the_receipt(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    first = world.preview()
+    world.prd.write_text(linked_prd("https://b.example"), "utf-8")
+    assert world.preview()["receipt"] != first["receipt"]
+
+
+def test_a_link_changed_after_the_preview_is_refused_and_not_written(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    answer = world.preview()
+    block = world.run_dir / "block.md"
+    block.write_text(block.read_text("utf-8").replace("https://a.example", "https://b.example"), "utf-8")
+    assert world.publish(answer, expect=1)["error"]["code"] == "bad-receipt"
+    assert "description-put" not in world.verbs() and world.ticket()["description"] is None
+
+
+def test_the_port_refuses_a_link_the_receipt_does_not_cover(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    answer = world.preview()
+    preview = json.loads(Path(answer["preview"]).read_text("utf-8"))
+
+    def port(verb, payload):
+        done = subprocess.run([sys.executable, str(world.plugin / "ports" / "tracker" / "cli.py"), verb], input=json.dumps(payload),
+                              capture_output=True, text=True, encoding="utf-8", env={**os.environ, **world.env})
+        return json.loads(done.stdout)
+
+    def put(markdown):
+        nodes = port("md-to-adf", {"markdown": markdown, "figures": {"0": [publish._figure_node("media-1")]}})["content"]
+        return port("description-put", {"key": KEY, "adf": nodes, "expect_hash": preview["description_hash"],
+                                        "receipt": answer["receipt"], "preview": answer["preview"]})
+
+    block = (world.run_dir / "block.md").read_text("utf-8")
+    assert put(block.replace("https://a.example", "https://b.example"))["error"]["code"] == "bad-receipt"
+    assert put(block)["ok"] is True
+
+
+def test_a_publish_with_a_picture_keeps_the_receipt_of_the_preview(world):
+    answer, done = world.preview_and_publish()
+    assert done["published"] is True and done["uploaded"] == [picture(answer)]
+    preview = json.loads(Path(answer["preview"]).read_text("utf-8"))
+    assert "media" not in preview["block_text"] and "preview-0" not in preview["block_text"]
+    assert [node["content"][0]["attrs"]["id"] for node in world.block_nodes() if node["type"] == "mediaSingle"] == ["media-101"]
+
+
+def test_an_unchanged_rerun_with_a_link_and_a_picture_writes_nothing(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    first, _ = world.preview_and_publish()
+    world.clear_calls()
+    again = world.preview()
+    assert again["receipt"] == first["receipt"] and again["already_published"] is True
+    assert world.publish(again)["already_published"] is True
+    assert world.writes() == []
+
+
+def test_attributes_jira_adds_on_read_still_read_as_published(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    first, _ = world.preview_and_publish()
+    state = json.loads(world.state_file.read_text("utf-8"))
+    for node in state["issues"][KEY]["description"]["content"]:
+        node["attrs"] = {**(node.get("attrs") or {}), "localId": "added-by-jira", "width": 640}
+    world.state_file.write_text(json.dumps(state), "utf-8")
+    world.clear_calls()
+    again = world.preview()
+    assert again["receipt"] == first["receipt"] and again["already_published"] is True
+    assert world.publish(again)["already_published"] is True and world.writes() == []
+
+
+def test_an_edit_of_a_link_on_the_ticket_is_not_already_published(world):
+    world.prd.write_text(linked_prd(), "utf-8")
+    world.preview_and_publish()
+    state_text = world.state_file.read_text("utf-8")
+    assert "https://a.example" in state_text
+    world.state_file.write_text(state_text.replace("https://a.example", "https://b.example"), "utf-8")
+    assert world.preview()["already_published"] is False
+
+
+def _adf_tracker(nodes):
+    def tracker(verb, payload):
+        if verb == "issue-get":
+            return {"description_hash": "h", "block": None}
+        return {"figure_token": "FIG{}END", "content": nodes, "block_text": json.dumps(nodes)}
+    return tracker
+
+
+def test_an_id_only_in_a_link_target_is_missing(tmp_path):
+    prd = tmp_path / "PRD.md"
+    prd.write_text("AC-001 The total.\n", "utf-8")
+    nodes = [{"type": "paragraph", "content": [{"type": "text", "text": "The total.", "marks": [
+        {"type": "link", "attrs": {"href": "https://a.example/AC-001"}}]}]}]
+    with pytest.raises(publish.Refusal) as refused:
+        publish.build_preview(KEY, prd, tmp_path / "run", tracker=_adf_tracker(nodes))
+    assert refused.value.code == "missing-ids"
+
+
+def test_an_id_on_a_later_line_of_a_code_block_is_present(world):
+    world.prd.write_text(PRD + "\n```text\nfirst line\nAC-009\n```\n", "utf-8")
+    assert world.preview()["ok"] is True
+
+
+def test_real_port_block_text_is_the_canonical_form():
+    tree = _port_tree()
+    if not (tree / "jira.py").is_file():
+        pytest.skip("the tracker port is not on this branch yet")
+    pytest.importorskip("markdown_it")
+    code = ("import json, sys; sys.path.insert(0, sys.argv[1]); from tracker.jira import block_text; "
+            "sys.stdout.buffer.write(block_text(json.load(sys.stdin)).encode('utf-8'))")
+    done = subprocess.run([sys.executable, "-c", code, str(tree.parent)], input=json.dumps(CANONICAL_NODES).encode("utf-8"), capture_output=True)
+    assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
+    assert done.stdout.decode("utf-8") == CANONICAL_TEXT
 
 
 def test_bad_receipt_from_the_port_stops_the_publish(world):
@@ -904,6 +1043,17 @@ def test_real_port_runs_the_same_sequence(real_port_world):
     fresh = world.preview()
     _LocalJira.issue["description"]["content"].append(paragraph("edited"))
     assert world.publish(fresh, expect=1)["error"]["code"] == "stale"
+
+
+def test_real_port_a_link_only_edit_changes_the_receipt(real_port_world):
+    world = real_port_world
+    world.prd.write_text(linked_prd(), "utf-8")
+    first, done = world.preview_and_publish()
+    assert done["published"] is True
+    world.clear_calls()
+    assert world.publish(first)["already_published"] is True and world.writes() == []
+    world.prd.write_text(linked_prd("https://b.example"), "utf-8")
+    assert world.preview()["receipt"] != first["receipt"]
 
 
 def test_real_port_replaces_a_v1_block(real_port_world):

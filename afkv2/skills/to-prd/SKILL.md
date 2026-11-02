@@ -82,7 +82,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 |------|---------|-------------|
 | `stale` | the ticket changed after the preview; nothing was written | go to step 7: show the new preview and ask again |
 | `bad-block` | the description holds a broken or doubled block; nothing was written | show `reason`; the developer fixes the description by hand, then go to step 7 |
-| `bad-receipt` | the preview, its pictures or the converted text are not what the human saw; nothing was written | go to step 7: show the new preview and ask again |
+| `bad-receipt` | the preview, its pictures or the converted text, link targets included, are not what the human saw; nothing was written | go to step 7: show the new preview and ask again |
 | `missing-ids` | an id in `missing` is not in the text the ticket would get; nothing was written | fix the PRD so the converter keeps that text, then go to step 4 |
 | `read-back-mismatch` | the publish failed: the ticket does not hold what was sent; old pictures stay | report a failed publish and `differs`; go to step 7 when the developer asks |
 | `no-renderer` | `mmdc` is not on the path; nothing was written | show `reason`; run `/afkv2:setup` or install the package in `install`, then go to step 7 |

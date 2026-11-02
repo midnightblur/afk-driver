@@ -24,6 +24,9 @@ FIG_TOKEN = "AFKV2FIGURE{}ENDFIGURE"
 BEGIN_LINE, END_LINE = "afkv2:prd:start", "afkv2:prd:end"
 BEGINS = {BEGIN_LINE: "afkv2", fake_v1_facts.BEGIN_LINE: "v1", fake_v1_facts.BEGIN_LINE_NOTE: "v1"}
 ENDS = {END_LINE: "afkv2", fake_v1_facts.END_LINE: "v1"}
+FIGURE_NODES = {"mediaSingle", "mediaGroup", "media"}
+READ_ATTRS = {"level", "language"}
+LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 
 
 class Refused(Exception):
@@ -38,8 +41,21 @@ def text_of(node):
     return "".join(text_of(child) for child in node.get("content") or [])
 
 
+def canonical_node(node):
+    kept = {key: node[key] for key in ("type", "text", "marks") if key in node}
+    attrs = {key: value for key, value in (node.get("attrs") or {}).items() if key in READ_ATTRS}
+    children = canonical_nodes(node.get("content") or [])
+    return {**kept, **({"attrs": attrs} if attrs else {}), **({"content": children} if children else {})}
+
+
+def canonical_nodes(nodes):
+    return [canonical_node(node) for node in nodes if isinstance(node, dict) and node.get("type") not in FIGURE_NODES]
+
+
 def block_text(nodes):
-    return "\n".join(text for text in map(text_of, nodes) if text)
+    """Lockstep copy of `block_text` in `ports/tracker/jira.py`: the form is decision D-74."""
+    kept = canonical_nodes(nodes)
+    return json.dumps(kept, sort_keys=True, separators=(",", ":"), ensure_ascii=False) if kept else ""
 
 
 def media_ids(nodes):
@@ -76,6 +92,17 @@ def paragraph(text):
     return {"type": "paragraph", "content": [{"type": "text", "text": text}]}
 
 
+def inline(text):
+    """Text nodes of one line: `[words](target)` is a text node with a link mark."""
+    nodes, at = [], 0
+    for match in LINK.finditer(text):
+        if match.start() > at:
+            nodes.append({"type": "text", "text": text[at:match.start()]})
+        nodes.append({"type": "text", "text": match.group(1), "marks": [{"type": "link", "attrs": {"href": match.group(2)}}]})
+        at = match.end()
+    return nodes + ([{"type": "text", "text": text[at:]}] if at < len(text) else [])
+
+
 def to_adf(markdown, figures):
     drop = os.environ.get("FAKE_JIRA_DROP")
     nodes, fence = [], None
@@ -102,7 +129,7 @@ def to_adf(markdown, figures):
             nodes.append({"type": "heading", "attrs": {"level": hashes},
                           "content": [{"type": "text", "text": line[hashes:].strip()}]})
         elif line.strip():
-            nodes.append(paragraph(line.strip()))
+            nodes.append({"type": "paragraph", "content": inline(line.strip())})
     return nodes
 
 
