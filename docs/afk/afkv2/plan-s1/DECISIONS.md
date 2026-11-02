@@ -370,3 +370,17 @@
 - Chosen: A — no Playwright MCP tool is in this run (as in D-35), and C puts an `.exe` under Temp. The driver sends real mouse events and real text input, and each click checks `elementFromPoint`. The contract's browser steps hold. The host's layout audit reads only the first 800 elements and reports only severe findings, so the driver also runs it on a page of only diagrams, and runs its own layout checks over every element
 - Supersedes: none
 - To reverse: replace the driver block with Playwright steps
+
+## D-54 — orchestrator ruling: 0005 may rewrite one test in test_engine_core.py
+- 2026-11-02 · decided by autopilot, as orchestrator (AC-072)
+- Options: A — add `afkv2/tests/engine/test_engine_core.py` to the 0005 `## Scope` for the body of `test_the_slot_holds_what_its_registered_component_renders` vs B — rename the slot's type, which goes against D-30 vs C — leave the test red, with CI red
+- Chosen: A — I reproduced it: 1 failed, 171 passed, 1 skipped, from `ValueError` at `afkv2/engine/registry.py:42`. The test stood in a scratch `notes-and-replies` until the real one existed, and 0005 adds the real one. The fixture stays, because 2 other tests use it. The test must still prove the slot draws the registered component. This covers this one test on 0005 only
+- Supersedes: none
+- To reverse: remove the path from the 0005 `## Scope` and restore the test
+
+## D-55 — owner ruling R-5: one delta check on late fixes
+- 2026-11-02 · decided by the owner ("yes review the delta"), in the brief's Owner rulings section
+- Options: A — a critical or high fix in the last allowed review round, or a fix for a ruling after review settled, gets one delta check vs B — such a fix goes unchecked
+- Chosen: A — the check reads only the fix commits' diff and may only confirm or reopen the findings or rulings they answer. It raises no new finding unless a fix adds a critical or high defect. A reopened critical or high finding gets one more fix, and the slice parks if the next delta check still fails. It applies from 2026-11-02 on. No finished slice owes a check: 0004 made no fix in round 3, and the 0001 change was reviewed after its rulings
+- Supersedes: none; it adds to R-2
+- To reverse: the owner withdraws R-5

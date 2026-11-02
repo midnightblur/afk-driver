@@ -23,6 +23,7 @@ complex
 - afkv2/engine/shell/notes*
 - afkv2/engine/engine.py   # register the ingest verb; element ids and node checks cover held maps (D-43)
 - afkv2/tests/engine/test_ingest.py
+- afkv2/tests/engine/test_engine_core.py   # orchestrator ruling: only the body of test_the_slot_holds_what_its_registered_component_renders
 - afkv2/tests/live/test_page_live.md
 
 ## Seams
