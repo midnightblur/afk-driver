@@ -23,6 +23,7 @@ SCHEMA = "afkv2.page/0"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 ASKING = KINDS - {"info"}
 NEW_STATES = {"open", "blocked"}
+SETTLED_STATES = {"settled_by_mark", "settled_by_note"}
 PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
@@ -66,6 +67,17 @@ def current_round(doc):
 
 def _live_notes(item):
     return [note for note in item.get("notes") or [] if not note.get("deleted")]
+
+
+def holds_sign_mark(item):
+    """True when the human signed this card with a `sign` mark; no note and no other mark signs."""
+    settled = item.get("settled") or {}
+    return item["state"] == "settled_by_mark" and settled.get("by") == "mark" and settled.get("signal") == "sign"
+
+
+def signature_missing(item):
+    """True for a `signoff` card that reads as settled and holds no `sign` mark."""
+    return item["kind"] == "signoff" and item["state"] in SETTLED_STATES and not holds_sign_mark(item)
 
 
 def _text(value, component_id):
@@ -302,6 +314,9 @@ def _settle(current, entry):
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
     if item["kind"] == "info":
         raise Refusal("info-card", f"{item['id']} asks nothing, so a note on it settles nothing; reply only")
+    if item["kind"] == "signoff":
+        raise Refusal("signoff-needs-mark", f"{item['id']} settles only by a `sign` mark; return it with `open`, "
+                                            "and a new card asks the human to sign")
     if entry.get("note") not in {note["id"] for note in _live_notes(item)}:
         raise Refusal("no-note", f"{item['id']} has no live note {entry.get('note')!r}")
     reading = (entry.get("reading") or "").strip()

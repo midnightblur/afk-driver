@@ -766,6 +766,44 @@ def test_replace_refuses_a_round_with_an_answer(world):
     assert Path(started["doc"]).read_bytes() == before
 
 
+def signoff_session(world):
+    started = world.start_and_read()
+    world.build_round(started, {"banner": {"settled": [], "unlocks": [], "parked": []},
+                                "items": [{"id": "i-sign", "kind": "signoff", "body": text("The field table is final.")}]})
+    return started
+
+
+def test_a_clear_note_does_not_settle_a_signoff_card(world):
+    started = signoff_session(world)
+    answered(world, started, "i-sign: note: Fine, go ahead.\n")
+    before = Path(started["doc"]).read_bytes()
+    readings = {"settle": [{"item": "i-sign", "note": "N-1-i-sign", "reading": "Signs the table."}]}
+    answer = world.run("apply-readings", expect=1, doc=started["doc"], readings=world.file("r.json", readings))
+    assert answer["error"]["code"] == "signoff-needs-mark"
+    assert Path(started["doc"]).read_bytes() == before
+
+
+def test_a_sign_mark_settles_a_signoff_card_and_opens_the_exit_gate(world):
+    started = signoff_session(world)
+    answered(world, started, "i-sign: sign\n")
+    item = json.loads(Path(started["doc"]).read_text("utf-8"))["rounds"][0]["items"][1]
+    assert item["id"] == "i-sign" and item["state"] == "settled_by_mark"
+    full_rows(world, started["log"])
+    assert world.run("gate", doc=started["doc"], log=started["log"])["ok"] is True
+
+
+def test_the_exit_gate_refuses_a_signoff_card_with_no_sign_mark(world):
+    started = signoff_session(world)
+    answered(world, started, "i-sign: note: Fine, go ahead.\n")
+    doc = json.loads(Path(started["doc"]).read_text("utf-8"))
+    item = doc["rounds"][0]["items"][1]
+    item.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": "N-1-i-sign", "reading": "Signs."})
+    Path(started["doc"]).write_text(json.dumps(doc), "utf-8")
+    full_rows(world, started["log"])
+    failures = world.run("gate", expect=1, doc=started["doc"], log=started["log"])["error"]["failures"]
+    assert any("i-sign" in failure and "sign mark" in failure for failure in failures)
+
+
 def test_exit_gate_lists_every_failure_and_passes_when_clean(world):
     started = settled_session(world)
     log, doc = started["log"], started["doc"]

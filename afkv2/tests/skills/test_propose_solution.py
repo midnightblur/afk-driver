@@ -578,6 +578,59 @@ def test_a_changes_mark_on_a_signoff_keeps_the_gate_closed_until_a_sign(world):
     assert world.run("next", doc=started["doc"])["locked_open"] == [{"key": "HL-2", "label": "API surface"}]
 
 
+def hl1_card(doc):
+    return next(item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == "sign-hl-1")
+
+
+def write_doc(world, started, doc):
+    (world.repo / started["doc"]).write_text(json.dumps(doc), "utf-8")
+
+
+def test_a_clear_note_with_no_sign_mark_does_not_settle_a_signoff_card(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    world.build(started, round_of({"id": "sign-hl-2", "locked": "HL-2", "kind": "signoff",
+                                   "body": {"type": "text", "id": "sign-hl-2-text", "props": {"text": "The API table is final."}}}))
+    world.answer(started, "sign-hl-2: note: Fine, go ahead.")
+    readings = world.file("readings.json", {"settle": [{"item": "sign-hl-2", "note": "N-3-sign-hl-2", "reading": "Signs the table."}]})
+    answer = world.run("apply-readings", expect=1, doc=started["doc"], readings=readings)
+    assert answer["error"]["code"] == "signoff-needs-mark"
+    assert world.run("next", doc=started["doc"])["locked_open"] == [{"key": "HL-2", "label": "API surface"}]
+
+
+def test_a_signed_row_backed_by_a_note_fails_the_gate(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    doc = world.doc(started)
+    card = hl1_card(doc)
+    card.update(state="settled_by_note", notes=[{"id": "N-2-sign-hl-1", "round": 2, "target": "sign-hl-1", "text": "Fine.", "deleted": False}],
+                settled={"by": "note", "round": 2, "signal": "N-2-sign-hl-1", "reading": "Signs the table."})
+    write_doc(world, started, doc)
+    world.write_design()
+    failures = gate_failures(world, started)
+    assert any("HL-1: signed, but no card holds its signature" in failure for failure in failures)
+    assert world.run("next", doc=started["doc"])["phase"] == "draft"
+
+
+def test_a_mark_other_than_sign_does_not_sign(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    doc = world.doc(started)
+    hl1_card(doc)["settled"]["signal"] = "accept"
+    write_doc(world, started, doc)
+    world.write_design()
+    assert any("HL-1: signed, but no card holds its signature" in failure for failure in gate_failures(world, started))
+
+
+def test_a_sign_mark_signs_the_row(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    card = hl1_card(world.doc(started))
+    assert (card["state"], card["settled"]["signal"]) == ("settled_by_mark", "sign")
+    world.write_design()
+    assert gate_failures(world, started, expect=0)["ok"] is True
+
+
 def test_a_pending_or_refuted_premise_keeps_the_gate_closed(world):
     started = world.run("start", ticket_key="PROJ-1")
     world.walk_to_write(started)

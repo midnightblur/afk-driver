@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import Parser, Refusal, read_json, serve, write_text
-from round_document import ASKING, _components, _live_notes, _map_nodes, current_round, returning
+from round_document import ASKING, _carried, _components, _live_notes, _map_nodes, current_round, returning, signature_missing
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}
@@ -211,6 +211,9 @@ def _doc_failures(doc):
         if waiting or item["state"] == "needs_reading":
             failures.append(f"point {item['id']} is {item['state']}")
     failures += [f"point {item['id']} returned and has no new card" for item in returning(doc)]
+    failures += [f"sign-off card {item['id']} is {item['state']} and holds no sign mark"
+                 for rnd in doc["rounds"] for item in rnd["items"]
+                 if signature_missing(item) and not _carried(doc, item, rnd["n"])]
     return failures
 
 

@@ -482,3 +482,10 @@
 - Chosen: A — the check reads only the fix commits' diff. It may confirm or reopen what those commits answer, and it raises a new finding only if a fix adds a critical or high defect. A reopened critical or high finding gets one more fix, and the slice parks if the next delta check fails. In this run it applies to the D-67 rename (f6eec235). No slice reached round 3, so no last-round fix needs it. The check also reads 5120ee84, which no ruling asked for, because it also came after review settled
 - Supersedes: D-18, only where it gave a late fix no check
 - To reverse: the owner withdraws R-5
+
+## D-70 — a sign-off card settles only by a sign mark
+- 2026-11-02 · decided by the session orchestrator
+- Options: A — refuse a note on a `signoff` card in code, at the reading and at each gate vs B — keep the rule that a note which keeps the wording can settle it (D-14)
+- Chosen: A — owner ruling R-3, tightened: a signature needs the human's own mark, and an agent's reading of a note is not one. `round_document.py` `_settle` refuses `signoff-needs-mark`. `holds_sign_mark` is true only for `settled_by_mark` with `settled.signal` = `sign`; that form is verified at `origin/feat/afkv2-s1:afkv2/engine/ingest.py` (`settled` takes the mark token, and `MARKS` gives a `signoff` card no `accept`). The design gate and `next` read a `signoff` card with no sign mark as not settled, the grill exit gate lists it, and `plan_files.py` `approve` needs the mark. The S1 engine check does not know this rule: a hand-edited document passes `check` and fails these gates (`invariants.py` read, not changed)
+- Supersedes: D-12, D-13 and D-14, for `signoff` cards only; SDD §6 "needs_reading --> settled_by_note: agent reads the note as clear", for `signoff` cards only
+- To reverse: revert the `[fix-1]` commit

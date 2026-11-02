@@ -92,8 +92,8 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    | Key | Entry | Use |
    |-----|-------|-----|
-   | `settle` | `{item, note, reading}` | a clear note settles the point; the reply with your reading is written for you |
-   | `open` | `{item, reply}` | the signals are unclear or in conflict, or the note is on an `info` card |
+   | `settle` | `{item, note, reading}` | a clear note settles the point; the reply with your reading is written for you. A `signoff` card refuses `signoff-needs-mark`: only a `sign` mark settles it |
+   | `open` | `{item, reply}` | the signals are unclear or in conflict, or the note is on an `info` or `signoff` card |
    | `unblock` | item id | the point it waited on settled |
    | `replies` | `{text, about}` | every other note: a steer word for word, an answer |
 

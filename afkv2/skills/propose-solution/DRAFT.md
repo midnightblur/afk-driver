@@ -53,7 +53,7 @@ These aspects persist data, publish a contract or grant access. A wrong call out
 
 For each live aspect, write one `signoff` card with `locked: "<id>"`. Its body holds the contract-grade tables word for word, the options you weighed, the records, callers and roles it changes, and the risks the human accepts. A non-live aspect gets no card; its §0 row says `n/a` with the reason, so the human can object.
 
-- A `sign` mark signs. A note that changes the wording returns the point: the new card holds the new wording and asks for a `sign` mark.
+- Only a `sign` mark signs. A note never signs, even when it keeps the wording: it returns the point, and the new card asks for a `sign` mark. `apply-readings` refuses a `settle` on a `signoff` card, and the gate refuses a `signed` row with no `sign` mark.
 - A later change to a signed aspect voids its signature. Write a new card with the changed rows, and `carries` the old card.
 - Without a human there is no signature. An unsigned live aspect keeps the gate closed.
 

@@ -39,7 +39,6 @@ CARD_PREFIX = "division-"
 RUN_FOLDER = "plan"
 SPEC_FILES = {"PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "VERIFICATION-PLAN.md", "DESIGN-BRIEF.md"}
 SPEC_FOLDERS = {"adr", "pages"}
-SETTLED = {"settled_by_mark", "settled_by_note"}
 UNSTAMPED_LINES = (cp.DIVISION_MARK, "> Last updated:")
 GIT_LIMIT_S = 120
 TAG = r"\(((?:[^()\"]|\"[^\"]*\")*)\)"
@@ -420,10 +419,10 @@ def division(argv):
 
 
 def _approved_by_developer(doc_path, digest):
-    """True when the newest division card shows this digest and the developer settled it; also the card states."""
+    """True when the newest division card shows this digest and holds the developer's sign mark; also the card states."""
     doc = read_json(doc_path)
     cards = [item for rnd in doc["rounds"] for item in rnd["items"] if item["id"].startswith(CARD_PREFIX) and item["kind"] == "signoff"]
-    settled = bool(cards) and cards[-1]["id"].startswith(f"{CARD_PREFIX}{digest}-") and cards[-1]["state"] in SETTLED
+    settled = bool(cards) and cards[-1]["id"].startswith(f"{CARD_PREFIX}{digest}-") and rd.holds_sign_mark(cards[-1])
     return settled, [f"{item['id']}: {item['state']}" for item in cards]
 
 

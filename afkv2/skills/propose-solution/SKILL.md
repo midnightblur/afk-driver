@@ -102,7 +102,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/../grill/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
-   The keys of the readings file: [../grill/SKILL.md](../grill/SKILL.md), step 7. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill/ROUNDS.md](../grill/ROUNDS.md).
+   The keys of the readings file: [../grill/SKILL.md](../grill/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill/ROUNDS.md](../grill/ROUNDS.md).
 
 8. **Save the state.** Update each `Premise` row that changed. Real work outside this ticket gets a `Spinoff` row. Go to step 3. Done when the log matches this round.
 

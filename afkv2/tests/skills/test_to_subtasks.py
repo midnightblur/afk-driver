@@ -910,13 +910,35 @@ def test_a_sign_on_an_older_plan_does_not_approve_a_changed_plan(world):
     assert "Division" not in world.plan_file(started).read_text("utf-8")
 
 
-def test_a_clear_note_settles_the_card_and_approves(world):
+def test_a_clear_note_does_not_settle_the_card(world):
     started = world.committed_plan()
     world.division(started)
     card_id = world.card(started)["id"]
     world.answer(started, f"{card_id}: note: Fine, go ahead.")
     note = world.card(started)["notes"][0]["id"]
-    world.readings(started, {"settle": [{"item": card_id, "note": note, "reading": "Approves the division as shown."}]})
+    path = world.scratch / "readings.json"
+    path.write_text(json.dumps({"settle": [{"item": card_id, "note": note, "reading": "Approves the division as shown."}]}), "utf-8")
+    assert error_of(world.run("apply-readings", expect=1, doc=started["doc"], readings=path))["code"] == "signoff-needs-mark"
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+
+
+def test_a_card_marked_settled_by_a_note_does_not_approve(world):
+    started = world.committed_plan()
+    world.division(started)
+    card_id = world.card(started)["id"]
+    world.answer(started, f"{card_id}: note: Fine, go ahead.")
+    path = world.repo / started["doc"]
+    doc = json.loads(path.read_text("utf-8"))
+    card = next(item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == card_id)
+    card.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": card["notes"][0]["id"], "reading": "Approves."})
+    path.write_text(json.dumps(doc), "utf-8")
+    assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
+
+
+def test_a_sign_mark_approves_the_card(world):
+    started = world.committed_plan()
+    world.division(started)
+    world.sign(started)
     assert world.approve(started)["ok"]
 
 

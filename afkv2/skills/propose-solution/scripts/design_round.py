@@ -101,7 +101,7 @@ def _view(doc_path, replace=False):
 
 def _live(doc, item, round_n):
     waiting = item["kind"] in rd.ASKING and item["state"] in ("open", "blocked", "needs_reading")
-    return waiting and not rd._carried(doc, item, round_n)
+    return (waiting or rd.signature_missing(item)) and not rd._carried(doc, item, round_n)
 
 
 def _cards(doc, node):
