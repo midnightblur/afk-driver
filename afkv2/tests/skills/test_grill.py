@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from test_visualize import check_document
+from test_visualize import V1_WORD, check_document
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
@@ -164,7 +164,7 @@ def test_no_step_asks_for_a_lane():
 
 
 def test_no_v1_name_and_no_upstream_caller():
-    v1 = re.compile(r"afk(?!v2)", re.I)
+    v1 = V1_WORD
     for path in [p for p in SKILL_DIR.rglob("*") if p.is_file() and "__pycache__" not in p.parts]:
         assert not v1.search(path.relative_to(SKILL_DIR).as_posix()), path
         assert not v1.search(path.read_text("utf-8")), path

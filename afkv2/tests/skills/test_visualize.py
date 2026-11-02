@@ -14,6 +14,10 @@ from pathlib import Path
 
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "fakes"))
+
+from fake_v1_facts import V1_WORD  # noqa: E402
+
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "visualize"
 SKILL_MD = SKILL_DIR / "SKILL.md"
@@ -743,7 +747,7 @@ def test_guide_states_the_picture_before_a_critical_aspect_question():
 
 
 def test_guide_uses_no_v1_name():
-    v1 = re.compile(r"afk(?!v2)", re.I)
+    v1 = V1_WORD
     for path in SKILL_DIR.rglob("*"):
         rel = path.relative_to(SKILL_DIR).as_posix()
         assert not v1.search(rel), rel
