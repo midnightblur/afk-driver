@@ -1,0 +1,12 @@
+[
+ {
+  "id": "r-055",
+  "key": "0011-setup-skill/f055",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "e6d59870"
+ }
+]

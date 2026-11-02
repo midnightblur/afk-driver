@@ -1,0 +1,12 @@
+[
+ {
+  "id": "r-056",
+  "key": "0011-setup-skill/f056",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "bc5d45b1"
+ }
+]

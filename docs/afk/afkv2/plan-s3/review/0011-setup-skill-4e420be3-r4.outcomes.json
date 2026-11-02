@@ -1,0 +1,52 @@
+[
+ {
+  "id": "r-044",
+  "key": "0011-setup-skill/f044",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f79aedc"
+ },
+ {
+  "id": "r-045",
+  "key": "0011-setup-skill/f045",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f79aedc"
+ },
+ {
+  "id": "r-046",
+  "key": "0011-setup-skill/f046",
+  "concern": "test-veracity",
+  "criterion": "Fragile test",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "2f79aedc"
+ },
+ {
+  "id": "r-047",
+  "key": "0011-setup-skill/f047",
+  "concern": "refactor-safety",
+  "criterion": "changed defaults / accepted-input set of a shared helper (plugins._read_json)",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f79aedc"
+ },
+ {
+  "id": "r-048",
+  "key": "0011-setup-skill/f048",
+  "concern": "refactor-safety",
+  "criterion": "changed return type (_drop_ignore_line bool to bool | None); caller behavior under the new value",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "2f79aedc"
+ }
+]

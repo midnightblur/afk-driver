@@ -786,7 +786,6 @@ def test_guide_names_no_upstream_caller():
     assert not re.search(r"\b(called|invoked|run) by\b", text, re.I)
 
 
-@pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake above checks")
 @pytest.mark.parametrize("label, doc",
                          [*all_documents(), ("note on an older card", _note_on_an_older_card())],
                          ids=lambda v: v if isinstance(v, str) else "")

@@ -1,0 +1,250 @@
+[
+ {
+  "id": "r-001",
+  "key": "0011-setup-skill/f001",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / re-run after a crash",
+  "severity": "high",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-002",
+  "key": "0011-setup-skill/f002",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / ordering of restore steps",
+  "severity": "high",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-003",
+  "key": "0011-setup-skill/f003",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / missing files",
+  "severity": "high",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-004",
+  "key": "0011-setup-skill/f004",
+  "concern": "logic-correctness",
+  "criterion": "partial-failure handling / data loss",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-005",
+  "key": "0011-setup-skill/f005",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / partial-failure handling",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-006",
+  "key": "0011-setup-skill/f006",
+  "concern": "logic-correctness",
+  "criterion": "partial-failure handling",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-007",
+  "key": "0011-setup-skill/f007",
+  "concern": "logic-correctness",
+  "criterion": "re-run after a crash",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-008",
+  "key": "0011-setup-skill/f008",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-009",
+  "key": "0011-setup-skill/f009",
+  "concern": "logic-correctness",
+  "criterion": "boundary values, empty/null/missing inputs",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-010",
+  "key": "0011-setup-skill/f010",
+  "concern": "scope-and-impact",
+  "criterion": "blast radius: write outside the contract's named targets",
+  "severity": "medium",
+  "class": "scope",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-011",
+  "key": "0011-setup-skill/f011",
+  "concern": "test-veracity",
+  "criterion": "Fragile test",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-012",
+  "key": "0011-setup-skill/f012",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-013",
+  "key": "0011-setup-skill/f013",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-014",
+  "key": "0011-setup-skill/f014",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-015",
+  "key": "0011-setup-skill/f015",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-016",
+  "key": "0011-setup-skill/f016",
+  "concern": "test-veracity",
+  "criterion": "Hard-to-test code",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-017",
+  "key": "0011-setup-skill/f017",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-018",
+  "key": "0011-setup-skill/f018",
+  "concern": "logic-correctness",
+  "criterion": "re-run after a crash",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-019",
+  "key": "0011-setup-skill/f019",
+  "concern": "spec-fidelity",
+  "criterion": "Hook proof: without proof setup reports why (PRD AC-015)",
+  "severity": "low",
+  "class": "spec",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-020",
+  "key": "0011-setup-skill/f020",
+  "concern": "spec-fidelity",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "design",
+  "outcome": "deferred"
+ },
+ {
+  "id": "r-021",
+  "key": "0011-setup-skill/f021",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-022",
+  "key": "0011-setup-skill/f022",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-023",
+  "key": "0011-setup-skill/f023",
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-024",
+  "key": "0011-setup-skill/f024",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "ce4b2932"
+ },
+ {
+  "id": "r-025",
+  "key": "0011-setup-skill/f025",
+  "concern": "test-veracity",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "test",
+  "outcome": "withdrawn"
+ }
+]

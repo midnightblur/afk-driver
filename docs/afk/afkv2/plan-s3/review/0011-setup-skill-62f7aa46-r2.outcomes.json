@@ -1,0 +1,132 @@
+[
+ {
+  "id": "r-026",
+  "key": "0011-setup-skill/f026",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / partial-failure handling",
+  "severity": "high",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-027",
+  "key": "0011-setup-skill/f027",
+  "concern": "logic-correctness",
+  "criterion": "re-run after a crash / partial failure between steps",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-028",
+  "key": "0011-setup-skill/f028",
+  "concern": "delta-sweep",
+  "criterion": "Propagation gap",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-029",
+  "key": "0011-setup-skill/f029",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-030",
+  "key": "0011-setup-skill/f030",
+  "concern": "test-veracity",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-031",
+  "key": "0011-setup-skill/f031",
+  "concern": "test-veracity",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-032",
+  "key": "0011-setup-skill/f032",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros)",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-033",
+  "key": "0011-setup-skill/f033",
+  "concern": "logic-correctness",
+  "criterion": "re-run after a crash",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-034",
+  "key": "0011-setup-skill/f034",
+  "concern": "logic-correctness",
+  "criterion": "re-run after a crash / missing files",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-035",
+  "key": "0011-setup-skill/f035",
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "spec",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-036",
+  "key": "0011-setup-skill/f036",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-037",
+  "key": "0011-setup-skill/f037",
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic (Meszaros)",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ },
+ {
+  "id": "r-038",
+  "key": "0011-setup-skill/f038",
+  "concern": "refactor-safety",
+  "criterion": "reworked control flow / changed defaults in a shared helper (behaviour-preservation)",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "1fe1c293"
+ }
+]

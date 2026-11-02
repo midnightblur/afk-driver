@@ -24,6 +24,7 @@ complex
 - [ ] The change opens as Draft with a description, one request per person, proofs, the mergeability case and one self-critique (PRD §SK-14)
 - [ ] CI watch runs in the background after each push and reports the result without blocking work; a red CI on the feature branch is allowed during work (PRD §AC-065)
 - [ ] At ship, with review settled and CI green, the agent marks the change Ready; ship is refused while CI is red; the agent never merges (PRD §AC-064, §AC-065)
+- [ ] A review is not settled while a delta check is owed or has parked, so Ready is refused (PRD §AC-063)
 - [ ] All forge calls go through the forge port and behave the same on GitHub and GitLab (PRD §AC-066)
 
 ## Produces
@@ -32,7 +33,7 @@ complex
 - afkv2/skills/create-change-request/scripts/ci_watch.py#def mark_ready_if_green( — Ready only on settled review + green CI
 
 ## Consumes
-- 0012-forge-tracker-port afkv2/ports/forge/cli.py#def forge_main( — change and CI commands
+- 0012-forge-tracker-port afkv2/ports/forge/forge_cli.py#def forge_main( — change and CI commands
 
 ## Verification
 | Tier | Check (command or method) | Proves |

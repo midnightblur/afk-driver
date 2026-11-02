@@ -1,0 +1,47 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "afkv2/ports/forge/gitlab.py",
+  "line": 252,
+  "side": "new",
+  "finding": "No test covers the two new halves of _is_line_note: a position-only note in note-list, and a DiffNote with no position in thread-list.",
+  "why": "Dropping either half of the predicate leaves every test green.",
+  "fix": "Add one case for each half.",
+  "evidence": "return note.get(\"type\") == \"DiffNote\" or bool(note.get(\"position\"))",
+  "key": "0012-forge-tracker-port/f076"
+ },
+ {
+  "id": "r-002",
+  "concern": "code-quality",
+  "criterion": "Duplicated knowledge",
+  "severity": "low",
+  "class": "smell",
+  "file": "afkv2/ports/forge/gitlab.py",
+  "line": 252,
+  "side": "new",
+  "finding": "_is_line_note decides on-a-line by type or position, but change_comment decides it by type alone.",
+  "why": "A create answer with a position and no type counts as degraded, and with require_inline the port would delete a comment that landed on a line.",
+  "fix": "Call _is_line_note in change_comment.",
+  "evidence": "if note.get(\"type\") != \"DiffNote\":",
+  "key": "0012-forge-tracker-port/f077"
+ },
+ {
+  "id": "r-003",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths (possible)",
+  "severity": "low",
+  "class": "correctness",
+  "file": "afkv2/ports/forge/gitlab.py",
+  "line": 132,
+  "side": "new",
+  "finding": "_is_draft reads only the draft key, but change-view also treats work_in_progress and a Draft: title as a draft.",
+  "why": "If glab's JSON has no draft key, change-update-body answers false and never restores the flag, while change-view says draft. Whether a supported GitLab omits the key is unverified.",
+  "fix": "Share one draft predicate between _normalize and _is_draft.",
+  "evidence": "return bool(_view(change, payload).get(\"draft\"))",
+  "key": "0012-forge-tracker-port/f078"
+ }
+]

@@ -17,7 +17,7 @@ A plan without the division line passes: `division.approved` is false, and `/afk
 itself. `base` names what the anchors and the check paths were compared with: on a run branch that is the
 feature branch, because the run branch holds no code.
 
-Lockstep copies of `start_gate.py` in `/afkv2:autopilot`, which is not merged yet and so is not imported:
+Lockstep copies of `start_gate.py` in `/afkv2:autopilot`, not imported; `test_to_subtasks.py` compares them:
 `NOT_APPLICABLE`, `is_not_applicable`, `LIVE_TIERS`, `SPAN`, `PROGRAM`, the rule of `_programs`, `RUN_SUFFIX`,
 the division line, its date check, and `_v1_failures` (of `_v1_signs`, with no run-branch sign, which reads the
 checkout and not the plan). Lockstep copies of `plan_contract.py` there: `NO_ID`, `read_tracker` (of `_tracker_table`
@@ -378,8 +378,8 @@ def _section_failures(subtasks):
     return failures
 
 
-def read_tracker(plan_text):
-    """The subtask id of each tracker row, or None when PLAN.md has no table with `Subtask` and `Status` under the heading."""
+def read_rows(plan_text):
+    """Each tracker row as (subtask id, status), or None when PLAN.md has no table with `Subtask` and `Status` under the heading."""
     lines = plan_text.split("\n")
     start = next((index for index, line in enumerate(lines) if line.strip() == TRACKER_HEADING), None)
     if start is None:
@@ -392,15 +392,21 @@ def read_tracker(plan_text):
             if "Subtask" not in cells or "Status" not in cells:
                 return None
             id_column, status_column = cells.index("Subtask"), cells.index("Status")
-            ids = []
+            rows = []
             for line in lines[index + 1:]:
                 if not line.lstrip().startswith("|"):
                     break
                 row = split_cells(line)
                 if not all(SEPARATOR.fullmatch(cell) for cell in row) and len(row) > max(id_column, status_column):
-                    ids.append(row[id_column])
-            return ids
+                    rows.append((row[id_column], row[status_column]))
+            return rows
     return None
+
+
+def read_tracker(plan_text):
+    """The subtask id of each tracker row, or None as `read_rows` answers."""
+    rows = read_rows(plan_text)
+    return None if rows is None else [subtask for subtask, _status in rows]
 
 
 def _tracker_failures(plan_text, subtasks):
@@ -516,8 +522,11 @@ def _row_failures(where, tier, cell, app, owners, base):
 
 def _gate_failures(subtasks, plan_text, base):
     app, by_id = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}
+    finished = {subtask for subtask, status in read_rows(plan_text) or [] if status == "done"}
     failures = []
     for subtask in subtasks:
+        if subtask.id in finished:
+            continue
         owners = [glob for item in _chain_of(subtask, by_id) for glob in item.scope]
         for row in table_rows(subtask.sections.get("Verification", ""))[1:]:
             if len(row) >= 2:

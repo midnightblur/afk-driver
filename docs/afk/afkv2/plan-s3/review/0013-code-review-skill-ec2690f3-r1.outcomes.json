@@ -1,0 +1,122 @@
+[
+ {
+  "id": "r-001",
+  "key": "0013-code-review-skill/f001",
+  "concern": "api-contract",
+  "criterion": "Easy to misuse / contract coherence",
+  "severity": "medium",
+  "class": "design",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-002",
+  "key": "0013-code-review-skill/f002",
+  "concern": "api-contract",
+  "criterion": "Wrong protocol semantics",
+  "severity": "medium",
+  "class": "design",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-003",
+  "key": "0013-code-review-skill/f003",
+  "concern": "logic-correctness",
+  "criterion": "boundary values / dedup key",
+  "severity": "medium",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-004",
+  "key": "0013-code-review-skill/f004",
+  "concern": "test-veracity",
+  "criterion": "happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-005",
+  "key": "0013-code-review-skill/f005",
+  "concern": "test-veracity",
+  "criterion": "happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-006",
+  "key": "0013-code-review-skill/f006",
+  "concern": "test-veracity",
+  "criterion": "happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-007",
+  "key": "0013-code-review-skill/f007",
+  "concern": "api-contract",
+  "criterion": "Error contract absent / leaky contract",
+  "severity": "low",
+  "class": "design",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-008",
+  "key": "0013-code-review-skill/f008",
+  "concern": "api-contract",
+  "criterion": "Undocumented surface",
+  "severity": "low",
+  "class": "design",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-009",
+  "key": "0013-code-review-skill/f009",
+  "concern": "api-contract",
+  "criterion": "Easy to misuse",
+  "severity": "low",
+  "class": "design",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-010",
+  "key": "0013-code-review-skill/f010",
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths / status accuracy",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-011",
+  "key": "0013-code-review-skill/f011",
+  "concern": "logic-correctness",
+  "criterion": "empty/null inputs",
+  "severity": "low",
+  "class": "spec",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ },
+ {
+  "id": "r-012",
+  "key": "0013-code-review-skill/f012",
+  "concern": "logic-correctness",
+  "criterion": "partial-failure handling",
+  "severity": "low",
+  "class": "correctness",
+  "outcome": "fixed",
+  "sha": "0e6cc948"
+ }
+]

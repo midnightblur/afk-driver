@@ -1,0 +1,47 @@
+[
+ {
+  "id": "r-001",
+  "concern": "logic-correctness",
+  "criterion": "correctness",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "afkv2/skills/code-review/scripts/review_rounds.py",
+  "line": 201,
+  "side": "new",
+  "finding": "The per-round index in the finding key depends on the order of the lines in that round, so the key of one defect changes between rounds.",
+  "why": "Round 1 reports 'missing null check' at lines 10 and 90, both are fixed, and round 2 reports only line 90: it merges into the line-10 entry, while the real line-90 entry stays fixed and reads as reviewed.",
+  "fix": "Match a later-round finding to the entry of the same text at the nearest line.",
+  "evidence": "yield f\"{key}-{seen.index(found['line'])}\", found",
+  "key": "0013-code-review-skill/f013"
+ },
+ {
+  "id": "r-002",
+  "concern": "test-veracity",
+  "criterion": "happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "afkv2/skills/code-review/scripts/review_rounds.py",
+  "line": 215,
+  "side": "new",
+  "finding": "The guard for a low finding whose post failed and that returns as high has no test.",
+  "why": "Without the guard the url read raises TypeError, and no test fails. unverified: mutation not run, found by reading.",
+  "fix": "Add a test: the forge fails on the low post, the same finding returns as high, record succeeds and replaces is null.",
+  "evidence": "if entry[\"severity\"] in TO_POST and found[\"severity\"] in TO_FIX and entry[\"comment\"]:",
+  "key": "0013-code-review-skill/f014"
+ },
+ {
+  "id": "r-003",
+  "concern": "logic-correctness",
+  "criterion": "correctness",
+  "severity": "low",
+  "class": "spec",
+  "file": "afkv2/skills/code-review/SKILL.md",
+  "line": 46,
+  "side": "new",
+  "finding": "The stopped_by row says unfixed means a finding stayed unfixed before round 3, but _stop_reason also returns unfixed at round 3.",
+  "why": "At round 3, a finding unfixed from round 1 and not found again gives unfixed, which the row does not cover.",
+  "fix": "Reword the row so that it covers every stop.",
+  "evidence": "return \"unfixed\" if any(entry[\"outcome\"] == \"unfixed\" for entry in blocking) else \"clean\"",
+  "key": "0013-code-review-skill/f015"
+ }
+]

@@ -1,0 +1,24 @@
+{
+  "_source": "hand-built from the Jira Cloud REST v3 issue shape, with attributes Jira may add on read (localId, mediaSingle width). The normalisation is unverified until the live run of plan-s4 0016.",
+  "response": {
+    "id": "10042",
+    "key": "PROJ-1",
+    "fields": {
+      "summary": "A ticket",
+      "description": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {"type": "paragraph", "content": [{"type": "text", "text": "Short note before."}]},
+          {"type": "paragraph", "content": [{"type": "text", "text": "afkv2:prd:start", "marks": [{"type": "em"}]}]},
+          {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Goal"}]},
+          {"type": "paragraph", "attrs": {"localId": "a1b2"}, "content": [{"type": "text", "text": "Publish the PRD."}]},
+          {"type": "mediaSingle", "attrs": {"layout": "center", "width": 100, "widthType": "percentage"}, "content": [
+            {"type": "media", "attrs": {"type": "file", "id": "6e8f6c52-3b1a-4a55-9f10-2a1e6f0c7d11", "collection": "", "width": 640, "height": 480}}
+          ]},
+          {"type": "paragraph", "content": [{"type": "text", "text": "afkv2:prd:end", "marks": [{"type": "em"}]}]}
+        ]
+      }
+    }
+  }
+}

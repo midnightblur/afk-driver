@@ -761,9 +761,7 @@ def test_an_id_on_a_later_line_of_a_code_block_is_present(world):
 
 
 def test_real_port_block_text_is_the_canonical_form():
-    tree = _port_tree()
-    if not (tree / "jira.py").is_file():
-        pytest.skip("the tracker port is not on this branch yet")
+    tree = PORT_TREE
     pytest.importorskip("markdown_it")
     code = ("import json, sys; sys.path.insert(0, sys.argv[1]); from tracker.jira import block_text; "
             "sys.stdout.buffer.write(block_text(json.load(sys.stdin)).encode('utf-8'))")
@@ -1019,9 +1017,7 @@ def test_a_crlf_prd_gives_the_same_receipt(world):
 # --- the real port against a local stand-in for Jira ---
 
 
-def _port_tree():
-    tree = os.environ.get("AFKV2_TEST_PORT_TREE")
-    return Path(tree) if tree else PLUGIN / "ports" / "tracker"
+PORT_TREE = PLUGIN / "ports" / "tracker"
 
 
 class _LocalJira(BaseHTTPRequestHandler):
@@ -1076,9 +1072,7 @@ class _LocalJira(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def real_port_world(tmp_path):
-    tree = _port_tree()
-    if not (tree / "jira.py").is_file():
-        pytest.skip("the tracker port is not on this branch yet")
+    tree = PORT_TREE
     pytest.importorskip("markdown_it")
     world = World(tmp_path)
     target = world.plugin / "ports" / "tracker"

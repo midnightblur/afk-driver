@@ -926,7 +926,6 @@ def test_passed_gate_starts_a_new_session_and_first_sync_voids_the_old_pass(worl
     assert "exit gate passed" not in Path(started["log"]).read_text("utf-8")
 
 
-@pytest.mark.skipif(not ENGINE.exists(), reason="page engine not merged yet; the fake engine checks")
 def test_real_engine_accepts_the_built_document(tmp_path):
     path = tmp_path / "doc.json"
     rd.build_round_document(path, session(), round_one())

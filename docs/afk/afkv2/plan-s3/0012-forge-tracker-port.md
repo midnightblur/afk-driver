@@ -47,7 +47,7 @@ complex
 - afkv2/ports/tracker/jira.py#def find_managed_block( — full-line block finder, bad-block refusal
 - afkv2/ports/tracker/github_issues.py#def issue_search( — GitHub-issue reads
 - afkv2/ports/tracker/cli.py#def tracker_main( — tracker command entry
-- afkv2/ports/forge/cli.py#def forge_main( — forge command entry
+- afkv2/ports/forge/forge_cli.py#def forge_main( — forge command entry
 
 ## Verification
 | Tier | Check (command or method) | Proves |

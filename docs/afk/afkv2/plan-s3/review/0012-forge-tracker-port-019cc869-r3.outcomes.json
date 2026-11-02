@@ -1,0 +1,112 @@
+[
+  {
+    "id": "r-001",
+    "key": "0012-forge-tracker-port/f065",
+    "concern": "api-contract",
+    "criterion": "Error contract absent",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-002",
+    "key": "0012-forge-tracker-port/f066",
+    "concern": "logic-correctness",
+    "criterion": "error and rollback paths, partial-failure handling",
+    "severity": "medium",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-003",
+    "key": "0012-forge-tracker-port/f067",
+    "concern": "code-quality",
+    "criterion": "Duplicated knowledge",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-004",
+    "key": "0012-forge-tracker-port/f068",
+    "concern": "code-quality",
+    "criterion": "Duplicated knowledge",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-005",
+    "key": "0012-forge-tracker-port/f069",
+    "concern": "code-quality",
+    "criterion": "Data Clumps / Primitive Obsession",
+    "severity": "low",
+    "class": "smell",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-006",
+    "key": "0012-forge-tracker-port/f070",
+    "concern": "test-veracity",
+    "criterion": "Conditional test logic",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-007",
+    "key": "0012-forge-tracker-port/f071",
+    "concern": "test-veracity",
+    "criterion": "Obscure Test",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-008",
+    "key": "0012-forge-tracker-port/f072",
+    "concern": "logic-correctness",
+    "criterion": "error and rollback paths, partial-failure handling",
+    "severity": "low",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-009",
+    "key": "0012-forge-tracker-port/f073",
+    "concern": "logic-correctness",
+    "criterion": "open-question",
+    "severity": "low",
+    "class": "test",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-010",
+    "key": "0012-forge-tracker-port/f074",
+    "concern": "logic-correctness",
+    "criterion": "boundary values, empty/null/missing inputs",
+    "severity": "low",
+    "class": "correctness",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  },
+  {
+    "id": "r-011",
+    "key": "0012-forge-tracker-port/f075",
+    "concern": "api-contract",
+    "criterion": "Wrong protocol semantics",
+    "severity": "low",
+    "class": "design",
+    "outcome": "fixed",
+    "sha": "984c7126"
+  }
+]
