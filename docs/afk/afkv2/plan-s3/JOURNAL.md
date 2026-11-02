@@ -202,3 +202,7 @@
 2026-11-02 09:00 | execute | R-5 delta | decision(D-91) — the publish receipt now covers link targets, so a change to only a link needs a new preview
 2026-11-02 09:00 | execute | R-5 delta | decision(D-92) — the forge command refuses input it does not know, never writes an empty description, and checks the text after each write
 2026-11-02 09:00 | execute | R-5 delta | gate-skip — commits 6d96e196, 3694afed, 22058e60 and this journal commit used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4). Commit 3694afed was pushed with 2 red tests in test_change_request.py; 22058e60 makes them green
+2026-11-02 11:20 | execute | R-5 delta | review delta — first pass: high f001, medium f002, f003; second pass: high f004, medium f005. In plain terms: most late fixes are confirmed, but on GitLab an old test result can still count for a new commit in one case.
+2026-11-02 11:20 | execute | R-5 delta | park r5-delta/f004 (reopens f001) — the check after the one more fix still fails, so owner ruling R-5 parks it with no further fix. In plain terms: a one-line fix is known, and it waits for a ruling.
+2026-11-02 11:20 | smoke-test | gate | smoke green (2/2 rows) at 5fcca9f0 — compile pass; 1091 passed, 7 skipped. In plain terms: all tests pass, and they do not cover the parked GitLab case.
+2026-11-02 11:20 | execute | R-5 delta | gate-skip — the commit of this line used AFK_SKIP_PRECOMMIT_GATES=1 (owner ruling R-4)
