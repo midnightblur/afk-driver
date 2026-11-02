@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -261,7 +262,25 @@ def test_each_event_runs_its_cmd_hook_per_provider(event, hook):
     (handler,) = group["hooks"]
     assert handler["command"] == "cmd.exe"
     assert handler["args"] == ["/d", "/c", "${CLAUDE_PLUGIN_ROOT}\\hooks\\" + hook.name, "claude"]
-    assert handler["commandWindows"] == '"${PLUGIN_ROOT}\\hooks\\' + hook.name + '" codex'
+    assert handler["commandWindows"] == 'cmd.exe /d /c "${PLUGIN_ROOT}\\hooks\\' + hook.name + '" codex'
+
+
+@pytest.mark.parametrize("shell", ["powershell.exe", "pwsh.exe", "cmd.exe"])
+@pytest.mark.parametrize("event", ["SessionStart", "SubagentStart"])
+def test_the_codex_command_line_runs_in_any_session_shell(event, shell, tmp_path):
+    program = shutil.which(shell)
+    if program is None:
+        pytest.skip(f"{shell} is not installed")
+    root = tmp_path / "plugin root"
+    shutil.copytree(HOOKS, root / "hooks")
+    (group,) = registrations()[event]
+    (handler,) = group["hooks"]
+    line = handler["commandWindows"].replace("${PLUGIN_ROOT}", str(root))
+    argv = f'"{program}" /C "{line}"' if shell == "cmd.exe" else [program, "-NoProfile", "-NonInteractive", "-Command", line]
+    env = dict(os.environ, LOCALAPPDATA=str(tmp_path))
+    result = subprocess.run(argv, input=PAYLOAD, capture_output=True, env=env, cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert b"afkv2-core-behaviors end " in result.stdout
 
 
 def test_subagent_start_matches_every_agent_type():
