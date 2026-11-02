@@ -119,7 +119,8 @@
    * "current" so the page rail never folds it. */
   function entryFor(key, action, marks) {
     var found = panel.querySelector('[data-afkv2-item="' + CSS.escape(key) + '"]');
-    if (found) return found;
+    if (found && found.getAttribute('data-afkv2-note-action') === action) return found;
+    if (found) panel.removeChild(found);
     var entry = make('div', 'afkv2-note-draft');
     entry.setAttribute('data-afkv2-item', key);
     entry.setAttribute('data-afkv2-state', 'current');

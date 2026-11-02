@@ -173,3 +173,4 @@
 2026-11-02 00:22 | autopilot | 0005-notes-ingest-live-test | decision(D-55) — the owner added one narrow re-check of fixes made after the review rounds end
 2026-11-02 00:22 | autopilot | feat/afkv2-s1 | merged origin/feat/afkv2 — takes the change that lets the older checks skip the new code, so CI on the pull request can pass; gate-skip(R-4): the plan commit that holds this line
 2026-11-02 00:24 | execute | 0005-notes-ingest-live-test | verifying — D-54 test edit in; Produces preflight, live test and review on the merged tip
+2026-11-02 00:26 | execute | 0005-notes-ingest-live-test | live test on b5a4069c: all steps passed, layout audit 0 severe findings on both pages at both widths; review round 1 started (spec-fidelity, scope-and-impact, test-veracity, logic-correctness, refactor-safety; policy lean, owner ruling R-2)

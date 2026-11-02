@@ -35,7 +35,7 @@ The test passes when the driver exits 0 and no screenshot shows content that is 
 | host audit | The severe findings of the host's layout audit, on the full page and on a page of only diagrams, are in the result. A finding fails the test |
 | mark | A real click on a radio selects it |
 | note | A real click and typed text make a note on a card, a map node, a settled item, a diagram and a freestyle fragment |
-| edit and delete | An unsent note changes and goes away; a sent note gets an edit entry and a delete entry |
+| edit and delete | An unsent note changes and goes away; a sent note gets an edit entry and a delete entry; a click on the other action replaces the entry |
 | collapse | A round of notes and a settled card fold and unfold |
 | re-render | A reply added and rendered while notes are unsent: the page reloads and every unsent note and mark is still there |
 | send | The page sends; the draft store is empty after |
@@ -372,6 +372,12 @@ async function interact(json) {
   await click('[data-afkv2-item="n-5"] .afkv2-note-draft-actions button:last-of-type');
   step('delete an unsent note', !(await ev(`!!document.querySelector('[data-afkv2-item="n-5"]')`)));
 
+  await click('[data-afkv2-note-edit="N-8-i-8-3"]');
+  await click('[data-afkv2-note-delete="N-8-i-8-3"]');
+  step('a delete after an edit replaces the entry', await ev(`document.querySelector('[data-afkv2-item="N-8-i-8-3"]').getAttribute('data-afkv2-note-action') === 'delete' && !document.querySelector('${nodeField('N-8-i-8-3')}')`));
+  await click('[data-afkv2-note-delete="N-8-i-8-2"]');
+  await click('[data-afkv2-note-edit="N-8-i-8-2"]');
+  step('an edit after a delete replaces the entry', await ev(`document.querySelector('[data-afkv2-item="N-8-i-8-2"]').getAttribute('data-afkv2-note-action') === 'edit' && !!document.querySelector('${nodeField('N-8-i-8-2')}').value`));
   await click('[data-afkv2-note-edit="N-8-i-8-2"]');
   await ev(`document.querySelector('${nodeField('N-8-i-8-2')}').select()`);
   await cdp.send('Input.insertText', { text: 'An edited sent note.' }, top);
