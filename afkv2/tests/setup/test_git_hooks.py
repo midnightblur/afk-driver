@@ -26,6 +26,27 @@ def test_stubs_move_into_the_backup_and_back(places, repo, runner):
     assert not (places.backup / "git-hooks").exists() or not any((places.backup / "git-hooks").iterdir())
 
 
+def test_a_stub_installed_again_after_the_move_is_removed(places, repo, runner):
+    _stubs(repo)
+    first = (hooks_dir(repo) / "pre-commit").read_bytes()
+    setup.move_v1_git_hooks(places, repo, runner)
+    _stubs(repo)
+    answer = setup.move_v1_git_hooks(places, repo, runner)
+    assert answer["hooks"] == {"pre-commit": "removed-again", "reference-transaction": "removed-again"}
+    assert not (hooks_dir(repo) / "pre-commit").exists()
+    assert {r["action"] for r in setup.restore_v1_git_hooks(places)} == {"restored"}
+    assert (hooks_dir(repo) / "pre-commit").read_bytes() == first
+
+
+def test_a_foreign_hook_after_the_move_stays(places, repo, runner):
+    _stubs(repo)
+    setup.move_v1_git_hooks(places, repo, runner)
+    (hooks_dir(repo) / "pre-commit").write_bytes(b"#!/bin/sh\nmine\n")
+    answer = setup.move_v1_git_hooks(places, repo, runner)
+    assert answer["hooks"]["pre-commit"] == "already-moved"
+    assert (hooks_dir(repo) / "pre-commit").read_bytes() == b"#!/bin/sh\nmine\n"
+
+
 def test_marker_as_substring_is_a_foreign_hook(places, repo, runner):
     foreign = f"#!/bin/sh\n# mentions {PRECOMMIT_MARKER} {STUB_INSTALL_NOTE} here\n".encode()
     (hooks_dir(repo) / "pre-commit").write_bytes(foreign)
