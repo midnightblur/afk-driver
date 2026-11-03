@@ -72,6 +72,12 @@ round. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`.
 
+A `decided` card shows its fields as labelled blocks, one `text` with a `label`
+each, in this order: "Decision" in bold, "Why this one", "Other options
+considered (rejected)" as a list, "Evidence" with the grade as a badge, "To
+undo", "Depends on". The label says that the other options are rejected, so they
+never read as parts of the decision.
+
 ## Example
 
 ```json fragment=item

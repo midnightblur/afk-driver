@@ -686,6 +686,17 @@ def test_text_without_markdown_stays_plain():
     assert "<p>**not bold**</p>" in html and MD_CLASS not in html
 
 
+LABEL_LINE = ('<p class="afkv2-label"><span class="afkv2-label-words">Evidence &lt;x&gt;</span>'
+              '<span class="afkv2-chip afkv2-badge">repo</span></p><p>src/io.py:12</p>')
+
+
+def test_a_label_and_a_badge_stand_above_the_words():
+    html = registry.render_component(text("src/io.py:12", props={"text": "src/io.py:12", "label": "Evidence <x>",
+                                                                  "badge": "repo"}))
+    assert holds(html, LABEL_LINE, "afkv2-labelled")
+    assert registry.validate(text("x", props={"text": "x", "label": ""})) != []
+
+
 def test_a_round_banner_holds_its_three_lists():
     html = registry.render_component({"type": "round-banner", "props": {
         "n": 4, "colour": "red", "current": True, "settled": ["a <b>"], "unlocks": [], "parked": ["p"]}})

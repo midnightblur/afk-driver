@@ -104,10 +104,15 @@ def _first_text(item):
     return item["id"]
 
 
-def _field_text(item, name):
+def _field_text(item, name, prefix=""):
+    """The text of a decided field. A field with a label carries its grade as a badge; an older card has the
+    grade or the prefix in its text already."""
     for component in _components(item["body"]):
         if component.get("id") == f"{item['id']}-{name}":
-            return (component.get("props") or {}).get("text")
+            props = component.get("props") or {}
+            if not props.get("label"):
+                return props.get("text")
+            return f"{props['badge']}: {props['text']}" if props.get("badge") else prefix + props["text"]
     return None
 
 
@@ -130,7 +135,7 @@ def _how_settled(doc, item):
     if item["kind"] != "decided":
         return f"settled by mark {settled['signal']} R{settled['round']}"
     tail = [f"decided-by agent R{settled['round']}", f"accepted {_accepted_date(doc, settled['round'])}"]
-    tail += [value for value in (_field_text(item, "evidence"), _field_text(item, "reverse")) if value]
+    tail += [value for value in (_field_text(item, "evidence"), _field_text(item, "reverse", "reverse: ")) if value]
     return " · ".join(tail)
 
 
