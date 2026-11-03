@@ -17,6 +17,7 @@ from tracker.envelope import Refusal  # noqa: E402
 
 REMOVING_SUFFIX = ".gc-removing"
 GIT_LIMIT = 60
+WINDOWS = os.name == "nt"
 
 
 def _make_writable_and_retry(function, path, error):
@@ -41,7 +42,9 @@ def _prune(repo):
 def remove_worktree_folder(repo, folder):
     """Rename `folder` to its name plus `.gc-removing`, delete it, and run `git worktree prune` in `repo`.
 
-    Answer `{"folder", "result", "seconds"}`, `result` `removed`."""
+    Answer `{"folder", "result", "seconds"}`, `result` `removed`. Refuse `not-windows` elsewhere, before any touch."""
+    if not WINDOWS:
+        raise Refusal("not-windows", "gc deletes a worktree folder on Windows only; nothing was touched", folder=str(folder))
     start = time.monotonic()
     removing = Path(str(folder) + REMOVING_SUFFIX)
     os.rename(folder, removing)
