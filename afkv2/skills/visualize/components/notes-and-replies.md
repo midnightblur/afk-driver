@@ -26,19 +26,25 @@ and ask the human.
 
 ## How it looks
 
-One table below the round banner: `# | Where you wrote it | Your note | My answer
-/ what changed | Card`. One row per note, with the human's words quoted. A group
-row with the round colour opens each round, newest round first. The current
-round and the round before stay open; older rounds fold into "Earlier rounds".
-A deleted note has no row.
+One row per note, with the human's words quoted: `# | Where you wrote it | Your
+note | My answer / what changed`. A deleted note has no row.
+
+A note on a card, or on a part of a card, is a row under the heading of that
+card, newest round first. A history card shows its own rows.
+
+"Notes on the whole session", below the round banner, holds the other rows: the
+steers, and the replies that name no card. It adds an `Open` column. A group row
+with the round colour opens each round, newest round first. The current round
+and the round before stay open; older rounds fold into "Earlier rounds".
 
 A reply answers a note when its `about` holds the note's `target`, its item id
 or its note id. The engine looks in the round of the reply first, then in the
-round before. A reply that answers no note gets its own row, "From me". So name
-the noted element in `about`.
+round before. A reply that answers no note gets its own row, "From me", on the
+first card, card element or note that its `about` names, else in the session
+table. So name the noted element in `about`.
 
-An annotation on a note row is a note on the card of that note, or a steer on
-the node of a steer note. An annotation on any other row is a steer.
+An annotation on a row stands for the card of that row, or for the node of a
+steer. An annotation on any other row is a steer.
 
 ## Example
 

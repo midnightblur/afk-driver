@@ -672,8 +672,9 @@ each point that returns:
 - a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
   human noted or reopened in this send.
 
-The new card has a new id. Its body names each old card id and shows the signals
-that returned the point, for example both the mark and the note. A carried
+The new card has a new id. Its `carries` lists each old card id; each id must be
+a card of an earlier round. Its body shows the signals that returned the point,
+for example both the mark and the note. A carried
 `blocked` card names the current card id of the point it waits on. An `info` card
 stays in its round. The old card stays as it is.
 """

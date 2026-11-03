@@ -4,7 +4,8 @@
 
 One point the human reads or answers. A card is an item in `rounds[].items[]`:
 `id`, `kind`, `title`, `node` (the map node it belongs to), `state`, `body` (one
-component tree) and, once settled, `settled`. `title` is optional, at most 90
+component tree), `carries` (the ids of the earlier cards of the same point) and,
+once settled, `settled`. `title` is optional, at most 90
 characters: the point in plain words. Kinds:
 
 | Kind | The card | The human |
@@ -55,20 +56,33 @@ each point that returns:
 - a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
   human noted or reopened in this send.
 
-The new card has a new id. Its body names each old card id and shows the signals
-that returned the point, for example both the mark and the note. A carried
+The new card has a new id. Its `carries` lists each old card id; each id must be
+a card of an earlier round. Its body shows the signals that returned the point,
+for example both the mark and the note. A carried
 `blocked` card names the current card id of the point it waits on. An `info` card
 stays in its round. The old card stays as it is.
 
 ## How it looks
 
-A box in the cards section, below the maps, with the mark radios of its kind. A
-mark goes to the lavish queue at once. The human writes a note as a lavish
+A box with the mark radios of its kind. The page shows each point once, as its
+newest card: the card that no later card carries. Under the heading come the
+notes and replies of that card. At the end, a closed "History (R-1 i-x, …)"
+holds the earlier cards of the point, newest first, each with its chip, state
+and body. An annotation on an earlier card stays on that card.
+
+The cards section, below the maps, holds the points of the current round in kind
+order: `debate`, `confirm`, `decided`, `signoff`, `info`. An asking card of an
+earlier round that is still open stays there too. Below it, "Settled by earlier
+rounds" holds the other points, newest round first, each folded to its heading
+and settled line until the human opens it.
+
+A mark goes to the lavish queue at once. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
 lavish's Send to Agent. The heading shows the `title`, then the kind as a small
 label, the state, and the card id small and muted at the end. With no `title`,
-the heading is the kind and the id. A round chip in the round colour marks every card that needs the human in that
-round. A note-settled card shows "settled by note", which differs from "settled
+the heading is the kind and the id. Every card has the chip of its round. The chip is solid in the round colour
+when the card needs the human now, and muted otherwise. An open `info` card
+shows no state word. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`.
 

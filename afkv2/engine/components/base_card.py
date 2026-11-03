@@ -1,4 +1,8 @@
-"""Card (CMP-4): one point the human reads or answers, with the controls of its kind."""
+"""Card (CMP-4): one point the human reads or answers, with the controls of its kind.
+
+The page passes the card's notes and replies (`exchange`) and its earlier cards (`history`) as HTML.
+`rail` sets the state that the page rail reads: `settled` folds the card to its heading and settled line.
+"""
 
 import re
 from html import escape
@@ -66,33 +70,41 @@ def _settled_line(item):
             f'in round {settled["round"]} ({escape(settled["signal"])}){reading}</p>')
 
 
+def _chip(props, needs_human):
+    """The round chip of the card's round: solid when the card needs the human now, muted otherwise."""
+    muted = "" if needs_human else " afkv2-round-chip--past"
+    return f'<span class="afkv2-round-chip{muted}" title="Round {props["round"]}">R-{props["round"]}</span> '
+
+
 def render_card(props, children):
     item, current = props["item"], props["current"]
     state = item.get("state", "open")
     settled = state.startswith("settled_")
-    chip = ""
-    if current and item["kind"] != "info" and state in ("open", "blocked"):
-        chip = f'<span class="afkv2-round-chip">R-{props["round"]}</span> '
+    chip = _chip(props, current and item["kind"] != "info" and state in ("open", "blocked"))
     required = ' data-afkv2-required="1"' if current and state == "open" and item["kind"] != "info" else ""
     answer = _answer(item, state) if current and not settled else ""
     item_id = escape(item["id"])
-    state_word = f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
+    quiet = item["kind"] == "info" and state == "open"
+    state_word = "" if quiet else f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
     if item.get("title"):
         heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(item["title"])}</span> '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word} '
                    f'<span class="afkv2-card-id">{item_id}</span></h4>')
     else:
         heading = f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id} {state_word}</h4>'
+    rail = props.get("rail") or RAIL_STATES.get(state, "open")
     return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="{item_id}" '
             f'data-afkv2-item="{item_id}" data-afkv2-element="{item_id}" '
-            f'data-afkv2-state="{RAIL_STATES.get(state, "open")}" data-afkv2-point="{state}"{required} '
-            f'style="--afkv2-round: {escape(props["colour"])}">'
-            f'{heading}{_settled_line(item)}<div class="afkv2-body">{"".join(children)}</div>{answer}</article>')
+            f'data-afkv2-state="{rail}" data-afkv2-point="{state}"{required} '
+            f'style="--afkv2-round: {escape(props["colour"])}">{heading}{_settled_line(item)}'
+            f'{props.get("exchange", "")}<div class="afkv2-body">{"".join(children)}</div>{answer}'
+            f'{props.get("history", "")}</article>')
 
 
 register_component("card", {
     "type": "object", "additionalProperties": False, "required": ["item", "round", "colour", "current"],
     "properties": {"item": {"type": "object", "required": ["id", "kind", "body"]},
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
-                   "current": {"type": "boolean"}},
+                   "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
+                   "rail": {"enum": ["open", "blocked", "settled"]}},
 }, render_card)

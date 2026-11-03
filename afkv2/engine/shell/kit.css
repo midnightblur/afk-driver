@@ -236,6 +236,21 @@ a { color: var(--accent); }
 .afkv2-chip.afkv2-tone--proposed { border-style: dashed; }
 .afkv2-text.afkv2-tone--proposed { border: 1px dashed var(--line); border-radius: 4px; padding: .25rem .5rem; }
 
+/* --- points: one card per point, its notes on top, its history folded --- */
+
+.afkv2-round-chip--past { background: transparent; color: var(--fg-dim); border: 1px solid var(--afkv2-round, var(--line)); }
+.afkv2-nr-table.afkv2-nr-table--card { margin: 0 0 .75rem; }
+.afkv2-nr-table--card th:nth-child(2) { width: 18%; }
+.afkv2-nr-table--card th:nth-child(3) { width: 36%; }
+.afkv2-history { margin-top: .85rem; padding-top: .5rem; border-top: 1px dashed var(--line); }
+.afkv2-history > summary, .afkv2-earlier-banners > summary { cursor: pointer; color: var(--accent); }
+.afkv2-history > .afkv2-cards { margin-top: .6rem; }
+.afkv2-history .afkv2-card { background: var(--surface); }
+.afkv2-settled-points .afkv2-card { padding: .6rem 1rem; }
+.afkv2-settled-points > .afkv2-cards { gap: .5rem; }
+.afkv2-earlier-banners { margin: 1.5rem 0; }
+.afkv2-earlier-banners > .afkv2-banner { margin-top: .75rem; }
+
 /* --- labelled text: a small label line, then the words ------------------ */
 
 .afkv2-labelled > .afkv2-label {

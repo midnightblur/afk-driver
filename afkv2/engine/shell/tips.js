@@ -125,7 +125,12 @@
     var store = {};
     try { store = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) {}
     function save() { try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {} }
-    function items() { return [].slice.call(document.querySelectorAll('[data-afkv2-item]')); }
+    // A card in a point's history belongs to that point, so the rail does not list it.
+    function items() {
+      return [].slice.call(document.querySelectorAll('[data-afkv2-item]')).filter(function (el) {
+        return !el.closest('.afkv2-history');
+      });
+    }
     function st(el) {
       var s = el.getAttribute('data-afkv2-state');
       return s === 'current' || s === 'settled' || s === 'blocked' ? s : 'open';

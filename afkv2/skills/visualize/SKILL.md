@@ -62,6 +62,19 @@ under that label, and the human opens it. Fold long text and secondary detail.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 
+## Page layout
+
+The engine lays out the page in this order:
+
+1. the title and the banner of the current round;
+2. "Notes on the whole session": the notes and replies that stand on no card;
+3. the maps;
+4. the points of the current round, one card per point, then the copy bar;
+5. "Settled by earlier rounds": the other points, each folded to its heading and settled line;
+6. "Earlier banners", closed.
+
+A point is the newest card and the cards it `carries` (`components/card.md`).
+
 ## Controls the engine adds
 
 You do not write these; the engine puts them on every page.
