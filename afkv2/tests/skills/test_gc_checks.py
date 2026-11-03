@@ -221,3 +221,18 @@ def test_no_change_head_leaves_each_feature_tip_unchecked_and_refuses(repo):
     assert refusal["code"] == "outside-commits"
     assert [branch["item"] for branch in refusal["branches"]] == ["feature branch", "remote feature branch"]
     assert all(branch["commits"] is None for branch in refusal["branches"])
+
+
+def test_windows_passes_the_platform_check():
+    assert gc_checks.check_platform("nt") == {"refusal": None, "system": "nt"}
+
+
+def test_another_system_refuses_not_windows_for_each_worktree_removal():
+    refusal = gc_checks.check_platform("posix")["refusal"]
+    assert refusal["code"] == "not-windows"
+    assert "afkv2 runs on Windows only" in refusal["reason"]
+
+
+def test_the_platform_check_reads_this_system_by_default():
+    import os
+    assert gc_checks.check_platform()["system"] == os.name

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -170,3 +171,13 @@ def check_tips(repo, feature_branch, head, remote="origin"):
         shown = "; ".join(f"{branch['item']}: " + _commits_text(branch["commits"]) for branch in branches)
         result["refusal"] = {"code": "outside-commits", "reason": f"commits outside the change: {shown}", "branches": branches}
     return result
+
+
+def check_platform(system=None):
+    """gc removes a worktree folder on Windows only: another system refuses `not-windows`. `system` is an `os.name`."""
+    system = os.name if system is None else system
+    if system == "nt":
+        return {"refusal": None, "system": system}
+    return {"refusal": {"code": "not-windows", "reason": f"afkv2 runs on Windows only; this system is {system}, "
+                                                         "so no worktree folder is removed"},
+            "system": system}
