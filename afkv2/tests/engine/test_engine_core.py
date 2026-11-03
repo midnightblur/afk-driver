@@ -98,7 +98,14 @@ def position(text, part):
     return text.index(part)
 
 
-ROUND_ONE = 'id="afkv2-r-1"'
+SETTLED_SECTION = 'id="afkv2-settled"'
+PAST_CHIP = "afkv2-round-chip--past"
+HISTORY_OPEN = '<details class="afkv2-history"'
+HISTORY_CLASS = ".afkv2-history"
+ROUND_ID = 'id="afkv2-r-'
+ROUND_THREE = 'id="afkv2-r-3"'
+EARLIER_BANNERS = 'id="afkv2-earlier-banners"'
+MAPS_SECTION = 'id="afkv2-maps"'
 CARD_TITLE, KIND_LABEL, CARD_ID = "afkv2-card-title", "afkv2-kind", "afkv2-card-id"
 FOLD_OPEN = '<details class="afkv2-fold">'
 FOLD_OPENED = '<details class="afkv2-fold" open'
@@ -587,7 +594,7 @@ def test_the_correct_and_write_in_options_point_at_the_annotation():
 def test_an_info_card_has_no_mark_and_no_note_field():
     html = card_html(item("i-a", "info"))
     assert lacks(html, 'type="radio"', "<textarea", "afkv2-answer")
-    assert lacks(html, "data-afkv2-required", "afkv2-round-chip")
+    assert lacks(html, "data-afkv2-required", "afkv2-state--") and holds(html, PAST_CHIP)
 
 
 def test_a_debate_card_offers_each_option_cell_and_a_write_in():
@@ -712,7 +719,8 @@ def test_page_order_is_banner_slot_maps_cards():
         "nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
     html = page.build(doc)
     body = html[position(html, "<body>"):]
-    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-r-2"', 'id="afkv2-r-1"']
+    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-r-2"', SETTLED_SECTION,
+             'id="afkv2-earlier-banners"']
     positions = [position(body, mark) for mark in order]
     assert positions == sorted(positions)
 
@@ -735,35 +743,117 @@ def test_each_round_has_its_own_colour():
     assert holds(page.build(doc), *round_colour_rules(colours))
 
 
-def test_a_round_chip_marks_every_item_that_needs_the_human_in_that_round():
+def card_in(html, item_id):
+    start = position(html, f'id="{item_id}" data-afkv2-item=')
+    return html[start:html.find("</article>", start)]
+
+
+def test_every_card_has_its_round_chip_solid_only_when_it_needs_the_human():
     doc = two_rounds()
     doc["rounds"][1]["items"] += [item("i-info", "info"), item("i-done", state="settled_by_mark",
                                                               settled={"by": "mark", "round": 2, "signal": "accept"})]
     html = page.build(doc)
-    def card(item_id):
-        start = position(html, f'id="{item_id}" data-afkv2-item=')
-        return html[start:html.find("</article>", start)]
-
-    assert "R-2</span>" in card("i-new")
+    assert "R-2</span>" in card_in(html, "i-new") and PAST_CHIP not in card_in(html, "i-new")
+    assert "R-1</span>" in card_in(html, "i-old")
     for other in ("i-old", "i-info", "i-done"):
-        assert lacks(card(other), "afkv2-round-chip")
+        assert holds(card_in(html, other), PAST_CHIP)
 
 
 def test_no_item_is_removed_when_a_round_settles():
     doc = two_rounds()
     html = page.build(doc)
     assert holds(html, 'data-afkv2-item="i-old"', 'data-afkv2-item="i-new"')
-    first_round = position(html, ROUND_ONE)
-    past = html[first_round:position(html, "<script>")]
+    past = html[position(html, SETTLED_SECTION):position(html, "<script>")]
     assert lacks(past, "<textarea", 'type="radio"')
 
 
-def test_past_rounds_come_newest_first():
+def three_rounds():
     doc = two_rounds()
     doc["rounds"][1]["state"] = "settled"
-    doc["rounds"].append({"n": 3, "state": "current", "banner": banner(), "items": [item("i-3")]})
+    doc["rounds"].append({"n": 3, "state": "current", "banner": banner("R3 banner"), "items": [item("i-3")]})
+    return doc
+
+
+def test_settled_points_and_earlier_banners_come_newest_first():
+    doc = three_rounds()
+    doc["rounds"][1]["items"][0].update(state="settled_by_mark", settled={"by": "mark", "round": 2, "signal": "accept"})
+    doc["rounds"][0]["banner"], doc["rounds"][1]["banner"] = banner("R1 banner"), banner("R2 banner")
     html = page.build(doc)
-    assert position(html, 'id="afkv2-r-3"') < position(html, 'id="afkv2-r-2"') < position(html, 'id="afkv2-r-1"')
+    assert html.count(ROUND_ID) == 1 and holds(html, ROUND_THREE)
+    settled = html[position(html, SETTLED_SECTION):]
+    assert position(settled, 'data-afkv2-item="i-new"') < position(settled, 'data-afkv2-item="i-old"')
+    assert holds(settled, 'data-afkv2-state="settled"', "Settled by earlier rounds (2)")
+    folded = html[position(html, EARLIER_BANNERS):]
+    assert position(folded, "R2 banner") < position(folded, "R1 banner")
+    assert position(html, "R3 banner") < position(html, 'id="afkv2-r-3"')
+
+
+def test_an_open_asking_card_of_an_earlier_round_stays_with_the_live_points():
+    html = page.build(three_rounds())
+    live = html[position(html, ROUND_THREE):position(html, SETTLED_SECTION)]
+    assert holds(live, 'data-afkv2-item="i-new"', 'data-afkv2-item="i-3"')
+
+
+def history_doc(legacy=False):
+    doc = three_rounds()
+    doc["rounds"][1]["items"][0]["notes"] = [
+        {"id": "N-2-i-new", "round": 2, "target": "i-new", "text": "Say who runs it.", "deleted": False}]
+    later = item("i-3")
+    if legacy:
+        later["body"] = text("Body of i-3", children=[text("Carries i-new.", id="i-3-carries")])
+    else:
+        later["carries"] = ["i-new"]
+    doc["rounds"][2]["items"] = [later]
+    return doc
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
+    html = page.build(history_doc(legacy))
+    assert html.count(ITEM_MARKER.format("i-new")) == 1
+    head = html[position(html, 'id="i-3"'):]
+    assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
+    assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
+    assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
+    assert lacks(html[:position(html, MAPS_SECTION)], "Say who runs it.")
+
+
+def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_wins():
+    doc = history_doc()
+    doc["rounds"][1]["items"][0]["carries"] = ["i-old"]
+    html = page.build(doc)
+    head = html[position(html, 'id="i-3"'):]
+    assert holds(head, "History (R-2 i-new, R-1 i-old)")
+    assert position(head, 'data-afkv2-item="i-new"') < position(head, 'data-afkv2-item="i-old"')
+    doc["rounds"][2]["items"].append(item("i-3b", carries=["i-old"]))
+    html = page.build(doc)
+    assert holds(html, "History (R-2 i-new)</summary>", "History (R-1 i-old)</summary>")
+    assert html.count(ITEM_MARKER.format("i-old")) == 1
+
+
+def test_an_annotation_on_a_history_row_resolves_to_the_old_card(tmp_path):
+    doc = history_doc()
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    dom = _Dom()
+    dom.feed(page.build(doc))
+    selector = lavish_selector(find_cell(dom.root, "The card"))
+    assert selector == "tr#afkv2-nr-N-2-i-new > td:nth-of-type(2)"
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [prompt("Still unclear.", selector, "td", "The card")])
+    assert raw == '[round R-3]\ni-new — | Still unclear.'
+
+
+@pytest.mark.parametrize("carries", [["i-3"], ["i-gone"]])
+def test_carries_names_only_cards_of_an_earlier_round(capsys, tmp_path, carries):
+    doc = three_rounds()
+    doc["rounds"][2]["items"].append(item("i-4", carries=carries))
+    assert "is no card of an earlier round" in refused(capsys, tmp_path, doc)["reason"]
+    doc["rounds"][2]["items"][1]["carries"] = ["i-new", "i-old"]
+    assert call(capsys, "check", save(tmp_path / "doc.json", doc))[0] == 0
+
+
+def test_the_page_remembers_open_folds_and_the_rail_skips_history_cards():
+    assert holds(RUNTIME, "var ATTR = 'data-afkv2-fold';", "'afkv2-open:' + holder.getAttribute('data-afkv2-session')")
+    assert holds((ENGINE_DIR / "shell" / "tips.js").read_text("utf-8"), HISTORY_CLASS)
 
 
 def test_a_round_with_nothing_to_answer_has_no_copy_bar():

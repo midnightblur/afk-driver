@@ -1,8 +1,9 @@
 """Page assembly from a valid page document. Same document, same bytes.
 
-Order: round banner, notes and replies, maps, cards. The cards section is the current round
-with its copy bar, then each settled round, newest first, with every item it ever held. The human
-sends marks and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
+Order: the current round banner, the notes on the whole session, maps, the points of the round with
+the copy bar, the settled points, the earlier banners. A point shows once, as its newest card, with its
+notes and replies under the heading and its earlier cards in a closed "History". The human sends marks
+and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 """
 
 from __future__ import annotations
@@ -11,11 +12,13 @@ from html import escape
 from pathlib import Path
 
 from registry import aliases, lookup, render_component
+from shell.points import grouped
 
 HERE = Path(__file__).resolve().parent
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
 TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
+CARD_NOTES = "card-notes"
 GOLDEN_ANGLE = 137.5
 
 
@@ -35,12 +38,36 @@ def _banner(round_: dict, current: bool) -> str:
         "n": round_["n"], "colour": round_colour(round_), "current": current, **round_["banner"]}})
 
 
-def _card(item: dict, round_: dict, current: bool) -> str:
+def _exchange(doc: dict, item: dict) -> str:
+    """The card's own notes and replies; the content comes from a registered component."""
+    if lookup(CARD_NOTES) is None:
+        return ""
+    return render_component({"type": CARD_NOTES, "props": {"document": doc, "item": item["id"]}})
+
+
+def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
     return render_component({
         "type": "card",
-        "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current},
+        "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current,
+                  "exchange": _exchange(doc, item), **extra},
         "children": [item["body"]],
     })
+
+
+def _history(doc: dict, point) -> str:
+    """The earlier cards of a point, newest first, in a closed details element."""
+    if not point.history:
+        return ""
+    names = ", ".join(f'R-{round_["n"]} {item["id"]}' for item, round_ in point.history)
+    cards = "".join(_card(doc, item, round_, False) for item, round_ in point.history)
+    return (f'<details class="afkv2-history" data-afkv2-fold="history-{escape(point.head["id"])}">'
+            f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
+
+
+def _point(doc: dict, point, current_n: int, settled: bool = False) -> str:
+    """A settled point folds to its heading and settled line on the rail, an info card of an earlier round too."""
+    extra = {"history": _history(doc, point), **({"rail": "settled"} if settled else {})}
+    return _card(doc, point.head, point.round, point.round["n"] == current_n, **extra)
 
 
 COPY_BAR = ('<div class="afkv2-copy" id="afkv2-copy" data-lavish-ui="afkv2-copy">'
@@ -54,23 +81,34 @@ def _answerable(item: dict) -> bool:
     return not item.get("state", "open").startswith("settled_")
 
 
-def _current_section(round_: dict, session_id: str) -> str:
+def _current_section(doc: dict, round_: dict, points: list) -> str:
     """The mark runtime reads the session and the round here: they key each queued mark."""
     n = round_["n"]
-    cards = "".join(_card(item, round_, True) for item in round_["items"])
+    cards = "".join(_point(doc, point, n) for point in points)
     live = any(_answerable(item) for item in round_["items"])
     return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
-            f'data-afkv2-round="{n}" data-afkv2-session="{escape(session_id)}" '
+            f'data-afkv2-round="{n}" data-afkv2-session="{escape(doc["session"]["id"])}" '
             f'style="--afkv2-round: {escape(round_colour(round_))}">'
-            f'<h2 class="afkv2-h">Round {n}: your answers</h2><div class="afkv2-cards">{cards}</div>'
+            f'<h2 class="afkv2-h">Round {n}: the points</h2><div class="afkv2-cards">{cards}</div>'
             f'{COPY_BAR if live else ""}</section>')
 
 
-def _past_section(round_: dict) -> str:
-    n = round_["n"]
-    cards = "".join(_card(item, round_, False) for item in round_["items"])
-    return (f'<section class="afkv2-round-past" id="afkv2-r-{n}" style="--afkv2-round: {escape(round_colour(round_))}">'
-            f'{_banner(round_, False)}<div class="afkv2-cards">{cards}</div></section>')
+def _settled_section(doc: dict, points: list, current_n: int) -> str:
+    if not points:
+        return ""
+    cards = "".join(_point(doc, point, current_n, settled=True) for point in points)
+    return (f'<section class="afkv2-settled-points" id="afkv2-settled">'
+            f'<h2 class="afkv2-section-h">Settled by earlier rounds ({len(points)})</h2>'
+            '<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
+            f'its history. A note on a settled card opens it again.</p><div class="afkv2-cards">{cards}</div></section>')
+
+
+def _earlier_banners(doc: dict) -> str:
+    past = sorted((r for r in doc["rounds"] if r["state"] != "current"), key=lambda r: -r["n"])
+    if not past:
+        return ""
+    return (f'<details class="afkv2-earlier-banners" id="afkv2-earlier-banners" data-afkv2-fold="banners">'
+            f'<summary>Earlier banners ({len(past)})</summary>{"".join(_banner(r, False) for r in past)}</details>')
 
 
 def _notes_and_replies(doc: dict) -> str:
@@ -82,7 +120,7 @@ def _notes_and_replies(doc: dict) -> str:
 
 def targets(doc: dict) -> dict:
     """Each HTML id the page draws that is no element id, with the element id an annotation on it stands for:
-    the ids that the components of the maps and cards draw, and the ids of the slot's component."""
+    the ids that the components of the maps and cards draw, and the ids of the notes and replies rows."""
     found = {}
     for tree in [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]:
         found.update(aliases(tree))
@@ -95,15 +133,16 @@ def targets(doc: dict) -> dict:
 def build(doc: dict) -> str:
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
-    past = sorted((r for r in doc["rounds"] if r["state"] != "current"), key=lambda r: -r["n"])
+    live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     body = (f'<h1 class="afkv2-title">{escape(session["feature"])}</h1>'
             f'<p class="afkv2-sub">{escape(session["skill"])} · {escape(session["ticket"])}</p>'
             f'{_banner(current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
-            f'{_current_section(current, session["id"])}'
-            f'{"".join(_past_section(r) for r in past)}')
+            f'{_current_section(doc, current, live)}'
+            f'{_settled_section(doc, settled, current["n"])}'
+            f'{_earlier_banners(doc)}')
     title = f'{escape(session["feature"])}: round {current["n"]}'
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'

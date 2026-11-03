@@ -46,6 +46,9 @@ DELETE_BUTTON = "data-afkv2-note-delete"
 QUOTED_ONE = '<q class="afkv2-nr-text">note of round one</q>'
 NOTE_ROW_A, NOTE_ROW_B = "afkv2-nr-N-1-i-a", "afkv2-nr-N-2-i-b"
 REPLY_ROW = "afkv2-nr-reply-3-1"
+BODY = '<div class="afkv2-body">'
+CARD_START = 'id="{}" data-afkv2-item='
+SESSION_TITLE = "Notes on the whole session"
 NOTE_ACTION = 'data-lavish-action="afkv2-note"'
 
 
@@ -695,43 +698,59 @@ def row(html, row_id):
     return html[start:html.index("</tr>", start)]
 
 
-def test_the_rows_come_newest_round_first_and_older_rounds_fold():
-    html = slot(page.build(noted_document()))
-    places = [html.index(mark) for mark in (TABLE, ROUND_3, "reply of round three", "another reply",
-                                            ROUND_2, "note of round two", EARLIER, ROUND_1, "note of round one")]
+def exchange(html, item_id):
+    """The rows under the heading of a card: from its article to its body."""
+    start = html.index(CARD_START.format(item_id))
+    return html[start:html.index(BODY, start)]
+
+
+def session_document():
+    """A reply that names no card in each of 3 rounds: every row is in the session table."""
+    doc = noted_document()
+    for round_ in doc["rounds"]:
+        round_["replies"] = [{"text": f"reply alone of round {round_['n']}"}]
+    return doc
+
+
+def test_the_session_rows_come_newest_round_first_and_older_rounds_fold():
+    html = slot(page.build(session_document()))
+    places = [html.index(mark) for mark in (SESSION_TITLE, TABLE, ROUND_3, "reply alone of round 3",
+                                            ROUND_2, "reply alone of round 2", EARLIER, ROUND_1, "reply alone of round 1")]
     assert places == sorted(places)
     assert html.count("<details") == 1 and "<details open" not in html and html.count("<table") == 2
+    assert "note of round one" not in html
 
 
 def test_two_rounds_stay_open_and_have_no_fold():
-    doc = noted_document()
+    doc = session_document()
     doc["rounds"] = doc["rounds"][:2]
     doc["rounds"][1]["state"] = "current"
     html = slot(page.build(doc))
     assert "<details" not in html and ROUND_1 in html and ROUND_2 in html
 
 
-def test_a_note_row_holds_the_quoted_note_and_the_reply_that_answers_it():
-    html = slot(page.build(noted_document()))
-    note_row = row(html, "afkv2-nr-N-1-i-a")
+def test_a_note_row_stands_under_its_card_with_the_reply_that_answers_it():
+    html = page.build(noted_document())
+    note_row = row(exchange(html, "i-a"), "afkv2-nr-N-1-i-a")
     assert QUOTED_ONE in note_row and "reply of round one" in note_row
-    assert 'title="N-1-i-a">R1.1<' in note_row and 'href="#i-a"' in note_row
-    assert "No answer yet" in row(html, NOTE_ROW_B)
+    assert 'title="N-1-i-a">R1.1<' in note_row and "The card" in note_row
+    assert "No answer yet" in row(exchange(html, "i-b"), NOTE_ROW_B)
+    assert "note of round one" not in slot(html)
 
 
 def test_a_reply_of_the_next_round_answers_the_note_of_the_round_before():
     doc = noted_document()
     doc["rounds"][2]["replies"].append({"text": "read as two", "about": ["N-2-i-b"]})
     doc["rounds"][1]["replies"] = [{"text": "same round first", "about": ["i-b"]}]
-    note_row = row(slot(page.build(doc)), "afkv2-nr-N-2-i-b")
+    note_row = row(page.build(doc), "afkv2-nr-N-2-i-b")
     assert note_row.index("same round first") < note_row.index("read as two")
 
 
-def test_a_reply_that_answers_no_note_has_its_own_row():
-    html = slot(page.build(noted_document()))
-    alone = row(html, "afkv2-nr-reply-3-2")
+def test_a_reply_that_answers_no_note_has_its_own_row_on_the_card_it_names():
+    html = page.build(noted_document())
+    alone = row(slot(html), "afkv2-nr-reply-3-2")
     assert "another reply" in alone and "From me" in alone and "<q" not in alone
-    assert 'href="#i-c"' in row(html, REPLY_ROW)
+    assert "reply of round three" in row(exchange(html, "i-c"), REPLY_ROW)
 
 
 def test_a_deleted_note_is_not_shown_and_no_row_has_a_control():
@@ -741,14 +760,15 @@ def test_a_deleted_note_is_not_shown_and_no_row_has_a_control():
 
 
 def test_note_text_is_escaped():
-    assert "&lt;b&gt;note of round two&lt;/b&gt;" in slot(page.build(noted_document()))
+    html = exchange(page.build(noted_document()), "i-b")
+    assert "&lt;b&gt;note of round two&lt;/b&gt;" in html and "<b>note" not in html
 
 
-def test_the_row_names_the_card_title_and_the_element():
+def test_the_row_names_the_element_of_the_card():
     doc = one_round({**card("i-a"), "title": "Export format", "body": text("The format of the file.", id="i-a-words")})
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "i-a-words", "text": "x", "deleted": False}]
-    note_row = row(slot(page.build(doc)), "afkv2-nr-N-1-i-a")
-    assert "Export format" in note_row and "The format of the file." in note_row and 'href="#i-a"' in note_row
+    note_row = row(exchange(page.build(doc), "i-a"), "afkv2-nr-N-1-i-a")
+    assert "The format of the file." in note_row and "Export format" not in note_row
 
 
 def test_a_page_with_no_note_and_no_reply_has_an_empty_slot():
@@ -758,8 +778,8 @@ def test_a_page_with_no_note_and_no_reply_has_an_empty_slot():
 def test_the_signals_of_a_response_are_not_shown(path):
     answer, after = ingested(path, later_round(by_mark("i-old"), card("i-new")),
                              "[round R-2]\ni-old accept | only for terms\ni-new —")
-    html = slot(page.build(after))
-    assert "What you sent" not in html and "mark accept" not in html and "only for terms" in html
+    html = page.build(after)
+    assert "What you sent" not in html and "mark accept" not in html and "only for terms" in exchange(html, "i-old")
     assert answer["reopened"] == ["i-old"]
 
 
@@ -779,12 +799,13 @@ def test_a_steer_on_a_held_node_names_the_map():
     assert page.targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
-def test_a_note_row_stands_for_its_card():
-    assert page.targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b"}
+def test_a_row_stands_for_its_card():
+    assert page.targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b",
+                                              REPLY_ROW: "i-c"}
 
 
-def test_every_row_id_is_unique():
-    ids = re.findall(r' id="([^"]+)"', slot(page.build(stress_document())))
+def test_every_id_of_the_page_is_unique():
+    ids = re.findall(r' id="([^"]+)"', page.build(stress_document()))
     assert len(ids) == len(set(ids)) and len(ids) > 40
 
 

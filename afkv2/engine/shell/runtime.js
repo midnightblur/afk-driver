@@ -8,6 +8,43 @@
  * Without lavish, "Copy the response" composes the response grammar from the
  * marks: first line [round R-n], then one line <id> <token> per marked card.
  */
+
+/* Open folds survive a re-render. lavish restores the scroll offset after a live
+ * reload, and that offset points at the same place only when the same folds are
+ * open. A fold is a details element with a stable data-afkv2-fold key; the open
+ * keys are stored per session in window.name and in localStorage. */
+(function () {
+  var holder = document.querySelector('[data-afkv2-session]');
+  if (!holder) return;
+  var ATTR = 'data-afkv2-fold';
+  var KEY = 'afkv2-open:' + holder.getAttribute('data-afkv2-session');
+  var folds = [].slice.call(document.querySelectorAll('details[' + ATTR + ']'));
+
+  function read() {
+    try {
+      var held = JSON.parse(window.name || '{}') || {};
+      if (held[KEY]) return held[KEY];
+    } catch (e) {}
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { return []; }
+  }
+
+  function write() {
+    var open = folds.filter(function (el) { return el.open; }).map(function (el) { return el.getAttribute(ATTR); });
+    try {
+      var held = JSON.parse(window.name || '{}') || {};
+      held[KEY] = open;
+      window.name = JSON.stringify(held);
+    } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {}
+  }
+
+  var open = read();
+  folds.forEach(function (el) {
+    if (open.indexOf(el.getAttribute(ATTR)) >= 0) el.open = true;
+    el.addEventListener('toggle', write);
+  });
+})();
+
 (function () {
   var section = document.querySelector('[data-afkv2-session][data-afkv2-round]');
   if (!section) return;
