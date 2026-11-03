@@ -32,14 +32,15 @@ FALLBACK = "After you send the page, write one chat message; the agent then poll
 NO_PANE = "Not answered: Codex does not run in a herdr pane. Ask it in the Codex chat."
 
 
-def _raw(detail: dict, document: str | None, round_prompts: list[dict], side: bool) -> str:
-    """The raw response of the round's prompts, read against the page document; the joined text without one."""
+def _raw(document: str | None, round_prompts: list[dict]) -> str:
+    """The raw response of the round's prompts, read against the page document; their joined text without one.
+    A kept send holds no `raw` field, so the joined text comes from the prompts."""
     if document and round_prompts:
         try:
             return engine.poll_raw(document, round_prompts)
         except (Refusal, KeyError, TypeError, AttributeError, StopIteration):
             pass
-    return "\n".join(str(p.get("prompt", "")) for p in round_prompts) if side else detail["raw"]
+    return "\n".join(str(p.get("prompt", "")) for p in round_prompts)
 
 
 def _side_answers(questions: list[str], ask) -> str:
@@ -105,7 +106,7 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
                     reply(["reply", page, "--agent-reply-file", shown])
                 finally:
                     os.unlink(shown)
-            return status, _raw(detail, document, round_prompts, bool(questions))
+            return status, _raw(document, round_prompts)
         if status in ("ended", "fallback", "no-session"):
             return status, ""
         if status != "waiting":

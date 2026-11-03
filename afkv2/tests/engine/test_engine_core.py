@@ -1538,7 +1538,21 @@ def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
         return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
 
     assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
-    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", "joined")
+    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", mark("i-new", "accept")["prompt"])
+
+
+def test_a_kept_send_the_document_cannot_resolve_hands_back_the_prompt_text(repo, monkeypatch):
+    path = in_home(repo, noted_page())
+    engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept"), prompt("A note.", "div#gone")]})
+
+    def unresolved(document, prompts):
+        raise engine.Refusal("unreadable", "the document moved")
+
+    def no_poll(argv):
+        raise AssertionError("a kept send answers without a host poll")
+
+    monkeypatch.setattr(engine, "poll_raw", unresolved)
+    assert WAIT_FOR_ANSWER("p.html", poll=no_poll, document=str(path)) == ("feedback", mark("i-new", "accept")["prompt"] + "\nA note.")
 
 
 def test_the_stop_hook_ends_on_a_send_that_only_ends_the_session(repo):
@@ -1627,7 +1641,7 @@ def test_with_a_record_and_a_queued_answer_the_hook_blocks_with_the_raw_text(tmp
 
     def poll(argv):
         seen.append(argv)
-        return "feedback", {"raw": raw}
+        return "feedback", {"raw": raw, "prompts": [{"prompt": raw}]}
 
     monkeypatch.setattr(codex_stop, "wait_for_answer", partial(WAIT_FOR_ANSWER, poll=poll))
     out = json.loads(codex_stop.main(json.dumps({"session_id": "t-1"})))
@@ -1659,7 +1673,8 @@ def scripted_poll(clock, statuses, step=60):
         seen.append(argv)
         clock.now += step
         status = remaining.pop(0) if remaining else "waiting"
-        return status, {"raw": "answer" if status == "feedback" else "", "code": None}
+        answer = "answer" if status == "feedback" else ""
+        return status, {"raw": answer, "prompts": [{"prompt": answer}] if answer else [], "code": None}
 
     poll.seen = seen
     return poll
