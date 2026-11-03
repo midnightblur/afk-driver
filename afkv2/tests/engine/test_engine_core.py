@@ -877,6 +877,20 @@ def test_the_launcher_grammar_holds_open_poll_end(tmp_path, monkeypatch):
     assert launcher.plan(["end", "p.html"]) is None
 
 
+def test_the_launcher_takes_a_reply_from_a_file_only(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "p.html").write_text("<html></html>", "utf-8")
+    (tmp_path / "r.md").write_text("An answer.", "utf-8")
+    assert launcher.plan(["reply", "p.html", "--agent-reply-file", "r.md"]) is None
+    assert launcher.plan(["poll", "p.html", "--agent-reply-file", "r.md"]) is None
+    assert launcher.plan(["poll", "p.html", "--timeout-ms", "9", "--agent-reply-file", "r.md"]) is None
+    for argv in (["reply", "p.html", "--agent-reply", "text"], ["reply", "p.html", "--timeout-ms", "9"],
+                 ["poll", "p.html", "--agent-reply", "text"], ["reply", "p.html", "--agent-reply-file", "none.md"],
+                 ["poll", "p.html", "--timeout-ms", "9", "--timeout-ms", "9"],
+                 ["poll", "p.html", "--agent-reply-file"]):
+        assert launcher.run(argv)[0] == 64, argv
+
+
 def test_exit_64_when_the_host_variable_is_set(monkeypatch):
     monkeypatch.setenv("LAVISH_AXI_HOST", "0.0.0.0")
     assert launcher.run(["end", "p.html"])[0] == 64
@@ -1162,6 +1176,64 @@ def test_the_built_response_ingests(repo, capsys, monkeypatch):
     code, ingested = call(capsys, "ingest", path, "--raw-file", raw_file)
     assert code == 0 and ingested["settled_by_mark"] == ["i-new"] and ingested["needs_reading"] == ["1x"]
     assert ingested["steers"] == ["n-1"]
+
+
+def side_question(words):
+    return prompt(words, "div#afkv2-btw", "afkv2-btw", "")
+
+
+def test_a_side_question_never_enters_the_raw_response(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    prompts = [side_question("Which ticket is this?\n\nContext data:\n{}"), mark("i-new", "accept"),
+               side_question("  And the next round?  ")]
+    seen = []
+
+    def poll_status(argv):
+        seen.append(argv)
+        return "feedback", {"raw": "joined", "prompts": prompts, "session_ended": False}
+
+    monkeypatch.setattr(launcher, "poll_status", poll_status)
+    answer = call(capsys, "poll", path)[1]
+    assert answer["raw"] == "[round R-2]\ni-new accept" and answer["round_prompts"] == 1
+    assert answer["btw"] == ["Which ticket is this?", "And the next round?"]
+    assert raw_of(noted_page(), *prompts) == "[round R-2]\ni-new accept"
+    reply = repo / "reply.md"
+    reply.write_text("An answer.", "utf-8")
+    call(capsys, "poll", path, "--reply-file", reply)
+    assert seen[-1][2:] == ["--agent-reply-file", str(reply)]
+
+
+def test_a_send_of_side_questions_only_has_no_round_prompt(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "joined", "prompts": [side_question("Why?")], "session_ended": False}))
+    answer = call(capsys, "poll", path)[1]
+    assert answer["btw"] == ["Why?"] and answer["round_prompts"] == 0 and answer["raw"] == "[round R-2]"
+
+
+def test_reply_shows_the_file_on_the_page_and_refuses_a_missing_file(repo, capsys, host):
+    calls, outputs = host
+    outputs["reply"] = (0, "reply: sent\n")
+    path = in_home(repo, two_rounds())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    reply = repo / "reply.md"
+    reply.write_text("An answer.", "utf-8")
+    assert call(capsys, "reply", path, "--reply-file", reply) == (0, {"ok": True, "verb": "reply"})
+    assert calls == [["reply", str(path.with_suffix(".html").resolve()), "--agent-reply-file", str(reply)]]
+    assert call(capsys, "reply", path, "--reply-file", repo / "none.md")[0] == 2
+    outputs["reply"] = (1, host_fixture("host-error-missing.txt"))
+    assert call(capsys, "reply", path, "--reply-file", reply)[1]["error"]["code"] == "host-error"
+
+
+def test_the_page_has_a_side_question_control_with_one_send():
+    html = page.build(two_rounds())
+    script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
+    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {")
+    assert holds(script, f"var BTW_TAG = '{prompt_lines.BTW_TAG}';", "bridge.queuePrompt(text, { tag: BTW_TAG",
+                 "bridge.sendQueuedPrompts();", "data-lavish-ui", "setTimeout(build, 250)")
+    assert script.count("createElement('button')") == 2 and "Ask side agent" not in script
 
 
 def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):

@@ -1,7 +1,8 @@
 """Turn the prompts of one host poll into one raw response in the ingest grammar (`ingest.py`).
 
 A prompt is `{uid, prompt, selector, tag, text}`. The page queues a mark as a prompt with the tag
-`afkv2-mark`; every other prompt is a native lavish annotation or message. An annotation names its
+`afkv2-mark` and a side question with the tag `afkv2-btw`; every other prompt is a native lavish
+annotation or message. An annotation names its
 element by the nearest ancestor HTML id in `selector`, and every page element id is an HTML id.
 """
 
@@ -12,6 +13,8 @@ import re
 from ingest import NO_CHOICE, NOTE_SEPARATOR
 
 MARK_TAG = "afkv2-mark"
+BTW_TAG = "afkv2-btw"
+CONTEXT_DATA = "\n\nContext data:\n"
 OLD_FORM = "[round R-"
 SELECTION_TAG = "text"
 NO_EXCERPT_TAGS = {"whiteboard"}
@@ -52,6 +55,20 @@ def fallback_target(doc: dict, ids: dict) -> str | None:
     return items[0]["id"] if items else next(iter(ids), None)
 
 
+def split_side_questions(prompts: list[dict]) -> tuple[list[dict], list[str]]:
+    """(the round's prompts, the side questions). A side question is a prompt tagged `afkv2-btw`: it never
+    enters the round's raw response. The bridge appends `options.data` to the text; that tail is cut."""
+    round_prompts, questions = [], []
+    for prompt in prompts:
+        if str(prompt.get("tag") or "") != BTW_TAG:
+            round_prompts.append(prompt)
+            continue
+        question = str(prompt.get("prompt") or "").replace("\r\n", "\n").split(CONTEXT_DATA, 1)[0].strip()
+        if question:
+            questions.append(question)
+    return round_prompts, questions
+
+
 def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None) -> str:
     """First line `[round R-n]` of the current round; then one line per element, in first-seen order.
 
@@ -74,6 +91,8 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
     for prompt in prompts:
         text = str(prompt.get("prompt") or "").replace("\r\n", "\n")
         tag = str(prompt.get("tag") or "")
+        if tag == BTW_TAG:
+            continue
         if text.startswith(OLD_FORM):
             order.extend(("line", line) for line in text.split("\n")[1:])
             continue
