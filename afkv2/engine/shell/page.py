@@ -5,6 +5,7 @@ the copy bar, the settled points, the earlier banners. A point shows once, as it
 notes and replies under the heading and its earlier cards in a closed "History". The human sends marks
 and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 Each ticket, change and commit reference in the text links to the URL that `session.links` names.
+The browser tab title is `<ticket> · <feature> · <skill> R-<n>`; the feature drops out when it is the ticket.
 """
 
 from __future__ import annotations
@@ -138,6 +139,14 @@ def _reference(ticket: str) -> str:
     return f"#{ticket}" if ticket.isdigit() else ticket
 
 
+def tab_title(doc: dict) -> str:
+    session = doc["session"]
+    n = next(r["n"] for r in doc["rounds"] if r["state"] == "current")
+    ticket = _reference(session["ticket"])
+    parts = [ticket] + ([session["feature"]] if session["feature"] not in (session["ticket"], ticket) else [])
+    return " · ".join([*parts, f'{session["skill"]} R-{n}'])
+
+
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
     """The side-question listener address `(port, token)` that the btw? panel posts to."""
     if btw is None:
@@ -161,7 +170,7 @@ def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}')
     body = linkify(body, session.get("links"))
-    title = f'{escape(session["feature"])}: round {current["n"]}'
+    title = escape(tab_title(doc))
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n</head>\n'

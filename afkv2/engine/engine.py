@@ -5,7 +5,12 @@
     engine.py show DOC [--no-open|--reopen]
     engine.py poll DOC [--reply-file FILE]
     engine.py reply DOC --reply-file FILE
+    engine.py end DOC
     engine.py ingest DOC --raw-file FILE
+
+Show opens a browser tab only when no tab shows the page: a tab that show opened stays the page's tab
+until a poll answers that the session ended or the browser left, or end runs. The host reloads that tab
+when render rewrites the page.
 
 Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`,
 and lists the side questions of the send apart, in `btw`. A reply file holds Markdown the page shows.
@@ -50,6 +55,8 @@ PAGES_FOLDER = "pages"
 MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
 COPIES_FOLDER = "page-copies"
+TABS_FOLDER = "page-tabs"
+TAB_GONE = {"ended", "browser_disconnected", "no-session"}
 DELIVERY_SUFFIX = ".delivery.json"
 
 
@@ -161,9 +168,26 @@ def _map_node(node, where: tuple, last_round: int) -> list[tuple]:
     return found
 
 
+def _keyed_path(folder: str, file: Path) -> Path:
+    key = os.path.normcase(os.path.abspath(file)).encode("utf-8")
+    return data_folder() / folder / f"{hashlib.sha256(key).hexdigest()[:12]}.json"
+
+
 def _copy_path(document: Path) -> Path:
-    key = os.path.normcase(os.path.abspath(document)).encode("utf-8")
-    return data_folder() / COPIES_FOLDER / f"{hashlib.sha256(key).hexdigest()[:12]}.json"
+    return _keyed_path(COPIES_FOLDER, document)
+
+
+def tab_record(html_path: Path) -> Path:
+    """The record that a browser tab shows the page; the host keeps no such state that the engine can read."""
+    return _keyed_path(TABS_FOLDER, html_path)
+
+
+def _forget_tab(html_path: Path) -> None:
+    try:
+        tab_record(html_path).unlink(missing_ok=True)
+    except Refusal as refusal:
+        if refusal.code != "no-data-folder":
+            raise
 
 
 def read_saved_copy(document: Path) -> dict[int, str] | None:
@@ -281,19 +305,26 @@ def cmd_render(args) -> dict:
 def cmd_show(args) -> dict:
     _, document, html_path = _render(args.document)
     argv = ["open", str(html_path)]
-    if args.no_open:
+    tab = tab_record(html_path)
+    reused = not (args.no_open or args.reopen) and tab.is_file()
+    if args.no_open or reused:
         argv.append("--no-open")
     elif args.reopen:
         argv.append("--reopen")
     code, out = launcher.run(argv)
     _raise_host_failure(code, out)
     session = launcher.parse_host_output(out).get("session") or {}
+    if session.get("status") != "opened":
+        reused = False
+        tab.unlink(missing_ok=True)
+    elif "--no-open" not in argv:
+        inject.write_if_changed(tab, json.dumps({"page": str(html_path), "url": session.get("url")}).encode("utf-8"))
     record = None
     thread = os.environ.get(THREAD_VARIABLE)
     if thread:
         record = str(launcher.write_waiting_record(data_folder(), thread, str(document), str(html_path)))
     return {"ok": True, "verb": "show", "page": str(html_path), "url": session.get("url"),
-            "status": session.get("status"), "waiting_record": record}
+            "status": session.get("status"), "tab": "reused" if reused else None, "waiting_record": record}
 
 
 def _raise_host_failure(code: int, out: str) -> None:
@@ -328,8 +359,10 @@ def cmd_reply(args) -> dict:
 
 def cmd_end(args) -> dict:
     """End the page session: the page shows 'Session ended' in place of 'Working...'."""
-    code, out = launcher.run(["end", str(_shown_page(args.document))])
+    html_path = _shown_page(args.document)
+    code, out = launcher.run(["end", str(html_path)])
     _raise_host_failure(code, out)
+    _forget_tab(html_path)
     return {"ok": True, "verb": "end"}
 
 
@@ -389,6 +422,8 @@ def cmd_poll(args) -> dict:
         _raise_host_failure(detail["exit"], detail["reason"])
     if status in ("error", "no-session"):
         raise Refusal("host-error", f"item page, field host: {detail.get('code')}: {detail['reason']}")
+    if status in TAB_GONE or (status == "feedback" and detail.get("session_ended")):
+        _forget_tab(html_path)
     thread = os.environ.get(THREAD_VARIABLE)
     if status in ("feedback", "ended") and thread:
         launcher.clear_waiting_record(data_folder(), thread)

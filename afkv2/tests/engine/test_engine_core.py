@@ -1173,6 +1173,50 @@ def test_show_reports_a_host_error(repo, capsys, host):
     assert code == 1 and answer["error"]["code"] == "host-error" and "No active" in answer["error"]["reason"]
 
 
+def test_a_later_show_reuses_the_tab_that_show_opened(repo, capsys, host):
+    calls, _ = host
+    path = in_home(repo, two_rounds())
+    first, second = call(capsys, "show", path)[1], call(capsys, "show", path)[1]
+    assert calls[0][2:] == [] and calls[1][2:] == ["--no-open"]
+    assert first["tab"] is None and second["tab"] == "reused" and second["url"] == first["url"]
+
+
+@pytest.mark.parametrize("gone", ["host-poll-ended.txt", "host-poll-disconnected.txt"])
+def test_a_tab_that_left_or_ended_opens_again(repo, capsys, host, gone):
+    calls, outputs = host
+    path = in_home(repo, two_rounds())
+    call(capsys, "show", path)
+    outputs["poll"] = (0, host_fixture(gone))
+    assert call(capsys, "poll", path)[0] == 1
+    assert call(capsys, "show", path)[1]["tab"] is None and calls[-1][2:] == []
+
+
+def test_end_forgets_the_tab_and_reopen_opens_one(repo, capsys, host):
+    calls, outputs = host
+    outputs["end"] = (0, "session:\n  status: ended\n")
+    path = in_home(repo, two_rounds())
+    call(capsys, "show", path)
+    assert call(capsys, "end", path)[0] == 0
+    call(capsys, "show", path)
+    call(capsys, "show", path, "--reopen")
+    assert [argv[2:] for argv in calls if argv[0] == "open"] == [[], [], ["--reopen"]]
+
+
+def test_the_tab_title_names_ticket_feature_skill_and_round():
+    doc = two_rounds()
+    assert page.tab_title(doc) == "PROJ-1 · export · grill R-2"
+    assert "<title>PROJ-1 · export · grill R-2</title>" in page.build(doc)
+    doc["session"].update(ticket="158", feature="158", skill="propose-solution")
+    assert page.tab_title(doc) == "#158 · propose-solution R-2"
+
+
+def test_each_round_banner_is_an_element_with_its_round_id():
+    html = page.build(two_rounds())
+    assert holds(html, 'id="R-2" data-afkv2-element="R-2"', 'id="R-1" data-afkv2-element="R-1"')
+    _, ids, _ = engine._element_ids(two_rounds())
+    assert ids["R-1"] == ("rounds", 0, "banner") and ids["R-2"] == ("rounds", 1, "banner")
+
+
 def test_poll_passes_an_old_form_prompt_through_under_the_current_round(repo, capsys, host):
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")

@@ -77,6 +77,12 @@ The engine lays out the page in this order:
 
 A point is the newest card and the cards it `carries` (`components/card.md`).
 
+The browser tab title is `<ticket> · <feature> · <skill> R-<n>`. The feature
+drops out when it equals the ticket. A later round shows in the tab that the
+first show opened: `present` answers `tab: reused`. Give the human the `url` in
+one line then, so a closed tab costs nothing. The host keeps the tab title of
+the first load until the human reloads the tab.
+
 ## Controls the engine adds
 
 You do not write these; the engine puts them on every page.
