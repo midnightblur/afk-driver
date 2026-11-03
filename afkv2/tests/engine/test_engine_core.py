@@ -1227,6 +1227,39 @@ def test_reply_shows_the_file_on_the_page_and_refuses_a_missing_file(repo, capsy
     assert call(capsys, "reply", path, "--reply-file", reply)[1]["error"]["code"] == "host-error"
 
 
+def test_the_stop_hook_answers_side_questions_on_the_page_and_waits_on(repo, tmp_path):
+    path = in_home(repo, noted_page())
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?")]}), ("waiting", {}),
+             ("feedback", {"raw": "x", "prompts": [mark("i-new", "accept"), side_question("And?")]})]
+    seen, replies, shown = [], [], []
+
+    def poll(argv):
+        seen.append(argv)
+        if "--agent-reply-file" in argv:
+            shown.append(Path(argv[argv.index("--agent-reply-file") + 1]).read_text("utf-8"))
+        return sends.pop(0)
+
+    def reply(argv):
+        replies.append(Path(argv[3]).read_text("utf-8"))
+        return 0, ""
+
+    def ask(question):
+        return {"question": question, "status": "not-read", "answer": f"See the terminal for {question}"}
+
+    status, raw = WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path), ask=ask, reply=reply)
+    assert (status, raw) == ("feedback", "[round R-2]\ni-new accept")
+    assert shown == ["**btw:** Why?\n\nSee the terminal for Why?"]
+    assert "--agent-reply-file" not in seen[2] and replies == ["**btw:** And?\n\nSee the terminal for And?"]
+    assert not any(Path(argv[-1]).exists() for argv in seen if "--agent-reply-file" in argv)
+
+
+def test_without_a_pane_the_stop_hook_says_so_on_the_page():
+    def ask(question):
+        return {"question": question, "status": "unanswered", "answer": "the agent answers"}
+
+    assert codex_stop._side_answers(["Why?"], ask) == f"**btw:** Why?\n\n{codex_stop.NO_PANE}"
+
+
 def test_the_page_has_a_side_question_control_with_one_send():
     html = page.build(two_rounds())
     script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
