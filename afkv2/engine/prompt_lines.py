@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from ingest import NO_CHOICE, NOTE_SEPARATOR
+from schema.note_rules import round_target
 
 MARK_TAG = "afkv2-mark"
 BTW_TAG = "afkv2-btw"
@@ -47,13 +48,13 @@ def _excerpt(text: str) -> str:
 
 
 def fallback_target(doc: dict, ids: dict) -> str | None:
-    """Where a prompt with no element goes: the first map, as a steer, else the first card of the round."""
+    """Where a prompt with no element goes, as a steer: the first map, else the banner of the current round."""
     for chart in doc.get("maps") or []:
         if chart.get("id") in ids:
             return chart["id"]
-    current = next((r for r in doc["rounds"] if r["state"] == "current"), {"items": []})
-    items = [*current["items"], *(item for r in reversed(doc["rounds"]) for item in r["items"])]
-    return items[0]["id"] if items else next(iter(ids), None)
+    current = next((r for r in doc["rounds"] if r["state"] == "current"), None)
+    target = current and round_target(current["n"])
+    return target if target in ids else next(iter(ids), None)
 
 
 def split_side_questions(prompts: list[dict]) -> tuple[list[dict], list[str]]:
@@ -75,9 +76,9 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
 
     `aliases` maps an HTML id that is no element id, such as a row of the notes table, to its element.
 
-    A mark and the notes on one element merge into one line; several notes join with a blank line.
-    A selection, and an annotation on no known element, keeps an excerpt of the text it was on. No
-    prompt with words is dropped: a prompt with no known element lands on `fallback_target`.
+    Each annotation is one line, so ingest makes one note of it. The mark of an element shares the line
+    of its first note. A selection, and an annotation on no known element, keeps an excerpt of the text it
+    was on. No prompt with words is dropped: a prompt with no known element lands on `fallback_target`.
     """
     n = next(r for r in doc["rounds"] if r["state"] == "current")["n"]
     order: list[tuple[str, str]] = []
@@ -126,8 +127,7 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
         if kind == "line":
             lines.append(value)
             continue
-        line = f"{value} {marks.get(value, NO_CHOICE)}"
-        if notes[value]:
-            line += NOTE_SEPARATOR + "\n\n".join(notes[value])
-        lines.append(line)
+        first, *more = notes[value] or [None]
+        lines.append(f"{value} {marks.get(value, NO_CHOICE)}" + (NOTE_SEPARATOR + first if first else ""))
+        lines += [f"{value} {NO_CHOICE}{NOTE_SEPARATOR}{note}" for note in more]
     return "\n".join(lines)

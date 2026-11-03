@@ -13,6 +13,7 @@ from html import escape
 from pathlib import Path
 
 from registry import aliases, lookup, render_component
+from schema.note_rules import round_target
 from shell.points import grouped
 from shell.references import linkify
 
@@ -36,7 +37,7 @@ def _assets(suffix: str, first: str) -> str:
 
 
 def _banner(round_: dict, current: bool) -> str:
-    return render_component({"type": "round-banner", "props": {
+    return render_component({"type": "round-banner", "id": round_target(round_["n"]), "props": {
         "n": round_["n"], "colour": round_colour(round_), "current": current, **round_["banner"]}})
 
 

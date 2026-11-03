@@ -40,7 +40,7 @@ import launcher  # noqa: E402
 import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 import side_question  # noqa: E402
-from schema import invariants  # noqa: E402
+from schema import invariants, note_rules  # noqa: E402
 from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
 
@@ -110,7 +110,8 @@ def _refuse(doc: dict, found: list[tuple], code: str) -> Refusal:
 
 def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
     """(uniqueness problems, every id with its path, the map nodes with theirs). A map held in a card
-    or a table cell counts as a map; an entry of the `maps` list is a map whatever its type."""
+    or a table cell counts as a map; an entry of the `maps` list is a map whatever its type. The banner
+    of each round is an element too (`note_rules.round_target`)."""
     found, ids, nodes = [], {}, {}
     last_round = len(doc["rounds"])
 
@@ -134,6 +135,8 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
             if part["type"] == "map" or (root_is_map and sub == base):
                 add_nodes(part, sub)
 
+    for r, round_ in enumerate(doc["rounds"]):
+        add(note_rules.round_target(round_["n"]), ("rounds", r, "banner"))
     for m, map_ in enumerate(doc.get("maps") or []):
         add_tree(map_, ("maps", m), root_is_map=True)
     for r, round_ in enumerate(doc["rounds"]):

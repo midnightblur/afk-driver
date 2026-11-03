@@ -8,6 +8,8 @@ from __future__ import annotations
 import hashlib
 import json
 
+from schema import note_rules
+
 STAMP_SALT = "afkv2 ingest stamp v0"
 SETTLED_BY = {"settled_by_mark": "mark", "settled_by_note": "note"}
 # Every element id is also an HTML id. The page shell and the lavish host name their own elements so.
@@ -50,15 +52,11 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
     found += [((*path, "id"), f"id {identifier!r} starts with a prefix the page and its host keep: "
                               f"{', '.join(RESERVED_PREFIXES)}")
               for identifier, path in ids.items() if identifier.startswith(RESERVED_PREFIXES)]
-    note_ids: set[str] = set()
+    note_ids: dict[str, tuple] = {}
     card_round = {item["id"]: round_["n"] for round_ in rounds for item in round_["items"]}
     for r, round_ in enumerate(rounds):
         where = ("rounds", r)
         found += _responses(doc["session"]["id"], round_, where)
-        for p, reply in enumerate(round_.get("replies") or []):
-            for a, target in enumerate(reply.get("about") or []):
-                if target not in ids:
-                    found.append(((*where, "replies", p, "about", a), f"{target!r} resolves to no element"))
         for i, item in enumerate(round_["items"]):
             found += _item((*where, "items", i), item, ids, nodes, last, note_ids)
             found += [((*where, "items", i, "carries", c), f"{old!r} is no card of an earlier round")
@@ -66,6 +64,11 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
                       if card_round.get(old, round_["n"]) >= round_["n"]]
         for s, steer in enumerate(round_.get("notes") or []):
             found += _steer((*where, "notes", s), round_["n"], steer, ids, nodes, note_ids)
+    for r, round_ in enumerate(rounds):
+        for p, reply in enumerate(round_.get("replies") or []):
+            for a, target in enumerate(reply.get("about") or []):
+                if target not in ids and target not in note_ids:
+                    found.append((("rounds", r, "replies", p, "about", a), f"{target!r} resolves to no element and no note"))
     return found
 
 
@@ -91,7 +94,7 @@ def _responses(session_id: str, round_: dict, where: tuple) -> list[tuple]:
     return found
 
 
-def _item(where: tuple, item: dict, ids: dict, nodes: dict, last: int, note_ids: set) -> list[tuple]:
+def _item(where: tuple, item: dict, ids: dict, nodes: dict, last: int, note_ids: dict) -> list[tuple]:
     found = []
     node = item.get("node")
     if node is not None and node not in nodes:
@@ -102,14 +105,20 @@ def _item(where: tuple, item: dict, ids: dict, nodes: dict, last: int, note_ids:
     return found + _settled(where, item, notes, nodes, last)
 
 
-def _note(where: tuple, item: dict, note: dict, ids: dict, last: int, note_ids: set) -> list[tuple]:
+def _note_id(where: tuple, note_id: str, n: int, owner: str, note_ids: dict) -> list[tuple]:
+    """The id is `N-<n>-<owner>-<k>`, k = 1, 2, 3, or the older `N-<n>-<owner>`; and it is unique."""
     found = []
-    expected = f"N-{note['round']}-{item['id']}"
-    if note["id"] != expected:
-        found.append(((*where, "id"), f"must be {expected}, found {note['id']!r}"))
-    if note["id"] in note_ids:
-        found.append(((*where, "id"), f"note id {note['id']!r} is not unique"))
-    note_ids.add(note["id"])
+    old = note_rules.old_note_id(n, owner)
+    if note_id != old and not note_rules.is_new_id(note_id, n, owner):
+        found.append(((*where, "id"), f"must be {old}-<k>, k = 1, 2, 3, found {note_id!r}"))
+    if note_id in note_ids:
+        found.append(((*where, "id"), f"note id {note_id!r} is not unique"))
+    note_ids[note_id] = where
+    return found
+
+
+def _note(where: tuple, item: dict, note: dict, ids: dict, last: int, note_ids: dict) -> list[tuple]:
+    found = _note_id(where, note["id"], note["round"], item["id"], note_ids)
     if note["round"] > last:
         found.append(((*where, "round"), f"round {note['round']} does not exist"))
     if note["target"] not in ids:
@@ -117,20 +126,17 @@ def _note(where: tuple, item: dict, note: dict, ids: dict, last: int, note_ids: 
     return found
 
 
-def _steer(where: tuple, n: int, note: dict, ids: dict, nodes: dict, note_ids: set) -> list[tuple]:
-    """A note on the round is a steer: on a map node, or on an element that no card holds. It names no card."""
+def _steer(where: tuple, n: int, note: dict, ids: dict, nodes: dict, note_ids: dict) -> list[tuple]:
+    """A note on the round is a steer: on a map node, a round banner, or another element that no card holds.
+    It names no card."""
     found = []
     target = note["target"]
     if note["round"] != n:
         found.append(((*where, "round"), f"a steer of round {n} must have round {n}, found {note['round']}"))
-    if note["id"] != f"N-{n}-{target}":
-        found.append(((*where, "id"), f"must be N-{n}-{target}, found {note['id']!r}"))
-    if note["id"] in note_ids:
-        found.append(((*where, "id"), f"note id {note['id']!r} is not unique"))
-    note_ids.add(note["id"])
+    found += _note_id(where, note["id"], n, target, note_ids)
     if target not in ids:
         found.append(((*where, "target"), f"{target!r} resolves to no element"))
-    elif target not in nodes and ids[target][0] == "rounds":
+    elif target not in nodes and ids[target][2:3] == ("items",):
         found.append(((*where, "target"), f"{target!r} is part of a card; a note on a card lives on that card"))
     return found
 

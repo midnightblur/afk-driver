@@ -1182,13 +1182,13 @@ def test_poll_passes_an_old_form_prompt_through_under_the_current_round(repo, ca
     assert answer["raw"] == "[round R-2]\n" + sent.split("\n", 1)[1]
 
 
-def test_poll_puts_prompts_with_no_element_on_the_first_card_of_the_round(repo, capsys, host):
+def test_poll_puts_prompts_with_no_element_on_the_round_banner_when_the_page_has_no_map(repo, capsys, host):
     _, outputs = host
     outputs["poll"] = (0, host_fixture("host-poll-two-prompts.txt"))
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
     answer = call(capsys, "poll", path)[1]
-    assert answer["raw"] == '[round R-2]\ni-new — | first, with a comma (on: "x")\n\n- second\nline'
+    assert answer["raw"] == '[round R-2]\nR-2 — | first, with a comma (on: "x")\nR-2 — | - second\nline'
     assert answer["session_ended"] is True and [p["tag"] for p in answer["prompts"]] == ["note", "choice"]
 
 
@@ -1261,7 +1261,7 @@ def test_a_selection_keeps_an_excerpt_of_its_text():
 
 def test_a_prompt_with_no_element_is_a_steer_on_the_first_map():
     raw = raw_of(noted_page(), prompt("Look at billing first."), prompt("Here.", "main > section > p", "p", "Some text"))
-    assert raw == '[round R-2]\nm-1 — | Look at billing first.\n\nHere. (on: "Some text")'
+    assert raw == '[round R-2]\nm-1 — | Look at billing first.\nm-1 — | Here. (on: "Some text")'
 
 
 def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp_path):
@@ -1350,9 +1350,9 @@ def test_a_table_without_an_id_draws_no_row_id():
     assert holds(html, "<tr><td>1</td></tr>") and lacks(html, "afkv2-tr-")
 
 
-def test_a_mark_and_notes_on_one_card_merge_into_one_line():
+def test_each_annotation_is_its_own_line_and_the_mark_shares_the_first():
     raw = raw_of(noted_page(), prompt("First.", "article#i-new"), mark("i-new", "accept"), prompt("Second.", "h4#i-new"))
-    assert raw == "[round R-2]\ni-new accept | First.\n\nSecond."
+    assert raw == "[round R-2]\ni-new accept | First.\ni-new — | Second."
 
 
 def test_an_old_form_prompt_passes_its_lines_through():

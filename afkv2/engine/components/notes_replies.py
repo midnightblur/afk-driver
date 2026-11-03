@@ -11,6 +11,7 @@ from html import escape
 from typing import NamedTuple
 
 from registry import register_component, walk
+from schema.note_rules import round_target
 from shell.page import round_colour
 
 ROW_PREFIX = "afkv2-nr-"
@@ -50,8 +51,10 @@ def _label(part: dict) -> str | None:
 
 
 def _elements(doc: dict) -> dict:
-    """Every element id: `{"item": the card that holds it or None, "label", "map": the map title of a node}`."""
-    found = {}
+    """Every element id: `{"item": the card that holds it or None, "label", "map": the map title of a node}`.
+    A round banner also has `"round"`: its round number."""
+    found = {round_target(r["n"]): {"item": None, "label": f"Round {r['n']}", "map": None, "round": r["n"]}
+             for r in doc["rounds"]}
 
     def add_tree(component, item, root_is_map=False):
         for path, part in walk(component):
@@ -115,6 +118,8 @@ def _pairs(doc: dict, notes: list[tuple[dict, dict]]) -> tuple[dict, list[tuple[
 
 def _where(item: dict | None, note: dict, elements: dict) -> str:
     target = elements.get(note["target"]) or {"item": item, "label": None, "map": None}
+    if target.get("round"):
+        return escape(target["label"])
     if _is_steer(item, note, elements):
         place = f'Map: {escape(target["map"] or target["label"] or note["target"])}'
         if target["map"] is not None:
@@ -164,7 +169,8 @@ def _rows(doc: dict) -> list[Row]:
         n, steer = note["round"], _is_steer(item, note, elements)
         cells = [_where(item, note, elements), f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
                  _answer(by_note.get(note["id"], []))]
-        link = _link(note["target"], "Open map") if steer else _link(item["id"], "Open card")
+        words = "Open round" if (elements.get(note["target"]) or {}).get("round") else "Open map"
+        link = _link(note["target"], words) if steer else _link(item["id"], "Open card")
         rows.append(Row(n, ROW_PREFIX + note["id"], number(n), note["id"], cells, link,
                         None if steer else item["id"], note["target"] if steer else item["id"], True))
     for n, index, reply in alone:
