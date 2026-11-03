@@ -4,9 +4,12 @@
 
 The human's notes and your replies, per round. The human writes a note as a
 lavish annotation. The poll gives it the element id that the annotation names;
-a note on no element becomes a steer on the first map. A note lives on its item:
-`items[].notes[]` with `id`, `round`, `target`, `text`, `deleted`. The engine
-mints each note id as `N-<round>-<item>` from the human's response. A reply
+a note on no element becomes a steer on the first map. A note on a card lives on
+its item: `items[].notes[]` with `id`, `round`, `target`, `text`, `deleted`, and
+the engine mints its id as `N-<round>-<item>`. A steer, a note on a map, a map
+node or another element that no card holds, lives on its round:
+`rounds[].notes[]`, id `N-<round>-<target>`. A steer names no card. An older
+document can keep a steer on a card; it is still a steer. A reply
 lives on the round: `rounds[].replies[]` with `text` and `about`, the list of
 the element ids it answers.
 
@@ -19,8 +22,9 @@ reading in the reply for every point a note settled. Leave `notes` to the engine
 every note in the document comes from the human. A note with `deleted` set is not
 input.
 
-A note whose `target` is a map node id is a steer for that node. Repeat it word
-for word in your reply and hold to it for that node until the session ends. When
+A steer is a note on the round, or a note whose `target` is a map or a map node.
+It is a steer for that element. Repeat it word for word in your reply and hold
+to it for that element until the session ends. When
 2 steers on one node conflict, do not choose: state the conflict in your reply
 and ask the human.
 

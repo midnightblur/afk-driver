@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import Parser, Refusal, read_json, serve, write_text
-from round_document import ASKING, _carried, _components, _live_notes, _map_nodes, current_round, returning, signature_missing
+from round_document import (ASKING, _carried, _components, card_notes, current_round, returning, signature_missing,
+                            steer_targets, steers)
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}
@@ -116,9 +117,9 @@ def _field_text(item, name, prefix=""):
     return None
 
 
-def _note_lines(item):
+def _note_lines(item, targets):
     return [f"  owner note on {item['id']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"
-            for note in _live_notes(item)]
+            for note in card_notes(item, targets)]
 
 
 def _accepted_date(doc, round_n):
@@ -139,32 +140,29 @@ def _how_settled(doc, item):
     return " · ".join(tail)
 
 
-def _item_row(doc, item, is_current):
-    title, card = _first_text(item), f"· card {item['id']}"
+def _item_row(doc, item, is_current, targets):
+    title, card, notes = _first_text(item), f"· card {item['id']}", _note_lines(item, targets)
     if item.get("settled") and item["state"] in ("settled_by_mark", "settled_by_note"):
-        return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *_note_lines(item)]
+        return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *notes]
     if is_current and item["kind"] in ASKING:
-        return [f"- Open: {title} {card}", *_note_lines(item)]
-    if not _live_notes(item):
+        return [f"- Open: {title} {card}", *notes]
+    if not notes:
         return None
     kind = "Carried" if item["kind"] in ASKING else "Info"
-    return [f"- {kind}: {title} {card}", *_note_lines(item)]
+    return [f"- {kind}: {title} {card}", *notes]
 
 
 def _document_rows(doc):
     session = doc["session"]["id"]
     rows = [[f"- Session: {session} · page document pages/grill-{session}.json"]]
-    current = current_round(doc)
+    current, targets = current_round(doc), steer_targets(doc)
     for rnd in doc["rounds"]:
         for item in rnd["items"]:
-            row = _item_row(doc, item, rnd is current)
+            row = _item_row(doc, item, rnd is current, targets)
             if row:
                 rows.append(row)
-    nodes = {node.get("id") for node in _map_nodes(doc)}
-    for rnd in doc["rounds"]:
-        for item in rnd["items"]:
-            rows += [[f"- Steer: {note['target']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"]
-                     for note in _live_notes(item) if note.get("target") in nodes]
+    rows += [[f"- Steer: {note['target']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"]
+             for note in steers(doc)]
     return rows
 
 

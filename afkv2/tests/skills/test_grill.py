@@ -606,7 +606,18 @@ def test_a_steer_is_kept_word_for_word_and_settles_nothing(world):
     assert pending["steers"][0]["text"] == "prefer plain text"
     assert pending["steers"][0]["target"] == "n-format"
     world.run("sync", doc=started["doc"], log=started["log"])
-    assert '- Steer: n-format (N-1-i-format): "prefer plain text"' in Path(started["log"]).read_text("utf-8")
+    assert '- Steer: n-format (N-1-n-format): "prefer plain text"' in Path(started["log"]).read_text("utf-8")
+
+
+def test_an_older_steer_on_the_map_kept_on_a_card_reads_as_a_steer():
+    """An engine before round steers kept a note on the map itself on a free card. It names no card."""
+    steer = {"id": "N-1-i-format", "round": 1, "target": "m-scope", "text": "link the issue", "deleted": False}
+    first = round_one()
+    doc = {"maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
+        {**first["items"][0], "state": "open"}, {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
+    pending = rd.pending(doc)
+    assert pending["steers"] == [steer]
+    assert pending["needs_reading"] == [{"id": "i-format", "kind": "debate", "state": "needs_reading", "notes": []}]
 
 
 @pytest.mark.parametrize("payload, code", [

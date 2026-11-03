@@ -37,7 +37,7 @@ Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
-- `responses`, `notes` and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading (`card` page).
+- `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading (`card` page).
 
 ## Components
 

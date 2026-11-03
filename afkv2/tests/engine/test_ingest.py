@@ -20,6 +20,7 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR):
 
 import engine  # noqa: E402
 import ingest  # noqa: E402
+import prompt_lines  # noqa: E402
 from schema import invariants  # noqa: E402
 from shell import page  # noqa: E402
 
@@ -45,6 +46,8 @@ EDIT_BUTTON = "data-afkv2-note-edit"
 DELETE_BUTTON = "data-afkv2-note-delete"
 QUOTED_ONE = '<q class="afkv2-nr-text">note of round one</q>'
 NOTE_ROW_A, NOTE_ROW_B = "afkv2-nr-N-1-i-a", "afkv2-nr-N-2-i-b"
+STEER_ROW = 'id="afkv2-nr-N-2-m-scope"'
+OLD_STEER_ROW = 'id="afkv2-nr-N-1-i-a"'
 REPLY_ROW = "afkv2-nr-reply-3-1"
 BODY = '<div class="afkv2-body">'
 CARD_START = 'id="{}" data-afkv2-item='
@@ -441,15 +444,21 @@ def test_a_sign_mark_with_a_wording_note_comes_back_for_a_sign_mark(path):
     assert 'name="choice:i-s" value="sign"' in page.build(after)
 
 
+def steers_of(doc, n):
+    return next(r for r in doc["rounds"] if r["n"] == n).get("notes") or []
+
+
 def test_a_note_on_a_map_node_is_a_steer_and_settles_nothing(path):
     doc = one_round(card("i-a", node="n-1"), card("i-b"))
     doc["maps"] = [a_map("n-1", "n-2")]
     answer, after = ingested(path, doc, "[round R-1]\ni-a —\ni-b —\nn-1 — | Look at this first")
     point = item_of(after, "i-a")
-    assert point["notes"] == [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "Look at this first", "deleted": False}]
-    assert point.get("state", "open") == "open"
+    assert "notes" not in point and point.get("state", "open") == "open"
+    assert steers_of(after, 1) == [{"id": "N-1-n-1", "round": 1, "target": "n-1", "text": "Look at this first",
+                                    "deleted": False}]
     assert answer["steers"] == ["n-1"] and answer["needs_reading"] == []
-    assert answer["signals"][0]["steer"] is True
+    steer = [s for s in answer["signals"] if s.get("steer")][0]
+    assert steer["item"] is None and steer["note"] == "N-1-n-1"
     assert check(path) == 0
 
 
@@ -458,6 +467,7 @@ def test_a_steer_does_not_reopen_a_settled_linked_card(path):
     doc["maps"] = [a_map("n-1")]
     answer, after = ingested(path, doc, "[round R-2]\ni-new —\nn-1 — | steer")
     assert item_of(after, "i-old")["state"] == "settled_by_mark" and answer["reopened"] == []
+    assert steers_of(after, 2)[0]["id"] == "N-2-n-1" and "notes" not in after["rounds"][0]
     assert check(path) == 0
 
 
@@ -465,41 +475,90 @@ def test_a_steer_and_a_note_on_the_linked_card_each_keep_their_note(path):
     doc = one_round(card("i-a", node="n-1"), card("i-b"))
     doc["maps"] = [a_map("n-1")]
     _, after = ingested(path, doc, "[round R-1]\nn-1 — | steer\ni-a — | card note\ni-b —")
-    assert item_of(after, "i-a")["notes"][0]["target"] == "i-a"
-    assert item_of(after, "i-b")["notes"][0]["target"] == "n-1"
-    assert item_of(after, "i-b")["notes"][0]["id"] == "N-1-i-b"
+    assert item_of(after, "i-a")["notes"] == [{"id": "N-1-i-a", "round": 1, "target": "i-a", "text": "card note",
+                                               "deleted": False}]
+    assert "notes" not in item_of(after, "i-b")
+    assert [s["id"] for s in steers_of(after, 1)] == ["N-1-n-1"]
     assert check(path) == 0
 
 
-def test_a_steer_with_no_linked_card_finds_a_home_in_the_current_round(path):
-    doc = later_round(by_mark("i-old"), card("i-new"))
-    doc["maps"] = [a_map("n-1")]
-    _, after = ingested(path, doc, "[round R-2]\ni-new —\nn-1 — | steer")
-    assert item_of(after, "i-new")["notes"][0]["target"] == "n-1"
-
-
-def test_a_steer_with_no_free_note_is_folded_and_stays_in_the_signals(path):
+def test_two_steers_on_one_target_in_one_round_fold_into_one_note(path):
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
-    answer, after = ingested(path, doc, "[round R-1]\ni-a — | card\nn-1 — | steer")
-    notes = item_of(after, "i-a")["notes"]
-    assert len(notes) == 1 and notes[0]["text"] == "card\n\nsteer"
-    assert [s for s in answer["signals"] if s.get("steer")][0]["target"] == "n-1"
+    _, after = ingested(path, doc, "[round R-1]\ni-a — | card\nn-1 — | one")
+    _, after = ingested(path, after, "[round R-1]\nn-1 — | two")
+    assert item_of(after, "i-a")["notes"][0]["text"] == "card"
+    assert [(s["id"], s["text"]) for s in steers_of(after, 1)] == [("N-1-n-1", "one\n\ntwo")]
     assert check(path) == 0
 
 
-def test_a_steer_on_a_page_with_no_card_is_refused(path):
+def test_a_steer_on_a_page_with_no_card_is_kept_on_the_round(path):
     doc = one_round()
     doc["maps"] = [a_map("n-1")]
-    assert refused(path, doc, "[round R-1]\nn-1 — | steer")["code"] == "bad-response"
+    answer, after = ingested(path, doc, "[round R-1]\nn-1 — | steer")
+    assert answer["steers"] == ["n-1"] and steers_of(after, 1)[0]["target"] == "n-1"
+    assert check(path) == 0
 
 
 def test_a_note_on_the_map_itself_is_recorded_and_settles_nothing(path):
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
     answer, after = ingested(path, doc, "[round R-1]\nm-1 — | The map is wrong\ni-a —")
-    assert item_of(after, "i-a")["notes"][0]["target"] == "m-1"
+    assert "notes" not in item_of(after, "i-a") and steers_of(after, 1)[0]["id"] == "N-1-m-1"
     assert item_of(after, "i-a").get("state", "open") == "open" and answer["steers"] == ["m-1"]
+
+
+def test_a_banner_note_falls_back_to_the_map_and_names_no_card(path):
+    """The round 3 shape: a note on a banner list entry has no element id, so the poll puts it on the first
+    map. The steer must not name the first free card of the round."""
+    doc = later_round(by_mark("i-old"), card("i-policy2"), card("i-policy3"))
+    doc["maps"] = [a_map("n-1", map_id="m-scope")]
+    prompts = [{"uid": "u1", "tag": "", "text": "#159", "prompt": "link the issue",
+                "selector": "header > div > div:nth-of-type(1) > ul > li:nth-of-type(1)"}]
+    _, ids, _ = engine._element_ids(doc)
+    raw = prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
+    assert raw == '[round R-2]\nm-scope — | link the issue (on: "#159")'
+    answer, after = ingested(path, doc, raw)
+    assert answer["signals"][0] | {"stamp": None} == {
+        "target": "m-scope", "item": None, "mark": None, "text": 'link the issue (on: "#159")',
+        "note": "N-2-m-scope", "steer": True, "stamp": None}
+    assert all("notes" not in item for r in after["rounds"] for item in r["items"])
+    assert check(path) == 0
+    html = page.build(after)
+    assert STEER_ROW in html and "Open card" not in html
+
+
+def test_a_steer_on_the_round_can_be_edited_and_deleted(path):
+    doc = one_round(card("i-a"))
+    doc["maps"] = [a_map("n-1")]
+    _, after = ingested(path, doc, "[round R-1]\nn-1 — | first")
+    answer, after = ingested(path, after, "[round R-1]\nN-1-n-1 edit | second")
+    assert steers_of(after, 1)[0]["text"] == "second" and answer["signals"][0]["item"] is None
+    answer, after = ingested(path, after, "[round R-1]\nN-1-n-1 delete")
+    assert steers_of(after, 1)[0]["deleted"] is True and answer["signals"][0]["state"] is None
+    assert check(path) == 0
+
+
+@pytest.mark.parametrize("bad, why", [
+    ({"id": "N-1-i-a"}, "must be N-1-n-1"),
+    ({"round": 2}, "must have round 1"),
+    ({"target": "i-a", "id": "N-1-i-a"}, "part of a card"),
+    ({"target": "nope", "id": "N-1-nope"}, "resolves to no element"),
+])
+def test_the_check_refuses_a_steer_that_breaks_its_rules(path, capsys, bad, why):
+    doc = one_round(card("i-a"))
+    doc["maps"] = [a_map("n-1")]
+    doc["rounds"][0]["notes"] = [{"id": "N-1-n-1", "round": 1, "target": "n-1", "text": "x", "deleted": False, **bad}]
+    assert check(save(path, doc)) == 1
+    assert why in capsys.readouterr().out
+
+
+def test_an_older_steer_kept_on_a_card_still_shows_in_the_session_table(path):
+    doc = one_round(card("i-a", notes=[{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "old", "deleted": False}]))
+    doc["maps"] = [a_map("n-1")]
+    assert check(save(path, doc)) == 0
+    html = page.build(doc)
+    assert html.index(OLD_STEER_ROW) < html.index(MAPS)
 
 
 # --- a map held in a card or a table cell counts as a map (D-43, D-48)
@@ -518,7 +577,7 @@ def test_a_note_on_a_held_map_node_is_accepted_as_a_steer(path, holder):
     doc = one_round(holder("i-a", "n-1", map_id="m-1"), card("i-b"))
     answer, after = ingested(path, doc, "[round R-1]\nn-1 — | steer\ni-a —\ni-b —")
     assert answer["steers"] == ["n-1"]
-    assert item_of(after, "i-a")["notes"][0]["target"] == "n-1"
+    assert steers_of(after, 1)[0]["target"] == "n-1" and "notes" not in item_of(after, "i-a")
     assert item_of(after, "i-a").get("state", "open") == "open"
     assert check(path) == 0
 
@@ -570,7 +629,7 @@ def test_a_map_held_in_a_map_label_counts_too(path, capsys):
 def test_a_settled_by_note_cannot_rest_on_a_steer_on_a_held_node(path):
     doc = one_round(held_in_card("i-a", "n-1", map_id="m-1"))
     _, after = ingested(path, doc, "[round R-1]\nn-1 — | steer")
-    reading(after, "i-a", "N-1-i-a")
+    reading(after, "i-a", "N-1-n-1")
     assert check(save(path, after)) == 1
 
 
@@ -591,8 +650,8 @@ def test_notes_on_every_kind_of_element_are_accepted(path):
     raw = "[round R-2]\ni-c — | card\nf-1 — | fragment\ng-1 — | diagram\ni-done — | settled\nn-1 — | node\ni-f —\ni-g —"
     answer, after = ingested(path, doc, raw)
     targets = {n["target"] for r in after["rounds"] for i in r["items"] for n in i.get("notes") or []}
-    assert targets == {"i-c", "f-1", "g-1", "i-done", "n-1"}
-    assert answer["steers"] == ["n-1"]
+    assert targets == {"i-c", "f-1", "g-1", "i-done"}
+    assert answer["steers"] == ["n-1"] and steers_of(after, 2)[0]["target"] == "n-1"
     assert check(path) == 0
 
 

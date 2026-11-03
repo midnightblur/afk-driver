@@ -492,7 +492,7 @@ async function main() {
     step('a note goes to needs-reading, with its text', state('c-note-only') === 'needs_reading' && itemOf(doc, 'c-note-only').notes[0].text === TRICKY);
     step('a note on a settled item reopens it', state('i-8-0') === 'open' && !itemOf(doc, 'i-8-0').settled);
     step('a reopen mark reopens it', state('i-8-1') === 'open');
-    const allNotes = doc.rounds.flatMap((r) => r.items).flatMap((i) => i.notes || []);
+    const allNotes = doc.rounds.flatMap((r) => [...r.items.flatMap((i) => i.notes || []), ...(r.notes || [])]);
     step('a note on a map node is a steer', allNotes.some((n) => n.target === 'n-3' && n.text === 'Look at this node first.') && (itemOf(doc, 'c-spare').state || 'open') === 'open');
     step('notes on a diagram and a freestyle fragment', allNotes.some((n) => n.target === 'd-graph') && allNotes.some((n) => n.target === 'd-free'));
     const note = (id) => allNotes.find((n) => n.id === id);

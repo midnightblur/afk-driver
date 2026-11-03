@@ -11,7 +11,7 @@ The raw response grammar here is the fake's own: one line per signal.
   <item id>: accept | sign | option:<letter> | reopen | changes
   <item id>: note: <text>
   <item id>: write-in: <text>
-  <map node id>: note: <text>     a steer
+  <map node id>: note: <text>     a steer, kept on the round
 The grill passes raw text through and never parses it.
 """
 
@@ -101,11 +101,10 @@ def ingest(doc, raw):
     by_item, signals = {}, []
     for target, signal in parse(raw):
         if target in nodes:
-            home = [i for _, i in items.values() if i.get("node") == target]
-            home[-1].setdefault("notes", []).append({
-                "id": f"N-{n}-{home[-1]['id']}", "round": n, "target": target,
+            current.setdefault("notes", []).append({
+                "id": f"N-{n}-{target}", "round": n, "target": target,
                 "text": signal.split("note: ", 1)[1], "deleted": False})
-            signals.append({"target": target, "note": True})
+            signals.append({"target": target, "item": None, "note": True, "steer": True})
             continue
         by_item.setdefault(target, []).append(signal)
         signals.append({"target": target, "signal": signal})

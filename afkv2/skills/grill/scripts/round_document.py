@@ -67,8 +67,40 @@ def current_round(doc):
     return next((rnd for rnd in doc.get("rounds") or [] if rnd.get("state") == "current"), None)
 
 
-def _live_notes(item):
-    return [note for note in item.get("notes") or [] if not note.get("deleted")]
+def _live_notes(holder):
+    """The notes of a card, or the steers of a round, that are not deleted."""
+    return [note for note in holder.get("notes") or [] if not note.get("deleted")]
+
+
+def _node_ids(component):
+    return [node.get("id") for node in (component.get("props") or {}).get("nodes") or []]
+
+
+def steer_targets(doc):
+    """The ids a steer names: every element of a listed map, and every node of a map held in a card."""
+    found = set()
+    for chart in doc.get("maps") or []:
+        for part in _components(chart):
+            found.add(part.get("id"))
+            found.update(_node_ids(part))
+    for rnd in doc.get("rounds") or []:
+        for item in rnd["items"]:
+            found.update(node for part in _components(item["body"]) if part.get("type") == "map"
+                         for node in _node_ids(part))
+    found.discard(None)
+    return found
+
+
+def card_notes(item, targets):
+    """The live notes on a card that are no steer. An older document keeps a steer on a card."""
+    return [note for note in _live_notes(item) if note.get("target") not in targets]
+
+
+def steers(doc):
+    """Every live steer, oldest round first: the round's steers, and the steers an older document kept on a card."""
+    targets = steer_targets(doc)
+    return [note for rnd in doc["rounds"] for note in
+            [*(n for item in rnd["items"] for n in _live_notes(item) if n.get("target") in targets), *_live_notes(rnd)]]
 
 
 def holds_sign_mark(item):
@@ -210,7 +242,7 @@ def returning(doc):
     current = current_round(doc)
     if not current:
         return []
-    steer_targets = {node.get("id") for node in _map_nodes(doc)}
+    targets = steer_targets(doc)
     reopened = {signal.get("item") for response in current.get("responses") or []
                 for signal in response.get("signals") or [] if signal.get("reopened")}
     found = []
@@ -218,8 +250,7 @@ def returning(doc):
         if rnd is current:
             continue
         for item in rnd["items"]:
-            noted = any(note.get("round") == current["n"] and note.get("target") not in steer_targets
-                        for note in _live_notes(item))
+            noted = any(note.get("round") == current["n"] for note in card_notes(item, targets))
             unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
             if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
@@ -421,21 +452,18 @@ def pending(doc):
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
-    nodes = {node.get("id") for node in _map_nodes(doc)}
+    targets = steer_targets(doc)
 
     def card(item):
-        return {"id": item["id"], "kind": item["kind"], "state": item["state"],
-                "notes": [note for note in _live_notes(item) if note.get("target") not in nodes]}
+        return {"id": item["id"], "kind": item["kind"], "state": item["state"], "notes": card_notes(item, targets)}
 
     responses = current.get("responses") or []
-    steers = [note for rnd in doc["rounds"] for item in rnd["items"] for note in _live_notes(item)
-              if note.get("target") in nodes]
     by_state = {state: [item["id"] for item in current["items"] if item["state"] == state]
                 for state in ("open", "blocked", "settled_by_mark", "settled_by_note")}
     return {"round": current["n"],
             "needs_reading": [card(item) for item in current["items"] if item["state"] == "needs_reading"],
             "returned": [card(item) for item in returning(doc)],
-            "steers": steers,
+            "steers": steers(doc),
             "signals": responses[-1].get("signals", []) if responses else [],
             **by_state}
 
