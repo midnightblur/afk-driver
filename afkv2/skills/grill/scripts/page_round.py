@@ -2,8 +2,10 @@
 
   present --doc D                 check, render, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
-  wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte
-  ingest  --doc D --raw-file F    ingest; deletes F and the shown record; answers what the round pass must read
+  wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte, and the host's prompts
+                                  to F.prompts.json, for audit
+  ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
+                                  round pass must read
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
 limit here: it returns when the human sends the round.
@@ -11,6 +13,7 @@ limit here: it returns when the human sends the round.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -44,7 +47,14 @@ def wait(doc, raw_file):
     path = Path(raw_file)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(raw.encode("utf-8"))
-    return {"ok": True, "raw_file": raw_file, "bytes": path.stat().st_size}
+    prompts = prompts_file(raw_file)
+    prompts.write_text(json.dumps(answer.get("prompts") or [], indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "raw_file": raw_file, "bytes": path.stat().st_size, "prompts_file": str(prompts)}
+
+
+def prompts_file(raw_file):
+    """The host's prompts of one answer, beside its raw file: the audit of how the raw text was built."""
+    return Path(f"{raw_file}.prompts.json")
 
 
 def ingest(doc, raw_file):
@@ -52,6 +62,7 @@ def ingest(doc, raw_file):
         raise Refusal("unreadable", f"no raw response at {raw_file}", 2, verb="ingest")
     _engine("ingest", doc, "--raw-file", raw_file)
     Path(raw_file).unlink()
+    prompts_file(raw_file).unlink(missing_ok=True)
     shown_record(doc).unlink(missing_ok=True)
     return {"ok": True, **pending(read_json(doc))}
 

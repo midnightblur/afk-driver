@@ -70,7 +70,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
 6. **Wait for the answer.** The answer reaches you with no chat message from the human.
 
-   **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. Do other work or end your response until then.
+   **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. The host's prompts, from which the engine built that text, are in `<raw file>.prompts.json`. Do other work or end your response until then.
 
    ```sh step=wait
    <python> "<this skill's folder>/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"

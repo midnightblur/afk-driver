@@ -17,6 +17,7 @@ for folder in (PLUGIN_ROOT / "scripts", PLUGIN_ROOT / "engine"):
 
 from afkv2_config import Refusal, data_folder  # noqa: E402
 
+import engine  # noqa: E402
 import launcher  # noqa: E402
 
 WAIT_SECONDS = 3600
@@ -25,8 +26,18 @@ RETRY_SECONDS = 5
 FALLBACK = "After you send the page, write one chat message; the agent then polls the page."
 
 
+def _raw(detail: dict, document: str | None) -> str:
+    """The raw response of the prompts, read against the page document; the joined text without one."""
+    if document and detail.get("prompts"):
+        try:
+            return engine.poll_raw(document, detail["prompts"])
+        except (Refusal, KeyError, TypeError, AttributeError, StopIteration):
+            pass
+    return detail["raw"]
+
+
 def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.poll_status,
-                    sleep=time.sleep, clock=time.monotonic) -> tuple[str, str]:
+                    sleep=time.sleep, clock=time.monotonic, document: str | None = None) -> tuple[str, str]:
     """`(status, raw)`: status is feedback, or the reason the wait ended with no answer.
 
     Each poll is one slice: a host poll with a time limit sends no bytes until it answers, and
@@ -39,7 +50,7 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
             return "timeout", ""
         status, detail = poll(["poll", page, "--timeout-ms", str(min(remaining_ms, SLICE_MS))])
         if status == "feedback":
-            return status, detail["raw"]
+            return status, _raw(detail, document)
         if status in ("ended", "fallback", "no-session"):
             return status, ""
         if status != "waiting":
@@ -57,7 +68,7 @@ def main(stdin: str) -> str | None:
     record = launcher.read_waiting_record(folder, session)
     if record is None:
         return None
-    status, raw = wait_for_answer(record["page"])
+    status, raw = wait_for_answer(record["page"], document=record.get("document"))
     launcher.clear_waiting_record(folder, session)
     if status == "feedback":
         return json.dumps({"decision": "block", "reason": raw})

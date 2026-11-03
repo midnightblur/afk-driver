@@ -423,11 +423,14 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     raw = "i-scope: accept\ni-format: note: csv please, \"quoted\" é\n"
     world.raw.write_bytes(raw.encode("utf-8"))
     raw_file = Path(started["raw_file"])
-    world.run("wait", doc=started["doc"], raw_file=raw_file)
+    waited = world.run("wait", doc=started["doc"], raw_file=raw_file)
     assert raw_file.read_bytes() == raw.encode("utf-8")
+    prompts = Path(waited["prompts_file"])
+    assert prompts == Path(f"{raw_file}.prompts.json") and json.loads(prompts.read_text("utf-8"))[0]["prompt"] == raw
 
     pending = world.run("ingest", doc=started["doc"], raw_file=raw_file)
     assert not raw_file.exists(), "the raw text now lives in the document"
+    assert not prompts.exists(), "the audit copy goes with the raw file"
     assert [p["id"] for p in pending["needs_reading"]] == ["i-format"]
     assert pending["needs_reading"][0]["notes"][0]["text"] == "csv please, \"quoted\" é"
     assert pending["settled_by_mark"] == ["i-scope"]

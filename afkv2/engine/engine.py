@@ -6,6 +6,8 @@
     engine.py poll DOC
     engine.py ingest DOC --raw-file FILE
 
+Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`.
+
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -28,6 +30,7 @@ from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E
 
 import ingest  # noqa: E402
 import launcher  # noqa: E402
+import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 from schema import invariants  # noqa: E402
 from schema.validate import problems  # noqa: E402
@@ -303,8 +306,21 @@ def cmd_poll(args) -> dict:
         launcher.clear_waiting_record(data_folder(), thread)
     if status != "feedback":
         raise Refusal(f"page-{status.replace('_', '-')}", f"item page, field status: {status}: no answer to read")
-    return {"ok": True, "verb": "poll", "status": status, "raw": detail["raw"],
-            "prompts": detail["prompts"], "session_ended": detail["session_ended"]}
+    answer = {"ok": True, "verb": "poll", "status": status, "raw": detail["raw"],
+              "prompts": detail["prompts"], "session_ended": detail["session_ended"]}
+    try:
+        answer["raw"] = poll_raw(args.document, detail["prompts"])
+    except (Refusal, KeyError, TypeError, AttributeError, StopIteration) as problem:
+        # The host hands the prompts over once: keep them, with the joined text as the raw response.
+        answer["raw_warning"] = f"the document did not resolve the prompts ({problem}); raw is the prompt text joined"
+    return answer
+
+
+def poll_raw(document: str, prompts: list[dict]) -> str:
+    """The raw response that a poll's prompts make, read against the page document."""
+    _, doc = load_document(document)
+    _, ids, _ = _element_ids(doc)
+    return prompt_lines.raw_from_prompts(doc, prompts, ids)
 
 
 def _ingest(args) -> dict:

@@ -28,6 +28,7 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR, PLUGIN / "hooks"):
 import codex_stop  # noqa: E402
 import engine  # noqa: E402
 import launcher  # noqa: E402
+import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 from schema import invariants  # noqa: E402
 from shell import inject, page  # noqa: E402
@@ -951,22 +952,31 @@ def test_show_reports_a_host_error(repo, capsys, host):
     assert code == 1 and answer["error"]["code"] == "host-error" and "No active" in answer["error"]["reason"]
 
 
-def test_poll_returns_the_raw_response_verbatim(repo, capsys, host):
+def test_poll_passes_an_old_form_prompt_through_under_the_current_round(repo, capsys, host):
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
     code, answer = call(capsys, "poll", path)
     assert code == 0 and answer["ok"] is True and answer["status"] == "feedback"
-    assert answer["raw"] == launcher.parse_host_output(host_fixture("host-poll-feedback.txt"))["prompts"][0]["prompt"]
+    sent = launcher.parse_host_output(host_fixture("host-poll-feedback.txt"))["prompts"][0]["prompt"]
+    assert answer["raw"] == "[round R-2]\n" + sent.split("\n", 1)[1]
 
 
-def test_poll_joins_several_prompts_with_one_line_break(repo, capsys, host):
+def test_poll_puts_prompts_with_no_element_on_the_first_card_of_the_round(repo, capsys, host):
     _, outputs = host
     outputs["poll"] = (0, host_fixture("host-poll-two-prompts.txt"))
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
     answer = call(capsys, "poll", path)[1]
-    assert answer["raw"] == "first, with a comma\n- second\nline"
+    assert answer["raw"] == '[round R-2]\ni-new — | first, with a comma (on: "x")\n\n- second\nline'
     assert answer["session_ended"] is True and [p["tag"] for p in answer["prompts"]] == ["note", "choice"]
+
+
+def test_poll_keeps_the_joined_text_when_the_document_cannot_resolve_it(repo, capsys, host):
+    path = in_home(repo, two_rounds())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    path.write_text("{}", "utf-8")
+    answer = call(capsys, "poll", path)[1]
+    assert answer["ok"] is True and answer["raw"].startswith("[round R-1]") and "raw_warning" in answer
 
 
 @pytest.mark.parametrize("output, code_word", [
@@ -985,6 +995,86 @@ def test_poll_with_no_answer_is_refused_and_named(repo, capsys, host, output, co
 
 def test_poll_with_no_rendered_page_is_exit_2(repo, capsys, host):
     assert call(capsys, "poll", in_home(repo, two_rounds()))[0] == 2
+
+
+# --- poll: from the host's prompts to one raw response
+
+
+def prompt(words, selector="", tag="span", seen=""):
+    return {"uid": "1", "prompt": words, "selector": selector, "tag": tag, "text": seen}
+
+
+def mark(card, token):
+    data = '{"item": "%s", "mark": "%s"}' % (card, token)
+    return prompt(f"{card} {token}\n\nContext data:\n{data}", f"article#{card}", "afkv2-mark", f"{card} {token}")
+
+
+def noted_page():
+    doc = two_rounds()
+    doc["rounds"][1]["items"] = [item("i-new"), item("1x", "decided"), item("i-third")]
+    doc["rounds"][1]["items"][1]["body"] = text("Body", id="1x-body")
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    return doc
+
+
+def raw_of(doc, *prompts):
+    _, ids, _ = engine._element_ids(doc)
+    return prompt_lines.raw_from_prompts(doc, list(prompts), ids)
+
+
+def test_a_mark_prompt_gives_its_card_line():
+    assert raw_of(noted_page(), mark("i-new", "accept"), mark("1x", "reopen")) == "[round R-2]\ni-new accept\n1x reopen"
+
+
+def test_an_annotation_resolves_to_the_element_of_its_selector():
+    raw = raw_of(noted_page(), prompt("Too broad.", "article#i-new > div:nth-of-type(1) > p", "p", "Body of i-new"),
+                 prompt("Why so?", "div#\\31 x-body > div > p", "p", "Body"),
+                 prompt("Wrong state.", "div#n-1 > span", "span", "open R-1"))
+    assert raw == "[round R-2]\ni-new — | Too broad.\n1x-body — | Why so?\nn-1 — | Wrong state."
+
+
+def test_a_selection_keeps_an_excerpt_of_its_text():
+    raw = raw_of(noted_page(), prompt("Not this part.", "div#i-new", "text", "word " * 40))
+    assert raw == '[round R-2]\ni-new — | Not this part. (on: "' + ("word " * 24)[:119] + '…")'
+
+
+def test_a_prompt_with_no_element_is_a_steer_on_the_first_map():
+    raw = raw_of(noted_page(), prompt("Look at billing first."), prompt("Here.", "main > section > p", "p", "Some text"))
+    assert raw == '[round R-2]\nm-1 — | Look at billing first.\n\nHere. (on: "Some text")'
+
+
+def test_a_mark_and_notes_on_one_card_merge_into_one_line():
+    raw = raw_of(noted_page(), prompt("First.", "article#i-new"), mark("i-new", "accept"), prompt("Second.", "h4#i-new"))
+    assert raw == "[round R-2]\ni-new accept | First.\n\nSecond."
+
+
+def test_an_old_form_prompt_passes_its_lines_through():
+    raw = raw_of(noted_page(), prompt("[round R-2]\ni-new accept | yes\ni-third —"), mark("1x", "accept"))
+    assert raw == "[round R-2]\ni-new accept | yes\ni-third —\n1x accept"
+
+
+def test_the_built_response_ingests(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    prompts = [mark("i-new", "accept"), mark("1x", "accept"), prompt("Wording.", "article#1x"),
+               prompt("Billing first.", "div#n-1")]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "joined", "prompts": prompts, "session_ended": False}))
+    raw_file = repo / "raw.txt"
+    raw_file.write_text(call(capsys, "poll", path)[1]["raw"], "utf-8")
+    code, ingested = call(capsys, "ingest", path, "--raw-file", raw_file)
+    assert code == 0 and ingested["settled_by_mark"] == ["i-new"] and ingested["needs_reading"] == ["1x"]
+    assert ingested["steers"] == ["n-1"]
+
+
+def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
+    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", "joined")
 
 
 # --- Codex: the waiting record and the Stop hook
@@ -1113,7 +1203,7 @@ def test_the_wait_ends_when_no_answer_can_come(status):
 def test_no_answer_gives_a_warning_that_names_the_fallback_and_no_block(data_home, monkeypatch):
     folder = data_home / "afkv2"
     launcher.write_waiting_record(folder, "t-1", "d.json", "p.html")
-    monkeypatch.setattr(codex_stop, "wait_for_answer", lambda page: ("timeout", ""))
+    monkeypatch.setattr(codex_stop, "wait_for_answer", lambda page, document=None: ("timeout", ""))
     out = json.loads(codex_stop.main(json.dumps({"session_id": "t-1"})))
     assert "decision" not in out and "one chat message" in out["systemMessage"]
     assert launcher.read_waiting_record(folder, "t-1") is None
