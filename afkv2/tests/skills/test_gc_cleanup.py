@@ -333,3 +333,14 @@ def test_a_change_head_this_clone_lacks_leaves_each_feature_tip_unchecked_as_a_r
     assert "1" * 12 in refusal["reason"] and "unchecked" in refusal["reason"]
     assert answer["change"]["head_sha"] == "1" * 40
     assert gc_target.read_target(repo.main, FEATURE)["receipt"] == answer["receipt"]
+
+
+def test_a_leftover_gc_removing_folder_is_listed_under_its_worktree(repo, monkeypatch):
+    merged(repo, monkeypatch)
+    leftover = Path(str(repo.run) + ".gc-removing")
+    (leftover / "half").mkdir(parents=True)
+    git(repo.main, "worktree", "remove", "--force", str(repo.run))
+    items = by_item(cleanup.list_step(repo.feature))
+    assert same(items["run worktree"]["leftover"], leftover) and items["run worktree"]["present"] is False
+    assert items["feature worktree"]["leftover"] is None
+    assert all("leftover" not in item for name, item in items.items() if name not in ("run worktree", "feature worktree"))

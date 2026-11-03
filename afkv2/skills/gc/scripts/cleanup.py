@@ -19,6 +19,7 @@ from tracker.envelope import Refusal  # noqa: E402
 
 import gc_checks  # noqa: E402
 import gc_target  # noqa: E402
+from folder_remove import REMOVING_SUFFIX  # noqa: E402
 
 GIT_LIMIT = 60
 STATES = ("listed", "waiting")
@@ -93,7 +94,9 @@ def _listing(folder, branch):
     for ident, item, when in ITEMS:
         entry = {"id": ident, "item": item, "name": names[item], "when": when}
         if item in WORKTREES:
-            entry.update(present=not clean[item]["absent"], tip=None, link=None, ignored=clean[item]["ignored"])
+            leftover = Path(names[item] + REMOVING_SUFFIX)
+            entry.update(present=not clean[item]["absent"], tip=None, link=None, ignored=clean[item]["ignored"],
+                         leftover=str(leftover) if leftover.is_dir() else None)
         else:
             commit = tips["tips"][item]
             entry.update(present=bool(commit), tip=commit, link=commit_link(base, commit) if held.get(item) else None)
