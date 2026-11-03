@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -10,9 +11,11 @@ import pytest
 AFKV2 = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(AFKV2 / "skills" / "gc" / "scripts"))
+sys.path.insert(0, str(AFKV2 / "ports"))
 
 import gc_target  # noqa: E402
 from gc_repo import FEATURE, build_gc_repo, git  # noqa: E402
+from tracker.envelope import Refusal  # noqa: E402
 
 
 @pytest.fixture
@@ -37,3 +40,59 @@ def test_the_target_is_one_file_in_gits_common_folder_from_every_checkout(repo):
 def test_the_file_name_encodes_each_unsafe_character_and_decodes_back(branch, stem):
     assert gc_target.encode_branch(branch) == stem
     assert gc_target.decode_branch(stem) == branch
+
+
+def a_target(repo, **fields):
+    change = {"number": 7, "url": "https://forge.test/c/7", "state": "merged", "head_sha": "a" * 40, "target": "main"}
+    return gc_target.new_target(FEATURE, str(repo.feature), change, {"run worktree": "b" * 40}, "c" * 64, **fields)
+
+
+def test_a_new_target_holds_every_field_with_its_default(repo):
+    target = a_target(repo)
+    assert list(target) == ["schema", "feature_branch", "feature_worktree", "run_branch", "run_worktree", "remote",
+                            "change", "tips", "receipt", "state", "left", "listed_at"]
+    assert target["schema"] == "afkv2.gc/0"
+    assert target["run_branch"] == FEATURE + "-run"
+    assert target["run_worktree"] == str(repo.feature) + "-run"
+    assert (target["remote"], target["state"], target["left"]) == ("origin", "listed", [])
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", target["listed_at"])
+    assert a_target(repo, state="waiting", left=["remote feature branch"])["state"] == "waiting"
+
+
+def test_a_written_target_reads_back_from_every_checkout_and_leaves_git_status_clean(repo):
+    target = a_target(repo)
+    path = gc_target.write_target(repo.feature, target)
+    assert path == gc_target.target_path(repo.main, FEATURE)
+    for checkout in (repo.main, repo.feature, repo.run):
+        assert gc_target.read_target(checkout, FEATURE) == target
+        assert git(checkout, "status", "--short", "--untracked-files=all") == ""
+    assert [item.name for item in path.parent.iterdir()] == [path.name]
+
+
+def test_an_absent_target_reads_as_none(repo):
+    assert gc_target.read_target(repo.feature, FEATURE) is None
+
+
+@pytest.mark.parametrize("text", ['{"schema": "afkv2.gc/9"}', "not json", "[1]", '{"schema": "afkv2.gc/0"}'])
+def test_an_unknown_schema_or_a_broken_file_refuses_bad_target(repo, text):
+    path = gc_target.target_path(repo.feature, FEATURE)
+    path.parent.mkdir(parents=True)
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(Refusal) as refused:
+        gc_target.read_target(repo.feature, FEATURE)
+    assert refused.value.code == "bad-target"
+
+
+def test_a_write_replaces_the_file_whole_or_not_at_all(repo, monkeypatch):
+    first = a_target(repo)
+    gc_target.write_target(repo.feature, first)
+
+    def broken_replace(source, destination):
+        raise OSError("the replace failed")
+
+    monkeypatch.setattr(gc_target.os, "replace", broken_replace)
+    with pytest.raises(OSError):
+        gc_target.write_target(repo.feature, a_target(repo, state="waiting"))
+    path = gc_target.target_path(repo.feature, FEATURE)
+    assert gc_target.read_target(repo.feature, FEATURE) == first
+    assert [item.name for item in path.parent.iterdir()] == [path.name]

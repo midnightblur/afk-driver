@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
@@ -12,7 +16,13 @@ sys.path.insert(0, str(PLUGIN / "ports"))
 
 from tracker.envelope import Refusal  # noqa: E402
 
+sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
+from start_gate import RUN_SUFFIX  # noqa: E402
+
 FOLDER = "afkv2-gc"
+SCHEMA = "afkv2.gc/0"
+FIELDS = ("schema", "feature_branch", "feature_worktree", "run_branch", "run_worktree", "remote",
+          "change", "tips", "receipt", "state", "left", "listed_at")
 GIT_LIMIT = 60
 UNSAFE = frozenset('\\/:*?"<>|%')
 ENCODED = re.compile(r"%([0-9A-F]{2})")
@@ -39,3 +49,49 @@ def common_dir(repo):
 
 def target_path(repo, branch):
     return common_dir(repo) / FOLDER / f"{encode_branch(branch)}.json"
+
+
+def new_target(feature_branch, feature_worktree, change, tips, receipt, **fields):
+    """A target with every field; `fields` overrides a default (run_branch, run_worktree, remote, state, left, listed_at)."""
+    target = {"schema": SCHEMA, "feature_branch": feature_branch, "feature_worktree": str(feature_worktree),
+              "run_branch": feature_branch + RUN_SUFFIX, "run_worktree": str(feature_worktree) + RUN_SUFFIX,
+              "remote": "origin", "change": change, "tips": tips, "receipt": receipt, "state": "listed", "left": [],
+              "listed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    unknown = sorted(set(fields) - set(FIELDS))
+    if unknown:
+        raise ValueError(f"a target has no field {', '.join(unknown)}")
+    target.update(fields)
+    return target
+
+
+def read_target(repo, branch):
+    """The stored target of `branch`, or None when there is none."""
+    path = target_path(repo, branch)
+    try:
+        target = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        raise Refusal("bad-target", f"cannot read {path}: {error}; list again") from None
+    if not isinstance(target, dict) or target.get("schema") != SCHEMA:
+        found = target.get("schema") if isinstance(target, dict) else None
+        raise Refusal("bad-target", f"{path} has schema {found!r}, not {SCHEMA}; list again")
+    missing = [field for field in FIELDS if field not in target]
+    if missing:
+        raise Refusal("bad-target", f"{path} lacks {', '.join(missing)}; list again")
+    return target
+
+
+def write_target(repo, target):
+    """Write to a temporary file beside the target, then replace the target in one step. Answer the target path."""
+    path = target_path(repo, target["feature_branch"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.stem + ".", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(target, stream, indent=1, ensure_ascii=False)
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+    return path
