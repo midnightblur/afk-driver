@@ -9,8 +9,8 @@ After a piece of work merges, its run branch, run worktree, feature worktree and
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 2 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 5 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | — |
