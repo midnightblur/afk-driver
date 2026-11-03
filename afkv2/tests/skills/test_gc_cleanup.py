@@ -177,3 +177,33 @@ def test_an_absent_branch_or_worktree_reads_absent(repo, monkeypatch):
     assert items["remote feature branch"]["link"] is None
     assert items["run worktree"]["present"] is False
     assert items["run branch"]["present"] is True
+
+
+def refused(code, step, *args, **kwargs):
+    with pytest.raises(cleanup.Refusal) as caught:
+        step(*args, **kwargs)
+    assert caught.value.code == code
+    return caught.value
+
+
+@pytest.mark.parametrize("where", ["main", "run", "detached", "subfolder of main"])
+def test_list_outside_a_feature_worktree_refuses_not_feature_worktree_and_writes_no_target(repo, monkeypatch, where):
+    fake = merged(repo, monkeypatch)
+    folder = {"main": repo.main, "run": repo.run, "detached": repo.feature, "subfolder of main": Path(repo.main) / "sub"}[where]
+    if where == "detached":
+        git(repo.feature, "checkout", "-q", "--detach")
+    if where == "subfolder of main":
+        folder.mkdir()
+    refusal = refused("not-feature-worktree", cleanup.list_step, folder)
+    assert str(folder) in refusal.reason or Path(folder).name in refusal.reason
+    assert fake.calls == []
+    for branch in (FEATURE, RUN, "HEAD", "main"):
+        assert gc_target.read_target(repo.main, branch) is None
+
+
+def test_list_from_a_subfolder_of_the_feature_worktree_fixes_the_worktree_itself(repo, monkeypatch):
+    merged(repo, monkeypatch)
+    sub = Path(repo.feature) / "sub"
+    sub.mkdir()
+    answer = cleanup.list_step(sub)
+    assert same(answer["feature_worktree"], repo.feature)

@@ -83,12 +83,28 @@ def _listing(folder, branch):
     return listing, tips["tips"]
 
 
+def feature_worktree(cwd):
+    """(folder, branch) of the linked worktree `cwd` is in. The main checkout, no branch, or a run branch refuses."""
+    def refuse(why):
+        return Refusal("not-feature-worktree", f"{cwd} {why}; run gc list in the feature worktree, on its feature branch")
+
+    code, out, error = _git(cwd, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+    if code != 0:
+        raise refuse(f"is not in a git worktree: {error}")
+    top, git_dir, common = out.splitlines()
+    if Path(git_dir).resolve() == Path(common).resolve():
+        raise refuse("is in the main checkout")
+    code, branch, _ = _git(cwd, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if code != 0 or not branch:
+        raise refuse("has no branch checked out")
+    if branch.endswith(gc_target.RUN_SUFFIX):
+        raise refuse(f"is on the run branch {branch}")
+    return Path(top), branch
+
+
 def list_step(cwd):
     """List in the feature worktree: run every check, write the target as `listed`, and answer the list with its receipt."""
-    code, top, error = _git(cwd, "rev-parse", "--show-toplevel", "--abbrev-ref", "HEAD")
-    if code != 0:
-        raise Refusal("git-failed", f"git rev-parse in {cwd}: {error}")
-    folder, branch = Path(top.splitlines()[0]), top.splitlines()[1]
+    folder, branch = feature_worktree(cwd)
     listing, tips = _listing(folder, branch)
     listing["receipt"] = gc_target.receipt_of(listing)
     gc_target.write_target(folder, gc_target.new_target(branch, str(folder), listing["change"], tips, listing["receipt"]))
