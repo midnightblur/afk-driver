@@ -29,6 +29,8 @@ GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
 ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
 TICKET_CARD = "i-ticket"
+TICKET_TITLE = "What the ticket says"
+FOLD_OVER = 600
 
 
 def _components(component):
@@ -150,8 +152,15 @@ def _item(raw, known_ids, degraded):
 
 
 def _ticket_card(ticket):
-    """The info card that shows what the ticket says, comments and links included."""
-    children = [_text(ticket.get("description") or "(no description)", f"{TICKET_CARD}-description")]
+    """The info card that shows what the ticket says, comments and links included.
+
+    The description is Markdown, folded when it is long. A linked ticket shows its title and status only.
+    """
+    description = _text(ticket.get("description") or "(no description)", f"{TICKET_CARD}-description")
+    description["props"]["markdown"] = True
+    if len(description["props"]["text"]) > FOLD_OVER:
+        description["fold"] = "The ticket text"
+    children = [description]
     if ticket.get("comments"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-comments", "props": {
             "columns": ["Author", "Comment"],
@@ -160,14 +169,14 @@ def _ticket_card(ticket):
         children.append(_text(f"{ticket['comments_cut']} more comments were not returned.", f"{TICKET_CARD}-cut"))
     if ticket.get("links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-links", "props": {
-            "columns": ["Relation", "Ticket", "Title", "Status", "Description"],
+            "columns": ["Relation", "Ticket", "Title", "Status"],
             "rows": [[link.get("relation") or "", link.get("key") or "", link.get("title") or "",
-                      link.get("status") or "", link.get("description") or ""] for link in ticket["links"]]}})
+                      link.get("status") or ""] for link in ticket["links"]]}})
     if ticket.get("unread_links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-unread", "props": {
             "columns": ["Ticket not read", "Reason"],
             "rows": [[link.get("key") or "", link.get("reason") or ""] for link in ticket["unread_links"]]}})
-    return {"id": TICKET_CARD, "kind": "info", "state": "open", "body": {
+    return {"id": TICKET_CARD, "kind": "info", "title": TICKET_TITLE, "state": "open", "body": {
         "type": "text", "id": f"{TICKET_CARD}-title",
         "props": {"text": f"{ticket['key']}: {ticket.get('title') or ''}"}, "children": children}}
 
