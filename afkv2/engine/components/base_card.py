@@ -47,10 +47,13 @@ def debate_options(item):
 
 
 def _choice(item_id, options):
+    """`data-lavish-question` makes lavish keep the picked radio in its tab store and set it again after a
+    reload, beside the queued mark, which lavish keeps in the same store."""
     rows = "".join(
         f'<label class="afkv2-opt"><input type="radio" name="choice:{escape(item_id)}" value="{escape(token)}">'
         f"<span>{escape(label)}</span></label>" for token, label in options)
-    return f'<fieldset class="afkv2-choice" data-afkv2-input="choice"><legend>Your mark</legend>{rows}</fieldset>'
+    return (f'<fieldset class="afkv2-choice" data-afkv2-input="choice" data-lavish-question="{escape(item_id)}">'
+            f'<legend>Your mark</legend>{rows}</fieldset>')
 
 
 def _answer(item, state):
