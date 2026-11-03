@@ -14,7 +14,7 @@ def _node_parts(node):
     state = node["state"]
     above = (f'<span class="afkv2-node-head"><span class="afkv2-node-state">{STATE_WORDS[state]}</span> '
              f'<span class="afkv2-node-round">R-{node["round"]}</span></span>')
-    return f"afkv2-node--{state}", f' data-afkv2-element="{escape(node["id"])}"', above
+    return f"afkv2-node--{state}", f' id="{escape(node["id"])}" data-afkv2-element="{escape(node["id"])}"', above
 
 
 def render_map(props, children):

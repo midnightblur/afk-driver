@@ -224,6 +224,25 @@ def test_ids_are_unique_across_items_and_components(capsys, tmp_path):
     assert "not unique" in refused(capsys, tmp_path, doc)["reason"]
 
 
+@pytest.mark.parametrize("element", ["afkv2-send", "lavish-cursor-style"])
+def test_an_id_with_a_prefix_of_the_page_or_the_host_is_refused(capsys, tmp_path, element):
+    doc = document()
+    doc["rounds"][0]["items"][0]["body"]["id"] = element
+    error = refused(capsys, tmp_path, doc)
+    assert error["code"] == "invariant" and f"{element!r} starts with a prefix" in error["reason"]
+
+
+def test_every_element_id_is_also_its_html_id():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("x", id="c-body")
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    html = page.build(doc)
+    assert holds(html, 'id="i-new" data-afkv2-item="i-new" data-afkv2-element="i-new"',
+                 'id="c-body" data-afkv2-element="c-body"', 'id="m-1" data-afkv2-element="m-1"',
+                 'id="n-1" data-afkv2-element="n-1"')
+    assert lacks(html, 'id="afkv2-i-')
+
+
 def by_note(**settled):
     note = {"id": "N-1-i-n", "round": 1, "target": "i-n", "text": "Picks CSV.", "deleted": False}
     value = {"by": "note", "round": 1, "signal": "N-1-i-n", "reading": "Picks CSV.", **settled}
@@ -631,7 +650,7 @@ def test_a_round_chip_marks_every_item_that_needs_the_human_in_that_round():
                                                               settled={"by": "mark", "round": 2, "signal": "accept"})]
     html = page.build(doc)
     def card(item_id):
-        start = position(html, f'id="afkv2-i-{item_id}"')
+        start = position(html, f'id="{item_id}" data-afkv2-item=')
         return html[start:html.find("</article>", start)]
 
     assert "R-2</span>" in card("i-new")

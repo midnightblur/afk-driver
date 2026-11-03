@@ -83,7 +83,7 @@ def render_card(props, children):
     item_id = escape(item["id"])
     heading = (f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id} '
                f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span></h4>')
-    return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="afkv2-i-{item_id}" '
+    return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="{item_id}" '
             f'data-afkv2-item="{item_id}" data-afkv2-element="{item_id}" '
             f'data-afkv2-state="{RAIL_STATES.get(state, "open")}" data-afkv2-point="{state}"{required} '
             f'style="--afkv2-round: {escape(props["colour"])}">'
