@@ -2,12 +2,14 @@
 
 No record: no output. Answer: `{"decision": "block", "reason": <raw response>}`. No answer within
 the wait: a warning that names the fallback, no block. This hook never fails the agent's stop.
-Side questions from the page are asked in the Codex pane with `/side` (`side_question.py`); their
-answers are not read until the owner's live check defines the markers, so the page says so.
+While it waits, the side-question listener (`btw_listener.py`) takes the page's btw? questions. Each is
+asked in the Codex pane with `/side` (`side_question.py`); its answer is not read until the owner's live
+check defines the markers, so the page says so.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -21,9 +23,11 @@ for folder in (PLUGIN_ROOT / "scripts", PLUGIN_ROOT / "engine"):
 
 from afkv2_config import Refusal, data_folder  # noqa: E402
 
+import btw_listener  # noqa: E402
 import engine  # noqa: E402
 import launcher  # noqa: E402
 import prompt_lines  # noqa: E402
+import side_question  # noqa: E402
 
 WAIT_SECONDS = 3600
 SLICE_MS = 60_000
@@ -32,20 +36,19 @@ FALLBACK = "After you send the page, write one chat message; the agent then poll
 NO_PANE = "Not answered: Codex does not run in a herdr pane. Ask it in the Codex chat."
 
 
-def _raw(detail: dict, document: str | None, round_prompts: list[dict], side: bool) -> str:
-    """The raw response of the round's prompts, read against the page document; the joined text without one."""
+def _raw(document: str | None, round_prompts: list[dict]) -> str:
+    """The raw response of the round's prompts, read against the page document; their joined text without one.
+    A kept send holds no `raw` field, so the joined text comes from the prompts."""
     if document and round_prompts:
         try:
             return engine.poll_raw(document, round_prompts)
         except (Refusal, KeyError, TypeError, AttributeError, StopIteration):
             pass
-    return "\n".join(str(p.get("prompt", "")) for p in round_prompts) if side else detail["raw"]
+    return "\n".join(str(p.get("prompt", "")) for p in round_prompts)
 
 
 def _side_answers(questions: list[str], ask) -> str:
     """Markdown of the answers to the side questions, asked in the agent's Codex pane."""
-    import side_question
-
     ask = ask or (lambda question: side_question.ask(question, harness="codex"))
     results = [ask(question) for question in questions]
     for result in results:
@@ -71,6 +74,7 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
     A send of side questions only is answered on the page and the wait goes on; the agent never
     sees it. A side question sent with the round is answered on the page before the round returns.
     A round send is kept beside the document until ingest (`engine.keep_delivery`); a kept send answers first.
+    A send that ends the session with no round prompt is `ended`.
     """
     deadline = clock() + timeout_s
     pending = None
@@ -92,6 +96,8 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
             pending = None
         if status == "feedback":
             round_prompts, questions = prompt_lines.split_side_questions(detail.get("prompts") or [])
+            if not round_prompts and detail.get("session_ended"):
+                return "ended", ""
             if questions:
                 text = _side_answers(questions, ask)
                 if not round_prompts and not detail.get("session_ended"):
@@ -102,7 +108,7 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
                     reply(["reply", page, "--agent-reply-file", shown])
                 finally:
                     os.unlink(shown)
-            return status, _raw(detail, document, round_prompts, bool(questions))
+            return status, _raw(document, round_prompts)
         if status in ("ended", "fallback", "no-session"):
             return status, ""
         if status != "waiting":
@@ -120,7 +126,10 @@ def main(stdin: str) -> str | None:
     record = launcher.read_waiting_record(folder, session)
     if record is None:
         return None
-    status, raw = wait_for_answer(record["page"], document=record.get("document"))
+    document = record.get("document")
+    listener = btw_listener.Listener(document, lambda question: side_question.ask(question, harness="codex"))
+    with listener if document else contextlib.nullcontext():
+        status, raw = wait_for_answer(record["page"], document=document)
     launcher.clear_waiting_record(folder, session)
     if status == "feedback":
         return json.dumps({"decision": "block", "reason": raw})

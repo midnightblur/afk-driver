@@ -646,10 +646,18 @@ def test_a_title_over_90_characters_is_refused(capsys, tmp_path):
 def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
     html = registry.render_component(text("Long words", id="c-long", fold="The <full> text"))
     wrapper = '<div id="c-long" data-afkv2-element="c-long">'
-    assert html.startswith(wrapper + FOLD_OPEN + '<summary>The &lt;full&gt; text</summary>')
+    keyed = '<details class="afkv2-fold" data-afkv2-fold="fold-c-long">'
+    assert html.startswith(wrapper + keyed + '<summary>The &lt;full&gt; text</summary>')
     assert FOLD_OPENED not in html and "Long words" in html
     table = {"type": "table", "fold": "Rows", "props": {"columns": ["A"], "rows": [["1"]]}}
     assert registry.validate(table) == [] and registry.render_component(table).startswith(FOLD_OPEN)
+
+
+def test_the_page_keeps_a_component_fold_open_through_a_reload():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("Long words", id="c-long", fold="More")
+    html = page.build(doc)
+    assert holds(html, 'data-afkv2-fold="fold-c-long"', "querySelectorAll('details[' + ATTR + ']')")
 
 
 def test_an_empty_fold_label_is_refused(capsys, tmp_path):
@@ -1410,18 +1418,50 @@ def test_a_round_send_is_kept_on_disk_until_ingest_reads_it(repo, capsys, monkey
     assert not kept.exists()
 
 
-def test_a_failed_ingest_keeps_the_send_and_side_questions_alone_are_not_kept(repo, capsys, monkeypatch):
+def test_a_kept_send_holds_no_side_question_so_a_replay_asks_none(repo, capsys, monkeypatch):
     path = in_home(repo, noted_page())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
-    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
-        "raw": "x", "prompts": [side_question("Why?")], "session_ended": False}))
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?"), mark("i-new", "accept")],
+                           "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    assert call(capsys, "poll", path)[1]["btw"] == ["Why?"]
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    again = call(capsys, "poll", path)[1]
+    assert again["btw"] == [] and again["raw"] == "[round R-2]\ni-new accept"
+
+
+def test_a_refused_ingest_sets_the_send_aside_and_the_next_poll_reads_the_host(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?")], "session_ended": False}),
+             ("feedback", {"raw": "x", "prompts": [mark("1x", "accept")], "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
     call(capsys, "poll", path)
-    assert not engine.delivery_file(str(path)).exists()
+    assert not engine.delivery_file(str(path)).exists(), "a send of side questions only is not kept"
     engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept")]})
     raw = repo / "raw.txt"
     raw.write_text("not the grammar", "utf-8")
-    assert call(capsys, "ingest", path, "--raw-file", raw)[0] != 0
-    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    raw_missing = repo / "none.txt"
+    assert call(capsys, "ingest", path, "--raw-file", raw_missing)[0] == 2
+    assert engine.kept_delivery(str(path)) is not None, "an unreadable raw file keeps the send"
+    code, refused = call(capsys, "ingest", path, "--raw-file", raw)
+    assert code == 1 and refused["error"]["code"] == "bad-response" and "set aside" in refused["error"]["reason"]
+    assert not engine.delivery_file(str(path)).exists()
+    aside = list(path.parent.glob("grill-s1.refused.*.json"))
+    assert len(aside) == 1 and json.loads(aside[0].read_text("utf-8"))["prompts"] == [mark("i-new", "accept")]
+    assert call(capsys, "render", path)[0] == 0, "the side file is no second document of the session"
+    assert call(capsys, "poll", path)[1]["raw"] == "[round R-2]\n1x accept" and sends == []
+
+
+def test_a_send_that_only_ends_the_session_is_no_round_answer(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "", "prompts": [side_question("Why?")], "session_ended": True}))
+    assert call(capsys, "poll", path)[1]["error"]["code"] == "page-ended"
+    assert not engine.delivery_file(str(path)).exists()
+    engine.delivery_file(str(path)).write_text(json.dumps({"prompts": [], "session_ended": True}), "utf-8")
+    assert engine.kept_delivery(str(path)) is None and not engine.delivery_file(str(path)).exists()
 
 
 def test_a_send_of_side_questions_only_has_no_round_prompt(repo, capsys, monkeypatch):
@@ -1490,12 +1530,11 @@ def test_without_a_pane_the_stop_hook_says_so_on_the_page():
     assert codex_stop._side_answers(["Why?"], ask) == f"**btw:** Why?\n\n{codex_stop.NO_PANE}"
 
 
-def test_the_page_has_a_side_question_control_with_one_send():
-    html = page.build(two_rounds())
+def test_the_page_has_a_side_question_control_with_one_ask():
+    html = page.build(two_rounds(), (43001, "abc"))
     script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
-    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {")
-    assert holds(script, f"var BTW_TAG = '{prompt_lines.BTW_TAG}';", "bridge.queuePrompt(text, { tag: BTW_TAG",
-                 "bridge.sendQueuedPrompts();", "data-lavish-ui", "setTimeout(build, 250)")
+    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {", 'data-afkv2-btw-port="43001"')
+    assert holds(script, "data-lavish-ui", "fetch(url, { method: 'POST'") and lacks(script, "queuePrompt")
     assert script.count("createElement('button')") == 2 and "Ask side agent" not in script
 
 
@@ -1506,7 +1545,31 @@ def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
         return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
 
     assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
-    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", "joined")
+    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", mark("i-new", "accept")["prompt"])
+
+
+def test_a_kept_send_the_document_cannot_resolve_hands_back_the_prompt_text(repo, monkeypatch):
+    path = in_home(repo, noted_page())
+    engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept"), prompt("A note.", "div#gone")]})
+
+    def unresolved(document, prompts):
+        raise engine.Refusal("unreadable", "the document moved")
+
+    def no_poll(argv):
+        raise AssertionError("a kept send answers without a host poll")
+
+    monkeypatch.setattr(engine, "poll_raw", unresolved)
+    assert WAIT_FOR_ANSWER("p.html", poll=no_poll, document=str(path)) == ("feedback", mark("i-new", "accept")["prompt"] + "\nA note.")
+
+
+def test_the_stop_hook_ends_on_a_send_that_only_ends_the_session(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "", "prompts": [], "session_ended": True}
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("ended", "")
+    assert engine.kept_delivery(str(path)) is None
 
 
 def test_the_stop_hook_keeps_a_round_send_and_a_kept_send_answers_first(repo):
@@ -1585,7 +1648,7 @@ def test_with_a_record_and_a_queued_answer_the_hook_blocks_with_the_raw_text(tmp
 
     def poll(argv):
         seen.append(argv)
-        return "feedback", {"raw": raw}
+        return "feedback", {"raw": raw, "prompts": [{"prompt": raw}]}
 
     monkeypatch.setattr(codex_stop, "wait_for_answer", partial(WAIT_FOR_ANSWER, poll=poll))
     out = json.loads(codex_stop.main(json.dumps({"session_id": "t-1"})))
@@ -1617,7 +1680,8 @@ def scripted_poll(clock, statuses, step=60):
         seen.append(argv)
         clock.now += step
         status = remaining.pop(0) if remaining else "waiting"
-        return status, {"raw": "answer" if status == "feedback" else "", "code": None}
+        answer = "answer" if status == "feedback" else ""
+        return status, {"raw": answer, "prompts": [{"prompt": answer}] if answer else [], "code": None}
 
     poll.seen = seen
     return poll

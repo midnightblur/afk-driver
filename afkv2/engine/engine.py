@@ -10,7 +10,8 @@
 Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`,
 and lists the side questions of the send apart, in `btw`. A reply file holds Markdown the page shows.
 Poll keeps a round send in `<DOC stem>.delivery.json` before it reads it; a later poll answers from that
-file, and a successful ingest deletes it.
+file, and a successful ingest deletes it. An ingest that refuses the response moves the file to
+`<DOC stem>.refused.<stamp>.json`.
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -23,6 +24,7 @@ import hashlib
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ENGINE_DIR = Path(__file__).resolve().parent
@@ -32,10 +34,12 @@ for folder in (ENGINE_DIR.parent / "scripts", ENGINE_DIR):
 
 from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E402
 
+import btw_listener  # noqa: E402
 import ingest  # noqa: E402
 import launcher  # noqa: E402
 import prompt_lines  # noqa: E402
 import registry  # noqa: E402
+import side_question  # noqa: E402
 from schema import invariants  # noqa: E402
 from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
@@ -255,7 +259,7 @@ def _render(path: str) -> tuple[dict, Path, Path]:
     document = _require_home(path, doc)
     data_folder()
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc), inject.load_dictionary(html_path))
+    html = inject.inject(page.build(doc, btw_listener.address(document)), inject.load_dictionary(html_path))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
     return doc, document, html_path
@@ -332,23 +336,29 @@ def delivery_file(document: str) -> Path:
 
 
 def kept_delivery(document: str) -> dict | None:
-    """The kept send `{"prompts", "session_ended"}`, or None when no send waits."""
+    """The kept send `{"prompts", "session_ended"}`, or None when no round answer waits."""
     try:
         kept = json.loads(delivery_file(document).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return kept if isinstance(kept, dict) and isinstance(kept.get("prompts"), list) else None
+    if not isinstance(kept, dict) or not isinstance(kept.get("prompts"), list):
+        return None
+    if not prompt_lines.split_side_questions(kept["prompts"])[0]:
+        delivery_file(document).unlink(missing_ok=True)  # no round answer: nothing for ingest
+        return None
+    return kept
 
 
 def keep_delivery(document: str, detail: dict) -> bool:
-    """Keep a send that holds a round answer or the end of the session; True when kept.
+    """Keep a send that holds a round answer; True when kept.
 
     The host forgets a send once it hands it over, so the send must be on disk before anything else
-    reads it. A send of side questions only is not kept: the lavish panel keeps the question text."""
+    reads it. Only the round prompts are kept: the poll that took the send answers its side questions,
+    and a replay must not ask them again."""
     round_prompts, _ = prompt_lines.split_side_questions(detail.get("prompts") or [])
-    if not round_prompts and not detail.get("session_ended"):
+    if not round_prompts:
         return False
-    kept = {"prompts": detail.get("prompts") or [], "session_ended": detail.get("session_ended") is True}
+    kept = {"prompts": round_prompts, "session_ended": detail.get("session_ended") is True}
     inject.write_if_changed(delivery_file(document), json.dumps(kept, indent=2, ensure_ascii=False).encode("utf-8"))
     return True
 
@@ -358,14 +368,20 @@ def cmd_poll(args) -> dict:
 
     A kept send that ingest has not read answers first, with no host poll. `btw` holds the side
     questions of the send; they never enter `raw`. `round_prompts` counts the prompts left for the
-    round: 0 means the send held side questions only."""
+    round: 0 means the send held side questions only. A send that ends the session with no round
+    prompt answers as `page-ended`. While the host poll waits, the side-question listener
+    (`btw_listener.py`) answers the page's btw? panel."""
     html_path = _shown_page(args.document)
     detail = kept_delivery(args.document)
     status = "feedback"
     if detail is None:
-        status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
+        with btw_listener.Listener(args.document, side_question.ask):
+            status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
         if status == "feedback":
             keep_delivery(args.document, detail)
+    if status == "feedback" and detail.get("session_ended") and not prompt_lines.split_side_questions(
+            detail.get("prompts") or [])[0]:
+        status = "ended"
     if status == "fallback":
         _raise_host_failure(detail["exit"], detail["reason"])
     if status in ("error", "no-session"):
@@ -395,10 +411,39 @@ def poll_raw(document: str, prompts: list[dict]) -> str:
     return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
 
 
+def set_aside_file(document: str, stamp: str) -> Path:
+    """Where a kept send that ingest refused goes: `<DOC stem>.refused.<stamp>.json`. The extra dots make it
+    a side file: no session picker and no duplicate check reads it as a page document."""
+    path = Path(document)
+    return path.with_name(f"{path.stem}.refused.{stamp}.json")
+
+
+def _set_aside(document: str, refusal: Refusal) -> Path | None:
+    """Move the kept send aside with the refusal, so the next poll reads the host; None when no send waits."""
+    kept = kept_delivery(document)
+    if kept is None:
+        return None
+    target = set_aside_file(document, datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ"))
+    record = {**kept, "refused": {"code": refusal.code, "reason": refusal.reason}}
+    inject.write_if_changed(target, json.dumps(record, indent=2, ensure_ascii=False).encode("utf-8"))
+    delivery_file(document).unlink(missing_ok=True)
+    return target
+
+
 def _ingest(args) -> dict:
-    """Ingest; the kept send goes only after the document holds the answer."""
-    answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed, elements=_element_ids,
-                               save_copy=_save_settled_copy_if_possible)
+    """Ingest; the kept send goes only after the document holds the answer.
+
+    A refusal of the response sets the kept send aside, with the human's answer in it: a refused send must
+    not answer every later poll. A refusal of the document or of an unreadable raw file keeps it."""
+    check_document(args.document)
+    try:
+        answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed,
+                                   elements=_element_ids, save_copy=_save_settled_copy_if_possible)
+    except Refusal as refusal:
+        aside = None if refusal.code == "unreadable" else _set_aside(args.document, refusal)
+        if aside is not None:
+            refusal.reason += f"; the send is set aside in {aside}, and the next poll reads the page"
+        raise
     delivery_file(args.document).unlink(missing_ok=True)
     return answer
 

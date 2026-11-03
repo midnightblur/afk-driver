@@ -70,7 +70,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
 
-6. **Wait for the answer.** The human picks a mark on each card, writes each note as a lavish annotation, and sends both with Send to Agent in the lavish panel. The answer reaches you with no chat message from the human. The engine keeps each round send beside `doc` until ingest. After a wait or a session that stopped, run the wait again: a kept send answers at once.
+6. **Wait for the answer.** The human picks a mark on each card, writes each note as a lavish annotation, and sends both with Send to Agent in the lavish panel. The answer reaches you with no chat message from the human. The engine keeps each round send beside `doc` until ingest. After a wait or a session that stopped, run the wait again: a kept send answers at once. An ingest that refuses the answer moves the kept send to the file its error names; the next wait reads the page.
 
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. The host's prompts, from which the engine built that text, are in `<raw file>.prompts.json`. Do other work or end your response until then.
 
@@ -80,7 +80,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send to Agent: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
 
-   **Side questions.** The page's btw? button sends a side question at once. The wait (or the Stop hook) asks it in your terminal pane and shows the answer on the page. A send of side questions only does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
+   **Side questions.** The page's btw? button sends only its question, at once, to the wait (or the Stop hook). The wait asks it in your terminal pane, and the page shows the answer. The marks the human queued stay queued. A side question does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
 
    ```sh step=reply
    <python> "<this skill's folder>/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"

@@ -60,6 +60,7 @@ Load the page of each component you use.
 Every component takes an open `style` field (any CSS) and nests inside any other.
 Every component also takes `fold`, a label: the page shows the component closed
 under that label, and the human opens it. Fold long text and secondary detail.
+Give a folded component an `id`: only then does an open fold stay open through a reload.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 
@@ -81,12 +82,12 @@ A point is the newest card and the cards it `carries` (`components/card.md`).
 You do not write these; the engine puts them on every page.
 
 - Copy bar, below the current round: copies the marks when the page has no lavish session.
-- btw? button, bottom left, shown only in a lavish session: a one-line side question and one Ask
-  button. Ask queues the question with the tag `afkv2-btw` and sends at once. lavish sends the whole
-  queue, so the marks and notes the human queued go with it; that round answer is valid. The question
-  never enters the round's raw response. The wait asks it in the agent's terminal pane (`/btw` on
-  Claude, `/side` on Codex, through herdr) and shows the answer on the page; the round stays open.
-  Engine module: `engine/side_question.py` (plugin root).
+- btw? button, bottom left: a one-line side question and one Ask button. Ask posts only the
+  question to the side-question listener of the wait; the marks and notes the human queued stay
+  queued for Send. The wait asks it in the agent's terminal pane (`/btw` on Claude, `/side` on
+  Codex, through herdr), and the panel shows the answer; the round stays open. With no wait
+  running, the panel says so. Engine modules: `engine/btw_listener.py` and
+  `engine/side_question.py` (plugin root).
 
 ## Picture before a critical-aspect question
 

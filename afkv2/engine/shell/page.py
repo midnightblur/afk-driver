@@ -137,7 +137,16 @@ def _reference(ticket: str) -> str:
     return f"#{ticket}" if ticket.isdigit() else ticket
 
 
-def build(doc: dict) -> str:
+def _btw_attrs(btw: tuple[int, str] | None) -> str:
+    """The side-question listener address `(port, token)` that the btw? panel posts to."""
+    if btw is None:
+        return ""
+    return f' data-afkv2-btw-port="{int(btw[0])}" data-afkv2-btw-token="{escape(btw[1])}"'
+
+
+def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
+    """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
+    has no btw? panel."""
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
@@ -155,5 +164,5 @@ def build(doc: dict) -> str:
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n</head>\n'
-            f'<body>\n<div class="afkv2-page">{body}</div>\n'
+            f'<body>\n<div class="afkv2-page"{_btw_attrs(btw)}>{body}</div>\n'
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n</body>\n</html>\n')
