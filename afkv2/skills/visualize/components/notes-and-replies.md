@@ -26,8 +26,19 @@ and ask the human.
 
 ## How it looks
 
-A block below the round banner, newest round first, one collapsible section per
-round. Each note shows its target; each reply shows the elements it is about.
+One table below the round banner: `# | Where you wrote it | Your note | My answer
+/ what changed | Card`. One row per note, with the human's words quoted. A group
+row with the round colour opens each round, newest round first. The current
+round and the round before stay open; older rounds fold into "Earlier rounds".
+A deleted note has no row.
+
+A reply answers a note when its `about` holds the note's `target`, its item id
+or its note id. The engine looks in the round of the reply first, then in the
+round before. A reply that answers no note gets its own row, "From me". So name
+the noted element in `about`.
+
+An annotation on a note row is a note on the card of that note, or a steer on
+the node of a steer note. An annotation on any other row is a steer.
 
 ## Example
 

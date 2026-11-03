@@ -1124,6 +1124,22 @@ def test_a_prompt_with_no_element_is_a_steer_on_the_first_map():
     assert raw == '[round R-2]\nm-1 — | Look at billing first.\n\nHere. (on: "Some text")'
 
 
+def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp_path):
+    doc = noted_page()
+    doc["rounds"][1]["items"][0]["notes"] = [
+        {"id": "N-2-i-new", "round": 2, "target": "i-new", "text": "Old note.", "deleted": False}]
+    doc["rounds"][1]["items"][2]["notes"] = [
+        {"id": "N-2-i-third", "round": 2, "target": "n-1", "text": "Steer.", "deleted": False}]
+    doc["rounds"][1]["replies"] = [{"text": "A reply alone."}]
+    html = page.build(doc)
+    assert 'id="afkv2-nr-N-2-i-new"' in html and 'id="afkv2-nr-reply-2-1"' in html
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
+        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(3) > q", "q", "Old note."),
+        prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),
+        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(4) > p", "p", "A reply alone.")])
+    assert raw == '[round R-2]\ni-new — | Still wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
+
+
 def test_a_mark_and_notes_on_one_card_merge_into_one_line():
     raw = raw_of(noted_page(), prompt("First.", "article#i-new"), mark("i-new", "accept"), prompt("Second.", "h4#i-new"))
     assert raw == "[round R-2]\ni-new accept | First.\n\nSecond."
