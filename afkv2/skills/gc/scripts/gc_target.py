@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -95,6 +96,13 @@ def write_target(repo, target):
         Path(temporary).unlink(missing_ok=True)
         raise
     return path
+
+
+def receipt_of(listing):
+    """SHA-256 of the list as sorted-key compact JSON in UTF-8. A top-level `receipt` key is left out, so a shown list gives its own receipt."""
+    shown = {key: value for key, value in listing.items() if key != "receipt"}
+    text = json.dumps(shown, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def lock_path(repo, branch):

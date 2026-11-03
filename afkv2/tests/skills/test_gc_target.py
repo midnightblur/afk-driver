@@ -142,3 +142,43 @@ def test_the_lock_is_free_again_when_its_holder_is_killed(repo):
         except Refusal:
             assert time.monotonic() < deadline, "the lock stayed held after its holder was killed"
             time.sleep(0.1)
+
+
+def a_list():
+    return {
+        "change": {"number": 7, "url": "https://forge.test/c/7", "state": "merged", "target": "main"},
+        "items": [{"item": "run worktree", "tip": "b" * 40, "link": None, "when": "now", "present": True},
+                  {"item": "remote feature branch", "tip": "d" * 40, "link": "https://forge.test/t/d", "when": "now", "present": True}],
+        "refusals": [{"code": "uncommitted", "detail": ["notes.txt"]}],
+        "ignored": {"count": 3, "first": ["a.log", "b.log", "c.log"]},
+        "state": "listed",
+    }
+
+
+def changed(path, value):
+    listing = a_list()
+    *parents, last = path
+    holder = listing
+    for key in parents:
+        holder = holder[key]
+    holder[last] = value
+    return listing
+
+
+def test_the_receipt_is_the_sha256_of_the_list_in_a_fixed_form():
+    receipt = gc_target.receipt_of(a_list())
+    assert re.fullmatch(r"[0-9a-f]{64}", receipt)
+    assert gc_target.receipt_of(a_list()) == receipt
+    assert gc_target.receipt_of(dict(reversed(list(a_list().items())))) == receipt
+    assert gc_target.receipt_of({**a_list(), "receipt": receipt}) == receipt
+
+
+@pytest.mark.parametrize("path, value", [
+    (("change", "number"), 8),
+    (("items", 0, "tip"), "e" * 40),
+    (("items", 1, "tip"), ""),
+    (("refusals", 0, "detail"), ["notes.txt", "more.txt"]),
+    (("ignored", "count"), 4),
+])
+def test_a_change_of_the_change_a_tip_a_refusal_detail_or_the_ignored_count_gives_another_receipt(path, value):
+    assert gc_target.receipt_of(changed(path, value)) != gc_target.receipt_of(a_list())
