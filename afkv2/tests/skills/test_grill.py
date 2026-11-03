@@ -13,6 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -553,6 +554,17 @@ def test_start_resumes_an_open_session_and_reports_unread_raw_text(world):
     again = world.run("start", ticket_key="PROJ-1")
     assert again["resume"] is True and again["session"] == started["session"]
     assert again["raw_pending"] is True
+
+
+def test_a_waited_answer_resumes_its_own_session_beside_the_audit_file(world):
+    started = first_round(world)
+    world.raw.write_bytes(b"i-scope: accept\n")
+    waited = world.run("wait", doc=started["doc"], raw_file=started["raw_file"])
+    assert Path(waited["prompts_file"]).is_file()
+    os.utime(waited["prompts_file"], (time.time() + 60, time.time() + 60))
+    again = world.run("start", ticket_key="PROJ-1")
+    assert again["session"] == started["session"] and again["raw_pending"] is True
+    world.run("sync", doc=started["doc"], log=started["log"])
 
 
 def answered(world, started, raw):

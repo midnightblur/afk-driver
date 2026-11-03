@@ -17,7 +17,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import Parser, Refusal, read_json, serve, write_text
+from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text
 from round_document import (ASKING, _carried, _components, card_notes, current_round, returning, signature_missing,
                             steer_targets, steers)
 
@@ -170,7 +170,8 @@ def _session_documents(doc_path):
     """This document and every older grill document beside it, oldest session first."""
     doc_path = Path(doc_path)
     docs = [read_json(doc_path)]
-    docs += [read_json(path) for path in doc_path.parent.glob("grill-*.json") if path.resolve() != doc_path.resolve()]
+    docs += [read_json(path) for path in page_documents(doc_path.parent, "grill-")
+             if path.resolve() != doc_path.resolve()]
     return sorted(docs, key=lambda doc: (doc["session"]["started"], doc["session"]["id"]))
 
 

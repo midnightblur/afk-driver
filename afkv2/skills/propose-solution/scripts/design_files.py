@@ -20,7 +20,7 @@ import design_round as dr  # noqa: E402
 import grill_log  # noqa: E402
 import grill_start  # noqa: E402
 import prd_files  # noqa: E402
-from grill_common import Parser, Refusal, read_json, serve, write_text  # noqa: E402
+from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
 
 TO_PRD = "/afkv2:to-prd"
 SECTION = "## Solution design"
@@ -60,7 +60,7 @@ def gate_passed(log, session):
 
 def _open_session(pages, log):
     """The newest document whose session has no passed design gate; a run resumes it."""
-    sessions = sorted(path.stem[len(DOC_PREFIX):] for path in pages.glob(f"{DOC_PREFIX}*.json"))
+    sessions = sorted(path.stem[len(DOC_PREFIX):] for path in page_documents(pages, DOC_PREFIX))
     return sessions[-1] if sessions and not gate_passed(log, sessions[-1]) else None
 
 

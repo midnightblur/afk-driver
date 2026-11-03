@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve
+from grill_common import PLUGIN_ROOT, Parser, Refusal, page_documents, read_json, run_command, serve
 from grill_log import exit_gate_passed, ensure_section
 
 CONFIG = ".afkv2/config.json"
@@ -50,7 +50,7 @@ def _new_session(pages):
 
 def _open_session(pages, log):
     """The newest document whose session has no passed exit gate; a grill resumes it."""
-    documents = sorted(pages.glob("grill-*.json"), key=lambda path: path.stat().st_mtime)
+    documents = sorted(page_documents(pages, "grill-"), key=lambda path: path.stat().st_mtime)
     if not documents:
         return None
     session = documents[-1].stem[len("grill-"):]
