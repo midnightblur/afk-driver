@@ -108,3 +108,45 @@ def test_the_real_forge_command_runs_in_the_repository_and_its_refusal_is_forge_
     result = gc_checks.check_change(repo.feature, FEATURE, forge="not-a-forge")
     assert result["refusal"]["code"] == "forge-failed"
     assert result["refusal"]["error"]["code"] == "no-forge"
+
+
+def write(path, text="x\n"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def test_a_clean_worktree_passes_with_no_ignored_file(repo):
+    result = gc_checks.check_clean(repo.feature)
+    assert result == {"refusal": None, "worktree": str(repo.feature), "absent": False, "files": [],
+                      "ignored": {"count": 0, "first": []}}
+
+
+def test_each_uncommitted_and_untracked_file_refuses_by_its_name(repo):
+    write(repo.feature / "feature.txt", "changed\n")
+    write(repo.feature / "new dir" / "a new file.txt")
+    write(repo.feature / "staged.txt")
+    git(repo.feature, "add", "staged.txt")
+    git(repo.feature, "mv", "feature.txt", "moved.txt")
+    result = gc_checks.check_clean(repo.feature)
+    assert result["files"] == ["moved.txt", "new dir/a new file.txt", "staged.txt"]
+    assert result["refusal"]["code"] == "uncommitted"
+    assert result["refusal"]["files"] == result["files"]
+    assert "moved.txt" in result["refusal"]["reason"]
+
+
+def test_ignored_files_are_no_refusal_and_the_check_gives_their_count_and_the_first_5(repo):
+    repo.commit(repo.feature, ".gitignore", "*.log\nbuild/\n", "ignore")
+    for number in range(7):
+        write(repo.feature / f"a{number}.log")
+    write(repo.feature / "build" / "out" / "one.bin")
+    write(repo.feature / "build" / "two.bin")
+    result = gc_checks.check_clean(repo.feature)
+    assert result["refusal"] is None
+    assert result["ignored"] == {"count": 8, "first": ["a0.log", "a1.log", "a2.log", "a3.log", "a4.log"]}
+
+
+def test_an_absent_worktree_reads_absent_not_an_error(repo, tmp_path):
+    missing = tmp_path / "gone-run"
+    result = gc_checks.check_clean(missing)
+    assert result == {"refusal": None, "worktree": str(missing), "absent": True, "files": [],
+                      "ignored": {"count": 0, "first": []}}

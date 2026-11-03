@@ -10,9 +10,15 @@ from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
 FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
+sys.path.insert(0, str(PLUGIN / "ports"))
+
+from tracker.envelope import Refusal  # noqa: E402
+
 FORGE_LIMIT = 120
 PASSED_ON = ("forge", "repo")
 HEX40 = re.compile(r"[0-9a-f]{40}")
+GIT_LIMIT = 60
+IGNORED_SHOWN = 5
 
 
 def call_forge(verb, payload, cwd):
@@ -72,3 +78,39 @@ def check_change(repo, branch, **passed):
     return {"refusal": {"code": "not-merged", "reason": f"the forge does not say merged with none open: {states}",
                         "answer": shown, "link": changes[0]["url"] if changes else None},
             "change": change}
+
+
+def _git(cwd, *args):
+    done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, stdin=subprocess.DEVNULL, timeout=GIT_LIMIT)
+    if done.returncode != 0:
+        raise Refusal("git-failed", f"git {args[0]} in {cwd}: {done.stderr.decode('utf-8', 'replace').strip()}")
+    return done.stdout.decode("utf-8", "replace")
+
+
+def _status(worktree):
+    """(changed and untracked names, ignored names). `-z` keeps each name whole; a rename's second name is its old name."""
+    entries = _git(worktree, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching").split("\0")
+    files, ignored, skip = [], [], False
+    for entry in entries:
+        if skip:
+            skip = False
+        elif entry:
+            (ignored if entry.startswith("!!") else files).append(entry[3:])
+            skip = entry[0] in "RC"
+    return sorted(files), sorted(ignored)
+
+
+def check_clean(worktree):
+    """Each uncommitted or untracked file refuses `uncommitted` by its name. Ignored files are no refusal: their
+    count and the first 5; an ignored folder counts as one, by its name with a trailing `/`. An absent worktree
+    reads `absent`."""
+    result = {"refusal": None, "worktree": str(worktree), "absent": not Path(worktree).exists(), "files": [],
+              "ignored": {"count": 0, "first": []}}
+    if result["absent"]:
+        return result
+    files, ignored = _status(worktree)
+    result.update(files=files, ignored={"count": len(ignored), "first": ignored[:IGNORED_SHOWN]})
+    if files:
+        result["refusal"] = {"code": "uncommitted", "reason": f"{worktree} has uncommitted or untracked files: "
+                                                              f"{', '.join(files)}", "files": files}
+    return result
