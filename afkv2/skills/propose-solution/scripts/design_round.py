@@ -24,6 +24,7 @@ sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
 import round_document as rd  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
 from grill_common import Parser, Refusal, read_json, serve  # noqa: E402
+from page_links import links_for  # noqa: E402
 
 SKILL_NAME = "propose-solution"
 GROUPS = {
@@ -166,8 +167,10 @@ def _design_maps(doc, items, own_maps):
     return [*maps, *own_maps]
 
 
-def build_design_round(doc_path, session, round_input, replace=False):
-    """Check the round against the fixed orders, then let the grill's builder write it; write nothing on a refusal."""
+def build_design_round(doc_path, session, round_input, replace=False, links=None):
+    """Check the round against the fixed orders, then let the grill's builder write it; write nothing on a refusal.
+
+    `links` replaces `session.links`, so the page links each ticket, change and commit reference."""
     if not isinstance(round_input, dict) or not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "the round input is one JSON object, and items is a list")
     doc = _view(doc_path, replace)
@@ -177,7 +180,7 @@ def build_design_round(doc_path, session, round_input, replace=False):
     built = copy.deepcopy(round_input)
     built["items"] = items
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
-    return rd.build_round_document(doc_path, session, built, None, replace)
+    return rd.build_round_document(doc_path, session, built, None, replace, links)
 
 
 def _entries(group, keys):
@@ -231,7 +234,9 @@ def main(argv):
         raise Refusal("usage", "build needs --session, --ticket and --round-input", 2)
     feature = Path(args.doc).parent.parent.name
     session = {"id": args.session, "skill": SKILL_NAME, "feature": feature, "ticket": args.ticket}
-    return build_design_round(args.doc, session, read_json(args.round_input), args.replace)
+    earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
+    return build_design_round(args.doc, session, read_json(args.round_input), args.replace,
+                              links_for([args.ticket], earlier))
 
 
 if __name__ == "__main__":
