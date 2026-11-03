@@ -71,6 +71,7 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
     A send of side questions only is answered on the page and the wait goes on; the agent never
     sees it. A side question sent with the round is answered on the page before the round returns.
     A round send is kept beside the document until ingest (`engine.keep_delivery`); a kept send answers first.
+    A send that ends the session with no round prompt is `ended`.
     """
     deadline = clock() + timeout_s
     pending = None
@@ -92,6 +93,8 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
             pending = None
         if status == "feedback":
             round_prompts, questions = prompt_lines.split_side_questions(detail.get("prompts") or [])
+            if not round_prompts and detail.get("session_ended"):
+                return "ended", ""
             if questions:
                 text = _side_answers(questions, ask)
                 if not round_prompts and not detail.get("session_ended"):
