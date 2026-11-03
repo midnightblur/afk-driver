@@ -1,5 +1,5 @@
-# afkv2 tests: Windows only, 3 shards. v1 tests: both systems, only when the change
-# touches a path outside afkv2/, docs/ and the marketplace file, or on a push to main.
+# afkv2 tests: Windows only, 3 shards. v1 tests and gates: only when the change touches
+# a path outside afkv2/, docs/ and the marketplace file, or on a push to main.
 name: tests
 
 on:
@@ -84,6 +84,8 @@ jobs:
         run: afk-python -m pytest ${{ matrix.shard.paths }} -q -rs --durations=15
 
   gates:
+    needs: changes
+    if: needs.changes.outputs.v1 == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
