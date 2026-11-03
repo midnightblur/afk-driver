@@ -9,6 +9,8 @@
 
 Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`,
 and lists the side questions of the send apart, in `btw`. A reply file holds Markdown the page shows.
+Poll keeps a round send in `<DOC stem>.delivery.json` before it reads it; a later poll answers from that
+file, and a successful ingest deletes it.
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -44,6 +46,7 @@ PAGES_FOLDER = "pages"
 MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
 COPIES_FOLDER = "page-copies"
+DELIVERY_SUFFIX = ".delivery.json"
 
 
 def read_v0(raw: dict) -> dict:
@@ -316,13 +319,46 @@ def cmd_reply(args) -> dict:
     return {"ok": True, "verb": "reply"}
 
 
+def delivery_file(document: str) -> Path:
+    """Where a send that the host handed over waits, beside its document, until ingest reads it."""
+    return Path(document).with_suffix(DELIVERY_SUFFIX)
+
+
+def kept_delivery(document: str) -> dict | None:
+    """The kept send `{"prompts", "session_ended"}`, or None when no send waits."""
+    try:
+        kept = json.loads(delivery_file(document).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return kept if isinstance(kept, dict) and isinstance(kept.get("prompts"), list) else None
+
+
+def keep_delivery(document: str, detail: dict) -> bool:
+    """Keep a send that holds a round answer or the end of the session; True when kept.
+
+    The host forgets a send once it hands it over, so the send must be on disk before anything else
+    reads it. A send of side questions only is not kept: the lavish panel keeps the question text."""
+    round_prompts, _ = prompt_lines.split_side_questions(detail.get("prompts") or [])
+    if not round_prompts and not detail.get("session_ended"):
+        return False
+    kept = {"prompts": detail.get("prompts") or [], "session_ended": detail.get("session_ended") is True}
+    inject.write_if_changed(delivery_file(document), json.dumps(kept, indent=2, ensure_ascii=False).encode("utf-8"))
+    return True
+
+
 def cmd_poll(args) -> dict:
     """With `--reply-file`, the host shows that reply on the page, then waits.
 
-    `btw` holds the side questions of the send; they never enter `raw`. `round_prompts` counts the
-    prompts left for the round: 0 means the send held side questions only."""
+    A kept send that ingest has not read answers first, with no host poll. `btw` holds the side
+    questions of the send; they never enter `raw`. `round_prompts` counts the prompts left for the
+    round: 0 means the send held side questions only."""
     html_path = _shown_page(args.document)
-    status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
+    detail = kept_delivery(args.document)
+    status = "feedback"
+    if detail is None:
+        status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
+        if status == "feedback":
+            keep_delivery(args.document, detail)
     if status == "fallback":
         _raise_host_failure(detail["exit"], detail["reason"])
     if status in ("error", "no-session"):
@@ -353,8 +389,11 @@ def poll_raw(document: str, prompts: list[dict]) -> str:
 
 
 def _ingest(args) -> dict:
-    return ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed, elements=_element_ids,
-                             save_copy=_save_settled_copy_if_possible)
+    """Ingest; the kept send goes only after the document holds the answer."""
+    answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed, elements=_element_ids,
+                               save_copy=_save_settled_copy_if_possible)
+    delivery_file(args.document).unlink(missing_ok=True)
+    return answer
 
 
 class _Parser(argparse.ArgumentParser):

@@ -70,15 +70,23 @@ def wait_for_answer(page: str, timeout_s: float = WAIT_SECONDS, poll=launcher.po
     the client gives up on a silent request after 300 s (inferred from the Node default).
     A send of side questions only is answered on the page and the wait goes on; the agent never
     sees it. A side question sent with the round is answered on the page before the round returns.
+    A round send is kept beside the document until ingest (`engine.keep_delivery`); a kept send answers first.
     """
     deadline = clock() + timeout_s
     pending = None
+    keep = document is not None and Path(document).is_file()
+    kept = engine.kept_delivery(document) if keep else None
     while True:
         remaining_ms = int((deadline - clock()) * 1000)
-        if remaining_ms <= 0:
+        if kept is not None:
+            status, detail, kept = "feedback", kept, None
+        elif remaining_ms <= 0:
             return "timeout", ""
-        argv = ["poll", page, "--timeout-ms", str(min(remaining_ms, SLICE_MS))]
-        status, detail = poll([*argv, "--agent-reply-file", pending] if pending else argv)
+        else:
+            argv = ["poll", page, "--timeout-ms", str(min(remaining_ms, SLICE_MS))]
+            status, detail = poll([*argv, "--agent-reply-file", pending] if pending else argv)
+            if status == "feedback" and keep:
+                engine.keep_delivery(document, detail)
         if pending:
             os.unlink(pending)
             pending = None
