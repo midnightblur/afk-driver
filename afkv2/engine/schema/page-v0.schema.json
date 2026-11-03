@@ -77,6 +77,7 @@
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "kind": {"enum": ["decided", "confirm", "debate", "signoff", "info"]},
+        "title": {"type": ["string", "null"], "minLength": 1, "maxLength": 90},
         "node": {"type": ["string", "null"]},
         "state": {"enum": ["open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"]},
         "body": {"$ref": "#/$defs/component"},
@@ -116,6 +117,7 @@
         "id": {"type": ["string", "null"]},
         "props": {"type": ["object", "null"]},
         "style": {"type": ["string", "null"]},
+        "fold": {"type": ["string", "null"], "minLength": 1},
         "children": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
         "html": {"type": "string"}
       }

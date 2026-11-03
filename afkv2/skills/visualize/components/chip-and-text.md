@@ -4,7 +4,9 @@
 
 A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone; for text the tone is
-optional. Tones:
+optional. A `text` takes `markdown: true` to render a safe subset: blank-line
+paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
+http(s) links. The engine escapes all HTML first. Tones:
 
 | Tone | Means | Looks |
 |------|-------|-------|
@@ -19,7 +21,8 @@ its text.
 ## Use it when
 
 A value, step or element must show whether it stays, goes, is new or is only
-proposed. Use the tone for that meaning only; for any other look, use `style`.
+proposed. Use `markdown: true` for text that comes as Markdown, such as a
+ticket description. Use the tone for that meaning only; for any other look, use `style`.
 
 ## How it looks
 

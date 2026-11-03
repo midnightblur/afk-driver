@@ -128,7 +128,7 @@ def round_one():
             "maps": [scope_map()],
             "items": [{"id": "i-scope", "kind": "confirm", "node": "n-scope",
                        "body": text("The export covers one order per file.")},
-                      {"id": "i-format", "kind": "debate", "node": "n-format",
+                      {"id": "i-format", "kind": "debate", "node": "n-format", "title": "The file format",
                        "body": text("Which file format? Recommended: CSV.")}]}
 
 
@@ -418,6 +418,7 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     ticket_card = doc["rounds"][0]["items"][0]
     shown = json.dumps(ticket_card)
     assert ticket_card["kind"] == "info" and "What about cancelled orders?" in shown and "PROJ-2" in shown
+    assert doc["rounds"][0]["items"][2]["title"] == "The file format" and "title" not in doc["rounds"][0]["items"][1]
     check_document(doc)
 
     raw = "i-scope: accept\ni-format: note: csv please, \"quoted\" é\n"

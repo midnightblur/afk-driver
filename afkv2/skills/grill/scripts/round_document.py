@@ -27,7 +27,7 @@ SETTLED_STATES = {"settled_by_mark", "settled_by_note"}
 PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
-ITEM_INPUT_FIELDS = {"id", "kind", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
 TICKET_CARD = "i-ticket"
 
 
@@ -143,8 +143,9 @@ def _item(raw, known_ids, degraded):
     if carries:
         body["children"] = [*(body.get("children") or []), _text(f"Carries {', '.join(carries)}.", f"{item_id}-carries")]
     item = {"id": item_id, "kind": kind, "state": state, "body": body}
-    if raw.get("node"):
-        item["node"] = raw["node"]
+    for optional in ("title", "node"):
+        if raw.get(optional):
+            item[optional] = raw[optional]
     return item
 
 

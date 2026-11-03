@@ -1,10 +1,70 @@
-"""Chip and styled text (CMP-9), with the 4 semantic tones."""
+"""Chip and styled text (CMP-9), with the 4 semantic tones. Text may render a safe Markdown subset."""
 
+import re
 from html import escape
 
 from registry import register_component
 
 TONES = ["removed", "kept", "new", "proposed"]
+LIST_ITEM = re.compile(r"\s*[-*] (.*)")
+HEADING = re.compile(r"#{1,6}\s+(.*)")
+CODE = re.compile(r"`([^`]+)`")
+# Links are read in escaped text: a URL ends at an escaped quote or angle bracket.
+URL = r"https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s)])+"
+LINK = re.compile(rf"\[([^\]]+)\]\(({URL})\)|({URL})")
+BOLD = re.compile(r"\*\*(.+?)\*\*")
+URL_TAIL = ".,;:!?"
+
+
+def _link(match):
+    if match.group(2):
+        return f'<a href="{match.group(2)}" target="_blank" rel="noopener noreferrer">{match.group(1)}</a>'
+    url = match.group(3)
+    tail = ""
+    while url and url[-1] in URL_TAIL and not url.endswith("&amp;"):
+        url, tail = url[:-1], url[-1] + tail
+    return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{url}</a>{tail}'
+
+
+def _inline(text):
+    """Escape first, then `code`, links and **bold**; nothing inside a code span is read."""
+    parts = CODE.split(escape(text))
+    return "".join(f"<code>{part}</code>" if i % 2 else BOLD.sub(r"<strong>\1</strong>", LINK.sub(_link, part))
+                   for i, part in enumerate(parts))
+
+
+def markdown(text):
+    """Blank-line paragraphs, `- ` lists, `#` headings as bold lines, and the inline subset of `_inline`."""
+    out, para, items = [], [], []
+
+    def flush():
+        if para:
+            out.append(f"<p>{_inline(' '.join(para))}</p>")
+            para.clear()
+        if items:
+            out.append("<ul>" + "".join(f"<li>{_inline(item)}</li>" for item in items) + "</ul>")
+            items.clear()
+
+    for line in text.replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        listed, heading = LIST_ITEM.fullmatch(line), HEADING.fullmatch(stripped)
+        if not stripped:
+            flush()
+        elif listed:
+            if para:
+                flush()
+            items.append(listed.group(1).strip())
+        elif heading:
+            flush()
+            out.append(f'<p class="afkv2-md-h"><strong>{_inline(heading.group(1))}</strong></p>')
+        elif items and line[:1] in (" ", "\t"):
+            items[-1] += " " + stripped
+        else:
+            if items:
+                flush()
+            para.append(stripped)
+    flush()
+    return "".join(out)
 
 
 def render_chip(props, children):
@@ -16,7 +76,9 @@ def render_text(props, children):
     tone = props.get("tone")
     style = f" afkv2-tone--{tone}" if tone else ""
     tail = f'<div class="afkv2-children">{"".join(children)}</div>' if children else ""
-    return f'<div class="afkv2-text{style}"><p>{escape(props["text"])}</p>{tail}</div>'
+    words = (f'<div class="afkv2-md">{markdown(props["text"])}</div>' if props.get("markdown")
+             else f'<p>{escape(props["text"])}</p>')
+    return f'<div class="afkv2-text{style}">{words}{tail}</div>'
 
 
 register_component("chip", {
@@ -26,5 +88,5 @@ register_component("chip", {
 
 register_component("text", {
     "type": "object", "additionalProperties": False, "required": ["text"],
-    "properties": {"text": {"type": "string"}, "tone": {"enum": TONES}},
+    "properties": {"text": {"type": "string"}, "tone": {"enum": TONES}, "markdown": {"type": "boolean"}},
 }, render_text)
