@@ -367,6 +367,22 @@ def thread_list(payload):
     return ok(threads=threads, count=len(threads))
 
 
+def _own(item):
+    """The project lists changes from forks too: one whose source project is another is left out."""
+    source, target = item.get("source_project_id"), item.get("target_project_id")
+    return not (source and target and source != target)
+
+
+def change_list(payload):
+    """A `locked` change is not final: it reads `opened`."""
+    args = ["mr", "list", "--source-branch", common.branch(payload), "--all", "--per-page", str(common.PAGE), *_flag(payload),
+            "-F", "json"]
+    return common.change_list(shell.as_items(shell.json_answer("glab", args)), _own,
+                              lambda item: {"id": str(item.get("iid") or ""), "url": item.get("web_url") or "",
+                                            "state": "opened" if item.get("state") == "locked" else item.get("state") or "",
+                                            "head_sha": item.get("sha") or "", "target": item.get("target_branch") or ""})
+
+
 def ci_status(payload):
     data = _view(common.ref(payload), payload)
     return ok(status=_ci_word(data), url=_pipeline(data).get("web_url") or "")
@@ -388,4 +404,5 @@ VERBS = {
     "thread-list": thread_list,
     "ci-status": ci_status,
     "ci-wait": ci_wait,
+    "change-list": change_list,
 }
