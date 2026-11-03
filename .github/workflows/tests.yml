@@ -1,5 +1,5 @@
-# Tests and the plugin-source gates, on every pull request and every push to main.
-# Both operating systems run the same steps; Windows runs them in Git Bash.
+# afkv2 tests: Windows only, 4 shards. v1 tests and gates: only when the change touches
+# a path outside afkv2/, docs/ and the marketplace file, or on a push to main.
 name: tests
 
 on:
@@ -13,13 +13,141 @@ permissions:
   contents: read
 
 jobs:
-  tests:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      v1: ${{ steps.scope.outputs.v1 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Does the change touch v1
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -z "$BASE_REF" ]; then
+            echo "v1=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(git merge-base "origin/$BASE_REF" HEAD)
+          v1=$(git diff --name-only "$base" HEAD | grep -Ev '^(afkv2/|docs/|\.claude-plugin/marketplace\.json$)' | head -1)
+          if [ -n "$v1" ]; then
+            echo "v1 path changed: $v1"
+            echo "v1=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "v1=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  afkv2:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: engine
+            paths: afkv2/tests/engine
+          - name: skills-run
+            paths: afkv2/tests/skills/test_to_subtasks.py afkv2/tests/skills/test_change_request.py afkv2/tests/skills/test_execute.py afkv2/tests/skills/test_autopilot.py afkv2/tests/autopilot
+          - name: skills-design
+            paths: afkv2/tests/skills --ignore=afkv2/tests/skills/test_to_subtasks.py --ignore=afkv2/tests/skills/test_change_request.py --ignore=afkv2/tests/skills/test_execute.py --ignore=afkv2/tests/skills/test_autopilot.py
+          - name: rest
+            paths: afkv2/tests --ignore=afkv2/tests/engine --ignore=afkv2/tests/skills --ignore=afkv2/tests/autopilot
+    name: afkv2 (${{ matrix.shard.name }})
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install afk-python
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File skills/afk/setup/scripts/bootstrap.ps1 install --test
+          echo "$LOCALAPPDATA\\afk\\python\\afk-bin" >> "$GITHUB_PATH"
+
+      - name: Install jq and ripgrep
+        run: |
+          command -v jq >/dev/null 2>&1 || choco install jq -y --no-progress
+          command -v rg >/dev/null 2>&1 || choco install ripgrep -y --no-progress
+
+      - name: Set a git identity for test repositories
+        # Name and address tokens stay under 3 characters: the genericity gate treats longer ones as author handles.
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+
+      - name: afkv2 tests
+        # The slowest tests are listed, so the shards can be rebalanced.
+        run: afk-python -m pytest ${{ matrix.shard.paths }} -q -rs --durations=15
+
+  gates:
+    needs: changes
+    if: needs.changes.outputs.v1 == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install afk-python
+        run: |
+          sh skills/afk/setup/scripts/bootstrap.sh install --test
+          echo "${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin" >> "$GITHUB_PATH"
+
+      - name: Install jq
+        run: command -v jq >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y jq; }
+
+      - name: Plugin-source gates
+        # A pull request is judged by the target branch's gates and by its own; a push to main by its own.
+        # The afk-gate-override label turns the target pass into a warning (hooks/README.md "Plugin-source gates").
+        env:
+          GATE_METRICS_DISABLE: '1'
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'afk-gate-override') }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            # The judge code is the fetched target tip; the merge base only scopes the candidate diff.
+            target="origin/$BASE_REF"
+            base=$(git merge-base "$target" HEAD)
+            judge=$(mktemp -d)
+            git archive "$target" | tar -x -C "$judge"
+            if [ -f "$judge/hooks/plugin-source-gates.sh" ]; then
+              if ! bash "$judge/hooks/plugin-source-gates.sh" --range "$base" HEAD; then
+                [ "$OVERRIDE" = true ] || { echo "::error::the target branch's plugin-source gates blocked"; exit 1; }
+                echo "::warning::afk-gate-override: the target branch's plugin-source gates blocked"
+              fi
+            elif [ -n "$(git log -1 --format=%H "$target" -- hooks/plugin-source-gates.sh)" ]; then
+              echo "::error::the target branch lost hooks/plugin-source-gates.sh"; exit 1
+            else
+              echo "::notice::the target branch predates hooks/plugin-source-gates.sh; its own gates judge alone"
+            fi
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"
+          else
+            base="HEAD^"
+          fi
+          bash hooks/plugin-source-gates.sh --range "$base" HEAD || { echo "::error::plugin-source gates blocked"; exit 1; }
+
+  v1:
+    needs: changes
+    if: needs.changes.outputs.v1 == 'true'
     strategy:
       fail-fast: false
       matrix:
         os:
           - ubuntu-latest
           - windows-latest
+    name: v1 (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -60,54 +188,11 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git --version
 
-      - name: afkv2 tests
-        run: |
-          if ! command -v rg >/dev/null 2>&1; then
-            if [ "$RUNNER_OS" = "Windows" ]; then
-              choco install ripgrep -y --no-progress
-            else
-              sudo apt-get update && sudo apt-get install -y ripgrep
-            fi
-          fi
-          afk-python -m pytest afkv2/tests -q -rs
-
       - name: Unit tests
         run: afk-python -m pytest scripts/tests -q
 
       - name: Hook smoke tests
         run: bash hooks/tests/hook-smoke.sh
-
-      - name: Plugin-source gates
-        # A pull request is judged by the target branch's gates and by its own; a push to main by its own.
-        # The afk-gate-override label turns the target pass into a warning (hooks/README.md "Plugin-source gates").
-        env:
-          GATE_METRICS_DISABLE: '1'
-          BASE_REF: ${{ github.base_ref }}
-          BEFORE: ${{ github.event.before }}
-          OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'afk-gate-override') }}
-        run: |
-          if [ -n "$BASE_REF" ]; then
-            # The judge code is the fetched target tip; the merge base only scopes the candidate diff.
-            target="origin/$BASE_REF"
-            base=$(git merge-base "$target" HEAD)
-            judge=$(mktemp -d)
-            git archive "$target" | tar -x -C "$judge"
-            if [ -f "$judge/hooks/plugin-source-gates.sh" ]; then
-              if ! bash "$judge/hooks/plugin-source-gates.sh" --range "$base" HEAD; then
-                [ "$OVERRIDE" = true ] || { echo "::error::the target branch's plugin-source gates blocked"; exit 1; }
-                echo "::warning::afk-gate-override: the target branch's plugin-source gates blocked"
-              fi
-            elif [ -n "$(git log -1 --format=%H "$target" -- hooks/plugin-source-gates.sh)" ]; then
-              echo "::error::the target branch lost hooks/plugin-source-gates.sh"; exit 1
-            else
-              echo "::notice::the target branch predates hooks/plugin-source-gates.sh; its own gates judge alone"
-            fi
-          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            base="$BEFORE"
-          else
-            base="HEAD^"
-          fi
-          bash hooks/plugin-source-gates.sh --range "$base" HEAD || { echo "::error::plugin-source gates blocked"; exit 1; }
 
       - name: Hook latency budgets (informational)
         # Shared runners are noisy: the budget table reports, it does not gate.
