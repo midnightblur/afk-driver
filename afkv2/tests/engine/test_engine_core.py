@@ -612,6 +612,73 @@ def test_a_blocked_card_takes_no_mark():
     assert holds(html, 'data-afkv2-state="blocked"')
 
 
+def test_a_title_is_the_card_heading_with_the_kind_and_the_id_after_it():
+    html = card_html(item("i-a", "debate", title="Where <the> record lives"))
+    heading = html[html.index("<h4"):html.index("</h4>")]
+    assert holds(heading, '<span class="afkv2-card-title">Where &lt;the&gt; record lives</span>',
+                 '<span class="afkv2-kind">Debate</span>', '<span class="afkv2-card-id">i-a</span>')
+    assert heading.index("afkv2-card-title") < heading.index("afkv2-kind") < heading.index("afkv2-card-id")
+    assert "Debate: i-a" in card_html(item("i-a", "debate"))
+
+
+def test_a_title_over_90_characters_is_refused(capsys, tmp_path):
+    doc = document()
+    doc["rounds"][0]["items"][0]["title"] = "x" * 91
+    assert "field title: must be at most 90 characters" in refused(capsys, tmp_path, doc)["reason"]
+    doc["rounds"][0]["items"][0]["title"] = "x" * 90
+    assert call(capsys, "check", save(tmp_path / "doc.json", doc))[0] == 0
+
+
+def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
+    html = registry.render_component(text("Long words", id="c-long", fold="The <full> text"))
+    assert html.startswith('<div id="c-long" data-afkv2-element="c-long"><details class="afkv2-fold">'
+                           '<summary>The &lt;full&gt; text</summary>')
+    assert "<details class=\"afkv2-fold\" open" not in html and "Long words" in html
+    table = {"type": "table", "fold": "Rows", "props": {"columns": ["A"], "rows": [["1"]]}}
+    assert registry.validate(table) == [] and registry.render_component(table).startswith('<details class="afkv2-fold">')
+
+
+def test_an_empty_fold_label_is_refused(capsys, tmp_path):
+    doc = document()
+    doc["rounds"][0]["items"][0]["body"]["fold"] = ""
+    assert "field body.fold: must not be empty" in refused(capsys, tmp_path, doc)["reason"]
+
+
+def md(words):
+    html = registry.render_component({"type": "text", "props": {"text": words, "markdown": True}})
+    return html[html.index('<div class="afkv2-md">') + len('<div class="afkv2-md">'):html.rindex("</div></div>")]
+
+
+def test_markdown_renders_the_safe_subset():
+    words = ("# Summary\nFirst **bold** line\nsame paragraph with `a <b> code`.\n\n- one\n- two with [a link](https://x.test/a?b=1&c=2)\n"
+             "\nSee https://x.test/page.")
+    assert md(words) == (
+        '<p class="afkv2-md-h"><strong>Summary</strong></p>'
+        "<p>First <strong>bold</strong> line same paragraph with <code>a &lt;b&gt; code</code>.</p>"
+        '<ul><li>one</li><li>two with <a href="https://x.test/a?b=1&amp;c=2" target="_blank" rel="noopener noreferrer">a link</a></li></ul>'
+        '<p>See <a href="https://x.test/page" target="_blank" rel="noopener noreferrer">https://x.test/page</a>.</p>')
+
+
+LINK_ATTRS = 'target="_blank" rel="noopener noreferrer"'
+
+
+@pytest.mark.parametrize("words, html", [
+    ("<script>alert(1)</script>", "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"),
+    ("[x](javascript:alert(1))", "<p>[x](javascript:alert(1))</p>"),
+    ("**<img src=x onerror=alert(1)>**", "<p><strong>&lt;img src=x onerror=alert(1)&gt;</strong></p>"),
+    ("`**not bold**`", "<p><code>**not bold**</code></p>"),
+    ('https://x.test/" onmouseover="alert(1)',
+     f'<p><a href="https://x.test/" {LINK_ATTRS}>https://x.test/</a>&quot; onmouseover=&quot;alert(1)</p>'),
+])
+def test_markdown_escapes_everything_first(words, html):
+    assert md(words) == html
+
+
+def test_text_without_markdown_stays_plain():
+    html = registry.render_component(text("**not bold**"))
+    assert "<p>**not bold**</p>" in html and "afkv2-md" not in html
+
+
 def test_a_round_banner_holds_its_three_lists():
     html = registry.render_component({"type": "round-banner", "props": {
         "n": 4, "colour": "red", "current": True, "settled": ["a <b>"], "unlocks": [], "parked": ["p"]}})

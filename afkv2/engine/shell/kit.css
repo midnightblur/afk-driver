@@ -147,7 +147,8 @@ a { color: var(--accent); }
                      margin: 0 0 .3rem;
                      font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
                      color: var(--fg-dim); padding: 0; }
-.afkv2-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+/* The marks of a card stand on one line; a long option label wraps to the next. */
+.afkv2-opt { display: inline-flex; gap: .4rem; align-items: flex-start; padding: .2rem 0; margin-right: 1.25rem; cursor: pointer; }
 .afkv2-opt input { margin-top: .25rem; }
 
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -204,6 +205,20 @@ a { color: var(--accent); }
 .afkv2-text > p { margin: 0 0 .4rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .afkv2-children { margin: .25rem 0; }
 .afkv2-card .afkv2-h { display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
+
+/* --- readable cards: a title, short lines, space between blocks, folds --- */
+
+.afkv2-card-title { font-size: 1.05rem; }
+.afkv2-kind { padding: 0 .45rem; border: 1px solid var(--line); border-radius: 999px;
+              font-size: .72rem; font-weight: 400; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-dim); }
+.afkv2-card-id { margin-left: auto; font: 400 .72rem ui-monospace, monospace; color: var(--fg-dim); }
+.afkv2-body .afkv2-text > p, .afkv2-md > p, .afkv2-md > ul, .afkv2-settled { max-width: 75ch; }
+.afkv2-body > * + *, .afkv2-children > * + *, .afkv2-fold-body > * + * { margin-top: .75rem; }
+.afkv2-md > p, .afkv2-md > ul { margin: 0 0 .6rem; overflow-wrap: anywhere; }
+.afkv2-md > ul { padding-left: 1.2rem; }
+.afkv2-md > :last-child { margin-bottom: 0; }
+.afkv2-fold > summary { cursor: pointer; color: var(--accent); }
+.afkv2-fold[open] > summary { margin-bottom: .5rem; }
 
 /* --- chip and styled text: 4 semantic tones, never colour alone ---------- */
 

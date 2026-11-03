@@ -51,12 +51,12 @@ SKILLS = {"grill", "propose-solution", "propose-verification"}
 ROUND_FIELDS = {"n", "state", "colour", "banner", "items", "responses", "replies"}
 BANNER_FIELDS = {"settled", "unlocks", "parked"}
 REPLY_FIELDS = {"text", "about"}
-ITEM_FIELDS = {"id", "kind", "node", "state", "body", "settled", "notes"}
+ITEM_FIELDS = {"id", "kind", "title", "node", "state", "body", "settled", "notes"}
 ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 SETTLED_FIELDS = {"by", "round", "signal", "reading"}
 NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
-COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
+COMPONENT_FIELDS = {"type", "id", "props", "style", "fold", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
@@ -130,6 +130,7 @@ def _check_props(comp, where, ids, last_round):
         tone = props.get("tone")
         _need(tone is None or tone in TONES, where, "props.tone")
         _need(kind == "text" or tone in TONES, where, "props.tone")
+        _need(isinstance(props.get("markdown", False), bool), where, "props.markdown")
     elif kind == "table":
         cols = props.get("columns")
         rows = props.get("rows")
@@ -172,6 +173,8 @@ def _check_component(comp, where, ids, last_round):
         ids.add(comp["id"])
     if "style" in comp:
         _need(isinstance(comp["style"], str), where, "style")
+    if "fold" in comp:
+        _need(isinstance(comp["fold"], str) and comp["fold"], where, "fold")
     _check_props(comp, where, ids, last_round)
     for i, child in enumerate(_objects(comp.get("children", []), where, "children")):
         _check_component(child, f"{where}.children[{i}]", ids, last_round)
@@ -243,6 +246,7 @@ def _check_round(r, ids, node_ids, last_round, components):
         _need(item["id"] not in ids, iw, "id not unique")
         ids.add(item["id"])
         _need(item.get("kind") in ITEM_KINDS, iw, "kind")
+        _need(item.get("title") is None or (isinstance(item["title"], str) and 0 < len(item["title"]) <= 90), iw, "title")
         _need(item.get("state", "open") in POINT_STATES, iw, "state")
         _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
         _check_notes(item, iw, last_round)

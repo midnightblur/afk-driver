@@ -76,8 +76,13 @@ def render_card(props, children):
     required = ' data-afkv2-required="1"' if current and state == "open" and item["kind"] != "info" else ""
     answer = _answer(item, state) if current and not settled else ""
     item_id = escape(item["id"])
-    heading = (f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id} '
-               f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span></h4>')
+    state_word = f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
+    if item.get("title"):
+        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(item["title"])}</span> '
+                   f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word} '
+                   f'<span class="afkv2-card-id">{item_id}</span></h4>')
+    else:
+        heading = f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id} {state_word}</h4>'
     return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="{item_id}" '
             f'data-afkv2-item="{item_id}" data-afkv2-element="{item_id}" '
             f'data-afkv2-state="{RAIL_STATES.get(state, "open")}" data-afkv2-point="{state}"{required} '

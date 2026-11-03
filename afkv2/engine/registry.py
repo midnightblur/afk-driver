@@ -111,7 +111,8 @@ def walk(component: dict, path: tuple = ()) -> Iterable[tuple]:
 
 
 def render_component(component: dict) -> str:
-    """The HTML of one valid component, in the wrapper that carries its id and style.
+    """The HTML of one valid component, in the wrapper that carries its id and style. A `fold` label
+    puts the component in a closed `<details>` inside that wrapper.
 
     The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
     kind = lookup(component["type"])
@@ -119,6 +120,9 @@ def render_component(component: dict) -> str:
     if kind.takes_html:
         props = {**props, "html": component["html"], "id": component.get("id")}
     inner = kind.render(props, [render_component(child) for child in _children(component)])
+    if component.get("fold"):
+        inner = (f'<details class="afkv2-fold"><summary>{html.escape(component["fold"])}</summary>'
+                 f'<div class="afkv2-fold-body">{inner}</div></details>')
     element, style = component.get("id"), component.get("style")
     if not element and not style:
         return inner

@@ -3,8 +3,9 @@
 ## Holds
 
 One point the human reads or answers. A card is an item in `rounds[].items[]`:
-`id`, `kind`, `node` (the map node it belongs to), `state`, `body` (one
-component tree) and, once settled, `settled`. Kinds:
+`id`, `kind`, `title`, `node` (the map node it belongs to), `state`, `body` (one
+component tree) and, once settled, `settled`. `title` is optional, at most 90
+characters: the point in plain words. Kinds:
 
 | Kind | The card | The human |
 |------|----------|-----------|
@@ -20,8 +21,8 @@ another open point is `blocked`, and its body names the card it waits on.
 
 ## Use it when
 
-One card per map node or per question. Set `node` when the card belongs to a
-map node. A card stays in its round when the round settles.
+One card per map node or per question. Give every card a `title`. Set `node`
+when the card belongs to a map node. A card stays in its round when the round settles.
 
 When the human sends a round, the engine settles a point with one `accept`,
 `sign` or option mark. It moves a point to `needs_reading` on `reopen`,
@@ -64,7 +65,9 @@ stays in its round. The old card stays as it is.
 A box in the cards section, below the maps, with the mark radios of its kind. A
 mark goes to the lavish queue at once. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
-lavish's Send to Agent. A round chip in the round colour marks every card that needs the human in that
+lavish's Send to Agent. The heading shows the `title`, then the kind as a small
+label, the state, and the card id small and muted at the end. With no `title`,
+the heading is the kind and the id. A round chip in the round colour marks every card that needs the human in that
 round. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`.
@@ -75,6 +78,7 @@ option, each option cell with the id `<item id>-opt-<letter>`.
 {
   "id": "i-format",
   "kind": "debate",
+  "title": "The file format of the export",
   "node": "n-format",
   "state": "open",
   "body": {
