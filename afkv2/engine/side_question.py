@@ -88,15 +88,17 @@ def one_line(question: str) -> str:
 
 
 def _question_end(lines: list[str], start: int, sent: str) -> int | None:
-    """The index after the question line(s) at `start`, when they hold `sent`; a long question wraps."""
+    """The index after the question line(s) at `start`, when they hold `sent`; a long question wraps.
+
+    The compare drops all whitespace: the terminal wraps a long line at any column, also inside a word."""
     if not lines[start].strip().startswith(sent.split(" ", 1)[0] + " "):
         return None
-    joined = ""
+    want, joined = "".join(sent.split()), ""
     for end in range(start, len(lines)):
-        joined = one_line(f"{joined} {lines[end]}")
-        if joined == sent:
+        joined += "".join(lines[end].split())
+        if joined == want:
             return end + 1
-        if len(joined) >= len(sent):
+        if len(joined) >= len(want):
             return None
     return None
 

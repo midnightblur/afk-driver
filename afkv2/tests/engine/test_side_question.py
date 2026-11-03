@@ -111,6 +111,14 @@ def test_a_wrapped_question_line_still_matches():
     assert side_question.extract_answer(screen, f"/btw {long}", footer) == ANSWER
 
 
+def test_a_question_wrapped_inside_a_word_still_matches():
+    long = "which ticket are we grilling, and which rounds are still open on the page today?"
+    screen = overlay(long).replace(f"  /btw {long}", "  /btw which ticket are we grilling, and which rou\n"
+                                                    "  nds are still open on the page today?")
+    footer = side_question.HARNESSES["claude"].footer
+    assert side_question.extract_answer(screen, f"/btw {long}", footer) == ANSWER
+
+
 def test_a_code_fence_keeps_its_lines():
     lines = ["  Run this:", "  ```", "  a", "  b", "  ```"]
     assert side_question.paragraphs(lines) == "Run this:\n```\na\nb\n```"
