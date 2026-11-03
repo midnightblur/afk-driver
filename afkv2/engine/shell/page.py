@@ -10,7 +10,7 @@ from __future__ import annotations
 from html import escape
 from pathlib import Path
 
-from registry import lookup, render_component
+from registry import aliases, lookup, render_component
 
 HERE = Path(__file__).resolve().parent
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
@@ -80,10 +80,16 @@ def _notes_and_replies(doc: dict) -> str:
     return render_component({"type": NOTES_AND_REPLIES, "props": {"document": doc}})
 
 
-def slot_targets(doc: dict) -> dict:
-    """The HTML ids the slot's component draws, each with the element id an annotation on it stands for."""
+def targets(doc: dict) -> dict:
+    """Each HTML id the page draws that is no element id, with the element id an annotation on it stands for:
+    the ids that the components of the maps and cards draw, and the ids of the slot's component."""
+    found = {}
+    for tree in [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]:
+        found.update(aliases(tree))
     kind = lookup(NOTES_AND_REPLIES)
-    return kind.targets({"document": doc}) if kind and kind.targets else {}
+    if kind and kind.targets:
+        found.update(kind.targets({"document": doc}))
+    return found
 
 
 def build(doc: dict) -> str:

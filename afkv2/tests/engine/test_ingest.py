@@ -769,18 +769,18 @@ def test_a_steer_names_the_map_and_links_to_the_node():
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "go", "deleted": False}]
     note_row = row(slot(page.build(doc)), "afkv2-nr-N-1-i-a")
     assert "Map: m-1" in note_row and "Label n-1" in note_row and 'href="#n-1"' in note_row
-    assert page.slot_targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
+    assert page.targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
 def test_a_steer_on_a_held_node_names_the_map():
     doc = one_round(held_in_card("i-a", "n-1", map_id="m-1"))
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "go", "deleted": False}]
     assert 'href="#n-1"' in row(slot(page.build(doc)), NOTE_ROW_A)
-    assert page.slot_targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
+    assert page.targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
 def test_a_note_row_stands_for_its_card():
-    assert page.slot_targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b"}
+    assert page.targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b"}
 
 
 def test_every_row_id_is_unique():

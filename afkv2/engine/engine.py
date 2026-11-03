@@ -349,7 +349,7 @@ def poll_raw(document: str, prompts: list[dict]) -> str:
     """The raw response that a poll's prompts make, read against the page document."""
     _, doc = load_document(document)
     _, ids, _ = _element_ids(doc)
-    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.slot_targets(doc))
+    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
 
 
 def _ingest(args) -> dict:
