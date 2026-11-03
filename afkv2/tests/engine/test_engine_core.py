@@ -891,6 +891,16 @@ def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
     assert f"var MARK_TAG = '{prompt_lines.MARK_TAG}';" in RUNTIME
 
 
+def test_lavish_keeps_the_picked_mark_through_a_reload():
+    """lavish reports and restores each control under `[data-lavish-question]` (lavish-axi 0.1.80 cli.mjs,
+    `lavishQuestionControls`). The explicit `queueKey` still names the queued mark."""
+    html = card_html(item("i-a", "decided"))
+    fieldset = html[html.index("<fieldset"):html.index("</fieldset>")]
+    assert holds(fieldset, 'data-afkv2-input="choice" data-lavish-question="i-a"')
+    assert fieldset.count('type="radio"') == 2 and "data-lavish-question" not in html.replace(fieldset, "")
+    assert "queueKey: 'afkv2:'" in RUNTIME
+
+
 def test_a_browser_draft_is_keyed_by_session_and_round():
     assert holds(RUNTIME, "var KEY_PREFIX = 'afkv2-draft:' + session + ':';", "var KEY = KEY_PREFIX + round;")
     assert "location.pathname" not in RUNTIME

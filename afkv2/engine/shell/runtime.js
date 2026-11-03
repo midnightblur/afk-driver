@@ -51,7 +51,9 @@
   var round = section.getAttribute('data-afkv2-round');
   var session = section.getAttribute('data-afkv2-session');
   /* A browser draft is keyed by session id and round, so a re-render keeps the
-   * marks and the next round starts empty. */
+   * marks and the next round starts empty. In a lavish session, lavish itself
+   * keeps the picked radios (data-lavish-question) and the queued marks in its
+   * tab store, so they come back after a reload of the tab too. */
   var KEY_PREFIX = 'afkv2-draft:' + session + ':';
   var KEY = KEY_PREFIX + round;
   var MARK_TAG = 'afkv2-mark';

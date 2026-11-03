@@ -78,7 +78,12 @@ and settled line until the human opens it.
 
 A mark goes to the lavish queue at once. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
-lavish's Send to Agent. The heading shows the `title`, then the kind as a small
+lavish's Send to Agent. Until the send, lavish keeps the picked marks, the
+queue and an annotation being typed on an element (not on selected text) in
+its store for the browser tab: they
+come back after a reload or a re-render, and after a restart of the lavish
+host. A closed tab loses them. After the send, the host keeps the send on
+disk, and the engine keeps it beside the document until ingest. The heading shows the `title`, then the kind as a small
 label, the state, and the card id small and muted at the end. With no `title`,
 the heading is the kind and the id. Every card has the chip of its round. The chip is solid in the round colour
 when the card needs the human now, and muted otherwise. An open `info` card
