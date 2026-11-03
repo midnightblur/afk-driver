@@ -14,6 +14,9 @@ sys.path.insert(0, str(PLUGIN / "ports"))
 
 from tracker.envelope import Refusal  # noqa: E402
 
+sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
+from start_gate import RUN_SUFFIX  # noqa: E402
+
 FORGE_LIMIT = 120
 PASSED_ON = ("forge", "repo")
 HEX40 = re.compile(r"[0-9a-f]{40}")
@@ -113,4 +116,57 @@ def check_clean(worktree):
     if files:
         result["refusal"] = {"code": "uncommitted", "reason": f"{worktree} has uncommitted or untracked files: "
                                                               f"{', '.join(files)}", "files": files}
+    return result
+
+
+def _local_tip(repo, branch):
+    done = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"], cwd=repo,
+                          capture_output=True, stdin=subprocess.DEVNULL, timeout=GIT_LIMIT)
+    return done.stdout.decode("utf-8", "replace").strip() if done.returncode == 0 else ""
+
+
+def _remote_tip(repo, remote, branch):
+    """The tip on the remote itself, not the remote-tracking ref, which can be stale."""
+    ref = f"refs/heads/{branch}"
+    lines = _git(repo, "ls-remote", remote, ref).splitlines()
+    return next((line.split("\t")[0] for line in lines if line.split("\t")[-1] == ref), "")
+
+
+def _outside(repo, remote, branch, tip, head):
+    """Each commit of `tip` that `head` lacks, newest first. A remote tip this clone never fetched is fetched first."""
+    known = subprocess.run(["git", "cat-file", "-e", f"{tip}^{{commit}}"], cwd=repo, capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=GIT_LIMIT)
+    if known.returncode != 0:
+        _git(repo, "fetch", "--quiet", "--no-tags", remote, f"refs/heads/{branch}")
+    lines = _git(repo, "log", "--format=%h%x09%s", f"{head}..{tip}", "--").splitlines()
+    return [{"id": line.partition("\t")[0], "title": line.partition("\t")[2]} for line in lines if line]
+
+
+def _commits_text(commits):
+    if commits is None:
+        return "unchecked, no merged change gives a head commit"
+    return ", ".join(f"{commit['id']} {commit['title']}" for commit in commits)
+
+
+def check_tips(repo, feature_branch, head, remote="origin"):
+    """Every branch tip of the work; an empty tip is an absent branch. A feature branch tip, local or remote, that is
+    not `head` or older refuses `outside-commits` with each commit's short id and title. The run branch is an orphan
+    by design: its tips are given, never compared. No `head` leaves each feature tip unchecked, which refuses."""
+    run_branch = feature_branch + RUN_SUFFIX
+    tips = {"feature branch": _local_tip(repo, feature_branch),
+            "remote feature branch": _remote_tip(repo, remote, feature_branch),
+            "run branch": _local_tip(repo, run_branch),
+            "remote run branch": _remote_tip(repo, remote, run_branch)}
+    result = {"refusal": None, "run_branch": run_branch, "tips": tips,
+              "absent": [item for item, commit in tips.items() if not commit]}
+    branches = []
+    for item in ("feature branch", "remote feature branch"):
+        if not tips[item]:
+            continue
+        commits = _outside(repo, remote, feature_branch, tips[item], head) if head else None
+        if commits != []:
+            branches.append({"item": item, "branch": feature_branch, "tip": tips[item], "commits": commits})
+    if branches:
+        shown = "; ".join(f"{branch['item']}: " + _commits_text(branch["commits"]) for branch in branches)
+        result["refusal"] = {"code": "outside-commits", "reason": f"commits outside the change: {shown}", "branches": branches}
     return result

@@ -150,3 +150,74 @@ def test_an_absent_worktree_reads_absent_not_an_error(repo, tmp_path):
     result = gc_checks.check_clean(missing)
     assert result == {"refusal": None, "worktree": str(missing), "absent": True, "files": [],
                       "ignored": {"count": 0, "first": []}}
+
+
+def tip(repo, ref):
+    return git(repo.main, "rev-parse", ref)
+
+
+def short(repo, commit):
+    return git(repo.main, "rev-parse", "--short", commit)
+
+
+def test_tips_at_the_change_head_pass_and_every_branch_tip_is_given(repo):
+    head = tip(repo, FEATURE)
+    result = gc_checks.check_tips(repo.main, FEATURE, head)
+    assert result["refusal"] is None
+    assert result["run_branch"] == FEATURE + "-run"
+    assert result["tips"] == {"feature branch": head, "remote feature branch": head,
+                              "run branch": tip(repo, FEATURE + "-run"), "remote run branch": tip(repo, FEATURE + "-run")}
+    assert result["absent"] == []
+
+
+def test_a_tip_older_than_the_change_head_passes(repo):
+    older = tip(repo, FEATURE)
+    head = repo.commit(repo.feature, "more.txt", "more\n", "more work")
+    git(repo.feature, "push", "-q", "origin", FEATURE)
+    git(repo.feature, "reset", "-q", "--hard", older)
+    result = gc_checks.check_tips(repo.main, FEATURE, head)
+    assert result["refusal"] is None
+    assert result["tips"]["feature branch"] == older
+
+
+def test_a_local_commit_after_the_merge_refuses_with_its_short_id_and_title(repo):
+    head = tip(repo, FEATURE)
+    late = repo.commit(repo.feature, "late.txt", "late\n", "a late fix")
+    result = gc_checks.check_tips(repo.main, FEATURE, head)
+    refusal = result["refusal"]
+    assert refusal["code"] == "outside-commits"
+    assert refusal["branches"] == [{"item": "feature branch", "branch": FEATURE, "tip": late,
+                                    "commits": [{"id": short(repo, late), "title": "a late fix"}]}]
+    assert short(repo, late) in refusal["reason"] and "a late fix" in refusal["reason"]
+
+
+def test_a_remote_commit_this_clone_never_fetched_refuses_with_its_short_id_and_title(repo, tmp_path):
+    head = tip(repo, FEATURE)
+    other = tmp_path / "other"
+    git(tmp_path, "clone", "-q", "-b", FEATURE, str(repo.remote), str(other))
+    for key, value in (("user.name", "o"), ("user.email", "o@t.test"), ("commit.gpgsign", "false")):
+        git(other, "config", key, value)
+    pushed = repo.commit(other, "pushed.txt", "pushed\n", "pushed from elsewhere")
+    git(other, "push", "-q", "origin", FEATURE)
+    result = gc_checks.check_tips(repo.main, FEATURE, head)
+    assert result["tips"]["remote feature branch"] == pushed
+    assert result["refusal"]["branches"] == [{"item": "remote feature branch", "branch": FEATURE, "tip": pushed,
+                                              "commits": [{"id": short(repo, pushed), "title": "pushed from elsewhere"}]}]
+
+
+def test_an_absent_run_branch_reads_absent_not_an_error(repo):
+    git(repo.main, "worktree", "remove", "--force", str(repo.run))
+    git(repo.main, "branch", "-D", FEATURE + "-run")
+    git(repo.main, "push", "-q", "origin", "--delete", FEATURE + "-run")
+    result = gc_checks.check_tips(repo.main, FEATURE, tip(repo, FEATURE))
+    assert result["refusal"] is None
+    assert (result["tips"]["run branch"], result["tips"]["remote run branch"]) == ("", "")
+    assert result["absent"] == ["run branch", "remote run branch"]
+
+
+def test_no_change_head_leaves_each_feature_tip_unchecked_and_refuses(repo):
+    result = gc_checks.check_tips(repo.main, FEATURE, None)
+    refusal = result["refusal"]
+    assert refusal["code"] == "outside-commits"
+    assert [branch["item"] for branch in refusal["branches"]] == ["feature branch", "remote feature branch"]
+    assert all(branch["commits"] is None for branch in refusal["branches"])
