@@ -6,7 +6,9 @@ A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone; for text the tone is
 optional. A `text` takes `markdown: true` to render a safe subset: blank-line
 paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
-http(s) links. The engine escapes all HTML first. Tones:
+http(s) links. The engine escapes all HTML first. A `text` also takes `label`
+(at most 60 characters), a small line above its words that names what the words
+are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
 
 | Tone | Means | Looks |
 |------|-------|-------|
@@ -22,7 +24,8 @@ its text.
 
 A value, step or element must show whether it stays, goes, is new or is only
 proposed. Use `markdown: true` for text that comes as Markdown, such as a
-ticket description. Use the tone for that meaning only; for any other look, use `style`.
+ticket description. Use `label` when a card holds several fields, so each block
+says what it is. Use the tone for that meaning only; for any other look, use `style`.
 
 ## How it looks
 

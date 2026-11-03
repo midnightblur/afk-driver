@@ -86,22 +86,38 @@ def _text(value, component_id):
     return {"type": "text", "id": component_id, "props": {"text": value}}
 
 
+def _labelled(component_id, label, value, **extra):
+    component = _text(value, component_id)
+    component["props"].update(label=label, **extra)
+    return component
+
+
 def _decided_fields(item_id, decided, known_ids):
-    """The six fields of a decided card as components, and whether the card holds all six."""
+    """The six fields of a decided card as labelled text components, and whether the card holds all six.
+
+    The decision comes first, in bold. The alternatives are a list under a label that calls them rejected,
+    so they never read as parts of the decision. The grade is a badge on the evidence label."""
     decided = decided if isinstance(decided, dict) else {}
-    alternatives = decided.get("alternatives") or []
+    alternatives = [str(a) for a in decided.get("alternatives") or []]
     grade, evidence = decided.get("grade"), decided.get("evidence")
     depends_on = decided.get("depends_on") or []
     whole = (bool(decided.get("decision")) and bool(alternatives) and bool(evidence) and grade in GRADES
              and bool(decided.get("why")) and bool(decided.get("reverse")) and set(depends_on) <= known_ids)
-    label = f"{grade}: {evidence}" if grade in GRADES else f"not graded: {evidence}"
-    parts = [("decision", decided.get("decision")),
-             ("why", decided.get("why")),
-             ("alternatives", "Alternatives beaten: " + "; ".join(alternatives) if alternatives else None),
-             ("evidence", label if evidence else None),
-             ("reverse", f"reverse: {decided['reverse']}" if decided.get("reverse") else None),
-             ("scope", f"HL: none · depends-on: {', '.join(depends_on) or 'none'}")]
-    return [_text(value, f"{item_id}-{name}") for name, value in parts if value], whole
+    fields = []
+    if decided.get("decision"):
+        fields.append({**_labelled(f"{item_id}-decision", "Decision", decided["decision"]), "style": "font-weight: 600"})
+    if decided.get("why"):
+        fields.append(_labelled(f"{item_id}-why", "Why this one", decided["why"]))
+    if alternatives:
+        listed = "\n".join("- " + " ".join(a.split()) for a in alternatives)
+        fields.append(_labelled(f"{item_id}-alternatives", "Other options considered (rejected)", listed, markdown=True))
+    if evidence:
+        fields.append(_labelled(f"{item_id}-evidence", "Evidence", evidence,
+                                badge=grade if grade in GRADES else "not graded"))
+    if decided.get("reverse"):
+        fields.append(_labelled(f"{item_id}-reverse", "To undo", decided["reverse"]))
+    fields.append(_labelled(f"{item_id}-scope", "Depends on", ", ".join(depends_on) or "no other card"))
+    return fields, whole
 
 
 def _item(raw, known_ids, degraded):

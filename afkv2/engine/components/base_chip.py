@@ -1,4 +1,5 @@
-"""Chip and styled text (CMP-9), with the 4 semantic tones. Text may render a safe Markdown subset."""
+"""Chip and styled text (CMP-9), with the 4 semantic tones. Text may render a safe Markdown subset,
+and may carry a label line with a badge above its words."""
 
 import re
 from html import escape
@@ -72,13 +73,23 @@ def render_chip(props, children):
             + "".join(children))
 
 
+def _label(props):
+    """The label line above the words: the label, then the badge as a neutral chip."""
+    if not props.get("label") and not props.get("badge"):
+        return ""
+    badge = f'<span class="afkv2-chip afkv2-badge">{escape(props["badge"])}</span>' if props.get("badge") else ""
+    label = f'<span class="afkv2-label-words">{escape(props["label"])}</span>' if props.get("label") else ""
+    return f'<p class="afkv2-label">{label}{badge}</p>'
+
+
 def render_text(props, children):
     tone = props.get("tone")
     style = f" afkv2-tone--{tone}" if tone else ""
     tail = f'<div class="afkv2-children">{"".join(children)}</div>' if children else ""
     words = (f'<div class="afkv2-md">{markdown(props["text"])}</div>' if props.get("markdown")
              else f'<p>{escape(props["text"])}</p>')
-    return f'<div class="afkv2-text{style}">{words}{tail}</div>'
+    labelled = " afkv2-labelled" if props.get("label") or props.get("badge") else ""
+    return f'<div class="afkv2-text{style}{labelled}">{_label(props)}{words}{tail}</div>'
 
 
 register_component("chip", {
@@ -88,5 +99,7 @@ register_component("chip", {
 
 register_component("text", {
     "type": "object", "additionalProperties": False, "required": ["text"],
-    "properties": {"text": {"type": "string"}, "tone": {"enum": TONES}, "markdown": {"type": "boolean"}},
+    "properties": {"text": {"type": "string"}, "tone": {"enum": TONES}, "markdown": {"type": "boolean"},
+                   "label": {"type": "string", "minLength": 1, "maxLength": 60},
+                   "badge": {"type": "string", "minLength": 1, "maxLength": 30}},
 }, render_text)

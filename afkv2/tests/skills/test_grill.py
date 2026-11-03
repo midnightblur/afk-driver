@@ -270,10 +270,17 @@ def test_decided_card_carries_all_six_fields(tmp_path):
     item = doc["rounds"][0]["items"][0]
     assert item["kind"] == "decided" and result["degraded"] == []
     assert "decided" not in item
-    shown = json.dumps(item["body"])
-    for value in ("The export writes UTF-8.", "UTF-16: no reader asks for it", "repo: src/io.py:12",
-                  "Beats UTF-16", "reverse: change the writer", "depends-on: none"):
-        assert value in shown
+    fields = {c["id"]: c for c in rd._components(item["body"])}
+    labelled = [(fields[f"i-scope-{name}"]["props"]["label"], fields[f"i-scope-{name}"]["props"]["text"])
+                for name in ("decision", "why", "alternatives", "evidence", "reverse", "scope")]
+    assert labelled == [("Decision", "The export writes UTF-8."),
+                        ("Why this one", "Beats UTF-16: every current reader takes UTF-8."),
+                        ("Other options considered (rejected)", "- UTF-16: no reader asks for it"),
+                        ("Evidence", "src/io.py:12 writes UTF-8"), ("To undo", "change the writer"),
+                        ("Depends on", "no other card")]
+    assert fields["i-scope-evidence"]["props"]["badge"] == "repo"
+    assert fields["i-scope-alternatives"]["props"]["markdown"] is True
+    assert "font-weight" in fields["i-scope-decision"]["style"]
 
 
 @pytest.mark.parametrize("field", ["decision", "alternatives", "evidence", "why", "reverse"])

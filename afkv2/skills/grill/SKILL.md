@@ -53,7 +53,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | Field | Effect |
    |-------|--------|
    | `critical: true` | the card asks a critical-aspect question: how an existing code area, data set or flow must change. The body root must be a picture of the current state, with the question in its `children`. The build refuses any other shape. |
-   | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body. A gap makes it a `confirm` card and the answer lists it in `degraded`. |
+   | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body as labelled blocks (`card` page). A gap makes it a `confirm` card and the answer lists it in `degraded`. |
    | `carries: [<old card id>]` | this new card asks a returning point again, and the build writes that into the body. Every point the round pass returns needs one such card; the build refuses the next round without it. A mention in other text or in `depends_on` carries nothing. |
 
 5. **Build and show the round.** Done when `present` answers ok.
