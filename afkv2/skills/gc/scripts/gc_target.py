@@ -162,3 +162,14 @@ def take_lock(repo, branch):
         os.close(handle)
         raise Refusal("locked", f"another gc run holds the target of {branch}; run gc again when it ends") from None
     return Lock(path, handle)
+
+
+def delete_target(repo, branch, lock=None):
+    """Remove the target file, release `lock` if given, then remove the lock file: Windows cannot delete a file a handle holds open."""
+    target_path(repo, branch).unlink(missing_ok=True)
+    if lock is not None:
+        lock.release()
+    try:
+        lock_path(repo, branch).unlink(missing_ok=True)
+    except PermissionError:
+        pass  # Another run took the lock after the release; it reads no target, and the empty lock file stays with it.

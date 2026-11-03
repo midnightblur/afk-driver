@@ -182,3 +182,18 @@ def test_the_receipt_is_the_sha256_of_the_list_in_a_fixed_form():
 ])
 def test_a_change_of_the_change_a_tip_a_refusal_detail_or_the_ignored_count_gives_another_receipt(path, value):
     assert gc_target.receipt_of(changed(path, value)) != gc_target.receipt_of(a_list())
+
+
+def test_deleting_a_target_removes_the_target_file_and_its_held_lock_file(repo):
+    target = gc_target.write_target(repo.feature, a_target(repo))
+    lock = gc_target.take_lock(repo.feature, FEATURE)
+    gc_target.delete_target(repo.main, FEATURE, lock)
+    assert not target.exists() and not lock.path.exists()
+    gc_target.take_lock(repo.main, FEATURE).release()
+
+
+def test_deleting_an_absent_target_or_one_without_a_lock_file_is_no_error(repo):
+    gc_target.delete_target(repo.feature, FEATURE)
+    target = gc_target.write_target(repo.feature, a_target(repo))
+    gc_target.delete_target(repo.feature, FEATURE)
+    assert not target.exists()
