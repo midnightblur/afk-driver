@@ -13,7 +13,7 @@ RAIL_STATES = {"blocked": "blocked", "settled_by_mark": "settled", "settled_by_n
 WRITE_IN = "write-in"
 FIXED_CONTROLS = {
     "decided": [("accept", "Accept"), ("reopen", "Reopen")],
-    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: put it in the note")],
+    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: annotate the card")],
     "signoff": [("sign", "Sign"), ("changes", "Ask for changes")],
 }
 
@@ -39,7 +39,7 @@ def debate_options(item):
         match = pattern.fullmatch(component.get("id") or "")
         if match:
             options.append((match.group(1), titles.get(component["id"], f"Option {match.group(1).upper()}")))
-    return [*options, (WRITE_IN, "Something else: put it in the note")]
+    return [*options, (WRITE_IN, "Something else: annotate the card")]
 
 
 def _choice(item_id, options):
@@ -49,17 +49,12 @@ def _choice(item_id, options):
     return f'<fieldset class="afkv2-choice" data-afkv2-input="choice"><legend>Your mark</legend>{rows}</fieldset>'
 
 
-def _note(item_id):
-    return ('<label class="afkv2-note"><span>Note</span><textarea data-afkv2-input="note" '
-            f'name="note:{escape(item_id)}" rows="2" placeholder="Your words, always optional"></textarea></label>')
-
-
 def _answer(item, state):
-    choice = ""
-    if state == "open" and item["kind"] != "info":
-        options = debate_options(item) if item["kind"] == "debate" else FIXED_CONTROLS[item["kind"]]
-        choice = _choice(item["id"], options)
-    return f'<div class="afkv2-answer">{choice}{_note(item["id"])}</div>'
+    """The mark radios of an open asking card. A note is a native lavish annotation, so no card holds a note field."""
+    if state != "open" or item["kind"] == "info":
+        return ""
+    options = debate_options(item) if item["kind"] == "debate" else FIXED_CONTROLS[item["kind"]]
+    return f'<div class="afkv2-answer">{_choice(item["id"], options)}</div>'
 
 
 def _settled_line(item):

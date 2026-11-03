@@ -68,7 +68,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
 
-6. **Wait for the answer.** The answer reaches you with no chat message from the human.
+6. **Wait for the answer.** The human picks a mark on each card, writes each note as a lavish annotation, and sends both with Send to Agent in the lavish panel. The answer reaches you with no chat message from the human.
 
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. The host's prompts, from which the engine built that text, are in `<raw file>.prompts.json`. Do other work or end your response until then.
 
@@ -76,7 +76,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
+   **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send to Agent: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
 
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 

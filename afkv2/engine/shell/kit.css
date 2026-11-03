@@ -150,48 +150,18 @@ a { color: var(--accent); }
 .afkv2-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
 .afkv2-opt input { margin-top: .25rem; }
 
-.afkv2-note { display: block; margin-top: .55rem; }
-.afkv2-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
-                 color: var(--fg-dim); }
-.afkv2-note textarea {
-  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
-  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
-  border-radius: 4px; font: inherit; resize: vertical;
-}
-
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* --- send bar ---------------------------------------------------------- */
+/* --- copy bar: the fallback without lavish ------------------------------ */
 
-.afkv2-send {
-  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
-  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
-  padding: .7rem 1.25rem;
-  /* Not fully opaque: the layout audit reads an opaque sticky bar as covering the text under it.
-   * The blur keeps the bar legible. */
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(6px);
-  border-top: 1px solid var(--line);
+.afkv2-copy { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+              margin-top: 1rem; padding-top: .7rem; border-top: 1px solid var(--line); }
+.afkv2-copy-hint { flex: 1 1 100%; margin: 0; color: var(--fg-dim); font-size: .88rem; }
+.afkv2-copy button {
+  font: inherit; padding: .35rem .8rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); cursor: pointer;
 }
-@supports not (backdrop-filter: blur(6px)) {
-  /* No blur available: a translucent bar over scrolling text is unreadable, so
-   * take the solid fill back and accept the false warning. Legibility first. */
-  .afkv2-send { background: var(--surface); }
-}
-.afkv2-send button {
-  font: inherit; padding: .45rem .9rem; border-radius: 5px;
-  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
-  cursor: pointer;
-}
-.afkv2-send button.afkv2-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-.afkv2-send button[hidden] { display: none; }
-.afkv2-card.afkv2-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
-.afkv2-send-summary {
-  flex: 1 1 100%; color: var(--fg); font: .82rem/1.35 ui-monospace, monospace;
-  overflow-wrap: anywhere;
-}
-.afkv2-send-status { color: var(--fg-dim); font-size: .88rem; }
-.afkv2-send-status.afkv2-warn { color: var(--open); }
+.afkv2-copy-status { color: var(--fg-dim); font-size: .88rem; }
 
 /* --- rounds: each round has its own colour ------------------------------ */
 

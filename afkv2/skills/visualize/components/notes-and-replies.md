@@ -2,7 +2,9 @@
 
 ## Holds
 
-The human's notes and your replies, per round. A note lives on its item:
+The human's notes and your replies, per round. The human writes a note as a
+lavish annotation. The poll gives it the element id that the annotation names;
+a note on no element becomes a steer on the first map. A note lives on its item:
 `items[].notes[]` with `id`, `round`, `target`, `text`, `deleted`. The engine
 mints each note id as `N-<round>-<item>` from the human's response. A reply
 lives on the round: `rounds[].replies[]` with `text` and `about`, the list of

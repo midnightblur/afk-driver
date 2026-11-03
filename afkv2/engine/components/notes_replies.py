@@ -1,13 +1,12 @@
 """Notes and replies (CMP-2): per round, newest first, each collapsible, the agent's replies on top.
 
-The controls are plain markup; `shell/notes.js` gives them their work. A page with no answerable card
-takes a note through a form of its own here, so a settled point can still reopen.
+Display only. The human writes a note as a native lavish annotation; the poll turns it into a note line.
 """
 
 from html import escape
 
 from registry import register_component, walk
-from shell.page import _send_bar, round_colour
+from shell.page import round_colour
 
 
 def _map_nodes(doc):
@@ -34,9 +33,7 @@ def _note(note, nodes):
         return (f'<li class="afkv2-nr-note afkv2-nr-note--deleted" {attrs}><p class="afkv2-nr-head">{what} '
                 f'({note_id}): deleted</p><p class="afkv2-nr-text">{escape(note["text"])}</p></li>')
     return (f'<li class="afkv2-nr-note" {attrs}><p class="afkv2-nr-head">{what} ({note_id})</p>'
-            f'<p class="afkv2-nr-text">{escape(note["text"])}</p>'
-            f'<p class="afkv2-nr-actions"><button type="button" data-afkv2-note-edit="{note_id}">Edit</button> '
-            f'<button type="button" data-afkv2-note-delete="{note_id}">Delete</button></p></li>')
+            f'<p class="afkv2-nr-text">{escape(note["text"])}</p></li>')
 
 
 def _signal(signal):
@@ -82,19 +79,6 @@ def _round(round_, notes, nodes):
             f'<span class="afkv2-round-chip">R-{n}</span> Round {n}: {count}</summary>{"".join(sections)}</details>')
 
 
-def _own_form(doc):
-    """The send form of a page whose current round has no answerable card, hidden until a note exists."""
-    current = next(r for r in doc["rounds"] if r["state"] == "current")
-    if any(not item.get("state", "open").startswith("settled_") for item in current["items"]):
-        return ""
-    if not any(r["items"] for r in doc["rounds"]):
-        return ""
-    n = current["n"]
-    return (f'<form id="afkv2-answer-form" hidden data-afkv2-answer-form="1" data-afkv2-round="{n}" '
-            f'data-lavish-question="round:R-{n}"><div data-afkv2-state="current">'
-            f'{_send_bar(current, doc["session"]["id"])}</div></form>')
-
-
 def render_notes_replies(props, children):
     doc = props["document"]
     nodes = _map_nodes(doc)
@@ -105,7 +89,7 @@ def render_notes_replies(props, children):
                 by_round.setdefault(note["round"], []).append(note)
     rounds = "".join(_round(r, by_round.get(r["n"], []), nodes) for r in sorted(doc["rounds"], key=lambda r: -r["n"]))
     heading = '<h2 class="afkv2-section-h">Notes and replies</h2>' if rounds else ""
-    return heading + rounds + _own_form(doc) + "".join(children)
+    return heading + rounds + "".join(children)
 
 
 register_component("notes-and-replies", {

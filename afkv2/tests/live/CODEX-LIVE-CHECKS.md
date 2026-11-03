@@ -47,7 +47,7 @@ Run this check after lavish-axi 0.1.80 is the global install. `engine show` refu
 3. Open the page in the browser. Look at the waiting record: `%LOCALAPPDATA%\afkv2\page-waiting-*.json`. The name after `page-waiting-` is the `CODEX_THREAD_ID` of the session.
 4. Look at the Codex hook input, if your Codex version shows it. The `session_id` of the `Stop` event must equal that name. The docs do not state this equality; this check proves it. If they differ, the hook finds no record and returns nothing, and the check fails at step 7.
 5. Wait for 10 minutes. Type nothing in Codex. While you wait, note whether you can still use the chat (PRD Further Notes, unverified premise).
-6. Mark one card and click **Send my answers**. If the page shows "No mark on …", click it again.
+6. Mark one card, then click **Send to Agent** in the lavish panel.
 7. Do not write in the chat. Watch Codex.
 
 Pass: within one minute Codex continues by itself, and its next prompt is the raw response text, which starts with `[round R-`. The file `page-waiting-*.json` is gone.
