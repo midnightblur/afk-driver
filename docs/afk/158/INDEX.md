@@ -13,7 +13,7 @@ After a piece of work merges, its run branch, run worktree, feature worktree and
 | Design ADRs | adr/design/ | 5 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-gc-run:plan/PLAN.md | 11 subtasks; division approved 2026-11-03 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
