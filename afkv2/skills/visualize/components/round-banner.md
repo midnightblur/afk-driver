@@ -17,9 +17,10 @@ correct for round 1.
 ## How it looks
 
 A band across the top of the page in the round colour, with the round number
-and the three lists. Leave `colour` out and the engine assigns one; each round
-has its own colour, and a round chip in that colour marks every item that needs
-the human in that round.
+and the three lists. The page shows the banner of the current round; the earlier
+banners go into "Earlier banners" at the end, closed. Leave `colour` out and the
+engine assigns one; each round has its own colour, and every card carries a
+chip in the colour of its round.
 
 ## Example
 

@@ -17,8 +17,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import Parser, Refusal, read_json, serve, write_text
-from round_document import ASKING, _carried, _components, _live_notes, _map_nodes, current_round, returning, signature_missing
+from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text
+from round_document import (ASKING, _carried, _components, card_notes, current_round, returning, signature_missing,
+                            steer_targets, steers)
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}
@@ -104,16 +105,21 @@ def _first_text(item):
     return item["id"]
 
 
-def _field_text(item, name):
+def _field_text(item, name, prefix=""):
+    """The text of a decided field. A field with a label carries its grade as a badge; an older card has the
+    grade or the prefix in its text already."""
     for component in _components(item["body"]):
         if component.get("id") == f"{item['id']}-{name}":
-            return (component.get("props") or {}).get("text")
+            props = component.get("props") or {}
+            if not props.get("label"):
+                return props.get("text")
+            return f"{props['badge']}: {props['text']}" if props.get("badge") else prefix + props["text"]
     return None
 
 
-def _note_lines(item):
+def _note_lines(item, targets):
     return [f"  owner note on {item['id']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"
-            for note in _live_notes(item)]
+            for note in card_notes(item, targets)]
 
 
 def _accepted_date(doc, round_n):
@@ -130,36 +136,33 @@ def _how_settled(doc, item):
     if item["kind"] != "decided":
         return f"settled by mark {settled['signal']} R{settled['round']}"
     tail = [f"decided-by agent R{settled['round']}", f"accepted {_accepted_date(doc, settled['round'])}"]
-    tail += [value for value in (_field_text(item, "evidence"), _field_text(item, "reverse")) if value]
+    tail += [value for value in (_field_text(item, "evidence"), _field_text(item, "reverse", "reverse: ")) if value]
     return " · ".join(tail)
 
 
-def _item_row(doc, item, is_current):
-    title, card = _first_text(item), f"· card {item['id']}"
+def _item_row(doc, item, is_current, targets):
+    title, card, notes = _first_text(item), f"· card {item['id']}", _note_lines(item, targets)
     if item.get("settled") and item["state"] in ("settled_by_mark", "settled_by_note"):
-        return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *_note_lines(item)]
+        return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *notes]
     if is_current and item["kind"] in ASKING:
-        return [f"- Open: {title} {card}", *_note_lines(item)]
-    if not _live_notes(item):
+        return [f"- Open: {title} {card}", *notes]
+    if not notes:
         return None
     kind = "Carried" if item["kind"] in ASKING else "Info"
-    return [f"- {kind}: {title} {card}", *_note_lines(item)]
+    return [f"- {kind}: {title} {card}", *notes]
 
 
 def _document_rows(doc):
     session = doc["session"]["id"]
     rows = [[f"- Session: {session} · page document pages/grill-{session}.json"]]
-    current = current_round(doc)
+    current, targets = current_round(doc), steer_targets(doc)
     for rnd in doc["rounds"]:
         for item in rnd["items"]:
-            row = _item_row(doc, item, rnd is current)
+            row = _item_row(doc, item, rnd is current, targets)
             if row:
                 rows.append(row)
-    nodes = {node.get("id") for node in _map_nodes(doc)}
-    for rnd in doc["rounds"]:
-        for item in rnd["items"]:
-            rows += [[f"- Steer: {note['target']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"]
-                     for note in _live_notes(item) if note.get("target") in nodes]
+    rows += [[f"- Steer: {note['target']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"]
+             for note in steers(doc)]
     return rows
 
 
@@ -167,7 +170,8 @@ def _session_documents(doc_path):
     """This document and every older grill document beside it, oldest session first."""
     doc_path = Path(doc_path)
     docs = [read_json(doc_path)]
-    docs += [read_json(path) for path in doc_path.parent.glob("grill-*.json") if path.resolve() != doc_path.resolve()]
+    docs += [read_json(path) for path in page_documents(doc_path.parent, "grill-")
+             if path.resolve() != doc_path.resolve()]
     return sorted(docs, key=lambda doc: (doc["session"]["started"], doc["session"]["id"]))
 
 

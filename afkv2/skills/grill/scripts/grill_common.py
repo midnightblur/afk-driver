@@ -48,6 +48,12 @@ def read_json(path):
         raise Refusal("unreadable", f"{path}: {error}", EXIT_UNREADABLE) from error
 
 
+def page_documents(pages, prefix):
+    """The page documents `<prefix><session id>.json` in `pages`. A file with one more suffix, such as
+    `<raw file>.prompts.json`, is a side file of a document. A session id that a skill makes has no dot."""
+    return [path for path in Path(pages).glob(f"{prefix}*.json") if "." not in path.stem]
+
+
 def write_text(path, text):
     """Replace the file in one step, with LF line ends on every platform."""
     path = Path(path)

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 from functools import partial
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,7 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR, PLUGIN / "hooks"):
 import codex_stop  # noqa: E402
 import engine  # noqa: E402
 import launcher  # noqa: E402
+import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 from schema import invariants  # noqa: E402
 from shell import inject, page  # noqa: E402
@@ -96,7 +98,20 @@ def position(text, part):
     return text.index(part)
 
 
-ROUND_ONE = 'id="afkv2-r-1"'
+SETTLED_SECTION = 'id="afkv2-settled"'
+PAST_CHIP = "afkv2-round-chip--past"
+HISTORY_OPEN = '<details class="afkv2-history"'
+HISTORY_CLASS = ".afkv2-history"
+ROUND_ID = 'id="afkv2-r-'
+ROUND_THREE = 'id="afkv2-r-3"'
+EARLIER_BANNERS = 'id="afkv2-earlier-banners"'
+MAPS_SECTION = 'id="afkv2-maps"'
+CARD_TITLE, KIND_LABEL, CARD_ID = "afkv2-card-title", "afkv2-kind", "afkv2-card-id"
+FOLD_OPEN = '<details class="afkv2-fold">'
+FOLD_OPENED = '<details class="afkv2-fold" open'
+MD_OPEN = '<div class="afkv2-md">'
+MD_CLASS = "afkv2-md"
+COPY_BUTTON = 'id="afkv2-copy-go"'
 ITEM_MARKER = 'data-afkv2-item="{}"'
 COLOUR_RULE = "--afkv2-round: {}"
 
@@ -222,6 +237,25 @@ def test_ids_are_unique_across_items_and_components(capsys, tmp_path):
     doc = document()
     doc["rounds"][0]["items"].append({"id": "i-b", "kind": "info", "body": text("x", id="i-a")})
     assert "not unique" in refused(capsys, tmp_path, doc)["reason"]
+
+
+@pytest.mark.parametrize("element", ["afkv2-send", "lavish-cursor-style"])
+def test_an_id_with_a_prefix_of_the_page_or_the_host_is_refused(capsys, tmp_path, element):
+    doc = document()
+    doc["rounds"][0]["items"][0]["body"]["id"] = element
+    error = refused(capsys, tmp_path, doc)
+    assert error["code"] == "invariant" and f"{element!r} starts with a prefix" in error["reason"]
+
+
+def test_every_element_id_is_also_its_html_id():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("x", id="c-body")
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    html = page.build(doc)
+    assert holds(html, 'id="i-new" data-afkv2-item="i-new" data-afkv2-element="i-new"',
+                 'id="c-body" data-afkv2-element="c-body"', 'id="m-1" data-afkv2-element="m-1"',
+                 'id="n-1" data-afkv2-element="n-1"')
+    assert lacks(html, 'id="afkv2-i-')
 
 
 def by_note(**settled):
@@ -549,13 +583,18 @@ def test_a_card_has_the_controls_of_its_kind(kind, tokens):
     for token in tokens:
         assert f'value="{token}"' in html
     assert html.count('type="radio"') == len(tokens)
-    assert holds(html, 'data-afkv2-required="1"', 'data-afkv2-input="note"')
+    assert holds(html, 'data-afkv2-required="1"') and lacks(html, "<textarea", 'data-afkv2-input="note"')
 
 
-def test_an_info_card_has_a_note_and_no_mark():
+def test_the_correct_and_write_in_options_point_at_the_annotation():
+    assert holds(card_html(item("i-a", "confirm")), "Correct it: annotate the card")
+    assert holds(card_html(item("i-f", "debate")), "Something else: annotate the card")
+
+
+def test_an_info_card_has_no_mark_and_no_note_field():
     html = card_html(item("i-a", "info"))
-    assert lacks(html, 'type="radio"') and holds(html, 'data-afkv2-input="note"')
-    assert lacks(html, "data-afkv2-required", "afkv2-round-chip")
+    assert lacks(html, 'type="radio"', "<textarea", "afkv2-answer")
+    assert lacks(html, "data-afkv2-required", "afkv2-state--") and holds(html, PAST_CHIP)
 
 
 def test_a_debate_card_offers_each_option_cell_and_a_write_in():
@@ -581,10 +620,96 @@ def test_settled_by_note_differs_from_settled_by_mark():
     assert 'type="radio"' not in by_mark + noted and "<textarea" not in by_mark + noted
 
 
-def test_a_blocked_card_takes_a_note_and_no_mark():
+def test_a_blocked_card_takes_no_mark():
     html = card_html(item("i-b", state="blocked"))
-    assert lacks(html, 'type="radio"') and holds(html, "<textarea", "afkv2-round-chip")
+    assert lacks(html, 'type="radio"', "<textarea") and holds(html, "afkv2-round-chip")
     assert holds(html, 'data-afkv2-state="blocked"')
+
+
+def test_a_title_is_the_card_heading_with_the_kind_and_the_id_after_it():
+    html = card_html(item("i-a", "debate", title="Where <the> record lives"))
+    heading = html[html.index("<h4"):html.index("</h4>")]
+    assert holds(heading, '<span class="afkv2-card-title">Where &lt;the&gt; record lives</span>',
+                 '<span class="afkv2-kind">Debate</span>', '<span class="afkv2-card-id">i-a</span>')
+    assert heading.index(CARD_TITLE) < heading.index(KIND_LABEL) < heading.index(CARD_ID)
+    assert "Debate: i-a" in card_html(item("i-a", "debate"))
+
+
+def test_a_title_over_90_characters_is_refused(capsys, tmp_path):
+    doc = document()
+    doc["rounds"][0]["items"][0]["title"] = "x" * 91
+    assert "field title: must be at most 90 characters" in refused(capsys, tmp_path, doc)["reason"]
+    doc["rounds"][0]["items"][0]["title"] = "x" * 90
+    assert call(capsys, "check", save(tmp_path / "doc.json", doc))[0] == 0
+
+
+def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
+    html = registry.render_component(text("Long words", id="c-long", fold="The <full> text"))
+    wrapper = '<div id="c-long" data-afkv2-element="c-long">'
+    keyed = '<details class="afkv2-fold" data-afkv2-fold="fold-c-long">'
+    assert html.startswith(wrapper + keyed + '<summary>The &lt;full&gt; text</summary>')
+    assert FOLD_OPENED not in html and "Long words" in html
+    table = {"type": "table", "fold": "Rows", "props": {"columns": ["A"], "rows": [["1"]]}}
+    assert registry.validate(table) == [] and registry.render_component(table).startswith(FOLD_OPEN)
+
+
+def test_the_page_keeps_a_component_fold_open_through_a_reload():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("Long words", id="c-long", fold="More")
+    html = page.build(doc)
+    assert holds(html, 'data-afkv2-fold="fold-c-long"', "querySelectorAll('details[' + ATTR + ']')")
+
+
+def test_an_empty_fold_label_is_refused(capsys, tmp_path):
+    doc = document()
+    doc["rounds"][0]["items"][0]["body"]["fold"] = ""
+    assert "field body.fold: must not be empty" in refused(capsys, tmp_path, doc)["reason"]
+
+
+def md(words):
+    html = registry.render_component({"type": "text", "props": {"text": words, "markdown": True}})
+    return html[html.index(MD_OPEN) + len(MD_OPEN):html.rindex("</div></div>")]
+
+
+def test_markdown_renders_the_safe_subset():
+    words = ("# Summary\nFirst **bold** line\nsame paragraph with `a <b> code`.\n\n- one\n- two with [a link](https://x.test/a?b=1&c=2)\n"
+             "\nSee https://x.test/page.")
+    assert md(words) == (
+        '<p class="afkv2-md-h"><strong>Summary</strong></p>'
+        "<p>First <strong>bold</strong> line same paragraph with <code>a &lt;b&gt; code</code>.</p>"
+        '<ul><li>one</li><li>two with <a href="https://x.test/a?b=1&amp;c=2" target="_blank" rel="noopener noreferrer">a link</a></li></ul>'
+        '<p>See <a href="https://x.test/page" target="_blank" rel="noopener noreferrer">https://x.test/page</a>.</p>')
+
+
+LINK_ATTRS = 'target="_blank" rel="noopener noreferrer"'
+
+
+@pytest.mark.parametrize("words, html", [
+    ("<script>alert(1)</script>", "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"),
+    ("[x](javascript:alert(1))", "<p>[x](javascript:alert(1))</p>"),
+    ("**<img src=x onerror=alert(1)>**", "<p><strong>&lt;img src=x onerror=alert(1)&gt;</strong></p>"),
+    ("`**not bold**`", "<p><code>**not bold**</code></p>"),
+    ('https://x.test/" onmouseover="alert(1)',
+     f'<p><a href="https://x.test/" {LINK_ATTRS}>https://x.test/</a>&quot; onmouseover=&quot;alert(1)</p>'),
+])
+def test_markdown_escapes_everything_first(words, html):
+    assert md(words) == html
+
+
+def test_text_without_markdown_stays_plain():
+    html = registry.render_component(text("**not bold**"))
+    assert "<p>**not bold**</p>" in html and MD_CLASS not in html
+
+
+LABEL_LINE = ('<p class="afkv2-label"><span class="afkv2-label-words">Evidence &lt;x&gt;</span>'
+              '<span class="afkv2-chip afkv2-badge">repo</span></p><p>src/io.py:12</p>')
+
+
+def test_a_label_and_a_badge_stand_above_the_words():
+    html = registry.render_component(text("src/io.py:12", props={"text": "src/io.py:12", "label": "Evidence <x>",
+                                                                  "badge": "repo"}))
+    assert holds(html, LABEL_LINE, "afkv2-labelled")
+    assert registry.validate(text("x", props={"text": "x", "label": ""})) != []
 
 
 def test_a_round_banner_holds_its_three_lists():
@@ -602,7 +727,8 @@ def test_page_order_is_banner_slot_maps_cards():
         "nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
     html = page.build(doc)
     body = html[position(html, "<body>"):]
-    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-answer-form"', 'id="afkv2-r-1"']
+    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-r-2"', SETTLED_SECTION,
+             'id="afkv2-earlier-banners"']
     positions = [position(body, mark) for mark in order]
     assert positions == sorted(positions)
 
@@ -625,41 +751,123 @@ def test_each_round_has_its_own_colour():
     assert holds(page.build(doc), *round_colour_rules(colours))
 
 
-def test_a_round_chip_marks_every_item_that_needs_the_human_in_that_round():
+def card_in(html, item_id):
+    start = position(html, f'id="{item_id}" data-afkv2-item=')
+    return html[start:html.find("</article>", start)]
+
+
+def test_every_card_has_its_round_chip_solid_only_when_it_needs_the_human():
     doc = two_rounds()
     doc["rounds"][1]["items"] += [item("i-info", "info"), item("i-done", state="settled_by_mark",
                                                               settled={"by": "mark", "round": 2, "signal": "accept"})]
     html = page.build(doc)
-    def card(item_id):
-        start = position(html, f'id="afkv2-i-{item_id}"')
-        return html[start:html.find("</article>", start)]
-
-    assert "R-2</span>" in card("i-new")
+    assert "R-2</span>" in card_in(html, "i-new") and PAST_CHIP not in card_in(html, "i-new")
+    assert "R-1</span>" in card_in(html, "i-old")
     for other in ("i-old", "i-info", "i-done"):
-        assert lacks(card(other), "afkv2-round-chip")
+        assert holds(card_in(html, other), PAST_CHIP)
 
 
 def test_no_item_is_removed_when_a_round_settles():
     doc = two_rounds()
     html = page.build(doc)
     assert holds(html, 'data-afkv2-item="i-old"', 'data-afkv2-item="i-new"')
-    first_round = position(html, ROUND_ONE)
-    past = html[first_round:position(html, "<script>")]
+    past = html[position(html, SETTLED_SECTION):position(html, "<script>")]
     assert lacks(past, "<textarea", 'type="radio"')
 
 
-def test_past_rounds_come_newest_first():
+def three_rounds():
     doc = two_rounds()
     doc["rounds"][1]["state"] = "settled"
-    doc["rounds"].append({"n": 3, "state": "current", "banner": banner(), "items": [item("i-3")]})
+    doc["rounds"].append({"n": 3, "state": "current", "banner": banner("R3 banner"), "items": [item("i-3")]})
+    return doc
+
+
+def test_settled_points_and_earlier_banners_come_newest_first():
+    doc = three_rounds()
+    doc["rounds"][1]["items"][0].update(state="settled_by_mark", settled={"by": "mark", "round": 2, "signal": "accept"})
+    doc["rounds"][0]["banner"], doc["rounds"][1]["banner"] = banner("R1 banner"), banner("R2 banner")
     html = page.build(doc)
-    assert position(html, 'id="afkv2-r-3"') < position(html, 'id="afkv2-r-2"') < position(html, 'id="afkv2-r-1"')
+    assert html.count(ROUND_ID) == 1 and holds(html, ROUND_THREE)
+    settled = html[position(html, SETTLED_SECTION):]
+    assert position(settled, 'data-afkv2-item="i-new"') < position(settled, 'data-afkv2-item="i-old"')
+    assert holds(settled, 'data-afkv2-state="settled"', "Settled by earlier rounds (2)")
+    folded = html[position(html, EARLIER_BANNERS):]
+    assert position(folded, "R2 banner") < position(folded, "R1 banner")
+    assert position(html, "R3 banner") < position(html, 'id="afkv2-r-3"')
 
 
-def test_a_round_with_nothing_to_answer_has_no_send_bar():
+def test_an_open_asking_card_of_an_earlier_round_stays_with_the_live_points():
+    html = page.build(three_rounds())
+    live = html[position(html, ROUND_THREE):position(html, SETTLED_SECTION)]
+    assert holds(live, 'data-afkv2-item="i-new"', 'data-afkv2-item="i-3"')
+
+
+def history_doc(legacy=False):
+    doc = three_rounds()
+    doc["rounds"][1]["items"][0]["notes"] = [
+        {"id": "N-2-i-new", "round": 2, "target": "i-new", "text": "Say who runs it.", "deleted": False}]
+    later = item("i-3")
+    if legacy:
+        later["body"] = text("Body of i-3", children=[text("Carries i-new.", id="i-3-carries")])
+    else:
+        later["carries"] = ["i-new"]
+    doc["rounds"][2]["items"] = [later]
+    return doc
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
+    html = page.build(history_doc(legacy))
+    assert html.count(ITEM_MARKER.format("i-new")) == 1
+    head = html[position(html, 'id="i-3"'):]
+    assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
+    assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
+    assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
+    assert lacks(html[:position(html, MAPS_SECTION)], "Say who runs it.")
+
+
+def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_wins():
+    doc = history_doc()
+    doc["rounds"][1]["items"][0]["carries"] = ["i-old"]
+    html = page.build(doc)
+    head = html[position(html, 'id="i-3"'):]
+    assert holds(head, "History (R-2 i-new, R-1 i-old)")
+    assert position(head, 'data-afkv2-item="i-new"') < position(head, 'data-afkv2-item="i-old"')
+    doc["rounds"][2]["items"].append(item("i-3b", carries=["i-old"]))
+    html = page.build(doc)
+    assert holds(html, "History (R-2 i-new)</summary>", "History (R-1 i-old)</summary>")
+    assert html.count(ITEM_MARKER.format("i-old")) == 1
+
+
+def test_an_annotation_on_a_history_row_resolves_to_the_old_card(tmp_path):
+    doc = history_doc()
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    dom = _Dom()
+    dom.feed(page.build(doc))
+    selector = lavish_selector(find_cell(dom.root, "The card"))
+    assert selector == "tr#afkv2-nr-N-2-i-new > td:nth-of-type(2)"
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [prompt("Still unclear.", selector, "td", "The card")])
+    assert raw == '[round R-3]\ni-new — | Still unclear.'
+
+
+@pytest.mark.parametrize("carries", [["i-3"], ["i-gone"]])
+def test_carries_names_only_cards_of_an_earlier_round(capsys, tmp_path, carries):
+    doc = three_rounds()
+    doc["rounds"][2]["items"].append(item("i-4", carries=carries))
+    assert "is no card of an earlier round" in refused(capsys, tmp_path, doc)["reason"]
+    doc["rounds"][2]["items"][1]["carries"] = ["i-new", "i-old"]
+    assert call(capsys, "check", save(tmp_path / "doc.json", doc))[0] == 0
+
+
+def test_the_page_remembers_open_folds_and_the_rail_skips_history_cards():
+    assert holds(RUNTIME, "var ATTR = 'data-afkv2-fold';", "'afkv2-open:' + holder.getAttribute('data-afkv2-session')")
+    assert holds((ENGINE_DIR / "shell" / "tips.js").read_text("utf-8"), HISTORY_CLASS)
+
+
+def test_a_round_with_nothing_to_answer_has_no_copy_bar():
     doc = document({"n": 1, "state": "current", "banner": banner(), "items": []})
     html = page.build(doc)
-    assert lacks(html, 'id="afkv2-send"', 'id="afkv2-answer-form"')
+    assert lacks(html, 'id="afkv2-copy"', "<form")
 
 
 def test_same_document_same_bytes(repo, capsys):
@@ -672,19 +880,38 @@ def test_same_document_same_bytes(repo, capsys):
     assert path.with_suffix(".html").stat().st_mtime == 1
 
 
-def test_the_shell_reuses_the_kit_with_new_names():
+RUNTIME = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
+
+
+def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     html = page.build(two_rounds())
-    assert holds(html, 'id="afkv2-send-go"', 'data-lavish-question="round:R-2"')
-    assert "window.lavish" in html and "queuePrompt" in html
-    assert "backdrop-filter" in html and "display: flow-root" in html
+    assert holds(html, COPY_BUTTON, "Copy the response", "Send to Agent in the lavish panel",
+                 'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
+    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
+    assert lacks(RUNTIME, "sendQueuedPrompts")
+    assert not (ENGINE_DIR / "shell" / "notes.js").exists()
 
 
-def test_a_browser_draft_is_keyed_by_session_and_round_and_cleared_on_send():
-    runtime = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
-    assert holds(runtime, "KEY_PREFIX + bar.getAttribute('data-afkv2-session') + ':' + round")
-    assert "location.pathname" not in runtime
-    assert runtime.index("sendQueuedPrompts();") < runtime.index("clearDraft();", runtime.index("sendQueuedPrompts();"))
-    assert holds(page.build(two_rounds()), 'data-afkv2-session="s1"')
+def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
+    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token, {", "tag: MARK_TAG,",
+                 "queueKey: 'afkv2:' + session + ':' + round + ':' + id,", "element: el,",
+                 "data: { item: id, mark: token }")
+    assert f"var MARK_TAG = '{prompt_lines.MARK_TAG}';" in RUNTIME
+
+
+def test_lavish_keeps_the_picked_mark_through_a_reload():
+    """lavish reports and restores each control under `[data-lavish-question]` (lavish-axi 0.1.80 cli.mjs,
+    `lavishQuestionControls`). The explicit `queueKey` still names the queued mark."""
+    html = card_html(item("i-a", "decided"))
+    fieldset = html[html.index("<fieldset"):html.index("</fieldset>")]
+    assert holds(fieldset, 'data-afkv2-input="choice" data-lavish-question="i-a"')
+    assert fieldset.count('type="radio"') == 2 and "data-lavish-question" not in html.replace(fieldset, "")
+    assert "queueKey: 'afkv2:'" in RUNTIME
+
+
+def test_a_browser_draft_is_keyed_by_session_and_round():
+    assert holds(RUNTIME, "var KEY_PREFIX = 'afkv2-draft:' + session + ':';", "var KEY = KEY_PREFIX + round;")
+    assert "location.pathname" not in RUNTIME
 
 
 def test_the_rendered_page_has_the_tooltip_layer(repo, capsys):
@@ -774,6 +1001,20 @@ def test_the_launcher_grammar_holds_open_poll_end(tmp_path, monkeypatch):
     assert launcher.plan(["poll", "p.html"]) is None
     assert launcher.plan(["poll", "p.html", "--timeout-ms", "1000"]) is None
     assert launcher.plan(["end", "p.html"]) is None
+
+
+def test_the_launcher_takes_a_reply_from_a_file_only(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "p.html").write_text("<html></html>", "utf-8")
+    (tmp_path / "r.md").write_text("An answer.", "utf-8")
+    assert launcher.plan(["reply", "p.html", "--agent-reply-file", "r.md"]) is None
+    assert launcher.plan(["poll", "p.html", "--agent-reply-file", "r.md"]) is None
+    assert launcher.plan(["poll", "p.html", "--timeout-ms", "9", "--agent-reply-file", "r.md"]) is None
+    for argv in (["reply", "p.html", "--agent-reply", "text"], ["reply", "p.html", "--timeout-ms", "9"],
+                 ["poll", "p.html", "--agent-reply", "text"], ["reply", "p.html", "--agent-reply-file", "none.md"],
+                 ["poll", "p.html", "--timeout-ms", "9", "--timeout-ms", "9"],
+                 ["poll", "p.html", "--agent-reply-file"]):
+        assert launcher.run(argv)[0] == 64, argv
 
 
 def test_exit_64_when_the_host_variable_is_set(monkeypatch):
@@ -932,22 +1173,31 @@ def test_show_reports_a_host_error(repo, capsys, host):
     assert code == 1 and answer["error"]["code"] == "host-error" and "No active" in answer["error"]["reason"]
 
 
-def test_poll_returns_the_raw_response_verbatim(repo, capsys, host):
+def test_poll_passes_an_old_form_prompt_through_under_the_current_round(repo, capsys, host):
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
     code, answer = call(capsys, "poll", path)
     assert code == 0 and answer["ok"] is True and answer["status"] == "feedback"
-    assert answer["raw"] == launcher.parse_host_output(host_fixture("host-poll-feedback.txt"))["prompts"][0]["prompt"]
+    sent = launcher.parse_host_output(host_fixture("host-poll-feedback.txt"))["prompts"][0]["prompt"]
+    assert answer["raw"] == "[round R-2]\n" + sent.split("\n", 1)[1]
 
 
-def test_poll_joins_several_prompts_with_one_line_break(repo, capsys, host):
+def test_poll_puts_prompts_with_no_element_on_the_first_card_of_the_round(repo, capsys, host):
     _, outputs = host
     outputs["poll"] = (0, host_fixture("host-poll-two-prompts.txt"))
     path = in_home(repo, two_rounds())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
     answer = call(capsys, "poll", path)[1]
-    assert answer["raw"] == "first, with a comma\n- second\nline"
+    assert answer["raw"] == '[round R-2]\ni-new — | first, with a comma (on: "x")\n\n- second\nline'
     assert answer["session_ended"] is True and [p["tag"] for p in answer["prompts"]] == ["note", "choice"]
+
+
+def test_poll_keeps_the_joined_text_when_the_document_cannot_resolve_it(repo, capsys, host):
+    path = in_home(repo, two_rounds())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    path.write_text("{}", "utf-8")
+    answer = call(capsys, "poll", path)[1]
+    assert answer["ok"] is True and answer["raw"].startswith("[round R-1]") and "raw_warning" in answer
 
 
 @pytest.mark.parametrize("output, code_word", [
@@ -966,6 +1216,374 @@ def test_poll_with_no_answer_is_refused_and_named(repo, capsys, host, output, co
 
 def test_poll_with_no_rendered_page_is_exit_2(repo, capsys, host):
     assert call(capsys, "poll", in_home(repo, two_rounds()))[0] == 2
+
+
+# --- poll: from the host's prompts to one raw response
+
+
+def prompt(words, selector="", tag="span", seen=""):
+    return {"uid": "1", "prompt": words, "selector": selector, "tag": tag, "text": seen}
+
+
+def mark(card, token):
+    data = '{"item": "%s", "mark": "%s"}' % (card, token)
+    return prompt(f"{card} {token}\n\nContext data:\n{data}", f"article#{card}", "afkv2-mark", f"{card} {token}")
+
+
+def noted_page():
+    doc = two_rounds()
+    doc["rounds"][1]["items"] = [item("i-new"), item("1x", "decided"), item("i-third")]
+    doc["rounds"][1]["items"][1]["body"] = text("Body", id="1x-body")
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
+    return doc
+
+
+def raw_of(doc, *prompts):
+    _, ids, _ = engine._element_ids(doc)
+    return prompt_lines.raw_from_prompts(doc, list(prompts), ids)
+
+
+def test_a_mark_prompt_gives_its_card_line():
+    assert raw_of(noted_page(), mark("i-new", "accept"), mark("1x", "reopen")) == "[round R-2]\ni-new accept\n1x reopen"
+
+
+def test_an_annotation_resolves_to_the_element_of_its_selector():
+    raw = raw_of(noted_page(), prompt("Too broad.", "article#i-new > div:nth-of-type(1) > p", "p", "Body of i-new"),
+                 prompt("Why so?", "div#\\31 x-body > div > p", "p", "Body"),
+                 prompt("Wrong state.", "div#n-1 > span", "span", "open R-1"))
+    assert raw == "[round R-2]\ni-new — | Too broad.\n1x-body — | Why so?\nn-1 — | Wrong state."
+
+
+def test_a_selection_keeps_an_excerpt_of_its_text():
+    raw = raw_of(noted_page(), prompt("Not this part.", "div#i-new", "text", "word " * 40))
+    assert raw == '[round R-2]\ni-new — | Not this part. (on: "' + ("word " * 24)[:119] + '…")'
+
+
+def test_a_prompt_with_no_element_is_a_steer_on_the_first_map():
+    raw = raw_of(noted_page(), prompt("Look at billing first."), prompt("Here.", "main > section > p", "p", "Some text"))
+    assert raw == '[round R-2]\nm-1 — | Look at billing first.\n\nHere. (on: "Some text")'
+
+
+def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp_path):
+    doc = noted_page()
+    doc["rounds"][1]["items"][0]["notes"] = [
+        {"id": "N-2-i-new", "round": 2, "target": "i-new", "text": "Old note.", "deleted": False}]
+    doc["rounds"][1]["items"][2]["notes"] = [
+        {"id": "N-2-i-third", "round": 2, "target": "n-1", "text": "Steer.", "deleted": False}]
+    doc["rounds"][1]["replies"] = [{"text": "A reply alone."}]
+    html = page.build(doc)
+    assert holds(html, 'id="afkv2-nr-N-2-i-new"', 'id="afkv2-nr-reply-2-1"')
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
+        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(3) > q", "q", "Old note."),
+        prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),
+        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(4) > p", "p", "A reply alone.")])
+    assert raw == '[round R-2]\ni-new — | Still wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
+
+
+VOID_TAGS = {"input", "br", "meta", "img", "hr", "link"}
+
+
+class _Dom(HTMLParser):
+    """Element tree of a page fragment: each node is [tag, id, parent, children, text]."""
+
+    def __init__(self):
+        super().__init__()
+        self.root = ["#root", None, None, [], ""]
+        self.at = self.root
+
+    def handle_starttag(self, tag, attrs):
+        node = [tag, dict(attrs).get("id"), self.at, [], ""]
+        self.at[3].append(node)
+        if tag not in VOID_TAGS:
+            self.at = node
+
+    def handle_endtag(self, tag):
+        while self.at[0] != tag and self.at[2] is not None:
+            self.at = self.at[2]
+        self.at = self.at[2] or self.root
+
+    def handle_data(self, data):
+        self.at[4] += data
+
+
+def lavish_selector(node):
+    """lavish's `selector(el)`: at most 5 parts, up to and including the first ancestor with an id."""
+    parts = []
+    while node is not None and node[0] != "#root" and len(parts) < 5:
+        part = node[0]
+        if node[1]:
+            parts.insert(0, f"{part}#{node[1]}")
+            break
+        same = [sibling for sibling in node[2][3] if sibling[0] == node[0]]
+        if len(same) > 1:
+            part += f":nth-of-type({same.index(node) + 1})"
+        parts.insert(0, part)
+        node = node[2]
+    return " > ".join(parts)
+
+
+def find_cell(node, words):
+    if node[0] == "td" and node[4] == words:
+        return node
+    return next((found for child in node[3] if (found := find_cell(child, words))), None)
+
+
+def test_an_annotation_on_a_table_cell_resolves_to_its_table(tmp_path):
+    doc = noted_page()
+    grid = {"type": "table", "id": "i-new-table", "props": {
+        "columns": ["When", "What", "Who"], "rows": [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "the cell"]]},
+        "children": [text("Under the table."), text("And more.")]}
+    doc["rounds"][1]["items"][0]["body"] = text("Body of i-new", children=[grid])
+    dom = _Dom()
+    dom.feed(page.build(doc))
+    selector = lavish_selector(find_cell(dom.root, "the cell"))
+    assert selector == "tr#afkv2-tr-i-new-table-3 > td:nth-of-type(3)"
+    old_shape = "div:nth-of-type(1) > table > tbody > tr:nth-of-type(3) > td:nth-of-type(3)"
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
+        prompt("Wrong owner.", selector, "td", "the cell"), prompt("Lost.", old_shape, "td", "lost cell")])
+    assert raw == '[round R-2]\ni-new-table — | Wrong owner.\nm-1 — | Lost. (on: "lost cell")'
+    assert page.targets(doc)["afkv2-tr-i-new-table-1"] == "i-new-table"
+
+
+def test_a_table_without_an_id_draws_no_row_id():
+    html = registry.render_component({"type": "table", "props": {"columns": ["A"], "rows": [["1"]]}})
+    assert holds(html, "<tr><td>1</td></tr>") and lacks(html, "afkv2-tr-")
+
+
+def test_a_mark_and_notes_on_one_card_merge_into_one_line():
+    raw = raw_of(noted_page(), prompt("First.", "article#i-new"), mark("i-new", "accept"), prompt("Second.", "h4#i-new"))
+    assert raw == "[round R-2]\ni-new accept | First.\n\nSecond."
+
+
+def test_an_old_form_prompt_passes_its_lines_through():
+    raw = raw_of(noted_page(), prompt("[round R-2]\ni-new accept | yes\ni-third —"), mark("1x", "accept"))
+    assert raw == "[round R-2]\ni-new accept | yes\ni-third —\n1x accept"
+
+
+def test_the_built_response_ingests(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    prompts = [mark("i-new", "accept"), mark("1x", "accept"), prompt("Wording.", "article#1x"),
+               prompt("Billing first.", "div#n-1")]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "joined", "prompts": prompts, "session_ended": False}))
+    raw_file = repo / "raw.txt"
+    raw_file.write_text(call(capsys, "poll", path)[1]["raw"], "utf-8")
+    code, ingested = call(capsys, "ingest", path, "--raw-file", raw_file)
+    assert code == 0 and ingested["settled_by_mark"] == ["i-new"] and ingested["needs_reading"] == ["1x"]
+    assert ingested["steers"] == ["n-1"]
+
+
+def side_question(words):
+    return prompt(words, "div#afkv2-btw", "afkv2-btw", "")
+
+
+def test_a_side_question_never_enters_the_raw_response(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    prompts = [side_question("Which ticket is this?\n\nContext data:\n{}"), mark("i-new", "accept"),
+               side_question("  And the next round?  ")]
+    seen = []
+
+    def poll_status(argv):
+        seen.append(argv)
+        return "feedback", {"raw": "joined", "prompts": prompts, "session_ended": False}
+
+    monkeypatch.setattr(launcher, "poll_status", poll_status)
+    answer = call(capsys, "poll", path)[1]
+    assert answer["raw"] == "[round R-2]\ni-new accept" and answer["round_prompts"] == 1
+    assert answer["btw"] == ["Which ticket is this?", "And the next round?"]
+    assert raw_of(noted_page(), *prompts) == "[round R-2]\ni-new accept"
+    engine.delivery_file(str(path)).unlink()  # ingest read the round send
+    reply = repo / "reply.md"
+    reply.write_text("An answer.", "utf-8")
+    call(capsys, "poll", path, "--reply-file", reply)
+    assert seen[-1][2:] == ["--agent-reply-file", str(reply)]
+
+
+def test_a_round_send_is_kept_on_disk_until_ingest_reads_it(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [mark("i-new", "accept")], "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    first = call(capsys, "poll", path)[1]
+    kept = engine.delivery_file(str(path))
+    assert first["raw"] == "[round R-2]\ni-new accept" and kept.name == "grill-s1.delivery.json"
+    assert json.loads(kept.read_text("utf-8"))["prompts"] == [mark("i-new", "accept")]
+    again = call(capsys, "poll", path)[1]
+    assert again["raw"] == first["raw"] and sends == [], "the kept send answers; the host is not polled"
+    raw = repo / "raw.txt"
+    raw.write_text(again["raw"], "utf-8")
+    assert call(capsys, "ingest", path, "--raw-file", raw)[0] == 0
+    assert not kept.exists()
+
+
+def test_a_kept_send_holds_no_side_question_so_a_replay_asks_none(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?"), mark("i-new", "accept")],
+                           "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    assert call(capsys, "poll", path)[1]["btw"] == ["Why?"]
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    again = call(capsys, "poll", path)[1]
+    assert again["btw"] == [] and again["raw"] == "[round R-2]\ni-new accept"
+
+
+def test_a_refused_ingest_sets_the_send_aside_and_the_next_poll_reads_the_host(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?")], "session_ended": False}),
+             ("feedback", {"raw": "x", "prompts": [mark("1x", "accept")], "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    call(capsys, "poll", path)
+    assert not engine.delivery_file(str(path)).exists(), "a send of side questions only is not kept"
+    engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept")]})
+    raw = repo / "raw.txt"
+    raw.write_text("not the grammar", "utf-8")
+    raw_missing = repo / "none.txt"
+    assert call(capsys, "ingest", path, "--raw-file", raw_missing)[0] == 2
+    assert engine.kept_delivery(str(path)) is not None, "an unreadable raw file keeps the send"
+    code, refused = call(capsys, "ingest", path, "--raw-file", raw)
+    assert code == 1 and refused["error"]["code"] == "bad-response" and "set aside" in refused["error"]["reason"]
+    assert not engine.delivery_file(str(path)).exists()
+    aside = list(path.parent.glob("grill-s1.refused.*.json"))
+    assert len(aside) == 1 and json.loads(aside[0].read_text("utf-8"))["prompts"] == [mark("i-new", "accept")]
+    assert call(capsys, "render", path)[0] == 0, "the side file is no second document of the session"
+    assert call(capsys, "poll", path)[1]["raw"] == "[round R-2]\n1x accept" and sends == []
+
+
+def test_a_send_that_only_ends_the_session_is_no_round_answer(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "", "prompts": [side_question("Why?")], "session_ended": True}))
+    assert call(capsys, "poll", path)[1]["error"]["code"] == "page-ended"
+    assert not engine.delivery_file(str(path)).exists()
+    engine.delivery_file(str(path)).write_text(json.dumps({"prompts": [], "session_ended": True}), "utf-8")
+    assert engine.kept_delivery(str(path)) is None and not engine.delivery_file(str(path)).exists()
+
+
+def test_a_send_of_side_questions_only_has_no_round_prompt(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "joined", "prompts": [side_question("Why?")], "session_ended": False}))
+    answer = call(capsys, "poll", path)[1]
+    assert answer["btw"] == ["Why?"] and answer["round_prompts"] == 0 and answer["raw"] == "[round R-2]"
+
+
+def test_reply_shows_the_file_on_the_page_and_refuses_a_missing_file(repo, capsys, host):
+    calls, outputs = host
+    outputs["reply"] = (0, "reply: sent\n")
+    path = in_home(repo, two_rounds())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    reply = repo / "reply.md"
+    reply.write_text("An answer.", "utf-8")
+    assert call(capsys, "reply", path, "--reply-file", reply) == (0, {"ok": True, "verb": "reply"})
+    assert calls == [["reply", str(path.with_suffix(".html").resolve()), "--agent-reply-file", str(reply)]]
+    assert call(capsys, "reply", path, "--reply-file", repo / "none.md")[0] == 2
+    outputs["reply"] = (1, host_fixture("host-error-missing.txt"))
+    assert call(capsys, "reply", path, "--reply-file", reply)[1]["error"]["code"] == "host-error"
+
+
+def test_end_ends_the_page_session_of_the_shown_page(repo, capsys, host):
+    calls, outputs = host
+    outputs["end"] = (0, "session:\n  status: ended\n")
+    path = in_home(repo, two_rounds())
+    assert call(capsys, "end", path)[0] == 2
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    assert call(capsys, "end", path) == (0, {"ok": True, "verb": "end"})
+    assert calls == [["end", str(path.with_suffix(".html").resolve())]]
+
+
+def test_the_stop_hook_answers_side_questions_on_the_page_and_waits_on(repo, tmp_path):
+    path = in_home(repo, noted_page())
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?")]}), ("waiting", {}),
+             ("feedback", {"raw": "x", "prompts": [mark("i-new", "accept"), side_question("And?")]})]
+    seen, replies, shown = [], [], []
+
+    def poll(argv):
+        seen.append(argv)
+        if "--agent-reply-file" in argv:
+            shown.append(Path(argv[argv.index("--agent-reply-file") + 1]).read_text("utf-8"))
+        return sends.pop(0)
+
+    def reply(argv):
+        replies.append(Path(argv[3]).read_text("utf-8"))
+        return 0, ""
+
+    def ask(question):
+        return {"question": question, "status": "not-read", "answer": f"See the terminal for {question}"}
+
+    status, raw = WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path), ask=ask, reply=reply)
+    assert (status, raw) == ("feedback", "[round R-2]\ni-new accept")
+    assert shown == ["**btw:** Why?\n\nSee the terminal for Why?"]
+    assert "--agent-reply-file" not in seen[2] and replies == ["**btw:** And?\n\nSee the terminal for And?"]
+    assert not any(Path(argv[-1]).exists() for argv in seen if "--agent-reply-file" in argv)
+
+
+def test_without_a_pane_the_stop_hook_says_so_on_the_page():
+    def ask(question):
+        return {"question": question, "status": "unanswered", "answer": "the agent answers"}
+
+    assert codex_stop._side_answers(["Why?"], ask) == f"**btw:** Why?\n\n{codex_stop.NO_PANE}"
+
+
+def test_the_page_has_a_side_question_control_with_one_ask():
+    html = page.build(two_rounds(), (43001, "abc"))
+    script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
+    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {", 'data-afkv2-btw-port="43001"')
+    assert holds(script, "data-lavish-ui", "fetch(url, { method: 'POST'") and lacks(script, "queuePrompt")
+    assert script.count("createElement('button')") == 2 and "Ask side agent" not in script
+
+
+def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
+    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", mark("i-new", "accept")["prompt"])
+
+
+def test_a_kept_send_the_document_cannot_resolve_hands_back_the_prompt_text(repo, monkeypatch):
+    path = in_home(repo, noted_page())
+    engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept"), prompt("A note.", "div#gone")]})
+
+    def unresolved(document, prompts):
+        raise engine.Refusal("unreadable", "the document moved")
+
+    def no_poll(argv):
+        raise AssertionError("a kept send answers without a host poll")
+
+    monkeypatch.setattr(engine, "poll_raw", unresolved)
+    assert WAIT_FOR_ANSWER("p.html", poll=no_poll, document=str(path)) == ("feedback", mark("i-new", "accept")["prompt"] + "\nA note.")
+
+
+def test_the_stop_hook_ends_on_a_send_that_only_ends_the_session(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "", "prompts": [], "session_ended": True}
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("ended", "")
+    assert engine.kept_delivery(str(path)) is None
+
+
+def test_the_stop_hook_keeps_a_round_send_and_a_kept_send_answers_first(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
+
+    def no_poll(argv):
+        raise AssertionError("a kept send answers without a host poll")
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path))[0] == "feedback"
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    assert WAIT_FOR_ANSWER("p.html", poll=no_poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
 
 
 # --- Codex: the waiting record and the Stop hook
@@ -1030,7 +1648,7 @@ def test_with_a_record_and_a_queued_answer_the_hook_blocks_with_the_raw_text(tmp
 
     def poll(argv):
         seen.append(argv)
-        return "feedback", {"raw": raw}
+        return "feedback", {"raw": raw, "prompts": [{"prompt": raw}]}
 
     monkeypatch.setattr(codex_stop, "wait_for_answer", partial(WAIT_FOR_ANSWER, poll=poll))
     out = json.loads(codex_stop.main(json.dumps({"session_id": "t-1"})))
@@ -1062,7 +1680,8 @@ def scripted_poll(clock, statuses, step=60):
         seen.append(argv)
         clock.now += step
         status = remaining.pop(0) if remaining else "waiting"
-        return status, {"raw": "answer" if status == "feedback" else "", "code": None}
+        answer = "answer" if status == "feedback" else ""
+        return status, {"raw": answer, "prompts": [{"prompt": answer}] if answer else [], "code": None}
 
     poll.seen = seen
     return poll
@@ -1094,7 +1713,7 @@ def test_the_wait_ends_when_no_answer_can_come(status):
 def test_no_answer_gives_a_warning_that_names_the_fallback_and_no_block(data_home, monkeypatch):
     folder = data_home / "afkv2"
     launcher.write_waiting_record(folder, "t-1", "d.json", "p.html")
-    monkeypatch.setattr(codex_stop, "wait_for_answer", lambda page: ("timeout", ""))
+    monkeypatch.setattr(codex_stop, "wait_for_answer", lambda page, document=None: ("timeout", ""))
     out = json.loads(codex_stop.main(json.dumps({"session_id": "t-1"})))
     assert "decision" not in out and "one chat message" in out["systemMessage"]
     assert launcher.read_waiting_record(folder, "t-1") is None

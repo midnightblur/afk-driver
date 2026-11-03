@@ -515,7 +515,7 @@ PLAN_CONTRACT = SKILLS / "autopilot" / "scripts" / "plan_contract.py"
 ENGINE = PLUGIN / "engine" / "engine.py"
 PLAN_FILES = "scripts/plan_files.py"
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "check", "citations", "commit", "division", "present", "wait", "ingest", "apply-readings", "approve"]
+STEP_ORDER = ["start", "check", "citations", "commit", "division", "present", "wait", "ingest", "apply-readings", "approve", "end"]
 FEATURE = "feat/PROJ-1"
 RUN = "feat/PROJ-1-run"
 APPROVAL_LINE = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
@@ -1077,7 +1077,7 @@ def test_a_note_that_changes_the_card_returns_it_for_a_sign_mark(world):
     world.division(started)
     new = world.card(started)
     assert new["id"] != old
-    assert old in new["body"]["children"][-1]["props"]["text"], "the new card carries the old one"
+    assert new["carries"] == [old], "the new card carries the old one"
     assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
     world.sign(started)
     assert world.approve(started)["ok"]
@@ -1126,7 +1126,7 @@ def test_a_corrected_round_keeps_carrying_a_returned_card(world):
     world.readings(started, {"open": [{"item": old, "reply": "Again."}]})
     world.division(started)
     assert world.division(started, replace=True)["round"] == 2
-    assert old in world.card(started)["body"]["children"][-1]["props"]["text"]
+    assert world.card(started)["carries"] == [old]
 
 
 def test_start_resumes_an_unapproved_session(world):

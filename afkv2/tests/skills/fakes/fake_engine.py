@@ -1,6 +1,7 @@
 """Recorded fake of the page engine command (SDD §3, §4, §6), until the S1 engine merges.
 
-`engine.py check|render|show|poll DOC` and `engine.py ingest DOC --raw-file FILE`.
+`engine.py check|render|show|poll|end DOC`, `engine.py reply DOC --reply-file FILE` and
+`engine.py ingest DOC --raw-file FILE`.
 
 Environment:
   FAKE_CALL_LOG      file; one line `engine <verb>` per call
@@ -11,7 +12,7 @@ The raw response grammar here is the fake's own: one line per signal.
   <item id>: accept | sign | option:<letter> | reopen | changes
   <item id>: note: <text>
   <item id>: write-in: <text>
-  <map node id>: note: <text>     a steer
+  <map node id>: note: <text>     a steer, kept on the round
 The grill passes raw text through and never parses it.
 """
 
@@ -101,11 +102,10 @@ def ingest(doc, raw):
     by_item, signals = {}, []
     for target, signal in parse(raw):
         if target in nodes:
-            home = [i for _, i in items.values() if i.get("node") == target]
-            home[-1].setdefault("notes", []).append({
-                "id": f"N-{n}-{home[-1]['id']}", "round": n, "target": target,
+            current.setdefault("notes", []).append({
+                "id": f"N-{n}-{target}", "round": n, "target": target,
                 "text": signal.split("note: ", 1)[1], "deleted": False})
-            signals.append({"target": target, "note": True})
+            signals.append({"target": target, "item": None, "note": True, "steer": True})
             continue
         by_item.setdefault(target, []).append(signal)
         signals.append({"target": target, "signal": signal})
@@ -163,7 +163,13 @@ def main(argv):
         return answer({"ok": True})
     if verb == "poll":
         raw = Path(os.environ["FAKE_POLL_RAW"]).read_bytes().decode("utf-8")
-        return answer({"ok": True, "raw": raw})
+        return answer({"ok": True, "raw": raw, "prompts": [{"uid": "1", "prompt": raw, "selector": "", "tag": "", "text": ""}]})
+    if verb == "reply":
+        if "--reply-file" not in argv or not Path(argv[argv.index("--reply-file") + 1]).is_file():
+            return refuse("reply needs an existing --reply-file", 2)
+        return answer({"ok": True, "verb": "reply"})
+    if verb == "end":
+        return answer({"ok": True, "verb": "end"})
     if verb == "ingest":
         raw = Path(argv[argv.index("--raw-file") + 1]).read_bytes().decode("utf-8")
         signals = ingest(doc, raw)

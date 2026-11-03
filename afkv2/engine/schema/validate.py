@@ -10,7 +10,7 @@ import re
 
 ANNOTATIONS = {"$schema", "$id", "title", "description", "$defs"}
 KEYWORDS = {"$ref", "type", "const", "enum", "required", "properties", "additionalProperties",
-            "items", "pattern", "minimum", "minItems", "minLength", "anyOf"}
+            "items", "pattern", "minimum", "minItems", "minLength", "maxLength", "anyOf"}
 TYPES = {
     "object": lambda v: isinstance(v, dict),
     "array": lambda v: isinstance(v, list),
@@ -82,6 +82,8 @@ def _scalar_problems(value, schema: dict, path: tuple, root: dict) -> list[tuple
     if isinstance(value, str):
         if len(value) < schema.get("minLength", 0):
             return [(path, "must not be empty")]
+        if len(value) > schema.get("maxLength", len(value)):
+            return [(path, f"must be at most {schema['maxLength']} characters, found {len(value)}")]
         if "pattern" in schema and not re.search(schema["pattern"], value):
             return [(path, f"{value!r} does not match {schema['pattern']}")]
     if "minimum" in schema and TYPES["number"](value) and value < schema["minimum"]:

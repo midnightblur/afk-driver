@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
 
-from grill_common import Parser, Refusal, serve, write_text  # noqa: E402
+from grill_common import Parser, Refusal, page_documents, serve, write_text  # noqa: E402
 from grill_log import exit_gate_passed  # noqa: E402
 from grill_start import read_config, ticket_slug  # noqa: E402
 
@@ -37,7 +37,7 @@ def _section(markdown, name):
 
 
 def _newest_session(pages):
-    names = sorted(path.stem[len("grill-"):] for path in pages.glob("grill-*.json"))
+    names = sorted(path.stem[len("grill-"):] for path in page_documents(pages, "grill-"))
     return names[-1] if names else None
 
 

@@ -48,15 +48,15 @@ ENTRY_SECTIONS = ("## Holds", "## Use it when", "## How it looks", "## Example")
 DOC_FIELDS = {"schema", "session", "maps", "rounds"}
 SESSION_FIELDS = {"id", "skill", "feature", "ticket", "started"}
 SKILLS = {"grill", "propose-solution", "propose-verification"}
-ROUND_FIELDS = {"n", "state", "colour", "banner", "items", "responses", "replies"}
+ROUND_FIELDS = {"n", "state", "colour", "banner", "items", "responses", "replies", "notes"}
 BANNER_FIELDS = {"settled", "unlocks", "parked"}
 REPLY_FIELDS = {"text", "about"}
-ITEM_FIELDS = {"id", "kind", "node", "state", "body", "settled", "notes"}
+ITEM_FIELDS = {"id", "kind", "title", "node", "state", "body", "settled", "notes", "carries"}
 ITEM_KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 POINT_STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 SETTLED_FIELDS = {"by", "round", "signal", "reading"}
 NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
-COMPONENT_FIELDS = {"type", "id", "props", "style", "children", "html"}
+COMPONENT_FIELDS = {"type", "id", "props", "style", "fold", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
@@ -130,6 +130,7 @@ def _check_props(comp, where, ids, last_round):
         tone = props.get("tone")
         _need(tone is None or tone in TONES, where, "props.tone")
         _need(kind == "text" or tone in TONES, where, "props.tone")
+        _need(isinstance(props.get("markdown", False), bool), where, "props.markdown")
     elif kind == "table":
         cols = props.get("columns")
         rows = props.get("rows")
@@ -172,6 +173,8 @@ def _check_component(comp, where, ids, last_round):
         ids.add(comp["id"])
     if "style" in comp:
         _need(isinstance(comp["style"], str), where, "style")
+    if "fold" in comp:
+        _need(isinstance(comp["fold"], str) and comp["fold"], where, "fold")
     _check_props(comp, where, ids, last_round)
     for i, child in enumerate(_objects(comp.get("children", []), where, "children")):
         _check_component(child, f"{where}.children[{i}]", ids, last_round)
@@ -243,6 +246,7 @@ def _check_round(r, ids, node_ids, last_round, components):
         _need(item["id"] not in ids, iw, "id not unique")
         ids.add(item["id"])
         _need(item.get("kind") in ITEM_KINDS, iw, "kind")
+        _need(item.get("title") is None or (isinstance(item["title"], str) and 0 < len(item["title"]) <= 90), iw, "title")
         _need(item.get("state", "open") in POINT_STATES, iw, "state")
         _need(item.get("node") is None or item["node"] in node_ids, iw, "node must resolve")
         _check_notes(item, iw, last_round)
@@ -256,8 +260,8 @@ def _check_document(doc):
     _only(doc, DOC_FIELDS, "document")
     _need(doc.get("schema") == SCHEMA, "document", f"schema (expected {SCHEMA})")
     session = doc.get("session")
-    _only(session, SESSION_FIELDS, "session")
-    _need(set(session) == SESSION_FIELDS, "session", "missing field")
+    _only(session, SESSION_FIELDS | {"links"}, "session")
+    _need(SESSION_FIELDS <= set(session), "session", "missing field")
     _need(session["skill"] in SKILLS, "session", "skill")
     _need(isinstance(session["started"], str) and bool(ISO_UTC.match(session["started"])),
           "session", "started (ISO-8601 UTC)")
@@ -282,7 +286,13 @@ def _check_document(doc):
             for target in reply.get("about", []):
                 _need(target in ids, f"round {r['n']}.replies[{p}]", f"about {target} must resolve")
     note_ids = set()
-    for note in (n for r in rounds for item in r["items"] for n in item.get("notes", [])):
+    for r in rounds:
+        for n, note in enumerate(_objects(r.get("notes", []), f"round {r['n']}", "notes")):
+            _only(note, NOTE_FIELDS, f"round {r['n']}.notes[{n}]")
+            _need(note.get("id") == f"N-{r['n']}-{note.get('target')}", f"round {r['n']}.notes[{n}]",
+                  "id (N-<round>-<target>)")
+    for note in (n for r in rounds for n in [*(n for item in r["items"] for n in item.get("notes", [])),
+                                             *r.get("notes", [])]):
         _need(note["id"] not in note_ids, f"note {note['id']}", "id not unique")
         note_ids.add(note["id"])
         _need(note["target"] in ids, f"note {note['id']}", "target must resolve")
@@ -644,8 +654,8 @@ already settled, a signal that changes the answer sets `state` to `open` and
 removes `settled`, and a note stays on that card, also in a settled round. Its
 signal has `reopened: true`. Before you mark the round `settled`, go through the
 cards of the current round. Never change a card in a settled round: only the
-engine writes there. A note whose `target` is a map node id is a steer: leave it
-out when you read the signals, because it settles nothing.
+engine writes there. A steer lives on the round, and its signal has `steer: true`
+and no `item`: leave it out when you read the signals, because it settles nothing.
 
 - `needs_reading` with a clear note and no signal that disagrees with it: set
   `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
@@ -668,8 +678,9 @@ each point that returns:
 - a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
   human noted or reopened in this send.
 
-The new card has a new id. Its body names each old card id and shows the signals
-that returned the point, for example both the mark and the note. A carried
+The new card has a new id. Its `carries` lists each old card id; each id must be
+a card of an earlier round. Its body shows the signals that returned the point,
+for example both the mark and the note. A carried
 `blocked` card names the current card id of the point it waits on. An `info` card
 stays in its round. The old card stays as it is.
 """

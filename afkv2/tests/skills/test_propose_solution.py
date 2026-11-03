@@ -33,7 +33,7 @@ import fork_cards  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "row", "next", "second-provider", "build", "present", "wait", "ingest", "apply-readings", "gate"]
+STEP_ORDER = ["start", "row", "next", "second-provider", "build", "present", "wait", "ingest", "apply-readings", "gate", "end"]
 CAT_A = ["entities", "relations", "keys", "constraints", "cascade", "api", "migration", "authorization", "lifecycle",
          "other-teams", "large-data"]
 CAT_A_LABELS = ["Entities", "Relations", "Keys", "Constraints", "Cascade", "API contract and compatibility",

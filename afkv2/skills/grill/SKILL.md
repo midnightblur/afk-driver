@@ -53,8 +53,8 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | Field | Effect |
    |-------|--------|
    | `critical: true` | the card asks a critical-aspect question: how an existing code area, data set or flow must change. The body root must be a picture of the current state, with the question in its `children`. The build refuses any other shape. |
-   | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body. A gap makes it a `confirm` card and the answer lists it in `degraded`. |
-   | `carries: [<old card id>]` | this new card asks a returning point again, and the build writes that into the body. Every point the round pass returns needs one such card; the build refuses the next round without it. A mention in other text or in `depends_on` carries nothing. |
+   | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body as labelled blocks (`card` page). A gap makes it a `confirm` card and the answer lists it in `degraded`. |
+   | `carries: [<old card id>]` | this new card asks a returning point again. The build writes it into the card's `carries` field; each id must be a card of an earlier round. The page shows the old cards in the new card's history. Every point the round pass returns needs one such card; the build refuses the next round without it. A mention in other text or in `depends_on` carries nothing. |
 
 5. **Build and show the round.** Done when `present` answers ok.
 
@@ -62,21 +62,29 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/round_document.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
    ```
 
+   `build` also writes `session.links`, so the page links each ticket, change and commit reference. It takes the templates from the config, the `origin` remote and the Jira base URL of the tracker port (`scripts/page_links.py`), and leaves out a kind it cannot find.
+
    ```sh step=present
    <python> "<this skill's folder>/scripts/page_round.py" present --doc "<doc>"
    ```
 
    `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
 
-6. **Wait for the answer.** The answer reaches you with no chat message from the human.
+6. **Wait for the answer.** The human picks a mark on each card, writes each note as a lavish annotation, and sends both with Send to Agent in the lavish panel. The answer reaches you with no chat message from the human. The engine keeps each round send beside `doc` until ingest. After a wait or a session that stopped, run the wait again: a kept send answers at once. An ingest that refuses the answer moves the kept send to the file its error names; the next wait reads the page.
 
-   **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. Do other work or end your response until then.
+   **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. The host's prompts, from which the engine built that text, are in `<raw file>.prompts.json`. Do other work or end your response until then.
 
    ```sh step=wait
    <python> "<this skill's folder>/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
+   **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send to Agent: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
+
+   **Side questions.** The page's btw? button sends only its question, at once, to the wait (or the Stop hook). The wait asks it in your terminal pane, and the page shows the answer. The marks the human queued stay queued. A side question does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
+
+   ```sh step=reply
+   <python> "<this skill's folder>/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"
+   ```
 
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
@@ -119,4 +127,10 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    It lists every failure in `error.failures`. Each failure is one more round or one more row.
 
-10. **Finish.** Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder and the glossary on the feature branch. Tell the human the next skill is `/afkv2:to-prd`. Done when the gate answered ok and the commit exists.
+10. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
+
+   ```sh step=end
+   <python> "<this skill's folder>/scripts/page_round.py" end --doc "<doc>"
+   ```
+
+   Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder and the glossary on the feature branch. Tell the human the next skill is `/afkv2:to-prd`. Done when the gate answered ok and the commit exists.

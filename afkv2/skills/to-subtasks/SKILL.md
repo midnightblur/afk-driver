@@ -102,4 +102,10 @@ Run each command from the worktree of the feature branch, at the repository root
 
     It refuses `not-approved` until the developer has settled the card of this exact plan. On a pass it writes the line `> Division: approved <YYYY-MM-DD>` in `PLAN.md`, commits it on the run branch, and writes the `Plan` row of `INDEX.md`. `index_missing` true means the spec folder has no `INDEX.md`, so tell the human to run `/afkv2:to-prd`.
 
-11. **Finish.** Commit `doc` and `INDEX.md` on the feature branch. Tell the human the next skill is `/afkv2:autopilot`. Done when the worktree of the feature branch is clean.
+11. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
+
+   ```sh step=end
+   <python> "<this skill's folder>/../grill/scripts/page_round.py" end --doc "<doc>"
+   ```
+
+   Commit `doc` and `INDEX.md` on the feature branch. Tell the human the next skill is `/afkv2:autopilot`. Done when the worktree of the feature branch is clean.

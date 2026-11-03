@@ -13,6 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -29,8 +30,8 @@ sys.path.insert(0, str(SKILL_DIR / "scripts"))
 import round_document as rd  # noqa: E402
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "read-ticket", "row", "build", "present", "wait", "ingest",
-              "apply-readings", "sync", "term", "gate"]
+STEP_ORDER = ["start", "read-ticket", "row", "build", "present", "wait", "reply", "ingest",
+              "apply-readings", "sync", "term", "gate", "end"]
 
 
 def skill_steps():
@@ -128,7 +129,7 @@ def round_one():
             "maps": [scope_map()],
             "items": [{"id": "i-scope", "kind": "confirm", "node": "n-scope",
                        "body": text("The export covers one order per file.")},
-                      {"id": "i-format", "kind": "debate", "node": "n-format",
+                      {"id": "i-format", "kind": "debate", "node": "n-format", "title": "The file format",
                        "body": text("Which file format? Recommended: CSV.")}]}
 
 
@@ -270,10 +271,17 @@ def test_decided_card_carries_all_six_fields(tmp_path):
     item = doc["rounds"][0]["items"][0]
     assert item["kind"] == "decided" and result["degraded"] == []
     assert "decided" not in item
-    shown = json.dumps(item["body"])
-    for value in ("The export writes UTF-8.", "UTF-16: no reader asks for it", "repo: src/io.py:12",
-                  "Beats UTF-16", "reverse: change the writer", "depends-on: none"):
-        assert value in shown
+    fields = {c["id"]: c for c in rd._components(item["body"])}
+    labelled = [(fields[f"i-scope-{name}"]["props"]["label"], fields[f"i-scope-{name}"]["props"]["text"])
+                for name in ("decision", "why", "alternatives", "evidence", "reverse", "scope")]
+    assert labelled == [("Decision", "The export writes UTF-8."),
+                        ("Why this one", "Beats UTF-16: every current reader takes UTF-8."),
+                        ("Other options considered (rejected)", "- UTF-16: no reader asks for it"),
+                        ("Evidence", "src/io.py:12 writes UTF-8"), ("To undo", "change the writer"),
+                        ("Depends on", "no other card")]
+    assert fields["i-scope-evidence"]["props"]["badge"] == "repo"
+    assert fields["i-scope-alternatives"]["props"]["markdown"] is True
+    assert "font-weight" in fields["i-scope-decision"]["style"]
 
 
 @pytest.mark.parametrize("field", ["decision", "alternatives", "evidence", "why", "reverse"])
@@ -390,6 +398,51 @@ def test_github_ticket_reads_references_and_reverse_mentions(tmp_path):
     assert "tracker issue-search \"#7\"" in world.call_log()
 
 
+def test_a_github_build_writes_the_issue_link_and_the_ticket_card_names_references(tmp_path):
+    world = World(tmp_path, "tickets_github.json", GITHUB)
+    started = world.start_and_read(key="7")
+    world.build_round(started, round_one())
+    doc = json.loads(Path(started["doc"]).read_text("utf-8"))
+    assert doc["session"]["links"] == {"issue": "https://github.com/acme/shop/issues/{id}"}
+    card = doc["rounds"][0]["items"][0]
+    assert card["body"]["props"]["text"].startswith("#7: ")
+    rows = next(c for c in card["body"]["children"] if c["id"] == "i-ticket-links")["props"]["rows"]
+    assert [row[1] for row in rows] == ["#8", "#10"]
+    unread = next(c for c in card["body"]["children"] if c["id"] == "i-ticket-unread")["props"]["rows"]
+    assert unread[0][0] == "acme/other#9"
+    check_document(doc)
+
+
+@pytest.mark.parametrize("remote, url", [
+    ("https://github.com/acme/shop.git", "https://github.com/acme/shop"),
+    ("https://user@gitlab.example.com:8443/group/sub/proj.git", "https://gitlab.example.com/group/sub/proj"),
+    ("git@gitlab.example.com:group/proj.git", "https://gitlab.example.com/group/proj"),
+    ("ssh://git@github.com/acme/shop", "https://github.com/acme/shop"),
+    ("not a remote", None),
+])
+def test_the_web_url_of_a_remote(remote, url):
+    import page_links
+    assert page_links.web_url(remote) == url
+
+
+@pytest.mark.parametrize("config, remote, base, expected", [
+    ({"forge": "github", "tracker": {"kind": "github-issues", "repo": "acme/issues"}}, "git@github.com:acme/shop.git", None,
+     {"issue": "https://github.com/acme/issues/issues/{id}", "change": "https://github.com/acme/shop/pull/{id}",
+      "commit": "https://github.com/acme/shop/commit/{id}"}),
+    ({"tracker": {"kind": "jira"}}, "https://gitlab.example.com/g/p.git", "https://acme.atlassian.net/",
+     {"issue": "https://gitlab.example.com/g/p/-/issues/{id}", "change": "https://gitlab.example.com/g/p/-/merge_requests/{id}",
+      "commit": "https://gitlab.example.com/g/p/-/commit/{id}", "ticket": "https://acme.atlassian.net/browse/{id}",
+      "projects": ["OLD", "PROJ", "WEB"]}),
+    ({"tracker": {"kind": "jira"}}, None, None, None),
+])
+def test_the_links_come_from_the_config_the_remote_and_the_jira_base(monkeypatch, config, remote, base, expected):
+    import page_links
+    monkeypatch.setattr(page_links, "run_command", lambda *_: {"ok": True, **config})
+    monkeypatch.setattr(page_links, "_origin", lambda: remote)
+    monkeypatch.setattr(page_links, "_jira_base", lambda: base and base.rstrip("/"))
+    assert page_links.links_for(["PROJ-1", "WEB-7", None, "8"], {"projects": ["OLD"]}) == expected
+
+
 def test_unreadable_ticket_is_refused_and_writes_nothing(world):
     out = world.scratch / "ticket.json"
     answer = world.run("read-ticket", expect=1, ticket_key="PROJ-404", ticket_file=out)
@@ -409,6 +462,13 @@ def first_round(world):
     return started
 
 
+def test_the_ticket_text_is_markdown_and_folds_when_long():
+    short = rd._ticket_card({"key": "K-1", "description": "**Pain.** It hurts."})["body"]["children"][0]
+    assert short["props"] == {"text": "**Pain.** It hurts.", "markdown": True} and "fold" not in short
+    long = rd._ticket_card({"key": "K-1", "description": "word " * 121})["body"]["children"][0]
+    assert long["fold"] == "The ticket text" and long["props"]["markdown"] is True
+
+
 def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     started = first_round(world)
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
@@ -418,16 +478,23 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     ticket_card = doc["rounds"][0]["items"][0]
     shown = json.dumps(ticket_card)
     assert ticket_card["kind"] == "info" and "What about cancelled orders?" in shown and "PROJ-2" in shown
+    assert doc["rounds"][0]["items"][2]["title"] == "The file format" and "title" not in doc["rounds"][0]["items"][1]
+    links = next(c for c in ticket_card["body"]["children"] if c["id"] == "i-ticket-links")["props"]
+    assert links["columns"] == ["Relation", "Ticket", "Title", "Status"] and "Archive closed orders." not in shown
+    assert ticket_card["title"] == "What the ticket says"
     check_document(doc)
 
     raw = "i-scope: accept\ni-format: note: csv please, \"quoted\" é\n"
     world.raw.write_bytes(raw.encode("utf-8"))
     raw_file = Path(started["raw_file"])
-    world.run("wait", doc=started["doc"], raw_file=raw_file)
+    waited = world.run("wait", doc=started["doc"], raw_file=raw_file)
     assert raw_file.read_bytes() == raw.encode("utf-8")
+    prompts = Path(waited["prompts_file"])
+    assert prompts == Path(f"{raw_file}.prompts.json") and json.loads(prompts.read_text("utf-8"))[0]["prompt"] == raw
 
     pending = world.run("ingest", doc=started["doc"], raw_file=raw_file)
     assert not raw_file.exists(), "the raw text now lives in the document"
+    assert not prompts.exists(), "the audit copy goes with the raw file"
     assert [p["id"] for p in pending["needs_reading"]] == ["i-format"]
     assert pending["needs_reading"][0]["notes"][0]["text"] == "csv please, \"quoted\" é"
     assert pending["settled_by_mark"] == ["i-scope"]
@@ -489,6 +556,25 @@ def test_start_resumes_an_open_session_and_reports_unread_raw_text(world):
     assert again["raw_pending"] is True
 
 
+def test_a_waited_answer_resumes_its_own_session_beside_the_audit_file(world):
+    started = first_round(world)
+    world.raw.write_bytes(b"i-scope: accept\n")
+    waited = world.run("wait", doc=started["doc"], raw_file=started["raw_file"])
+    assert Path(waited["prompts_file"]).is_file()
+    os.utime(waited["prompts_file"], (time.time() + 60, time.time() + 60))
+    again = world.run("start", ticket_key="PROJ-1")
+    assert again["session"] == started["session"] and again["raw_pending"] is True
+    world.run("sync", doc=started["doc"], log=started["log"])
+
+
+def test_reply_and_end_run_their_engine_verbs(world):
+    started = first_round(world)
+    reply = world.file("reply.md", "An answer.")
+    assert world.run("reply", doc=started["doc"], reply_file=reply) == {"ok": True}
+    assert world.run("end", doc=started["doc"]) == {"ok": True}
+    assert world.verbs()[-2:] == ["reply", "end"]
+
+
 def answered(world, started, raw):
     raw_file = Path(started["raw_file"])
     raw_file.write_text(raw, "utf-8")
@@ -528,8 +614,8 @@ def test_unclear_note_returns_to_open_and_must_be_carried(world):
     world.run("present", doc=started["doc"])
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
-    assert "carries" not in doc["rounds"][1]["items"][0]
-    assert "Carries i-format." in json.dumps(doc["rounds"][1]["items"][0]["body"])
+    assert doc["rounds"][1]["items"][0]["carries"] == ["i-format"]
+    assert "-carries" not in json.dumps(doc["rounds"][1]["items"][0]["body"])
     check_authored_part(doc)
 
 
@@ -585,7 +671,18 @@ def test_a_steer_is_kept_word_for_word_and_settles_nothing(world):
     assert pending["steers"][0]["text"] == "prefer plain text"
     assert pending["steers"][0]["target"] == "n-format"
     world.run("sync", doc=started["doc"], log=started["log"])
-    assert '- Steer: n-format (N-1-i-format): "prefer plain text"' in Path(started["log"]).read_text("utf-8")
+    assert '- Steer: n-format (N-1-n-format): "prefer plain text"' in Path(started["log"]).read_text("utf-8")
+
+
+def test_an_older_steer_on_the_map_kept_on_a_card_reads_as_a_steer():
+    """An engine before round steers kept a note on the map itself on a free card. It names no card."""
+    steer = {"id": "N-1-i-format", "round": 1, "target": "m-scope", "text": "link the issue", "deleted": False}
+    first = round_one()
+    doc = {"maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
+        {**first["items"][0], "state": "open"}, {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
+    pending = rd.pending(doc)
+    assert pending["steers"] == [steer]
+    assert pending["needs_reading"] == [{"id": "i-format", "kind": "debate", "state": "needs_reading", "notes": []}]
 
 
 @pytest.mark.parametrize("payload, code", [

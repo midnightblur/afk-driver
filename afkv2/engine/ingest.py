@@ -3,6 +3,9 @@
 The raw grammar: first line `[round R-n]`, then `<id> <token>` or `<id> <token> | <note>`, an em dash
 for no choice. `<id>` is an element id, or a note id with the token `edit` or `delete`. A later line
 continues the note unless it reads as a line of a known id with a token that id takes.
+
+A note on a card element lives on that card as `N-<round>-<item>`. A steer, a note on a map, a map node or
+another element that no card holds, lives on its round as `N-<round>-<target>` and names no card.
 """
 
 from __future__ import annotations
@@ -74,6 +77,7 @@ class _Page:
         self.current = next(r for r in doc["rounds"] if r["state"] == "current")
         self.items = {item["id"]: item for r in doc["rounds"] for item in r["items"]}
         self.notes = {note["id"]: (item, note) for item in self.items.values() for note in item.get("notes") or []}
+        self.notes.update((note["id"], (None, note)) for r in doc["rounds"] for note in r.get("notes") or [])
 
     def owner(self, target: str) -> dict | None:
         """The item that holds an element; None for an element of the `maps` list."""
@@ -131,10 +135,8 @@ def parse_response(raw: str, page: _Page) -> list[Line]:
     return lines
 
 
-def _write_note(item: dict, target: str, text: str, n: int) -> str:
-    """One note per item per round (SDD §4): a second one on the same item folds into it."""
-    note_id = f"N-{n}-{item['id']}"
-    notes = item.get("notes") or []
+def _fold(notes: list[dict], note_id: str, target: str, text: str, n: int, home: str) -> list[dict]:
+    """One note per id (SDD §4): a second one with the same id folds into it. `home` is the target a mixed note takes."""
     for note in notes:
         if note["id"] != note_id:
             continue
@@ -143,9 +145,22 @@ def _write_note(item: dict, target: str, text: str, n: int) -> str:
         elif note["text"] != text:
             note["text"] += "\n\n" + text
             if note["target"] != target:
-                note["target"] = item["id"]
-        return note_id
-    item["notes"] = [*notes, {"id": note_id, "round": n, "target": target, "text": text, "deleted": False}]
+                note["target"] = home
+        return notes
+    return [*notes, {"id": note_id, "round": n, "target": target, "text": text, "deleted": False}]
+
+
+def _write_note(item: dict, target: str, text: str, n: int) -> str:
+    """One note per item per round."""
+    note_id = f"N-{n}-{item['id']}"
+    item["notes"] = _fold(item.get("notes") or [], note_id, target, text, n, item["id"])
+    return note_id
+
+
+def _write_steer(round_: dict, target: str, text: str) -> str:
+    """One steer per target per round, on the round: a steer names no card."""
+    note_id = f"N-{round_['n']}-{target}"
+    round_["notes"] = _fold(round_.get("notes") or [], note_id, target, text, round_["n"], target)
     return note_id
 
 
@@ -154,23 +169,6 @@ def _edit(note: dict, line: Line) -> str:
         raise Refusal("bad-response", f"item response, field raw: line {line.number} edits a note to no text")
     note.update(text=line.text, deleted=False)
     return line.text
-
-
-def _steer_home(page: _Page, target: str, n: int) -> dict:
-    """The item that stores a steer. The note's target carries the meaning, so a free item is best."""
-    newest_first = [item for r in reversed(page.doc["rounds"]) for item in r["items"]]
-    linked = [item for item in newest_first if item.get("node") == target]
-    holder = [page.owner(target)] if page.owner(target) else []
-    candidates = [*linked, *holder, *page.current["items"], *newest_first]
-    if not candidates:
-        raise Refusal("bad-response", f"item response, field raw: no item can hold the note on {target}")
-    for item in candidates:
-        if any(note["target"] == target and note["round"] == n for note in item.get("notes") or []):
-            return item
-    for item in candidates:
-        if not any(note["id"] == f"N-{n}-{item['id']}" for note in item.get("notes") or []):
-            return item
-    return candidates[0]
 
 
 def _table_lines(lines: list[Line], page: _Page) -> dict[str, list[Line]]:
@@ -238,21 +236,22 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
             continue
         if line.token == EDIT:
             item, note = page.notes[line.target]
-            signals[line.number] = {"target": line.target, "item": item["id"], "mark": None, "note": line.target,
-                                    "text": _edit(note, line), "steer": True, "action": EDIT}
+            signals[line.number] = {"target": line.target, "item": item and item["id"], "mark": None,
+                                    "note": line.target, "text": _edit(note, line), "steer": True, "action": EDIT}
         elif line.token == DELETE:
             item, note = page.notes[line.target]
             note["deleted"] = True
-            rests_on_it = (item.get("settled") or {}).get("signal") == line.target and item.get("state") == "settled_by_note"
+            settled = (item or {}).get("settled") or {}
+            rests_on_it = settled.get("signal") == line.target and item.get("state") == "settled_by_note"
             if rests_on_it:
                 _set_state(item, "open", n, [])
                 result["reopened"].append(item["id"])
-            signals[line.number] = {"target": line.target, "item": item["id"], "mark": None, "note": line.target,
-                                    "text": None, "action": DELETE, "state": item.get("state", "open"), "reopened": rests_on_it}
+            signals[line.number] = {"target": line.target, "item": item and item["id"], "mark": None, "note": line.target,
+                                    "text": None, "action": DELETE, "state": item.get("state", "open") if item else None,
+                                    "reopened": rests_on_it}
         elif line.text:
-            item = _steer_home(page, line.target, n)
-            signals[line.number] = {"target": line.target, "item": item["id"], "mark": None, "text": line.text,
-                                    "note": _write_note(item, line.target, line.text, n), "steer": True}
+            signals[line.number] = {"target": line.target, "item": None, "mark": None, "text": line.text,
+                                    "note": _write_steer(page.current, line.target, line.text), "steer": True}
             result["steers"].append(line.target)
 
     if not signals:

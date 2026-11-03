@@ -116,4 +116,10 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
     It lists every failure in `error.failures`. Each failure is one more round or one change to the design files. On a pass it writes the gate row and the `SDD` and `Design ADRs` rows of `INDEX.md`; `index_missing` true means the spec folder has no `INDEX.md`, so tell the human to run `/afkv2:to-prd`.
 
-11. **Finish.** Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:to-subtasks`. Done when the gate answered ok and the commit exists.
+11. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
+
+   ```sh step=end
+   <python> "<this skill's folder>/../grill/scripts/page_round.py" end --doc "<doc>"
+   ```
+
+   Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:to-subtasks`. Done when the gate answered ok and the commit exists.

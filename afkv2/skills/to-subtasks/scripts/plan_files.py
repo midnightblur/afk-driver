@@ -26,7 +26,7 @@ import design_files  # noqa: E402
 import grill_start  # noqa: E402
 import prd_files  # noqa: E402
 import round_document as rd  # noqa: E402
-from grill_common import EXIT_UNREADABLE, Parser, Refusal, read_json, serve, write_text  # noqa: E402
+from grill_common import EXIT_UNREADABLE, Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
 
 TO_PRD = "/afkv2:to-prd"
 PROPOSE = "/afkv2:propose-solution"
@@ -121,7 +121,7 @@ def _run_worktree(run_branch):
 
 def _session_of(pages, plan):
     """The newest page document while the plan is not approved, else a new session."""
-    newest = sorted(path.stem[len(DOC_PREFIX):] for path in pages.glob(f"{DOC_PREFIX}{SESSION_PREFIX}*.json"))
+    newest = sorted(path.stem[len(DOC_PREFIX):] for path in page_documents(pages, f"{DOC_PREFIX}{SESSION_PREFIX}"))
     plan_file = plan / "PLAN.md"
     approved = plan_file.is_file() and cp.division_of(cp.read_text(plan_file))[0]["approved"]
     if newest and not approved:

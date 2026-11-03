@@ -24,7 +24,20 @@
         "skill": {"enum": ["grill", "propose-solution", "propose-verification"]},
         "feature": {"type": "string", "minLength": 1},
         "ticket": {"type": "string", "minLength": 1},
-        "started": {"$ref": "#/$defs/utc_time"}
+        "started": {"$ref": "#/$defs/utc_time"},
+        "links": {"$ref": "#/$defs/links"}
+      }
+    },
+    "url_template": {"type": "string", "pattern": "^https?://[^\\s\"<>]*[{]id[}][^\\s\"<>]*$"},
+    "links": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "issue": {"$ref": "#/$defs/url_template"},
+        "change": {"$ref": "#/$defs/url_template"},
+        "commit": {"$ref": "#/$defs/url_template"},
+        "ticket": {"$ref": "#/$defs/url_template"},
+        "projects": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"}}
       }
     },
     "round": {
@@ -38,7 +51,8 @@
         "banner": {"$ref": "#/$defs/banner"},
         "items": {"type": "array", "items": {"$ref": "#/$defs/item"}},
         "responses": {"type": ["array", "null"], "items": {"$ref": "#/$defs/response"}},
-        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/reply"}}
+        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/reply"}},
+        "notes": {"type": ["array", "null"], "items": {"$ref": "#/$defs/note"}}
       }
     },
     "banner": {
@@ -77,7 +91,9 @@
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "kind": {"enum": ["decided", "confirm", "debate", "signoff", "info"]},
+        "title": {"type": ["string", "null"], "minLength": 1, "maxLength": 90},
         "node": {"type": ["string", "null"]},
+        "carries": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}},
         "state": {"enum": ["open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"]},
         "body": {"$ref": "#/$defs/component"},
         "settled": {"$ref": "#/$defs/settled"},
@@ -116,6 +132,7 @@
         "id": {"type": ["string", "null"]},
         "props": {"type": ["object", "null"]},
         "style": {"type": ["string", "null"]},
+        "fold": {"type": ["string", "null"], "minLength": 1},
         "children": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
         "html": {"type": "string"}
       }

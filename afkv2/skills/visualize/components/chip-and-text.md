@@ -4,7 +4,11 @@
 
 A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone; for text the tone is
-optional. Tones:
+optional. A `text` takes `markdown: true` to render a safe subset: blank-line
+paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
+http(s) links. The engine escapes all HTML first. A `text` also takes `label`
+(at most 60 characters), a small line above its words that names what the words
+are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
 
 | Tone | Means | Looks |
 |------|-------|-------|
@@ -16,10 +20,19 @@ optional. Tones:
 A `text` component is also the plain container of a body: its `children` follow
 its text.
 
+References link by themselves, in every text of the page, not only in a `text`:
+`#123` (an issue), `!123` and `PR #123` (a change), `ABC-123` (a ticket of a
+project in `session.links.projects`) and a commit sha after "commit" or "sha".
+Each opens in a new tab. A kind links only when `session.links` has its template;
+otherwise it stays text. Write the reference in that form, for example `#159`,
+not `issue 159`.
+
 ## Use it when
 
 A value, step or element must show whether it stays, goes, is new or is only
-proposed. Use the tone for that meaning only; for any other look, use `style`.
+proposed. Use `markdown: true` for text that comes as Markdown, such as a
+ticket description. Use `label` when a card holds several fields, so each block
+says what it is. Use the tone for that meaning only; for any other look, use `style`.
 
 ## How it looks
 

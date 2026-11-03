@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import Parser, Refusal, read_json, serve, write_json, write_text
+from page_links import links_for
 
 SCHEMA = "afkv2.page/0"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
@@ -27,8 +28,10 @@ SETTLED_STATES = {"settled_by_mark", "settled_by_note"}
 PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
-ITEM_INPUT_FIELDS = {"id", "kind", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
 TICKET_CARD = "i-ticket"
+TICKET_TITLE = "What the ticket says"
+FOLD_OVER = 600
 
 
 def _components(component):
@@ -65,8 +68,40 @@ def current_round(doc):
     return next((rnd for rnd in doc.get("rounds") or [] if rnd.get("state") == "current"), None)
 
 
-def _live_notes(item):
-    return [note for note in item.get("notes") or [] if not note.get("deleted")]
+def _live_notes(holder):
+    """The notes of a card, or the steers of a round, that are not deleted."""
+    return [note for note in holder.get("notes") or [] if not note.get("deleted")]
+
+
+def _node_ids(component):
+    return [node.get("id") for node in (component.get("props") or {}).get("nodes") or []]
+
+
+def steer_targets(doc):
+    """The ids a steer names: every element of a listed map, and every node of a map held in a card."""
+    found = set()
+    for chart in doc.get("maps") or []:
+        for part in _components(chart):
+            found.add(part.get("id"))
+            found.update(_node_ids(part))
+    for rnd in doc.get("rounds") or []:
+        for item in rnd["items"]:
+            found.update(node for part in _components(item["body"]) if part.get("type") == "map"
+                         for node in _node_ids(part))
+    found.discard(None)
+    return found
+
+
+def card_notes(item, targets):
+    """The live notes on a card that are no steer. An older document keeps a steer on a card."""
+    return [note for note in _live_notes(item) if note.get("target") not in targets]
+
+
+def steers(doc):
+    """Every live steer, oldest round first: the round's steers, and the steers an older document kept on a card."""
+    targets = steer_targets(doc)
+    return [note for rnd in doc["rounds"] for note in
+            [*(n for item in rnd["items"] for n in _live_notes(item) if n.get("target") in targets), *_live_notes(rnd)]]
 
 
 def holds_sign_mark(item):
@@ -84,25 +119,41 @@ def _text(value, component_id):
     return {"type": "text", "id": component_id, "props": {"text": value}}
 
 
+def _labelled(component_id, label, value, **extra):
+    component = _text(value, component_id)
+    component["props"].update(label=label, **extra)
+    return component
+
+
 def _decided_fields(item_id, decided, known_ids):
-    """The six fields of a decided card as components, and whether the card holds all six."""
+    """The six fields of a decided card as labelled text components, and whether the card holds all six.
+
+    The decision comes first, in bold. The alternatives are a list under a label that calls them rejected,
+    so they never read as parts of the decision. The grade is a badge on the evidence label."""
     decided = decided if isinstance(decided, dict) else {}
-    alternatives = decided.get("alternatives") or []
+    alternatives = [str(a) for a in decided.get("alternatives") or []]
     grade, evidence = decided.get("grade"), decided.get("evidence")
     depends_on = decided.get("depends_on") or []
     whole = (bool(decided.get("decision")) and bool(alternatives) and bool(evidence) and grade in GRADES
              and bool(decided.get("why")) and bool(decided.get("reverse")) and set(depends_on) <= known_ids)
-    label = f"{grade}: {evidence}" if grade in GRADES else f"not graded: {evidence}"
-    parts = [("decision", decided.get("decision")),
-             ("why", decided.get("why")),
-             ("alternatives", "Alternatives beaten: " + "; ".join(alternatives) if alternatives else None),
-             ("evidence", label if evidence else None),
-             ("reverse", f"reverse: {decided['reverse']}" if decided.get("reverse") else None),
-             ("scope", f"HL: none · depends-on: {', '.join(depends_on) or 'none'}")]
-    return [_text(value, f"{item_id}-{name}") for name, value in parts if value], whole
+    fields = []
+    if decided.get("decision"):
+        fields.append({**_labelled(f"{item_id}-decision", "Decision", decided["decision"]), "style": "font-weight: 600"})
+    if decided.get("why"):
+        fields.append(_labelled(f"{item_id}-why", "Why this one", decided["why"]))
+    if alternatives:
+        listed = "\n".join("- " + " ".join(a.split()) for a in alternatives)
+        fields.append(_labelled(f"{item_id}-alternatives", "Other options considered (rejected)", listed, markdown=True))
+    if evidence:
+        fields.append(_labelled(f"{item_id}-evidence", "Evidence", evidence,
+                                badge=grade if grade in GRADES else "not graded"))
+    if decided.get("reverse"):
+        fields.append(_labelled(f"{item_id}-reverse", "To undo", decided["reverse"]))
+    fields.append(_labelled(f"{item_id}-scope", "Depends on", ", ".join(depends_on) or "no other card"))
+    return fields, whole
 
 
-def _item(raw, known_ids, degraded):
+def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
     if not isinstance(raw, dict) or not raw.get("id"):
         raise Refusal("bad-item", f"item without an id: {raw!r}")
     item_id = raw["id"]
@@ -138,19 +189,32 @@ def _item(raw, known_ids, degraded):
         raise Refusal("no-picture", f"{where}: a critical-aspect question needs a picture of the current state "
                                     f"as the body root, above the question; the root is {body['type']!r}")
     carries = raw.get("carries") or []
-    if not set(carries) <= known_ids:
-        raise Refusal("bad-item", f"{where}: carries an unknown card: {sorted(set(carries) - known_ids)}")
-    if carries:
-        body["children"] = [*(body.get("children") or []), _text(f"Carries {', '.join(carries)}.", f"{item_id}-carries")]
+    if not set(carries) <= earlier_cards:
+        raise Refusal("bad-item", f"{where}: carries no card of an earlier round: {sorted(set(carries) - earlier_cards)}")
     item = {"id": item_id, "kind": kind, "state": state, "body": body}
-    if raw.get("node"):
-        item["node"] = raw["node"]
+    for optional in ("title", "node", "carries"):
+        if raw.get(optional):
+            item[optional] = raw[optional]
     return item
 
 
+def reference(key):
+    """A ticket key as the page writes it: a GitHub issue number gets `#`, so the page links it."""
+    key = str(key or "")
+    return f"#{key}" if key.isdigit() else key
+
+
 def _ticket_card(ticket):
-    """The info card that shows what the ticket says, comments and links included."""
-    children = [_text(ticket.get("description") or "(no description)", f"{TICKET_CARD}-description")]
+    """The info card that shows what the ticket says, comments and links included.
+
+    The description is Markdown, folded when it is long. A linked ticket shows its title and status only.
+    Each key is a reference, so the page links the ticket and each linked ticket.
+    """
+    description = _text(ticket.get("description") or "(no description)", f"{TICKET_CARD}-description")
+    description["props"]["markdown"] = True
+    if len(description["props"]["text"]) > FOLD_OVER:
+        description["fold"] = "The ticket text"
+    children = [description]
     if ticket.get("comments"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-comments", "props": {
             "columns": ["Author", "Comment"],
@@ -159,20 +223,24 @@ def _ticket_card(ticket):
         children.append(_text(f"{ticket['comments_cut']} more comments were not returned.", f"{TICKET_CARD}-cut"))
     if ticket.get("links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-links", "props": {
-            "columns": ["Relation", "Ticket", "Title", "Status", "Description"],
-            "rows": [[link.get("relation") or "", link.get("key") or "", link.get("title") or "",
-                      link.get("status") or "", link.get("description") or ""] for link in ticket["links"]]}})
+            "columns": ["Relation", "Ticket", "Title", "Status"],
+            "rows": [[link.get("relation") or "", reference(link.get("key")), link.get("title") or "",
+                      link.get("status") or ""] for link in ticket["links"]]}})
     if ticket.get("unread_links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-unread", "props": {
             "columns": ["Ticket not read", "Reason"],
-            "rows": [[link.get("key") or "", link.get("reason") or ""] for link in ticket["unread_links"]]}})
-    return {"id": TICKET_CARD, "kind": "info", "state": "open", "body": {
+            "rows": [[reference(link.get("key")), link.get("reason") or ""] for link in ticket["unread_links"]]}})
+    return {"id": TICKET_CARD, "kind": "info", "title": TICKET_TITLE, "state": "open", "body": {
         "type": "text", "id": f"{TICKET_CARD}-title",
-        "props": {"text": f"{ticket['key']}: {ticket.get('title') or ''}"}, "children": children}}
+        "props": {"text": f"{reference(ticket['key'])}: {ticket.get('title') or ''}"}, "children": children}}
 
 
 def _carries_card(item, card_id):
-    """True when the item states that it carries the card; a mention in other text or in depends-on carries nothing."""
+    """True when the item states that it carries the card; a mention in other text or in depends-on carries nothing.
+
+    The `carries` field states it. A card built before that field states it in its text component `<id>-carries`."""
+    if card_id in (item.get("carries") or []):
+        return True
     stated = next((c for c in _components(item["body"]) if c.get("id") == f"{item['id']}-carries"), {})
     return re.search(rf"(?<![\w-]){re.escape(card_id)}(?![\w-])", (stated.get("props") or {}).get("text", "")) is not None
 
@@ -182,7 +250,7 @@ def returning(doc):
     current = current_round(doc)
     if not current:
         return []
-    steer_targets = {node.get("id") for node in _map_nodes(doc)}
+    targets = steer_targets(doc)
     reopened = {signal.get("item") for response in current.get("responses") or []
                 for signal in response.get("signals") or [] if signal.get("reopened")}
     found = []
@@ -190,8 +258,7 @@ def returning(doc):
         if rnd is current:
             continue
         for item in rnd["items"]:
-            noted = any(note.get("round") == current["n"] and note.get("target") not in steer_targets
-                        for note in _live_notes(item))
+            noted = any(note.get("round") == current["n"] for note in card_notes(item, targets))
             unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
             if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
@@ -264,13 +331,14 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
-def build_round_document(doc_path, session, round_input, ticket=None, replace=False):
+def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
     `round_input` holds banner, items and optional maps, replies, colour. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
+    `links` replaces `session.links`, the URL templates the page links references with.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -293,13 +361,16 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         doc = {"schema": SCHEMA, "session": {**session, "started": started}, "maps": [], "rounds": []}
     if replace:
         _drop_unanswered_round(doc, doc_path)
+    if links:
+        doc["session"]["links"] = links
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
     raw_items = round_input.get("items") or []
     known = used | {raw.get("id") for raw in raw_items if isinstance(raw, dict)}
     degraded = []
-    items = [_item(raw, known, degraded) for raw in raw_items]
+    earlier = frozenset(item["id"] for rnd in doc["rounds"] for item in rnd["items"])
+    items = [_item(raw, known, degraded, earlier) for raw in raw_items]
     if doc["rounds"]:
         _close_current(doc, items)
     elif ticket and ticket.get("key"):
@@ -392,21 +463,18 @@ def pending(doc):
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
-    nodes = {node.get("id") for node in _map_nodes(doc)}
+    targets = steer_targets(doc)
 
     def card(item):
-        return {"id": item["id"], "kind": item["kind"], "state": item["state"],
-                "notes": [note for note in _live_notes(item) if note.get("target") not in nodes]}
+        return {"id": item["id"], "kind": item["kind"], "state": item["state"], "notes": card_notes(item, targets)}
 
     responses = current.get("responses") or []
-    steers = [note for rnd in doc["rounds"] for item in rnd["items"] for note in _live_notes(item)
-              if note.get("target") in nodes]
     by_state = {state: [item["id"] for item in current["items"] if item["state"] == state]
                 for state in ("open", "blocked", "settled_by_mark", "settled_by_note")}
     return {"round": current["n"],
             "needs_reading": [card(item) for item in current["items"] if item["state"] == "needs_reading"],
             "returned": [card(item) for item in returning(doc)],
-            "steers": steers,
+            "steers": steers(doc),
             "signals": responses[-1].get("signals", []) if responses else [],
             **by_state}
 
@@ -429,7 +497,10 @@ def main(argv):
         ticket = read_json(args.ticket_file) if args.ticket_file else None
         feature = Path(args.doc).parent.parent.name
         session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
-        return build_round_document(args.doc, session, round_input, ticket, args.replace)
+        earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
+        keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
+                                                             *((ticket or {}).get("unread_links") or [])])]
+        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier))
     if not args.readings:
         raise Refusal("usage", "apply-readings needs --readings", 2)
     return apply_readings(args.doc, read_json(args.readings))
