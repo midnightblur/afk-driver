@@ -1,4 +1,4 @@
-# afkv2 tests: Windows only, 3 shards. v1 tests and gates: only when the change touches
+# afkv2 tests: Windows only, 4 shards. v1 tests and gates: only when the change touches
 # a path outside afkv2/, docs/ and the marketplace file, or on a push to main.
 name: tests
 
@@ -48,8 +48,10 @@ jobs:
         shard:
           - name: engine
             paths: afkv2/tests/engine
-          - name: skills
-            paths: afkv2/tests/skills afkv2/tests/autopilot
+          - name: skills-run
+            paths: afkv2/tests/skills/test_to_subtasks.py afkv2/tests/skills/test_change_request.py afkv2/tests/skills/test_execute.py afkv2/tests/skills/test_autopilot.py afkv2/tests/autopilot
+          - name: skills-design
+            paths: afkv2/tests/skills --ignore=afkv2/tests/skills/test_to_subtasks.py --ignore=afkv2/tests/skills/test_change_request.py --ignore=afkv2/tests/skills/test_execute.py --ignore=afkv2/tests/skills/test_autopilot.py
           - name: rest
             paths: afkv2/tests --ignore=afkv2/tests/engine --ignore=afkv2/tests/skills --ignore=afkv2/tests/autopilot
     name: afkv2 (${{ matrix.shard.name }})
