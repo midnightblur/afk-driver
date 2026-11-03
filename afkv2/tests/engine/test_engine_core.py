@@ -646,10 +646,18 @@ def test_a_title_over_90_characters_is_refused(capsys, tmp_path):
 def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
     html = registry.render_component(text("Long words", id="c-long", fold="The <full> text"))
     wrapper = '<div id="c-long" data-afkv2-element="c-long">'
-    assert html.startswith(wrapper + FOLD_OPEN + '<summary>The &lt;full&gt; text</summary>')
+    keyed = '<details class="afkv2-fold" data-afkv2-fold="fold-c-long">'
+    assert html.startswith(wrapper + keyed + '<summary>The &lt;full&gt; text</summary>')
     assert FOLD_OPENED not in html and "Long words" in html
     table = {"type": "table", "fold": "Rows", "props": {"columns": ["A"], "rows": [["1"]]}}
     assert registry.validate(table) == [] and registry.render_component(table).startswith(FOLD_OPEN)
+
+
+def test_the_page_keeps_a_component_fold_open_through_a_reload():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("Long words", id="c-long", fold="More")
+    html = page.build(doc)
+    assert holds(html, 'data-afkv2-fold="fold-c-long"', "querySelectorAll('details[' + ATTR + ']')")
 
 
 def test_an_empty_fold_label_is_refused(capsys, tmp_path):

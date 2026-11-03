@@ -60,6 +60,7 @@ Load the page of each component you use.
 Every component takes an open `style` field (any CSS) and nests inside any other.
 Every component also takes `fold`, a label: the page shows the component closed
 under that label, and the human opens it. Fold long text and secondary detail.
+Give a folded component an `id`: only then does an open fold stay open through a reload.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 

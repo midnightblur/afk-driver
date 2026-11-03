@@ -138,15 +138,17 @@ def aliases(component: dict) -> dict:
 
 def render_component(component: dict) -> str:
     """The HTML of one valid component, in the wrapper that carries its id and style. A `fold` label
-    puts the component in a closed `<details>` inside that wrapper.
+    puts the component in a closed `<details>` inside that wrapper. A fold of a component with an id
+    has the key `fold-<id>`, so the page keeps it open through a reload; a fold with no id has no key.
 
     The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
     kind = lookup(component["type"])
     inner = kind.render(_render_props(component, kind), [render_component(child) for child in _children(component)])
-    if component.get("fold"):
-        inner = (f'<details class="afkv2-fold"><summary>{html.escape(component["fold"])}</summary>'
-                 f'<div class="afkv2-fold-body">{inner}</div></details>')
     element, style = component.get("id"), component.get("style")
+    if component.get("fold"):
+        key = f' data-afkv2-fold="fold-{html.escape(element)}"' if element else ""
+        inner = (f'<details class="afkv2-fold"{key}><summary>{html.escape(component["fold"])}</summary>'
+                 f'<div class="afkv2-fold-body">{inner}</div></details>')
     if not element and not style:
         return inner
     tag = "span" if kind.inline else "div"
