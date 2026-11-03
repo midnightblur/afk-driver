@@ -159,3 +159,8 @@ def test_stdin_text_is_sent_as_utf8(monkeypatch):
     monkeypatch.setattr(shell.subprocess, "run", record)
     shell.run_tool("gh", ["x"], stdin_text="é")
     assert seen["input"] == "é".encode("utf-8") and "stdin" not in seen
+
+
+def test_the_contract_document_has_one_row_per_verb():
+    rows = [line for line in (PORTS / "forge" / "CONTRACT.md").read_text("utf-8").splitlines() if line.startswith("| `")]
+    assert sorted(row.split("`")[1] for row in rows) == sorted(forge_cli.VERBS)
