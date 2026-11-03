@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -344,3 +345,10 @@ def test_a_leftover_gc_removing_folder_is_listed_under_its_worktree(repo, monkey
     assert same(items["run worktree"]["leftover"], leftover) and items["run worktree"]["present"] is False
     assert items["feature worktree"]["leftover"] is None
     assert all("leftover" not in item for name, item in items.items() if name not in ("run worktree", "feature worktree"))
+
+
+def test_the_script_runs_as_a_command_and_finds_its_sibling_modules_in_isolated_mode(tmp_path):
+    done = subprocess.run([sys.executable, "-I", str(Path(cleanup.__file__)), "list", "--repo", str(tmp_path), "--branch", FEATURE],
+                          capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL, timeout=60, cwd=tmp_path)
+    answer = json.loads(done.stdout)
+    assert done.returncode == 1 and answer["error"]["code"] in ("git-failed", "no-target")

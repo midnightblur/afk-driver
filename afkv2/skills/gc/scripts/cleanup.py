@@ -13,6 +13,7 @@ from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN / "ports"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal  # noqa: E402
