@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 from functools import partial
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -1158,6 +1159,76 @@ def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp
         prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),
         prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(4) > p", "p", "A reply alone.")])
     assert raw == '[round R-2]\ni-new — | Still wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
+
+
+VOID_TAGS = {"input", "br", "meta", "img", "hr", "link"}
+
+
+class _Dom(HTMLParser):
+    """Element tree of a page fragment: each node is [tag, id, parent, children, text]."""
+
+    def __init__(self):
+        super().__init__()
+        self.root = ["#root", None, None, [], ""]
+        self.at = self.root
+
+    def handle_starttag(self, tag, attrs):
+        node = [tag, dict(attrs).get("id"), self.at, [], ""]
+        self.at[3].append(node)
+        if tag not in VOID_TAGS:
+            self.at = node
+
+    def handle_endtag(self, tag):
+        while self.at[0] != tag and self.at[2] is not None:
+            self.at = self.at[2]
+        self.at = self.at[2] or self.root
+
+    def handle_data(self, data):
+        self.at[4] += data
+
+
+def lavish_selector(node):
+    """lavish's `selector(el)`: at most 5 parts, up to and including the first ancestor with an id."""
+    parts = []
+    while node is not None and node[0] != "#root" and len(parts) < 5:
+        part = node[0]
+        if node[1]:
+            parts.insert(0, f"{part}#{node[1]}")
+            break
+        same = [sibling for sibling in node[2][3] if sibling[0] == node[0]]
+        if len(same) > 1:
+            part += f":nth-of-type({same.index(node) + 1})"
+        parts.insert(0, part)
+        node = node[2]
+    return " > ".join(parts)
+
+
+def find_cell(node, words):
+    if node[0] == "td" and node[4] == words:
+        return node
+    return next((found for child in node[3] if (found := find_cell(child, words))), None)
+
+
+def test_an_annotation_on_a_table_cell_resolves_to_its_table(tmp_path):
+    doc = noted_page()
+    grid = {"type": "table", "id": "i-new-table", "props": {
+        "columns": ["When", "What", "Who"], "rows": [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "the cell"]]},
+        "children": [text("Under the table."), text("And more.")]}
+    doc["rounds"][1]["items"][0]["body"] = text("Body of i-new", children=[grid])
+    dom = _Dom()
+    dom.feed(page.build(doc))
+    selector = lavish_selector(find_cell(dom.root, "the cell"))
+    assert selector == "tr#afkv2-tr-i-new-table-3 > td:nth-of-type(3)"
+    old_shape = "div:nth-of-type(1) > table > tbody > tr:nth-of-type(3) > td:nth-of-type(3)"
+    raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
+        prompt("Wrong owner.", selector, "td", "the cell"), prompt("Lost.", old_shape, "td", "lost cell")])
+    assert raw == '[round R-2]\ni-new-table — | Wrong owner.\nm-1 — | Lost. (on: "lost cell")'
+    assert page.targets(doc)["afkv2-tr-i-new-table-1"] == "i-new-table"
+
+
+def test_a_table_without_an_id_draws_no_row_id():
+    html = registry.render_component({"type": "table", "props": {"columns": ["A"], "rows": [["1"]]}})
+    assert holds(html, "<tr><td>1</td></tr>") and lacks(html, "afkv2-tr-")
 
 
 def test_a_mark_and_notes_on_one_card_merge_into_one_line():

@@ -33,19 +33,20 @@ class ComponentType:
     inline: bool = False
     takes_html: bool = False
     targets: Callable[[dict], dict] | None = None
+    takes_id: bool = False
 
 
 def register_component(name: str, schema: dict, render: Callable, *, nested: Callable | None = None,
                        check: Callable | None = None, inline: bool = False, takes_html: bool = False,
-                       targets: Callable | None = None) -> None:
+                       targets: Callable | None = None, takes_id: bool = False) -> None:
     """Add one type. `nested(props)` yields `(path below props, component)` for components held in
     props; `check(props)` yields `(path below props, why)` for rules the schema cannot state;
     `targets(props)` maps each HTML id the renderer draws that is no element id to the element id that an
-    annotation on it stands for."""
+    annotation on it stands for. With `takes_id`, `render` and `targets` find the element id in `props["id"]`."""
     if name in _types:
         raise ValueError(f"component type {name!r} is registered already")
     check_schema(schema)
-    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html, targets)
+    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html, targets, takes_id)
 
 
 def load_components(folder: Path = COMPONENTS) -> None:
@@ -114,16 +115,34 @@ def walk(component: dict, path: tuple = ()) -> Iterable[tuple]:
         yield from walk(child, (*path, *sub))
 
 
+def _render_props(component: dict, kind: ComponentType) -> dict:
+    """The props that `render` and `targets` take: freestyle also gets its html, and both get the id."""
+    props = component.get("props") or {}
+    if kind.takes_html:
+        return {**props, "html": component["html"], "id": component.get("id")}
+    if kind.takes_id:
+        return {**props, "id": component.get("id")}
+    return props
+
+
+def aliases(component: dict) -> dict:
+    """Each HTML id that a valid component tree draws and that is no element id, with the element id that
+    an annotation on it stands for."""
+    found = {}
+    for _, part in walk(component):
+        kind = lookup(part["type"])
+        if kind.targets:
+            found.update(kind.targets(_render_props(part, kind)))
+    return found
+
+
 def render_component(component: dict) -> str:
     """The HTML of one valid component, in the wrapper that carries its id and style. A `fold` label
     puts the component in a closed `<details>` inside that wrapper.
 
     The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
     kind = lookup(component["type"])
-    props = component.get("props") or {}
-    if kind.takes_html:
-        props = {**props, "html": component["html"], "id": component.get("id")}
-    inner = kind.render(props, [render_component(child) for child in _children(component)])
+    inner = kind.render(_render_props(component, kind), [render_component(child) for child in _children(component)])
     if component.get("fold"):
         inner = (f'<details class="afkv2-fold"><summary>{html.escape(component["fold"])}</summary>'
                  f'<div class="afkv2-fold-body">{inner}</div></details>')
