@@ -80,6 +80,12 @@ def _notes_and_replies(doc: dict) -> str:
     return render_component({"type": NOTES_AND_REPLIES, "props": {"document": doc}})
 
 
+def slot_targets(doc: dict) -> dict:
+    """The HTML ids the slot's component draws, each with the element id an annotation on it stands for."""
+    kind = lookup(NOTES_AND_REPLIES)
+    return kind.targets({"document": doc}) if kind and kind.targets else {}
+
+
 def build(doc: dict) -> str:
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")

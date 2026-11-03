@@ -24,12 +24,16 @@ def css_unescape(text: str) -> str:
     return CSS_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)) if m.group(1) else m.group(2), text)
 
 
-def selector_target(selector: str, ids: dict) -> str | None:
-    """The first `#id` segment of a selector that is an element id of the document."""
+def selector_target(selector: str, ids: dict, aliases: dict | None = None) -> str | None:
+    """The first `#id` segment of a selector that is an element id of the document, or an HTML id that
+    `aliases` maps to an element id."""
+    aliases = aliases or {}
     for match in ID_SEGMENT.finditer(selector or ""):
         identifier = css_unescape(match.group(1))
         if identifier in ids:
             return identifier
+        if aliases.get(identifier) in ids:
+            return aliases[identifier]
     return None
 
 
@@ -48,8 +52,10 @@ def fallback_target(doc: dict, ids: dict) -> str | None:
     return items[0]["id"] if items else next(iter(ids), None)
 
 
-def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict) -> str:
+def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None) -> str:
     """First line `[round R-n]` of the current round; then one line per element, in first-seen order.
+
+    `aliases` maps an HTML id that is no element id, such as a row of the notes table, to its element.
 
     A mark and the notes on one element merge into one line; several notes join with a blank line.
     A selection, and an annotation on no known element, keeps an excerpt of the text it was on. No
@@ -82,7 +88,7 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict) -> str:
             continue
         selector = str(prompt.get("selector") or "")
         seen = str(prompt.get("text") or "")
-        target = selector_target(selector, ids)
+        target = selector_target(selector, ids, aliases)
         note = text.strip()
         if seen.strip() and (tag == SELECTION_TAG or (target is None and selector and tag not in NO_EXCERPT_TAGS)):
             note = f'{note} (on: "{_excerpt(seen)}")'.strip()

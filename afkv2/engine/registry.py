@@ -32,16 +32,20 @@ class ComponentType:
     check: Callable[[dict], Iterable[tuple]] | None = None
     inline: bool = False
     takes_html: bool = False
+    targets: Callable[[dict], dict] | None = None
 
 
 def register_component(name: str, schema: dict, render: Callable, *, nested: Callable | None = None,
-                       check: Callable | None = None, inline: bool = False, takes_html: bool = False) -> None:
+                       check: Callable | None = None, inline: bool = False, takes_html: bool = False,
+                       targets: Callable | None = None) -> None:
     """Add one type. `nested(props)` yields `(path below props, component)` for components held in
-    props; `check(props)` yields `(path below props, why)` for rules the schema cannot state."""
+    props; `check(props)` yields `(path below props, why)` for rules the schema cannot state;
+    `targets(props)` maps each HTML id the renderer draws that is no element id to the element id that an
+    annotation on it stands for."""
     if name in _types:
         raise ValueError(f"component type {name!r} is registered already")
     check_schema(schema)
-    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html)
+    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html, targets)
 
 
 def load_components(folder: Path = COMPONENTS) -> None:
