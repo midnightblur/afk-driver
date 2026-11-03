@@ -549,8 +549,8 @@ def test_unclear_note_returns_to_open_and_must_be_carried(world):
     world.run("present", doc=started["doc"])
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
-    assert "carries" not in doc["rounds"][1]["items"][0]
-    assert "Carries i-format." in json.dumps(doc["rounds"][1]["items"][0]["body"])
+    assert doc["rounds"][1]["items"][0]["carries"] == ["i-format"]
+    assert "-carries" not in json.dumps(doc["rounds"][1]["items"][0]["body"])
     check_authored_part(doc)
 
 
