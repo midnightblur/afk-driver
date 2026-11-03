@@ -1447,6 +1447,16 @@ def test_reply_shows_the_file_on_the_page_and_refuses_a_missing_file(repo, capsy
     assert call(capsys, "reply", path, "--reply-file", reply)[1]["error"]["code"] == "host-error"
 
 
+def test_end_ends_the_page_session_of_the_shown_page(repo, capsys, host):
+    calls, outputs = host
+    outputs["end"] = (0, "session:\n  status: ended\n")
+    path = in_home(repo, two_rounds())
+    assert call(capsys, "end", path)[0] == 2
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    assert call(capsys, "end", path) == (0, {"ok": True, "verb": "end"})
+    assert calls == [["end", str(path.with_suffix(".html").resolve())]]
+
+
 def test_the_stop_hook_answers_side_questions_on_the_page_and_waits_on(repo, tmp_path):
     path = in_home(repo, noted_page())
     sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?")]}), ("waiting", {}),

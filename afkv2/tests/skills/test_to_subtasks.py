@@ -515,7 +515,7 @@ PLAN_CONTRACT = SKILLS / "autopilot" / "scripts" / "plan_contract.py"
 ENGINE = PLUGIN / "engine" / "engine.py"
 PLAN_FILES = "scripts/plan_files.py"
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "check", "citations", "commit", "division", "present", "wait", "ingest", "apply-readings", "approve"]
+STEP_ORDER = ["start", "check", "citations", "commit", "division", "present", "wait", "ingest", "apply-readings", "approve", "end"]
 FEATURE = "feat/PROJ-1"
 RUN = "feat/PROJ-1-run"
 APPROVAL_LINE = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")

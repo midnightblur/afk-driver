@@ -9,6 +9,7 @@
   reply   --doc D --reply-file F  shows the Markdown in F on the page
   ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
                                   round pass must read
+  end     --doc D                 ends the page session: the page says the session ended, not 'Working...'
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
 limit here: it returns when the human sends the round. The engine keeps each round send beside the
@@ -143,13 +144,16 @@ def ingest(doc, raw_file):
 
 def main(argv):
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply"])
+    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply", "end"])
     parser.add_argument("--doc", required=True)
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
     args = parser.parse_args(argv)
     if args.verb == "present":
         return present(args.doc)
+    if args.verb == "end":
+        _engine("end", args.doc)
+        return {"ok": True}
     if args.verb == "reply":
         if not args.reply_file:
             raise Refusal("usage", "reply needs --reply-file", 2)

@@ -319,6 +319,13 @@ def cmd_reply(args) -> dict:
     return {"ok": True, "verb": "reply"}
 
 
+def cmd_end(args) -> dict:
+    """End the page session: the page shows 'Session ended' in place of 'Working...'."""
+    code, out = launcher.run(["end", str(_shown_page(args.document))])
+    _raise_host_failure(code, out)
+    return {"ok": True, "verb": "end"}
+
+
 def delivery_file(document: str) -> Path:
     """Where a send that the host handed over waits, beside its document, until ingest reads it."""
     return Path(document).with_suffix(DELIVERY_SUFFIX)
@@ -405,7 +412,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="engine.py", add_help=False)
     verbs = parser.add_subparsers(dest="verb", required=True, parser_class=_Parser)
     for verb, handler in (("check", cmd_check), ("render", cmd_render), ("show", cmd_show), ("poll", cmd_poll),
-                          ("reply", cmd_reply), ("ingest", _ingest)):
+                          ("reply", cmd_reply), ("end", cmd_end), ("ingest", _ingest)):
         sub = verbs.add_parser(verb, add_help=False)
         sub.add_argument("document")
         sub.set_defaults(handler=handler)
