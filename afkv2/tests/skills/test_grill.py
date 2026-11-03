@@ -31,7 +31,7 @@ import round_document as rd  # noqa: E402
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
 STEP_ORDER = ["start", "read-ticket", "row", "build", "present", "wait", "reply", "ingest",
-              "apply-readings", "sync", "term", "gate"]
+              "apply-readings", "sync", "term", "gate", "end"]
 
 
 def skill_steps():

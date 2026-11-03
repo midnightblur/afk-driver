@@ -127,4 +127,10 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    It lists every failure in `error.failures`. Each failure is one more round or one more row.
 
-10. **Finish.** Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder and the glossary on the feature branch. Tell the human the next skill is `/afkv2:to-prd`. Done when the gate answered ok and the commit exists.
+10. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
+
+   ```sh step=end
+   <python> "<this skill's folder>/scripts/page_round.py" end --doc "<doc>"
+   ```
+
+   Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder and the glossary on the feature branch. Tell the human the next skill is `/afkv2:to-prd`. Done when the gate answered ok and the commit exists.
