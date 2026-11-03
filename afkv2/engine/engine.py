@@ -344,11 +344,12 @@ def keep_delivery(document: str, detail: dict) -> bool:
     """Keep a send that holds a round answer or the end of the session; True when kept.
 
     The host forgets a send once it hands it over, so the send must be on disk before anything else
-    reads it. A send of side questions only is not kept: the lavish panel keeps the question text."""
+    reads it. Only the round prompts are kept: the poll that took the send answers its side questions,
+    and a replay must not ask them again."""
     round_prompts, _ = prompt_lines.split_side_questions(detail.get("prompts") or [])
     if not round_prompts and not detail.get("session_ended"):
         return False
-    kept = {"prompts": detail.get("prompts") or [], "session_ended": detail.get("session_ended") is True}
+    kept = {"prompts": round_prompts, "session_ended": detail.get("session_ended") is True}
     inject.write_if_changed(delivery_file(document), json.dumps(kept, indent=2, ensure_ascii=False).encode("utf-8"))
     return True
 

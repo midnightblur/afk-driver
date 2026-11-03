@@ -1410,6 +1410,18 @@ def test_a_round_send_is_kept_on_disk_until_ingest_reads_it(repo, capsys, monkey
     assert not kept.exists()
 
 
+def test_a_kept_send_holds_no_side_question_so_a_replay_asks_none(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [side_question("Why?"), mark("i-new", "accept")],
+                           "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    assert call(capsys, "poll", path)[1]["btw"] == ["Why?"]
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    again = call(capsys, "poll", path)[1]
+    assert again["btw"] == [] and again["raw"] == "[round R-2]\ni-new accept"
+
+
 def test_a_failed_ingest_keeps_the_send_and_side_questions_alone_are_not_kept(repo, capsys, monkeypatch):
     path = in_home(repo, noted_page())
     path.with_suffix(".html").write_text("<html></html>", "utf-8")
