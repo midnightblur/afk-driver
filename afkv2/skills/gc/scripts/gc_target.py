@@ -95,3 +95,62 @@ def write_target(repo, target):
         Path(temporary).unlink(missing_ok=True)
         raise
     return path
+
+
+def lock_path(repo, branch):
+    return target_path(repo, branch).with_suffix(".lock")
+
+
+if os.name == "nt":
+    import msvcrt
+
+    def _lock(handle):
+        os.lseek(handle, 0, os.SEEK_SET)
+        msvcrt.locking(handle, msvcrt.LK_NBLCK, 1)
+
+    def _unlock(handle):
+        os.lseek(handle, 0, os.SEEK_SET)
+        msvcrt.locking(handle, msvcrt.LK_UNLCK, 1)
+else:
+    import fcntl
+
+    def _lock(handle):
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def _unlock(handle):
+        fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+class Lock:
+    """A held lock on one target. The system frees it when the process ends, a crash included."""
+
+    def __init__(self, path, handle):
+        self.path, self._handle = path, handle
+
+    def release(self):
+        if self._handle is None:
+            return
+        try:
+            _unlock(self._handle)
+        finally:
+            os.close(self._handle)
+            self._handle = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exception):
+        self.release()
+
+
+def take_lock(repo, branch):
+    """Lock byte 0 of the target's lock file; a lock another handle holds refuses `locked`."""
+    path = lock_path(repo, branch)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = os.open(path, os.O_RDWR | os.O_CREAT)
+    try:
+        _lock(handle)
+    except OSError:
+        os.close(handle)
+        raise Refusal("locked", f"another gc run holds the target of {branch}; run gc again when it ends") from None
+    return Lock(path, handle)

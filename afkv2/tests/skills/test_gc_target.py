@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -96,3 +98,47 @@ def test_a_write_replaces_the_file_whole_or_not_at_all(repo, monkeypatch):
     path = gc_target.target_path(repo.feature, FEATURE)
     assert gc_target.read_target(repo.feature, FEATURE) == first
     assert [item.name for item in path.parent.iterdir()] == [path.name]
+
+
+def test_a_second_lock_on_a_held_target_refuses_locked_until_the_first_ends(repo):
+    lock = gc_target.take_lock(repo.feature, FEATURE)
+    assert lock.path == gc_target.target_path(repo.feature, FEATURE).with_suffix(".lock")
+    with pytest.raises(Refusal) as refused:
+        gc_target.take_lock(repo.main, FEATURE)
+    assert refused.value.code == "locked"
+    lock.release()
+    with gc_target.take_lock(repo.main, FEATURE):
+        with pytest.raises(Refusal):
+            gc_target.take_lock(repo.run, FEATURE)
+    gc_target.take_lock(repo.run, FEATURE).release()
+
+
+HOLDER = """
+import sys, time
+sys.path.insert(0, sys.argv[1])
+import gc_target
+lock = gc_target.take_lock(sys.argv[2], sys.argv[3])
+print("held", flush=True)
+time.sleep(120)
+"""
+
+
+def test_the_lock_is_free_again_when_its_holder_is_killed(repo):
+    holder = subprocess.Popen([sys.executable, "-c", HOLDER, str(AFKV2 / "skills" / "gc" / "scripts"), str(repo.feature), FEATURE],
+                              stdout=subprocess.PIPE, text=True)
+    try:
+        assert holder.stdout.readline().strip() == "held"
+        with pytest.raises(Refusal):
+            gc_target.take_lock(repo.main, FEATURE)
+    finally:
+        holder.kill()
+        holder.wait(timeout=30)
+        holder.stdout.close()
+    deadline = time.monotonic() + 10
+    while True:
+        try:
+            gc_target.take_lock(repo.main, FEATURE).release()
+            break
+        except Refusal:
+            assert time.monotonic() < deadline, "the lock stayed held after its holder was killed"
+            time.sleep(0.1)
