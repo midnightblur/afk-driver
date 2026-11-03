@@ -1,6 +1,7 @@
 """The one way the engine runs the lavish host, at the pinned version.
 
-`run(argv)` takes `open`, `poll` or `end` on one page and answers `(exit code, stdout text)`.
+`run(argv)` takes `open`, `poll`, `reply` or `end` on one page and answers `(exit code, stdout text)`.
+A reply to the page comes from a file only (`--agent-reply-file`): no reply text crosses a command line.
 A server the host starts outlives this process; a killed process takes the host command down.
 
 Exit codes of the launcher itself (nothing upstream ran). Each one leads to the Markdown fallback:
@@ -43,6 +44,8 @@ SILENT_BREAKAWAY = 0x1000  # JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
 PROCESS_SET_QUOTA, PROCESS_TERMINATE, PROCESS_QUERY_LIMITED = 0x0100, 0x0001, 0x1000
 WAITING_PREFIX = "page-waiting-"
 SAFE_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
+REPLY_GRAMMAR = {"poll": "an optional `--timeout-ms <ms>` and `--agent-reply-file <file>`",
+                 "reply": "`--agent-reply-file <file>`"}
 
 
 class Refused(Exception):
@@ -66,10 +69,10 @@ def plan(argv: list[str]) -> str | None:
         if len(rest) != 1 or not HTML.search(rest[0]):
             raise Refused("`end` takes exactly one .html page")
         return None
-    if op == "poll":
-        timed = len(rest) == 3 and rest[1] == "--timeout-ms" and rest[2].isdigit()
-        if not rest or not (len(rest) == 1 or timed):
-            raise Refused("`poll` takes one .html page and an optional `--timeout-ms <ms>`")
+    if op in ("poll", "reply"):
+        flags = _flags(op, rest[1:])
+        if not rest or (op == "reply" and "--agent-reply-file" not in flags):
+            raise Refused(f"`{op}` takes one .html page and {REPLY_GRAMMAR[op]}")
         _page(rest[0])
         return None
     if op != "open":
@@ -77,6 +80,21 @@ def plan(argv: list[str]) -> str | None:
     if not rest or rest[1:] not in ([], ["--no-open"], ["--reopen"]):
         raise Refused("`open` takes one .html page and at most one of `--no-open` or `--reopen`")
     return _page(rest[0])
+
+
+def _flags(op: str, rest: list[str]) -> dict[str, str]:
+    """The flags after the page: each at most once, `--timeout-ms` on `poll` only, a reply from a file only."""
+    allowed = {"--agent-reply-file"} | ({"--timeout-ms"} if op == "poll" else set())
+    if len(rest) % 2:
+        raise Refused(f"`{op}` takes one .html page and {REPLY_GRAMMAR[op]}")
+    flags = dict(zip(rest[::2], rest[1::2]))
+    if len(flags) * 2 != len(rest) or not set(flags) <= allowed:
+        raise Refused(f"`{op}` takes one .html page and {REPLY_GRAMMAR[op]}")
+    if "--timeout-ms" in flags and not flags["--timeout-ms"].isdigit():
+        raise Refused("`--timeout-ms` takes a number of milliseconds")
+    if "--agent-reply-file" in flags and not os.path.isfile(flags["--agent-reply-file"]):
+        raise Refused(f"reply file {flags['--agent-reply-file']} does not exist")
+    return flags
 
 
 def _page(target: str) -> str:

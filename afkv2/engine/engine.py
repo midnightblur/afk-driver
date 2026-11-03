@@ -3,10 +3,12 @@
     engine.py check DOC
     engine.py render DOC
     engine.py show DOC [--no-open|--reopen]
-    engine.py poll DOC
+    engine.py poll DOC [--reply-file FILE]
+    engine.py reply DOC --reply-file FILE
     engine.py ingest DOC --raw-file FILE
 
-Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`.
+Poll builds `raw` from the host's prompts against DOC (`prompt_lines.py`), in the grammar of `ingest.py`,
+and lists the side questions of the send apart, in `btw`. A reply file holds Markdown the page shows.
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -292,11 +294,35 @@ def _raise_host_failure(code: int, out: str) -> None:
         raise Refusal("host-error", f"item page, field host: exit {code}: {parsed.get('error') or out.strip()}")
 
 
-def cmd_poll(args) -> dict:
-    html_path = Path(args.document).resolve().with_suffix(".html")
+def _shown_page(document: str) -> Path:
+    html_path = Path(document).resolve().with_suffix(".html")
     if not html_path.is_file():
         raise Refusal("unreadable", f"page {html_path}: no rendered page; run render and show first")
-    status, detail = launcher.poll_status(["poll", str(html_path)])
+    return html_path
+
+
+def _reply_flag(args) -> list[str]:
+    if args.reply_file is None:
+        return []
+    if not Path(args.reply_file).is_file():
+        raise Refusal("unreadable", f"reply file {args.reply_file} does not exist")
+    return ["--agent-reply-file", str(args.reply_file)]
+
+
+def cmd_reply(args) -> dict:
+    """Show a reply on the open page and return; the host exits once it accepts the reply."""
+    code, out = launcher.run(["reply", str(_shown_page(args.document)), *_reply_flag(args)])
+    _raise_host_failure(code, out)
+    return {"ok": True, "verb": "reply"}
+
+
+def cmd_poll(args) -> dict:
+    """With `--reply-file`, the host shows that reply on the page, then waits.
+
+    `btw` holds the side questions of the send; they never enter `raw`. `round_prompts` counts the
+    prompts left for the round: 0 means the send held side questions only."""
+    html_path = _shown_page(args.document)
+    status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
     if status == "fallback":
         _raise_host_failure(detail["exit"], detail["reason"])
     if status in ("error", "no-session"):
@@ -306,10 +332,13 @@ def cmd_poll(args) -> dict:
         launcher.clear_waiting_record(data_folder(), thread)
     if status != "feedback":
         raise Refusal(f"page-{status.replace('_', '-')}", f"item page, field status: {status}: no answer to read")
-    answer = {"ok": True, "verb": "poll", "status": status, "raw": detail["raw"],
-              "prompts": detail["prompts"], "session_ended": detail["session_ended"]}
+    round_prompts, questions = prompt_lines.split_side_questions(detail["prompts"])
+    answer = {"ok": True, "verb": "poll", "status": status,
+              "raw": "\n".join(str(p.get("prompt", "")) for p in round_prompts),
+              "prompts": detail["prompts"], "session_ended": detail["session_ended"],
+              "btw": questions, "round_prompts": len(round_prompts)}
     try:
-        answer["raw"] = poll_raw(args.document, detail["prompts"])
+        answer["raw"] = poll_raw(args.document, round_prompts)
     except (Refusal, KeyError, TypeError, AttributeError, StopIteration) as problem:
         # The host hands the prompts over once: keep them, with the joined text as the raw response.
         answer["raw_warning"] = f"the document did not resolve the prompts ({problem}); raw is the prompt text joined"
@@ -337,7 +366,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="engine.py", add_help=False)
     verbs = parser.add_subparsers(dest="verb", required=True, parser_class=_Parser)
     for verb, handler in (("check", cmd_check), ("render", cmd_render), ("show", cmd_show), ("poll", cmd_poll),
-                          ("ingest", _ingest)):
+                          ("reply", cmd_reply), ("ingest", _ingest)):
         sub = verbs.add_parser(verb, add_help=False)
         sub.add_argument("document")
         sub.set_defaults(handler=handler)
@@ -347,6 +376,8 @@ def _parser() -> argparse.ArgumentParser:
             mode.add_argument("--reopen", action="store_true")
         if verb == "ingest":
             sub.add_argument("--raw-file", required=True)
+        if verb in ("poll", "reply"):
+            sub.add_argument("--reply-file", required=verb == "reply")
     return parser
 
 
