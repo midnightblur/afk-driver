@@ -98,6 +98,12 @@ def position(text, part):
 
 
 ROUND_ONE = 'id="afkv2-r-1"'
+CARD_TITLE, KIND_LABEL, CARD_ID = "afkv2-card-title", "afkv2-kind", "afkv2-card-id"
+FOLD_OPEN = '<details class="afkv2-fold">'
+FOLD_OPENED = '<details class="afkv2-fold" open'
+MD_OPEN = '<div class="afkv2-md">'
+MD_CLASS = "afkv2-md"
+COPY_BUTTON = 'id="afkv2-copy-go"'
 ITEM_MARKER = 'data-afkv2-item="{}"'
 COLOUR_RULE = "--afkv2-round: {}"
 
@@ -617,7 +623,7 @@ def test_a_title_is_the_card_heading_with_the_kind_and_the_id_after_it():
     heading = html[html.index("<h4"):html.index("</h4>")]
     assert holds(heading, '<span class="afkv2-card-title">Where &lt;the&gt; record lives</span>',
                  '<span class="afkv2-kind">Debate</span>', '<span class="afkv2-card-id">i-a</span>')
-    assert heading.index("afkv2-card-title") < heading.index("afkv2-kind") < heading.index("afkv2-card-id")
+    assert heading.index(CARD_TITLE) < heading.index(KIND_LABEL) < heading.index(CARD_ID)
     assert "Debate: i-a" in card_html(item("i-a", "debate"))
 
 
@@ -631,11 +637,11 @@ def test_a_title_over_90_characters_is_refused(capsys, tmp_path):
 
 def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
     html = registry.render_component(text("Long words", id="c-long", fold="The <full> text"))
-    assert html.startswith('<div id="c-long" data-afkv2-element="c-long"><details class="afkv2-fold">'
-                           '<summary>The &lt;full&gt; text</summary>')
-    assert "<details class=\"afkv2-fold\" open" not in html and "Long words" in html
+    wrapper = '<div id="c-long" data-afkv2-element="c-long">'
+    assert html.startswith(wrapper + FOLD_OPEN + '<summary>The &lt;full&gt; text</summary>')
+    assert FOLD_OPENED not in html and "Long words" in html
     table = {"type": "table", "fold": "Rows", "props": {"columns": ["A"], "rows": [["1"]]}}
-    assert registry.validate(table) == [] and registry.render_component(table).startswith('<details class="afkv2-fold">')
+    assert registry.validate(table) == [] and registry.render_component(table).startswith(FOLD_OPEN)
 
 
 def test_an_empty_fold_label_is_refused(capsys, tmp_path):
@@ -646,7 +652,7 @@ def test_an_empty_fold_label_is_refused(capsys, tmp_path):
 
 def md(words):
     html = registry.render_component({"type": "text", "props": {"text": words, "markdown": True}})
-    return html[html.index('<div class="afkv2-md">') + len('<div class="afkv2-md">'):html.rindex("</div></div>")]
+    return html[html.index(MD_OPEN) + len(MD_OPEN):html.rindex("</div></div>")]
 
 
 def test_markdown_renders_the_safe_subset():
@@ -676,7 +682,7 @@ def test_markdown_escapes_everything_first(words, html):
 
 def test_text_without_markdown_stays_plain():
     html = registry.render_component(text("**not bold**"))
-    assert "<p>**not bold**</p>" in html and "afkv2-md" not in html
+    assert "<p>**not bold**</p>" in html and MD_CLASS not in html
 
 
 def test_a_round_banner_holds_its_three_lists():
@@ -769,7 +775,7 @@ RUNTIME = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
 
 def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     html = page.build(two_rounds())
-    assert holds(html, 'id="afkv2-copy-go"', "Copy the response", "Send to Agent in the lavish panel",
+    assert holds(html, COPY_BUTTON, "Copy the response", "Send to Agent in the lavish panel",
                  'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
     assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
     assert lacks(RUNTIME, "sendQueuedPrompts")
@@ -1146,7 +1152,7 @@ def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp
         {"id": "N-2-i-third", "round": 2, "target": "n-1", "text": "Steer.", "deleted": False}]
     doc["rounds"][1]["replies"] = [{"text": "A reply alone."}]
     html = page.build(doc)
-    assert 'id="afkv2-nr-N-2-i-new"' in html and 'id="afkv2-nr-reply-2-1"' in html
+    assert holds(html, 'id="afkv2-nr-N-2-i-new"', 'id="afkv2-nr-reply-2-1"')
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
         prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(3) > q", "q", "Old note."),
         prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),

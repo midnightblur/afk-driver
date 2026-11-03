@@ -15,8 +15,9 @@
 .afkv2-nr-table th:nth-child(3) { width: 30%; }
 .afkv2-nr-table th:nth-child(5) { width: 6.5rem; }
 .afkv2-nr-group > td {
-  border-left: 4px solid var(--afkv2-round, var(--neutral)); font-weight: 600;
-  background: color-mix(in srgb, var(--afkv2-round, var(--neutral)) 16%, var(--surface));
+  --nr-tint: var(--afkv2-round, var(--neutral));
+  border-left: 4px solid var(--nr-tint); font-weight: 600;
+  background: color-mix(in srgb, var(--nr-tint) 16%, var(--surface));
 }
 .afkv2-nr-row > td:first-child { border-left: 4px solid var(--afkv2-round, var(--neutral)); }
 .afkv2-nr-num { font: .8rem ui-monospace, monospace; white-space: nowrap; }

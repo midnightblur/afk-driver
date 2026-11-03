@@ -10,6 +10,7 @@ from registry import register_component, walk
 from shell.page import round_colour
 
 ROW_PREFIX = "afkv2-nr-"
+TEXT_CLASS = "afkv2-nr-text"
 OPEN_ROUNDS = 2
 LABEL_LIMIT = 60
 COLUMNS = ("#", "Where you wrote it", "Your note", "My answer / what changed", "Card")
@@ -108,7 +109,7 @@ def _link(item: dict, note: dict, elements: dict) -> str:
 def _answer(replies: list[dict]) -> str:
     if not replies:
         return '<span class="afkv2-nr-dim">No answer yet</span>'
-    return "".join(f'<p class="afkv2-nr-text">{escape(reply["text"])}</p>' for reply in replies)
+    return "".join(f'<p class="{TEXT_CLASS}">{escape(reply["text"])}</p>' for reply in replies)
 
 
 def _row(row_id: str, number: str, title: str, cells: list[str], colour: str) -> str:
@@ -174,7 +175,7 @@ def render_notes_replies(props, children):
     recent = [_group(r, rows[r["n"]]) for r in rounds if r["n"] > current - OPEN_ROUNDS]
     earlier = [r for r in rounds if r["n"] <= current - OPEN_ROUNDS]
     html = ('<h2 class="afkv2-section-h">Notes and replies</h2>'
-            '<p class="afkv2-nr-intro">Newest rounds come first. Each row is one of your notes, in your words, '
+            '<p class="afkv2-nr-intro">Newest rounds come first. Each row is one of your notes, word for word, '
             'with my answer. The last column opens the card.</p>')
     if recent:
         html += _table(recent)

@@ -43,6 +43,14 @@ FORM = 'id="afkv2-answer-form"'
 BAR = 'id="afkv2-copy"'
 EDIT_BUTTON = "data-afkv2-note-edit"
 DELETE_BUTTON = "data-afkv2-note-delete"
+QUOTED_ONE = '<q class="afkv2-nr-text">note of round one</q>'
+NOTE_ROW_A, NOTE_ROW_B = "afkv2-nr-N-1-i-a", "afkv2-nr-N-2-i-b"
+REPLY_ROW = "afkv2-nr-reply-3-1"
+NOTE_ACTION = 'data-lavish-action="afkv2-note"'
+
+
+def lacks_note_action(html):
+    return NOTE_ACTION not in html
 
 
 def text(value, **extra):
@@ -706,9 +714,9 @@ def test_two_rounds_stay_open_and_have_no_fold():
 def test_a_note_row_holds_the_quoted_note_and_the_reply_that_answers_it():
     html = slot(page.build(noted_document()))
     note_row = row(html, "afkv2-nr-N-1-i-a")
-    assert '<q class="afkv2-nr-text">note of round one</q>' in note_row and "reply of round one" in note_row
+    assert QUOTED_ONE in note_row and "reply of round one" in note_row
     assert 'title="N-1-i-a">R1.1<' in note_row and 'href="#i-a"' in note_row
-    assert "No answer yet" in row(html, "afkv2-nr-N-2-i-b")
+    assert "No answer yet" in row(html, NOTE_ROW_B)
 
 
 def test_a_reply_of_the_next_round_answers_the_note_of_the_round_before():
@@ -723,7 +731,7 @@ def test_a_reply_that_answers_no_note_has_its_own_row():
     html = slot(page.build(noted_document()))
     alone = row(html, "afkv2-nr-reply-3-2")
     assert "another reply" in alone and "From me" in alone and "<q" not in alone
-    assert 'href="#i-c"' in row(html, "afkv2-nr-reply-3-1")
+    assert 'href="#i-c"' in row(html, REPLY_ROW)
 
 
 def test_a_deleted_note_is_not_shown_and_no_row_has_a_control():
@@ -767,7 +775,7 @@ def test_a_steer_names_the_map_and_links_to_the_node():
 def test_a_steer_on_a_held_node_names_the_map():
     doc = one_round(held_in_card("i-a", "n-1", map_id="m-1"))
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "go", "deleted": False}]
-    assert 'href="#n-1"' in row(slot(page.build(doc)), "afkv2-nr-N-1-i-a")
+    assert 'href="#n-1"' in row(slot(page.build(doc)), NOTE_ROW_A)
     assert page.slot_targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
@@ -807,7 +815,7 @@ def test_long_text_and_a_note_wrap():
 def test_the_page_has_no_note_controls():
     html = page.build(one_round(card("i-a")))
     assert "+ note" not in html and "Your unsent notes" not in html and "<textarea" not in html
-    assert "data-lavish-action=\"afkv2-note\"" not in html
+    assert lacks_note_action(html)
 
 
 # --- a saved document opens to read or to continue (AC-039)
