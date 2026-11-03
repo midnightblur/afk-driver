@@ -39,6 +39,26 @@ def _prune(repo):
         raise Refusal("git-failed", f"git worktree prune in {repo}: {done.stderr.strip()}")
 
 
+REFUSED_RENAME = {
+    32: ("in-use", "a process uses {folder} as its working folder; close it and run gc again"),
+    5: ("in-use-or-no-right", "a process uses a file or subfolder of {folder}, or gc has no right to rename it; "
+                              "close what uses it and run gc again"),
+}
+
+
+def _rename(folder, removing):
+    """The rename that proves no process uses `folder`. A refused rename touched nothing; its Windows error names the cause."""
+    try:
+        os.rename(folder, removing)
+    except OSError as error:
+        known = REFUSED_RENAME.get(getattr(error, "winerror", None))
+        if known is None:
+            raise
+        code, reason = known
+        raise Refusal(code, reason.format(folder=folder) + "; nothing was touched", folder=str(folder),
+                      winerror=error.winerror) from None
+
+
 def remove_worktree_folder(repo, folder):
     """Rename `folder` to its name plus `.gc-removing`, delete it, and run `git worktree prune` in `repo`.
 
@@ -47,7 +67,7 @@ def remove_worktree_folder(repo, folder):
         raise Refusal("not-windows", "gc deletes a worktree folder on Windows only; nothing was touched", folder=str(folder))
     start = time.monotonic()
     removing = Path(str(folder) + REMOVING_SUFFIX)
-    os.rename(folder, removing)
+    _rename(folder, removing)
     _delete(removing)
     _prune(repo)
     return {"folder": str(folder), "result": "removed", "seconds": round(time.monotonic() - start, 2)}

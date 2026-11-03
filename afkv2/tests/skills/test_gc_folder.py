@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import stat
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -74,3 +76,50 @@ def test_on_a_system_that_is_not_windows_the_removal_refuses_and_touches_nothing
     assert entries(repo.run) == before
     assert leftover.is_dir()
     assert repo.run.resolve() in known_worktrees(repo)
+
+
+@contextmanager
+def a_process_in(folder):
+    """A child process whose working folder is `folder`, alive until the block ends; it reports ready once it runs."""
+    child = subprocess.Popen([sys.executable, "-c", "import sys; print('ready', flush=True); sys.stdin.read()"],
+                             cwd=folder, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "ready"
+        yield child
+    finally:
+        child.stdin.close()
+        try:
+            child.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait()
+        child.stdout.close()
+
+
+@contextmanager
+def a_file_open_in(folder):
+    with open(Path(folder) / "plan" / "PLAN.md", "rb") as handle:
+        yield handle
+
+
+HOLDERS = {
+    "working folder": (lambda repo: a_process_in(repo.run), "in-use"),
+    "subfolder": (lambda repo: a_process_in(repo.run / "plan"), "in-use-or-no-right"),
+    "open file": (lambda repo: a_file_open_in(repo.run), "in-use-or-no-right"),
+}
+
+
+@windows_only
+@pytest.mark.parametrize("holder", sorted(HOLDERS))
+def test_a_folder_in_use_refuses_by_its_windows_error_and_every_entry_stays(repo, holder):
+    hold, code = HOLDERS[holder]
+    before = entries(repo.run)
+
+    with hold(repo), pytest.raises(Refusal) as refused:
+        folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert refused.value.code == code
+    assert entries(repo.run) == before
+    assert not Path(str(repo.run) + folder_remove.REMOVING_SUFFIX).exists()
+    assert repo.run.resolve() in known_worktrees(repo)
+    assert git(repo.main, "branch", "--list", repo.run_branch)
