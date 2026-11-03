@@ -33,6 +33,7 @@ Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
 ```
 
 - `session.skill` is `grill`, `propose-solution` or `propose-verification`; `started` is ISO-8601 UTC.
+- `session.links` (optional) holds the URL templates that link references in the page text: `issue`, `change`, `commit`, `ticket`, each with `{id}` for the reference, and `projects`, the Jira project keys that `ticket` links. The skill's build writes it; the forms: `components/chip-and-text.md`.
 - `maps` holds the session's maps; you update their nodes in place.
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.

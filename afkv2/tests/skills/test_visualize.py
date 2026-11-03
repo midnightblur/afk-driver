@@ -260,8 +260,8 @@ def _check_document(doc):
     _only(doc, DOC_FIELDS, "document")
     _need(doc.get("schema") == SCHEMA, "document", f"schema (expected {SCHEMA})")
     session = doc.get("session")
-    _only(session, SESSION_FIELDS, "session")
-    _need(set(session) == SESSION_FIELDS, "session", "missing field")
+    _only(session, SESSION_FIELDS | {"links"}, "session")
+    _need(SESSION_FIELDS <= set(session), "session", "missing field")
     _need(session["skill"] in SKILLS, "session", "skill")
     _need(isinstance(session["started"], str) and bool(ISO_UTC.match(session["started"])),
           "session", "started (ISO-8601 UTC)")
