@@ -10,6 +10,8 @@ import json
 
 STAMP_SALT = "afkv2 ingest stamp v0"
 SETTLED_BY = {"settled_by_mark": "mark", "settled_by_note": "note"}
+# Every element id is also an HTML id. The page shell and the lavish host name their own elements so.
+RESERVED_PREFIXES = ("afkv2-", "lavish-")
 
 
 def canonical(value) -> str:
@@ -45,6 +47,9 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
     rounds = doc["rounds"]
     last = len(rounds)
     found = _round_order(rounds)
+    found += [((*path, "id"), f"id {identifier!r} starts with a prefix the page and its host keep: "
+                              f"{', '.join(RESERVED_PREFIXES)}")
+              for identifier, path in ids.items() if identifier.startswith(RESERVED_PREFIXES)]
     note_ids: set[str] = set()
     for r, round_ in enumerate(rounds):
         where = ("rounds", r)

@@ -111,7 +111,9 @@ def walk(component: dict, path: tuple = ()) -> Iterable[tuple]:
 
 
 def render_component(component: dict) -> str:
-    """The HTML of one valid component, in the wrapper that carries its id and style."""
+    """The HTML of one valid component, in the wrapper that carries its id and style.
+
+    The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
     kind = lookup(component["type"])
     props = component.get("props") or {}
     if kind.takes_html:
@@ -123,7 +125,7 @@ def render_component(component: dict) -> str:
     tag = "span" if kind.inline else "div"
     attrs = ""
     if element:
-        attrs += f' data-afkv2-element="{html.escape(element)}"'
+        attrs += f' id="{html.escape(element)}" data-afkv2-element="{html.escape(element)}"'
     if style:
         attrs += f' style="{html.escape(style)}"'
     return f"<{tag}{attrs}>{inner}</{tag}>"
