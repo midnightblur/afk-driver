@@ -24,12 +24,10 @@ from schema import invariants  # noqa: E402
 from shell import page  # noqa: E402
 
 SCHEMA = "afkv2.page/0"
-NOTES_JS = (ENGINE_DIR / "shell" / "notes.js").read_text("utf-8")
 NOTES_CSS = (ENGINE_DIR / "shell" / "notes.css").read_text("utf-8")
 
 
 EMPTY_SLOT = '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>'
-DRAFT_KEY = "'afkv2-draft:' + bar.getAttribute('data-afkv2-session') + ':' + round + ':notes'"
 DELETED_NOTE = 'afkv2-nr-note--deleted" data-afkv2-note="N-3-i-c"'
 OPEN_ROUND = "<details class=\"afkv2-nr-round\" open"
 ROUND_3 = 'data-afkv2-nr-round="3"'
@@ -47,8 +45,7 @@ SLOT = 'id="afkv2-notes-replies"'
 MAPS = 'id="afkv2-maps"'
 SIGNAL = 'class="afkv2-nr-signal"'
 FORM = 'id="afkv2-answer-form"'
-BAR = 'id="afkv2-send"'
-NOTE_ADD = ".afkv2-note-add"
+BAR = 'id="afkv2-copy"'
 EDIT_BUTTON = "data-afkv2-note-edit"
 DELETE_BUTTON = "data-afkv2-note-delete"
 
@@ -710,13 +707,11 @@ def test_note_text_is_escaped_and_keeps_its_id_and_target():
     assert NOTE_R2 in html and TARGET_R2 in html
 
 
-def test_a_live_note_has_edit_and_delete_and_a_deleted_note_only_says_so():
+def test_a_note_shows_no_edit_control_and_a_deleted_note_says_so():
     html = slot(page.build(noted_document()))
-    live = html[html.index(NOTE_R2):html.index(NOTE_R1)]
     deleted = html[html.index(NOTE_R3):html.index(ROUND_2)]
-    assert EDIT_BUTTON in live and DELETE_BUTTON in live
-    assert EDIT_BUTTON not in deleted and DELETE_BUTTON not in deleted and ": deleted" in deleted
-    assert DELETED_NOTE in html
+    assert EDIT_BUTTON not in html and DELETE_BUTTON not in html and "<button" not in html
+    assert ": deleted" in deleted and DELETED_NOTE in html
 
 
 def test_a_page_with_no_note_and_no_reply_has_an_empty_slot():
@@ -744,17 +739,15 @@ def test_a_steer_on_a_held_node_says_it_is_a_steer():
     assert "Steer on n-1" in slot(page.build(doc))
 
 
-def test_a_settled_page_still_takes_notes_through_its_own_form():
+def test_a_settled_page_has_no_form_and_no_copy_bar():
     html = page.build(one_round(by_mark("i-a")))
-    form = html[html.index(FORM):html.index(MAPS)]
-    assert BAR in form and "hidden" in html[html.index('<form'):html.index(FORM) + 40]
-    assert CURRENT in form and ROUND_ATTR in form
-    assert html.count(FORM) == 1
+    assert FORM not in html and BAR not in html
+    assert CURRENT in html and ROUND_ATTR in html
 
 
-def test_a_live_page_has_one_form():
+def test_a_live_page_has_one_copy_bar_and_no_form():
     html = page.build(document(round_of(1, by_mark("i-a"), card("i-b"))))
-    assert html.count(FORM) == 1 and html.count(BAR) == 1
+    assert FORM not in html and html.count(BAR) == 1
     assert EMPTY_SLOT in html
 
 
@@ -766,24 +759,13 @@ def test_long_text_and_a_note_wrap():
     assert "overflow-wrap: anywhere" in NOTES_CSS and "white-space: pre-wrap" in NOTES_CSS
 
 
-# --- the browser side of notes: its contract with the page and the runtime
+# --- notes come from lavish annotations: the page has no note controls of its own
 
 
-def test_the_page_inlines_notes_after_the_runtime():
+def test_the_page_has_no_note_controls():
     html = page.build(one_round(card("i-a")))
-    assert html.index("function compose()") < html.index("Your unsent notes") and NOTE_ADD in html
-
-
-def test_a_notes_draft_is_keyed_by_session_and_round_and_cleared_on_send():
-    assert DRAFT_KEY in NOTES_JS
-    assert "localStorage.removeItem(KEY)" in NOTES_JS and "window.name" in NOTES_JS
-    assert "' sent.'" in NOTES_JS
-
-
-@pytest.mark.parametrize("attribute", ['data-afkv2-input', 'data-afkv2-item', 'data-afkv2-state', 'data-afkv2-element', 'data-lavish-action',
-                                       'data-afkv2-note-edit', 'data-afkv2-note-delete'])
-def test_the_notes_script_reads_the_attributes_of_the_contract(attribute):
-    assert attribute in NOTES_JS
+    assert "+ note" not in html and "Your unsent notes" not in html and "<textarea" not in html
+    assert "data-lavish-action=\"afkv2-note\"" not in html
 
 
 # --- a saved document opens to read or to continue (AC-039)

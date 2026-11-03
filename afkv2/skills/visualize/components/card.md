@@ -12,7 +12,7 @@ component tree) and, once settled, `settled`. Kinds:
 | `confirm` | states a reading you need confirmed | accepts it or corrects it |
 | `debate` | shows a fork: the options side by side and your recommendation | picks an option or writes one in |
 | `signoff` | states an aspect only a human may approve, with the exact wording | signs it or asks for changes |
-| `info` | shows context; it asks nothing | may note it |
+| `info` | shows context; it asks nothing | may annotate it |
 
 `state` is a point state: `open`, `blocked`, `needs_reading`,
 `settled_by_mark`, `settled_by_note`. A new card is `open`. A card that waits on
@@ -61,8 +61,10 @@ stays in its round. The old card stays as it is.
 
 ## How it looks
 
-A box in the cards section, below the maps, with the controls of its kind. A
-round chip in the round colour marks every card that needs the human in that
+A box in the cards section, below the maps, with the mark radios of its kind. A
+mark goes to the lavish queue at once. The human writes a note as a lavish
+annotation on the card or on any part of it, and sends marks and notes with
+lavish's Send to Agent. A round chip in the round colour marks every card that needs the human in that
 round. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`.

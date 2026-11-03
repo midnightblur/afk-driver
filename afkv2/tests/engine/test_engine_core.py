@@ -569,12 +569,17 @@ def test_a_card_has_the_controls_of_its_kind(kind, tokens):
     for token in tokens:
         assert f'value="{token}"' in html
     assert html.count('type="radio"') == len(tokens)
-    assert holds(html, 'data-afkv2-required="1"', 'data-afkv2-input="note"')
+    assert holds(html, 'data-afkv2-required="1"') and lacks(html, "<textarea", 'data-afkv2-input="note"')
 
 
-def test_an_info_card_has_a_note_and_no_mark():
+def test_the_correct_and_write_in_options_point_at_the_annotation():
+    assert holds(card_html(item("i-a", "confirm")), "Correct it: annotate the card")
+    assert holds(card_html(item("i-f", "debate")), "Something else: annotate the card")
+
+
+def test_an_info_card_has_no_mark_and_no_note_field():
     html = card_html(item("i-a", "info"))
-    assert lacks(html, 'type="radio"') and holds(html, 'data-afkv2-input="note"')
+    assert lacks(html, 'type="radio"', "<textarea", "afkv2-answer")
     assert lacks(html, "data-afkv2-required", "afkv2-round-chip")
 
 
@@ -601,9 +606,9 @@ def test_settled_by_note_differs_from_settled_by_mark():
     assert 'type="radio"' not in by_mark + noted and "<textarea" not in by_mark + noted
 
 
-def test_a_blocked_card_takes_a_note_and_no_mark():
+def test_a_blocked_card_takes_no_mark():
     html = card_html(item("i-b", state="blocked"))
-    assert lacks(html, 'type="radio"') and holds(html, "<textarea", "afkv2-round-chip")
+    assert lacks(html, 'type="radio"', "<textarea") and holds(html, "afkv2-round-chip")
     assert holds(html, 'data-afkv2-state="blocked"')
 
 
@@ -622,7 +627,7 @@ def test_page_order_is_banner_slot_maps_cards():
         "nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
     html = page.build(doc)
     body = html[position(html, "<body>"):]
-    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-answer-form"', 'id="afkv2-r-1"']
+    order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-r-2"', 'id="afkv2-r-1"']
     positions = [position(body, mark) for mark in order]
     assert positions == sorted(positions)
 
@@ -676,10 +681,10 @@ def test_past_rounds_come_newest_first():
     assert position(html, 'id="afkv2-r-3"') < position(html, 'id="afkv2-r-2"') < position(html, 'id="afkv2-r-1"')
 
 
-def test_a_round_with_nothing_to_answer_has_no_send_bar():
+def test_a_round_with_nothing_to_answer_has_no_copy_bar():
     doc = document({"n": 1, "state": "current", "banner": banner(), "items": []})
     html = page.build(doc)
-    assert lacks(html, 'id="afkv2-send"', 'id="afkv2-answer-form"')
+    assert lacks(html, 'id="afkv2-copy"', "<form")
 
 
 def test_same_document_same_bytes(repo, capsys):
@@ -692,19 +697,28 @@ def test_same_document_same_bytes(repo, capsys):
     assert path.with_suffix(".html").stat().st_mtime == 1
 
 
-def test_the_shell_reuses_the_kit_with_new_names():
+RUNTIME = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
+
+
+def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     html = page.build(two_rounds())
-    assert holds(html, 'id="afkv2-send-go"', 'data-lavish-question="round:R-2"')
-    assert "window.lavish" in html and "queuePrompt" in html
-    assert "backdrop-filter" in html and "display: flow-root" in html
+    assert holds(html, 'id="afkv2-copy-go"', "Copy the response", "Send to Agent in the lavish panel",
+                 'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
+    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
+    assert lacks(RUNTIME, "sendQueuedPrompts")
+    assert not (ENGINE_DIR / "shell" / "notes.js").exists()
 
 
-def test_a_browser_draft_is_keyed_by_session_and_round_and_cleared_on_send():
-    runtime = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
-    assert holds(runtime, "KEY_PREFIX + bar.getAttribute('data-afkv2-session') + ':' + round")
-    assert "location.pathname" not in runtime
-    assert runtime.index("sendQueuedPrompts();") < runtime.index("clearDraft();", runtime.index("sendQueuedPrompts();"))
-    assert holds(page.build(two_rounds()), 'data-afkv2-session="s1"')
+def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
+    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token, {", "tag: MARK_TAG,",
+                 "queueKey: 'afkv2:' + session + ':' + round + ':' + id,", "element: el,",
+                 "data: { item: id, mark: token }")
+    assert f"var MARK_TAG = '{prompt_lines.MARK_TAG}';" in RUNTIME
+
+
+def test_a_browser_draft_is_keyed_by_session_and_round():
+    assert holds(RUNTIME, "var KEY_PREFIX = 'afkv2-draft:' + session + ':';", "var KEY = KEY_PREFIX + round;")
+    assert "location.pathname" not in RUNTIME
 
 
 def test_the_rendered_page_has_the_tooltip_layer(repo, capsys):

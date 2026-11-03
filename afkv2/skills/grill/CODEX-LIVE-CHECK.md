@@ -4,7 +4,7 @@ The owner runs this check (plan decision D-S-8). It needs afkv2 enabled in the g
 
 1. In a repository with `.afkv2/config.json`, open a Codex session and run `/afkv2:grill <ticket key>`. Skip round 0.
 2. Expected: the agent shows round 1 and ends its turn. It runs no `page_round.py wait`.
-3. Mark one card with accept. On a second card, write one clear note. Send the round. Send no chat message.
+3. Mark one card with accept. Annotate a second card with one clear note. Click Send to Agent in the lavish panel. Send no chat message.
 4. Expected: the agent starts a new turn by itself and runs `page_round.py ingest`.
 5. Expected in the page document: the first card is `settled_by_mark`, the second is `settled_by_note` with a reading, and the round reply states that reading.
 6. Expected in `GRILL-LOG.md`: both `Settled` rows, and the note word for word.

@@ -1,7 +1,8 @@
 """Page assembly from a valid page document. Same document, same bytes.
 
 Order: round banner, notes and replies, maps, cards. The cards section is the current round
-with its send bar, then each settled round, newest first, with every item it ever held.
+with its copy bar, then each settled round, newest first, with every item it ever held. The human
+sends marks and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 """
 
 from __future__ import annotations
@@ -42,14 +43,11 @@ def _card(item: dict, round_: dict, current: bool) -> str:
     })
 
 
-def _send_bar(round_: dict, session_id: str) -> str:
-    return (f'<div class="afkv2-send" id="afkv2-send" data-afkv2-round="{round_["n"]}" '
-            f'data-afkv2-session="{escape(session_id)}" data-lavish-ui="afkv2-send">'
-            '<button type="submit" id="afkv2-send-go" class="afkv2-primary">Send my answers</button>'
-            '<button type="button" id="afkv2-send-copy">Copy the response</button>'
-            '<button type="button" id="afkv2-send-jump" hidden>Go to first unmarked</button>'
-            '<output id="afkv2-send-summary" class="afkv2-send-summary" aria-live="polite"></output>'
-            '<output class="afkv2-send-status" role="status" aria-live="polite"></output></div>')
+COPY_BAR = ('<div class="afkv2-copy" id="afkv2-copy" data-lavish-ui="afkv2-copy">'
+            '<p class="afkv2-copy-hint">Pick a mark on each card. To add a note, annotate any part of the page. '
+            'Then send marks and notes with Send to Agent in the lavish panel.</p>'
+            '<button type="button" id="afkv2-copy-go">Copy the response</button>'
+            '<output class="afkv2-copy-status" role="status" aria-live="polite"></output></div>')
 
 
 def _answerable(item: dict) -> bool:
@@ -57,17 +55,15 @@ def _answerable(item: dict) -> bool:
 
 
 def _current_section(round_: dict, session_id: str) -> str:
+    """The mark runtime reads the session and the round here: they key each queued mark."""
     n = round_["n"]
     cards = "".join(_card(item, round_, True) for item in round_["items"])
     live = any(_answerable(item) for item in round_["items"])
-    section = (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
-               f'style="--afkv2-round: {escape(round_colour(round_))}">'
-               f'<h2 class="afkv2-h">Round {n}: your answers</h2><div class="afkv2-cards">{cards}</div>'
-               f'{_send_bar(round_, session_id) if live else ""}</section>')
-    if not live:
-        return section
-    return (f'<form id="afkv2-answer-form" data-afkv2-answer-form="1" data-afkv2-round="{n}" '
-            f'data-lavish-question="round:R-{n}">{section}</form>')
+    return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
+            f'data-afkv2-round="{n}" data-afkv2-session="{escape(session_id)}" '
+            f'style="--afkv2-round: {escape(round_colour(round_))}">'
+            f'<h2 class="afkv2-h">Round {n}: your answers</h2><div class="afkv2-cards">{cards}</div>'
+            f'{COPY_BAR if live else ""}</section>')
 
 
 def _past_section(round_: dict) -> str:
