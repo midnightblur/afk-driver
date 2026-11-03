@@ -16,6 +16,7 @@ import gc_checks  # noqa: E402
 import gc_target  # noqa: E402
 
 GIT_LIMIT = 60
+STATES = ("listed", "waiting")
 WORKTREES = ("run worktree", "feature worktree")
 ITEMS = (("IT-1", "run worktree", "now"), ("IT-2", "run branch", "now"), ("IT-3", "remote run branch", "now"),
          ("IT-4", "remote feature branch", "now"), ("IT-5", "feature worktree", "later"), ("IT-6", "feature branch", "later"))
@@ -102,10 +103,43 @@ def feature_worktree(cwd):
     return Path(top), branch
 
 
-def list_step(cwd):
-    """List in the feature worktree: run every check, write the target as `listed`, and answer the list with its receipt."""
+def _shown(target):
+    return {key: value for key, value in target.items() if key != "schema"}
+
+
+def _waiting(cwd, branch):
+    """The stored target of `branch` when it is `waiting`; None when there is none or it is `listed`."""
+    target = gc_target.read_target(cwd, branch)
+    if target is not None and target["state"] not in STATES:
+        path = gc_target.target_path(cwd, branch)
+        raise Refusal("bad-target", f"{path} has state {target['state']!r}, not listed or waiting; list again")
+    return target if target is not None and target["state"] == "waiting" else None
+
+
+def list_step(cwd, branch=None, lock=None):
+    """With no `branch`: list in the feature worktree `cwd` under the target's lock (`lock` when the caller holds it).
+    A `waiting` target is answered as stored. Otherwise run every check, write the target as `listed`, replacing a
+    `listed` or broken one, and answer the list with its receipt. With `branch`: only show its `waiting` target."""
+    if branch is not None:
+        target = _waiting(cwd, branch)
+        if target is None:
+            raise Refusal("no-target", f"no waiting gc target for {branch}; run gc list in its feature worktree")
+        return _shown(target)
     folder, branch = feature_worktree(cwd)
-    listing, tips = _listing(folder, branch)
-    listing["receipt"] = gc_target.receipt_of(listing)
-    gc_target.write_target(folder, gc_target.new_target(branch, str(folder), listing["change"], tips, listing["receipt"]))
-    return listing
+    held = lock or gc_target.take_lock(folder, branch)
+    try:
+        try:
+            target = _waiting(folder, branch)
+        except Refusal as broken:
+            if broken.code != "bad-target":
+                raise
+            target = None  # A broken target is replaced: the developer lists again.
+        if target is not None:
+            return _shown(target)
+        listing, tips = _listing(folder, branch)
+        listing["receipt"] = gc_target.receipt_of(listing)
+        gc_target.write_target(folder, gc_target.new_target(branch, str(folder), listing["change"], tips, listing["receipt"]))
+        return listing
+    finally:
+        if lock is None:
+            held.release()

@@ -207,3 +207,82 @@ def test_list_from_a_subfolder_of_the_feature_worktree_fixes_the_worktree_itself
     sub.mkdir()
     answer = cleanup.list_step(sub)
     assert same(answer["feature_worktree"], repo.feature)
+
+
+def stored(repo, **fields):
+    """Write a target of the feature branch as an earlier run left it."""
+    head = tip(repo, FEATURE)
+    target = gc_target.new_target(FEATURE, str(repo.feature),
+                                  {"number": 7, "url": f"{GITHUB}/pull/7", "state": "merged", "head_sha": head, "target": "main"},
+                                  {"feature branch": head}, "c" * 64, **fields)
+    gc_target.write_target(repo.main, target)
+    return target
+
+
+def shown(target):
+    return {key: value for key, value in target.items() if key != "schema"}
+
+
+def test_a_second_list_replaces_a_listed_target(repo, monkeypatch):
+    merged(repo, monkeypatch)
+    stored(repo)
+    answer = cleanup.list_step(repo.feature)
+    target = gc_target.read_target(repo.main, FEATURE)
+    assert answer["receipt"] != "c" * 64 and target["receipt"] == answer["receipt"] and target["state"] == "listed"
+
+
+def test_list_answers_a_waiting_target_as_stored_with_no_forge_call_and_no_write(repo, monkeypatch):
+    fake = merged(repo, monkeypatch)
+    target = stored(repo, state="waiting", left=["feature worktree", "feature branch"])
+    assert cleanup.list_step(repo.feature) == shown(target)
+    assert fake.calls == []
+    assert gc_target.read_target(repo.main, FEATURE) == target
+
+
+@pytest.mark.parametrize("text", ["{not json", '{"schema": "afkv2.gc/9"}'])
+def test_list_in_the_feature_worktree_replaces_a_broken_target(repo, monkeypatch, text):
+    merged(repo, monkeypatch)
+    path = gc_target.target_path(repo.main, FEATURE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    answer = cleanup.list_step(repo.feature)
+    assert gc_target.read_target(repo.main, FEATURE)["receipt"] == answer["receipt"]
+
+
+@pytest.mark.parametrize("where", ["main", "feature", "run"])
+def test_list_with_a_branch_shows_a_waiting_target_from_anywhere(repo, monkeypatch, where):
+    fake = merged(repo, monkeypatch)
+    target = stored(repo, state="waiting", left=["feature branch"])
+    assert cleanup.list_step(getattr(repo, where), branch=FEATURE) == shown(target)
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize("state", ["listed", None])
+def test_list_with_a_branch_refuses_no_target_unless_waiting_and_never_fixes_one(repo, monkeypatch, state):
+    fake = merged(repo, monkeypatch)
+    before = stored(repo, state=state) if state else None
+    refused("no-target", cleanup.list_step, repo.main, branch=FEATURE)
+    assert gc_target.read_target(repo.main, FEATURE) == before
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize("state", ["done", "removing"])
+def test_list_with_a_branch_refuses_bad_target_for_a_state_it_does_not_know(repo, monkeypatch, state):
+    merged(repo, monkeypatch)
+    stored(repo, state=state)
+    refused("bad-target", cleanup.list_step, repo.main, branch=FEATURE)
+
+
+def test_list_refuses_locked_while_another_run_holds_the_target(repo, monkeypatch):
+    fake = merged(repo, monkeypatch)
+    with gc_target.take_lock(repo.main, FEATURE):
+        refused("locked", cleanup.list_step, repo.feature)
+    assert fake.calls == [] and gc_target.read_target(repo.main, FEATURE) is None
+
+
+def test_list_under_a_lock_its_caller_holds_keeps_that_lock(repo, monkeypatch):
+    merged(repo, monkeypatch)
+    with gc_target.take_lock(repo.main, FEATURE) as lock:
+        cleanup.list_step(repo.feature, lock=lock)
+        refused("locked", gc_target.take_lock, repo.main, FEATURE)
+    gc_target.take_lock(repo.main, FEATURE).release()
