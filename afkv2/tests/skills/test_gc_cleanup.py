@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -286,3 +287,49 @@ def test_list_under_a_lock_its_caller_holds_keeps_that_lock(repo, monkeypatch):
         cleanup.list_step(repo.feature, lock=lock)
         refused("locked", gc_target.take_lock, repo.main, FEATURE)
     gc_target.take_lock(repo.main, FEATURE).release()
+
+
+def run_cli(capsys, *argv):
+    code = cleanup.main(list(argv))
+    return code, json.loads(capsys.readouterr().out)
+
+
+def test_a_forge_failure_is_a_refusal_in_the_list_and_list_exits_0(repo, monkeypatch, capsys):
+    forge(monkeypatch, {"ok": False, "error": {"code": "auth", "reason": "gh is not signed in"}})
+    code, answer = run_cli(capsys, "list", "--repo", str(repo.feature))
+    assert code == 0 and answer["ok"] is True
+    assert [(refusal["code"], refusal["items"]) for refusal in answer["refusals"]][0] == ("forge-failed", [])
+    assert "gh is not signed in" in answer["refusals"][0]["reason"]
+    assert answer["change"] is None
+    assert answer["receipt"] == gc_target.receipt_of({key: value for key, value in answer.items() if key != "ok"})
+
+
+def test_the_list_command_runs_in_the_current_folder_by_default(repo, monkeypatch, capsys):
+    merged(repo, monkeypatch)
+    monkeypatch.chdir(repo.feature)
+    code, answer = run_cli(capsys, "list")
+    assert code == 0 and same(answer["feature_worktree"], repo.feature)
+
+
+def test_a_list_error_exits_1_with_its_code(repo, monkeypatch, capsys):
+    merged(repo, monkeypatch)
+    code, answer = run_cli(capsys, "list", "--repo", str(repo.main))
+    assert code == 1 and answer["error"]["code"] == "not-feature-worktree"
+    code, answer = run_cli(capsys, "list", "--repo", str(repo.main), "--branch", FEATURE)
+    assert code == 1 and answer["error"]["code"] == "no-target"
+
+
+@pytest.mark.parametrize("argv", [[], ["unknown"], ["list", "--colour"], ["list", "--branch"]])
+def test_unreadable_arguments_exit_2(capsys, argv):
+    code, answer = run_cli(capsys, *argv)
+    assert code == 2 and answer["ok"] is False and answer["error"]["code"] in ("bad-payload", "unknown-verb")
+
+
+def test_a_change_head_this_clone_lacks_leaves_each_feature_tip_unchecked_as_a_refusal(repo, monkeypatch):
+    forge(monkeypatch, listed(change(7, "merged", "1" * 40)))
+    answer = cleanup.list_step(repo.feature)
+    refusal = next(refusal for refusal in answer["refusals"] if refusal["code"] == "outside-commits")
+    assert refusal["items"] == ["feature branch", "remote feature branch"]
+    assert "1" * 12 in refusal["reason"] and "unchecked" in refusal["reason"]
+    assert answer["change"]["head_sha"] == "1" * 40
+    assert gc_target.read_target(repo.main, FEATURE)["receipt"] == answer["receipt"]

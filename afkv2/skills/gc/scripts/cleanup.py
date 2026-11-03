@@ -1,7 +1,11 @@
-"""The gc script's steps. `list` fixes the target in the feature worktree and answers the list the developer says yes to."""
+"""The gc script: `cleanup.py list [--repo <folder>] [--branch <name>]`. One JSON answer; exit 0 ok, 1 refused, 2 unreadable input.
+
+`list` fixes the target in the feature worktree and answers the list the developer says yes to."""
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
 import subprocess
 import sys
@@ -10,6 +14,7 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN / "ports"))
 
+from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal  # noqa: E402
 
 import gc_checks  # noqa: E402
@@ -52,13 +57,28 @@ def _held(tips, refused):
             "feature branch": bool(local) and (local == remote or "feature branch" not in refused)}
 
 
+def _tips(folder, branch, head, remote):
+    """The tip check. A change head the check cannot compare with, one this clone lacks, leaves each feature tip
+    unchecked, which refuses `outside-commits` with the reason."""
+    try:
+        return gc_checks.check_tips(folder, branch, head, remote)
+    except Refusal as failed:
+        if head is None:
+            raise
+        reason = failed.reason
+    tips = gc_checks.check_tips(folder, branch, None, remote)
+    if tips["refusal"]:
+        tips["refusal"]["reason"] = f"each feature tip is unchecked: the compare with the change head {head[:12]} failed: {reason}"
+    return tips
+
+
 def _listing(folder, branch):
     """The list of the feature worktree `folder` on `branch`, without its receipt, and the tips of its target."""
     defaults = gc_target.new_target(branch, str(folder), None, {}, "")
     names, remote = _names(defaults), defaults["remote"]
     forge = gc_checks.check_change(folder, branch)
     change = forge["change"]
-    tips = gc_checks.check_tips(folder, branch, change["head_sha"] if change else None, remote)
+    tips = _tips(folder, branch, change["head_sha"] if change else None, remote)
     clean = {item: gc_checks.check_clean(names[item]) for item in WORKTREES}
     tip_refusal = tips["refusal"]
     refused = [entry["item"] for entry in tip_refusal["branches"]] if tip_refusal else []
@@ -143,3 +163,36 @@ def list_step(cwd, branch=None, lock=None):
     finally:
         if lock is None:
             held.release()
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        raise Refusal("bad-payload", f"{self.prog}: {message}")
+
+
+def _parser():
+    parser = _Parser(prog="cleanup.py", add_help=False)
+    steps = parser.add_subparsers(dest="step", required=True, parser_class=_Parser)
+    listing = steps.add_parser("list", add_help=False)
+    listing.add_argument("--repo", default=".")
+    listing.add_argument("--branch")
+    return parser
+
+
+STEPS = {"list": lambda args: list_step(args.repo, branch=args.branch)}
+
+
+def main(argv=None):
+    try:
+        args = _parser().parse_args(sys.argv[1:] if argv is None else argv)
+        answer = envelope.ok(**STEPS[args.step](args))
+    except Refusal as refusal:
+        answer = envelope.fail(refusal.code, refusal.reason, **refusal.extra)
+    except Exception as error:
+        answer = envelope.fail("internal", f"{type(error).__name__}: {error}")
+    print(json.dumps(answer))
+    return envelope.exit_code(answer)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
