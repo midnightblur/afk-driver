@@ -25,7 +25,7 @@ The checkpoint of a grill, in the spec folder. A row is overwritten as its state
 | Carried | `sync` | `- Carried: <card text> · card <id>`: an older card with a note, returned as a new card with `carries` |
 | Info | `sync` | `- Info: <card text> · card <id>`: an `info` card with a note |
 | Owner note | `sync` | `  owner note on <id> (<note id>): "<the human's words>"`, under the row of its card |
-| Steer | `sync` | `- Steer: <map node id> (<note id>): "<the human's words>"` |
+| Steer | `sync` | `- Steer: <map or map node id> (<note id>): "<the human's words>"` |
 | Exit gate | `gate` | `- Settled: exit gate passed <date> · session <id>` |
 
 A `sync` overwrites the rows it writes, and removes an exit gate row, because the document moved.

@@ -48,7 +48,7 @@ ENTRY_SECTIONS = ("## Holds", "## Use it when", "## How it looks", "## Example")
 DOC_FIELDS = {"schema", "session", "maps", "rounds"}
 SESSION_FIELDS = {"id", "skill", "feature", "ticket", "started"}
 SKILLS = {"grill", "propose-solution", "propose-verification"}
-ROUND_FIELDS = {"n", "state", "colour", "banner", "items", "responses", "replies"}
+ROUND_FIELDS = {"n", "state", "colour", "banner", "items", "responses", "replies", "notes"}
 BANNER_FIELDS = {"settled", "unlocks", "parked"}
 REPLY_FIELDS = {"text", "about"}
 ITEM_FIELDS = {"id", "kind", "title", "node", "state", "body", "settled", "notes", "carries"}
@@ -286,7 +286,13 @@ def _check_document(doc):
             for target in reply.get("about", []):
                 _need(target in ids, f"round {r['n']}.replies[{p}]", f"about {target} must resolve")
     note_ids = set()
-    for note in (n for r in rounds for item in r["items"] for n in item.get("notes", [])):
+    for r in rounds:
+        for n, note in enumerate(_objects(r.get("notes", []), f"round {r['n']}", "notes")):
+            _only(note, NOTE_FIELDS, f"round {r['n']}.notes[{n}]")
+            _need(note.get("id") == f"N-{r['n']}-{note.get('target')}", f"round {r['n']}.notes[{n}]",
+                  "id (N-<round>-<target>)")
+    for note in (n for r in rounds for n in [*(n for item in r["items"] for n in item.get("notes", [])),
+                                             *r.get("notes", [])]):
         _need(note["id"] not in note_ids, f"note {note['id']}", "id not unique")
         note_ids.add(note["id"])
         _need(note["target"] in ids, f"note {note['id']}", "target must resolve")
@@ -648,8 +654,8 @@ already settled, a signal that changes the answer sets `state` to `open` and
 removes `settled`, and a note stays on that card, also in a settled round. Its
 signal has `reopened: true`. Before you mark the round `settled`, go through the
 cards of the current round. Never change a card in a settled round: only the
-engine writes there. A note whose `target` is a map node id is a steer: leave it
-out when you read the signals, because it settles nothing.
+engine writes there. A steer lives on the round, and its signal has `steer: true`
+and no `item`: leave it out when you read the signals, because it settles nothing.
 
 - `needs_reading` with a clear note and no signal that disagrees with it: set
   `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.

@@ -64,6 +64,8 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
             found += [((*where, "items", i, "carries", c), f"{old!r} is no card of an earlier round")
                       for c, old in enumerate(item.get("carries") or [])
                       if card_round.get(old, round_["n"]) >= round_["n"]]
+        for s, steer in enumerate(round_.get("notes") or []):
+            found += _steer((*where, "notes", s), round_["n"], steer, ids, nodes, note_ids)
     return found
 
 
@@ -112,6 +114,24 @@ def _note(where: tuple, item: dict, note: dict, ids: dict, last: int, note_ids: 
         found.append(((*where, "round"), f"round {note['round']} does not exist"))
     if note["target"] not in ids:
         found.append(((*where, "target"), f"{note['target']!r} resolves to no element"))
+    return found
+
+
+def _steer(where: tuple, n: int, note: dict, ids: dict, nodes: dict, note_ids: set) -> list[tuple]:
+    """A note on the round is a steer: on a map node, or on an element that no card holds. It names no card."""
+    found = []
+    target = note["target"]
+    if note["round"] != n:
+        found.append(((*where, "round"), f"a steer of round {n} must have round {n}, found {note['round']}"))
+    if note["id"] != f"N-{n}-{target}":
+        found.append(((*where, "id"), f"must be N-{n}-{target}, found {note['id']!r}"))
+    if note["id"] in note_ids:
+        found.append(((*where, "id"), f"note id {note['id']!r} is not unique"))
+    note_ids.add(note["id"])
+    if target not in ids:
+        found.append(((*where, "target"), f"{target!r} resolves to no element"))
+    elif target not in nodes and ids[target][0] == "rounds":
+        found.append(((*where, "target"), f"{target!r} is part of a card; a note on a card lives on that card"))
     return found
 
 

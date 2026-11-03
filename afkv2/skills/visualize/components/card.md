@@ -32,8 +32,8 @@ already settled, a signal that changes the answer sets `state` to `open` and
 removes `settled`, and a note stays on that card, also in a settled round. Its
 signal has `reopened: true`. Before you mark the round `settled`, go through the
 cards of the current round. Never change a card in a settled round: only the
-engine writes there. A note whose `target` is a map node id is a steer: leave it
-out when you read the signals, because it settles nothing.
+engine writes there. A steer lives on the round, and its signal has `steer: true`
+and no `item`: leave it out when you read the signals, because it settles nothing.
 
 - `needs_reading` with a clear note and no signal that disagrees with it: set
   `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.

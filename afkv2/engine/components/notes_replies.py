@@ -2,7 +2,8 @@
 
 Display only. The human writes a note as a native lavish annotation; the poll turns it into a note line.
 A note on a card, and a reply about a card, is a row on that card (`card-notes`). The slot table
-(`notes-and-replies`) holds the rest: notes on a map or a map node, and replies that name no card.
+(`notes-and-replies`) holds the rest: the steers (notes on a map or a map node, kept on the round, and older
+steers kept on a card), and replies that name no card.
 Each row has an HTML id. `row_targets` names the element that an annotation on a row stands for.
 """
 
@@ -72,15 +73,21 @@ def _elements(doc: dict) -> dict:
     return found
 
 
-def _is_steer(note: dict, elements: dict) -> bool:
+def _is_steer(item: dict | None, note: dict, elements: dict) -> bool:
+    """A note on the round is a steer; so is a note on a card whose target is a map, a map node or no card's part."""
+    if item is None:
+        return True
     where = elements.get(note["target"])
     return where is not None and (where["map"] is not None or where["item"] is None)
 
 
-def _notes(doc: dict) -> list[tuple[dict, dict]]:
-    """(item, note) for every live note, in document order."""
-    return [(item, note) for r in doc["rounds"] for item in r["items"]
-            for note in item.get("notes") or [] if not note["deleted"]]
+def _notes(doc: dict) -> list[tuple[dict | None, dict]]:
+    """(the card or None, note) for every live note, in document order: per round, its cards' notes, then its steers."""
+    found = []
+    for r in doc["rounds"]:
+        found += [(item, note) for item in r["items"] for note in item.get("notes") or []]
+        found += [(None, note) for note in r.get("notes") or []]
+    return [(item, note) for item, note in found if not note["deleted"]]
 
 
 def _pairs(doc: dict, notes: list[tuple[dict, dict]]) -> tuple[dict, list[tuple[int, int, dict]]]:
@@ -96,7 +103,7 @@ def _pairs(doc: dict, notes: list[tuple[dict, dict]]) -> tuple[dict, list[tuple[
             matched = []
             for look in (n, n - 1):
                 matched = [note for item, note in notes if note["round"] == look
-                           and about & {note["target"], item["id"], note["id"]}]
+                           and about & {note["target"], note["id"], *([item["id"]] if item else [])}]
                 if matched:
                     break
             for note in matched:
@@ -106,9 +113,9 @@ def _pairs(doc: dict, notes: list[tuple[dict, dict]]) -> tuple[dict, list[tuple[
     return by_note, alone
 
 
-def _where(item: dict, note: dict, elements: dict) -> str:
+def _where(item: dict | None, note: dict, elements: dict) -> str:
     target = elements.get(note["target"]) or {"item": item, "label": None, "map": None}
-    if _is_steer(note, elements):
+    if _is_steer(item, note, elements):
         place = f'Map: {escape(target["map"] or target["label"] or note["target"])}'
         if target["map"] is not None:
             place += f' <span class="{DIM_CLASS}">· {escape(target["label"] or note["target"])}</span>'
@@ -134,7 +141,7 @@ def _reply_home(reply: dict, elements: dict, notes: list[tuple[dict, dict]]) -> 
     for about in reply.get("about") or []:
         if about in by_note:
             item, note = by_note[about]
-            return None if _is_steer(note, elements) else item["id"]
+            return None if _is_steer(item, note, elements) else item["id"]
         where = elements.get(about)
         if where and where["item"] is not None and where["map"] is None:
             return where["item"]["id"]
@@ -154,7 +161,7 @@ def _rows(doc: dict) -> list[Row]:
 
     rows = []
     for item, note in notes:
-        n, steer = note["round"], _is_steer(note, elements)
+        n, steer = note["round"], _is_steer(item, note, elements)
         cells = [_where(item, note, elements), f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
                  _answer(by_note.get(note["id"], []))]
         link = _link(note["target"], "Open map") if steer else _link(item["id"], "Open card")

@@ -38,7 +38,8 @@
         "banner": {"$ref": "#/$defs/banner"},
         "items": {"type": "array", "items": {"$ref": "#/$defs/item"}},
         "responses": {"type": ["array", "null"], "items": {"$ref": "#/$defs/response"}},
-        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/reply"}}
+        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/reply"}},
+        "notes": {"type": ["array", "null"], "items": {"$ref": "#/$defs/note"}}
       }
     },
     "banner": {
