@@ -11,7 +11,9 @@
                                   round pass must read
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
-limit here: it returns when the human sends the round.
+limit here: it returns when the human sends the round. The engine keeps each round send beside the
+document until ingest, so a wait that dies after the host handed the send over loses nothing: the
+next wait answers from the kept send.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ import json
 import sys
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve
+from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_text
 from round_document import pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
@@ -110,12 +112,11 @@ def _show_reply(doc, raw_file, text, questions, left):
 
 
 def _write_raw(raw_file, raw, answer):
-    path = Path(raw_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(raw.encode("utf-8"))
+    """Each file is replaced in one step, the raw file last: a raw file on disk is always whole."""
     prompts = prompts_file(raw_file)
-    prompts.write_text(json.dumps(answer.get("prompts") or [], indent=2, ensure_ascii=False), encoding="utf-8")
-    return {"ok": True, "raw_file": raw_file, "bytes": path.stat().st_size, "prompts_file": str(prompts)}
+    write_text(prompts, json.dumps(answer.get("prompts") or [], indent=2, ensure_ascii=False))
+    write_text(raw_file, raw)
+    return {"ok": True, "raw_file": raw_file, "bytes": Path(raw_file).stat().st_size, "prompts_file": str(prompts)}
 
 
 def reply(doc, reply_file):

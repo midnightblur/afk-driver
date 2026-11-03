@@ -1376,10 +1376,42 @@ def test_a_side_question_never_enters_the_raw_response(repo, capsys, monkeypatch
     assert answer["raw"] == "[round R-2]\ni-new accept" and answer["round_prompts"] == 1
     assert answer["btw"] == ["Which ticket is this?", "And the next round?"]
     assert raw_of(noted_page(), *prompts) == "[round R-2]\ni-new accept"
+    engine.delivery_file(str(path)).unlink()  # ingest read the round send
     reply = repo / "reply.md"
     reply.write_text("An answer.", "utf-8")
     call(capsys, "poll", path, "--reply-file", reply)
     assert seen[-1][2:] == ["--agent-reply-file", str(reply)]
+
+
+def test_a_round_send_is_kept_on_disk_until_ingest_reads_it(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    sends = [("feedback", {"raw": "x", "prompts": [mark("i-new", "accept")], "session_ended": False})]
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: sends.pop(0))
+    first = call(capsys, "poll", path)[1]
+    kept = engine.delivery_file(str(path))
+    assert first["raw"] == "[round R-2]\ni-new accept" and kept.name == "grill-s1.delivery.json"
+    assert json.loads(kept.read_text("utf-8"))["prompts"] == [mark("i-new", "accept")]
+    again = call(capsys, "poll", path)[1]
+    assert again["raw"] == first["raw"] and sends == [], "the kept send answers; the host is not polled"
+    raw = repo / "raw.txt"
+    raw.write_text(again["raw"], "utf-8")
+    assert call(capsys, "ingest", path, "--raw-file", raw)[0] == 0
+    assert not kept.exists()
+
+
+def test_a_failed_ingest_keeps_the_send_and_side_questions_alone_are_not_kept(repo, capsys, monkeypatch):
+    path = in_home(repo, noted_page())
+    path.with_suffix(".html").write_text("<html></html>", "utf-8")
+    monkeypatch.setattr(launcher, "poll_status", lambda argv: ("feedback", {
+        "raw": "x", "prompts": [side_question("Why?")], "session_ended": False}))
+    call(capsys, "poll", path)
+    assert not engine.delivery_file(str(path)).exists()
+    engine.keep_delivery(str(path), {"prompts": [mark("i-new", "accept")]})
+    raw = repo / "raw.txt"
+    raw.write_text("not the grammar", "utf-8")
+    assert call(capsys, "ingest", path, "--raw-file", raw)[0] != 0
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
 
 
 def test_a_send_of_side_questions_only_has_no_round_prompt(repo, capsys, monkeypatch):
@@ -1455,6 +1487,20 @@ def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
 
     assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
     assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", "joined")
+
+
+def test_the_stop_hook_keeps_a_round_send_and_a_kept_send_answers_first(repo):
+    path = in_home(repo, noted_page())
+
+    def poll(argv):
+        return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
+
+    def no_poll(argv):
+        raise AssertionError("a kept send answers without a host poll")
+
+    assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path))[0] == "feedback"
+    assert engine.kept_delivery(str(path))["prompts"] == [mark("i-new", "accept")]
+    assert WAIT_FOR_ANSWER("p.html", poll=no_poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
 
 
 # --- Codex: the waiting record and the Stop hook
