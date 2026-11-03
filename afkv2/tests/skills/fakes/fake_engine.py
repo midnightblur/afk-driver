@@ -163,7 +163,7 @@ def main(argv):
         return answer({"ok": True})
     if verb == "poll":
         raw = Path(os.environ["FAKE_POLL_RAW"]).read_bytes().decode("utf-8")
-        return answer({"ok": True, "raw": raw})
+        return answer({"ok": True, "raw": raw, "prompts": [{"uid": "1", "prompt": raw, "selector": "", "tag": "", "text": ""}]})
     if verb == "ingest":
         raw = Path(argv[argv.index("--raw-file") + 1]).read_bytes().decode("utf-8")
         signals = ingest(doc, raw)
