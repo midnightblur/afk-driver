@@ -62,6 +62,18 @@ under that label, and the human opens it. Fold long text and secondary detail.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 
+## Controls the engine adds
+
+You do not write these; the engine puts them on every page.
+
+- Copy bar, below the current round: copies the marks when the page has no lavish session.
+- btw? button, bottom left, shown only in a lavish session: a one-line side question and one Ask
+  button. Ask queues the question with the tag `afkv2-btw` and sends at once. lavish sends the whole
+  queue, so the marks and notes the human queued go with it; that round answer is valid. The question
+  never enters the round's raw response. The wait asks it in the agent's terminal pane (`/btw` on
+  Claude, `/side` on Codex, through herdr) and shows the answer on the page; the round stays open.
+  Engine module: `engine/side_question.py` (plugin root).
+
 ## Picture before a critical-aspect question
 
 Before a card that asks a critical-aspect question, show the current state as a
