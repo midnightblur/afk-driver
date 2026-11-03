@@ -397,6 +397,51 @@ def test_github_ticket_reads_references_and_reverse_mentions(tmp_path):
     assert "tracker issue-search \"#7\"" in world.call_log()
 
 
+def test_a_github_build_writes_the_issue_link_and_the_ticket_card_names_references(tmp_path):
+    world = World(tmp_path, "tickets_github.json", GITHUB)
+    started = world.start_and_read(key="7")
+    world.build_round(started, round_one())
+    doc = json.loads(Path(started["doc"]).read_text("utf-8"))
+    assert doc["session"]["links"] == {"issue": "https://github.com/acme/shop/issues/{id}"}
+    card = doc["rounds"][0]["items"][0]
+    assert card["body"]["props"]["text"].startswith("#7: ")
+    rows = next(c for c in card["body"]["children"] if c["id"] == "i-ticket-links")["props"]["rows"]
+    assert [row[1] for row in rows] == ["#8", "#10"]
+    unread = next(c for c in card["body"]["children"] if c["id"] == "i-ticket-unread")["props"]["rows"]
+    assert unread[0][0] == "acme/other#9"
+    check_document(doc)
+
+
+@pytest.mark.parametrize("remote, url", [
+    ("https://github.com/acme/shop.git", "https://github.com/acme/shop"),
+    ("https://user@gitlab.example.com:8443/group/sub/proj.git", "https://gitlab.example.com/group/sub/proj"),
+    ("git@gitlab.example.com:group/proj.git", "https://gitlab.example.com/group/proj"),
+    ("ssh://git@github.com/acme/shop", "https://github.com/acme/shop"),
+    ("not a remote", None),
+])
+def test_the_web_url_of_a_remote(remote, url):
+    import page_links
+    assert page_links.web_url(remote) == url
+
+
+@pytest.mark.parametrize("config, remote, base, expected", [
+    ({"forge": "github", "tracker": {"kind": "github-issues", "repo": "acme/issues"}}, "git@github.com:acme/shop.git", None,
+     {"issue": "https://github.com/acme/issues/issues/{id}", "change": "https://github.com/acme/shop/pull/{id}",
+      "commit": "https://github.com/acme/shop/commit/{id}"}),
+    ({"tracker": {"kind": "jira"}}, "https://gitlab.example.com/g/p.git", "https://acme.atlassian.net/",
+     {"issue": "https://gitlab.example.com/g/p/-/issues/{id}", "change": "https://gitlab.example.com/g/p/-/merge_requests/{id}",
+      "commit": "https://gitlab.example.com/g/p/-/commit/{id}", "ticket": "https://acme.atlassian.net/browse/{id}",
+      "projects": ["OLD", "PROJ", "WEB"]}),
+    ({"tracker": {"kind": "jira"}}, None, None, None),
+])
+def test_the_links_come_from_the_config_the_remote_and_the_jira_base(monkeypatch, config, remote, base, expected):
+    import page_links
+    monkeypatch.setattr(page_links, "run_command", lambda *_: {"ok": True, **config})
+    monkeypatch.setattr(page_links, "_origin", lambda: remote)
+    monkeypatch.setattr(page_links, "_jira_base", lambda: base and base.rstrip("/"))
+    assert page_links.links_for(["PROJ-1", "WEB-7", None, "8"], {"projects": ["OLD"]}) == expected
+
+
 def test_unreadable_ticket_is_refused_and_writes_nothing(world):
     out = world.scratch / "ticket.json"
     answer = world.run("read-ticket", expect=1, ticket_key="PROJ-404", ticket_file=out)
