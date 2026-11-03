@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -154,3 +155,43 @@ def test_a_leftover_with_no_folder_left_is_deleted_and_the_folder_counts_as_remo
     assert isinstance(answer["seconds"], float)
     assert not leftover.exists()
     assert repo.run.resolve() not in known_worktrees(repo)
+
+
+@windows_only
+def test_the_new_name_taken_by_a_file_refuses_name_taken_and_touches_nothing(repo):
+    taken = leftover_of(repo.run)
+    taken.write_text("not gc's folder\n", encoding="utf-8")
+    before = entries(repo.run)
+
+    with pytest.raises(Refusal) as refused:
+        folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert refused.value.code == "name-taken"
+    assert entries(repo.run) == before
+    assert taken.read_text(encoding="utf-8") == "not gc's folder\n"
+    assert repo.run.resolve() in known_worktrees(repo)
+
+
+@windows_only
+def test_a_folder_already_gone_answers_already_gone_and_git_forgets_it(repo):
+    shutil.rmtree(repo.run)
+    assert repo.run.resolve() in known_worktrees(repo)
+
+    answer = folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert answer["result"] == "already gone"
+    assert isinstance(answer["seconds"], float)
+    assert repo.run.resolve() not in known_worktrees(repo)
+
+
+@windows_only
+def test_any_other_rename_error_refuses_rename_failed_with_the_windows_text(repo, tmp_path):
+    no_parent = tmp_path / "no-parent" / "feature-run"
+
+    with pytest.raises(Refusal) as refused:
+        folder_remove.remove_worktree_folder(repo.main, no_parent)
+
+    assert refused.value.code == "rename-failed"
+    assert "The system cannot find the path specified" in refused.value.reason
+    assert refused.value.extra["winerror"] == 3
+    assert repo.run.resolve() in known_worktrees(repo)

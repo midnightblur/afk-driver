@@ -39,39 +39,50 @@ def _prune(repo):
         raise Refusal("git-failed", f"git worktree prune in {repo}: {done.stderr.strip()}")
 
 
+GONE = 2
 REFUSED_RENAME = {
     32: ("in-use", "a process uses {folder} as its working folder; close it and run gc again"),
     5: ("in-use-or-no-right", "a process uses a file or subfolder of {folder}, or gc has no right to rename it; "
                               "close what uses it and run gc again"),
+    183: ("name-taken", "{removing} exists and is not a folder gc left; move it away and run gc again"),
 }
 
 
 def _rename(folder, removing):
-    """The rename that proves no process uses `folder`. A refused rename touched nothing; its Windows error names the cause."""
+    """The rename that proves no process uses `folder`. False when the folder is already gone.
+
+    A refused rename touched nothing; its Windows error names the cause."""
     try:
         os.rename(folder, removing)
     except OSError as error:
-        known = REFUSED_RENAME.get(getattr(error, "winerror", None))
-        if known is None:
-            raise
-        code, reason = known
-        raise Refusal(code, reason.format(folder=folder) + "; nothing was touched", folder=str(folder),
-                      winerror=error.winerror) from None
+        winerror = getattr(error, "winerror", None)
+        if winerror == GONE:
+            return False
+        code, reason = REFUSED_RENAME.get(winerror, ("rename-failed", "Windows refused to rename {folder}: {text}"))
+        raise Refusal(code, reason.format(folder=folder, removing=removing, text=error.strerror) + "; nothing was touched",
+                      folder=str(folder), winerror=winerror) from None
+    return True
 
 
 def remove_worktree_folder(repo, folder):
     """Rename `folder` to its name plus `.gc-removing`, delete it, and run `git worktree prune` in `repo`.
     A leftover `.gc-removing` folder is deleted first; with no folder left, the folder counts as removed.
 
-    Answer `{"folder", "result", "seconds"}`, `result` `removed`. Refuse `not-windows` elsewhere, before any touch."""
+    Answer `{"folder", "result", "seconds"}`, `result` `removed` or `already gone`.
+    Refuse `not-windows` elsewhere, before any touch, and the code of a refused rename."""
     if not WINDOWS:
         raise Refusal("not-windows", "gc deletes a worktree folder on Windows only; nothing was touched", folder=str(folder))
     start = time.monotonic()
     removing = Path(str(folder) + REMOVING_SUFFIX)
-    if removing.is_dir():
+    resumed = removing.is_dir()
+    if resumed:
         _delete(removing)  # The leftover of a delete that stopped half way: finish it first.
-    if os.path.lexists(folder):
-        _rename(folder, removing)
+    if resumed and not os.path.lexists(folder):
+        result = "removed"
+    elif _rename(folder, removing):
         _delete(removing)
+        result = "removed"
+    else:
+        result = "already gone"
     _prune(repo)
-    return {"folder": str(folder), "result": "removed", "seconds": round(time.monotonic() - start, 2)}
+    return {"folder": str(folder), "result": result, "seconds": round(time.monotonic() - start, 2)}
