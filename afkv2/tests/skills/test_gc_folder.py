@@ -195,3 +195,25 @@ def test_any_other_rename_error_refuses_rename_failed_with_the_windows_text(repo
     assert "The system cannot find the path specified" in refused.value.reason
     assert refused.value.extra["winerror"] == 3
     assert repo.run.resolve() in known_worktrees(repo)
+
+
+@windows_only
+def test_a_delete_that_fails_refuses_delete_failed_and_keeps_the_leftover_for_the_next_run(repo):
+    leftover = leftover_of(repo.run)
+    (leftover / "held.txt").parent.mkdir()
+    (leftover / "held.txt").write_text("held\n", encoding="utf-8")
+    before = entries(repo.run)
+
+    with open(leftover / "held.txt", "rb"), pytest.raises(Refusal) as refused:
+        folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert refused.value.code == "delete-failed"
+    assert refused.value.extra["folder"] == str(leftover)
+    assert leftover.is_dir()
+    assert entries(repo.run) == before
+    assert repo.run.resolve() in known_worktrees(repo)
+
+    answer = folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert answer["result"] == "removed"
+    assert not leftover.exists() and not repo.run.exists()

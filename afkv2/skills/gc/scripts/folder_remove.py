@@ -28,8 +28,14 @@ def _make_writable_and_retry(function, path, error):
     function(path)
 
 
-def _delete(folder):
-    shutil.rmtree(folder, onexc=_make_writable_and_retry)
+def _delete(removing):
+    """Delete a `.gc-removing` folder. A delete that stops half way keeps the rest of it for the next run."""
+    try:
+        shutil.rmtree(removing, onexc=_make_writable_and_retry)
+    except OSError as error:
+        raise Refusal("delete-failed", f"the delete of {removing} stopped: {error.strerror} ({error.filename}); "
+                                       "close what uses it and run gc again to finish it",
+                      folder=str(removing), winerror=getattr(error, "winerror", None)) from None
 
 
 def _prune(repo):
