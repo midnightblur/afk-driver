@@ -120,7 +120,7 @@ def _decided_fields(item_id, decided, known_ids):
     return fields, whole
 
 
-def _item(raw, known_ids, degraded):
+def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
     if not isinstance(raw, dict) or not raw.get("id"):
         raise Refusal("bad-item", f"item without an id: {raw!r}")
     item_id = raw["id"]
@@ -156,12 +156,10 @@ def _item(raw, known_ids, degraded):
         raise Refusal("no-picture", f"{where}: a critical-aspect question needs a picture of the current state "
                                     f"as the body root, above the question; the root is {body['type']!r}")
     carries = raw.get("carries") or []
-    if not set(carries) <= known_ids:
-        raise Refusal("bad-item", f"{where}: carries an unknown card: {sorted(set(carries) - known_ids)}")
-    if carries:
-        body["children"] = [*(body.get("children") or []), _text(f"Carries {', '.join(carries)}.", f"{item_id}-carries")]
+    if not set(carries) <= earlier_cards:
+        raise Refusal("bad-item", f"{where}: carries no card of an earlier round: {sorted(set(carries) - earlier_cards)}")
     item = {"id": item_id, "kind": kind, "state": state, "body": body}
-    for optional in ("title", "node"):
+    for optional in ("title", "node", "carries"):
         if raw.get(optional):
             item[optional] = raw[optional]
     return item
@@ -198,7 +196,11 @@ def _ticket_card(ticket):
 
 
 def _carries_card(item, card_id):
-    """True when the item states that it carries the card; a mention in other text or in depends-on carries nothing."""
+    """True when the item states that it carries the card; a mention in other text or in depends-on carries nothing.
+
+    The `carries` field states it. A card built before that field states it in its text component `<id>-carries`."""
+    if card_id in (item.get("carries") or []):
+        return True
     stated = next((c for c in _components(item["body"]) if c.get("id") == f"{item['id']}-carries"), {})
     return re.search(rf"(?<![\w-]){re.escape(card_id)}(?![\w-])", (stated.get("props") or {}).get("text", "")) is not None
 
@@ -325,7 +327,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     raw_items = round_input.get("items") or []
     known = used | {raw.get("id") for raw in raw_items if isinstance(raw, dict)}
     degraded = []
-    items = [_item(raw, known, degraded) for raw in raw_items]
+    earlier = frozenset(item["id"] for rnd in doc["rounds"] for item in rnd["items"])
+    items = [_item(raw, known, degraded, earlier) for raw in raw_items]
     if doc["rounds"]:
         _close_current(doc, items)
     elif ticket and ticket.get("key"):

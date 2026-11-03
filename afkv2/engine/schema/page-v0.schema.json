@@ -79,6 +79,7 @@
         "kind": {"enum": ["decided", "confirm", "debate", "signoff", "info"]},
         "title": {"type": ["string", "null"], "minLength": 1, "maxLength": 90},
         "node": {"type": ["string", "null"]},
+        "carries": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}},
         "state": {"enum": ["open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"]},
         "body": {"$ref": "#/$defs/component"},
         "settled": {"$ref": "#/$defs/settled"},

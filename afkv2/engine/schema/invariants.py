@@ -51,6 +51,7 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
                               f"{', '.join(RESERVED_PREFIXES)}")
               for identifier, path in ids.items() if identifier.startswith(RESERVED_PREFIXES)]
     note_ids: set[str] = set()
+    card_round = {item["id"]: round_["n"] for round_ in rounds for item in round_["items"]}
     for r, round_ in enumerate(rounds):
         where = ("rounds", r)
         found += _responses(doc["session"]["id"], round_, where)
@@ -60,6 +61,9 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
                     found.append(((*where, "replies", p, "about", a), f"{target!r} resolves to no element"))
         for i, item in enumerate(round_["items"]):
             found += _item((*where, "items", i), item, ids, nodes, last, note_ids)
+            found += [((*where, "items", i, "carries", c), f"{old!r} is no card of an earlier round")
+                      for c, old in enumerate(item.get("carries") or [])
+                      if card_round.get(old, round_["n"]) >= round_["n"]]
     return found
 
 
