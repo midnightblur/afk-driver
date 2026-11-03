@@ -61,13 +61,17 @@ def _rename(folder, removing):
 
 def remove_worktree_folder(repo, folder):
     """Rename `folder` to its name plus `.gc-removing`, delete it, and run `git worktree prune` in `repo`.
+    A leftover `.gc-removing` folder is deleted first; with no folder left, the folder counts as removed.
 
     Answer `{"folder", "result", "seconds"}`, `result` `removed`. Refuse `not-windows` elsewhere, before any touch."""
     if not WINDOWS:
         raise Refusal("not-windows", "gc deletes a worktree folder on Windows only; nothing was touched", folder=str(folder))
     start = time.monotonic()
     removing = Path(str(folder) + REMOVING_SUFFIX)
-    _rename(folder, removing)
-    _delete(removing)
+    if removing.is_dir():
+        _delete(removing)  # The leftover of a delete that stopped half way: finish it first.
+    if os.path.lexists(folder):
+        _rename(folder, removing)
+        _delete(removing)
     _prune(repo)
     return {"folder": str(folder), "result": "removed", "seconds": round(time.monotonic() - start, 2)}

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import stat
+import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -123,3 +123,34 @@ def test_a_folder_in_use_refuses_by_its_windows_error_and_every_entry_stays(repo
     assert not Path(str(repo.run) + folder_remove.REMOVING_SUFFIX).exists()
     assert repo.run.resolve() in known_worktrees(repo)
     assert git(repo.main, "branch", "--list", repo.run_branch)
+
+
+def leftover_of(folder):
+    return Path(str(folder) + folder_remove.REMOVING_SUFFIX)
+
+
+@windows_only
+def test_a_leftover_folder_is_deleted_before_the_rename(repo):
+    leftover = leftover_of(repo.run)
+    read_only(leftover / "half" / "deleted.txt")
+
+    answer = folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert answer["result"] == "removed"
+    assert not repo.run.exists()
+    assert not leftover.exists()
+    assert repo.run.resolve() not in known_worktrees(repo)
+
+
+@windows_only
+def test_a_leftover_with_no_folder_left_is_deleted_and_the_folder_counts_as_removed(repo):
+    read_only(repo.run / "plan" / "locked.md")
+    leftover = leftover_of(repo.run)
+    os.rename(repo.run, leftover)
+
+    answer = folder_remove.remove_worktree_folder(repo.main, repo.run)
+
+    assert answer["result"] == "removed"
+    assert isinstance(answer["seconds"], float)
+    assert not leftover.exists()
+    assert repo.run.resolve() not in known_worktrees(repo)
