@@ -409,6 +409,13 @@ def first_round(world):
     return started
 
 
+def test_the_ticket_text_is_markdown_and_folds_when_long():
+    short = rd._ticket_card({"key": "K-1", "description": "**Pain.** It hurts."})["body"]["children"][0]
+    assert short["props"] == {"text": "**Pain.** It hurts.", "markdown": True} and "fold" not in short
+    long = rd._ticket_card({"key": "K-1", "description": "word " * 121})["body"]["children"][0]
+    assert long["fold"] == "The ticket text" and long["props"]["markdown"] is True
+
+
 def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     started = first_round(world)
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
@@ -419,6 +426,9 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     shown = json.dumps(ticket_card)
     assert ticket_card["kind"] == "info" and "What about cancelled orders?" in shown and "PROJ-2" in shown
     assert doc["rounds"][0]["items"][2]["title"] == "The file format" and "title" not in doc["rounds"][0]["items"][1]
+    links = next(c for c in ticket_card["body"]["children"] if c["id"] == "i-ticket-links")["props"]
+    assert links["columns"] == ["Relation", "Ticket", "Title", "Status"] and "Archive closed orders." not in shown
+    assert ticket_card["title"] == "What the ticket says"
     check_document(doc)
 
     raw = "i-scope: accept\ni-format: note: csv please, \"quoted\" é\n"
