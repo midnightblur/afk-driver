@@ -11,3 +11,12 @@ The owner runs this check (plan decision D-S-8). It needs afkv2 enabled in the g
 7. Repeat steps 2 to 4, and wait 10 minutes before Send.
 
 A failure at step 4 means the fallback in the skill's step 6, one chat message after Send. Report it to the owner of the plan.
+
+## Side question on Codex
+
+Run Codex in a herdr pane. The Stop hook types `/side <question>` into that pane and reads no answer yet.
+
+1. Show a round as in steps 1 and 2. On the page, click btw?, type one question, and click Ask.
+2. Expected: the Codex pane shows `/side <question>` typed and submitted while the Stop hook waits, and a side chat opens. The page shows "Asked in the Codex side chat. Read the answer in the terminal." The agent starts no new turn.
+3. Record with `herdr pane read <pane>`: the line that shows the question, the answer lines, the line that marks the end of the answer, and the key that closes the side chat.
+4. Give the record to the owner of the plan. The answer is read only after its markers are in `HARNESSES["codex"]` of `engine/side_question.py` (plugin root).
