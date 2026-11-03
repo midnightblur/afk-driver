@@ -62,6 +62,8 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/round_document.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
    ```
 
+   `build` also writes `session.links`, so the page links each ticket, change and commit reference. It takes the templates from the config, the `origin` remote and the Jira base URL of the tracker port (`scripts/page_links.py`), and leaves out a kind it cannot find.
+
    ```sh step=present
    <python> "<this skill's folder>/scripts/page_round.py" present --doc "<doc>"
    ```

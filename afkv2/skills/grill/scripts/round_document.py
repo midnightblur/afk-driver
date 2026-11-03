@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import Parser, Refusal, read_json, serve, write_json, write_text
+from page_links import links_for
 
 SCHEMA = "afkv2.page/0"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
@@ -197,10 +198,17 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
     return item
 
 
+def reference(key):
+    """A ticket key as the page writes it: a GitHub issue number gets `#`, so the page links it."""
+    key = str(key or "")
+    return f"#{key}" if key.isdigit() else key
+
+
 def _ticket_card(ticket):
     """The info card that shows what the ticket says, comments and links included.
 
     The description is Markdown, folded when it is long. A linked ticket shows its title and status only.
+    Each key is a reference, so the page links the ticket and each linked ticket.
     """
     description = _text(ticket.get("description") or "(no description)", f"{TICKET_CARD}-description")
     description["props"]["markdown"] = True
@@ -216,15 +224,15 @@ def _ticket_card(ticket):
     if ticket.get("links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-links", "props": {
             "columns": ["Relation", "Ticket", "Title", "Status"],
-            "rows": [[link.get("relation") or "", link.get("key") or "", link.get("title") or "",
+            "rows": [[link.get("relation") or "", reference(link.get("key")), link.get("title") or "",
                       link.get("status") or ""] for link in ticket["links"]]}})
     if ticket.get("unread_links"):
         children.append({"type": "table", "id": f"{TICKET_CARD}-unread", "props": {
             "columns": ["Ticket not read", "Reason"],
-            "rows": [[link.get("key") or "", link.get("reason") or ""] for link in ticket["unread_links"]]}})
+            "rows": [[reference(link.get("key")), link.get("reason") or ""] for link in ticket["unread_links"]]}})
     return {"id": TICKET_CARD, "kind": "info", "title": TICKET_TITLE, "state": "open", "body": {
         "type": "text", "id": f"{TICKET_CARD}-title",
-        "props": {"text": f"{ticket['key']}: {ticket.get('title') or ''}"}, "children": children}}
+        "props": {"text": f"{reference(ticket['key'])}: {ticket.get('title') or ''}"}, "children": children}}
 
 
 def _carries_card(item, card_id):
@@ -323,13 +331,14 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
-def build_round_document(doc_path, session, round_input, ticket=None, replace=False):
+def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
     `round_input` holds banner, items and optional maps, replies, colour. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
+    `links` replaces `session.links`, the URL templates the page links references with.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -352,6 +361,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         doc = {"schema": SCHEMA, "session": {**session, "started": started}, "maps": [], "rounds": []}
     if replace:
         _drop_unanswered_round(doc, doc_path)
+    if links:
+        doc["session"]["links"] = links
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
@@ -486,7 +497,10 @@ def main(argv):
         ticket = read_json(args.ticket_file) if args.ticket_file else None
         feature = Path(args.doc).parent.parent.name
         session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
-        return build_round_document(args.doc, session, round_input, ticket, args.replace)
+        earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
+        keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
+                                                             *((ticket or {}).get("unread_links") or [])])]
+        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier))
     if not args.readings:
         raise Refusal("usage", "apply-readings needs --readings", 2)
     return apply_readings(args.doc, read_json(args.readings))
