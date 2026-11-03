@@ -1,0 +1,3089 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261102-220100",
+    "skill": "grill",
+    "feature": "158",
+    "ticket": "158",
+    "started": "2026-11-02T22:09:52Z"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-scope",
+      "props": {
+        "title": "What /afkv2:gc must settle",
+        "nodes": [
+          {
+            "id": "n-gc",
+            "label": "/afkv2:gc on the current feature",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-find",
+            "label": "Find the current feature",
+            "state": "open",
+            "round": 4
+          },
+          {
+            "id": "n-merged",
+            "label": "Confirm the change merged",
+            "state": "settled",
+            "round": 4
+          },
+          {
+            "id": "n-record",
+            "label": "Branches: how they are deleted",
+            "state": "open",
+            "round": 4
+          },
+          {
+            "id": "n-worktree",
+            "label": "Worktrees: the in-use check",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "n-remote",
+            "label": "Remote branches",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "n-consent",
+            "label": "When the agent asks",
+            "state": "open",
+            "round": 3
+          },
+          {
+            "id": "n-report",
+            "label": "The report",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-tips",
+            "label": "Tooltips: moved to #159",
+            "state": "settled",
+            "round": 3
+          }
+        ],
+        "edges": [
+          {
+            "from": "n-gc",
+            "to": "n-find"
+          },
+          {
+            "from": "n-find",
+            "to": "n-merged"
+          },
+          {
+            "from": "n-merged",
+            "to": "n-record"
+          },
+          {
+            "from": "n-merged",
+            "to": "n-worktree"
+          },
+          {
+            "from": "n-merged",
+            "to": "n-remote"
+          },
+          {
+            "from": "n-gc",
+            "to": "n-consent"
+          },
+          {
+            "from": "n-record",
+            "to": "n-report"
+          },
+          {
+            "from": "n-worktree",
+            "to": "n-report"
+          },
+          {
+            "from": "n-remote",
+            "to": "n-report"
+          },
+          {
+            "from": "n-gc",
+            "to": "n-tips"
+          }
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "What gc does with the run's record",
+          "What gc must touch to work at all",
+          "When gc refuses"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "158: afkv2: /afkv2:gc removes a merged feature's run branch"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "Part 1 of `/afkv2:gc`. Built with the installed afkv2 beta on **Claude** (dogfood run, #153, AC-001).\n\n**Pain.** After a feature's change merges, its run branch (`<feature branch>-run`, which holds `plan/`) stays forever. A person deletes it by hand, or nobody does.\n\n**Want.** `/afkv2:gc <ticket key>` removes the run branch, local and remote, after it confirms the change merged. It refuses when the change is not merged, and it reports what it removed.\n\n**Out.** Worktrees and the feature branch (part 2). Spec folder content.\n"
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-ticket-links",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Ticket",
+                    "Title",
+                    "Status",
+                    "Description"
+                  ],
+                  "rows": [
+                    [
+                      "named in this ticket",
+                      "153",
+                      "AGENTS.md: afkv2 2.0 beta - lean rewrite scope (decisions 1-98)",
+                      "OPEN",
+                      "## Summary\nTrack the afkv2 (AFK 2.0 beta) rewrite as one ticket. v1 is too heavy: most merged changes repair the plugin's own machinery. afkv2 is a lean, generic rewrite (Claude Code + Codex, Windows only), built beside v1 so both install side by side. This issue holds the settled scope: owner decisions 1-98, the scope map, the tiers, the P0 division, the build layout, and the friction switches used during the build.\n\n## Goal\nDemo the v2.0 main flow and developer experience in about 1 week (decision 85). Build the core first (P0) so v2 can build its own rest (P1). Side items go to 2.1. Next step: a `/afk:grill-requirements` session treats this issue as the ticket, grills only the gaps, then the normal chain (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:autopilot`) builds it.\n\n## Current context\nScope came from 8 review rounds on a lavish decision page (2026-10-27 to 2026-10-28). Decisions 1-98 below are binding; do not reopen them.\n\n**Tiers**\n- P0 (days 1-3, 3 parallel sessions, v1 autopilot with the friction switches): core behavior block; setup; manifests; grill-requirements; to-spec (local PRD); propose-solution (with a slot for a second provider); to-subtasks; autopilot + execute (serial, TDD); code-review cap 3; create-change-request + CI watch; gc; forge port; redaction + release gate port; Jira read; evals (core block + 1 chain smoke run on Claude and Codex, decision 95).\n- P1 (days 4-6, built by v2 itself): visualize (incl. prototype logic); durable tooltips + coverage audit; propose-verification; to-meeting family; agent-pane port + 2-provider design in both propose- skills.\n- 2.1: explain; help; research; write-skill; handoff; Jira write + ADF round-trip proof; guard cost eval; and the other 2.1 items in the map.\n\n**P0 division (approved, decision 91)**\n- S1: 01 skeleton/manifests, 02 core block, 03 setup, 04 eval harness.\n- S2: 05 grill, 06 to-spec, 07 propose-solution, 08 to-subtasks.\n- S3: 09 forge port, 10 autopilot + execute, 11 code-review, 12 change request + CI watch + gc.\n- S4: 13 chain smoke run, after S1-S3 merge.\n\n**Layout (agent two-way-door decisions)**\n- Integration branch `afkv2` under the `feat` prefix (its own worktree in the sibling worktree root, cut from `main`).\n- The v2 tree lives in a top-level folder named `afkv2` with its own manifests; v1 at the repository root stays untouched.\n- Session branches feat-prefixed `afkv2-s1`, `afkv2-s2`, `afkv2-s3` open Draft PRs into the integration branch.\n\n**Friction switches during the build (decision 88; applied on owner approval, decision 92)**\n- A launcher script sets these to 1: `AFK_ALLOW_PROTECTED`, `AFK_SKIP_PRECOMMIT_GATES`, `AFK_SKIP_BRANCH_CHECK`, `COMMENT_GATE_DISABLE`, `NESTED_STEERING_DISABLE`, `LESSON_LEDGER_DISABLE`, `GATE_METRICS_DISABLE`, `GATE_CACHE_DISABLE`.\n- The `afk:behaviors` block in both user instruction files is replaced by the interim block below. `SessionStart` is removed from both cached plugin `hooks.json` files (1.16.0); a plugin update restores it.\n- `git config afk.branchNameGate false` (run by the owner).\n- v1 review settle cap is 10 and hard-coded (`skills/afk/review/SETTLEMENT.md`), so session prompts cap review at round 3.\n\n**Open**\n- Q26: the live demo ticket (owner gives it before day 5).\n- Gaps for the grill: detailed per-skill behavior, worked examples (decision 38), lane-choice rule, design aspect list, eval harness shape.\n\n## Expected\nafkv2 2.0 beta: a lean, generic plugin that a team in any repository can adopt. It runs requirements → design → plan → hands-off build → ship with proof, keeps the human aware, and decides two-way doors itself. Design rules: instruction first; a custom hook < 50 ms and never parses shell; every skill ships a live-agent eval; always-loaded text ≤ 200 lines; one fact, one home.\n\n## Actual\nv1 (1.16.0) is about 97k lines: skills 29.5k, scripts 41.8k, hooks 13.3k, adapters 5.7k, root docs 6.4k; 46 SKILL.md files. 65 merges in 30 days; about 75-85% of merged PRs repair the plugin's own machinery (inferred from PR titles, not a full audit). Guards and gates add friction to most runs (decision 4: the protected-branch guard \"almost always blocks work\").\n\n## Steps to reproduce\n1. In a session launched with the friction switches, inside the integration-branch worktree, run `/afk:grill-requirements` with this issue as the ticket.\n2. Treat decisions 1-98 as settled input; grill only the gaps under \"Open\".\n3. `/afk:to-prd`, then `/afk:to-subtasks` into 4 plan dirs (S1-S3 parallel, S4 smoke), then `/afk:autopilot <plan dir>` per session.\n\n## Evidence\n<details><summary>Owner decisions 1-98 and design rules\n</summary>\n\n# AFK 2.0 — owner decisions and design rules (input for every research brief)\n\nOwner decisions (2026-10-27, binding, do not reopen):\n1. Rewrite (new tree, new branch/worktree in the afk-driver repo). v2 = 2.0 beta channel; v1 stays stable. Both may install as 2 plugins.\n2. Windows only. Drop all Linux, WSL and macOS support.\n3. Worktrees never nested inside the main checkout. One root per repo: sibling folder `<repo path>-worktrees` (e.g. a repo folder gets a sibling folder with the suffix -worktrees).\n4. Main checkout stays clean, not even untracked files. The goal is \"no unrelated changes mixed on one branch/checkout\"; protected or not does not matter. Agents work in a new worktree (same or different branch) or write files outside the checkout until the work solidifies. Exceptions exist (e.g. /afk:setup runs in the main checkout). The current protected-branch guard \"almost always blocks work\" — replace it.\n5. Save local PC resources. Compile, lint, unit tests run selectively on what changed. Full suite only at the final gate. If CI can run it, CI runs it; agents may trigger manual CI jobs.\n6. Commit gates move to the final/completion stages. Agents commit often (easy rollback, self-contained changes). A Draft MR/PR is always safe (worktree enforced, human merges).\n7. Diagrams + text both kept; all are text with a popular renderer (Mermaid etc.), no images/PDF; updated together, never drift.\n8. Lavish tooltips: every id of in-development plan items (use cases, tests, constraints, ...) must show a tooltip; tips are part of the page's data structure (afk's own workflow terms excepted). Issue #111.\n9. \"Jev\" (a typed AI decision model) for quick decisions: subtask done?, can a subtask start?, complexity, model selection, subagent vs inline.\n10. Jira is Cloud.\n11. Skills rebuilt from Matt Pocock's skills (the mattpocock skills repository on GitHub) as baseline; our extras re-added only with a clear goal.\n12. Repo-specific things (verification framework, build commands, formatter, linter) belong to the repo. The plugin helps establish, develop, and use them.\n13. New-adopter skills for brand-new repos (build glossaries, nested AGENTS.md).\n14. Grill only requirements. Solution design and verification design = agent proposes a complete plan, human vets and adjusts.\n15. Prototype covers logic and architecture, not only UI.\n16. Cross-model adversarial review for planning and other critical phases when 2 providers exist.\n17. Visualization is core; diagrams are durable and load-bearing spec.\n18. Behaviors: Simplified Technical English; max autonomy (verify instead of ask; decide two-way doors; ask only for irreversible, catastrophic or load-bearing); honest about unverified; critical consultant stance; commit often; environment awareness (hook failures, resource use).\n\nOwner decisions round 2 (2026-10-28, from review-page notes; binding):\n19. Generic plugin: wider rollout (other teams, other repos). Nothing names a specific product, repository or team; team-specific items become repo config or repo staples (e.g. Envers, deep-link, roles stay as that repository's staples and stay in the plan process).\n20. Forges: GitHub and GitLab. Drop notes adapters (Notion, Obsidian).\n21. Plugin name `afkv2` (if valid). Do not fork Matt; use his repo as a reference. Take Matt's names where his skill is the baseline, except where the name misleads (subtasks stay local, not tickets).\n22. Remove: todo, understand (owner leaning), to-design-brief (use to-meeting), wait-what (STE is core), uncited mode, wave + 1devtool from setup. Keep /afk:help (ask-matt) for onboarding.\n23. Autopilot is the only entry for implementation (no single-subtask execute by hand).\n24. After ship, same session: agent suggests retro, then gc; gc must work from the same session.\n25. Review: agent picks the review concerns per subtask (no presets, no human sign-off); defer a check when it costs no more later; fix critical/high, log medium/low for later; cap 3 rounds, then agent decides to record the rest and move on.\n26. Human approves the subtask division (scope, coverage, order). Visualize where each subtask sits in the design.\n27. Parallel subtasks wanted if feasible: own worktree each; heavy ops (build, compile, test, live app) coordinated so they do not run at once; reasoning/writing runs in parallel; slicing optimizes for parallel speed.\n28. CI: offload heavy work, but never break a protected branch's CI; feature-branch CI red is OK. Do not wait on CI; keep working and watch it. PACT (manual, allowed-to-fail) must be triggered and must pass. Failures outside our ownership do not block; check upstream for a fix. This CI practice is a core behavior, not workflow-only.\n29. Prefer least-destructive git: pull/merge and resolve conflicts, not rebase (rebase breaks referenced commit ids).\n30. Rationale comments are resolved at once so they never block merge.\n31. create-change-request skill: Draft, description practice, per-person asks to assignee and each reviewer, proofs, mergeability case, self-critique loop; stacked MRs and PRs, esp. for other teams' code we depend on.\n32. Good-guest behavior (core): know the human's ownership; outside it keep diffs minimal, follow their standards, no plan-internal references, no cold ticket links — brief the facts in the MR.\n33. Unverified premises must be verified before the plan locks (live build, live agents if needed); else flag to the human with options and trade-offs. Autopilot must be truly autopilot.\n34. Every instruction must prove its effect (eval with vs without). No instruction for what agents do anyway. Glossaries are built with multi-model, multi-round debate.\n35. Rewrite all text to STE, incl. writing-for-agents and README/supporting docs. Least-token writing; lazy-load per use case, in the plugin and in agent output.\n36. Adversarial review: other provider, or a higher-tier model of the same provider.\n37. Design docs: clear rationale; extra depth on entities and DB schema, API endpoints, public interfaces, high-blast-radius code.\n38. Requirements grill shows worked examples of high-value use cases (frequent, edge, risky), with sample data when the feature makes data.\n39. Jev postponed (explore later); fallback is LLM or a formula. Observability (time per unit, tokens, classifier quality, claim accuracy, slow-step alerts) wanted later, not critical.\n40. Setup: runs anywhere, always multi-repo; once for both Claude and Codex (prove by live test); asks for the Jira API token and stores it as v1 does; Jira goes through the ported v1 REST client, no acli (changed 2026-10-29, owner: \"no acli at all then. JIRA is working just perfectly in v1\"); v2 install cleans up v1 artifacts. v2 = one worktree root per repo (v1 setup-per-repo has one root for all repos).\n41. Plugin repo practice: track vendor guidelines (Anthropic, OpenAI) to stay current.\n42. Lavish: highlight what changed since the last round and recall the human's earlier notes.\n43. While v2 is built, v1 stays on: disable now what v2 cuts, inject replacement instructions; owner runs any waiver/setup needed.\n44. Small lane workflow for small features and fixes (existing small-lane branch) folds into v2.\n45. A parked subtask is a grill/plan failure: record it for retro.\n46. Review cap 3 (Q6). Drop investigation ledger, but log how often agent claims later prove wrong (Q3).\n\nOwner decisions round 3 (2026-10-28, page notes):\n47. Wording in plugin text is critical (future agents consume it).\n48. Many branches per feature → branch cleanup (local + remote, every branch the run made) is part of the process.\n49. Design: before drafting, a short Q&A with the human on critical aspects (entities, relations, FKs, constraints, cascade first; agent adds others), then draft + fork cards (H2 #1 accepted).\n50. README credits Matt and lists 5-7 reasons this plugin exists (e.g. multi-team monorepo).\n51. CrowdStrike guard: instruction or script decided by a cost eval; script only if really cheap.\n52. to-meeting-* is a family of skills, not one.\n53. Every mechanism the plugin relies on (design system, glossaries, nested AGENTS.md, recipes, staples, ...) needs a create tool (adopt) and an update tool (ongoing use). Repos may lack a design system.\n54. Track all emerging scope as a wayfinder map; each item later gets its own AFK run (or combined). Wayfinder must behave this way.\n55. Tooltip fix must be durable in lavish, not one-off.\n56. Three lanes: large (wayfinder), medium (current chain), small.\n57. Ownership is graded: own / shared / not owned (e.g. a team owns some modules, shares some with another group, owns none of several others). CODEOWNERS alone is not enough.\n58. Shared collaboration branches (unprotected, multi-team integration): CI must stay passable at all times; agents may suggest protecting them.\n59. Owner develops v2 and needs v1 and v2 side by side: v1 cleanup must not break that.\n60. Setup must avoid Windows resolving `bash` to the WSL launcher.\n61. UX staple: agents drive the live app and judge polish (ambiguity, layout, inconsistency, confusion, non-intuitive); API UX: clarity, side effects, endpoint choice, response sufficiency, error codes, actionable errors.\n62. Grill round 0 (optional): the human brain-dumps their own reading of the ticket; agents investigate in the background meanwhile; the dump is unverified input.\n63. Reading a ticket = description + comments + linked tickets + other useful context, in every skill.\n64. New skills: meeting transcript → ticket summary; write-skill (vendor skill-creator guidance + AFK standards).\n65. visualize is the central home for all visualization, incl. lavish pages.\n66. Adversarial review via agent-pane (other provider / higher tier), not codex-plugin-cc; learn from its prompt.\n67. Concurrent features on one machine: separate build setups per feature (e.g. Maven repo per feature), set up per repo per stack in setup/adopt.\n68. Skeleton first, but split an oversized skeleton; subtask size stays in the agent's smart zone (~< 300k tokens).\n69. Worktrees in a large repo are costly (CPU, time, disk): the run-branch design must not add a full checkout.\n70. Browser driver: Playwright MCP + Edge, isolated (Q15). rg may be installed for measurement; if rg is a big win with no big loss, use it; mix tools per job.\n\nRound 4 (2026-10-28, 15 page notes):\n71. explain replaces understand (Q16 yes).\n72. Small lane takes bugs and small enhancements (Q17).\n73. Run files live on an orphan run branch (Q19 yes).\n74. v2 ships no bash scripts: Python + PowerShell only; Git Bash by full path where unavoidable (Q20 yes).\n75. v1 cleanup is an explicit opt-in command (Q21 yes); owner: not needed if v2 ships in 1 week.\n76. Unit-test agent: the agent decides per subtask, interface first (Q22 yes; round-3 row 3 ok).\n77. H2 #1-#4 accepted as written in round 3.\n78. Owner target: deliver v2 in about 1 week, in one medium-lane run; owner asks for an assessment of the scope against that target.\n79. Owner asks for research: how architects and senior engineers raise AI-agent design quality in brownfield complex software (feeds W6).\n\nRound 5 (2026-10-28, 12 page notes):\n80. Week-1 cut accepted (Q23), with the owner's moves in decision 84.\n81. Build method (b): plan written from the page, 3 parallel sessions on days 1-3, then v2 builds its own rest (Q24).\n82. Port proven v1 scripts in week 1; rewrite only skill text, Matt as reference (Q27).\n83. Q28 (3 design-quality lines from the research) discarded by the owner: \"this is not what I want\".\n84. Moved into 2.0 beta: propose-verification + prototype logic; visualize skill; durable tooltips + coverage audit; explain, to-meeting family, write-skill, research, help; Jira write + ADF round-trip proof; guard cost eval.\n85. Goal: demo afk workflow v2.0 in 1 week, focused on the main flow and the developer experience. Side items go to 2.1. Core first, so v2 can build itself afterward.\nQ26 (live-test ticket): owner gives it later. Q25 (week-1 evals): unanswered.\n\nRound 6 (2026-10-28, 3 page notes):\n86. Core of the beta flow and experience: visualize, propose-verification, to-meeting. The other items moved in 84 go to 2.1 (durable tooltips, explain, help, research, write-skill, handoff, Jira write + ADF proof, guard cost eval).\n87. Research focus: designing new complex features in brownfield systems (Q31).\n88. Turn off every v1 friction the data shows (page card W; a PowerShell launcher script), instead of avoiding v1 autopilot.\n89. Q29 tiers answered by 86. Open: Q25 (agent takes yes unless objection), Q30, Q32 (who runs the 2 global switches), Q33 (3 plans, 3 sessions, v1 autopilot with switches), Q34 (3 design practices from research).\n\nRound 7 (2026-10-28, 5 page notes):\n90. Durable tooltips are core experience: back into P1.\n91. P0 subtask division approved (Q30).\n92. Global switches applied by the agent on \"apply\" (Q32), 2026-10-28: afk:behaviors block replaced by the interim block in the Claude and Codex user instruction files; SessionStart removed from both cached plugin hooks.json (1.16.0). Backups kept outside the repo. A plugin update restores the hooks.\n93. Build: 3 plans in v1 contract format, 3 sessions, v1 autopilot with the friction switches (Q33).\n94. Q34 discarded: keep the grill-solution approach in propose-solution. Both propose- skills: when several providers are available, summon both to design, discuss and reach agreement before presenting to the human.\n95. Q25 taken as yes (no objection in 3 rounds): week-1 evals = core block + 1 chain smoke run on Claude and Codex.\n\nRound 8 (2026-10-28, 3 page notes):\n96. Pushback on \"reach agreement\" accepted (round-7 row 5).\n97. 2-provider design lands in P1 with the agent-pane port; P0 builds propose-solution with a slot for the second provider (Q35 b).\n98. 2-provider protocol: each drafts alone, each critiques the other, then reconcile; a lasting disagreement becomes a fork card for the human (Q36).\nAgent decisions (two-way doors, recorded here): integration branch afkv2 under the feat prefix (its own worktree in the sibling worktree root, cut from main at fb15eefc); the v2 plugin tree lives in a top-level folder named afkv2 on that branch with its own manifests, so v1 at the root stays untouched and both install side by side; session branches afkv2-s1 to afkv2-s3 (feat prefix) branch from it and open Draft PRs into it; the chain smoke run is its own plan (s4) after the 3 merge.\n\nDesign rules (agent proposal, adopted as working rules):\n- Instruction first. Hard enforcement only where a failure is irreversible or catastrophic; prefer native forge protection / harness deny rules / sandbox over custom hooks; a custom hook must be < 50 ms and must not parse shell.\n- Every skill ships a live-agent eval (Claude + Codex).\n- Always-loaded instruction text ≤ 200 lines; SKILL.md small, siblings on demand.\n- One fact, one home.\n\n</details>\n\n<details><summary>Scope map (wayfinder, draft 5; round 7-8 changes are in Current context)</summary>\n\n# AFK v2 (afkv2) — scope map, draft 5 (2026-10-28)\n\nShape: wayfinder map. One row per workstream (W). Each W later becomes one AFK run, or a few W combine into one run.\nDecisions: numbers refer to the owner decisions above. Supersedes draft 1.\nStatus: `decided` = owner settled the direction; `open` = questions remain; `research` = facts needed first; `later` = parked by the owner.\n\n## Destination\n\nafkv2 2.0 beta: a lean, generic plugin (Claude + Codex, Windows only) that a team in any repo can adopt. It runs requirements → design → plan → hands-off build → ship with proof, keeps the human aware of everything, and decides two-way doors itself.\n\n## Run order\n\n```mermaid\nflowchart LR\n  W19[W19 v2 build run setup] --> W17[W17 plugin repo practice + evals]\n  W17 --> W1[W1 core behaviors]\n  W17 --> W2[W2 setup]\n  W1 --> W5\n  W2 --> W3[W3 adopt toolkit]\n  W8[W8 lavish] --> W7[W7 visualize]\n  W7 --> W5[W5 requirements grill]\n  W5 --> W6[W6 design]\n  W6 --> W9[W9 planning]\n  W9 --> W10[W10 autopilot]\n  W11[W11 quality] --> W10\n  W10 --> W12[W12 ship]\n  W12 --> W13[W13 after ship]\n  W4[W4 lanes] --> W5\n  W15[W15 integrations] --> W12\n  W16[W16 hard safety] --> W2\n  W14[W14 utilities]\n  W18[W18 observability, later]\n  W20[W20 Jev, later]\n```\n\n## Workstreams\n\n| W | Name | Status | Decided (decision #) | Open / research |\n|---|---|---|---|---|\n| W1 | Core behaviors (always-loaded block, ≤ 200 lines) | decided, open details | STE 18; autonomy, honesty, challenge 18 + memory; commit often 6; good guest 32, graded ownership 57; CI practice 28, collaboration branches 58; merge not rebase 29; verify premises 33; wording 47 | Background jobs: Claude wakes the agent, Codex does not (issue #32188) — two recipes; search tool choice (W1 ← rg result); ownership map source (repo config + CODEOWNERS); delivery = setup-written block in both user files |\n| W2 | Setup | decided, open details | anywhere + multi-repo 40; once for both harnesses 40; Jira via ported v1 REST, no acli 40; worktree root per repo 3; name afkv2 21/35; no Linux 2; avoid WSL bash 60; v1 + v2 side by side 59 | Live test proving one run serves both harnesses; v2 env prefix + paths that never collide with v1 (hooks are not namespaced); v1 cleanup as an explicit opt-in command; scripts in Python/PowerShell only (no bash) — Q20; rg install (pending benchmark) |\n| W3 | Adopt toolkit (create + update every repo mechanism) | decided | 12, 13, 53; glossaries by multi-model debate 34; AGENTS.md lines proven by eval 34; repo staples (product-specific staples stay in their repository) 19/70; per-feature build isolation 67 | Design-system builder for repos with none (feeds W7 mockup fidelity, note 68); recipe set names; ownership map format |\n| W4 | Lanes | decided | large = wayfinder, medium = full chain, small 56; small lane branch folds in 44 | Lane choice rule (proposal: small = 1 short grill round, no new entity, no public API change) |\n| W5 | Requirements grill | decided | grill only requirements 14; worked examples + sample data 38; round 0 brain dump 62; full ticket reading 63; decision fatigue balance 7 | Round 0 prompt wording; how staples get consulted generically |\n| W6 | Design (propose-solution, propose-verification) | decided | critical-aspect Q&A first, then draft + fork cards 49; rationale depth on schema, API, interfaces, blast radius 37; unverified premises verified before lock 33 | Aspect list beyond entities (proposal: API contract + compatibility, data migration, authorization, entity lifecycle/state, cross-team modules, large data); prototype logic/architecture 15 |\n| W7 | Visualize (central home) | decided | 7, 17, 65; one skill with lazy branches (diagram, examples, mockup, logic, page) H2 #5 | Mockup fidelity to the real app (note 68: design system vs method) |\n| W8 | Lavish | decided | tips as page data 8; durable fix 55; round-diff highlight 42; terms sourced from plugin glossary | v1 fix for #111 now, or v2 only? Coverage audit design |\n| W9 | Planning (to-subtasks) | decided | human approves division 26; design-map figure 26; skeleton first, split if too big, below 300k (decision 68); parallel width 27; agent picks review per subtask 25; no uncited mode 22 | Size estimate method (tokens per subtask) |\n| W10 | Autopilot + execution | decided, research | only entry 23; parallel subtasks + heavy-op lock 27; concurrent features isolation 67; parked = retro record 45; TDD many cycles; separate test agent for acceptance (+ unit when agent decides) Q22 | Maven: file-lock flags make a shared local Maven repository safe; SNAPSHOT `install` collisions need per-feature split; merge step for parallel branches (Matt implement-spec) |\n| W11 | Quality | decided | review cap 3, fix crit/high, log med/low 25/46; adversary via agent-pane, other provider or higher tier 36/66; verify-seams agent-only; UX review UI + API with live app 61; browser = Playwright MCP + Edge, isolated 70 | Learn from codex-plugin-cc adversarial prompt; UX review output shape |\n| W12 | Ship | decided | create-change-request with per-person asks, proofs, mergeability, self-critique 31; stacked changes 31 (GitHub GA; glab stack experimental → plain dependent MRs); rationale comments resolved 30; CI background watch, green at ship, PACT manual must pass, out-of-ownership failures do not block 28 | Final gate content list |\n| W13 | After ship | decided | retro then gc, same session 24; clean every branch + worktree the run made 48 | — (Q19 answered: 73) |\n| W14 | Utilities | decided | investigate, research, handoff, help 22, explain Q16, report-issue, create-worktree, agent-pane, to-meeting family 52, meeting transcript → ticket 64, write-skill 64; removed: todo, understand, to-design-brief, wait-what, caveman, mission-control | — (Q16 answered: 71) |\n| W15 | Integrations | decided | GitHub + GitLab 20; Jira Cloud via ported v1 REST client 10/40; no notes adapters 20 | REST ADF round-trip proof |\n| W16 | Hard safety | open | redaction, release gate in CI; CrowdStrike guard by cost eval 51 | Measure guard cost; instruction wording if not a script |\n| W17 | Plugin repo practice | decided | rewrite from Matt as reference, no fork 11/21; every instruction proven by a with/without eval 34; STE rewrite of all text incl. README 35/47; README \"why this plugin\" 50; size budgets in CI (lean stays lean); vendor guideline tracking 41; lazy-load writing 35 | Eval harness for Claude + Codex (T6) |\n| W18 | Observability | later | 39, 46: time per unit, tokens, slow-step alert, claim accuracy, classifier quality | — |\n| W19 | v2 build run (v1 stays on) | decided, owner action | 43; card I switches; interim block; tests.yml edit on v2 branch | Owner runs the checklist |\n| W20 | Jev | later | 9 → postponed 39 | — |\n\n## Week-1 target (round 4, decision 78)\n\nOwner wants v2 in about 1 week. Agent assessment (page card T): the whole map does not fit; a lean 2.0 beta with the medium lane does, if (1) scope is cut to the list below, (2) proven v1 scripts are ported (Q27), (3) the build is not 1 long v1 autopilot run (Q24).\n\nWeek 1 (2.0 beta): W19 owner switches; W1 full block; W2 install + worktree root + tool check + no collision with v1; W4 medium lane only; W5 grill (round 0, full ticket reading); W6 propose-solution (Q&A, draft, fork cards) + 3 design-quality lines (Q28); W7 and W8 keep v1 lavish wrapper; W9 to-subtasks (skeleton first, token budget); W10 autopilot + execute, serial subtasks, TDD; W11 code-review (cap 3); W12 create-change-request + CI watch, GitHub + GitLab; W13 gc minimal; W14 investigate + handoff (port); W15 forge adapters (port) + Jira read via ported v1 REST; W16 redaction + release gate (port); W17 2 manifests, STE, size budget, evals for core block + 1 chain smoke run (Q25).\n2.1 or later: W3 all; small + large lanes; propose-verification; visualize skill; durable tooltips; parallel subtasks + heavy-op lock; unit-test agent; adversary; UX review; verify-seams; stacked changes; retro; orphan run branch; explain, to-meeting family, write-skill, research, help; Jira write + ADF proof; guard cost eval; eval per instruction; v1 cleanup command; architecture-rule checks; parallel design candidates.\n\nDay plan: day 0 owner switches + answers; day 1 plan from decisions 1-79 (~10 subtasks), owner approves; days 1-3 three parallel sessions (core+setup+manifests / grill+design+plan / autopilot+review+change request+gc+forge port); day 4 v2 dogfoods its rest; days 5-6 live test on 1 small real ticket (Q26), Claude + Codex; day 7 buffer, tag beta.\n\n## Round 5: tiers (decisions 80-85)\n\nGoal (85): demo v2.0 main flow + developer experience in 1 week; core first so v2 builds itself. Cut accepted (80); build method (b) (81); port v1 scripts (82); Q28 discarded (83); owner moved into beta (84): propose-verification + prototype logic, visualize, durable tooltips + audit, explain, to-meeting family, write-skill, research, help, Jira write + ADF proof, guard cost eval.\n\n- P0 (days 1-3, 3 sessions; v1 reviews each PR): core block; setup; manifests; grill-requirements; propose-solution; to-spec (local PRD); to-subtasks; autopilot + execute (serial, TDD); code-review cap 3; create-change-request + CI watch; gc; forge port; redaction + release gate port; Jira read; core-block eval + 1 chain smoke run.\n- P1 (days 4-6, built by v2): visualize (incl. prototype logic); durable tooltips + coverage audit; propose-verification; explain; help; Jira write via ported v1 REST + ADF proof; investigate + handoff port.\n- P2 (below the cut line; slips to week 2 first): research; write-skill; to-meeting family; guard cost eval.\n- P0 division (page card V): S1 = 01 skeleton/manifests, 02 core block, 03 setup, 04 eval harness; S2 = 05 grill, 06 to-spec, 07 propose-solution, 08 to-subtasks; S3 = 09 forge port, 10 autopilot+execute, 11 code-review, 12 change request + CI watch + gc; 13 chain smoke run (all).\n\n## Round 6 (decisions 86-89)\n\n- P1 now = visualize (incl. prototype logic), propose-verification, to-meeting family. P2 removed; its items and the rest of decision 84 go to 2.1.\n- Build: 3 plans (S1, S2, S3) in v1 contract format, 3 Claude Code sessions, each runs v1 autopilot with the friction switches (a PowerShell launcher); review capped at 3 by plan + brief (v1 cap 10 has no config key).\n- Global switches (owner or agent on \"apply\"): replace afk:behaviors block with the interim block in both user files; remove SessionStart entries from cached hooks.json.\n- Research (page card U, round 6): ranks 2, 3, 5 proposed for the P0 design skill (patterns-to-follow section with cap; NEEDS-CLARIFICATION markers + check script; expand-only migrations).\n\n## Open questions now (round 6)\n\n- Q25 week-1 evals (agent takes yes unless objection). Q30 P0 division. Q32 who runs the global switches. Q33 build method with v1 autopilot + switches. Q34 3 design practices. Q26 demo ticket deferred.\n\n## Out of scope\n\n- Harnesses other than Claude Code and Codex. Linux, macOS, WSL.\n- Auto-merge. The human merges.\n\n</details>\n\n<details><summary>Interim behavior block (build only)</summary>\n\n<!-- afkv2-interim: paste into both user instruction files after removing the afk:behaviors block. Delete when afkv2 setup installs its own block. -->\n## AFK v2 interim rules (build run)\n\nWork location\n- Do not change files in a main checkout. Make a worktree in the sibling folder named after the repo with the suffix -worktrees, or write scratch files outside the repo.\n- Exception: setup and read-only work may run in the main checkout.\n- Keep the main checkout clean, with no untracked files.\n\nGit\n- Commit often. Each commit is one self-contained change.\n- Push to a Draft MR/PR. A human merges.\n- To take target-branch changes on a pushed branch, merge the target in and resolve conflicts. Do not rebase a pushed branch. Do not force-push.\n\nTests and CI\n- Locally, compile, lint and test only what changed: related tests and changed modules.\n- Do not run the full suite locally. CI runs it. You may trigger manual CI jobs.\n- Do not wait for CI. Keep working and check CI when it finishes.\n- A red feature-branch CI is acceptable during work. At ship, CI must be green.\n- Never push a change that can break a protected branch's CI.\n- A CI failure in code outside our ownership does not block us. Check whether the target branch already fixed it.\n\nOther teams' code\n- Know what your human owns. Outside it, keep the diff minimal and follow that code's own standards.\n- In an MR to another team, explain the facts in the MR. Do not reference our plan, and do not link a ticket without a summary.\n\nDecisions and honesty\n- Decide reversible choices yourself and record them. Ask only for irreversible, catastrophic or load-bearing choices.\n- Verify instead of asking. Mark every unverified claim as unverified.\n- Challenge the human's proposals when you have a real counter-argument.\n- Write in Simplified Technical English.\n\n</details>\n\n## Environment\n| Field | Value |\n|---|---|\n| Plugin version | 1.16.0 |\n| Harness | claude |\n| OS | Windows 11 (MINGW64_NT-10.0-26200) |\n| git / gh / python | 2.53.0.windows.2 / 2.92.0 / 3.14.8 |\n| Adapters | tracker none, forge none, notes repo-files, build gates none |\n| Fingerprint | `bde5b984d97a` |\n\n## Suspected owner\n- `AGENTS.md` — the plugin harness and layout that the rewrite replaces; the rewrite has no single owning file (inference).\n\n<!-- afk-issue-fp:bde5b984d97a -->\n\n"
+                    ],
+                    [
+                      "mentions this ticket",
+                      "120",
+                      "adapters/build-gate/npm/worktree-provision.sh: failed install marked provisioned",
+                      "OPEN",
+                      "## Summary\nWhen the install command fails, the npm `worktree-provision` adapter exits 4 but answers `status: provisioned`. `scripts/worktree-provision` writes that status and the fingerprint into the done marker. A later run without `--force` reads the marker, prints \"already provisioned — unchanged\", and skips the install.\n\n## Goal\nA `/afk:investigate` run on worktree failure paths traced what each step of worktree creation leaves after a failure, build-gate provisioning included.\n\n## Current context\n- Adapter (`adapters/build-gate/npm/worktree-provision.sh`): `STATUS=provisioned` is the default (`:91`). After a failed install it adds a warning and runs `answer; exit 4` (`:134-136`); the status is still `provisioned`.\n- Driver (`scripts/worktree-provision`): exit 4 prints \"provisioning did not complete\" and sets `overall=4` (`:152-155`). It then still writes the marker with the answer status and fingerprint (`:158-164`) and prints `afk: npm: provisioned` (`:165`).\n- Rerun (`:121-133`): a marker with a matching fingerprint and no `--force` prints \"already provisioned — unchanged\" and skips the adapter.\n- The fingerprint covers the install mode, the command, the workspace root and the lockfile hash (adapter `:82-89`).\n- `scripts/create-worktree:495-496` reports the non-zero exit as \"Provisioning did not finish — the worktree is usable\". Inferred from the failed install: the worktree has no `node_modules`.\n\n## Expected\n- `ADAPTERS.md` (build-gate family, `worktree-provision`): status is one of `provisioned`, `adopted`, `skipped`, `degraded`; exit 4 means \"the worktree is usable but something did not finish\". The maven adapter sets `degraded` for that case (`adapters/build-gate/maven/worktree-provision.sh:116`, `:138`).\n- `adapters/build-gate/npm/CONTRACT.md:65-68` lists only `provisioned`, `adopted`, `skipped`, and calls exit 4 \"a warning with the command to re-run\".\n- A failed install is not recorded as done, so the next run without `--force` tries it again.\n\n## Actual\nThe marker records `status=provisioned` for a failed install. Every later `scripts/worktree-provision` run without `--force` skips the install and reports it as already provisioned. An install that failed for a reason outside the fingerprint inputs, such as a network or registry error, is never tried again.\n\n## Steps to reproduce\n1. Configure a repository with build gate `npm` and a `package-lock.json` at the workspace root. Make the install fail: for example set `npm.worktree-command` to a command that exits 1, or let `npm ci` fail on a registry error.\n2. Run `bash scripts/worktree-provision --source <main checkout> --worktree <worktree>`. Stderr shows \"provisioning did not complete\", then `afk: npm: provisioned`; exit 4.\n3. Read the npm marker in the git directory of the worktree (path built at `scripts/worktree-provision:118`): it holds `status=provisioned`.\n4. Run step 2 again with no change to the configuration or the lockfile: \"already provisioned — unchanged\"; the install does not run.\n\n## Evidence\n```\n# adapters/build-gate/npm/worktree-provision.sh:129-136\n( cd \"$ROOT\" && $COMMAND ) >&2 || install_rc=$?\nif [ \"$install_rc\" -eq 0 ]; then\n  add DONE '\"install\"'\n  answer; exit 0\nfi\n# (a warning is added at :135)\nanswer; exit 4\n```\n```\n# scripts/worktree-provision:158-160 (the marker write follows at :161-164)\n  status=$(field \"$out\" status)\n  fingerprint=$(field \"$out\" fingerprint)\n  [ -n \"$status\" ] || status=provisioned\n```\nThe steps to reproduce were derived from the code and not run for this report. The investigation test run passed worktree-provision smoke 37/37. Inferred from that pass: no case checks the marker after an exit 4.\n\n## Environment\n| Field | Value |\n|---|---|\n| Plugin version | 1.15.0 (repository HEAD 2e93489) |\n| Harness | claude |\n| OS | MINGW64_NT-10.0-26200 (Windows 11) |\n| git / gh / python | 2.53.0.windows.2 / 2.92.0 / 3.14.8 |\n| Adapters | tracker github-issues, forge github, notes repo-files, build gates none |\n| Fingerprint | `6be6982e343a` |\n\n## Suspected owner\n- `adapters/build-gate/npm/worktree-provision.sh` — set `STATUS=degraded` before `exit 4`, as the maven adapter does. Update `adapters/build-gate/npm/CONTRACT.md:66` to list `degraded`.\n- `scripts/worktree-provision` — inference: when the adapter exit is not 0, write no marker, or a marker that the rerun does not treat as done. This also covers a later adapter with the same mistake.\n\n<!-- afk-issue-fp:6be6982e343a -->\n"
+                    ],
+                    [
+                      "mentions this ticket",
+                      "93",
+                      "hooks/gate-context.sh: upstream merge commit's files count as session change",
+                      "OPEN",
+                      "## Summary\nThe diff-based Stop gates take their changed-file set from `git diff --name-only <merge-base of the integration base and HEAD> HEAD`. A session that starts on a commit that merges another long-lived branch into a branch cut from the base inherits every file that merge brought in. The wiring gate then blocks Stop on orphans the session never produced, and nothing the session can change clears them.\n\n## Goal\nFix one failing unit test on a release-merge change request (a branch where a release branch is merged into the base branch). The session made a fix branch at the head commit of that change request, edited one test file (2 lines), and had made no commit yet.\n\n## Current context\n- Configuration: `git.base-branch: origin/master` in `.afk/config.yaml`.\n- HEAD: the merge commit `<release> into <base>`; the session's own change is one uncommitted, modified test file.\n- `git diff --name-only $(git merge-base origin/master HEAD) HEAD` lists 197 files, all from the merged release branch; 9 are under a QA-automation directory (regression-run CSV exports and Cypress specs).\n- The wiring gate blocked every Stop with 5 of those files as orphans. The session had to write 5 `waive:` lines into `<path>` for files it did not create, or stay blocked.\n- Before the fix branch existed, the same block fired on a session that changed no files at all.\n- Worst case: the same session in the main checkout, on the release branch itself with zero changes, drew about 150 orphans (every file the release branch added since it forked from the base). No in-session action can clear that.\n- Cost: 4 blocked Stop turns plus the waiver edits; the waiver is noise in the change request.\n\n## Expected\n`hooks/gate-context.sh` header and the comment at the base resolution say the merge-base diff exists so that \"merging the base into a feature branch\" does not attribute the base's files to this change. The same intent should hold when HEAD is a merge of a different branch that the session did not author: the gate should judge only what this session or this branch produced.\n\n## Actual\nThe changed-file set is the whole merge diff since the fork point from the base. Files that arrive through a merge commit already on the remote (authored upstream, before the session) count as this session's change. The wiring gate reports them as orphans and blocks.\n\n## Steps to reproduce\n1. In a repository with `git.base-branch: origin/<base>`, check out a commit `M` that merges `<other-branch>` into a branch cut from `<base>`, where `<other-branch>` added a file nothing references (for example a CSV report).\n2. Create a new branch at `M` (no commits of its own); optionally modify one tracked file.\n3. End the turn so the Stop gates run.\n4. The wiring gate blocks with the `<other-branch>` file listed as an orphan.\n\n## Evidence\n```\n[afk] Wiring gate: new artifact(s) with NO consumer and NO IOU — cannot finish.\nOrphans:\n  - <path><version>_<timestamp>.csv\n  - <path><host>\n  - (3 more of the same kind)\n```\n```\n$ git merge-base origin/<base> HEAD   -> <fork point>\n$ git diff --name-only <fork point> HEAD | wc -l   -> 197\n$ git status --short   -> 1 modified file (the session's only change)\n```\nBase resolution, `hooks/gate-context.sh` lines 64-78 and 158-182: `AFK_CTX_BASE` comes from `git.base-branch`, and `AFK_CTX_BRANCH=$(git diff --name-only \"$AFK_CTX_MERGEBASE\" HEAD)`.\n\n## Environment\n| Field | Value |\n|---|---|\n| Plugin version | 1.14.0 |\n| Harness | claude |\n| OS | MINGW64_NT-10.0-26200 x86_64 |\n| git / gh / python | git 2.53.0.windows.2 / gh 2.92.0 / Python 3.14.0 |\n| Adapters | tracker jira, forge gitlab, notes repo-files, build gates none captured |\n| Fingerprint | `e7abc88421d3` |\n\n## Suspected owner\n- `hooks/gate-context.sh` — it builds the changed-file set every diff-based Stop gate reads. Inference: anchoring the set to the commit the session or branch started from (or excluding files contributed only by merge commits that already exist on a remote) would keep pre-existing upstream merges out. `hooks/wiring-gate.sh` is the consumer that surfaced it.\n\n<!-- afk-issue-fp:e7abc88421d3 -->\n"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "notes": [
+            {
+              "id": "N-1-i-ticket",
+              "round": 1,
+              "target": "m-scope",
+              "text": "I wonder if this card is lavish native or you the agent built it. I do not like it as I am brought away from the content I am commenting on. I would like to just use lavish's native annotation like what I am doing right now. maybe I am missing something but I do not see the point of implementing this notes mechanism\n\nthis presentation is horrible. nobody can read this amount of text in this format. I will not read this now before you can find a better way to present it. as we are dogfooding, we should improve our own mechanism here and I wanna see the effect immediately\nsame comment. horrible\nsame comment. horrible\n\nthis should be an afk's term and needs a tooltip fyi\nthis got me thinking that I would like to include the tooltip implementation in this run as well, as that is something I would like to deliver and use it asap\ntooltip needed",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-record",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "i-record-today",
+            "props": {
+              "columns": [
+                "The run's files today",
+                "On the run branch",
+                "Anywhere else after the merge"
+              ],
+              "rows": [
+                [
+                  "The plan and its subtask contracts",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "kept"
+                    }
+                  },
+                  "no"
+                ],
+                [
+                  "The journal",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "kept"
+                    }
+                  },
+                  "no"
+                ],
+                [
+                  "The decision ledger: what the agent decided and why",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "kept"
+                    }
+                  },
+                  "no"
+                ],
+                [
+                  "The review telemetry",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "kept"
+                    }
+                  },
+                  "no"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-record-conflict",
+                "props": {
+                  "text": "The ticket contradicts a decision you accepted. The ticket says gc removes the run branch. The requirements grill of 2026-10-29 settled: \"gc keeps the run branch, deletes worktree + local and remote feature branches\" (docs/afk/afkv2/GRILL-LOG.md:38). afkv2/GLOSSARY.md:53 repeats it: \"gc keeps the run branch as the run's record.\" No later decision reverses it by name."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-record-why",
+                "props": {
+                  "text": "A run branch is an orphan: it shares no history with the feature, so the merge carries none of these files. Removing the branch leaves the commits on no ref. That differs from v1, where git history was the archive because the plan sat on the feature branch. The only promised reader is retro, deferred to 2.1 (afkv2/skills/autopilot/DOORS.md:18, docs/afk/afkv2/PRD.md:274). No code reads these files today."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-record-ask",
+                "props": {
+                  "text": "What happens to the record? Recommended: B. This is a debate because A is a one-way door and you own the earlier decision. No check can tell me whether retro still matters to you."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-record-options",
+                "props": {
+                  "columns": [
+                    "A: remove it, as the ticket says",
+                    "B: remove the branch, keep the record under a hidden name",
+                    "C: keep the branch, as you accepted"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-record-opt-a",
+                        "props": {
+                          "text": "The simplest. After git prunes the commits, the record is gone for good. A retro in 2.1 has nothing for any feature gc has run on. It reverses the earlier decision, so afkv2/GLOSSARY.md:53 changes."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-record-opt-b",
+                        "props": {
+                          "text": "gc moves the branch to a ref such as refs/afkv2-runs/<branch>. git branch -a no longer lists it, so the pain goes, and the commit stays. Probe run in a scratch repository. Costs: one line of code, one new idea to explain, and data nobody reads until retro exists. It stays on one machine, as run branches do today. Removing it later is one command, and this choice can move to A at any time."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-record-opt-c",
+                        "props": {
+                          "text": "No data risk. The pain in the ticket stays, and part 1 has no work left. The dogfood run then needs a new ticket for Claude."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "node": "n-record",
+          "notes": [
+            {
+              "id": "N-1-i-record",
+              "round": 1,
+              "target": "i-record",
+              "text": "definitely remove the run branch\npick A. no need for keeping a record as proposed in B",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-record",
+            "reading": "Option A: gc removes the run branch and keeps no record of the run. The glossary line 'gc keeps the run branch as the run's record' changes with this feature."
+          }
+        },
+        {
+          "id": "i-worktree",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "i-worktree-today",
+            "props": {
+              "columns": [
+                "Today's state, in a scratch repository",
+                "git says"
+              ],
+              "rows": [
+                [
+                  "Run branch checked out in its worktree, git branch -D",
+                  "\"cannot delete branch used by worktree\""
+                ],
+                [
+                  "Worktree gone, git branch -d",
+                  "\"the branch is not fully merged\": an orphan never passes -d"
+                ],
+                [
+                  "Worktree gone, git branch -D",
+                  "deleted"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-worktree-why",
+                "props": {
+                  "text": "The ticket puts worktrees out of scope, but a run branch normally sits in its own worktree, <feature worktree>-run (afkv2/skills/to-subtasks/scripts/plan_files.py:117). Nothing removes that worktree. So with worktrees out, gc refuses on the normal path. Part 2 (#159) does not help: it retires \"the feature's worktree\", not this one."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-worktree-ask",
+                "props": {
+                  "text": "Please confirm: gc part 1 also removes the run's worktree, and only that one. The feature's worktree stays out of scope, for part 2. gc refuses and removes nothing when the run worktree has uncommitted files or when a session is working inside it, because those files exist nowhere else. It never forces the removal."
+                }
+              }
+            ]
+          },
+          "node": "n-worktree",
+          "notes": [
+            {
+              "id": "N-1-i-worktree",
+              "round": 1,
+              "target": "i-worktree",
+              "text": "In, don't postpone to part 2",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-worktree",
+            "reading": "Part 1 takes in part 2: gc also removes the run worktree, the feature's worktree, and the feature branch, local and remote (chat answer 2026-11-02: 'Feature worktree + branch')."
+          }
+        },
+        {
+          "id": "i-merged",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-merged-ask",
+            "props": {
+              "text": "Please confirm what \"merged\" means. A change is merged when the forge says so: change-view on the feature branch answers state merged (afkv2/ports/forge/CONTRACT.md:25, run live on this repository). Any target branch counts, so a merge into an integration branch such as feat/afkv2 counts."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-merged-notgit",
+                "props": {
+                  "text": "gc does not ask git. A squash merge leaves the feature tip outside the target's history, so a git check would refuse a real merge. v1 accepted either check; this one uses the forge only."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-merged-table",
+                "props": {
+                  "columns": [
+                    "The forge answers",
+                    "gc does"
+                  ],
+                  "rows": [
+                    [
+                      "state merged, and no open change on the branch",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "goes on",
+                          "tone": "new"
+                        }
+                      }
+                    ],
+                    [
+                      "state opened",
+                      "refuses, removes nothing"
+                    ],
+                    [
+                      "state closed",
+                      "refuses, removes nothing"
+                    ],
+                    [
+                      "not-found",
+                      "refuses, removes nothing"
+                    ],
+                    [
+                      "auth, server or time-out failure",
+                      "refuses, removes nothing: a failed call is not an answer"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-merged-gap",
+                "props": {
+                  "text": "One gap is open. A branch with 2 changes (#17 and #19, both merged) returned one answer and no warning. A reused branch with an old merged change and a new open one is not tested. So the rule is stated as a result: any open change on the branch refuses. The design picks how."
+                }
+              }
+            ]
+          },
+          "node": "n-merged"
+        },
+        {
+          "id": "i-abandoned",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-abandoned-ask",
+            "props": {
+              "text": "The ticket says gc refuses a change that is not merged. What does that block? A feature someone abandoned: its change is closed, or never opened, and its run branch stays. Please confirm: part 1 keeps the refusal, and the refusal names the state the forge gave, so the person can delete the branch by hand. A later ticket can add a clean-up for abandoned runs. I record that as a spinoff. A plain refusal is the safe default, because a closed change can come back."
+            }
+          },
+          "node": "n-merged"
+        },
+        {
+          "id": "i-remote",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-remote-ask",
+            "props": {
+              "text": "The ticket says \"local and remote\". No afkv2 code pushes a run branch (afkv2/skills/autopilot/SKILL.md:8 commits on it and pushes only the feature branch), so a remote copy exists only when someone pushed it by hand. Please confirm: gc removes the remote copy when one exists, and the report says \"no remote copy\" otherwise. v1 had the opposite rule, \"never deletes a remote branch\", because that reaches outside the machine. Your ticket overrides it for this one branch only."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-remote-fail",
+                "props": {
+                  "text": "When the forge refuses the remote delete, for example with no push right, gc keeps what it already removed, names the failure in the report, and exits as failed. Running gc again finishes the job and removes nothing twice."
+                }
+              }
+            ]
+          },
+          "node": "n-remote"
+        },
+        {
+          "id": "i-consent",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-consent-ask",
+            "props": {
+              "text": "Holds if i-record = B. Typing /afkv2:gc <ticket key> is the consent: gc asks no second yes, because every removal can be undone from the hidden ref. If you pick A, this card returns as: gc shows the list and waits for your yes, because that removal cannot be undone. That is the to-prd preview pattern."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-consent-v1",
+                "props": {
+                  "text": "My counter-argument to myself: v1 asked per item and refused hands-off runs (\"deletion always gets a human eye\", skills/afk/gc/SKILL.md:44). I drop the per-item question only because B leaves nothing to lose. The hands-off refusal stays: see the who-may-run card."
+                }
+              }
+            ]
+          },
+          "node": "n-consent",
+          "notes": [
+            {
+              "id": "N-1-i-consent",
+              "round": 1,
+              "target": "i-consent",
+              "text": "as I proposed gc is agent invocable only, so agents should simply ask for human's permission",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-consent",
+            "reading": "gc is invoked by an agent only, never from the human's slash menu, and the agent asks the human's permission before gc removes anything."
+          }
+        },
+        {
+          "id": "i-policy",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-policy-table",
+            "props": {
+              "columns": [
+                "Actor",
+                "May run gc?",
+                "What it can reach"
+              ],
+              "rows": [
+                [
+                  "A developer, or an agent in a session the developer started and asked",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "permitted",
+                      "tone": "new"
+                    }
+                  },
+                  "The run branches of the one ticket key given. Local removal needs no forge right; the remote delete needs a push right."
+                ],
+                [
+                  "A hands-off run: /afkv2:autopilot or /afkv2:execute",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "denied",
+                      "tone": "removed"
+                    }
+                  },
+                  "Neither calls gc. A hands-off session stops before a merge, so it has nothing to clean. Core behaviors keep destructive-action limits in hands-off mode (CORE-BEHAVIORS.md:40)."
+                ],
+                [
+                  "A developer with no push right",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "partly",
+                      "tone": "kept"
+                    }
+                  },
+                  "The local part works. The remote delete fails and the report says so."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-policy-ask",
+                "props": {
+                  "text": "Please confirm this policy. Validation: a ticket key is required, and without it gc stops and names it. Scope: gc never touches a branch whose plan names a different ticket. The hands-off denial is a skill instruction, not a guard: afkv2 has no hook on git branch deletes (afkv2/hooks/hooks.json registers SessionStart, Stop and SubagentStart only)."
+                }
+              }
+            ]
+          },
+          "node": "n-consent"
+        },
+        {
+          "id": "i-examples",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-examples-table",
+            "props": {
+              "columns": [
+                "Case",
+                "Starting data",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Frequent",
+                  "Ticket 158. Feature branch feat/afkv2-gc, change merged into feat/afkv2. Run worktree clean. No remote copy.",
+                  "Run worktree removed, run branch removed from the branch list, record kept if i-record = B. The report lists each one and the tip commit. Second run: \"nothing to remove\", exit ok."
+                ],
+                [
+                  "Edge",
+                  "Ticket 900 (made up). Branches feat/dry-run and feat/x-run. Only feat/x-run has a plan/PLAN.md naming ticket 900. Its remote delete fails, no push right.",
+                  "feat/dry-run is never touched: it ends in -run but has no such plan. The local part of feat/x-run goes, the report names the failed remote delete, and the run exits failed. A rerun with a push right removes only the remote copy."
+                ],
+                [
+                  "Risky",
+                  "Ticket 901 (made up). Change closed, not merged. Run worktree has an uncommitted journal line.",
+                  "gc refuses on the forge state and removes nothing. The report gives state closed. The uncommitted line stays."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-examples-ask",
+                "props": {
+                  "text": "Please confirm these 3 cases as the worked examples. No real run branch exists on this repository today (git ls-remote and git branch -a, 2026-11-02). So the first real target is this feature's own run branch, once this change merges."
+                }
+              }
+            ]
+          },
+          "node": "n-gc"
+        },
+        {
+          "id": "i-reach",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-reach-ask",
+            "props": {
+              "text": "Please confirm the proof bar. gc goes through the forge port, so it works on GitHub and GitLab by contract. This change proves it live on GitHub only; no GitLab round trip exists yet (.claude/wiring-ious.md:26), and the change states that. Windows only, like the rest of afkv2. Out of scope, as the ticket says: the feature branch, the feature's worktree, and spec folder content."
+            }
+          },
+          "node": "n-gc",
+          "notes": [
+            {
+              "id": "N-1-i-reach",
+              "round": 1,
+              "target": "i-reach",
+              "text": "this is to keep\nGitlab is in scope. test it too",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-reach",
+            "reading": "GitLab is in scope and gets a live test too. Spec folder content stays out of scope (chat answer 2026-11-02)."
+          }
+        },
+        {
+          "id": "i-find",
+          "kind": "decided",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-find-body",
+            "props": {
+              "text": "How gc gets from a ticket key to a branch. It reads plan/PLAN.md on every branch that ends in -run, local and on origin, and keeps those whose \"> Parent ticket:\" line equals the key exactly. The \"> Branch:\" line then names the feature branch. One ticket with 2 features: each is judged alone. No match: \"nothing to remove\", exit ok."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-find-decision",
+                "props": {
+                  "text": "gc finds the run branch by reading the Parent ticket line of each -run branch's plan."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-find-why",
+                "props": {
+                  "text": "The runner-up, the branch of the current worktree, fails once part 2 retires that worktree, and the ticket asks for a key."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-find-alternatives",
+                "props": {
+                  "text": "Alternatives beaten: the current branch, as every other skill does: works only from the feature worktree; the key in the branch name, as v1 did: this very branch, feat/afkv2-gc, has no 158 in it; a new stored mapping: a second record of what the plan already says"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-find-evidence",
+                "props": {
+                  "text": "repo: afkv2/skills/to-subtasks/PLAN-FORMAT.md:8,10 holds both lines; afkv2_config.py:40-49 holds no branch key. No script checks the Parent ticket line, so a plan without it reads as no match"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-find-reverse",
+                "props": {
+                  "text": "reverse: replace the one lookup function with a --branch argument"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-find-scope",
+                "props": {
+                  "text": "HL: none · depends-on: none"
+                }
+              }
+            ]
+          },
+          "node": "n-find",
+          "notes": [
+            {
+              "id": "N-1-i-find",
+              "round": 1,
+              "target": "i-find",
+              "text": "gc only concern the current lane and do not clean up others (eg orphaned lanes)",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-find",
+            "reading": "gc acts on the current feature only: the feature of the worktree the session runs in, its run branch and its change. It never searches by ticket key and never cleans another feature, abandoned ones included (chat answer 2026-11-02: 'Current feature')."
+          }
+        },
+        {
+          "id": "i-report",
+          "kind": "decided",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-report-body",
+            "props": {
+              "text": "What the report holds. The script answers one JSON object, and the skill says it in plain words. For each run branch: the feature branch, the forge state, the change link, the worktree removed, the branch removed with its tip commit, the remote copy removed or absent, and each thing refused with the reason."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-report-decision",
+                "props": {
+                  "text": "gc reports through the house JSON answer, one entry per run branch, with the tip commit of each removed branch."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report-why",
+                "props": {
+                  "text": "The runner-up, a plain-text report, cannot be tested by a script, and a person needs the tip commit to restore the branch by hand."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report-alternatives",
+                "props": {
+                  "text": "Alternatives beaten: plain text only: nothing for a test or a later skill to read; the v1 OUTCOME line: a v1 format that afkv2 does not carry"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report-evidence",
+                "props": {
+                  "text": "pattern: afkv2/skills/grill/SKILL.md \"The commands\": every answer is one JSON object, exit 0 ok, 1 refused, 2 unreadable input"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report-reverse",
+                "props": {
+                  "text": "reverse: change the answer shape in one script"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report-scope",
+                "props": {
+                  "text": "HL: none · depends-on: none"
+                }
+              }
+            ]
+          },
+          "node": "n-report"
+        },
+        {
+          "id": "i-base",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-base-body",
+            "props": {
+              "text": "The target is feat/afkv2, as you said. The config has no base-branch key, so create-change-request cannot read it (afkv2/skills/create-change-request/SKILL.md:14; finding F-4 in the dogfood record, still open). I state the target on the command. This ticket does not fix that."
+            }
+          },
+          "node": "n-gc"
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T03:04:43Z",
+          "raw": "[round R-1]\nm-scope — | I wonder if this card is lavish native or you the agent built it. I do not like it as I am brought away from the content I am commenting on. I would like to just use lavish's native annotation like what I am doing right now. maybe I am missing something but I do not see the point of implementing this notes mechanism\ni-reach — | this is to keep\nGitlab is in scope. test it too\ni-worktree — | In, don't postpone to part 2\nm-scope — | this presentation is horrible. nobody can read this amount of text in this format. I will not read this now before you can find a better way to present it. as we are dogfooding, we should improve our own mechanism here and I wanna see the effect immediately\nsame comment. horrible\nsame comment. horrible\ni-record a | definitely remove the run branch\npick A. no need for keeping a record as proposed in B\nm-scope — | this should be an afk's term and needs a tooltip fyi\nthis got me thinking that I would like to include the tooltip implementation in this run as well, as that is something I would like to deliver and use it asap\ntooltip needed\ni-consent — | as I proposed gc is agent invocable only, so agents should simply ask for human's permission\ni-find — | gc only concern the current lane and do not clean up others (eg orphaned lanes)\n",
+          "signals": [
+            {
+              "target": "m-scope",
+              "item": "i-ticket",
+              "mark": null,
+              "text": "I wonder if this card is lavish native or you the agent built it. I do not like it as I am brought away from the content I am commenting on. I would like to just use lavish's native annotation like what I am doing right now. maybe I am missing something but I do not see the point of implementing this notes mechanism",
+              "note": "N-1-i-ticket",
+              "steer": true,
+              "stamp": "d2ced5323232ee49"
+            },
+            {
+              "target": "i-reach",
+              "item": "i-reach",
+              "mark": null,
+              "note": "N-1-i-reach",
+              "text": "this is to keep\nGitlab is in scope. test it too",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "22d100074a5323cb"
+            },
+            {
+              "target": "i-worktree",
+              "item": "i-worktree",
+              "mark": null,
+              "note": "N-1-i-worktree",
+              "text": "In, don't postpone to part 2",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "9485baa623ebb206"
+            },
+            {
+              "target": "m-scope",
+              "item": "i-ticket",
+              "mark": null,
+              "text": "this presentation is horrible. nobody can read this amount of text in this format. I will not read this now before you can find a better way to present it. as we are dogfooding, we should improve our own mechanism here and I wanna see the effect immediately\nsame comment. horrible\nsame comment. horrible",
+              "note": "N-1-i-ticket",
+              "steer": true,
+              "stamp": "c4e2e06ce8c6fbaf"
+            },
+            {
+              "target": "i-record",
+              "item": "i-record",
+              "mark": "a",
+              "note": "N-1-i-record",
+              "text": "definitely remove the run branch\npick A. no need for keeping a record as proposed in B",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "2effeb0b79f67f98"
+            },
+            {
+              "target": "m-scope",
+              "item": "i-ticket",
+              "mark": null,
+              "text": "this should be an afk's term and needs a tooltip fyi\nthis got me thinking that I would like to include the tooltip implementation in this run as well, as that is something I would like to deliver and use it asap\ntooltip needed",
+              "note": "N-1-i-ticket",
+              "steer": true,
+              "stamp": "052bc3e2e0101563"
+            },
+            {
+              "target": "i-consent",
+              "item": "i-consent",
+              "mark": null,
+              "note": "N-1-i-consent",
+              "text": "as I proposed gc is agent invocable only, so agents should simply ask for human's permission",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "4942deac1f22c047"
+            },
+            {
+              "target": "i-find",
+              "item": "i-find",
+              "mark": null,
+              "note": "N-1-i-find",
+              "text": "gc only concern the current lane and do not clean up others (eg orphaned lanes)",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "b2d533c5d4cf45ba"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Settled by your note: Option A: gc removes the run branch and keeps no record of the run. The glossary line 'gc keeps the run branch as the run's record' changes with this feature.",
+          "about": [
+            "i-record"
+          ]
+        },
+        {
+          "text": "Settled by your note: Part 1 takes in part 2: gc also removes the run worktree, the feature's worktree, and the feature branch, local and remote (chat answer 2026-11-02: 'Feature worktree + branch').",
+          "about": [
+            "i-worktree"
+          ]
+        },
+        {
+          "text": "Settled by your note: gc is invoked by an agent only, never from the human's slash menu, and the agent asks the human's permission before gc removes anything.",
+          "about": [
+            "i-consent"
+          ]
+        },
+        {
+          "text": "Settled by your note: GitLab is in scope and gets a live test too. Spec folder content stays out of scope (chat answer 2026-11-02).",
+          "about": [
+            "i-reach"
+          ]
+        },
+        {
+          "text": "Settled by your note: gc acts on the current feature only: the feature of the worktree the session runs in, its run branch and its change. It never searches by ticket key and never cleans another feature, abandoned ones included (chat answer 2026-11-02: 'Current feature').",
+          "about": [
+            "i-find"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "gc removes the run branch and keeps no record",
+          "gc also retires the feature's worktree and branch, local and remote",
+          "gc acts on the current feature only",
+          "An agent runs gc, and asks your permission first",
+          "GitLab is in scope and gets a live test; spec folder content stays out"
+        ],
+        "unlocks": [
+          "How a session removes its own worktree",
+          "Refusal rules for the feature branch",
+          "What the tooltip work covers",
+          "Where the Codex half of the dogfood run goes"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-self",
+          "kind": "debate",
+          "state": "open",
+          "body": {
+            "type": "sequence",
+            "id": "i-self-today",
+            "props": {
+              "actors": [
+                {
+                  "id": "agent",
+                  "label": "Agent session"
+                },
+                {
+                  "id": "gc",
+                  "label": "gc script"
+                },
+                {
+                  "id": "win",
+                  "label": "Windows"
+                }
+              ],
+              "messages": [
+                {
+                  "from": "agent",
+                  "to": "gc",
+                  "text": "runs gc inside the feature worktree"
+                },
+                {
+                  "from": "gc",
+                  "to": "win",
+                  "text": "remove the feature worktree folder"
+                },
+                {
+                  "from": "win",
+                  "to": "gc",
+                  "text": "refused: folder in use (WinError 32)"
+                },
+                {
+                  "from": "gc",
+                  "to": "agent",
+                  "text": "local feature branch stays too: it is checked out there"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-self-ask",
+                "props": {
+                  "text": "How does gc retire the worktree that the session runs in? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-self-options",
+                "props": {
+                  "columns": [
+                    "A: finish at session end",
+                    "B: run gc from outside",
+                    "C: leave it to you"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-self-opt-a",
+                        "props": {
+                          "text": "gc removes everything else now. It then marks the feature worktree and local branch. A session-end hook removes them after you close the session."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-self-opt-b",
+                        "props": {
+                          "text": "The agent runs gc in another worktree and names the feature branch. That breaks 'current feature only'."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-self-opt-c",
+                        "props": {
+                          "text": "gc removes everything else and tells you to remove the worktree and branch by hand. Half of the pain stays."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-self-why",
+                "fold": "Why A, and the evidence",
+                "props": {
+                  "text": "Proved here: Windows refused to remove a folder that a live process used as its working folder (WinError 32, scratch test). Claude and Codex both fire a session-end hook, and v1 removed worktrees from it (PROVIDERS.md:81-82, providers/CONFORMANCE.md:460,464). afkv2 has no session-end hook yet (afkv2/hooks/hooks.json), so A adds one. Claude reports the original folder at session end, not the worktree, so the hook reads gc's mark, not its own folder. The cost of A: the worktree stays until you close the session."
+                }
+              }
+            ]
+          },
+          "title": "A session cannot remove its own worktree",
+          "node": "n-worktree",
+          "notes": [
+            {
+              "id": "N-2-i-self",
+              "round": 2,
+              "target": "i-self",
+              "text": "session end will not fire everytime as human might just close the terminal as I understand. you can verify. also what if a session end but only to be continued (/exit mid session but works not done yet). I think as agents notice the feature was delivered, it can ask human for permission to run gc (and what will be purged). if approved, it will change its working directory to the main checkout, and perform gc from there. it also means gc must be the very last thing we do, even after retro",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-tipscope",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-tipscope-ask",
+            "props": {
+              "text": "Today the page already shows tooltips for words from our glossaries (the dotted underlines). Which tooltip work joins this run? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-tipscope-options",
+                "props": {
+                  "columns": [
+                    "A: tips in the page document",
+                    "B: A plus a coverage check",
+                    "C: only missing glossary words"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-tipscope-opt-a",
+                        "props": {
+                          "text": "The page document holds its own tips: the feature's terms, and every id that appears in the text (a card, an acceptance criterion, a worked example) shows its title on hover. This is decision 22 of #153."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-tipscope-opt-b",
+                        "props": {
+                          "text": "A, plus a check that refuses a page with a term or id that has no tip. Planned as 'durable tooltips + coverage audit' (PRD, P1 list)."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-tipscope-opt-c",
+                        "props": {
+                          "text": "Add the words you found to the glossary. Smallest; ids still show no tip."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-tipscope-why",
+                "fold": "Why A",
+                "props": {
+                  "text": "A delivers the use you asked for soon: hovering an id or a feature term. B's check is a gate, and gates cost the most to get right; it can follow once A is in use. The engine's tip layer exists (afkv2/engine/shell/tips.js), so A extends it."
+                }
+              }
+            ]
+          },
+          "title": "What 'the tooltip implementation' covers",
+          "node": "n-tips",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          },
+          "notes": [
+            {
+              "id": "N-2-i-tipscope",
+              "round": 2,
+              "target": "m-scope",
+              "text": "do not really like how the page present notes and replies. take a look at how it's done in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1\n\nI need to be able to use btw from this page (both Claude & Codex support it). it should work exactly as if I use /btw from the CLI\n\nI know it's not ideal as we are still improving the engine as we work on this feature. but definitely I do not want the previous round to be presented separately like this. I do like how it is in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1 where each card/section contains the changes in each round (on: \"R-1 Round 1: settled round WHAT SETTLED Nothing. WHAT IT UNLOCKS What gc does with the run's record What gc must touch …\")",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-split",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-split-ask",
+            "props": {
+              "text": "Part 2 (#159) was the Codex build. It now sits in this ticket, so Codex has nothing to build, and the dogfood check needs one Draft change from each harness (PRD AC-001). Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-split-options",
+                "props": {
+                  "columns": [
+                    "A: tooltips become #159, on Codex",
+                    "B: all in #158, on Claude",
+                    "C: Codex builds gc part 2 later"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-split-opt-a",
+                        "props": {
+                          "text": "#158 holds all of gc and the page fix made today. #159 is retitled to the tooltip work and is built on Codex. Each harness ships one change."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-split-opt-b",
+                        "props": {
+                          "text": "One bigger change on Claude. Codex gets no dogfood run, so AC-001 stays open."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-split-opt-c",
+                        "props": {
+                          "text": "Undo your answer: the feature branch goes back to #159. Against your note 'don't postpone to part 2'."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-split-note",
+                "fold": "What changes on GitHub",
+                "props": {
+                  "text": "A changes the title and text of #159. I do that only after you agree on this card. This ticket's own text is published from its PRD, after your yes."
+                }
+              }
+            ]
+          },
+          "title": "Where the Codex half of the dogfood run goes",
+          "node": "n-tips",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-feature",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-feature-table",
+            "props": {
+              "columns": [
+                "Case",
+                "gc does"
+              ],
+              "rows": [
+                [
+                  "A worktree has uncommitted or untracked files",
+                  "refuses, removes nothing"
+                ],
+                [
+                  "The local feature branch has commits that are not in the merged change",
+                  "refuses, removes nothing"
+                ],
+                [
+                  "Another live session works in the run worktree",
+                  "refuses, removes nothing"
+                ],
+                [
+                  "The remote feature branch is already gone",
+                  "goes on; the report says 'already gone'"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-feature-ask",
+                "props": {
+                  "text": "Please confirm. These come from #159's text. gc never forces a removal."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-feature-why",
+                "fold": "How gc checks",
+                "props": {
+                  "text": "'Not in the merged change' means: the local tip has commits that the forge's head commit of the change does not hold (change-view answers head_sha, afkv2/ports/forge/CONTRACT.md). Unsaved work exists nowhere else, so refusing is the safe default."
+                }
+              }
+            ]
+          },
+          "title": "When gc leaves a worktree or branch alone",
+          "node": "n-worktree",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-merged2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-merged2-table",
+            "props": {
+              "columns": [
+                "The forge says, about the current feature's branch",
+                "gc does"
+              ],
+              "rows": [
+                [
+                  "merged, into any target branch, and no open change on the branch",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "goes on",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "opened, closed, or no change",
+                  "refuses, removes nothing"
+                ],
+                [
+                  "the forge call failed",
+                  "refuses, removes nothing"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-merged2-ask",
+                "props": {
+                  "text": "Please confirm. Only the forge decides; gc does not ask git."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-merged2-why",
+                "fold": "Why not git, and one open gap",
+                "props": {
+                  "text": "A squash merge leaves the feature tip outside the target's history, so a git check refuses a real merge. Checked live: change-view answers 'merged' for #162, and 'not-found' for an unknown branch. Gap: a branch with 2 changes returned one answer and no warning, so the rule is stated as a result and the design picks how."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-merged2-carries",
+                "props": {
+                  "text": "Carries i-merged."
+                }
+              }
+            ]
+          },
+          "title": "What 'merged' means",
+          "node": "n-merged",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-abandoned2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-abandoned2-ask",
+            "props": {
+              "text": "Please confirm. When the change is closed or was never opened, gc removes nothing and names the forge's answer. You clean it by hand. A closed change can come back, so refusing is the safe default. I record a later clean-up of abandoned features as a spinoff."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-abandoned2-carries",
+                "props": {
+                  "text": "Carries i-abandoned."
+                }
+              }
+            ]
+          },
+          "title": "An abandoned feature keeps its branches",
+          "node": "n-merged",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-remote2",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-remote2-ask",
+            "props": {
+              "text": "Please confirm. gc deletes the feature branch on the remote, and the run branch on the remote when one exists. This repository does not delete merged branches itself (deleteBranchOnMerge: false), so the remote feature branch is normally there."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-remote2-why",
+                "fold": "Failure and rerun",
+                "props": {
+                  "text": "When the forge refuses a delete, for example with no push right, gc keeps what it already removed, names the failure, and exits as failed. A second run finishes the job. No afkv2 code pushes a run branch, so a remote run branch exists only when someone pushed it by hand."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-remote2-carries",
+                "props": {
+                  "text": "Carries i-remote."
+                }
+              }
+            ]
+          },
+          "title": "gc removes the remote branches",
+          "node": "n-remote",
+          "notes": [
+            {
+              "id": "N-2-i-remote2",
+              "round": 2,
+              "target": "i-remote2",
+              "text": "keep in mind remote branch might be deleted already as the change request might have the option to delete the branch after merged (at lease Gitlab support this, I don't remember about Github)",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-i-remote2",
+            "reading": "Accepted. A remote branch that the forge already deleted after the merge is a normal case: gc goes on and reports it as already gone."
+          }
+        },
+        {
+          "id": "i-policy2",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-policy2-table",
+            "props": {
+              "columns": [
+                "Actor",
+                "May run gc?"
+              ],
+              "rows": [
+                [
+                  "An agent in your session, after your yes",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "permitted",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "You, from the slash menu",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "denied: not on the menu",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "A hands-off build (autopilot, execute)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "denied",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "An agent with no push right",
+                  "local part only; the report names the remote failure"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-policy2-ask",
+                "props": {
+                  "text": "Please confirm. Scope: only the current feature. gc shows the list of what it will remove, and the agent waits for your yes."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-policy2-carries",
+                "props": {
+                  "text": "Carries i-policy."
+                }
+              }
+            ]
+          },
+          "title": "Who may run gc",
+          "node": "n-consent",
+          "notes": [
+            {
+              "id": "N-2-i-policy2",
+              "round": 2,
+              "target": "i-policy2",
+              "text": "now I am not too sure if we want to restrict users from invoking the skill. do you think we can allow human too, and which scenarios?",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-lane",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-lane-ask",
+            "props": {
+              "text": "Please confirm: you meant 'feature'. In our glossary, 'lane' is the size of the work (small, medium, large), not one feature (afkv2/GLOSSARY.md:11). The gc text says 'the current feature', and 'lane' keeps its meaning."
+            }
+          },
+          "title": "The word 'lane'",
+          "node": "n-find",
+          "notes": [
+            {
+              "id": "N-2-i-lane",
+              "round": 2,
+              "target": "i-lane",
+              "text": "the only thing is, a feature might be delivered, then we noticed a gap, so we start a new worktree and work on it, and we clean up after done. so in general I agree with what we have here, I just want to make sure we do not understand the word \"feature\" too literally, as it might be a bug, a small enhancement, etc",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-i-lane",
+            "reading": "'Feature' is not literal: it is any piece of work on its own branch and worktree, such as a feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. gc cleans that one piece of work. 'Lane' keeps its glossary meaning."
+          }
+        },
+        {
+          "id": "i-tipword",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-tipword-ask",
+            "props": {
+              "text": "One of your notes said a word should be an afk term with a tooltip. Its target was lost. Please annotate that word on this page. Until then, my reading: every afk word a card uses gets a glossary entry and so a tooltip."
+            }
+          },
+          "title": "The word that needs a tooltip",
+          "node": "n-tips",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-examples2",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-examples2-table",
+            "props": {
+              "columns": [
+                "Case",
+                "Start",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Frequent",
+                  "Feature feat/afkv2-gc, change merged into feat/afkv2, both worktrees clean.",
+                  "After your yes: run worktree, run branch and remote feature branch gone. The feature worktree and local branch go when you close the session."
+                ],
+                [
+                  "Edge",
+                  "Same, but you have no push right.",
+                  "Local part done; the report names the failed remote delete; a rerun with a push right finishes."
+                ],
+                [
+                  "Risky",
+                  "Change closed, not merged; one uncommitted file.",
+                  "Nothing removed; the report gives 'closed'."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-examples2-ask",
+                "props": {
+                  "text": "Please confirm. The frequent case holds if 'A session cannot remove its own worktree' = A. No real run branch exists today, so the first real target is this feature's own, once it merges."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-examples2-carries",
+                "props": {
+                  "text": "Carries i-examples."
+                }
+              }
+            ]
+          },
+          "title": "Worked examples",
+          "node": "n-gc",
+          "notes": [
+            {
+              "id": "N-2-i-examples2",
+              "round": 2,
+              "target": "i-examples2",
+              "text": "agents should report the exact situation so human can make decision. if they allow going ahead, agents should proceed (on: \"Nothing removed; the report gives 'closed'.\")\n\nI made my notes above (on: \"After your yes: run worktree, run branch and remote feature branch gone. The feature worktree and local branch go when …\")",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-report2",
+          "kind": "decided",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-report2-body",
+            "props": {
+              "text": "One JSON answer: the change link and state, then each thing removed (with the tip commit of each branch), each thing marked for session end, and each thing refused with its reason."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-report2-decision",
+                "props": {
+                  "text": "gc answers one JSON object listing each removed, marked and refused item, with the tip commit of each removed branch."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-why",
+                "props": {
+                  "text": "Plain text, the runner-up, cannot be tested by a script, and a person needs the tip commit to restore a branch by hand."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-alternatives",
+                "props": {
+                  "text": "Alternatives beaten: plain text only: nothing for a test to read; the v1 OUTCOME line: a v1 format that afkv2 does not carry"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-evidence",
+                "props": {
+                  "text": "pattern: afkv2/skills/grill/SKILL.md 'The commands': every answer is one JSON object, exit 0 ok, 1 refused, 2 unreadable input"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-reverse",
+                "props": {
+                  "text": "reverse: change the answer shape in one script"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-scope",
+                "props": {
+                  "text": "HL: none · depends-on: none"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report2-carries",
+                "props": {
+                  "text": "Carries i-report."
+                }
+              }
+            ]
+          },
+          "title": "What gc reports",
+          "node": "n-report",
+          "notes": [
+            {
+              "id": "N-2-i-report2",
+              "round": 2,
+              "target": "i-report2",
+              "text": "how this page is presented is confusing. I do not understand what each paragraph present. for example, are json and plain text 2 different choices we are debating, or they are different parts of the same choice you are suggesting? for that reason I could not make decision here",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-handfix",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-handfix-body",
+            "props": {
+              "text": "The engine change behind this page was made by hand on this branch, as you chose in chat. Its commits go into this feature's Draft change. The plan lists them as done work, so the build does not repeat them."
+            }
+          },
+          "title": "The page fix made today rides on this change",
+          "node": "n-tips",
+          "notes": [
+            {
+              "id": "N-2-i-handfix",
+              "round": 2,
+              "target": "i-handfix-body",
+              "text": "yes, I will keep commenting on how this page is perform and eventually when I am happy, the engine itself should be updated so next time I use it it should work as is",
+              "deleted": false
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Your notes reached me with no target: lavish sends the element of each note, but the engine kept only the text. I placed each note on a card from your chat answers, and filed the notes about the page and the tooltips as notes on the whole session. Your steers, word for word: \"I would like to just use lavish's native annotation like what I am doing right now\" · \"as we are dogfooding, we should improve our own mechanism here and I wanna see the effect immediately\" · \"I would like to include the tooltip implementation in this run as well\". This page is the result: annotate anything with lavish, pick a mark on a card, and send both with lavish's Send. The '+ note' control is gone.",
+          "about": [
+            "m-scope"
+          ]
+        },
+        {
+          "text": "Read as option A: gc removes the run branch and keeps no record.",
+          "about": [
+            "i-record"
+          ]
+        },
+        {
+          "text": "Read as: part 1 also removes the feature's worktree and branch, local and remote. That brings in a new problem, on the card 'A session cannot remove its own worktree'.",
+          "about": [
+            "i-worktree"
+          ]
+        },
+        {
+          "text": "Read as: only an agent runs gc, and it asks your permission before it removes anything.",
+          "about": [
+            "i-consent"
+          ]
+        },
+        {
+          "text": "Read as: GitLab is in scope with a live test; spec folder content stays out.",
+          "about": [
+            "i-reach"
+          ]
+        },
+        {
+          "text": "Read as: gc works on the feature of the worktree it runs in, and never touches another feature. One word to check: 'lane' means something else in our glossary. See the card about it.",
+          "about": [
+            "i-find"
+          ]
+        },
+        {
+          "text": "Settled by your note: Accepted. A remote branch that the forge already deleted after the merge is a normal case: gc goes on and reports it as already gone.",
+          "about": [
+            "i-remote2"
+          ]
+        },
+        {
+          "text": "Settled by your note: 'Feature' is not literal: it is any piece of work on its own branch and worktree, such as a feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. gc cleans that one piece of work. 'Lane' keeps its glossary meaning.",
+          "about": [
+            "i-lane"
+          ]
+        },
+        {
+          "text": "Read as B: when the agent sees the work delivered, it asks your permission and lists what gc will purge; on yes, it runs gc from the main checkout; gc is the very last step, after retro. One premise fails: the Claude process itself has its working folder in the worktree (herdr pane process-info: claude.exe cwd = ...\\afkv2-gc\\), and Windows refuses to remove a folder in use. So even from the main checkout, the folder cannot go while this session lives. The next round asks how the last step finishes. You were right that a session-end hook is not enough: a closed terminal is one case.",
+          "about": [
+            "i-self"
+          ]
+        },
+        {
+          "text": "Your question is answered on a new card in the next round, with the scenarios.",
+          "about": [
+            "i-policy2"
+          ]
+        },
+        {
+          "text": "Read as: when gc refuses, the agent reports the exact situation, and on your explicit yes it goes ahead anyway. That changes the abandoned-feature rule, so it returns as a new card.",
+          "about": [
+            "i-examples2"
+          ]
+        },
+        {
+          "text": "You are right: the card did not say which lines are the decision and which are the other options. The engine now labels each part. The point returns on a new card.",
+          "about": [
+            "i-report2"
+          ]
+        },
+        {
+          "text": "Agreed: I keep fixing the engine itself from your notes, so the next session gets the improved page without hand work.",
+          "about": [
+            "i-handfix"
+          ]
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T04:27:27Z",
+          "raw": "[round R-2]\nm-scope — | do not really like how the page present notes and replies. take a look at how it's done in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1\nm-scope — | I need to be able to use btw from this page (both Claude & Codex support it). it should work exactly as if I use /btw from the CLI\ni-self b | session end will not fire everytime as human might just close the terminal as I understand. you can verify. also what if a session end but only to be continued (/exit mid session but works not done yet). I think as agents notice the feature was delivered, it can ask human for permission to run gc (and what will be purged). if approved, it will change its working directory to the main checkout, and perform gc from there. it also means gc must be the very last thing we do, even after retro\ni-tipscope a\ni-split a\ni-feature accept\ni-merged2 accept\ni-abandoned2 accept\ni-remote2 accept | keep in mind remote branch might be deleted already as the change request might have the option to delete the branch after merged (at lease Gitlab support this, I don't remember about Github)\ni-policy2 accept | now I am not too sure if we want to restrict users from invoking the skill. do you think we can allow human too, and which scenarios?\ni-lane write-in | the only thing is, a feature might be delivered, then we noticed a gap, so we start a new worktree and work on it, and we clean up after done. so in general I agree with what we have here, I just want to make sure we do not understand the word \"feature\" too literally, as it might be a bug, a small enhancement, etc\ni-tipword accept\nm-scope — | I know it's not ideal as we are still improving the engine as we work on this feature. but definitely I do not want the previous round to be presented separately like this. I do like how it is in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1 where each card/section contains the changes in each round (on: \"R-1 Round 1: settled round WHAT SETTLED Nothing. WHAT IT UNLOCKS What gc does with the run's record What gc must touch …\")\ni-examples2 write-in | agents should report the exact situation so human can make decision. if they allow going ahead, agents should proceed (on: \"Nothing removed; the report gives 'closed'.\")\n\nI made my notes above (on: \"After your yes: run worktree, run branch and remote feature branch gone. The feature worktree and local branch go when …\")\ni-report2 — | how this page is presented is confusing. I do not understand what each paragraph present. for example, are json and plain text 2 different choices we are debating, or they are different parts of the same choice you are suggesting? for that reason I could not make decision here\ni-handfix-body — | yes, I will keep commenting on how this page is perform and eventually when I am happy, the engine itself should be updated so next time I use it it should work as is",
+          "signals": [
+            {
+              "target": "m-scope",
+              "item": "i-tipscope",
+              "mark": null,
+              "text": "do not really like how the page present notes and replies. take a look at how it's done in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1",
+              "note": "N-2-i-tipscope",
+              "steer": true,
+              "stamp": "78be9cdae2676c7b"
+            },
+            {
+              "target": "m-scope",
+              "item": "i-tipscope",
+              "mark": null,
+              "text": "I need to be able to use btw from this page (both Claude & Codex support it). it should work exactly as if I use /btw from the CLI",
+              "note": "N-2-i-tipscope",
+              "steer": true,
+              "stamp": "4c6660db4702cfff"
+            },
+            {
+              "target": "i-self",
+              "item": "i-self",
+              "mark": "b",
+              "note": "N-2-i-self",
+              "text": "session end will not fire everytime as human might just close the terminal as I understand. you can verify. also what if a session end but only to be continued (/exit mid session but works not done yet). I think as agents notice the feature was delivered, it can ask human for permission to run gc (and what will be purged). if approved, it will change its working directory to the main checkout, and perform gc from there. it also means gc must be the very last thing we do, even after retro",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "b12a7d3153128cd4"
+            },
+            {
+              "target": "i-tipscope",
+              "item": "i-tipscope",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "93136e3cc73b0d77"
+            },
+            {
+              "target": "i-split",
+              "item": "i-split",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3a971a2eb9c0792c"
+            },
+            {
+              "target": "i-feature",
+              "item": "i-feature",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2b09974ca8329ae7"
+            },
+            {
+              "target": "i-merged2",
+              "item": "i-merged2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "05a1efd6ffe3b728"
+            },
+            {
+              "target": "i-abandoned2",
+              "item": "i-abandoned2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "82e698851e6f3d08"
+            },
+            {
+              "target": "i-remote2",
+              "item": "i-remote2",
+              "mark": "accept",
+              "note": "N-2-i-remote2",
+              "text": "keep in mind remote branch might be deleted already as the change request might have the option to delete the branch after merged (at lease Gitlab support this, I don't remember about Github)",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "7ceb2426b8d899a7"
+            },
+            {
+              "target": "i-policy2",
+              "item": "i-policy2",
+              "mark": "accept",
+              "note": "N-2-i-policy2",
+              "text": "now I am not too sure if we want to restrict users from invoking the skill. do you think we can allow human too, and which scenarios?",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "161361554adef4c7"
+            },
+            {
+              "target": "i-lane",
+              "item": "i-lane",
+              "mark": "write-in",
+              "note": "N-2-i-lane",
+              "text": "the only thing is, a feature might be delivered, then we noticed a gap, so we start a new worktree and work on it, and we clean up after done. so in general I agree with what we have here, I just want to make sure we do not understand the word \"feature\" too literally, as it might be a bug, a small enhancement, etc",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "34e70faf665e8794"
+            },
+            {
+              "target": "i-tipword",
+              "item": "i-tipword",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "53348cda4b0f2d7f"
+            },
+            {
+              "target": "m-scope",
+              "item": "i-tipscope",
+              "mark": null,
+              "text": "I know it's not ideal as we are still improving the engine as we work on this feature. but definitely I do not want the previous round to be presented separately like this. I do like how it is in file:///C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver/23e372bc-cde6-4631-9ea7-43a4a91d8684/scratchpad/page/afk-v2-scope.html#s-w1 where each card/section contains the changes in each round (on: \"R-1 Round 1: settled round WHAT SETTLED Nothing. WHAT IT UNLOCKS What gc does with the run's record What gc must touch …\")",
+              "note": "N-2-i-tipscope",
+              "steer": true,
+              "stamp": "dd99a54a6ce6509b"
+            },
+            {
+              "target": "i-examples2",
+              "item": "i-examples2",
+              "mark": "write-in",
+              "note": "N-2-i-examples2",
+              "text": "agents should report the exact situation so human can make decision. if they allow going ahead, agents should proceed (on: \"Nothing removed; the report gives 'closed'.\")\n\nI made my notes above (on: \"After your yes: run worktree, run branch and remote feature branch gone. The feature worktree and local branch go when …\")",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "9b586b4a6ce4f4f1"
+            },
+            {
+              "target": "i-report2",
+              "item": "i-report2",
+              "mark": null,
+              "note": "N-2-i-report2",
+              "text": "how this page is presented is confusing. I do not understand what each paragraph present. for example, are json and plain text 2 different choices we are debating, or they are different parts of the same choice you are suggesting? for that reason I could not make decision here",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "31da956bdfb3ddcb"
+            },
+            {
+              "target": "i-handfix-body",
+              "item": "i-handfix",
+              "mark": null,
+              "note": "N-2-i-handfix",
+              "text": "yes, I will keep commenting on how this page is perform and eventually when I am happy, the engine itself should be updated so next time I use it it should work as is",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "f937dc2e60878fba"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "Tooltip work is option A, and it moved to #159, built on Codex (#159 is retitled)",
+          "gc leaves a dirty worktree, unmerged commits and a worktree another session holds",
+          "'Merged' is what the forge says, into any target branch",
+          "A remote branch the forge already deleted is a normal case: gc goes on",
+          "'Feature' means any piece of work on its own branch and worktree"
+        ],
+        "unlocks": [
+          "How the last removal happens",
+          "Who may run gc",
+          "Saying 'go ahead' after a refusal",
+          "Worked examples",
+          "What gc reports"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-self3",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "sequence",
+            "id": "i-self3-today",
+            "props": {
+              "actors": [
+                {
+                  "id": "you",
+                  "label": "You"
+                },
+                {
+                  "id": "agent",
+                  "label": "Agent session"
+                },
+                {
+                  "id": "gc",
+                  "label": "gc script"
+                },
+                {
+                  "id": "win",
+                  "label": "Windows"
+                }
+              ],
+              "messages": [
+                {
+                  "from": "agent",
+                  "to": "you",
+                  "text": "the change merged and retro is done: may I run gc? It removes: (list)"
+                },
+                {
+                  "from": "you",
+                  "to": "agent",
+                  "text": "yes"
+                },
+                {
+                  "from": "agent",
+                  "to": "gc",
+                  "text": "run gc from the main checkout"
+                },
+                {
+                  "from": "gc",
+                  "to": "win",
+                  "text": "remove run worktree, run branch, remote branches"
+                },
+                {
+                  "from": "win",
+                  "to": "gc",
+                  "text": "done"
+                },
+                {
+                  "from": "gc",
+                  "to": "win",
+                  "text": "remove the feature worktree and its local branch"
+                },
+                {
+                  "from": "win",
+                  "to": "gc",
+                  "text": "refused: the session process still uses the folder"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-self3-ask",
+                "props": {
+                  "text": "Your flow stands: the agent asks with the list, runs gc from the main checkout, and gc is the very last step, after retro. One step fails: the session process keeps the feature worktree as its working folder until it exits. A change of folder inside the session does not change that. How does the last removal happen? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-self3-options",
+                "props": {
+                  "columns": [
+                    "A: a waiting remover, plus a check at next start",
+                    "B: the check at next start only",
+                    "C: you remove it"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-self3-opt-a",
+                        "props": {
+                          "text": "gc removes all it can now. Then it starts a small background process that waits until the session ends, and removes the feature worktree and local branch. If that process never finishes (machine restart, killed), the next session start in this repository removes them."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-self3-opt-b",
+                        "props": {
+                          "text": "gc marks the folder and the branch. The next session start in this repository removes them, when no live session holds them. Simpler, but the folder stays until you next start a session."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-self3-opt-c",
+                        "props": {
+                          "text": "gc prints the two commands, and you run them after you close the session. Half of the pain stays."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-self3-why",
+                "fold": "Evidence, and what is not proved",
+                "props": {
+                  "text": "Proved here: the session's own process has the worktree as its working folder (herdr process-info for this pane), and Windows refused to remove a folder a live process used (WinError 32, scratch test). Your note stands: a session-end hook does not fire when you close the terminal, so no option uses it. v1 already ran a start-of-session worktree prune (hooks/worktree-prune.sh). Not proved: that a background process started by gc outlives the session on Windows; the design must prove it, and without it A is B. Not tested here: Linux and macOS let a program remove a folder in use, so there gc may remove everything at once."
+                }
+              }
+            ]
+          },
+          "title": "How the last removal happens",
+          "node": "n-worktree",
+          "carries": [
+            "i-self"
+          ],
+          "notes": [
+            {
+              "id": "N-3-i-self3",
+              "round": 3,
+              "target": "i-self3",
+              "text": "is it verified? if so, fine. if not, pls do (on: \"A change of folder inside the session does not change that\")\n\nI do prefer this option. the human effort is small and justifiable. however you said half of the pain stays, what are the pains?",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 3,
+            "signal": "N-3-i-self3",
+            "reading": "Option C: gc removes everything else, then gives you one command for the feature worktree and its local branch. You run it after you close the session. The command is gc's own, not raw git, so it uses the same in-use check as gc (see the new card on that check)."
+          }
+        },
+        {
+          "id": "i-policy3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-policy3-table",
+            "props": {
+              "columns": [
+                "Who",
+                "May run gc?"
+              ],
+              "rows": [
+                [
+                  "An agent in your session, after your yes",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "permitted",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "You, from the slash menu",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "permitted (changed)",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "A hands-off build (autopilot, execute)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "denied",
+                      "tone": "removed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-policy3-ask",
+                "props": {
+                  "text": "You asked if you may run gc too. My answer: yes. Please confirm. Cases: the change merged after the session that built it ended; you come back to the work days later; you said no to the agent's ask and are ready now. The guard is the same for both: gc lists what it will remove and waits for your yes, and it acts only on the work of the worktree it runs in."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-policy3-why",
+                "fold": "The counter-argument I weighed",
+                "props": {
+                  "text": "A menu entry makes a run in the wrong worktree easier. The 'current feature only' rule and the list you approve catch that, so the risk is low. A hands-off build stays denied: nobody is there to say yes."
+                }
+              }
+            ]
+          },
+          "title": "Who may run gc",
+          "node": "n-consent",
+          "carries": [
+            "i-policy2"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          },
+          "notes": [
+            {
+              "id": "N-3-i-policy3",
+              "round": 3,
+              "target": "m-scope",
+              "text": "the page should aim for better navigation experience. like here it would be great to have the URL to the issue. same principle could be applied to change request, jira, etc (on: \"#159\")",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-override",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-override-table",
+            "props": {
+              "columns": [
+                "gc refuses because",
+                "The agent tells you",
+                "On your explicit yes"
+              ],
+              "rows": [
+                [
+                  "The change is closed, still open, or was never opened",
+                  "the forge's answer and the change link",
+                  "gc goes ahead"
+                ],
+                [
+                  "The forge call failed",
+                  "the error",
+                  "gc goes ahead"
+                ],
+                [
+                  "A worktree has uncommitted or untracked files",
+                  "each file name",
+                  "gc goes ahead; those files are lost"
+                ],
+                [
+                  "The local branch has commits that are not in the change",
+                  "each commit: short id and title",
+                  "gc goes ahead; the report keeps each branch tip, so you can restore it"
+                ],
+                [
+                  "Another live session works in the worktree",
+                  "which session",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still refused",
+                      "tone": "removed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-override-ask",
+                "props": {
+                  "text": "Please confirm. This follows your note: report the exact situation, and go ahead on your yes. gc still refuses first. A yes covers one run. One exception: a worktree another live session uses stays refused, because removing it breaks that session, and Windows refuses anyway."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-override-why",
+                "fold": "What this changes",
+                "props": {
+                  "text": "It replaces 'An abandoned feature keeps its branches' (round 2): an abandoned feature still refuses, and now your yes overrides it. I drop the planned spinoff for cleaning abandoned features: your yes covers the current one, and gc never touches other work, as you said."
+                }
+              }
+            ]
+          },
+          "title": "After a refusal, your yes lets gc go ahead",
+          "node": "n-merged",
+          "carries": [
+            "i-abandoned2"
+          ],
+          "notes": [
+            {
+              "id": "N-3-i-override",
+              "round": 3,
+              "target": "i-override-ask",
+              "text": "just need to be sure, for example if Windows refuses the removal immediately and there's nothing removed at all, or there's chance that it might be partially deleted before Windows blockage. if there are risks, then maybe we need to find a way to check and verify if any session is using the path (Claude + Codex)",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "i-examples3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-examples3-table",
+            "props": {
+              "columns": [
+                "Case",
+                "Start",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "Frequent",
+                  "Work on feat/afkv2-gc. Its change merged into feat/afkv2. Retro is done. Both worktrees are clean.",
+                  "The agent asks and lists what goes. On your yes, it runs gc from the main checkout. Run worktree, run branch and remote feature branch go at once. The feature worktree and local branch go as 'How the last removal happens' decides."
+                ],
+                [
+                  "Edge",
+                  "Same, but the forge deleted the remote feature branch at merge.",
+                  "gc goes on. The report says the remote branch was already gone."
+                ],
+                [
+                  "Edge",
+                  "Same, but you have no push right.",
+                  "The local part is done. The report names the failed remote delete. A rerun with a push right finishes."
+                ],
+                [
+                  "Risky",
+                  "The change is closed, not merged. One file is uncommitted.",
+                  "gc removes nothing. The agent tells you: change closed, that file uncommitted. On your explicit yes, gc removes everything, the file included."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-examples3-ask",
+                "props": {
+                  "text": "Please confirm. No real run branch exists today, so the first real target is this work's own, once it merges."
+                }
+              }
+            ]
+          },
+          "title": "Worked examples",
+          "node": "n-gc",
+          "carries": [
+            "i-examples2"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-report3",
+          "kind": "decided",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-report3-body",
+            "props": {
+              "text": "Two readers, one answer each. The gc script answers the agent with JSON. The agent then tells you in plain words: what went, what waits for the last removal, and what was refused and why."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-report3-decision",
+                "props": {
+                  "text": "The gc script answers one JSON object: the change link and state, each item removed with each branch's tip commit, each item that waits for the last removal, and each item refused with its reason. The agent tells you the same in plain words.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-report3-why",
+                "props": {
+                  "text": "A script answer must be testable, and you need a branch's tip commit to restore it by hand.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report3-alternatives",
+                "props": {
+                  "text": "- the script answers in plain text: a test cannot read it\n- the v1 OUTCOME line: a v1 format that afkv2 does not carry",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report3-evidence",
+                "props": {
+                  "text": "afkv2/skills/grill/SKILL.md 'The commands': every script answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input",
+                  "label": "Evidence",
+                  "badge": "pattern"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report3-reverse",
+                "props": {
+                  "text": "change the answer shape in one script",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-report3-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "What gc reports",
+          "node": "n-report",
+          "carries": [
+            "i-report2"
+          ],
+          "notes": [
+            {
+              "id": "N-3-i-report3",
+              "round": 3,
+              "target": "i-report3-why",
+              "text": "URL to the commit would be nice (on: \"tip commit\")",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 3,
+            "signal": "N-3-i-report3",
+            "reading": "Accepted, plus your note: next to each branch's tip commit, the report gives the commit's link on the forge. Not verified: that every forge keeps a deleted branch's commit reachable by link; the design checks it on GitHub and GitLab."
+          }
+        }
+      ],
+      "replies": [
+        {
+          "text": "Done before this round, as you asked: each point now shows as one card that holds its history. Earlier versions of a point fold inside its newest card, with round badges, like your scope page. Decided cards label each part. Table cells keep their card when you annotate them. The btw control is on the page; its live check in this pane still waits for you (the tool guard would not let me type into my own pane).",
+          "about": [
+            "m-scope"
+          ]
+        },
+        {
+          "text": "#159 is now 'afkv2: page tips for feature terms and ids', to build on Codex: https://github.com/midnightblur/afk-driver/issues/159",
+          "about": [
+            "i-split"
+          ]
+        },
+        {
+          "text": "Settled by your note: Option C: gc removes everything else, then gives you one command for the feature worktree and its local branch. You run it after you close the session. The command is gc's own, not raw git, so it uses the same in-use check as gc (see the new card on that check).",
+          "about": [
+            "i-self3"
+          ]
+        },
+        {
+          "text": "Settled by your note: Accepted, plus your note: next to each branch's tip commit, the report gives the commit's link on the forge. Not verified: that every forge keeps a deleted branch's commit reachable by link; the design checks it on GitHub and GitLab.",
+          "about": [
+            "i-report3"
+          ]
+        },
+        {
+          "text": "You were right to ask. Tested on this machine (git 2.53, scratch repository): `git worktree remove` on a folder that a process uses deletes the files first, then fails on the folder. Result: an empty or near-empty folder, and git forgets the worktree. So a live session would lose its files. Renaming the folder first is a safe test: with a process in the folder, in a subfolder, or holding a file open, the rename was refused and all 53 entries stayed. With no holder, the rename worked and the removal finished. The next round asks you to confirm this check.",
+          "about": [
+            "i-override"
+          ]
+        },
+        {
+          "text": "Verified now. In this session, a move of the shell to the main checkout was reset by the harness, in both shells. Before and after, the session process kept the worktree as its working folder (herdr process-info: claude.exe, cwd ...\\afkv2-gc\\). A child process cannot change the working folder of its parent. Claude has a native exit-and-remove for worktrees, but only for those it made itself under .claude/worktrees, so not for our sibling worktrees.",
+          "about": [
+            "i-self3-ask"
+          ]
+        },
+        {
+          "text": "The pains of C, honestly: 'half of the pain' was too strong. gc still removes the run worktree, run branch and remote branches. What stays: (1) one command per piece of work, after you close the session; (2) when you forget it, the folder and local branch stay, which is the pile-up #159 named; (3) a raw `git worktree remove` on a folder still in use deletes its files part way (tested). So gc gives you its own command, which checks first.",
+          "about": [
+            "i-self3-options"
+          ]
+        },
+        {
+          "text": "Your steer, word for word: \"the page should aim for better navigation experience. like here it would be great to have the URL to the issue. same principle could be applied to change request, jira, etc\". In work now: tickets, changes, Jira keys and commits in page text become links that open in a new tab.",
+          "about": [
+            "m-scope"
+          ]
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T05:24:13Z",
+          "raw": "[round R-3]\nm-scope — | the page should aim for better navigation experience. like here it would be great to have the URL to the issue. same principle could be applied to change request, jira, etc (on: \"#159\")\ni-self3-ask — | is it verified? if so, fine. if not, pls do (on: \"A change of folder inside the session does not change that\")\ni-self3 write-in\ni-self3-options — | I do prefer this option. the human effort is small and justifiable. however you said half of the pain stays, what are the pains?\ni-policy3 accept\ni-override write-in\ni-override-ask — | just need to be sure, for example if Windows refuses the removal immediately and there's nothing removed at all, or there's chance that it might be partially deleted before Windows blockage. if there are risks, then maybe we need to find a way to check and verify if any session is using the path (Claude + Codex)\ni-examples3 accept\ni-report3-why — | URL to the commit would be nice (on: \"tip commit\")\ni-report3 accept",
+          "signals": [
+            {
+              "target": "m-scope",
+              "item": "i-policy3",
+              "mark": null,
+              "text": "the page should aim for better navigation experience. like here it would be great to have the URL to the issue. same principle could be applied to change request, jira, etc (on: \"#159\")",
+              "note": "N-3-i-policy3",
+              "steer": true,
+              "stamp": "e605129ce6382511"
+            },
+            {
+              "target": "i-self3-ask",
+              "item": "i-self3",
+              "mark": null,
+              "note": "N-3-i-self3",
+              "text": "is it verified? if so, fine. if not, pls do (on: \"A change of folder inside the session does not change that\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "15e35c6f99e49283"
+            },
+            {
+              "target": "i-self3",
+              "item": "i-self3",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "9fad0f278aa34973"
+            },
+            {
+              "target": "i-self3-options",
+              "item": "i-self3",
+              "mark": null,
+              "note": "N-3-i-self3",
+              "text": "I do prefer this option. the human effort is small and justifiable. however you said half of the pain stays, what are the pains?",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "df2e1faf68d3158e"
+            },
+            {
+              "target": "i-policy3",
+              "item": "i-policy3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "579cde3d7dde37ab"
+            },
+            {
+              "target": "i-override",
+              "item": "i-override",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "25003bae2fa1e1dc"
+            },
+            {
+              "target": "i-override-ask",
+              "item": "i-override",
+              "mark": null,
+              "note": "N-3-i-override",
+              "text": "just need to be sure, for example if Windows refuses the removal immediately and there's nothing removed at all, or there's chance that it might be partially deleted before Windows blockage. if there are risks, then maybe we need to find a way to check and verify if any session is using the path (Claude + Codex)",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "7b39950f1d7ad66b"
+            },
+            {
+              "target": "i-examples3",
+              "item": "i-examples3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a74b054248d4c89a"
+            },
+            {
+              "target": "i-report3-why",
+              "item": "i-report3",
+              "mark": null,
+              "note": "N-3-i-report3",
+              "text": "URL to the commit would be nice (on: \"tip commit\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "1fdf94a05267a50a"
+            },
+            {
+              "target": "i-report3",
+              "item": "i-report3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "09f0de2ca5a21a31"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "Last removal: option C, with a command of gc's own that checks first",
+          "You may run gc too, with the same list and yes",
+          "Worked examples E-1 to E-4",
+          "The report, with a link to each tip commit"
+        ],
+        "unlocks": [
+          "The exit gate: this is the last round. It holds the devil's-advocate findings and the in-use check."
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-inuse",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "i-inuse-table",
+            "props": {
+              "columns": [
+                "gc refuses because",
+                "The agent tells you",
+                "On your explicit yes"
+              ],
+              "rows": [
+                [
+                  "The change is closed, still open, or was never opened",
+                  "the forge's answer and the change link",
+                  "gc goes ahead"
+                ],
+                [
+                  "The forge call failed",
+                  "the error",
+                  "gc goes ahead"
+                ],
+                [
+                  "A worktree has uncommitted or untracked files",
+                  "each file name",
+                  "gc goes ahead; those files are lost"
+                ],
+                [
+                  "The local branch has commits that are not in the change",
+                  "each commit: short id and title",
+                  "gc goes ahead; the report keeps each branch tip"
+                ],
+                [
+                  "A process uses a worktree folder: a session, a terminal, an editor",
+                  "the folder, and to close what uses it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still refused",
+                      "tone": "removed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-inuse-ask",
+                "props": {
+                  "text": "Please confirm. How gc knows a folder is in use: before it deletes a worktree, it renames the folder. Windows refuses the rename when any process uses the folder, and then nothing is touched. gc deletes the folder only after the rename works. afkv2 runs on Windows only, so on another system gc refuses to remove a worktree."
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-inuse-why",
+                "fold": "The tests, and the command you run later",
+                "props": {
+                  "text": "Tested on this machine with git 2.53: a plain git removal of a folder in use deleted the files, failed on the folder, and git forgot the worktree. The rename was refused for a process in the folder, in a subfolder, and with a file open; all 53 entries stayed. With no user, the rename and the removal worked. The command you run after the session also refuses when it runs inside the folder it removes, and says: leave the folder first. The terminal you started the session from still holds the folder after the session ends. Linux, macOS and WSL are out of scope (afkv2 PRD, out-of-scope list)."
+                }
+              }
+            ]
+          },
+          "title": "gc removes a worktree only when nothing uses it",
+          "node": "n-worktree",
+          "carries": [
+            "i-override"
+          ],
+          "notes": [
+            {
+              "id": "N-4-i-inuse",
+              "round": 4,
+              "target": "i-inuse-ask",
+              "text": "the plugin's limitation must be clearly stated in the repo's README (on: \"runs on Windows only\")",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 4,
+            "signal": "N-4-i-inuse",
+            "reading": "Accepted, plus your note: the repository README states the platform limit of afkv2 in clear words: Windows only; Linux, macOS and WSL are not supported. Today no README text names afkv2 or its platform (checked: README.md at the root; afkv2/ has no README), so this change adds it."
+          }
+        },
+        {
+          "id": "i-branchdel",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-branchdel-body",
+            "props": {
+              "text": "Git's normal delete refuses both branches on the normal path. gc's own checks take its place."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-branchdel-decision",
+                "props": {
+                  "text": "gc deletes a branch with git's force flag, but only after its own checks pass: the forge says merged, and the branch tip is the change's head commit or older. The remote feature branch passes the same tip check. The run branch, which never reaches the forge, goes after the merge proof.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-branchdel-why",
+                "props": {
+                  "text": "The run branch is an orphan, and a squash merge leaves the feature tip outside the target, so git's normal delete refuses both. 'gc never forces' means: gc never goes past a refusal without your yes.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-branchdel-alternatives",
+                "props": {
+                  "text": "- git's normal delete only: it refuses every squash merge and every run branch\n- force with no tip check: commits made after the merge are lost",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-branchdel-evidence",
+                "props": {
+                  "text": "scratch probe 2026-11-02: git answers 'not fully merged' for an orphan; glossary 'Merged': a squash merge leaves the tip outside the target; forge change-view answers head_sha (afkv2/ports/forge/CONTRACT.md)",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-branchdel-reverse",
+                "props": {
+                  "text": "change the delete rule in gc's script",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-branchdel-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "How gc deletes branches",
+          "node": "n-record",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-target",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-target-body",
+            "props": {
+              "text": "gc runs from the main checkout, so it cannot learn the feature from the folder it runs in."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-target-decision",
+                "props": {
+                  "text": "gc fixes its target in the feature worktree, when it lists what it will remove: the worktree path, the feature branch, the run branch and the change. The removal step, and the command you run later, take that fixed target and never read the folder they run in.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-target-why",
+                "props": {
+                  "text": "From the main checkout, 'the worktree it runs in' is the main branch, so gc finds no feature or the wrong one. The command you run later runs after the run branch is gone, so it cannot read the plan either.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-alternatives",
+                "props": {
+                  "text": "- read the folder at removal time: wrong from the main checkout\n- ask you for a branch name: a typo can point gc at other work",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-evidence",
+                "props": {
+                  "text": "this grill: 'current feature only' (round 1), 'runs gc from the main checkout' (round 3); the run worktree path comes from the feature worktree (afkv2/skills/to-subtasks/scripts/plan_files.py:117)",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-reverse",
+                "props": {
+                  "text": "change how one script takes its target",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "gc fixes its target before it leaves the worktree",
+          "node": "n-find",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-trigger",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-trigger-body",
+            "props": {
+              "text": "You merge outside the session, often after it ends. Nothing tells an idle agent."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-trigger-decision",
+                "props": {
+                  "text": "After retro, the agent asks the forge once whether the change merged. Merged: it asks your yes with the list. Not merged yet: it tells you to run /afkv2:gc after the merge. When a CI watch reports the change as no longer open, the agent asks then. No new watcher.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-trigger-why",
+                "props": {
+                  "text": "An idle agent cannot receive a merge event after its session ends. You may run gc yourself, so one check plus your own run covers every case.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-trigger-alternatives",
+                "props": {
+                  "text": "- a background watch until the merge: its result has no receiver after the session ends\n- no check: the agent never offers gc",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-trigger-evidence",
+                "props": {
+                  "text": "afkv2/skills/create-change-request/SKILL.md: the CI watch ends with 'change-not-open' when the change is merged or closed, and waits 5400 s by default",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-trigger-reverse",
+                "props": {
+                  "text": "change one step in the gc skill",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-trigger-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "When the agent offers to run gc",
+          "node": "n-consent",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-links",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-links-body",
+            "props": {
+              "text": "A small change to the report you accepted."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-links-decision",
+                "props": {
+                  "text": "The report links a tip commit only when the forge holds it, as for the feature branch. The run branch stays local, so the report gives its commit id with no link.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-links-why",
+                "props": {
+                  "text": "No afkv2 code pushes a run branch, so a link to its commit points nowhere.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-links-alternatives",
+                "props": {
+                  "text": "- link every commit: a dead link for the run branch",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-links-evidence",
+                "props": {
+                  "text": "claim ledger: no afkv2 code pushes a run branch (afkv2/skills/autopilot/SKILL.md:8; plan_files.py:115)",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-links-reverse",
+                "props": {
+                  "text": "change the report in one script",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-links-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Links only for commits the forge holds",
+          "node": "n-report",
+          "carries": [
+            "i-report3"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        }
+      ],
+      "replies": [
+        {
+          "text": "Replaced by 'Who may run gc' (round 3): you may run gc too. The PRD carries only the newer rule.",
+          "about": [
+            "i-consent"
+          ]
+        },
+        {
+          "text": "A fresh agent attacked the settled requirements with only the grill log in hand. It found 6 points. 1 was already covered: gc refuses a local branch with commits that are not in the change (round 2, 'When gc leaves a worktree or branch alone'). The other 5 are on the cards of this round. 4 are my decisions, and 1 is on the in-use card.",
+          "about": [
+            "m-scope"
+          ]
+        },
+        {
+          "text": "Settled by your note: Accepted, plus your note: the repository README states the platform limit of afkv2 in clear words: Windows only; Linux, macOS and WSL are not supported. Today no README text names afkv2 or its platform (checked: README.md at the root; afkv2/ has no README), so this change adds it.",
+          "about": [
+            "i-inuse"
+          ]
+        },
+        {
+          "text": "Your steer, word for word: \"my notes and mark (and work I did in the page really) should be durable and note wiped out if the page get refreshed, or listening process failed, or agents failed, etc\". Taken into this branch as engine work, like the other page fixes. I first check what lavish keeps today on a refresh, a host restart and a failed wait; then the page keeps your marks and notes until the agent has read them.",
+          "about": [
+            "m-scope"
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "id": "N-4-m-scope",
+          "round": 4,
+          "target": "m-scope",
+          "text": "my notes and mark (and work I did in the page really) should be durable and note wiped out if the page get refreshed, or listening process failed, or agents failed, etc (on: \"158 grill · 158 R-4 Round 4: current round WHAT SETTLED Last removal: option C, with a command of gc's own that checks …\")",
+          "deleted": false
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T05:43:15Z",
+          "raw": "[round R-4]\nm-scope — | my notes and mark (and work I did in the page really) should be durable and note wiped out if the page get refreshed, or listening process failed, or agents failed, etc (on: \"158 grill · 158 R-4 Round 4: current round WHAT SETTLED Last removal: option C, with a command of gc's own that checks …\")\ni-inuse accept\ni-inuse-ask — | the plugin's limitation must be clearly stated in the repo's README (on: \"runs on Windows only\")\ni-branchdel accept\ni-target accept\ni-trigger accept\ni-links accept",
+          "signals": [
+            {
+              "target": "m-scope",
+              "item": null,
+              "mark": null,
+              "text": "my notes and mark (and work I did in the page really) should be durable and note wiped out if the page get refreshed, or listening process failed, or agents failed, etc (on: \"158 grill · 158 R-4 Round 4: current round WHAT SETTLED Last removal: option C, with a command of gc's own that checks …\")",
+              "note": "N-4-m-scope",
+              "steer": true,
+              "stamp": "54c5ba02a8dec2e7"
+            },
+            {
+              "target": "i-inuse",
+              "item": "i-inuse",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "d840b893a20ce310"
+            },
+            {
+              "target": "i-inuse-ask",
+              "item": "i-inuse",
+              "mark": null,
+              "note": "N-4-i-inuse",
+              "text": "the plugin's limitation must be clearly stated in the repo's README (on: \"runs on Windows only\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "72ed5f99226e340f"
+            },
+            {
+              "target": "i-branchdel",
+              "item": "i-branchdel",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "8e4ab95b123fccf6"
+            },
+            {
+              "target": "i-target",
+              "item": "i-target",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7a47c629f5634142"
+            },
+            {
+              "target": "i-trigger",
+              "item": "i-trigger",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "052eb953d6981ff6"
+            },
+            {
+              "target": "i-links",
+              "item": "i-links",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cfb80e721c3ede4d"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

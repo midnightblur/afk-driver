@@ -50,7 +50,7 @@ An unprotected branch that several teams merge into. Its CI must stay passable, 
 ## Runs and artifacts
 
 **Run branch**:
-An orphan branch per feature that holds the run files (the plan folder, journal, decision ledger, review telemetry). The spec folder (PRD, SDD, ADRs, grill log, page documents) is not a run file; it stays with the feature's change. gc keeps the run branch as the run's record.
+An orphan branch per feature that holds the run files (the plan folder, journal, decision ledger, review telemetry). The spec folder (PRD, SDD, ADRs, grill log, page documents) is not a run file; it stays with the feature's change. gc removes the run branch after the change merges; no record of the run is kept.
 `Related:` Chain
 
 **Smart zone**:
@@ -110,3 +110,9 @@ The list in the grill log of every load-bearing statement about how something wo
 **Exit gate**:
 The check that ends a grill: every claim verified or acknowledged, every term verified, the policy, staples, examples and devil's-advocate rows present, and no point left open in the current round.
 `Related:` Claim ledger
+
+**Merged**:
+The forge reports the feature's change as merged, into any target branch, and no change on the branch is still open. Only the forge decides; a git history check does not count, because a squash merge leaves the feature tip outside the target.
+
+**Feature**:
+Any piece of work on its own branch and worktree: a new feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. Not the size of the work; that is the lane.
