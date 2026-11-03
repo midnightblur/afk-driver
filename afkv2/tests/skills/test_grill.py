@@ -567,6 +567,14 @@ def test_a_waited_answer_resumes_its_own_session_beside_the_audit_file(world):
     world.run("sync", doc=started["doc"], log=started["log"])
 
 
+def test_reply_and_end_run_their_engine_verbs(world):
+    started = first_round(world)
+    reply = world.file("reply.md", "An answer.")
+    assert world.run("reply", doc=started["doc"], reply_file=reply) == {"ok": True}
+    assert world.run("end", doc=started["doc"]) == {"ok": True}
+    assert world.verbs()[-2:] == ["reply", "end"]
+
+
 def answered(world, started, raw):
     raw_file = Path(started["raw_file"])
     raw_file.write_text(raw, "utf-8")

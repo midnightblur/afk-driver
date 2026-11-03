@@ -1,6 +1,7 @@
 """Recorded fake of the page engine command (SDD §3, §4, §6), until the S1 engine merges.
 
-`engine.py check|render|show|poll DOC` and `engine.py ingest DOC --raw-file FILE`.
+`engine.py check|render|show|poll|end DOC`, `engine.py reply DOC --reply-file FILE` and
+`engine.py ingest DOC --raw-file FILE`.
 
 Environment:
   FAKE_CALL_LOG      file; one line `engine <verb>` per call
@@ -163,6 +164,12 @@ def main(argv):
     if verb == "poll":
         raw = Path(os.environ["FAKE_POLL_RAW"]).read_bytes().decode("utf-8")
         return answer({"ok": True, "raw": raw, "prompts": [{"uid": "1", "prompt": raw, "selector": "", "tag": "", "text": ""}]})
+    if verb == "reply":
+        if "--reply-file" not in argv or not Path(argv[argv.index("--reply-file") + 1]).is_file():
+            return refuse("reply needs an existing --reply-file", 2)
+        return answer({"ok": True, "verb": "reply"})
+    if verb == "end":
+        return answer({"ok": True, "verb": "end"})
     if verb == "ingest":
         raw = Path(argv[argv.index("--raw-file") + 1]).read_bytes().decode("utf-8")
         signals = ingest(doc, raw)
