@@ -2,12 +2,14 @@
 
 No record: no output. Answer: `{"decision": "block", "reason": <raw response>}`. No answer within
 the wait: a warning that names the fallback, no block. This hook never fails the agent's stop.
-Side questions from the page are asked in the Codex pane with `/side` (`side_question.py`); their
-answers are not read until the owner's live check defines the markers, so the page says so.
+While it waits, the side-question listener (`btw_listener.py`) takes the page's btw? questions. Each is
+asked in the Codex pane with `/side` (`side_question.py`); its answer is not read until the owner's live
+check defines the markers, so the page says so.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -21,9 +23,11 @@ for folder in (PLUGIN_ROOT / "scripts", PLUGIN_ROOT / "engine"):
 
 from afkv2_config import Refusal, data_folder  # noqa: E402
 
+import btw_listener  # noqa: E402
 import engine  # noqa: E402
 import launcher  # noqa: E402
 import prompt_lines  # noqa: E402
+import side_question  # noqa: E402
 
 WAIT_SECONDS = 3600
 SLICE_MS = 60_000
@@ -45,8 +49,6 @@ def _raw(document: str | None, round_prompts: list[dict]) -> str:
 
 def _side_answers(questions: list[str], ask) -> str:
     """Markdown of the answers to the side questions, asked in the agent's Codex pane."""
-    import side_question
-
     ask = ask or (lambda question: side_question.ask(question, harness="codex"))
     results = [ask(question) for question in questions]
     for result in results:
@@ -124,7 +126,10 @@ def main(stdin: str) -> str | None:
     record = launcher.read_waiting_record(folder, session)
     if record is None:
         return None
-    status, raw = wait_for_answer(record["page"], document=record.get("document"))
+    document = record.get("document")
+    listener = btw_listener.Listener(document, lambda question: side_question.ask(question, harness="codex"))
+    with listener if document else contextlib.nullcontext():
+        status, raw = wait_for_answer(record["page"], document=document)
     launcher.clear_waiting_record(folder, session)
     if status == "feedback":
         return json.dumps({"decision": "block", "reason": raw})

@@ -1,8 +1,9 @@
 """Turn the prompts of one host poll into one raw response in the ingest grammar (`ingest.py`).
 
 A prompt is `{uid, prompt, selector, tag, text}`. The page queues a mark as a prompt with the tag
-`afkv2-mark` and a side question with the tag `afkv2-btw`; every other prompt is a native lavish
-annotation or message. An annotation names its
+`afkv2-mark`. A prompt with the tag `afkv2-btw` is a side question: the btw? panel posts its questions
+to the side-question listener (`btw_listener.py`), and only a page rendered before that queues one.
+Every other prompt is a native lavish annotation or message. An annotation names its
 element by the nearest ancestor HTML id in `selector`, and every page element id is an HTML id.
 """
 

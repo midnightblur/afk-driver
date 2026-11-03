@@ -1530,12 +1530,11 @@ def test_without_a_pane_the_stop_hook_says_so_on_the_page():
     assert codex_stop._side_answers(["Why?"], ask) == f"**btw:** Why?\n\n{codex_stop.NO_PANE}"
 
 
-def test_the_page_has_a_side_question_control_with_one_send():
-    html = page.build(two_rounds())
+def test_the_page_has_a_side_question_control_with_one_ask():
+    html = page.build(two_rounds(), (43001, "abc"))
     script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
-    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {")
-    assert holds(script, f"var BTW_TAG = '{prompt_lines.BTW_TAG}';", "bridge.queuePrompt(text, { tag: BTW_TAG",
-                 "bridge.sendQueuedPrompts();", "data-lavish-ui", "setTimeout(build, 250)")
+    assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {", 'data-afkv2-btw-port="43001"')
+    assert holds(script, "data-lavish-ui", "fetch(url, { method: 'POST'") and lacks(script, "queuePrompt")
     assert script.count("createElement('button')") == 2 and "Ask side agent" not in script
 
 

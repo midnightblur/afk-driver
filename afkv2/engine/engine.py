@@ -34,10 +34,12 @@ for folder in (ENGINE_DIR.parent / "scripts", ENGINE_DIR):
 
 from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E402
 
+import btw_listener  # noqa: E402
 import ingest  # noqa: E402
 import launcher  # noqa: E402
 import prompt_lines  # noqa: E402
 import registry  # noqa: E402
+import side_question  # noqa: E402
 from schema import invariants  # noqa: E402
 from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
@@ -257,7 +259,7 @@ def _render(path: str) -> tuple[dict, Path, Path]:
     document = _require_home(path, doc)
     data_folder()
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc), inject.load_dictionary(html_path))
+    html = inject.inject(page.build(doc, btw_listener.address(document)), inject.load_dictionary(html_path))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
     return doc, document, html_path
@@ -367,12 +369,14 @@ def cmd_poll(args) -> dict:
     A kept send that ingest has not read answers first, with no host poll. `btw` holds the side
     questions of the send; they never enter `raw`. `round_prompts` counts the prompts left for the
     round: 0 means the send held side questions only. A send that ends the session with no round
-    prompt answers as `page-ended`."""
+    prompt answers as `page-ended`. While the host poll waits, the side-question listener
+    (`btw_listener.py`) answers the page's btw? panel."""
     html_path = _shown_page(args.document)
     detail = kept_delivery(args.document)
     status = "feedback"
     if detail is None:
-        status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
+        with btw_listener.Listener(args.document, side_question.ask):
+            status, detail = launcher.poll_status(["poll", str(html_path), *_reply_flag(args)])
         if status == "feedback":
             keep_delivery(args.document, detail)
     if status == "feedback" and detail.get("session_ended") and not prompt_lines.split_side_questions(

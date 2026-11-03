@@ -80,7 +80,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send to Agent: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
 
-   **Side questions.** The page's btw? button sends a side question at once. The wait (or the Stop hook) asks it in your terminal pane and shows the answer on the page. A send of side questions only does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
+   **Side questions.** The page's btw? button sends only its question, at once, to the wait (or the Stop hook). The wait asks it in your terminal pane, and the page shows the answer. The marks the human queued stay queued. A side question does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
 
    ```sh step=reply
    <python> "<this skill's folder>/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"
