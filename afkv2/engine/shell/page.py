@@ -4,6 +4,7 @@ Order: the current round banner, the notes on the whole session, maps, the point
 the copy bar, the settled points, the earlier banners. A point shows once, as its newest card, with its
 notes and replies under the heading and its earlier cards in a closed "History". The human sends marks
 and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
+Each ticket, change and commit reference in the text links to the URL that `session.links` names.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from registry import aliases, lookup, render_component
 from shell.points import grouped
+from shell.references import linkify
 
 HERE = Path(__file__).resolve().parent
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
@@ -130,19 +132,25 @@ def targets(doc: dict) -> dict:
     return found
 
 
+def _reference(ticket: str) -> str:
+    """A ticket that is a number is a GitHub issue: `#` makes it a reference that links."""
+    return f"#{ticket}" if ticket.isdigit() else ticket
+
+
 def build(doc: dict) -> str:
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     body = (f'<h1 class="afkv2-title">{escape(session["feature"])}</h1>'
-            f'<p class="afkv2-sub">{escape(session["skill"])} · {escape(session["ticket"])}</p>'
+            f'<p class="afkv2-sub">{escape(session["skill"])} · {escape(_reference(session["ticket"]))}</p>'
             f'{_banner(current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{_current_section(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}')
+    body = linkify(body, session.get("links"))
     title = f'{escape(session["feature"])}: round {current["n"]}'
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'

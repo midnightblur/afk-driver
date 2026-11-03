@@ -20,6 +20,13 @@ are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
 A `text` component is also the plain container of a body: its `children` follow
 its text.
 
+References link by themselves, in every text of the page, not only in a `text`:
+`#123` (an issue), `!123` and `PR #123` (a change), `ABC-123` (a ticket of a
+project in `session.links.projects`) and a commit sha after "commit" or "sha".
+Each opens in a new tab. A kind links only when `session.links` has its template;
+otherwise it stays text. Write the reference in that form, for example `#159`,
+not `issue 159`.
+
 ## Use it when
 
 A value, step or element must show whether it stays, goes, is new or is only
