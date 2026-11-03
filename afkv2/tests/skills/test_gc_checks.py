@@ -80,3 +80,31 @@ def test_any_other_forge_answer_refuses_not_merged_with_the_answer_and_the_link(
     assert refusal["answer"] == [{"number": int(item["id"]), "state": item["state"], "url": item["url"]} for item in changes]
     merged = [int(item["id"]) for item in changes if item["state"] == "merged"]
     assert (result["change"] or {}).get("number") == (merged[0] if merged else None)
+
+
+def test_a_failed_forge_call_refuses_forge_failed_with_the_error(monkeypatch):
+    error = {"code": "auth", "reason": "gh is not signed in"}
+    result, _ = check_with(monkeypatch, {"ok": False, "error": error})
+    assert result["refusal"] == {"code": "forge-failed", "reason": "the forge call failed: auth: gh is not signed in",
+                                 "error": error}
+    assert result["change"] is None
+
+
+@pytest.mark.parametrize("answer", [
+    {"ok": True},
+    {"ok": True, "changes": "none"},
+    {"ok": True, "changes": [{"id": "x7", "state": "merged", "head_sha": HEAD_OLD}]},
+    {"ok": True, "changes": [change(7, "merged", head="")]},
+    {"ok": True, "changes": [change(7, "merged", head="abc")]},
+])
+def test_an_answer_with_no_readable_change_or_no_head_commit_refuses_forge_failed(monkeypatch, answer):
+    result, _ = check_with(monkeypatch, answer)
+    assert result["refusal"]["code"] == "forge-failed"
+    assert result["refusal"]["error"]["code"] == "bad-answer"
+    assert result["change"] is None
+
+
+def test_the_real_forge_command_runs_in_the_repository_and_its_refusal_is_forge_failed(repo):
+    result = gc_checks.check_change(repo.feature, FEATURE, forge="not-a-forge")
+    assert result["refusal"]["code"] == "forge-failed"
+    assert result["refusal"]["error"]["code"] == "no-forge"

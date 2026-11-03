@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +12,7 @@ PLUGIN = Path(__file__).resolve().parents[3]
 FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 FORGE_LIMIT = 120
 PASSED_ON = ("forge", "repo")
+HEX40 = re.compile(r"[0-9a-f]{40}")
 
 
 def call_forge(verb, payload, cwd):
@@ -31,13 +33,36 @@ def _change(item):
             "head_sha": item.get("head_sha") or "", "target": item.get("target") or ""}
 
 
+def _forge_failed(error):
+    return {"refusal": {"code": "forge-failed", "reason": f"the forge call failed: {error.get('code')}: {error.get('reason')}",
+                        "error": error},
+            "change": None}
+
+
+def _changes(answer):
+    """The changes of an ok answer, or the bad-answer error that stops the check."""
+    items = answer.get("changes")
+    if not isinstance(items, list) or not all(isinstance(item, dict) and str(item.get("id", "")).isdigit() for item in items):
+        return None, {"code": "bad-answer", "reason": "the change list holds no list of numbered changes"}
+    changes = [_change(item) for item in items]
+    headless = [str(item["number"]) for item in changes
+                if item["state"] == "merged" and not HEX40.fullmatch(item["head_sha"])]
+    if headless:
+        return None, {"code": "bad-answer", "reason": f"merged change {', '.join(headless)} has no 40-hex head commit"}
+    return changes, None
+
+
 def check_change(repo, branch, **passed):
     """Merged and none open: at least one change of `branch` is merged and every other is merged or closed.
     `change` is the newest merged change (its head commit serves every tip check), or None. A state the forge
     port does not name counts as not merged."""
     payload = {"branch": branch, **{key: value for key, value in passed.items() if key in PASSED_ON and value}}
     answer = call_forge("change-list", payload, repo)
-    changes = [_change(item) for item in answer["changes"]]
+    if not answer.get("ok"):
+        return _forge_failed(answer.get("error") or {"code": "command-failed", "reason": "no error given"})
+    changes, error = _changes(answer)
+    if error:
+        return _forge_failed(error)
     merged = [item for item in changes if item["state"] == "merged"]
     change = merged[0] if merged else None
     if merged and all(item["state"] in ("merged", "closed") for item in changes):
