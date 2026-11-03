@@ -212,6 +212,11 @@ def _check_settled(item, iw, last_round, node_ids):
               "signal (must name a live note on the item)")
 
 
+def _note_id_ok(note_id, rnd, owner):
+    """Mirrors engine/schema/note_rules.py: the old form `N-<round>-<owner>` or the new `N-<round>-<owner>-<k>`."""
+    return bool(re.fullmatch(rf"N-{rnd}-{re.escape(str(owner))}(-[1-9][0-9]*)?", note_id or ""))
+
+
 def _check_notes(item, iw, last_round):
     for n, note in enumerate(_objects(item.get("notes", []), iw, "notes")):
         where = f"{iw}.notes[{n}]"
@@ -219,7 +224,7 @@ def _check_notes(item, iw, last_round):
         _need(set(note) == NOTE_FIELDS, where, "missing field")
         rnd = note["round"]
         _need(isinstance(rnd, int) and 1 <= rnd <= last_round, where, "round")
-        _need(note["id"] == f"N-{rnd}-{item['id']}", where, "id (N-<round>-<item>)")
+        _need(_note_id_ok(note["id"], rnd, item["id"]), where, "id (N-<round>-<item>[-<k>])")
         _need(isinstance(note["target"], str), where, "target")
         _need(isinstance(note["text"], str), where, "text")
         _need(isinstance(note["deleted"], bool), where, "deleted")
@@ -281,21 +286,23 @@ def _check_document(doc):
     node_ids = {n["id"] for mp in maps for n in mp["props"]["nodes"]}
     for r in rounds:
         _check_round(r, ids, node_ids, last_round, components)
-    for r in rounds:
-        for p, reply in enumerate(r.get("replies", [])):
-            for target in reply.get("about", []):
-                _need(target in ids, f"round {r['n']}.replies[{p}]", f"about {target} must resolve")
+    ids.update(f"R-{r['n']}" for r in rounds)  # the banner of each round is an element (note_rules.round_target)
     note_ids = set()
     for r in rounds:
         for n, note in enumerate(_objects(r.get("notes", []), f"round {r['n']}", "notes")):
             _only(note, NOTE_FIELDS, f"round {r['n']}.notes[{n}]")
-            _need(note.get("id") == f"N-{r['n']}-{note.get('target')}", f"round {r['n']}.notes[{n}]",
-                  "id (N-<round>-<target>)")
+            _need(_note_id_ok(note.get("id"), r["n"], note.get("target")), f"round {r['n']}.notes[{n}]",
+                  "id (N-<round>-<target>[-<k>])")
     for note in (n for r in rounds for n in [*(n for item in r["items"] for n in item.get("notes", [])),
                                              *r.get("notes", [])]):
         _need(note["id"] not in note_ids, f"note {note['id']}", "id not unique")
         note_ids.add(note["id"])
         _need(note["target"] in ids, f"note {note['id']}", "target must resolve")
+    for r in rounds:
+        for p, reply in enumerate(r.get("replies", [])):
+            for target in reply.get("about", []):
+                _need(target in ids or target in note_ids, f"round {r['n']}.replies[{p}]",
+                      f"about {target} must resolve")
     return components
 
 
@@ -601,7 +608,7 @@ def _note_on_an_older_card():
     doc = _next_round(_example())
     item = _at("i-data")(doc)
     del item["settled"]
-    item.update(state="open", notes=[_note("i-data", 2)])
+    item.update(state="open", notes=[{**_note("i-data", 2), "id": "N-2-i-data-1"}])
     return doc
 
 
