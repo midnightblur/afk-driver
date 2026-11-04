@@ -5,7 +5,7 @@ description: /afkv2:create-change-request — opens the one Draft change of a br
 
 # /afkv2:create-change-request
 
-The skill ends at Ready. A human merges the change.
+The skill ends at Ready and the offer of gc. A human merges the change.
 
 ## Input
 
@@ -51,6 +51,7 @@ Read `status` with `id` before each push and each new subtask. The watch writes 
 | `finished` | `status` is `success`, `failed` or `canceled`; `current_head: false` means an older commit: the forge did not show the pushed commit within 5 minutes, or a newer commit exists here | see below |
 | `no-verdict` | the watch ended with no final status; `reason` says why | `start` after the next push, or read CI at ship |
 | `lost` | the watch process stopped with no result | `start` |
+| `change-not-open` | the change merged or closed during the watch; `change_state` says which | `merged`: offer gc ("After the merge"). `closed`: report it |
 | `none` | no watch has run | `start` |
 
 `watch` run by hand ends with `superseded` when a newer `start` took over: read `status`.
@@ -66,6 +67,7 @@ Each push during ship goes back to step 1.
 1. **Update.** Run "Open or update the change" with the final proofs.
 2. **Wait.** Run `watch` with `id` as a background shell of the harness: its exit wakes you. A harness with no background shell: end the turn and say that CI runs.
 3. **Mark.** `mark-ready` with `id` and `plan`. Done when the answer holds `draft: false`. `marked: false` means the change was already Ready.
+4. **Check the merge.** Run "End of ship" in "After the merge".
 
 | Refusal | Meaning | Next action |
 |---------|---------|-------------|
@@ -74,7 +76,7 @@ Each push during ship goes back to step 1.
 | `ci-running` | checks still run, or wait for a human | run `watch` as in step 2, then mark again. When `watch` ends `no-verdict` with `status: running`, report that a check may wait for a human, and stop. The change stays Draft |
 | `ci-red` | a check failed or was canceled | fix, push and go back to step 1, or report the failure to the developer. The change stays Draft |
 | `ci-none` | the forge shows no checks on the change | run `watch` as in step 2, then mark again: checks can appear late after a push. When it stays, report it; the developer marks the change Ready |
-| `change-not-open` | the change is merged or closed | report it |
+| `change-not-open` | the change is merged or closed; `change_state` says which | `merged`: offer gc ("After the merge"). `closed`: report it |
 | `not-draft` | `open` created a change that is not Draft | report the url; a human sets the flag |
 | `target-differs` | `open` got another target than the `target` of the open change | read the merge facts for that `target`, or report it |
 | `no-branch` | `open` found no branch checked out | pass `id` or `source` |
@@ -82,3 +84,10 @@ Each push during ship goes back to step 1.
 | `watch-not-started`, `no-repository`, `bad-record` | the watch has no process or no record | `reason` names the fix |
 | `command-failed` | the forge command crashed or ran past its limit | run the command once more, and report `reason` when it stays |
 | other codes | the forge port's error codes, with its `reason` | `afkv2/ports/forge/CONTRACT.md` |
+
+### After the merge
+
+`/afkv2:gc` removes what a merged change leaves behind. Offer it once per change.
+
+- **Offer gc.** In this worktree, run steps 1 and 2 of `/afkv2:gc`: it lists what goes and asks the developer for a yes. Then end the turn. Its step 3 runs only after the developer's yes.
+- **End of ship.** Run step 1 of `/afkv2:gc` once: its list asks the forge. `change` holds a merged change: run its step 2. Otherwise tell the developer to run `/afkv2:gc` after the merge.
