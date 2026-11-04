@@ -1226,12 +1226,12 @@ def test_end_forgets_the_tab_and_reopen_opens_one(repo, capsys, host):
     assert [argv[2:] for argv in calls if argv[0] == "open"] == [[], [], ["--reopen"]]
 
 
-def test_the_tab_title_names_ticket_feature_skill_and_round():
+def test_the_tab_title_of_a_format_0_page_names_ticket_feature_and_step():
     doc = two_rounds()
-    assert page.tab_title(doc) == "PROJ-1 · export · grill R-2"
-    assert "<title>PROJ-1 · export · grill R-2</title>" in build(doc)
+    assert page.stable_title(in_memory(doc)) == "PROJ-1 · export · Requirements grill"
+    assert "<title>PROJ-1 · export · Requirements grill</title>" in build(doc)
     doc["session"].update(ticket="158", feature="158", skill="propose-solution")
-    assert page.tab_title(doc) == "#158 · propose-solution R-2"
+    assert page.stable_title(in_memory(doc)) == "#158 · Solution design"
 
 
 def test_each_round_banner_is_an_element_with_its_round_id():

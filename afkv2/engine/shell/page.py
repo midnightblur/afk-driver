@@ -5,7 +5,9 @@ the copy bar, the settled points, the earlier banners. A point shows once, as it
 notes and replies under the heading and its earlier cards in a closed "History". The human sends marks
 and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 Each ticket, change and commit reference in the text links to the URL that `session.links` names.
-The browser tab title is `<ticket> · <feature> · <skill> R-<n>`; the feature drops out when it is the ticket.
+The heading and the browser tab read `<ticket> · <short title> · <step>`, the same every round. A page with no
+ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name that repeats
+the ticket shows once.
 """
 
 from __future__ import annotations
@@ -139,12 +141,15 @@ def _reference(ticket: str) -> str:
     return f"#{ticket}" if ticket.isdigit() else ticket
 
 
-def tab_title(doc: dict) -> str:
+def stable_title(doc: dict) -> str:
+    """`<ticket> · <short title> · <step>`: no round in it, so it stays the same every round."""
     session = doc["session"]
-    n = next(r["n"] for r in doc["rounds"] if r["state"] == "current")
-    ticket = _reference(session["ticket"])
-    parts = [ticket] + ([session["feature"]] if session["feature"] not in (session["ticket"], ticket) else [])
-    return " · ".join([*parts, f'{session["skill"]} R-{n}'])
+    ticket = session.get("ticket")
+    parts = [_reference(ticket)] if ticket else []
+    name = session.get("short_title") or session["feature"]
+    if name not in (ticket, *parts):
+        parts.append(name)
+    return " · ".join([*parts, session["step"]])
 
 
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
@@ -161,8 +166,8 @@ def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
-    body = (f'<h1 class="afkv2-title">{escape(session["feature"])}</h1>'
-            f'<p class="afkv2-sub">{escape(session["skill"])} · {escape(_reference(session["ticket"]))}</p>'
+    title = escape(stable_title(doc))
+    body = (f'<h1 class="afkv2-title">{title}</h1>'
             f'{_banner(current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
@@ -170,7 +175,6 @@ def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}')
     body = linkify(body, session.get("links"))
-    title = escape(tab_title(doc))
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n</head>\n'

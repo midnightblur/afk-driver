@@ -45,8 +45,7 @@ body {
 
 .afkv2-page { max-width: 62rem; margin: 0 auto; }
 
-.afkv2-title { margin: 0 0 .25rem; font-size: 1.35rem; }
-.afkv2-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+.afkv2-title { margin: 0 0 1.25rem; font-size: 1.35rem; overflow-wrap: anywhere; }
 
 h2, h3, h4 { line-height: 1.3; }
 
