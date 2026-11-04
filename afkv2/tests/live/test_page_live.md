@@ -392,12 +392,15 @@ async function interact(json) {
   await click('[data-afkv2-note-delete="N-8-i-8-3"]');
   step('edit and delete a sent note', await ev(`document.querySelector('${nodeField('N-8-i-8-2')}').value === 'An edited sent note.' && !!document.querySelector('[data-afkv2-item="N-8-i-8-3"]')`));
 
-  /* The current round and the one before stand open in the session table; round 7 is a closed fold. */
+  /* The current round and the one before stand open in the session table; round 7 is a closed fold.
+   * An earlier step can leave it open, so each click must flip the state it finds. */
   const roundFold = 'details[data-afkv2-nr-round="7"]';
+  const foldOpen = () => ev(`document.querySelector('${roundFold}').open`);
+  const start = await foldOpen();
   await click(`${roundFold} > summary`);
-  const closed = !(await ev(`document.querySelector('${roundFold}').open`));
+  const flipped = (await foldOpen()) === !start;
   await click(`${roundFold} > summary`);
-  step('collapse a round of notes', closed && (await ev(`document.querySelector('${roundFold}').open`)));
+  step('fold and unfold a closed older round of notes', flipped && (await foldOpen()) === start, { start });
 
   const card = '[data-afkv2-element="i-7-0"]';
   const before = await ev(`document.querySelector('${card}').matches('.afkv2-collapsed')`);
