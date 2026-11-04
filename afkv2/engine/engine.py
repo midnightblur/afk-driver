@@ -72,13 +72,25 @@ def _v0_step(session: dict) -> str:
     return V0_STEPS.get(session.get("skill")) or str(session.get("feature") or session.get("skill"))[:STEP_LIMIT]
 
 
+class FromFormat0(dict):
+    """A format 1 document that was read from a format 0 file. The mark is the type, so it lives in memory
+    only: a JSON write of the document holds no trace of it, and the file stays valid format 1."""
+
+    from_format_0 = True
+
+
+def from_format_0(doc: dict) -> bool:
+    """True when the document was read from a format 0 file: only such a page pairs an answer by `about`."""
+    return getattr(doc, "from_format_0", False)
+
+
 def read_v0_as_v1(raw: dict) -> dict:
     """The format 1 form of a format 0 document, in memory; `raw` is not changed (ADR-0002 design).
 
     Card notes and steers move into the session list with their ids as they are, oldest round first; a card
     note names its card in `item`, a steer names none. The noted text stays inside the words. An answer
-    keeps `about`. The short title is none."""
-    doc = copy.deepcopy(raw)
+    keeps `about`. The short title is none. The answer is marked `FromFormat0`."""
+    doc = FromFormat0(copy.deepcopy(raw))
     doc["schema"] = SCHEMA_V1
     notes = []
     for round_ in doc["rounds"]:

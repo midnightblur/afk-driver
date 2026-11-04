@@ -2,6 +2,7 @@
 one row per note, a Noted text column, every note of the session newest round first, older rounds as
 closed groups with a count line, answers paired by note ids, and one link per changed element."""
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -221,6 +222,36 @@ def test_a_format_0_page_pairs_an_answer_by_its_about_list():
     html = build(doc)
     assert "answer by about" in row(on_card(html, "i-a"), CARD_ROW + "N-1-i-a")
     assert "answer by about" in row(session(html), SESSION_ROW + "N-1-i-a")
+
+
+def format_0_page():
+    return {"schema": V0,
+            "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                        "started": "2026-01-05T09:00:00Z"},
+            "rounds": [round_of(1, card("i-a")), round_of(2, card("i-b"), state="current")]}
+
+
+def test_a_format_1_answer_with_only_about_stands_alone_and_pairs_with_no_note():
+    """D-25, PR #171 finding f1: `about` is read on format 0 pages only."""
+    doc = document(round_of(1, card("i-a")), round_of(2, card("i-b")), notes=[note("N-1-i-a", 1, "i-a", "i-a")])
+    doc["rounds"][1]["replies"] = [{"id": "A-2-1", "text": "answer by about", "about": ["i-a"]}]
+    html = build(doc)
+    assert "answer by about" not in row(session(html), SESSION_ROW + "N-1-i-a")
+    assert "answer by about" in row(session(html), CARD_ROW + "reply-2-1")
+    assert 'href="#i-a"' not in row(session(html), CARD_ROW + "reply-2-1")
+
+
+def test_the_format_0_mark_stays_in_memory_and_the_written_file_is_format_1():
+    upgraded = engine.read_v0_as_v1(format_0_page())
+    assert upgraded["schema"] == V1 and engine.from_format_0(upgraded)
+    assert json.loads(json.dumps(upgraded)) == dict(upgraded) and "format" not in json.dumps(upgraded["session"])
+    assert not engine.from_format_0(engine.read_v1(document(round_of(1, card("i-a")))))
+
+
+def test_a_page_read_from_format_0_shows_no_what_changed_list():
+    """D-25: a format 0 page holds no change data, so the banner claims nothing about it."""
+    html = build(format_0_page())
+    assert "<h3>What changed</h3>" not in html and 'afkv2-banner-list afkv2-banner-changed"' not in html
 
 
 # --- the column widths of the 2 notes tables (D-14): # | Where | Noted text | Your note | Answer [| Open]

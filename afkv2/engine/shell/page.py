@@ -53,9 +53,25 @@ def _changed_ids(round_: dict) -> list:
     return list(dict.fromkeys(element for found in lists for element in found))
 
 
+def _from_format_0(doc: dict) -> bool:
+    """The in-memory mark of a page read from a format 0 file (`engine.FromFormat0`)."""
+    return getattr(doc, "from_format_0", False)
+
+
+def _answers_read(doc: dict) -> dict:
+    """The document as the notes tables read it: an answer's `about` is read on a page from format 0 only, so a
+    format 1 page goes on without it."""
+    if _from_format_0(doc) or not any("about" in reply for r in doc["rounds"] for reply in r.get("replies") or []):
+        return doc
+    rounds = [{**r, "replies": [{k: v for k, v in reply.items() if k != "about"} for reply in r["replies"]]}
+              if r.get("replies") else r for r in doc["rounds"]]
+    return {**doc, "rounds": rounds}
+
+
 def _changed(doc: dict, round_: dict) -> dict:
-    """After round 1, the banner's list of what changed: each changed element once, a card by its title."""
-    if round_["n"] == 1:
+    """After round 1, the banner's list of what changed: each changed element once, a card by its title. A page
+    from format 0 holds no change data, so its banner has no such list."""
+    if round_["n"] == 1 or _from_format_0(doc):
         return {}
     cards = _cards(doc)
     return {"changed": [{"id": element, "label": (cards.get(element) or {}).get("title") or element}
@@ -181,7 +197,7 @@ def _notes_and_replies(doc: dict) -> str:
 def targets(doc: dict) -> dict:
     """Each HTML id the page draws that is no element id, with the element id an annotation on it stands for:
     the ids that the components of the maps and cards draw, and the ids of the notes and replies rows."""
-    found = {}
+    found, doc = {}, _answers_read(doc)
     for tree in [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]:
         found.update(aliases(tree))
     kind = lookup(NOTES_AND_REPLIES)
@@ -218,6 +234,7 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
 def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
     """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
     has no btw? panel."""
+    doc = _answers_read(doc)
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
