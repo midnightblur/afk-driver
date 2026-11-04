@@ -1,0 +1,483 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "division-20261103-213046",
+    "skill": "propose-solution",
+    "feature": "158",
+    "ticket": "158",
+    "started": "2026-11-03T21:37:45Z"
+  },
+  "maps": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-8b2b732e-1",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "division-8b2b732e-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-page-engine-fixes",
+                  "Records the page engine fixes the developer asked for during the grill of this ticket. They were built by hand on this branch and are committed; the build does not repeat them.",
+                  "Already built and committed on this branch during the grill; it stands in the plan only so the build does not repeat it.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-forge-change-list",
+                  "The forge port answers every change whose source is a given branch, with its state, on GitHub and GitLab, so gc can prove that at least one change merged and none is open.",
+                  "The forge port is its own module with its own tests, and the refusal checks need its new verb first.",
+                  "—",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-gc-target",
+                  "The gc target: one JSON file per feature branch in git's common folder, its encoded key, its atomic write, the Windows byte lock of one run per target, and the receipt of a list. Also the scratch repository the gc tests share.",
+                  "The target file, its lock and its receipt are one module that every gc step uses, so it comes before them, with the shared scratch repository.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0004-folder-remove",
+                  "Removes one worktree folder only after a rename proves no process uses it, reads a refused rename's Windows error as its cause, and resumes a delete that stopped half way.",
+                  "The rename check is the riskiest piece (real Windows processes hold folders), so it gets its own module and tests, apart from git and the forge.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0005-gc-checks",
+                  "One check per refusal of the PRD catalog: the forge state of the branch's changes, uncommitted and untracked files, commits outside the change, and the platform, each with the detail the developer sees.",
+                  "Each refusal is a check with its own detail; keeping them in one module lets list, remove and finish run the same checks.",
+                  "0002-forge-change-list, 0003-gc-target",
+                  "static, unit"
+                ],
+                [
+                  "0006-gc-list",
+                  "The gc script's first step: in the feature worktree it fixes the target, runs every check, and answers the list the developer says yes to, with its receipt. From elsewhere it only shows a waiting target.",
+                  "The list is the step the developer says yes to; it can be built and tested before anything is deleted.",
+                  "0003-gc-target, 0004-folder-remove, 0005-gc-checks",
+                  "static, unit"
+                ],
+                [
+                  "0007-gc-remove",
+                  "The gc script's second step: after the developer's yes it checks everything again, compares the receipt, and removes the run worktree, the run branch and the remote branches in order, recording what is left.",
+                  "The deletes after the yes carry the most cases (order, lease, partial failure, rerun), so they get a sitting of their own.",
+                  "0006-gc-list",
+                  "static, unit"
+                ],
+                [
+                  "0008-gc-finish",
+                  "The gc script's third step, which the developer runs after the session closes: it removes the feature worktree and the local feature branch, and deletes the target once nothing is left.",
+                  "The developer's later command runs outside the session and needs no forge call, a separate step with its own refusals.",
+                  "0007-gc-remove",
+                  "static, unit"
+                ],
+                [
+                  "0009-gc-skill-and-docs",
+                  "The /afkv2:gc skill that runs the 3 steps with the developer, the 'never run gc' line of the hands-off skills, 2 glossary terms, README.md on the ownership list, and the README section on gc and the platform.",
+                  "The skill and every instruction or document line come once the script works, and are all text changes of one kind.",
+                  "0008-gc-finish",
+                  "static"
+                ],
+                [
+                  "0010-watch-offers-gc",
+                  "The CI watch ends when the change merges or closes, from the change view it already reads, and the create-change-request skill offers gc on a merged change: at the watch end, on the mark-ready refusal, and once at the end of ship.",
+                  "The CI watch rework and the offer of gc live in another skill (create-change-request), and need the gc skill to exist.",
+                  "0009-gc-skill-and-docs",
+                  "static, unit"
+                ],
+                [
+                  "0011-live-round-trip",
+                  "A script the developer runs once per forge before merge: it makes scratch branches, merges a change into a scratch target, runs gc list, remove and finish, checks what is gone and what stays, checks that a deleted branch's commit link still opens, and deletes its scratch branches.",
+                  "The live proof on GitHub and GitLab needs the whole gc script, and its run belongs to the developer, not to a hands-off build.",
+                  "0008-gc-finish",
+                  "static, unit, integration (not applicable)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-8b2b732e-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 11 subtasks, plan digest 8b2b732e, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "notes": [
+            {
+              "id": "N-1-division-8b2b732e-1",
+              "round": 1,
+              "target": "division-8b2b732e-1-subtasks",
+              "text": "on this page there's no visualization for the subtasks, so that also needs to be fixed. only text is hard to understand",
+              "deleted": false
+            }
+          ]
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T21:52:10Z",
+          "raw": "[round R-1]\ndivision-8b2b732e-1-subtasks — | on this page there's no visualization for the subtasks, so that also needs to be fixed. only text is hard to understand\ndivision-8b2b732e-1 sign",
+          "signals": [
+            {
+              "target": "division-8b2b732e-1-subtasks",
+              "item": "division-8b2b732e-1",
+              "mark": null,
+              "note": "N-1-division-8b2b732e-1",
+              "text": "on this page there's no visualization for the subtasks, so that also needs to be fixed. only text is hard to understand",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "a2ef4bfaa20865a8"
+            },
+            {
+              "target": "division-8b2b732e-1",
+              "item": "division-8b2b732e-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "b2608aada49145fb"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Agreed: the division card shows the subtasks as text only. It is a defect of the page engine (the division card has no picture of the subtasks and how they wait on each other). I make no plugin changes on this branch, so I report it to the orchestrator. Meanwhile the plan's own diagram (PLAN.md, 'Solution map') is below as text: 0002 forge verb and 0003 target feed 0005 checks; 0003, 0004 and 0005 feed 0006 list; then 0007 remove, 0008 finish; 0008 feeds 0009 skill and docs, then 0010 CI watch; 0008 also feeds 0011 live test. The plan does not change. Your note returns the card, because a note never signs: please sign the same plan again.",
+          "about": [
+            "division-8b2b732e-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-8b2b732e-2",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "division-8b2b732e-2-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-page-engine-fixes",
+                  "Records the page engine fixes the developer asked for during the grill of this ticket. They were built by hand on this branch and are committed; the build does not repeat them.",
+                  "Already built and committed on this branch during the grill; it stands in the plan only so the build does not repeat it.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-forge-change-list",
+                  "The forge port answers every change whose source is a given branch, with its state, on GitHub and GitLab, so gc can prove that at least one change merged and none is open.",
+                  "The forge port is its own module with its own tests, and the refusal checks need its new verb first.",
+                  "—",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-gc-target",
+                  "The gc target: one JSON file per feature branch in git's common folder, its encoded key, its atomic write, the Windows byte lock of one run per target, and the receipt of a list. Also the scratch repository the gc tests share.",
+                  "The target file, its lock and its receipt are one module that every gc step uses, so it comes before them, with the shared scratch repository.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0004-folder-remove",
+                  "Removes one worktree folder only after a rename proves no process uses it, reads a refused rename's Windows error as its cause, and resumes a delete that stopped half way.",
+                  "The rename check is the riskiest piece (real Windows processes hold folders), so it gets its own module and tests, apart from git and the forge.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0005-gc-checks",
+                  "One check per refusal of the PRD catalog: the forge state of the branch's changes, uncommitted and untracked files, commits outside the change, and the platform, each with the detail the developer sees.",
+                  "Each refusal is a check with its own detail; keeping them in one module lets list, remove and finish run the same checks.",
+                  "0002-forge-change-list, 0003-gc-target",
+                  "static, unit"
+                ],
+                [
+                  "0006-gc-list",
+                  "The gc script's first step: in the feature worktree it fixes the target, runs every check, and answers the list the developer says yes to, with its receipt. From elsewhere it only shows a waiting target.",
+                  "The list is the step the developer says yes to; it can be built and tested before anything is deleted.",
+                  "0003-gc-target, 0004-folder-remove, 0005-gc-checks",
+                  "static, unit"
+                ],
+                [
+                  "0007-gc-remove",
+                  "The gc script's second step: after the developer's yes it checks everything again, compares the receipt, and removes the run worktree, the run branch and the remote branches in order, recording what is left.",
+                  "The deletes after the yes carry the most cases (order, lease, partial failure, rerun), so they get a sitting of their own.",
+                  "0006-gc-list",
+                  "static, unit"
+                ],
+                [
+                  "0008-gc-finish",
+                  "The gc script's third step, which the developer runs after the session closes: it removes the feature worktree and the local feature branch, and deletes the target once nothing is left.",
+                  "The developer's later command runs outside the session and needs no forge call, a separate step with its own refusals.",
+                  "0007-gc-remove",
+                  "static, unit"
+                ],
+                [
+                  "0009-gc-skill-and-docs",
+                  "The /afkv2:gc skill that runs the 3 steps with the developer, the 'never run gc' line of the hands-off skills, 2 glossary terms, README.md on the ownership list, and the README section on gc and the platform.",
+                  "The skill and every instruction or document line come once the script works, and are all text changes of one kind.",
+                  "0008-gc-finish",
+                  "static"
+                ],
+                [
+                  "0010-watch-offers-gc",
+                  "The CI watch ends when the change merges or closes, from the change view it already reads, and the create-change-request skill offers gc on a merged change: at the watch end, on the mark-ready refusal, and once at the end of ship.",
+                  "The CI watch rework and the offer of gc live in another skill (create-change-request), and need the gc skill to exist.",
+                  "0009-gc-skill-and-docs",
+                  "static, unit"
+                ],
+                [
+                  "0011-live-round-trip",
+                  "A script the developer runs once per forge before merge: it makes scratch branches, merges a change into a scratch target, runs gc list, remove and finish, checks what is gone and what stays, checks that a deleted branch's commit link still opens, and deletes its scratch branches.",
+                  "The live proof on GitHub and GitLab needs the whole gc script, and its run belongs to the developer, not to a hands-off build.",
+                  "0008-gc-finish",
+                  "static, unit, integration (not applicable)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-8b2b732e-2-ask",
+                "props": {
+                  "text": "Sign to approve this division: 11 subtasks, plan digest 8b2b732e, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "carries": [
+            "division-8b2b732e-1"
+          ],
+          "notes": [
+            {
+              "id": "N-2-division-8b2b732e-2",
+              "round": 2,
+              "target": "division-8b2b732e-2",
+              "text": "I did sign in Round 1. was it a bug?",
+              "deleted": false
+            }
+          ]
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T21:57:29Z",
+          "raw": "[round R-2]\ndivision-8b2b732e-2 sign | I did sign in Round 1. was it a bug?",
+          "signals": [
+            {
+              "target": "division-8b2b732e-2",
+              "item": "division-8b2b732e-2",
+              "mark": "sign",
+              "note": "N-2-division-8b2b732e-2",
+              "text": "I did sign in Round 1. was it a bug?",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "30f17cfc3a020008"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "You did sign in round 1, and again now. The code does what it was designed to do: a sign-off card counts as signed only by a sign mark with no note on that card, so any note, even a question, sends the card back. I count that design as a defect, because a question should not void your sign, and I report it to the orchestrator. I may not change the plugin on this branch, and I will not mark your sign by hand. So, one last time: please sign this card and leave no note on it. Put any question in the chat or on another element, not on this card.",
+          "about": [
+            "division-8b2b732e-2"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-8b2b732e-3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-8b2b732e-3-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-page-engine-fixes",
+                  "Records the page engine fixes the developer asked for during the grill of this ticket. They were built by hand on this branch and are committed; the build does not repeat them.",
+                  "Already built and committed on this branch during the grill; it stands in the plan only so the build does not repeat it.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-forge-change-list",
+                  "The forge port answers every change whose source is a given branch, with its state, on GitHub and GitLab, so gc can prove that at least one change merged and none is open.",
+                  "The forge port is its own module with its own tests, and the refusal checks need its new verb first.",
+                  "—",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-gc-target",
+                  "The gc target: one JSON file per feature branch in git's common folder, its encoded key, its atomic write, the Windows byte lock of one run per target, and the receipt of a list. Also the scratch repository the gc tests share.",
+                  "The target file, its lock and its receipt are one module that every gc step uses, so it comes before them, with the shared scratch repository.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0004-folder-remove",
+                  "Removes one worktree folder only after a rename proves no process uses it, reads a refused rename's Windows error as its cause, and resumes a delete that stopped half way.",
+                  "The rename check is the riskiest piece (real Windows processes hold folders), so it gets its own module and tests, apart from git and the forge.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0005-gc-checks",
+                  "One check per refusal of the PRD catalog: the forge state of the branch's changes, uncommitted and untracked files, commits outside the change, and the platform, each with the detail the developer sees.",
+                  "Each refusal is a check with its own detail; keeping them in one module lets list, remove and finish run the same checks.",
+                  "0002-forge-change-list, 0003-gc-target",
+                  "static, unit"
+                ],
+                [
+                  "0006-gc-list",
+                  "The gc script's first step: in the feature worktree it fixes the target, runs every check, and answers the list the developer says yes to, with its receipt. From elsewhere it only shows a waiting target.",
+                  "The list is the step the developer says yes to; it can be built and tested before anything is deleted.",
+                  "0003-gc-target, 0004-folder-remove, 0005-gc-checks",
+                  "static, unit"
+                ],
+                [
+                  "0007-gc-remove",
+                  "The gc script's second step: after the developer's yes it checks everything again, compares the receipt, and removes the run worktree, the run branch and the remote branches in order, recording what is left.",
+                  "The deletes after the yes carry the most cases (order, lease, partial failure, rerun), so they get a sitting of their own.",
+                  "0006-gc-list",
+                  "static, unit"
+                ],
+                [
+                  "0008-gc-finish",
+                  "The gc script's third step, which the developer runs after the session closes: it removes the feature worktree and the local feature branch, and deletes the target once nothing is left.",
+                  "The developer's later command runs outside the session and needs no forge call, a separate step with its own refusals.",
+                  "0007-gc-remove",
+                  "static, unit"
+                ],
+                [
+                  "0009-gc-skill-and-docs",
+                  "The /afkv2:gc skill that runs the 3 steps with the developer, the 'never run gc' line of the hands-off skills, 2 glossary terms, README.md on the ownership list, and the README section on gc and the platform.",
+                  "The skill and every instruction or document line come once the script works, and are all text changes of one kind.",
+                  "0008-gc-finish",
+                  "static"
+                ],
+                [
+                  "0010-watch-offers-gc",
+                  "The CI watch ends when the change merges or closes, from the change view it already reads, and the create-change-request skill offers gc on a merged change: at the watch end, on the mark-ready refusal, and once at the end of ship.",
+                  "The CI watch rework and the offer of gc live in another skill (create-change-request), and need the gc skill to exist.",
+                  "0009-gc-skill-and-docs",
+                  "static, unit"
+                ],
+                [
+                  "0011-live-round-trip",
+                  "A script the developer runs once per forge before merge: it makes scratch branches, merges a change into a scratch target, runs gc list, remove and finish, checks what is gone and what stays, checks that a deleted branch's commit link still opens, and deletes its scratch branches.",
+                  "The live proof on GitHub and GitLab needs the whole gc script, and its run belongs to the developer, not to a hands-off build.",
+                  "0008-gc-finish",
+                  "static, unit, integration (not applicable)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-8b2b732e-3-ask",
+                "props": {
+                  "text": "Sign to approve this division: 11 subtasks, plan digest 8b2b732e, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "carries": [
+            "division-8b2b732e-2"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T21:59:44Z",
+          "raw": "[round R-3]\ndivision-8b2b732e-3 sign",
+          "signals": [
+            {
+              "target": "division-8b2b732e-3",
+              "item": "division-8b2b732e-3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2767992656c917ea"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,7 @@ from . import common
 
 VIEW_FIELDS = ("number,url,title,state,isDraft,headRefName,baseRefName,headRefOid,baseRefOid,"
                "isCrossRepository,headRepository,author,statusCheckRollup")
+LIST_FIELDS = "number,url,state,headRefOid,baseRefName,isCrossRepository"
 STATES = {"OPEN": "opened", "MERGED": "merged", "CLOSED": "closed"}
 _CHANGE_URL = re.compile(r"https?://\S+/pull/\d+")
 THREADS_QUERY = """
@@ -298,6 +299,17 @@ def thread_list(payload):
     return ok(threads=threads, count=len(threads))
 
 
+def change_list(payload):
+    """`--head` matches the branch name in forks too: a change from a fork is left out."""
+    args = ["pr", "list", "--head", common.branch(payload), "--state", "all", "--limit", str(common.PAGE), *_flag(payload),
+            "--json", LIST_FIELDS]
+    return common.change_list(shell.as_items(shell.json_answer("gh", args)),
+                              lambda item: not item.get("isCrossRepository"),
+                              lambda item: {"id": str(item.get("number") or ""), "url": item.get("url") or "",
+                                            "state": STATES.get(item.get("state") or "", str(item.get("state") or "").lower()),
+                                            "head_sha": item.get("headRefOid") or "", "target": item.get("baseRefName") or ""})
+
+
 def ci_status(payload):
     data = _view(common.ref(payload), payload, "url,statusCheckRollup")
     return ok(status=_rollup(data), url=data.get("url") or "")
@@ -319,4 +331,5 @@ VERBS = {
     "thread-list": thread_list,
     "ci-status": ci_status,
     "ci-wait": ci_wait,
+    "change-list": change_list,
 }

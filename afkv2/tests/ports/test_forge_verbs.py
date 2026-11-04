@@ -61,7 +61,7 @@ def test_every_forge_answers_the_same_verb_set():
     from forge import github, gitlab
     assert set(github.VERBS) == set(gitlab.VERBS) == {
         "auth-status", "change-view", "change-diff", "change-create-draft", "change-update-body",
-        "change-ready", "change-comment", "note-list", "thread-list", "ci-status", "ci-wait"}
+        "change-ready", "change-comment", "note-list", "thread-list", "ci-status", "ci-wait", "change-list"}
 
 
 @pytest.mark.parametrize("verb", ["change-fetch", "change-state", "change-reviewers", "change-close",
@@ -1327,3 +1327,69 @@ def test_gitlab_a_ref_with_no_merge_commit_of_its_own_reads_running(capsys, tool
 def test_gitlab_a_pipeline_that_names_no_commit_keeps_its_word(capsys, tools, pipeline):
     gitlab_pipeline(tools, pipeline)
     assert good(capsys, "gitlab", "ci-status", id="7")["status"] == "failed"
+
+
+def github_change(number, state, fork=False):
+    return {"number": number, "url": f"https://github.com/acme/widget/pull/{number}", "state": state,
+            "headRefOid": f"c{number}", "baseRefName": f"t{number}", "isCrossRepository": fork}
+
+
+def gitlab_change(number, state, fork=False):
+    return {"iid": number, "web_url": f"https://gitlab.example/acme/widget/-/merge_requests/{number}", "state": state,
+            "sha": f"c{number}", "target_branch": f"t{number}", "source_project_id": 2 if fork else 1, "target_project_id": 1}
+
+
+CHANGE_LIST = {"github": ("pr", "list"), "gitlab": ("mr", "list")}
+BRANCH_CHANGES = {
+    "github": [github_change(3, "OPEN"), github_change(12, "OPEN", fork=True), github_change(9, "MERGED"), github_change(5, "CLOSED")],
+    "gitlab": [gitlab_change(3, "locked"), gitlab_change(12, "opened", fork=True), gitlab_change(9, "merged"), gitlab_change(5, "closed")],
+}
+CHANGE_URL = {"github": "https://github.com/acme/widget/pull/{}", "gitlab": "https://gitlab.example/acme/widget/-/merge_requests/{}"}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_list_answers_every_change_of_the_branch_newest_first(capsys, tools, kind):
+    tools.on(TOOL[kind], *CHANGE_LIST[kind], answer=BRANCH_CHANGES[kind])
+    answer = good(capsys, kind, "change-list", branch="feat/x")
+    assert answer["changes"] == [
+        {"id": str(number), "url": CHANGE_URL[kind].format(number), "state": state, "head_sha": f"c{number}", "target": f"t{number}"}
+        for number, state in ((9, "merged"), (5, "closed"), (3, "opened"))]
+    assert answer["count"] == 3
+
+
+@pytest.mark.parametrize("kind,expected", [
+    ("github", ["pr", "list", "--head", "feat/x", "--state", "all", "--limit", "100", "--repo", "acme/widget", "--json"]),
+    ("gitlab", ["mr", "list", "--source-branch", "feat/x", "--all", "--per-page", "100", "-R", "acme/widget", "-F", "json"]),
+])
+def test_change_list_asks_the_forge_for_one_page_of_every_state(capsys, tools, kind, expected):
+    tools.on(TOOL[kind], *CHANGE_LIST[kind], answer=[])
+    good(capsys, kind, "change-list", branch="feat/x", repo="acme/widget")
+    assert tools.calls_to(TOOL[kind], *CHANGE_LIST[kind])[0][1][:len(expected)] == expected
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_list_of_a_branch_with_no_change_is_empty(capsys, tools, kind):
+    tools.on(TOOL[kind], *CHANGE_LIST[kind], answer=[])
+    assert good(capsys, kind, "change-list", branch="feat/x") == {"ok": True, "changes": [], "count": 0}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_list_refuses_a_full_page_as_too_many(capsys, tools, kind):
+    make = github_change if kind == "github" else gitlab_change
+    tools.on(TOOL[kind], *CHANGE_LIST[kind], answer=[make(number, "MERGED" if kind == "github" else "merged") for number in range(1, 101)])
+    assert refused(capsys, kind, "change-list", branch="feat/x")["code"] == "too-many"
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("payload", [{}, {"branch": ""}, {"branch": "-x"}, {"branch": ["feat/x"]}])
+def test_change_list_without_a_branch_is_bad_input(capsys, tools, kind, payload):
+    code, answer = call(capsys, kind, "change-list", **payload)
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
+    assert not tools.calls_to(TOOL[kind])
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_list_forge_failure_is_the_port_code(capsys, tools, kind):
+    tools.on(TOOL[kind], *CHANGE_LIST[kind], answer=(1, "", "HTTP 401: Bad credentials"))
+    assert refused(capsys, kind, "change-list", branch="feat/x")["code"] == "auth"
+

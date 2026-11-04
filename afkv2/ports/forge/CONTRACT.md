@@ -21,8 +21,9 @@ Every payload can hold `forge` (`github` or `gitlab`) and `repo`. Without `forge
 | `thread-list` | `id` | `threads[id, resolved, file, side, line, old_line, old_path, new_path, url, notes[id, author, type, body, created_at, updated_at, edited]], count`. Line comments only. A thread note `id` is a number, and `type` is the forge's own word |
 | `ci-status` | `id` | `status, url` |
 | `ci-wait` | `id`; optional `budget` (default 5400 s), `interval` (default 180 s) | `status, elapsed, id` |
+| `change-list` | `branch` | `changes[id, url, state, head_sha, target], count`: every change whose source is that branch in this repository, newest first. A change from a fork is left out. One page of 100 is read: a full page refuses `too-many` |
 
-`state` is `opened`, `merged` or `closed`. `status` is one of these words on both forges: `success`, `failed`, `canceled`, `running`, or an empty string when the change has no checks. A status that is not final, and a pipeline or check that waits for a human (GitLab `manual`, GitHub `ACTION_REQUIRED`), reads `running`. A skipped run reads `success`. A check with an error or a stale result reads `failed`.
+`state` is `opened`, `merged` or `closed`; a GitLab `locked` change reads `opened`. `status` is one of these words on both forges: `success`, `failed`, `canceled`, `running`, or an empty string when the change has no checks. A status that is not final, and a pipeline or check that waits for a human (GitLab `manual`, GitHub `ACTION_REQUIRED`), reads `running`. A skipped run reads `success`. A check with an error or a stale result reads `failed`.
 
 ## `change-comment`
 
@@ -34,7 +35,7 @@ A position the forge rejects: with `require_inline`, the verb refuses `position-
 
 ## Error codes
 
-The tracker table, plus `no-forge`, `bad-position`, `position-rejected`, `unreadable` and `draft-lost`.
+The tracker table, plus `no-forge`, `bad-position`, `position-rejected`, `unreadable`, `draft-lost` and `too-many`.
 
 A field that the verb does not name, or an argument after the payload, is `bad-payload` before any forge call.
 

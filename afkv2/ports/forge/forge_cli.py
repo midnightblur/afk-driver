@@ -27,6 +27,7 @@ _FIELDS = {
     "thread-list": ("id",),
     "ci-status": ("id",),
     "ci-wait": ("id", "budget", "interval"),
+    "change-list": ("branch",),
 }
 
 

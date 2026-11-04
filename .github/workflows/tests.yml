@@ -1,5 +1,5 @@
 # afkv2 tests: Windows only, 4 shards. v1 tests and gates: only when the change touches
-# a path outside afkv2/, docs/ and the marketplace file, or on a push to main.
+# a path outside afkv2/, docs/, .afkv2/, README.md and the marketplace file, or on a push to main.
 name: tests
 
 on:
@@ -33,7 +33,7 @@ jobs:
             exit 0
           fi
           base=$(git merge-base "origin/$BASE_REF" HEAD)
-          v1=$(git diff --name-only "$base" HEAD | grep -Ev '^(afkv2/|docs/|\.claude-plugin/marketplace\.json$)' | head -1)
+          v1=$(git diff --name-only "$base" HEAD | grep -Ev '^(afkv2/|docs/|\.afkv2/|README\.md$|\.claude-plugin/marketplace\.json$)' | head -1)
           if [ -n "$v1" ]; then
             echo "v1 path changed: $v1"
             echo "v1=true" >> "$GITHUB_OUTPUT"

@@ -50,8 +50,16 @@ An unprotected branch that several teams merge into. Its CI must stay passable, 
 ## Runs and artifacts
 
 **Run branch**:
-An orphan branch per feature that holds the run files (the plan folder, journal, decision ledger, review telemetry). The spec folder (PRD, SDD, ADRs, grill log, page documents) is not a run file; it stays with the feature's change. gc keeps the run branch as the run's record.
-`Related:` Chain
+An orphan branch per feature that holds the run files (the plan folder, journal, decision ledger, review telemetry). The spec folder (PRD, SDD, ADRs, grill log, page documents) is not a run file; it stays with the feature's change. gc removes the run branch after the change merges; no record of the run is kept.
+`Related:` Chain, Run worktree
+
+**Run worktree**:
+The worktree of the run branch, in the folder of the feature worktree plus `-run`. Autopilot adds it; gc removes it, with the run branch, after the change merges.
+`Related:` Run branch, gc target
+
+**gc target**:
+The record of what gc listed for one feature branch: one JSON file in git's own folder, `afkv2-gc/<encoded branch>.json`, never committed. The removal and the later command act only on it. The later command deletes it when nothing is left.
+`Related:` Run worktree, Merged
 
 **Smart zone**:
 The context size in which an agent still works well, about 300k tokens. A subtask must fit inside it; an oversized one is split.
@@ -125,3 +133,9 @@ A page an agent writes outside an afk step, to talk with a human about any topic
 
 **use-lavish**:
 The afkv2 skill that tells an agent how to organize a page, write its content and answer the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
+
+**Merged**:
+The forge reports the feature's change as merged, into any target branch, and no change on the branch is still open. Only the forge decides; a git history check does not count, because a squash merge leaves the feature tip outside the target.
+
+**Feature**:
+Any piece of work on its own branch and worktree: a new feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. Not the size of the work; that is the lane.
