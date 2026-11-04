@@ -164,7 +164,7 @@ def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
 
     Term identity follows shell/tips.js: lowercase keys ignore case; other keys
     keep their case. A trailing s/es may vary in case when the token exceeds 2
-    characters. IDs match only the complete, same-case element ID.
+    UTF-16 units. IDs match only the complete, same-case element ID.
     """
     if doc["schema"] != SCHEMA_V1:
         return []
@@ -180,8 +180,9 @@ def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
             ignore_case = catalog == "terms" and token == token.lower()
             forms = {token}
             if catalog == "terms":
+                units = sum(2 if ord(char) > 0xFFFF else 1 for char in token)
                 forms.update(token + tail for tail in ("s", "S", "es", "eS", "Es", "ES")
-                             if len(token + tail) > 2)
+                             if units + len(tail) > 2)
             conflicts = set()
             for form in forms:
                 previous = folded.get(form.lower()) if ignore_case else exact.get(form)

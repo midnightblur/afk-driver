@@ -93,3 +93,14 @@ def test_invalid_tips_leave_last_render_unchanged(tmp_path, capsys):
     assert status == 1 and answer["error"]["code"] == "invariant", answer
     assert html.read_text("utf-8") == "Last valid page"
 
+
+
+def test_supplementary_unicode_plural_collision_paths(tmp_path, capsys):
+    doc = document()
+    doc["tips"] = {"terms": [{"term": "\U0001f680", "definition": "One"},
+                             {"term": "\U0001f680s", "definition": "Two"}]}
+    status, answer = check(tmp_path, capsys, doc)
+    assert status == 1, answer
+    assert answer["error"]["code"] == "invariant"
+    assert "tips.terms[0].term" in answer["error"]["reason"]
+    assert "tips.terms[1].term" in answer["error"]["reason"]
