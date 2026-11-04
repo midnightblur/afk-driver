@@ -765,13 +765,16 @@ def test_an_older_document_keeps_its_old_note_ids_and_matches_replies_by_target(
 
 
 def test_a_reply_may_name_a_note_id_in_about(path, capsys):
-    _, after = ingested(path, one_round(card("i-a"), card("i-b")), "[round R-1]\ni-a — | one\ni-a — | two")
-    after["rounds"][0]["replies"] = [{"text": "answer to two", "about": ["N-1-i-a-2"]}]
-    assert check(save(path, after)) == 0
-    html = build(after)
+    """On a format 0 page: `about` is read there only (D-25)."""
+    notes = [{"id": f"N-1-i-a-{k}", "round": 1, "target": "i-a", "text": words, "deleted": False}
+             for k, words in ((1, "one"), (2, "two"))]
+    doc = one_round(card("i-a", notes=notes), card("i-b"))
+    doc["rounds"][0]["replies"] = [{"text": "answer to two", "about": ["N-1-i-a-2"]}]
+    assert check(save(path, doc)) == 0
+    html = build(doc)
     assert "answer to two" in row(html, SECOND_ROW) and "answer to two" not in row(html, FIRST_ROW)
-    after["rounds"][0]["replies"] = [{"text": "x", "about": ["N-1-i-a-9"]}]
-    assert check(save(path, after)) == 1
+    doc["rounds"][0]["replies"] = [{"text": "x", "about": ["N-1-i-a-9"]}]
+    assert check(save(path, doc)) == 1
     assert "resolves to no element and no note" in capsys.readouterr().out
 
 
