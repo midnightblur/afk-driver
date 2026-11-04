@@ -324,7 +324,7 @@ def test_take_over_records_one_takeover_per_round(tmp_path, capsys):
     assert [entry["round"] for entry in page_round.take_over(path)["takeovers"]] == [1, 2]
 
 
-@pytest.mark.parametrize("content", [None, "not json"])
+@pytest.mark.parametrize("content", [None, "not json", "{}", "[]", '{"schema": "afkv2.page/9"}'])
 def test_take_over_of_an_unreadable_document_is_refused(tmp_path, content):
     path = tmp_path / "pages" / "grill-s-1.json"
     if content is not None:
@@ -333,6 +333,20 @@ def test_take_over_of_an_unreadable_document_is_refused(tmp_path, content):
     with pytest.raises(Refusal) as refused:
         page_round.take_over(path)
     assert refused.value.code == "unreadable"
+    assert content is None or path.read_text("utf-8") == content
+
+
+def test_take_over_of_a_format_0_page_writes_format_1(tmp_path, capsys):
+    v0 = {"schema": "afkv2.page/0", "session": {**SESSION, "started": "2026-01-05T09:00:00Z"}, "maps": [],
+          "rounds": [{"n": 1, "state": "current", "banner": round_input()["banner"],
+                      "items": [rd._item(a_card("i-a"), set(), [])]}]}
+    path = tmp_path / "pages" / "grill-s-1.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(v0), "utf-8")
+    assert engine_answer(capsys, "check", path)[0] == 0
+    assert [entry["round"] for entry in page_round.take_over(path)["takeovers"]] == [1]
+    assert read(path)["schema"] == "afkv2.page/1"
+    assert engine_answer(capsys, "check", path)[0] == 0
 
 
 def test_an_older_about_answer_does_not_answer_a_later_note():
@@ -348,3 +362,13 @@ def test_an_open_entry_keeps_what_it_changed(tmp_path, capsys):
     with pytest.raises(Refusal) as refused:
         rd.apply_readings(path, {"open": [{"item": "i-b", "reply": "Again.", "changed": ["nothing"]}]})
     assert refused.value.code == "bad-link"
+
+
+def test_only_the_notes_of_the_last_round_are_warned(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
+                             "open": [{"item": "i-b", "reply": "Asked again."}]})
+    assert [w["note"] for w in a_round_2(path)["warnings"]] == ["N-1-i-a-1"]
+    ingest(capsys, path, "[round R-2]\ni-c accept\nR-2 note 1\n  a steer")
+    warned = rd.build_round_document(path, SESSION, round_input("i-d"))["warnings"]
+    assert [w["note"] for w in warned] == ["N-2-R-2-1"]
