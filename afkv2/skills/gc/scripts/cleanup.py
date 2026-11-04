@@ -232,7 +232,9 @@ def _remove_remote_branch(main, remote, name, lease, absent):
     lines = _checked(main, "ls-remote", remote, ref).splitlines()
     if not any(line.split("	")[-1] == ref for line in lines):
         return absent
-    _checked(main, "push", "--quiet", f"--force-with-lease={ref}:{lease}", remote, "--delete", ref)
+    code, _, error = _git(main, "push", "--quiet", f"--force-with-lease={ref}:{lease}", remote, "--delete", ref)
+    if code != 0:
+        raise Refusal("remote-refused", f"the remote refused the delete of {remote}/{name}: {error}")
     return "removed"
 
 
@@ -244,6 +246,14 @@ def _remove_item(main, target, item, lease):
     branch = target["run_branch"] if item == "remote run branch" else target["feature_branch"]
     absent = "none" if item == "remote run branch" and not lease else "already gone"
     return _remove_remote_branch(main, target["remote"], branch, lease, absent)
+
+
+def _failure(error):
+    if isinstance(error, Refusal):
+        return {**error.extra, "code": error.code, "reason": error.reason}
+    if isinstance(error, subprocess.TimeoutExpired):
+        return {"code": "timed-out", "reason": f"{' '.join(error.cmd[:3])} ran past {error.timeout} s"}
+    return {"code": "internal", "reason": f"{type(error).__name__}: {error}"}
 
 
 def _entry(fresh_items, item, tip):
@@ -268,29 +278,41 @@ def remove_step(cwd, branch, receipt, yes=()):
     main = main_checkout(cwd)
     with gc_target.take_lock(main, branch):
         target = _stored(main, branch)
-        fresh, tips = _listing(target["feature_worktree"], branch, cwd=main)
+        fresh, fresh_tips = _listing(target["feature_worktree"], branch, cwd=main)
         fresh["receipt"] = gc_target.receipt_of(fresh)
-        if receipt != fresh["receipt"]:
+        if target["state"] == "waiting":  # The developer said yes to the stored target, as list shows it.
+            shown, change, tips, pending = _shown(target), target["change"], target["tips"], list(target["left"])
+            kept = {"listed_at": target["listed_at"]}
+        else:
+            shown, change, tips, pending, kept = fresh, fresh["change"], fresh_tips, [item for _, item, _ in ITEMS], {}
+        if receipt != shown["receipt"]:
             raise Refusal("stale-list", "the list changed after the yes; nothing was removed; answer the new list",
-                          list=fresh)
+                          list=shown)
         held = [refusal for refusal in fresh["refusals"] if refusal["code"] not in yes or refusal["code"] in NEVER_PASSED]
         if held:
             codes = ", ".join(refusal["code"] for refusal in held)
             raise Refusal("refused", f"refused: {codes}; nothing was removed; go past a refusal only with the developer's "
                                      "yes, and never past not-windows", refusals=held)
         items = {entry["item"]: entry for entry in fresh["items"]}
-        left, removed = [item for _, item, _ in ITEMS], []
-        for item in NOW:
-            lease = tips.get(item)
-            start = time.monotonic()
-            result = _remove_item(main, target, item, lease)
+        removed, failed = [], None
+        for item in (item for item in NOW if item in pending):
+            lease, start = tips.get(item), time.monotonic()
+            try:
+                result = _remove_item(main, target, item, lease)
+            except Exception as error:  # Each delete stands alone: a failure keeps what went before and stops.
+                failed = {**_failure(error), **_entry(items, item, lease)}
+                break
             removed.append({**_entry(items, item, lease), "result": result, "seconds": round(time.monotonic() - start, 2)})
-            left.remove(item)
+            pending.remove(item)
         gc_target.write_target(main, gc_target.new_target(
-            branch, target["feature_worktree"], fresh["change"], tips, receipt, run_branch=target["run_branch"],
-            run_worktree=target["run_worktree"], remote=target["remote"], state="waiting", left=left))
-        waiting = [_entry(items, item, tips.get(item)) for item in left]
-        return {"branch": branch, "change": fresh["change"], "removed": removed, "waiting": waiting,
+            branch, target["feature_worktree"], change, tips, receipt, run_branch=target["run_branch"],
+            run_worktree=target["run_worktree"], remote=target["remote"], state="waiting", left=pending, **kept))
+        waiting = [_entry(items, item, tips.get(item)) for item in pending if item not in NOW]
+        if failed:
+            raise Refusal("partial", f"removed {len(removed)}; the {failed['item']} failed: {failed['reason']}; "
+                                     "fix the cause and run gc again for what is left",
+                          removed=removed, failed=failed, left=pending, waiting=waiting)
+        return {"branch": branch, "change": change, "removed": removed, "waiting": waiting,
                 "later": later_command(main, branch), "state": "waiting"}
 
 

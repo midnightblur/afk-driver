@@ -542,3 +542,67 @@ def test_yes_with_a_code_gc_does_not_know_is_unreadable(repo, monkeypatch, windo
     refused("bad-payload", cleanup.remove_step, repo.main, FEATURE, receipt, yes=["everything"])
     assert len(fake.calls) == 1
     untouched(repo)
+
+
+def test_a_failed_remote_delete_keeps_what_went_before_exits_partial_and_a_second_run_removes_only_what_is_left(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    feature, run = tip(repo, FEATURE), tip(repo, RUN)
+    git(repo.remote, "config", "receive.denyDeletes", "true")
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    partial = refused("partial", cleanup.remove_step, repo.main, FEATURE, receipt)
+    assert outcome(partial.extra) == [("IT-1", "run worktree", "removed", None), ("IT-2", "run branch", "removed", run)]
+    failed = partial.extra["failed"]
+    assert (failed["id"], failed["item"], failed["code"], failed["tip"]) == ("IT-3", "remote run branch", "remote-refused", run)
+    assert "remote run branch" in partial.reason and failed["reason"] in partial.reason
+    left = ["remote run branch", "remote feature branch", "feature worktree", "feature branch"]
+    assert partial.extra["left"] == left
+    assert not Path(repo.run).exists() and RUN not in local_heads(repo)
+    assert remote_heads(repo) == {"main": tip(repo, "main"), FEATURE: feature, RUN: run}
+    target = gc_target.read_target(repo.main, FEATURE)
+    assert (target["state"], target["left"], target["receipt"]) == ("waiting", left, receipt)
+
+    git(repo.remote, "config", "receive.denyDeletes", "false")
+    shown = cleanup.list_step(repo.feature)
+    refused("stale-list", cleanup.remove_step, repo.main, FEATURE, "c" * 64)
+    done = steps(monkeypatch)
+    answer = cleanup.remove_step(repo.main, FEATURE, shown["receipt"])
+    assert done == [("push", f"refs/heads/{RUN}"), ("push", f"refs/heads/{FEATURE}")]
+    assert outcome(answer) == [("IT-3", "remote run branch", "removed", run), ("IT-4", "remote feature branch", "removed", feature)]
+    assert set(remote_heads(repo)) == {"main"}
+    assert gc_target.read_target(repo.main, FEATURE)["left"] == ["feature worktree", "feature branch"]
+    assert len(fake.calls) == 4
+
+
+def test_a_push_after_the_check_makes_its_remote_delete_fail_and_the_pushed_commit_stays(repo, monkeypatch, windows):
+    import folder_remove
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    real, pushed = folder_remove.remove_worktree_folder, []
+
+    def push_then_remove(main, folder):
+        pushed.append(repo.commit(repo.feature, "late.txt", "late\n", "a push after the check"))
+        git(repo.feature, "push", "-q", "origin", FEATURE)
+        return real(main, folder)
+
+    monkeypatch.setattr(folder_remove, "remove_worktree_folder", push_then_remove)
+    partial = refused("partial", cleanup.remove_step, repo.main, FEATURE, receipt)
+    assert [entry["item"] for entry in partial.extra["removed"]] == ["run worktree", "run branch", "remote run branch"]
+    assert (partial.extra["failed"]["item"], partial.extra["failed"]["code"]) == ("remote feature branch", "remote-refused")
+    assert remote_heads(repo)[FEATURE] == pushed[0]
+    assert gc_target.read_target(repo.main, FEATURE)["left"] == ["remote feature branch", "feature worktree", "feature branch"]
+
+
+def test_a_run_worktree_in_use_stays_with_its_branch_and_every_later_item(repo, monkeypatch, windows):
+    import folder_remove
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+
+    def in_use(main, folder):
+        raise cleanup.Refusal("in-use", f"a process uses {folder} as its working folder; nothing was touched",
+                              folder=str(folder), winerror=32)
+
+    monkeypatch.setattr(folder_remove, "remove_worktree_folder", in_use)
+    partial = refused("partial", cleanup.remove_step, repo.main, FEATURE, receipt, yes=["in-use"])
+    assert partial.extra["removed"] == [] and partial.extra["failed"]["code"] == "in-use"
+    assert partial.extra["left"] == [item for _, item, _ in cleanup.ITEMS]
+    untouched(repo)
