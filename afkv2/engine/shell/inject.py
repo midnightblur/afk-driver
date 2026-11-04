@@ -1,7 +1,8 @@
 """Add the tooltip layer to a rendered page.
 
-The dictionary merges, later wins: the seed `tips.json`, the plugin `GLOSSARY.md`, the
-repository glossaries with the page's own service last, then the feature's `PAGE-TIPS.md`.
+Shared terms merge the seed, plugin glossary and repository glossaries, own service last.
+Pages without a durable source also load legacy `PAGE-TIPS.md`. Page-owned terms and IDs
+stay in separate maps for the browser resolver.
 The block sits between start and end markers and is replaced whole, so the same inputs
 give the same bytes, and a file is rewritten only when its bytes differ.
 """
@@ -12,6 +13,7 @@ import json
 import os
 import re
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -124,7 +126,54 @@ def _repo_glossaries(page: Path, top: Path) -> list[Path]:
     return [top / "GLOSSARY.md", *others, top / own / "GLOSSARY.md"] if own else [top / "GLOSSARY.md", *others]
 
 
-def load_dictionary(page: Path) -> dict[str, str]:
+class _Source(HTMLParser):
+    """Read the durable JSON script without treating markup inside other scripts as HTML."""
+
+    def __init__(self, html: str):
+        super().__init__()
+        self.blocks: list[str] = []
+        self.active = False
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            self.active = dict(attrs).get("id") == "afkv2-page-tip-source"
+            if self.active:
+                self.blocks.append("")
+
+    def handle_data(self, data):
+        if self.active:
+            self.blocks[-1] += data
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.active = False
+
+
+def _page_maps(html: str) -> tuple[dict[str, str], dict[str, str]]:
+    blocks = _Source(html).blocks
+    if len(blocks) != 1:
+        return {}, {}
+    try:
+        source = json.loads(blocks[0])
+        maps = []
+        for kind, key, value in (("ids", "id", "title"), ("terms", "term", "definition")):
+            entries = source.get(kind, [])
+            if not isinstance(entries, list):
+                return {}, {}
+            result = {}
+            for entry in entries:
+                if not isinstance(entry, dict) or not all(isinstance(entry.get(k), str) and entry[k].strip()
+                                                          for k in (key, value)):
+                    return {}, {}
+                result[entry[key]] = entry[value]
+            maps.append(result)
+        return maps[0], maps[1]
+    except (ValueError, AttributeError):
+        return {}, {}
+
+
+def load_dictionary(page: Path, html: str = "") -> dict[str, str]:
     tips = _seed(SEED)
     tips.update(parse_glossary(PLUGIN_GLOSSARY))
     page = Path(os.path.abspath(page))
@@ -132,7 +181,8 @@ def load_dictionary(page: Path) -> dict[str, str]:
     if top:
         for glossary in _repo_glossaries(page, top):
             tips.update(parse_glossary(glossary))
-    tips.update(parse_glossary(page.parent.parent / FEATURE_TIPS))
+    if not _Source(html).blocks:
+        tips.update(parse_glossary(page.parent.parent / FEATURE_TIPS))
     return tips
 
 
@@ -140,19 +190,25 @@ def _asset(name: str) -> str:
     return (HERE / name).read_text(encoding="utf-8")
 
 
-def tips_block(tips: dict[str, str]) -> str:
-    dictionary = json.dumps(tips, ensure_ascii=False).replace("</", "<\\/")
+def tips_block(tips: dict[str, str], page_ids: dict[str, str] | None = None,
+               page_terms: dict[str, str] | None = None) -> str:
+    # Keep the shared dictionary available to legacy readers and parse-failure fallback.
+    dictionary = json.dumps(tips, ensure_ascii=True).replace("</", "<\\/").replace("<", "\\u003c").replace("\\u003c\\/", "<\\/")
+    payload = json.dumps({"page_ids": page_ids or {}, "page_terms": page_terms or {}, "shared_terms": tips},
+                         ensure_ascii=True, sort_keys=True).replace("<", "\\u003c")
     return (f'{MARK_START}\n<style>\n{_asset("tips.css")}</style>\n'
             f'<script id="afkv2-tips-dict" type="application/json">{dictionary}</script>\n'
+            f'<script id="afkv2-tips-payload" type="application/json">{payload}</script>\n'
             f'<script>\n{_asset("tips.js")}</script>\n{MARK_END}\n')
 
 
 def inject(html: str, tips: dict[str, str]) -> str:
     """`html` with its tooltip block replaced; a pure function of its arguments."""
     html = TIPS_BLOCK.sub("", html)
-    if not tips:
+    page_ids, page_terms = _page_maps(html)
+    if not tips and not page_ids and not page_terms:
         return html
-    block = tips_block(tips)
+    block = tips_block(tips, page_ids, page_terms)
     match = BODY_END.search(html)
     if match:
         return html[: match.start()] + block + html[match.start():]
@@ -189,6 +245,6 @@ def inject_file(path: str | Path) -> bool:
     except (OSError, UnicodeDecodeError) as problem:
         raise InjectError(f"cannot read {target} as UTF-8: {problem}") from problem
     try:
-        return write_if_changed(target, inject(html, load_dictionary(target)).encode("utf-8"))
+        return write_if_changed(target, inject(html, load_dictionary(target, html)).encode("utf-8"))
     except OSError as problem:
         raise InjectError(f"cannot write {target}: {problem}") from problem

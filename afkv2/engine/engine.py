@@ -354,7 +354,8 @@ def _render(path: str) -> tuple[dict, Path, Path]:
     document = _require_home(path, doc)
     data_folder()
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc, btw_listener.address(document)), inject.load_dictionary(html_path))
+    html = page.build(doc, btw_listener.address(document))
+    html = inject.inject(html, inject.load_dictionary(html_path, html))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
     return doc, document, html_path
