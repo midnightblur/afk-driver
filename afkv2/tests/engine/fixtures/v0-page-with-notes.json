@@ -1059,7 +1059,7 @@
                   "free"
                 ],
                 [
-                  "docs/afk/158/",
+                  "docs/specs/158/",
                   "own",
                   "free"
                 ],
@@ -1101,7 +1101,7 @@
             "by": "note",
             "round": 1,
             "signal": "N-1-a-other-teams",
-            "reading": "You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/afk/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes."
+            "reading": "You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/specs/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes."
           }
         },
         {
@@ -1430,7 +1430,7 @@
       ],
       "replies": [
         {
-          "text": "Settled by your note: You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/afk/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes.",
+          "text": "Settled by your note: You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/specs/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes.",
           "about": [
             "a-other-teams"
           ]
