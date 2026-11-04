@@ -18,7 +18,7 @@ from pathlib import Path
 from registry import aliases, lookup, render_component
 from schema.note_rules import round_target
 from shell.points import grouped
-from shell.references import linkify
+from shell.references import link_cards, linkify
 
 HERE = Path(__file__).resolve().parent
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
@@ -39,9 +39,33 @@ def _assets(suffix: str, first: str) -> str:
     return "".join((HERE / name).read_text(encoding="utf-8") for name in [first, *names])
 
 
-def _banner(round_: dict, current: bool) -> str:
+def _cards(doc: dict) -> dict:
+    """Each card id with its newest card."""
+    return {item["id"]: item for round_ in doc["rounds"] for item in round_["items"]}
+
+
+def _changed(doc: dict, round_: dict) -> dict:
+    """After round 1, the banner's list of what changed: each element of the round's `changed` list once,
+    a card by its title."""
+    if round_["n"] == 1:
+        return {}
+    cards = _cards(doc)
+    return {"changed": [{"id": element, "label": (cards.get(element) or {}).get("title") or element}
+                        for element in dict.fromkeys(round_.get("changed") or [])]}
+
+
+def _banner(doc: dict, round_: dict, current: bool) -> str:
     return render_component({"type": "round-banner", "id": round_target(round_["n"]), "props": {
-        "n": round_["n"], "colour": round_colour(round_), "current": current, **round_["banner"]}})
+        "n": round_["n"], "colour": round_colour(round_), "current": current, **round_["banner"],
+        **_changed(doc, round_)}})
+
+
+def _round_marks(html: str, round_: dict) -> str:
+    """A mark on each element that the current round's `changed` list names; no other element has one."""
+    for element in dict.fromkeys(round_.get("changed") or []):
+        anchor = f'data-afkv2-element="{escape(element)}"'
+        html = html.replace(anchor, f'{anchor} data-afkv2-fresh="{round_["n"]}"', 1)
+    return html
 
 
 def _exchange(doc: dict, item: dict) -> str:
@@ -114,7 +138,7 @@ def _earlier_banners(doc: dict) -> str:
     if not past:
         return ""
     return (f'<details class="afkv2-earlier-banners" id="afkv2-earlier-banners" data-afkv2-fold="banners">'
-            f'<summary>Earlier banners ({len(past)})</summary>{"".join(_banner(r, False) for r in past)}</details>')
+            f'<summary>Earlier banners ({len(past)})</summary>{"".join(_banner(doc, r, False) for r in past)}</details>')
 
 
 def _notes_and_replies(doc: dict) -> str:
@@ -168,13 +192,13 @@ def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     title = escape(stable_title(doc))
     body = (f'<h1 class="afkv2-title">{title}</h1>'
-            f'{_banner(current, True)}'
+            f'{_banner(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{_current_section(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}')
-    body = linkify(body, session.get("links"))
+    body = link_cards(linkify(_round_marks(body, current), session.get("links")), _cards(doc))
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n</head>\n'

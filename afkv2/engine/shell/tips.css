@@ -34,6 +34,5 @@
   .afkv2-caret { cursor: pointer; }
   .afkv2-caret::after { content: "▸"; margin-left: 6px; opacity: .55; }
   .afkv2-caret.afkv2-open::after { content: "▾"; }
-  [data-afkv2-fresh] { box-shadow: -3px 0 0 0 #f59e0b; }
   [data-afkv2-item] { scroll-margin-top: 10px; }
   .afkv2-flash { outline: 2px solid #f59e0b; outline-offset: 2px; }

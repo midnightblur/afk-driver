@@ -9,6 +9,8 @@
 
 A kind with no template stays text. Only text between tags changes, so ids and attributes keep their
 bytes. Text in a link, code, a script, a style, a form control, a fold label or an SVG stays text.
+
+`link_cards` links each card id in page text to that card, outside headings and outside the card itself.
 """
 
 from __future__ import annotations
@@ -22,6 +24,9 @@ TAG_NAME = re.compile(r"<(/?)([A-Za-z][\w-]*)")
 CHANGE_WORDS = r"(?i:\b(?:PR|MR|pull request|merge request)\s+)"
 COMMIT_WORDS = r"(?i:\b(?:commits?|sha)\b:?\s+)"
 LINK = '<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
+CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
+HEADINGS = {"h1", "h2", "h3", "h4", "title"}
+CARD_OPEN = re.compile(r'<article\b[^>]*\bdata-afkv2-item="([^"]+)"')
 
 
 def _pattern(links: dict) -> re.Pattern | None:
@@ -65,10 +70,39 @@ def linkify(html: str, links: dict | None) -> str:
     replace, depth, out = _replace(links), 0, []
     for index, part in enumerate(TAG.split(html)):
         if index % 2:
-            tag = TAG_NAME.match(part)
-            if tag and tag.group(2).lower() in SKIPPED and not part.endswith("/>"):
-                depth = max(depth + (-1 if tag.group(1) else 1), 0)
+            depth = _skip_depth(part, depth, SKIPPED)
             out.append(part)
         else:
             out.append(part if depth or not part else pattern.sub(replace, part))
+    return "".join(out)
+
+
+def _skip_depth(part: str, depth: int, skipped: set[str]) -> int:
+    tag = TAG_NAME.match(part)
+    if tag and tag.group(2).lower() in skipped and not part.endswith("/>"):
+        return max(depth + (-1 if tag.group(1) else 1), 0)
+    return depth
+
+
+def link_cards(html: str, ids) -> str:
+    """The same HTML with each card id in its text a link to that card. A card's own text keeps its id
+    as text; an id with no card stays text. An id of letters only stays text: it reads as a plain word."""
+    names = sorted({escape(i) for i in ids if not i.isalpha()}, key=len, reverse=True)
+    if not names:
+        return html
+    pattern = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(name) for name in names) + r")(?![\w-])")
+    skipped, depth, cards, out = SKIPPED | HEADINGS, 0, [], []
+    for index, part in enumerate(TAG.split(html)):
+        if index % 2:
+            opened = CARD_OPEN.match(part)
+            if opened:
+                cards.append(opened.group(1))
+            elif part.startswith("</article") and cards:
+                cards.pop()
+            depth = _skip_depth(part, depth, skipped)
+            out.append(part)
+        elif depth or not part:
+            out.append(part)
+        else:
+            out.append(pattern.sub(lambda m: m.group(1) if m.group(1) in cards else CARD_LINK.format(m.group(1)), part))
     return "".join(out)

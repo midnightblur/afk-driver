@@ -99,3 +99,86 @@ def test_an_upgraded_format_0_page_uses_its_feature_name():
 def test_a_number_ticket_is_an_issue_reference_and_a_repeated_name_shows_once():
     doc = two_rounds(ticket="158", short_title=None, feature="158")
     assert page.stable_title(in_memory(doc)) == SEP.join(["#158", "Requirements grill"])
+
+
+# --- what changed this round: the banner list and the round marks
+
+CHANGED_LIST = "afkv2-banner-changed"
+FRESH = 'data-afkv2-fresh="{}"'
+
+
+def table(table_id):
+    return {"type": "table", "id": table_id, "props": {"columns": ["Cost"], "rows": [["low"]]}}
+
+
+def changed_rounds():
+    old = card("i-old", "decided", state="settled_by_mark", settled={"by": "mark", "round": 1, "signal": "accept"})
+    new = {**card("i-new", title="The new card"), "body": table("d-cost")}
+    return document(round_of(1, old, changed=["i-old"]), round_of(2, new, card("i-plain"), changed=["i-new", "d-cost"]))
+
+
+def banner(html, n):
+    start = html.index(f'data-afkv2-banner="{n}"')
+    return html[start:html.index("</header>", start)]
+
+
+def element_tag(html, element):
+    start = html.index(f'data-afkv2-element="{element}"')
+    return html[html.rindex("<", 0, start):html.index(">", start)]
+
+
+def test_after_round_1_the_banner_lists_each_changed_element_with_a_link():
+    html = build(changed_rounds())
+    current = banner(html, 2)
+    assert CHANGED_LIST in current and "What changed" in current
+    assert '<a href="#i-new">The new card</a>' in current and '<a href="#d-cost">d-cost</a>' in current
+    assert current.index("#i-new") < current.index("#d-cost")
+
+
+def test_round_1_has_no_changed_list_and_a_round_with_none_says_nothing_changed():
+    assert CHANGED_LIST not in build(document(round_of(1, card("i-a"), changed=["i-a"])))
+    html = build(two_rounds())
+    assert CHANGED_LIST in banner(html, 2) and "Nothing." in banner(html, 2)
+
+
+def test_a_changed_element_of_this_round_has_a_round_mark_and_others_none():
+    html = build(changed_rounds())
+    assert FRESH.format(2) in element_tag(html, "i-new") and FRESH.format(2) in element_tag(html, "d-cost")
+    assert "data-afkv2-fresh" not in element_tag(html, "i-plain")
+    assert "data-afkv2-fresh" not in element_tag(html, "i-old")
+    assert html.count("data-afkv2-fresh=") == 2
+
+
+def test_the_round_mark_has_its_style_on_every_page():
+    kit = (SHELL / "kit.css").read_text("utf-8")
+    assert "[data-afkv2-fresh]" in kit and "[data-afkv2-fresh]" not in (SHELL / "tips.css").read_text("utf-8")
+
+
+# --- text that names a card links to it
+
+CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
+
+
+def test_text_that_names_another_card_links_to_it():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("This follows i-old, and i-gone is no card.")
+    doc["rounds"][1]["banner"]["settled"] = ["i-old accepted"]
+    html = build(doc)
+    assert CARD_LINK.format("i-old") in banner(html, 2)
+    body = html[html.index('id="i-new"'):]
+    assert "This follows " + CARD_LINK.format("i-old") in body
+    assert CARD_LINK.format("i-gone") not in html
+
+
+def test_a_card_id_of_letters_only_stays_a_plain_word():
+    doc = two_rounds()
+    doc["rounds"][0]["items"][0]["id"] = "export"
+    doc["rounds"][1]["banner"]["settled"] = ["export accepted"]
+    assert CARD_LINK.format("export") not in build(doc)
+
+
+def test_a_card_heading_and_a_link_keep_their_text():
+    html = build(two_rounds())
+    start = html.index('id="i-new"')
+    assert CARD_LINK.format("i-new") not in html[start:html.index("</h4>", start)]
+    assert '<a class="afkv2-card-link"' not in html[html.index("<title>"):html.index("</title>")]
