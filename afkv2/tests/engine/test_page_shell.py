@@ -342,7 +342,7 @@ def test_the_page_keeps_its_last_20_places_across_a_reload():
 
 
 def test_an_in_page_link_and_a_map_box_jump_and_the_back_button_returns():
-    assert "closest('a[href^=\"#\"]')" in RUNTIME
+    assert "var IN_PAGE_LINK = 'a[href^=\"#\"]';" in RUNTIME and "closest(IN_PAGE_LINK)" in RUNTIME
     assert NODE_CARDS_READ in RUNTIME and "box.addEventListener('click'" in RUNTIME
     assert "back.addEventListener('click', goBack);" in RUNTIME
 
@@ -368,6 +368,23 @@ def test_each_map_box_names_its_newest_card_and_the_round_of_its_last_change():
     doc["rounds"][2]["items"][0].pop("node")
     doc["rounds"][1]["changed"] = ["n-1"]
     assert node_cards(build(doc)) == {"n-1": ["i-a", 2]}
+
+
+def test_an_answer_that_changed_the_card_sets_the_round_of_the_box():
+    """Review finding: the hover round read the round's own list only, not its answers' lists."""
+    doc = node_card_rounds()
+    doc["rounds"][2]["items"][0].pop("node")
+    doc["rounds"][1]["replies"] = [{"text": "Done.", "changed": ["i-a"]}]
+    assert node_cards(build(doc)) == {"n-1": ["i-a", 2]}
+
+
+BOX_SKIPS_LINK = "if (event.target.closest && event.target.closest(IN_PAGE_LINK)) return;"
+
+
+def test_a_card_link_in_a_box_label_jumps_once_and_an_odd_id_still_jumps():
+    """Review findings: a link in a box label pushed 2 places; a bare % in an id threw before the jump."""
+    assert BOX_SKIPS_LINK in RUNTIME
+    assert "decodeURIComponent" not in RUNTIME
 
 
 def test_a_page_with_no_map_box_of_a_card_has_no_node_list():

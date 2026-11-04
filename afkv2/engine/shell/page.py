@@ -70,8 +70,7 @@ def _banner(doc: dict, round_: dict, current: bool) -> str:
 
 def _node_cards(doc: dict) -> str:
     """The card of each map box, for the box click and its hover: `{node: [newest card, round of its last
-    change]}`. The last change is the card's round, or a later round whose `changed` list names the card or
-    the box."""
+    change]}`. The last change is the card's round, or a later round that changed the card or the box."""
     trees = [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]
     boxes = {node["id"] for tree in trees for _, part in walk(tree) if part["type"] == "map"
              for node in part["props"]["nodes"]}
@@ -82,7 +81,7 @@ def _node_cards(doc: dict) -> str:
                 found[item["node"]] = [item["id"], round_["n"]]
     for round_ in doc["rounds"]:
         for node, entry in found.items():
-            if {node, entry[0]} & set(round_.get("changed") or []):
+            if {node, entry[0]} & set(_changed_ids(round_)):
                 entry[1] = max(entry[1], round_["n"])
     if not found:
         return ""

@@ -278,10 +278,12 @@
   back.addEventListener('click', goBack);
   window.afkv2Jump = jump;
 
+  /* The page writes each in-page id raw into its href, so the id is the href less its '#'. */
+  var IN_PAGE_LINK = 'a[href^="#"]';
   document.addEventListener('click', function (event) {
-    var link = event.target && event.target.closest && event.target.closest('a[href^="#"]');
+    var link = event.target && event.target.closest && event.target.closest(IN_PAGE_LINK);
     if (!link) return;
-    var el = document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1)));
+    var el = document.getElementById(link.getAttribute('href').slice(1));
     if (!el) return;
     event.preventDefault();
     jump(el);
@@ -303,6 +305,10 @@
     /* The tooltip layer shows data-afkv2-tip; a title would give the box its dotted tip underline. */
     box.setAttribute(TIP, name + ': ' + state + ', last changed in round ' + cards[node][1] + '. Click to open the card.');
     box.classList.add('afkv2-box--card');
-    box.addEventListener('click', function () { jump(target); });
+    box.addEventListener('click', function (event) {
+      /* A card link in the box label makes its own jump. */
+      if (event.target.closest && event.target.closest(IN_PAGE_LINK)) return;
+      jump(target);
+    });
   });
 })();
