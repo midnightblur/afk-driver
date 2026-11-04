@@ -498,3 +498,47 @@ def test_an_absent_item_reads_already_gone_and_no_remote_run_branch_reads_none(r
     assert outcome(answer) == [("IT-1", "run worktree", "already gone", None), ("IT-2", "run branch", "already gone", ""),
                                ("IT-3", "remote run branch", "none", ""), ("IT-4", "remote feature branch", "already gone", "")]
     assert gc_target.read_target(repo.main, FEATURE)["left"] == ["feature worktree", "feature branch"]
+
+
+def test_a_refusal_not_named_in_yes_refuses_refused_and_removes_nothing(repo, monkeypatch, windows):
+    merged(repo, monkeypatch)
+    (Path(repo.run) / "notes.txt").write_text("not committed\n", encoding="utf-8")
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    refusal = refused("refused", cleanup.remove_step, repo.main, FEATURE, receipt)
+    assert [(entry["code"], entry["items"]) for entry in refusal.extra["refusals"]] == [("uncommitted", ["run worktree"])]
+    untouched(repo)
+    assert gc_target.read_target(repo.main, FEATURE)["state"] == "listed"
+
+
+def test_yes_past_each_refusal_of_the_list_goes_ahead_for_that_run(repo, monkeypatch, windows):
+    forge(monkeypatch, listed(change(9, "opened", tip(repo, FEATURE))))
+    (Path(repo.run) / "notes.txt").write_text("not committed\n", encoding="utf-8")
+    shown = cleanup.list_step(repo.feature)
+    receipt = shown["receipt"]
+    refusal = refused("refused", cleanup.remove_step, repo.main, FEATURE, receipt, yes=["not-merged", "uncommitted"])
+    assert [entry["code"] for entry in refusal.extra["refusals"]] == ["outside-commits"]
+    untouched(repo)
+    answer = cleanup.remove_step(repo.main, FEATURE, receipt, yes=["not-merged", "uncommitted", "outside-commits"])
+    assert [entry["result"] for entry in answer["removed"]] == ["removed"] * 4
+    assert answer["change"] is None and gc_target.read_target(repo.main, FEATURE)["change"] is None
+    assert {entry["item"]: entry["link"] for entry in answer["removed"] + answer["waiting"]} == {
+        item["item"]: item["link"] for item in shown["items"]}
+
+
+def test_not_windows_stays_refused_whatever_yes_names(repo, monkeypatch):
+    merged(repo, monkeypatch)
+    real = gc_checks.check_platform
+    monkeypatch.setattr(gc_checks, "check_platform", lambda: real("posix"))
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    refusal = refused("refused", cleanup.remove_step, repo.main, FEATURE, receipt,
+                      yes=["not-windows", "in-use", "in-use-or-no-right"])
+    assert [entry["code"] for entry in refusal.extra["refusals"]] == ["not-windows"]
+    untouched(repo)
+
+
+def test_yes_with_a_code_gc_does_not_know_is_unreadable(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    refused("bad-payload", cleanup.remove_step, repo.main, FEATURE, receipt, yes=["everything"])
+    assert len(fake.calls) == 1
+    untouched(repo)

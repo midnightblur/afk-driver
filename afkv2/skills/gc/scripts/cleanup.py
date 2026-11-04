@@ -30,6 +30,8 @@ WORKTREES = ("run worktree", "feature worktree")
 ITEMS = (("IT-1", "run worktree", "now"), ("IT-2", "run branch", "now"), ("IT-3", "remote run branch", "now"),
          ("IT-4", "remote feature branch", "now"), ("IT-5", "feature worktree", "later"), ("IT-6", "feature branch", "later"))
 NOW = tuple(item for _, item, when in ITEMS if when == "now")
+PASSABLE = ("not-merged", "forge-failed", "uncommitted", "outside-commits")
+NEVER_PASSED = ("not-windows", "in-use", "in-use-or-no-right")
 PLAIN_NAME = re.compile(r"[A-Za-z0-9._/-]+")
 CHANGE_URL = re.compile(r"(?P<project>.+?)(?P<form>/-/merge_requests|/pull)/\d+/?")
 COMMIT_FORM = {"/-/merge_requests": "/-/commit/", "/pull": "/commit/"}
@@ -254,7 +256,14 @@ def remove_step(cwd, branch, receipt, yes=()):
     """Remove the `now` items of the stored target of `branch`, after the developer's yes on the list with `receipt`.
     Runs from any folder of the repository. A list that differs from a fresh one refuses `stale-list` with it.
     The order: run worktree, local run branch, remote run branch, remote feature branch; then the target is saved
-    `waiting` with what is left, and the answer gives the later command."""
+    `waiting` with what is left, and the answer gives the later command.
+
+    `yes` names the refusals of the list the developer goes past for this run; a refusal it does not name refuses
+    `refused`. Not-Windows and a folder in use stay refused whatever `yes` names."""
+    unknown = sorted(set(yes) - set(PASSABLE) - set(NEVER_PASSED))
+    if unknown:
+        raise Refusal("bad-payload", f"--yes names no refusal gc knows: {', '.join(unknown)}; "
+                                     f"name one of {', '.join(PASSABLE)}")
     target = _stored(cwd, branch)
     main = main_checkout(cwd)
     with gc_target.take_lock(main, branch):
@@ -264,6 +273,11 @@ def remove_step(cwd, branch, receipt, yes=()):
         if receipt != fresh["receipt"]:
             raise Refusal("stale-list", "the list changed after the yes; nothing was removed; answer the new list",
                           list=fresh)
+        held = [refusal for refusal in fresh["refusals"] if refusal["code"] not in yes or refusal["code"] in NEVER_PASSED]
+        if held:
+            codes = ", ".join(refusal["code"] for refusal in held)
+            raise Refusal("refused", f"refused: {codes}; nothing was removed; go past a refusal only with the developer's "
+                                     "yes, and never past not-windows", refusals=held)
         items = {entry["item"]: entry for entry in fresh["items"]}
         left, removed = [item for _, item, _ in ITEMS], []
         for item in NOW:
