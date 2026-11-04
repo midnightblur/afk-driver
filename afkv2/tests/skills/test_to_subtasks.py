@@ -688,7 +688,7 @@ def test_start_answers_the_input_paths_and_the_paths_a_contract_cites(world):
     started = world.start()
     assert (Path(started["prd"]), Path(started["sdd"])) == (world.spec / "PRD.md", world.spec / "SDD.md")
     assert (started["parent_prd"], started["parent_sdd"]) == ("specs/PROJ-1/PRD.md", "specs/PROJ-1/SDD.md")
-    assert Path(started["doc"]).parent == world.spec / "pages" and Path(started["doc"]).name.startswith("propose-solution-division-")
+    assert Path(started["doc"]).parent == world.spec / "pages" and Path(started["doc"]).name.startswith("to-subtasks-division-")
     assert started["resume"] is False
 
 
@@ -915,7 +915,8 @@ def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
     doc = world.doc(started)
     card = world.card(started)
     assert answer["card"] == card["id"] == answer["items"][0]
-    assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "propose-solution")
+    assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "to-subtasks")
+    assert doc["session"]["step"] == "Plan approval"
     rows = card["body"]["props"]["rows"]
     assert [row[0] for row in rows] == ["0001-export-rows", "0002-export-endpoint"]
     assert rows[1][3] == "0001-export-rows" and rows[1][4] == "static, unit, api (not applicable)"
@@ -1150,13 +1151,14 @@ def test_an_approved_plan_starts_a_new_session(world):
 
 
 def test_a_design_session_after_the_division_session_stays_the_newest(world):
-    """The engine names the file by the session skill, so propose-solution sees the division document too."""
+    """The engine names the file by the session skill, so propose-solution never reads the division document."""
     started = world.committed_plan()
     world.division(started)
     pages = Path(started["doc"]).parent
-    (pages / f"{design_files.DOC_PREFIX}s-20200101-000000.json").write_text("{}", "utf-8")
     log = world.scratch / "log.md"
     log.write_text("", "utf-8")
+    assert design_files._open_session(pages, log) is None
+    (pages / f"{design_files.DOC_PREFIX}s-20200101-000000.json").write_text("{}", "utf-8")
     assert design_files._open_session(pages, log) == "s-20200101-000000"
 
 
