@@ -33,6 +33,17 @@ def check(path):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_authoring_examples_cover_both_schema_versions():
+    examples = PLUGIN / "skills/visualize/examples"
+    for name, schema in [("all-components.json", "afkv2.page/0"), ("page-owned-tips.json", "afkv2.page/1")]:
+        path = examples / name
+        doc = json.loads(path.read_text("utf-8"))
+        assert doc["schema"] == schema
+        if schema.endswith("/1"):
+            assert doc["tips"]["terms"] and doc["tips"]["ids"]
+        check(path)
+
+
 @pytest.mark.parametrize("producer", PRODUCERS)
 def test_new_producer_session_uses_page_one_and_document_tips(tmp_path, producer):
     assert run_build(tmp_path, producer, {**round_input(), "tips": TIPS})[0] == 0

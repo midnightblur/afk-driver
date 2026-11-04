@@ -745,7 +745,7 @@ def test_every_whole_example_document_carries_the_schema_value():
     whole = [frag for _, level, frag in all_fragments() if level == "document"]
     whole.append(_example())
     for doc in whole:
-        assert doc["schema"] == SCHEMA
+        assert doc["schema"] in {SCHEMA, "afkv2.page/1"}
 
 
 def test_all_components_document_uses_every_component():
