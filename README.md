@@ -877,24 +877,6 @@ first:
 
 ---
 
-## 13. afkv2 (beta)
-
-afkv2 is the 2.0 beta of this plugin, in the `afkv2/` folder. afkv2 runs on Windows only. Linux, macOS and WSL
-are not supported.
-
-**`/afkv2:gc`** cleans up a feature after its change merged. It lists what the feature left: the run worktree,
-the run branch (local and remote), the remote feature branch, the feature worktree and the local feature branch,
-each with its tip commit. It also lists each refusal: the change is not merged, the forge call failed, a worktree
-has uncommitted files, or a branch has commits outside the change. gc removes nothing before your yes on that
-exact list. A refusal holds until you accept it for that run. A folder in use and a system that is not Windows
-always refuse. A hands-off build never runs gc.
-
-After your yes, gc removes the run worktree, the run branch and the remote feature branch. The session cannot
-remove the folder it runs in, so gc gives you one later command. Run it after the session closes, from a
-terminal outside the feature worktree: it removes the feature worktree and the local feature branch.
-
----
-
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
 `DELEGATION.md`, `FRESHNESS.md`, `INVESTIGATION.md` (when reading code is
 finished — question types, the boundary catalog, the closure and counter-search
@@ -912,3 +894,21 @@ a tracked stub — grills carry only a pointer to it).
 
 For contributor-facing internals (the lockstep contract, three-checkpoint
 enforcement, tracker boundary), see [`AGENTS.md`](AGENTS.md).
+
+---
+
+## 13. afkv2 (beta)
+
+afkv2 is the 2.0 beta of this plugin, in the `afkv2/` folder. afkv2 runs on Windows only. Linux, macOS and WSL
+are not supported.
+
+**`/afkv2:gc`** cleans up a feature after its change merged. It lists what the feature left: the run worktree,
+the run branch (local and remote), the remote feature branch, the feature worktree and the local feature branch,
+each with its tip commit. It also lists each refusal: the change is not merged, the forge call failed, a worktree
+has uncommitted files, or a branch has commits outside the change. gc removes nothing before your yes on that
+exact list. A refusal holds until you accept it for that run. A folder in use and a system that is not Windows
+always refuse. A hands-off build never runs gc.
+
+After your yes, gc removes the run worktree, the run branch and the remote feature branch. The session cannot
+remove the folder it runs in, so gc gives you one later command. Run it after the session closes, from a
+terminal outside the feature worktree: it removes the feature worktree and the local feature branch.
