@@ -851,3 +851,40 @@ def test_a_feature_worktree_that_is_not_an_absolute_linked_worktree_of_the_repos
     refusal = refused("not-a-worktree", cleanup.finish_step, repo.main, FEATURE, yes=["uncommitted"])
     assert Path(repo.feature).is_dir() and FEATURE in local_heads(repo)
     assert gc_target.read_target(repo.main, FEATURE) == target and refusal.extra["left"] == target["left"]
+
+
+def test_a_failed_branch_delete_keeps_the_target_waiting_with_the_branch_and_a_second_finish_removes_only_it(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    real, failures = cleanup._git, []
+
+    def refuse_the_branch_delete_once(cwd, *args):
+        if args[0] == "branch" and not failures:
+            failures.append(args)
+            return 1, "", "error: a simulated failure"
+        return real(cwd, *args)
+
+    monkeypatch.setattr(cleanup, "_git", refuse_the_branch_delete_once)
+    partial = refused("partial", cleanup.finish_step, repo.main, FEATURE)
+    assert [entry["item"] for entry in partial.extra["removed"]] == ["feature worktree"]
+    assert (partial.extra["failed"]["item"], partial.extra["failed"]["code"]) == ("feature branch", "git-failed")
+    assert partial.extra["left"] == ["feature branch"] and not Path(repo.feature).exists() and FEATURE in local_heads(repo)
+    target = gc_target.read_target(repo.main, FEATURE)
+    assert (target["state"], target["left"]) == ("waiting", ["feature branch"])
+    done = steps(monkeypatch)
+    answer = cleanup.finish_step(repo.main, FEATURE)
+    assert done == [("branch", FEATURE)] and [entry["item"] for entry in answer["removed"]] == ["feature branch"]
+    assert answer["state"] == "done" and gone(repo)
+
+
+def test_finish_keeps_the_target_waiting_with_a_remote_item_remove_left(repo, monkeypatch, windows):
+    merged(repo, monkeypatch)
+    git(repo.remote, "config", "receive.denyDeletes", "true")
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    refused("partial", cleanup.remove_step, repo.main, FEATURE, receipt)
+    answer = cleanup.finish_step(repo.main, FEATURE)
+    left = ["remote run branch", "remote feature branch"]
+    assert [entry["item"] for entry in answer["removed"]] == ["feature worktree", "feature branch"]
+    assert (answer["left"], answer["state"]) == (left, "waiting")
+    target = gc_target.read_target(repo.main, FEATURE)
+    assert (target["state"], target["left"]) == ("waiting", left)
+    assert not gc_target.take_lock(repo.main, FEATURE).release()
