@@ -494,7 +494,8 @@ def _answer_number(rnd, answer):
 def _add_answer(rnd, text, notes, changed=()):
     """Append one answer to the round, with the next id `A-<round>-<k>`. An answer with no note answers a mark."""
     replies = rnd.setdefault("replies", [])
-    answer = {"id": f"A-{rnd['n']}-{max(map(lambda a: _answer_number(rnd, a), replies), default=0) + 1}", "text": text}
+    k = max((_answer_number(rnd, old) for old in replies), default=0) + 1
+    answer = {"id": f"A-{rnd['n']}-{k}", "text": text}
     if notes:
         answer["notes"] = list(notes)
     if changed:
