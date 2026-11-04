@@ -1,6 +1,6 @@
 # Page live test
 
-An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.80`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host.
+An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.80`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host. The shell steps prove the page shell (AC-015, AC-020, AC-021, AC-026, AC-027, AC-035, AC-039, AC-040) and the seam row "Page host" (AC-036) on a page of their own.
 
 ## Rules
 
@@ -32,11 +32,18 @@ The test passes when the driver exits 0 and no screenshot shows content that is 
 | Step | Pass rule |
 |---|---|
 | layout | At 1280 and at 390 wide, all cards expanded: the page does not scroll sideways; no text is clipped; nothing outside a scroll area is past the edge; no 2 map boxes overlap |
+| title | The browser tab and the heading read `<ticket> · <short title> · <step>`, and the next round keeps it |
+| navigation | At 1280 the navigation ends left of the page; at 390 it is one button whose list opens on a click and closes after a jump; a collapsed navigation stays collapsed on the next round |
+| back | A card link and a map box each scroll to their card; one click on Back returns to the place before the jump |
+| map box | The box's hover tip names the card's state and the round of its last change |
+| what changed | After round 1 the banner lists the changed card with a link, and only that card has a round mark |
+| tab reuse | A second show of an open page answers `tab: reused` with the same URL; the open tab shows the new round and the browser has no new tab |
+| closed tab | After the tab closes, `poll` reports that the browser left, and the next show answers `tab: null`: the engine asks the host for a new tab. The host runs with `LAVISH_AXI_NO_OPEN`, so the driver opens that one tab itself |
 | host audit | The severe findings of the host's layout audit, on the full page and on a page of only diagrams, are in the result. A finding fails the test |
 | mark | A real click on a radio selects it |
 | note | A real click and typed text make a note on a card, a map node, a settled item, a diagram and a freestyle fragment |
 | edit and delete | An unsent note changes and goes away; a sent note gets an edit entry and a delete entry; a click on the other action replaces the entry |
-| collapse | A round of notes and a settled card fold and unfold |
+| collapse | A closed older round of notes and a settled card fold and unfold |
 | re-render | A reply added and rendered while notes are unsent: the page reloads and every unsent note and mark is still there |
 | send | The page sends; the draft store is empty after |
 | seam | The text the page gave the host, what `poll` reads and what `ingest` stored are the same bytes |
@@ -146,7 +153,7 @@ class Cdp {
   }
 }
 
-let cdp, top, frameContext, edge, frameKey = '/artifact/';
+let cdp, top, topTarget, frameContext, edge, frameKey = '/artifact/';
 process.on('exit', () => { if (edge) edge.kill(); });
 
 async function findFrame() {
@@ -385,7 +392,8 @@ async function interact(json) {
   await click('[data-afkv2-note-delete="N-8-i-8-3"]');
   step('edit and delete a sent note', await ev(`document.querySelector('${nodeField('N-8-i-8-2')}').value === 'An edited sent note.' && !!document.querySelector('[data-afkv2-item="N-8-i-8-3"]')`));
 
-  const roundFold = '[data-afkv2-nr-round="8"]';
+  /* The current round and the one before stand open in the session table; round 7 is a closed fold. */
+  const roundFold = 'details[data-afkv2-nr-round="7"]';
   await click(`${roundFold} > summary`);
   const closed = !(await ev(`document.querySelector('${roundFold}').open`));
   await click(`${roundFold} > summary`);
@@ -433,6 +441,113 @@ function checkIngest(json, raw, sentText) {
   return doc;
 }
 
+async function newTab() {
+  ({ targetId: topTarget } = await cdp.send('Target.createTarget', { url: 'about:blank' }));
+  ({ sessionId: top } = await cdp.send('Target.attachToTarget', { targetId: topTarget, flatten: true }));
+  cdp.attach(top);
+  await cdp.send('Page.bringToFront', {}, top);
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }, top);
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `addEventListener('message', (e) => { if (window === window.top && e.data && e.data.type === 'lavish:layoutDiagnostics') (window.__afkv2Layout = window.__afkv2Layout || []).push(e.data); });`,
+  }, top);
+  await width(1280);
+}
+
+const pageTabs = async () => (await cdp.send('Target.getTargets')).targetInfos.filter((t) => t.type === 'page').length;
+const LONG = 'Words of a long card. '.repeat(300);
+const BANNER = { settled: [], unlocks: [], parked: [] };
+
+function shellDocument() {
+  return {
+    schema: 'afkv2.page/1',
+    session: { id: 's3', skill: 'grill', feature: 'Shell feature', ticket: 'T-3', started: '2026-01-05T10:00:00Z',
+      short_title: 'Page shell', step: 'Requirements grill' },
+    maps: [{ type: 'map', id: 'm-shell', props: { nodes: [{ id: 'n-tab', label: 'The tab', state: 'open', round: 1 }] } }],
+    notes: [],
+    rounds: [{ n: 1, state: 'current', banner: BANNER, items: [
+      { id: 'c-tab', kind: 'decided', node: 'n-tab', body: { type: 'text', props: { text: 'The first card. ' + LONG } } },
+      { id: 'c-far', kind: 'confirm', body: { type: 'text', props: { text: LONG + ' This follows c-tab.' } } }] }],
+  };
+}
+
+const scrolled = () => ev('Math.round(window.scrollY)');
+const nearTop = (selector) => ev(`Math.abs(document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect().top) < 80`);
+const navClosed = () => ev(`getComputedStyle(document.getElementById('afkv2-nav-list')).display === 'none'`);
+const navMin = () => ev(`document.getElementById('afkv2-nav').classList.contains('afkv2-min')`);
+
+/* The page shell and the "Page host" seam, on a page of its own. */
+async function shellSteps() {
+  const json = newHome('repo-shell', shellDocument());
+  const shown = engine('show', json);
+  step('show without --no-open', shown.ok && shown.tab === null && !!shown.url, shown);
+  await width(1280);
+  await openPage(shown.url);
+  const title = 'T-3 \u00b7 Page shell \u00b7 Requirements grill';
+  const titles = async () => JSON.stringify(await ev(`[document.title, document.querySelector('.afkv2-title').textContent]`));
+  step('title', (await titles()) === JSON.stringify([title, title]), await titles());
+  const margin = await ev(`(() => { const n = document.getElementById('afkv2-nav').getBoundingClientRect(); return { nav: n.right, page: document.querySelector('.afkv2-page').getBoundingClientRect().left }; })()`);
+  step('navigation in the left margin at 1280', margin.nav <= margin.page, margin);
+
+  /* The click helper centres its target first, so each place before a jump is read after that centring. */
+  const centre = (selector) => ev(`(document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'center', inline: 'center' }), 1)`);
+  const jumpAndBack = async (selector, what) => {
+    await centre(selector);
+    await pause(150);
+    const before = await scrolled();
+    await click(selector);
+    await pause(300);
+    step(`${what} scrolls to its card`, await nearTop('#c-tab'));
+    await click('#afkv2-back');
+    const after = await scrolled();
+    step(`back after ${what}`, Math.abs(after - before) <= 4, { before, after });
+  };
+  await jumpAndBack('.afkv2-card-link[href="#c-tab"]', 'a card link');
+  const tip = await ev(`document.getElementById('n-tab').getAttribute('data-afkv2-tip') || ''`);
+  step('the map box tip', /open/.test(tip) && tip.includes('last changed in round 1'), tip);
+  await jumpAndBack('#n-tab', 'a map box');
+
+  await click('#afkv2-nav-head');
+  step('collapse the navigation', await navMin());
+  const tabs = await pageTabs();
+  const doc = readDoc(json);
+  doc.rounds[0].state = 'settled';
+  doc.rounds.push({ n: 2, state: 'current', banner: BANNER, changed: ['c-two'], items: [
+    { id: 'c-two', kind: 'decided', title: 'The second round', body: { type: 'text', props: { text: 'The second round.' } } },
+    { id: 'c-same', kind: 'decided', body: { type: 'text', props: { text: 'An unchanged card.' } } }] });
+  writeFileSync(json, JSON.stringify(doc));
+  const again = engine('show', json);
+  step('tab reuse: the second show reuses the tab', again.ok && again.tab === 'reused' && again.url === shown.url, again);
+  await until(`document.body.textContent.includes('An unchanged card.')`, 'the new round in the open tab');
+  step('tab reuse: no new tab', (await pageTabs()) === tabs, { before: tabs, after: await pageTabs() });
+  step('the title stays the same', (await titles()) === JSON.stringify([title, title]));
+  step('the collapsed navigation stays collapsed', await navMin());
+  step('what changed', await ev(`!!document.querySelector('.afkv2-banner-changed a[href="#c-two"]') && document.getElementById('c-two').getAttribute('data-afkv2-fresh') === '2' && !document.getElementById('c-same').hasAttribute('data-afkv2-fresh')`));
+  await checkLayout('shell-1280', [['top', '.afkv2-page']]);
+
+  await width(390);
+  await frameOnTop();
+  step('a narrow window: the navigation is one button', await navClosed());
+  await click('#afkv2-nav-head');
+  step('the button opens the list', !(await navClosed()));
+  await click('.afkv2-nav-row');
+  step('a jump closes the list', await navClosed());
+  await checkLayout('shell-390', [['top', '.afkv2-page']]);
+  await width(1280);
+
+  await cdp.send('Target.closeTarget', { targetId: topTarget });
+  frameContext = null;
+  const left = engine('poll', json);
+  step('closed tab: poll reports that the browser left', !left.ok, left);
+  const third = engine('show', json);
+  step('closed tab: the next show asks for a new tab', third.ok && third.tab === null, third);
+  await newTab();
+  await openPage(third.url);
+  step('closed tab: one new tab', (await pageTabs()) === tabs, { before: tabs, after: await pageTabs() });
+  await cdp.send('Page.navigate', { url: 'about:blank' }, top);
+  frameContext = null;
+  endSession(json);
+}
+
 async function main() {
   mkdirSync(path.join(SCRATCH, 'local'), { recursive: true });
   mkdirSync(path.join(SCRATCH, 'state'), { recursive: true });
@@ -451,15 +566,7 @@ async function main() {
     const ws = new WebSocket(`ws://127.0.0.1:${debugPort}${wsPath.trim()}`);
     await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
     cdp = new Cdp(ws);
-    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
-    ({ sessionId: top } = await cdp.send('Target.attachToTarget', { targetId, flatten: true }));
-    cdp.attach(top);
-    await cdp.send('Page.bringToFront', {}, top);
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }, top);
-    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `addEventListener('message', (e) => { if (window === window.top && e.data && e.data.type === 'lavish:layoutDiagnostics') (window.__afkv2Layout = window.__afkv2Layout || []).push(e.data); });`,
-    }, top);
-    await width(1280);
+    await newTab();
 
     await openPage(shown.url);
     result.frame.oopif = cdp.sessions.size > 1;
@@ -480,6 +587,8 @@ async function main() {
     await checkLayout('diagrams-390', [['all', '.afkv2-page']]);
     await hostAudit('diagrams-390');
     endSession(diagrams);
+
+    await shellSteps();
 
     await width(1280);
     await openPage(shown.url);
