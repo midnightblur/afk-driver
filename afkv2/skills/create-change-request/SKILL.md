@@ -87,7 +87,7 @@ Each push during ship goes back to step 1.
 
 ### After the merge
 
-`/afkv2:gc` removes what a merged change leaves behind. Offer it once per change.
+`/afkv2:gc` removes what a merged change leaves behind. Offer it once per change. 3 places can show the merge: a watch state, the mark-ready refusal and the end of ship. The first one offers gc; the others skip the offer.
 
 - **Offer gc.** In this worktree, run steps 1 and 2 of `/afkv2:gc`: it lists what goes and asks the developer for a yes. Then end the turn. Its step 3 runs only after the developer's yes.
 - **End of ship.** Run step 1 of `/afkv2:gc` once: its list asks the forge. `change` holds a merged change: run its step 2. Otherwise tell the developer to run `/afkv2:gc` after the merge.
