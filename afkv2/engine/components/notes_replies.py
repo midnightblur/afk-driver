@@ -1,9 +1,10 @@
 """Notes and replies (CMP-2): one row per note with the replies that answer it, newest round first.
 
 Display only. The human writes a note as a native lavish annotation; the poll turns it into a note line.
-A note on a card, and a reply about a card, is a row on that card (`card-notes`). The slot table
-(`notes-and-replies`) holds the rest: the steers (notes on a map or a map node, kept on the round, and older
-steers kept on a card), and replies that name no card.
+Every note comes from the session list (ADR-0001 design). A note on a card, and a reply about a card, is a
+row on that card (`card-notes`). The slot table (`notes-and-replies`) holds the rest: the steers (notes on a
+map, a map node or a round banner, which name no card, and older steers kept on a card), and replies that
+name no card.
 Each row has an HTML id. `row_targets` names the element that an annotation on a row stands for.
 """
 
@@ -85,12 +86,10 @@ def _is_steer(item: dict | None, note: dict, elements: dict) -> bool:
 
 
 def _notes(doc: dict) -> list[tuple[dict | None, dict]]:
-    """(the card or None, note) for every live note, in document order: per round, its cards' notes, then its steers."""
-    found = []
-    for r in doc["rounds"]:
-        found += [(item, note) for item in r["items"] for note in item.get("notes") or []]
-        found += [(None, note) for note in r.get("notes") or []]
-    return [(item, note) for item, note in found if not note["deleted"]]
+    """(the card or None, note) for every live note of the session list, in its order. A note names its card
+    in `item`; a steer names none."""
+    cards = {item["id"]: item for r in doc["rounds"] for item in r["items"]}
+    return [(cards.get(note.get("item")), note) for note in doc.get("notes") or [] if not note["deleted"]]
 
 
 def _pairs(doc: dict, notes: list[tuple[dict, dict]]) -> tuple[dict, list[tuple[int, int, dict]]]:

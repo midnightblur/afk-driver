@@ -140,3 +140,94 @@ def test_a_round_and_an_answer_hold_their_change_lists(capsys, tmp_path):
     answer = {"id": "A-1-1", "text": "Because.", "notes": ["N-1-i-a-1"], "changed": ["i-a"]}
     doc = v1_document(round_of(1, card("i-a"), replies=[answer], changed=["i-a"]), notes=[note])
     assert check(capsys, tmp_path, doc)[0] == 0
+
+
+# --- the format 0 reader: format 1 in memory, the file never rewritten
+
+
+@pytest.fixture
+def repo(tmp_path):
+    root = tmp_path / "repo"
+    (root / ".afkv2").mkdir(parents=True)
+    (root / ".git").mkdir()
+    (root / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs"}), "utf-8")
+    (root / "specs" / "feature" / "pages").mkdir(parents=True)
+    return root
+
+
+def v0_document():
+    """A format 0 page with notes in both id forms, a steer, an answer with only `about` and a settled round."""
+    old = card("i-old", state="settled_by_note",
+               settled={"by": "note", "round": 1, "signal": "N-1-i-old", "reading": "Yes."},
+               notes=[{"id": "N-1-i-old", "round": 1, "target": "i-old", "text": 'why (on: "a b")', "deleted": False},
+                      {"id": "N-2-i-old-1", "round": 2, "target": "i-old", "text": "late", "deleted": False}])
+    new = card("i-new", notes=[{"id": "N-2-i-new-1", "round": 2, "target": "i-new", "text": "one", "deleted": False},
+                               {"id": "N-2-i-new-2", "round": 2, "target": "i-new", "text": "two", "deleted": True}])
+    steer = {"id": "N-2-R-2-1", "round": 2, "target": "R-2", "text": "steer", "deleted": False}
+    return {"schema": V0,
+            "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                        "started": "2026-01-05T09:00:00Z"},
+            "rounds": [round_of(1, old, state="settled", replies=[{"text": "Read.", "about": ["i-old"]}]),
+                       round_of(2, new, notes=[steer], replies=[{"text": "Ok.", "about": ["N-2-R-2-1"]}])]}
+
+
+def test_the_reader_moves_card_notes_and_steers_into_the_session_list():
+    raw = v0_document()
+    before = copy.deepcopy(raw)
+    doc = engine.read_v0_as_v1(raw)
+    assert raw == before
+    assert doc["schema"] == V1
+    assert [(n["id"], n["item"]) for n in doc["notes"]] == [
+        ("N-1-i-old", "i-old"), ("N-2-i-old-1", "i-old"), ("N-2-i-new-1", "i-new"), ("N-2-i-new-2", "i-new"),
+        ("N-2-R-2-1", None)]
+    assert doc["notes"][0]["text"] == 'why (on: "a b")' and doc["notes"][3]["deleted"] is True
+    assert all("notes" not in r and all("notes" not in i for i in r["items"]) for r in doc["rounds"])
+    assert doc["rounds"][1]["replies"] == [{"text": "Ok.", "about": ["N-2-R-2-1"]}]
+    session = doc["session"]
+    assert session["short_title"] is None and session["step"] == "Requirements grill"
+    assert session["private"] is False and session["takeovers"] == []
+
+
+def test_a_format_0_page_checks_and_renders_and_its_bytes_do_not_change(capsys, repo):
+    raw = v0_document()
+    path = repo / "specs" / "feature" / "pages" / "grill-s1.json"
+    path.write_bytes(json.dumps(raw, indent=1).encode("utf-8"))
+    before = path.read_bytes()
+    assert call(capsys, "check", path)[0] == 0
+    code, answer = call(capsys, "render", path)
+    assert code == 0, answer
+    assert call(capsys, "check", path)[1]["saved_copy"] == "compared"
+    assert path.read_bytes() == before
+    html = Path(answer["page"]).read_text("utf-8")
+    assert "late" in html and "steer" in html
+
+
+def test_a_real_format_0_page_with_notes_renders_and_stays_as_it_is(capsys, repo):
+    source = FIXTURES / "v0-page-with-notes.json"
+    session = json.loads(source.read_text("utf-8"))["session"]
+    path = repo / "specs" / "feature" / "pages" / f"{session['skill']}-{session['id']}.json"
+    path.write_bytes(source.read_bytes())
+    assert call(capsys, "render", path)[0] == 0
+    assert call(capsys, "check", path)[0] == 0
+    assert path.read_bytes() == source.read_bytes()
+
+
+def test_a_settled_copy_saved_in_the_format_0_form_still_compares(capsys, repo):
+    raw = v0_document()
+    path = repo / "specs" / "feature" / "pages" / "grill-s1.json"
+    path.write_text(json.dumps(raw), "utf-8")
+    old_copy = {"document": str(path), "rounds": {"1": engine.invariants.canonical(raw["rounds"][0])}}
+    copy_path = engine._copy_path(path)
+    copy_path.parent.mkdir(parents=True, exist_ok=True)
+    copy_path.write_text(json.dumps(old_copy), "utf-8")
+    code, answer = call(capsys, "check", path)
+    assert code == 0 and answer["saved_copy"] == "compared", answer
+
+
+def test_a_format_1_note_settles_its_card_from_the_session_list(capsys, tmp_path):
+    settled = {"by": "note", "round": 1, "signal": "N-1-i-a-1", "reading": "Yes."}
+    note = {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "why", "deleted": False}
+    doc = v1_document(round_of(1, card("i-a", state="settled_by_note", settled=settled)), notes=[note])
+    assert check(capsys, tmp_path, doc)[0] == 0
+    note["deleted"] = True
+    assert "field settled.signal" in refused(capsys, tmp_path, doc)["reason"]

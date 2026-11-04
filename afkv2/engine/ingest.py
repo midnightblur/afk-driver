@@ -4,10 +4,11 @@ The raw grammar: first line `[round R-n]`, then `<id> <token>` or `<id> <token> 
 for no choice. `<id>` is an element id, or a note id with the token `edit` or `delete`. A later line
 continues the note unless it reads as a line of a known id with a token that id takes.
 
-Each line with note text is one note: the page sends one line per lavish annotation. A note on a card
-element lives on that card as `N-<round>-<item>-<k>`. A steer, a note on a map, a map node, a round banner
-or another element that no card holds, lives on its round as `N-<round>-<target>-<k>` and names no card.
-k counts 1, 2, 3 per card or target in the round (`schema/note_rules.py`).
+Each line with note text is one note: the page sends one line per lavish annotation. Every note goes into
+the session list (ADR-0001 design). A note on a card element names that card: `N-<round>-<item>-<k>`. A
+steer, a note on a map, a map node, a round banner or another element that no card holds, names no card:
+`N-<round>-<target>-<k>`. k counts 1, 2, 3 per card or target in the round (`schema/note_rules.py`).
+The answer's `notes` lists the ids of the new notes.
 """
 
 from __future__ import annotations
@@ -78,8 +79,7 @@ class _Page:
         self.doc, self.ids, self.nodes = doc, ids, nodes
         self.current = next(r for r in doc["rounds"] if r["state"] == "current")
         self.items = {item["id"]: item for r in doc["rounds"] for item in r["items"]}
-        self.notes = {note["id"]: (item, note) for item in self.items.values() for note in item.get("notes") or []}
-        self.notes.update((note["id"], (None, note)) for r in doc["rounds"] for note in r.get("notes") or [])
+        self.notes = {note["id"]: (self.items.get(note.get("item")), note) for note in doc.get("notes") or []}
 
     def owner(self, target: str) -> dict | None:
         """The item that holds an element; None for an element of the `maps` list and for a round banner."""
@@ -137,25 +137,17 @@ def parse_response(raw: str, page: _Page) -> list[Line]:
     return lines
 
 
-def _add(holder: dict, owner: str, target: str, text: str, n: int, earlier: dict) -> str:
-    """One new note on a card or on a round, with the next k of `owner` in round n. A live note of an earlier
+def write_session_note(doc: dict, n: int, target: str, item: str | None, text: str, earlier: dict) -> tuple[str, bool]:
+    """(the note id, whether the note is new): one note in the session list (ADR-0001 design), with the next k
+    of its owner in round n; the owner is its card, or its target for a steer. A live note of an earlier
     response with the same round, target and text is that note: a send that comes twice adds nothing."""
-    notes = holder.get("notes") or []
+    notes = doc.get("notes") or []
     for note in notes:
         if note["id"] in earlier and not note["deleted"] and (note["round"], note["target"], note["text"]) == (n, target, text):
-            return note["id"]
-    note_id = note_rules.next_note_id(notes, n, owner)
-    holder["notes"] = [*notes, {"id": note_id, "round": n, "target": target, "text": text, "deleted": False}]
-    return note_id
-
-
-def _write_note(item: dict, target: str, text: str, n: int, earlier: dict) -> str:
-    return _add(item, item["id"], target, text, n, earlier)
-
-
-def _write_steer(round_: dict, target: str, text: str, earlier: dict) -> str:
-    """A steer lives on the round: it names no card."""
-    return _add(round_, target, target, text, round_["n"], earlier)
+            return note["id"], False
+    note_id = note_rules.next_note_id(notes, n, item or target)
+    doc["notes"] = [*notes, {"id": note_id, "round": n, "target": target, "item": item, "text": text, "deleted": False}]
+    return note_id, True
 
 
 def _edit(note: dict, line: Line) -> str:
@@ -199,7 +191,13 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
     n = page.current["n"]
     lines = parse_response(raw, page)
     signals: dict[int, dict] = {}
-    result = {"settled_by_mark": [], "needs_reading": [], "reopened": [], "conflicts": [], "steers": []}
+    result = {"settled_by_mark": [], "needs_reading": [], "reopened": [], "conflicts": [], "steers": [], "notes": []}
+
+    def write(target: str, item: str | None, text: str) -> str:
+        note_id, new = write_session_note(doc, n, target, item, text, page.notes)
+        if new:
+            result["notes"].append(note_id)
+        return note_id
 
     for item_id, group in _table_lines(lines, page).items():
         item = page.items[item_id]
@@ -212,7 +210,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
                 _edit(page.notes[line.target][1], line)
                 signal.update(note=line.target, action=EDIT)
             elif line.text:
-                signal["note"] = _write_note(item, line.target, line.text, n, page.notes)
+                signal["note"] = write(line.target, item_id, line.text)
             signals[line.number] = signal
         _set_state(item, after, n, group)
         for line in group:
@@ -245,7 +243,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
                                     "reopened": rests_on_it}
         elif line.text:
             signals[line.number] = {"target": line.target, "item": None, "mark": None, "text": line.text,
-                                    "note": _write_steer(page.current, line.target, line.text, page.notes), "steer": True}
+                                    "note": write(line.target, None, line.text), "steer": True}
             result["steers"].append(line.target)
 
     if not signals:

@@ -25,6 +25,7 @@ item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -62,19 +63,62 @@ TAB_GONE = {"ended", "browser_disconnected", "no-session"}
 DELIVERY_SUFFIX = ".delivery.json"
 
 
-def read_v0(raw: dict) -> dict:
-    return raw
+# The step of a session whose writer names none: a format 0 page, or a builder caller that gives no step.
+STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design", "to-subtasks": "Plan approval"}
+STEP_LIMIT = 40
+
+
+def default_step(session: dict) -> str:
+    return STEPS.get(session.get("skill")) or str(session.get("feature") or session.get("skill"))[:STEP_LIMIT]
+
+
+def read_v0_as_v1(raw: dict) -> dict:
+    """The format 1 form of a format 0 document, in memory; `raw` is not changed (ADR-0002 design).
+
+    Card notes and steers move into the session list with their ids as they are, oldest round first; a card
+    note names its card in `item`, a steer names none. The noted text stays inside the words. An answer
+    keeps `about`. The short title is none."""
+    doc = copy.deepcopy(raw)
+    doc["schema"] = SCHEMA_V1
+    notes = []
+    for round_ in doc["rounds"]:
+        for item in round_["items"]:
+            notes += [_session_note(note, item["id"]) for note in item.pop("notes", None) or []]
+        notes += [_session_note(note, None) for note in round_.pop("notes", None) or []]
+    doc["notes"] = sorted(notes, key=lambda note: note["round"])
+    session = doc["session"]
+    session.update(short_title=None, step=default_step(session), private=False, takeovers=[])
+    return doc
+
+
+def _session_note(note: dict, item: str | None) -> dict:
+    return {"id": note["id"], "round": note["round"], "target": note["target"], "item": item,
+            "text": note["text"], "deleted": note["deleted"]}
 
 
 def read_v1(raw: dict) -> dict:
     return raw
 
 
-READERS = {SCHEMA_V0: read_v0, SCHEMA_V1: read_v1}
+READERS = {SCHEMA_V0: read_v0_as_v1, SCHEMA_V1: read_v1}
+
+
+def _schema(version: str) -> dict:
+    return json.loads(SCHEMA_FILES[version].read_text(encoding="utf-8"))
+
+
+def _schema_checked(value: dict) -> dict:
+    """The schema of the value's format, after the value passed it; a problem is refused as `schema`."""
+    schema = _schema(value["schema"])
+    found = problems(value, schema)
+    if found:
+        raise _refuse(value, found, "schema")
+    return schema
 
 
 def load_document(path: str) -> tuple[dict, dict]:
-    """The raw document and its reader's in-memory form. Unknown schema values are refused."""
+    """The raw document and its reader's in-memory form, format 1. An unknown schema value and a document
+    that does not fit the schema of its format are refused before the reader runs."""
     try:
         raw = json.loads(Path(path).read_bytes().decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -85,6 +129,7 @@ def load_document(path: str) -> tuple[dict, dict]:
     if not isinstance(version, str) or version not in READERS:
         known = ", ".join(READERS)
         raise Refusal("unknown-schema", f"item document, field schema: version {version!r} is unknown; known: {known}")
+    _schema_checked(raw)
     return raw, READERS[version](raw)
 
 
@@ -217,11 +262,9 @@ def save_settled_copy(document: Path, doc: dict) -> None:
 
 
 def _content_problems(raw: dict, doc: dict) -> list[tuple]:
-    """The invariant problems of a document. A problem of schema or component shape is refused here."""
-    schema = json.loads(SCHEMA_FILES[raw["schema"]].read_text(encoding="utf-8"))
-    found = problems(raw, schema)
-    if found:
-        raise _refuse(raw, found, "schema")
+    """The invariant problems of the in-memory form `doc` of `raw`. A problem of schema or component shape is
+    refused here: `raw` against the schema of its own format."""
+    schema = _schema_checked(raw)
     found = []
     for m, map_ in enumerate(doc.get("maps") or []):
         found += registry.validate(map_, ("maps", m), schema)

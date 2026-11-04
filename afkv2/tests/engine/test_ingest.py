@@ -24,6 +24,20 @@ import prompt_lines  # noqa: E402
 from schema import invariants  # noqa: E402
 from shell import page  # noqa: E402
 
+
+def in_memory(doc):
+    """The format 1 form that the engine's reader gives the page."""
+    return engine.READERS[doc["schema"]](doc)
+
+
+def build(doc, *args):
+    return page.build(in_memory(doc), *args)
+
+
+def targets(doc):
+    return page.targets(in_memory(doc))
+
+
 SCHEMA = "afkv2.page/0"
 NOTES_CSS = (ENGINE_DIR / "shell" / "notes.css").read_text("utf-8")
 
@@ -140,6 +154,11 @@ def item_of(doc, item_id):
     return next(i for r in doc["rounds"] for i in r["items"] if i["id"] == item_id)
 
 
+def notes_of(doc, item_id):
+    """The notes of a card in the session list of a format 1 document."""
+    return [note for note in doc.get("notes") or [] if note["item"] == item_id]
+
+
 def check(path):
     return engine.main(["check", str(path)])
 
@@ -187,7 +206,7 @@ def test_the_stored_raw_keeps_every_byte_of_a_multi_line_note(path):
     raw = f"[round R-1]\ni-a accept | {note}\ni-b —"
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), raw)
     assert after["rounds"][0]["responses"][0]["raw"] == raw
-    assert item_of(after, "i-a")["notes"][0]["text"] == note
+    assert notes_of(after, "i-a")[0]["text"] == note
 
 
 def test_the_command_reads_the_raw_file_and_answers_one_object(path):
@@ -197,7 +216,7 @@ def test_the_command_reads_the_raw_file_and_answers_one_object(path):
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(path), "--raw-file", str(raw_file)],
                          capture_output=True, text=True, timeout=60, encoding="utf-8")
     assert run.returncode == 0 and json.loads(run.stdout)["ok"] is True
-    assert item_of(json.loads(path.read_bytes().decode("utf-8")), "i-a")["notes"][0]["text"] == "é"
+    assert notes_of(json.loads(path.read_bytes().decode("utf-8")), "i-a")[0]["text"] == "é"
 
 
 @pytest.mark.parametrize("content", [None, b"\xff\xfe"])
@@ -243,7 +262,7 @@ def test_a_crlf_response_keeps_its_raw_and_parses(path):
     raw = "[round R-1]\r\ni-a accept\r\ni-b — | one\r\ntwo\r\n"
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), raw)
     assert after["rounds"][0]["responses"][0]["raw"] == raw
-    assert item_of(after, "i-b")["notes"][0]["text"] == "one\ntwo"
+    assert notes_of(after, "i-b")[0]["text"] == "one\ntwo"
 
 
 # --- the mark table
@@ -294,7 +313,7 @@ def test_a_mark_and_a_note_on_a_part_of_the_card_are_a_conflict(path):
     answer, after = ingested(path, one_round(item), "[round R-1]\ni-a accept\ni-a-part — | not this part")
     point = item_of(after, "i-a")
     assert point["state"] == "needs_reading" and answer["conflicts"] == ["i-a"]
-    assert point["notes"][0]["target"] == "i-a-part"
+    assert notes_of(after, point["id"])[0]["target"] == "i-a-part"
 
 
 def test_a_blocked_point_follows_the_same_table(path):
@@ -337,10 +356,10 @@ def test_the_agent_reading_settles_by_note_and_shows_a_different_state(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | CSV please")
     reading(after, "i-a", "N-1-i-a-1")
     assert check(save(path, after)) == 0
-    html = page.build(after)
+    html = build(after)
     assert BY_NOTE in html and "settled by note" in html and "Picks CSV." in html
     _, marked = ingested(path, one_round(card("i-b")), "[round R-1]\ni-b accept")
-    assert BY_MARK in page.build(marked) and "settled by note" not in page.build(marked)
+    assert BY_MARK in build(marked) and "settled by note" not in build(marked)
 
 
 def test_settled_by_note_needs_a_note_id_and_a_reading(path, capsys):
@@ -356,7 +375,7 @@ def test_the_agent_returns_an_unclear_point_to_open(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a accept\ni-a reopen")
     item_of(after, "i-a")["state"] = "open"
     assert check(save(path, after)) == 0
-    assert 'name="choice:i-a"' in page.build(after)
+    assert 'name="choice:i-a"' in build(after)
 
 
 # --- WE-02 rounds 3 and 4
@@ -380,9 +399,9 @@ def test_we_02_a_note_settles_then_a_mark_and_a_note_reopen(path):
     assert answer["reopened"] == ["V-5"]
     signal = answer["signals"][0]
     assert signal["mark"] == "accept" and signal["text"] == "only for terms" and signal["note"] == "N-4-V-5-1"
-    assert [n["id"] for n in point["notes"]] == ["N-3-V-5-1", "N-4-V-5-1"]
+    assert [n["id"] for n in notes_of(after, point["id"])] == ["N-3-V-5-1", "N-4-V-5-1"]
     assert check(path) == 0
-    html = page.build(after)
+    html = build(after)
     assert "only for terms" in html and "yes, notes can settle it" in html and "accept" in html
 
 
@@ -394,7 +413,8 @@ def test_a_note_on_a_settled_item_reopens_it_in_the_next_round(path):
     answer, after = ingested(path, doc, "[round R-2]\ni-old — | Not any more\ni-new —")
     point = item_of(after, "i-old")
     assert point["state"] == "open" and "settled" not in point
-    assert point["notes"][0] == {"id": "N-2-i-old-1", "round": 2, "target": "i-old", "text": "Not any more", "deleted": False}
+    assert notes_of(after, point["id"])[0] == {"id": "N-2-i-old-1", "round": 2, "target": "i-old", "item": "i-old", "text": "Not any more",
+                                        "deleted": False}
     assert after["rounds"][0]["state"] == "settled" and "responses" not in after["rounds"][0]
     signal = after["rounds"][1]["responses"][0]["signals"][0]
     assert signal["reopened"] is True and signal["item"] == "i-old" and answer["reopened"] == ["i-old"]
@@ -407,7 +427,7 @@ def test_the_late_note_saves_the_copy_so_the_next_check_passes(path, capsys):
     assert check(path) == 0
     capsys.readouterr()
     after = json.loads(path.read_bytes().decode("utf-8"))
-    after["rounds"][0]["items"][0]["notes"][0]["text"] = "rewritten by hand"
+    after["rounds"][0]["items"][0]["body"]["props"]["text"] = "rewritten by hand"
     assert check(save(path, after)) == 1
     assert "never rewritten" in capsys.readouterr().out
 
@@ -443,11 +463,12 @@ def test_a_sign_mark_with_a_wording_note_comes_back_for_a_sign_mark(path):
     assert item_of(after, "i-s")["state"] == "needs_reading"
     item_of(after, "i-s")["state"] = "open"
     assert check(save(path, after)) == 0
-    assert 'name="choice:i-s" value="sign"' in page.build(after)
+    assert 'name="choice:i-s" value="sign"' in build(after)
 
 
 def steers_of(doc, n):
-    return next(r for r in doc["rounds"] if r["n"] == n).get("notes") or []
+    """The steers of round n in the session list: the notes that name no card."""
+    return [note for note in doc.get("notes") or [] if note["item"] is None and note["round"] == n]
 
 
 def test_a_note_on_a_map_node_is_a_steer_and_settles_nothing(path):
@@ -455,8 +476,8 @@ def test_a_note_on_a_map_node_is_a_steer_and_settles_nothing(path):
     doc["maps"] = [a_map("n-1", "n-2")]
     answer, after = ingested(path, doc, "[round R-1]\ni-a —\ni-b —\nn-1 — | Look at this first")
     point = item_of(after, "i-a")
-    assert "notes" not in point and point.get("state", "open") == "open"
-    assert steers_of(after, 1) == [{"id": "N-1-n-1-1", "round": 1, "target": "n-1", "text": "Look at this first",
+    assert not notes_of(after, "i-a") and point.get("state", "open") == "open"
+    assert steers_of(after, 1) == [{"id": "N-1-n-1-1", "round": 1, "target": "n-1", "item": None, "text": "Look at this first",
                                     "deleted": False}]
     assert answer["steers"] == ["n-1"] and answer["needs_reading"] == []
     steer = [s for s in answer["signals"] if s.get("steer")][0]
@@ -477,9 +498,9 @@ def test_a_steer_and_a_note_on_the_linked_card_each_keep_their_note(path):
     doc = one_round(card("i-a", node="n-1"), card("i-b"))
     doc["maps"] = [a_map("n-1")]
     _, after = ingested(path, doc, "[round R-1]\nn-1 — | steer\ni-a — | card note\ni-b —")
-    assert item_of(after, "i-a")["notes"] == [{"id": "N-1-i-a-1", "round": 1, "target": "i-a", "text": "card note",
+    assert notes_of(after, "i-a") == [{"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "card note",
                                                "deleted": False}]
-    assert "notes" not in item_of(after, "i-b")
+    assert not notes_of(after, "i-b")
     assert [s["id"] for s in steers_of(after, 1)] == ["N-1-n-1-1"]
     assert check(path) == 0
 
@@ -489,7 +510,7 @@ def test_two_steers_on_one_target_in_one_round_are_two_notes(path):
     doc["maps"] = [a_map("n-1")]
     _, after = ingested(path, doc, "[round R-1]\ni-a — | card\nn-1 — | one")
     _, after = ingested(path, after, "[round R-1]\nn-1 — | two")
-    assert item_of(after, "i-a")["notes"][0]["text"] == "card"
+    assert notes_of(after, "i-a")[0]["text"] == "card"
     assert [(s["id"], s["text"]) for s in steers_of(after, 1)] == [("N-1-n-1-1", "one"), ("N-1-n-1-2", "two")]
     assert check(path) == 0
 
@@ -506,7 +527,7 @@ def test_a_note_on_the_map_itself_is_recorded_and_settles_nothing(path):
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
     answer, after = ingested(path, doc, "[round R-1]\nm-1 — | The map is wrong\ni-a —")
-    assert "notes" not in item_of(after, "i-a") and steers_of(after, 1)[0]["id"] == "N-1-m-1-1"
+    assert not notes_of(after, "i-a") and steers_of(after, 1)[0]["id"] == "N-1-m-1-1"
     assert item_of(after, "i-a").get("state", "open") == "open" and answer["steers"] == ["m-1"]
 
 
@@ -518,7 +539,7 @@ def test_a_banner_note_is_a_steer_on_the_round_and_names_no_card(path):
     prompts = [{"uid": "u1", "tag": "", "text": "#159", "prompt": "link the issue",
                 "selector": "div#R-2 > header > div > div:nth-of-type(1) > ul > li:nth-of-type(1)"}]
     _, ids, _ = engine._element_ids(doc)
-    raw = prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
+    raw = prompt_lines.raw_from_prompts(doc, prompts, ids, targets(doc))
     assert raw == '[round R-2]\nR-2 — | link the issue'
     answer, after = ingested(path, doc, raw)
     assert answer["signals"][0] | {"stamp": None} == {
@@ -526,7 +547,7 @@ def test_a_banner_note_is_a_steer_on_the_round_and_names_no_card(path):
         "note": "N-2-R-2-1", "steer": True, "stamp": None}
     assert all("notes" not in item for r in after["rounds"] for item in r["items"])
     assert check(path) == 0
-    html = page.build(after)
+    html = build(after)
     assert row(html, ROUND_STEER) and "Open round" in html and "Open card" not in html
 
 
@@ -535,14 +556,14 @@ def test_a_note_on_no_element_of_a_page_with_no_map_is_a_steer_on_the_round(path
     doc = later_round(by_mark("i-old"), card("i-a"), card("i-b"))
     prompts = [{"uid": "u1", "tag": "p", "text": "", "prompt": "about the whole page", "selector": "main > p"}]
     _, ids, _ = engine._element_ids(doc)
-    raw = prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
+    raw = prompt_lines.raw_from_prompts(doc, prompts, ids, targets(doc))
     assert raw == "[round R-2]\nR-2 — | about the whole page"
     answer, after = ingested(path, doc, raw)
-    assert steers_of(after, 2) == [{"id": "N-2-R-2-1", "round": 2, "target": "R-2", "text": "about the whole page",
+    assert steers_of(after, 2) == [{"id": "N-2-R-2-1", "round": 2, "target": "R-2", "item": None, "text": "about the whole page",
                                     "deleted": False}]
     assert answer["steers"] == ["R-2"] and all("notes" not in i for r in after["rounds"] for i in r["items"])
     assert check(path) == 0
-    session_rows = slot(page.build(after))
+    session_rows = slot(build(after))
     assert SESSION_TITLE in session_rows and "about the whole page" in row(session_rows, ROUND_STEER)
 
 
@@ -560,7 +581,7 @@ def test_a_steer_on_the_round_can_be_edited_and_deleted(path):
 @pytest.mark.parametrize("bad, why", [
     ({"id": "N-1-i-a"}, "must be N-1-n-1-<k>"),
     ({"id": "N-1-n-1-0"}, "must be N-1-n-1-<k>"),
-    ({"round": 2}, "must have round 1"),
+    ({"round": 2}, "must be N-2-n-1-<k>"),
     ({"target": "i-a", "id": "N-1-i-a"}, "part of a card"),
     ({"target": "nope", "id": "N-1-nope"}, "resolves to no element"),
 ])
@@ -576,7 +597,7 @@ def test_an_older_steer_kept_on_a_card_still_shows_in_the_session_table(path):
     doc = one_round(card("i-a", notes=[{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "old", "deleted": False}]))
     doc["maps"] = [a_map("n-1")]
     assert check(save(path, doc)) == 0
-    html = page.build(doc)
+    html = build(doc)
     assert html.index(OLD_STEER_ROW) < html.index(MAPS)
 
 
@@ -596,7 +617,7 @@ def test_a_note_on_a_held_map_node_is_accepted_as_a_steer(path, holder):
     doc = one_round(holder("i-a", "n-1", map_id="m-1"), card("i-b"))
     answer, after = ingested(path, doc, "[round R-1]\nn-1 — | steer\ni-a —\ni-b —")
     assert answer["steers"] == ["n-1"]
-    assert steers_of(after, 1)[0]["target"] == "n-1" and "notes" not in item_of(after, "i-a")
+    assert steers_of(after, 1)[0]["target"] == "n-1" and not notes_of(after, "i-a")
     assert item_of(after, "i-a").get("state", "open") == "open"
     assert check(path) == 0
 
@@ -657,7 +678,7 @@ def test_a_settled_by_note_cannot_rest_on_a_steer_on_a_held_node(path):
 
 def test_a_note_id_is_round_item_and_count(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | x")
-    assert item_of(after, "i-a")["notes"][0]["id"] == "N-1-i-a-1"
+    assert notes_of(after, "i-a")[0]["id"] == "N-1-i-a-1"
 
 
 def test_notes_on_every_kind_of_element_are_accepted(path):
@@ -668,8 +689,7 @@ def test_notes_on_every_kind_of_element_are_accepted(path):
     doc["maps"] = [a_map("n-1")]
     raw = "[round R-2]\ni-c — | card\nf-1 — | fragment\ng-1 — | diagram\ni-done — | settled\nn-1 — | node\ni-f —\ni-g —"
     answer, after = ingested(path, doc, raw)
-    targets = {n["target"] for r in after["rounds"] for i in r["items"] for n in i.get("notes") or []}
-    assert targets == {"i-c", "f-1", "g-1", "i-done"}
+    assert {n["target"] for n in after["notes"] if n["item"]} == {"i-c", "f-1", "g-1", "i-done"}
     assert answer["steers"] == ["n-1"] and steers_of(after, 2)[0]["target"] == "n-1"
     assert check(path) == 0
 
@@ -679,7 +699,7 @@ def test_editing_a_note_keeps_its_id_and_needs_a_new_reading(path):
     reading(after, "i-a", "N-1-i-a-1")
     answer, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 edit | second\nline two\ni-b —")
     point = item_of(after, "i-a")
-    assert point["notes"] == [{"id": "N-1-i-a-1", "round": 1, "target": "i-a", "text": "second\nline two", "deleted": False}]
+    assert notes_of(after, point["id"]) == [{"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "second\nline two", "deleted": False}]
     assert point["state"] == "open" and "settled" not in point and answer["reopened"] == ["i-a"]
     assert answer["signals"][0]["action"] == "edit"
     assert check(path) == 0
@@ -688,8 +708,8 @@ def test_editing_a_note_keeps_its_id_and_needs_a_new_reading(path):
 def test_deleting_a_note_keeps_its_id_with_deleted(path):
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), "[round R-1]\ni-a — | first\ni-b —")
     answer, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 delete")
-    assert item_of(after, "i-a")["notes"] == [
-        {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "text": "first", "deleted": True}]
+    assert notes_of(after, "i-a") == [
+        {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "first", "deleted": True}]
     assert answer["signals"][0]["action"] == "delete"
     assert check(path) == 0
 
@@ -706,16 +726,16 @@ def test_a_new_note_after_a_delete_takes_the_next_id(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | first")
     _, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 delete")
     _, after = ingested(path, after, "[round R-1]\ni-a — | again")
-    assert item_of(after, "i-a")["notes"] == [
-        {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "text": "first", "deleted": True},
-        {"id": "N-1-i-a-2", "round": 1, "target": "i-a", "text": "again", "deleted": False}]
+    assert notes_of(after, "i-a") == [
+        {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "first", "deleted": True},
+        {"id": "N-1-i-a-2", "round": 1, "target": "i-a", "item": "i-a", "text": "again", "deleted": False}]
 
 
 def test_each_annotation_on_one_item_is_its_own_note(path):
     item = {**card("i-a"), "body": text("x", id="i-a-part")}
     raw = "[round R-1]\ni-a — | one\ni-a-part — | two\ni-a — | three"
     answer, after = ingested(path, one_round(item), raw)
-    assert [(n["id"], n["target"], n["text"]) for n in item_of(after, "i-a")["notes"]] == [
+    assert [(n["id"], n["target"], n["text"]) for n in notes_of(after, "i-a")] == [
         ("N-1-i-a-1", "i-a", "one"), ("N-1-i-a-2", "i-a-part", "two"), ("N-1-i-a-3", "i-a", "three")]
     assert [s["note"] for s in answer["signals"]] == ["N-1-i-a-1", "N-1-i-a-2", "N-1-i-a-3"]
     assert check(path) == 0
@@ -726,9 +746,9 @@ def test_seven_annotations_on_one_card_from_the_page_are_seven_notes(path):
     doc = one_round(card("i-a"), card("i-b"))
     prompts = [{"uid": str(k), "prompt": f"note {k}", "selector": "article#i-a", "tag": "p", "text": ""} for k in range(1, 8)]
     _, ids, _ = engine._element_ids(doc)
-    _, after = ingested(path, doc, prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc)))
-    assert [n["text"] for n in item_of(after, "i-a")["notes"]] == [f"note {k}" for k in range(1, 8)]
-    assert [n["id"] for n in item_of(after, "i-a")["notes"]] == [f"N-1-i-a-{k}" for k in range(1, 8)]
+    _, after = ingested(path, doc, prompt_lines.raw_from_prompts(doc, prompts, ids, targets(doc)))
+    assert [n["text"] for n in notes_of(after, "i-a")] == [f"note {k}" for k in range(1, 8)]
+    assert [n["id"] for n in notes_of(after, "i-a")] == [f"N-1-i-a-{k}" for k in range(1, 8)]
     assert check(path) == 0
 
 
@@ -737,9 +757,9 @@ def test_an_older_document_keeps_its_old_note_ids_and_matches_replies_by_target(
         {"id": "N-1-i-old", "round": 1, "target": "i-old", "text": "old merged note", "deleted": False}]), card("i-new"))
     doc["rounds"][1]["replies"] = [{"text": "read as the old way", "about": ["i-old"]}]
     assert check(save(path, doc)) == 0
-    assert "read as the old way" in row(page.build(doc), OLD_NOTE_ROW)
+    assert "read as the old way" in row(build(doc), OLD_NOTE_ROW)
     _, after = ingested(path, doc, "[round R-2]\ni-old — | new note")
-    assert [n["id"] for n in item_of(after, "i-old")["notes"]] == ["N-1-i-old", "N-2-i-old-1"]
+    assert [n["id"] for n in notes_of(after, "i-old")] == ["N-1-i-old", "N-2-i-old-1"]
     assert check(path) == 0
 
 
@@ -747,7 +767,7 @@ def test_a_reply_may_name_a_note_id_in_about(path, capsys):
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), "[round R-1]\ni-a — | one\ni-a — | two")
     after["rounds"][0]["replies"] = [{"text": "answer to two", "about": ["N-1-i-a-2"]}]
     assert check(save(path, after)) == 0
-    html = page.build(after)
+    html = build(after)
     assert "answer to two" in row(html, SECOND_ROW) and "answer to two" not in row(html, FIRST_ROW)
     after["rounds"][0]["replies"] = [{"text": "x", "about": ["N-1-i-a-9"]}]
     assert check(save(path, after)) == 1
@@ -757,7 +777,7 @@ def test_a_reply_may_name_a_note_id_in_about(path, capsys):
 def test_the_same_note_sent_twice_is_one_note(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | one")
     _, after = ingested(path, after, "[round R-1]\ni-a — | one")
-    assert item_of(after, "i-a")["notes"][0]["text"] == "one"
+    assert notes_of(after, "i-a")[0]["text"] == "one"
 
 
 def test_editing_a_note_of_an_older_round_saves_the_copy(path):
@@ -768,7 +788,7 @@ def test_editing_a_note_of_an_older_round_saves_the_copy(path):
     save(path, after)
     engine.save_settled_copy(path, after)
     _, after = ingested(path, after, "[round R-3]\nN-2-i-old-1 edit | y\ni-3 —")
-    assert item_of(after, "i-old")["notes"][0]["id"] == "N-2-i-old-1"
+    assert notes_of(after, "i-old")[0]["id"] == "N-2-i-old-1"
     assert check(path) == 0
 
 
@@ -783,7 +803,7 @@ def test_a_note_line_that_reads_like_a_card_line_never_settles_a_card(path):
 def test_a_note_line_that_only_starts_like_a_card_stays_in_the_note(path):
     raw = "[round R-1]\ni-a — | first\ni-b is wrong\ni-b accepted\ni-a nonsense\ni-b —"
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), raw)
-    assert item_of(after, "i-a")["notes"][0]["text"] == "first\ni-b is wrong\ni-b accepted\ni-a nonsense"
+    assert notes_of(after, "i-a")[0]["text"] == "first\ni-b is wrong\ni-b accepted\ni-a nonsense"
 
 
 def test_a_settled_card_of_an_older_round_is_never_read_as_a_new_round_card(path):
@@ -828,7 +848,7 @@ def session_document():
 
 
 def test_the_session_rows_come_newest_round_first_and_older_rounds_fold():
-    html = slot(page.build(session_document()))
+    html = slot(build(session_document()))
     places = [html.index(mark) for mark in (SESSION_TITLE, TABLE, ROUND_3, "reply alone of round 3",
                                             ROUND_2, "reply alone of round 2", EARLIER, ROUND_1, "reply alone of round 1")]
     assert places == sorted(places)
@@ -840,12 +860,12 @@ def test_two_rounds_stay_open_and_have_no_fold():
     doc = session_document()
     doc["rounds"] = doc["rounds"][:2]
     doc["rounds"][1]["state"] = "current"
-    html = slot(page.build(doc))
+    html = slot(build(doc))
     assert "<details" not in html and ROUND_1 in html and ROUND_2 in html
 
 
 def test_a_note_row_stands_under_its_card_with_the_reply_that_answers_it():
-    html = page.build(noted_document())
+    html = build(noted_document())
     note_row = row(exchange(html, "i-a"), "afkv2-nr-N-1-i-a")
     assert QUOTED_ONE in note_row and "reply of round one" in note_row
     assert 'title="N-1-i-a">R1.1<' in note_row and "The card" in note_row
@@ -857,43 +877,43 @@ def test_a_reply_of_the_next_round_answers_the_note_of_the_round_before():
     doc = noted_document()
     doc["rounds"][2]["replies"].append({"text": "read as two", "about": ["N-2-i-b"]})
     doc["rounds"][1]["replies"] = [{"text": "same round first", "about": ["i-b"]}]
-    note_row = row(page.build(doc), "afkv2-nr-N-2-i-b")
+    note_row = row(build(doc), "afkv2-nr-N-2-i-b")
     assert note_row.index("same round first") < note_row.index("read as two")
 
 
 def test_a_reply_that_answers_no_note_has_its_own_row_on_the_card_it_names():
-    html = page.build(noted_document())
+    html = build(noted_document())
     alone = row(slot(html), "afkv2-nr-reply-3-2")
     assert "another reply" in alone and "From me" in alone and "<q" not in alone
     assert "reply of round three" in row(exchange(html, "i-c"), REPLY_ROW)
 
 
 def test_a_deleted_note_is_not_shown_and_no_row_has_a_control():
-    html = slot(page.build(noted_document()))
+    html = slot(build(noted_document()))
     assert "gone" not in html and "N-3-i-c" not in html
     assert EDIT_BUTTON not in html and DELETE_BUTTON not in html and "<button" not in html
 
 
 def test_note_text_is_escaped():
-    html = exchange(page.build(noted_document()), "i-b")
+    html = exchange(build(noted_document()), "i-b")
     assert "&lt;b&gt;note of round two&lt;/b&gt;" in html and "<b>note" not in html
 
 
 def test_the_row_names_the_element_of_the_card():
     doc = one_round({**card("i-a"), "title": "Export format", "body": text("The format of the file.", id="i-a-words")})
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "i-a-words", "text": "x", "deleted": False}]
-    note_row = row(exchange(page.build(doc), "i-a"), "afkv2-nr-N-1-i-a")
+    note_row = row(exchange(build(doc), "i-a"), "afkv2-nr-N-1-i-a")
     assert "The format of the file." in note_row and "Export format" not in note_row
 
 
 def test_a_page_with_no_note_and_no_reply_has_an_empty_slot():
-    assert EMPTY_SLOT in page.build(one_round(card("i-a")))
+    assert EMPTY_SLOT in build(one_round(card("i-a")))
 
 
 def test_the_signals_of_a_response_are_not_shown(path):
     answer, after = ingested(path, later_round(by_mark("i-old"), card("i-new")),
                              "[round R-2]\ni-old accept | only for terms\ni-new —")
-    html = page.build(after)
+    html = build(after)
     assert "What you sent" not in html and "mark accept" not in html and "only for terms" in exchange(html, "i-old")
     assert answer["reopened"] == ["i-old"]
 
@@ -902,42 +922,42 @@ def test_a_steer_names_the_map_and_links_to_the_node():
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "go", "deleted": False}]
-    note_row = row(slot(page.build(doc)), "afkv2-nr-N-1-i-a")
+    note_row = row(slot(build(doc)), "afkv2-nr-N-1-i-a")
     assert "Map: m-1" in note_row and "Label n-1" in note_row and 'href="#n-1"' in note_row
-    assert page.targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
+    assert targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
 def test_a_steer_on_a_held_node_names_the_map():
     doc = one_round(held_in_card("i-a", "n-1", map_id="m-1"))
     item_of(doc, "i-a")["notes"] = [{"id": "N-1-i-a", "round": 1, "target": "n-1", "text": "go", "deleted": False}]
-    assert 'href="#n-1"' in row(slot(page.build(doc)), NOTE_ROW_A)
-    assert page.targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
+    assert 'href="#n-1"' in row(slot(build(doc)), NOTE_ROW_A)
+    assert targets(doc) == {"afkv2-nr-N-1-i-a": "n-1"}
 
 
 def test_a_row_stands_for_its_card():
-    assert page.targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b",
+    assert targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b",
                                               REPLY_ROW: "i-c"}
 
 
 def test_every_id_of_the_page_is_unique():
-    ids = re.findall(r' id="([^"]+)"', page.build(stress_document()))
+    ids = re.findall(r' id="([^"]+)"', build(stress_document()))
     assert len(ids) == len(set(ids)) and len(ids) > 40
 
 
 def test_a_settled_page_has_no_form_and_no_copy_bar():
-    html = page.build(one_round(by_mark("i-a")))
+    html = build(one_round(by_mark("i-a")))
     assert FORM not in html and BAR not in html
     assert CURRENT in html and ROUND_ATTR in html
 
 
 def test_a_live_page_has_one_copy_bar_and_no_form():
-    html = page.build(document(round_of(1, by_mark("i-a"), card("i-b"))))
+    html = build(document(round_of(1, by_mark("i-a"), card("i-b"))))
     assert FORM not in html and html.count(BAR) == 1
     assert EMPTY_SLOT in html
 
 
 def test_the_same_document_gives_the_same_notes_bytes():
-    assert page.build(noted_document()) == page.build(noted_document())
+    assert build(noted_document()) == build(noted_document())
 
 
 def test_long_text_and_a_note_wrap():
@@ -949,7 +969,7 @@ def test_long_text_and_a_note_wrap():
 
 
 def test_the_page_has_no_note_controls():
-    html = page.build(one_round(card("i-a")))
+    html = build(one_round(card("i-a")))
     assert "+ note" not in html and "Your unsent notes" not in html and "<textarea" not in html
     assert lacks_note_action(html)
 
@@ -1077,7 +1097,7 @@ def stress_document():
 def test_the_stress_page_passes_the_check_and_renders(path):
     doc = stress_document()
     assert check(save(path, doc)) == 0
-    html = page.build(doc)
+    html = build(doc)
     assert LONG_WORD in html and html.count("<details") == 1
     notes = sum(len(i.get("notes") or []) for r in doc["rounds"] for i in r["items"])
     assert notes == 48 and len(doc["rounds"]) == 9
@@ -1097,7 +1117,7 @@ def diagram_document():
 
 def test_the_diagram_page_passes_the_check_and_renders(path):
     assert check(save(path, diagram_document())) == 0
-    assert page.build(diagram_document())
+    assert build(diagram_document())
 
 
 if __name__ == "__main__":
