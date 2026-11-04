@@ -384,3 +384,49 @@ def test_no_check_refuses_a_page_rule_or_an_answer_rule_break(capsys, tmp_path):
                       notes=notes)
     assert check(capsys, tmp_path, doc)[0] == 0
     assert check(capsys, tmp_path, v1_document(notes=notes))[0] == 0
+
+
+# --- where a page may live (SDD §14 row "Where a page may live")
+
+
+def data_page(name="grill-s1.json", repository="my-repo"):
+    folder = engine.data_folder() / "pages" / repository
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / name
+
+
+def home(path, doc):
+    """The home check alone: the page title of a page with no ticket belongs to the page shell."""
+    return engine._require_home(str(save(path, doc)), doc)
+
+
+@pytest.mark.parametrize("skill", ["use-lavish", "to-subtasks", "grill"])
+def test_a_page_with_no_ticket_lives_in_the_data_folder(skill):
+    doc = v1_document(skill=skill, ticket=None)
+    path = data_page(f"{skill}-s1.json")
+    assert home(path, doc) == path.resolve()
+    del doc["session"]["ticket"]
+    assert home(path, doc) == path.resolve()
+
+
+def test_a_private_page_with_a_ticket_lives_in_the_data_folder(capsys):
+    path = save(data_page(), v1_document(private=True))
+    assert call(capsys, "render", path)[0] == 0
+
+
+def test_a_ticket_page_lives_only_under_its_spec_folder(capsys, repo):
+    code, answer = call(capsys, "render", save(data_page(), v1_document()))
+    assert code == 1 and answer["error"]["code"] == "bad-location", answer
+    assert call(capsys, "render", save(repo / "specs" / "feature" / "pages" / "grill-s1.json", v1_document()))[0] == 0
+
+
+def test_a_data_folder_page_sits_in_a_repository_folder_and_keeps_its_name():
+    folder = engine.data_folder() / "pages"
+    folder.mkdir(parents=True)
+    doc = v1_document(ticket=None)
+    with pytest.raises(engine.Refusal) as refused_here:
+        home(folder / "grill-s1.json", doc)
+    assert refused_here.value.code == "bad-location"
+    with pytest.raises(engine.Refusal) as refused_here:
+        home(data_page("grill-other.json"), doc)
+    assert "must be named grill-s1.json" in refused_here.value.reason

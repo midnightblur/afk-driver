@@ -315,13 +315,34 @@ def _save_settled_copy_if_possible(document: Path, doc: dict) -> None:
             raise
 
 
+def _data_pages() -> Path | None:
+    try:
+        return (data_folder() / PAGES_FOLDER).resolve()
+    except Refusal as refusal:
+        if refusal.code != "no-data-folder":
+            raise
+        return None
+
+
 def _require_home(path: str, doc: dict) -> Path:
-    """The document lives in the spec folder as `pages/<skill>-<session id>.json`, alone with its id."""
+    """The document is `<skill>-<session id>.json`, alone with its id in its folder. A ticket page lives in the
+    spec folder, in a `pages` folder. A page with no ticket, or a private one, may live in the data folder's
+    `pages/<repository name>/` (requirement ADR-0002)."""
     document = Path(path).resolve()
     session = doc["session"]
     expected = f"{session['skill']}-{session['id']}.json"
     if document.name != expected:
         raise Refusal("bad-location", f"item session, field id: the file must be named {expected}, found {document.name}")
+    data_pages = _data_pages()
+    if data_pages is not None and document.parent.parent == data_pages:
+        if session.get("ticket") and not session.get("private"):
+            raise Refusal("bad-location", f"item session, field ticket: a page of ticket {session['ticket']} lives in "
+                                          f"its spec folder, not in {document.parent}; only a page with no ticket, "
+                                          "or a private one, lives in the data folder")
+        return _alone_with_its_id(document, session)
+    if data_pages is not None and document.parent == data_pages:
+        raise Refusal("bad-location", f"item session, field id: {document} must sit in a repository folder of "
+                                      f"{data_pages}")
     if document.parent.name != PAGES_FOLDER:
         raise Refusal("bad-location", f"item session, field id: {document} must sit in a {PAGES_FOLDER} folder")
     config = read_config(document.parent)
@@ -329,6 +350,10 @@ def _require_home(path: str, doc: dict) -> Path:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     if not document.is_relative_to(Path(config["spec_folder"]).resolve()):
         raise Refusal("bad-location", f"item session, field id: {document} is outside the spec folder {config['spec_folder']}")
+    return _alone_with_its_id(document, session)
+
+
+def _alone_with_its_id(document: Path, session: dict) -> Path:
     for other in document.parent.glob(f"*-{session['id']}.json"):
         if other.name != document.name:
             raise Refusal("duplicate-session", f"item session, field id: {session['id']!r} is also used by {other.name}")
