@@ -1,0 +1,1192 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261104-160923",
+    "skill": "grill",
+    "feature": "159",
+    "ticket": "#159",
+    "started": "2026-11-04T16:15:58Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    }
+  },
+  "maps": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "The reader outcome and scope already bound by #158",
+          "The compatibility contract, page-local terms, missing entries and access boundary"
+        ],
+        "parked": [
+          "Worked examples and validation policy wait for the term and compatibility calls"
+        ]
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#159: afkv2: page tips for feature terms and ids"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "Built with the installed afkv2 beta on **Codex** (dogfood run, #153, AC-001). Targets `feat/afkv2`.\n\n**Pain.** On a page, an id (a card, an acceptance criterion, a worked example) or a feature term shows nothing on hover. The reader must scroll to find what it means. Only words from the repository glossaries get a tip today (`afkv2/engine/shell/tips.js`).\n\n**Want.** The page document holds its own tips:\n- the feature's own terms, with their definitions;\n- every id that appears in page text shows the title of what it names.\n\nDecision 22 of #153. Agreed in the grill of #158 (card \"What 'the tooltip implementation' covers\", option A).\n\n**Out.** A check that refuses a page with a term or id without a tip (planned later as \"durable tooltips + coverage audit\"). The `/afkv2:gc` work, which moved into #158.\n",
+                  "markdown": true
+                },
+                "fold": "The ticket text"
+              },
+              {
+                "type": "table",
+                "id": "i-ticket-links",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Ticket",
+                    "Title",
+                    "Status"
+                  ],
+                  "rows": [
+                    [
+                      "named in this ticket",
+                      "#153",
+                      "AGENTS.md: afkv2 2.0 beta - lean rewrite scope (decisions 1-98)",
+                      "OPEN"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#158",
+                      "afkv2: /afkv2:gc removes a merged feature's run branch",
+                      "OPEN"
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "r1-compatibility",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "r1-compatibility-current",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "document",
+                  "label": "page document"
+                },
+                {
+                  "id": "engine",
+                  "label": "page engine"
+                },
+                {
+                  "id": "browser",
+                  "label": "browser"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "compat-v0",
+                  "label": "afkv2.page/0: frozen; no tips field",
+                  "group": "document"
+                },
+                {
+                  "id": "compat-render",
+                  "label": "validate + render v0",
+                  "group": "engine"
+                },
+                {
+                  "id": "compat-dictionary",
+                  "label": "external dictionary sources",
+                  "group": "engine"
+                },
+                {
+                  "id": "compat-hover",
+                  "label": "promote and propagate tips",
+                  "group": "browser"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "compat-v0",
+                  "to": "compat-render",
+                  "label": "accepted today"
+                },
+                {
+                  "from": "compat-dictionary",
+                  "to": "compat-hover",
+                  "label": "injected"
+                },
+                {
+                  "from": "compat-render",
+                  "to": "compat-hover",
+                  "label": "HTML"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "What compatibility result must this feature preserve? Recommended: A. The schema explicitly freezes page/0, so old documents should keep rendering with their current meaning."
+                }
+              },
+              {
+                "type": "table",
+                "id": "r1-compatibility-options",
+                "props": {
+                  "columns": [
+                    "A — preserve page/0",
+                    "B — change page/0 in place"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "r1-compatibility-opt-a",
+                        "props": {
+                          "text": "Existing page/0 documents still render. The design may add a new schema value or another compatible reader path."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "r1-compatibility-opt-b",
+                        "props": {
+                          "text": "The smaller change may reinterpret page/0 and break its explicit frozen contract."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Compatibility for existing page documents",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "r1-feature-term",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Confirm this definition: A page feature term is a term whose meaning is specific to this page's feature. The page document carries the term and its plain-language definition. Repository and plugin glossary tips remain available as shared context."
+            }
+          },
+          "title": "Meaning of a page feature term",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-id-tip",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Confirm this definition: A page id tip maps one page identifier, such as a card, acceptance criterion or worked-example id, to the title of the thing it names. Every visible occurrence of that identifier can show the same title on hover."
+            }
+          },
+          "title": "Meaning of a page id tip",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-missing-tip",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Recommended: the page still renders, and an unmatched term or id stays plain. Refusing pages with missing tips remains the later coverage-audit work that #159 excludes."
+            }
+          },
+          "title": "Behavior when a page has no authored tip",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-access",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Recommended policy: anyone already permitted to open the page sees its authored tips. A person denied access to the page gets no tip data. Tips do not fetch another page, repository file or external system at hover time."
+            }
+          },
+          "title": "Who sees authored tips and what access changes",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-reader-outcome",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The reader outcome follows the binding choice from #158."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-decision",
+                "props": {
+                  "text": "A page reader can resolve the feature's own terms and every visible page id by hover, without searching elsewhere on the page.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-why",
+                "props": {
+                  "text": "The prior accepted choice explicitly includes page-owned feature-term and id tips; glossary-only behavior does not remove the reported pain.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-alternatives",
+                "props": {
+                  "text": "- Keep glossary-only tips and require the reader to scroll or search for page-local names.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-evidence",
+                "props": {
+                  "text": "docs/afk/158/GRILL-LOG.md:41",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-reverse",
+                "props": {
+                  "text": "Reopen the accepted #158 scope and remove both page-owned tip requirements.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-reader-outcome-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Reader outcome",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-data-boundary",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The page document is the source for feature-local meanings."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r1-data-boundary-decision",
+                "props": {
+                  "text": "The page document carries feature-term definitions and id-to-title mappings as its own data.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r1-data-boundary-why",
+                "props": {
+                  "text": "The accepted requirement says the page owns the data, while the external file has no reachable repository writer.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-data-boundary-alternatives",
+                "props": {
+                  "text": "- Keep feature-local tips in PAGE-TIPS.md beside the rendered page.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-data-boundary-evidence",
+                "props": {
+                  "text": "docs/afk/158/GRILL-LOG.md:41; afkv2/engine/shell/inject.py:127-136",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-data-boundary-reverse",
+                "props": {
+                  "text": "Restore an external feature-tip artifact and define a reachable writer and lifecycle for it.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-data-boundary-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "The page owns both tip catalogs",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r1-out-of-scope",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The ticket and prior decision already place two items outside this change."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-decision",
+                "props": {
+                  "text": "This change does not add a missing-tip coverage gate and does not include /afkv2:gc work.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-why",
+                "props": {
+                  "text": "Both exclusions are explicit, and each has a separate delivery path.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-alternatives",
+                "props": {
+                  "text": "- Bundle the coverage audit or branch cleanup into this change.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-evidence",
+                "props": {
+                  "text": "#159 description; docs/afk/158/GRILL-LOG.md:41",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-reverse",
+                "props": {
+                  "text": "Expand #159 and re-grill the added behavior, failure paths and acceptance criteria.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r1-out-of-scope-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Excluded work stays excluded",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T16:38:36Z",
+          "raw": "[round R-1]\nr1-compatibility a\nr1-feature-term accept\nr1-id-tip accept\nr1-missing-tip accept\nr1-access accept\nr1-reader-outcome accept\nr1-data-boundary accept\nr1-out-of-scope accept\n",
+          "signals": [
+            {
+              "target": "r1-compatibility",
+              "item": "r1-compatibility",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "169b1015a0d4d2d2"
+            },
+            {
+              "target": "r1-feature-term",
+              "item": "r1-feature-term",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5bac3034835a8d2b"
+            },
+            {
+              "target": "r1-id-tip",
+              "item": "r1-id-tip",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6697fd1d1804ea1a"
+            },
+            {
+              "target": "r1-missing-tip",
+              "item": "r1-missing-tip",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "51891376c75805de"
+            },
+            {
+              "target": "r1-access",
+              "item": "r1-access",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2cf9a52cbd5654fa"
+            },
+            {
+              "target": "r1-reader-outcome",
+              "item": "r1-reader-outcome",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "dc47c98934ea03e3"
+            },
+            {
+              "target": "r1-data-boundary",
+              "item": "r1-data-boundary",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "b2e4eaeba1f440f3"
+            },
+            {
+              "target": "r1-out-of-scope",
+              "item": "r1-out-of-scope",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3e93227d8a82839e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "Existing page/0 documents keep rendering with their current meaning",
+          "The page owns feature-term definitions and id-to-title mappings",
+          "Missing tips stay plain; the coverage audit remains out",
+          "Tips add no access and perform no hover-time fetch"
+        ],
+        "unlocks": [
+          "Legacy sidecar behavior, precedence, validation, matching and worked examples"
+        ],
+        "parked": [
+          "The implementation shape belongs to solution design"
+        ]
+      },
+      "items": [
+        {
+          "id": "r2-legacy-sidecar",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Recommended validity walk: an existing page/0 document and its adjacent PAGE-TIPS.md keep the current rendered tips. It needs no migration. New page-owned tips replace the sidecar as the authoring path for the new capability."
+            }
+          },
+          "title": "Old PAGE-TIPS sidecars keep working for page/0",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-validation",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Recommended: each authored term or id has one non-empty key and one non-empty plain-text tip. A malformed or duplicate entry fails page validation and names the field to repair. A term or id with no authored entry is not malformed in #159; it stays plain."
+            }
+          },
+          "title": "Validation separates malformed entries from missing coverage",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-matching",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Recommended: a page id matches its complete identifier with the same case, so AC-001 does not rename ac-001. A page feature term follows the existing term-tip behavior, including safe word boundaries and the current lowercase/plural handling."
+            }
+          },
+          "title": "Identifier and term matching rules",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-repair-paths",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Confirm the repair policy: old page/0 documents require no repair; an author repairs a malformed new tip entry in the page document named by validation; a missing tip needs no repair until the later coverage-audit work."
+            }
+          },
+          "title": "Repair paths for every affected page",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-examples",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Confirm these end-to-end examples."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "r2-example-table",
+                "props": {
+                  "columns": [
+                    "Case",
+                    "Starting page data",
+                    "Reader result"
+                  ],
+                  "rows": [
+                    [
+                      "Frequent",
+                      "Term `settle loop` → `Repeat review until no actionable finding remains.`",
+                      "Every visible `settle loop` term shows that definition on hover."
+                    ],
+                    [
+                      "Edge",
+                      "Id `AC-001` → `Old page documents still render.` and the id appears in a card plus a summary.",
+                      "Both exact `AC-001` occurrences show the same title; `ac-001` stays plain."
+                    ],
+                    [
+                      "Risky",
+                      "A page defines `card` locally while a repository glossary also defines `card`; the local text contains `<b>unsafe</b>`.",
+                      "The page definition wins on this page, and the markup characters display as text rather than execute."
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Frequent, edge and risky walks",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-precedence",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The page-specific source resolves a same-key conflict."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r2-precedence-decision",
+                "props": {
+                  "text": "When a page-owned tip and a shared glossary tip use the same key, the page-owned tip wins on that page only.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r2-precedence-why",
+                "props": {
+                  "text": "Local precedence preserves the accepted ownership boundary and matches the current feature-source order.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-precedence-alternatives",
+                "props": {
+                  "text": "- Let a repository or plugin glossary override the feature-local meaning.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-precedence-evidence",
+                "props": {
+                  "text": "The accepted R-1 data boundary makes the page document the source for feature-local meanings; afkv2/engine/shell/inject.py:127-136 already gives the feature source last precedence.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-precedence-reverse",
+                "props": {
+                  "text": "Reverse the dictionary merge order and document that shared terms cannot be specialized by a page.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-precedence-scope",
+                "props": {
+                  "text": "r1-data-boundary",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Page-owned meanings beat shared meanings on that page",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r2-display-safety",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The current tooltip box writes its value through textContent."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r2-display-safety-decision",
+                "props": {
+                  "text": "A page tip displays as plain text and never runs markup, script or a link action.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r2-display-safety-why",
+                "props": {
+                  "text": "Plain text preserves the current safe boundary; rich HTML adds an execution surface that the requirement does not need.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-display-safety-alternatives",
+                "props": {
+                  "text": "- Render tooltip values as rich HTML.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-display-safety-evidence",
+                "props": {
+                  "text": "afkv2/engine/shell/tips.js:94-105",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-display-safety-reverse",
+                "props": {
+                  "text": "Define an allowed rich-text format, sanitizer and security tests before enabling markup.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r2-display-safety-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Tips are display text, not executable content",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T16:47:59Z",
+          "raw": "[round R-2]\nr2-legacy-sidecar accept\nr2-validation accept\nr2-matching accept\nr2-repair-paths accept\nr2-examples accept\nr2-precedence accept\nr2-display-safety accept\n",
+          "signals": [
+            {
+              "target": "r2-legacy-sidecar",
+              "item": "r2-legacy-sidecar",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "67812e651d9a09e9"
+            },
+            {
+              "target": "r2-validation",
+              "item": "r2-validation",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bf50676124479e7e"
+            },
+            {
+              "target": "r2-matching",
+              "item": "r2-matching",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3424dcc42e864226"
+            },
+            {
+              "target": "r2-repair-paths",
+              "item": "r2-repair-paths",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "321bbeab2dc48046"
+            },
+            {
+              "target": "r2-examples",
+              "item": "r2-examples",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "51fecd6e2e4db25f"
+            },
+            {
+              "target": "r2-precedence",
+              "item": "r2-precedence",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c792938586724c07"
+            },
+            {
+              "target": "r2-display-safety",
+              "item": "r2-display-safety",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0d138a84531c249f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "Legacy page/0 rendering, validation, matching, repair paths and examples",
+          "Page-local precedence and plain-text display safety"
+        ],
+        "unlocks": [
+          "The devil's-advocate repairs and the exit gate"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "r3-shared-fallback",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Devil finding: the accepted rules could make one omitted page term both tipped by a shared glossary and plain."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-decision",
+                "props": {
+                  "text": "A missing page-owned entry remains valid; a matching shared glossary tip still applies, and only a term or id with no page-owned or shared match stays plain.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-why",
+                "props": {
+                  "text": "The clarification preserves both accepted behaviors without turning shared glossary definitions off.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-alternatives",
+                "props": {
+                  "text": "- Make every missing page-owned entry plain even when a shared glossary defines it.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-evidence",
+                "props": {
+                  "text": "Accepted cards r1-feature-term, r1-missing-tip and r1-access retain shared glossary fallback while excluding a missing-tip gate.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-reverse",
+                "props": {
+                  "text": "Remove shared fallback from pages and state that page documents must repeat every wanted tip.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-shared-fallback-scope",
+                "props": {
+                  "text": "r1-feature-term, r1-missing-tip, r1-access",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Shared fallback and plain text no longer conflict",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r3-collision-rule",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Devil finding: separate term and id entries can match the same visible token, and 2 term entries can overlap under term matching."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r3-collision-rule-decision",
+                "props": {
+                  "text": "Validation rejects entries within one catalog that can match the same visible token; when one exact page id and one feature term match the same token, the exact id tip wins.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r3-collision-rule-why",
+                "props": {
+                  "text": "An exact identifier names one thing more specifically than a term, while validation removes ambiguous same-catalog matches.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-collision-rule-alternatives",
+                "props": {
+                  "text": "- Let dictionary order choose the result.\n- Let the term override the exact id.\n- Reject every cross-catalog collision.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-collision-rule-evidence",
+                "props": {
+                  "text": "Accepted cards r1-id-tip and r2-matching give ids exact identity; r2-validation requires malformed or duplicate entries to fail with a repair field.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-collision-rule-reverse",
+                "props": {
+                  "text": "Choose another explicit precedence rule and update the collision examples and validation contract.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-collision-rule-scope",
+                "props": {
+                  "text": "r1-id-tip, r2-validation, r2-matching",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "One visible token gets one deterministic tip",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "r3-sidecar-boundary",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Devil finding: a retained PAGE-TIPS.md beside a new document could otherwise override or add stale feature meanings."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-decision",
+                "props": {
+                  "text": "PAGE-TIPS.md is consumed only for legacy page/0 documents; a document with page-owned tips does not read that sidecar.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-why",
+                "props": {
+                  "text": "The boundary preserves old rendering without letting stale external data change a new page.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-alternatives",
+                "props": {
+                  "text": "- Merge a nearby legacy sidecar into every new page.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-evidence",
+                "props": {
+                  "text": "Accepted card r2-legacy-sidecar preserves the sidecar for page/0 only; r1-data-boundary makes the new page document authoritative.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-reverse",
+                "props": {
+                  "text": "Define a merge order and lifecycle for sidecars on new documents.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "r3-sidecar-boundary-scope",
+                "props": {
+                  "text": "r2-legacy-sidecar, r1-data-boundary",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Legacy sidecars cannot leak into new page-owned tips",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T17:07:04Z",
+          "raw": "[round R-3]\nr3-shared-fallback accept\nr3-collision-rule accept\nr3-sidecar-boundary accept\n",
+          "signals": [
+            {
+              "target": "r3-shared-fallback",
+              "item": "r3-shared-fallback",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e47ed3da78f78c00"
+            },
+            {
+              "target": "r3-collision-rule",
+              "item": "r3-collision-rule",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1b0b0d47cfcfba13"
+            },
+            {
+              "target": "r3-sidecar-boundary",
+              "item": "r3-sidecar-boundary",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2f76c187b704aa84"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
