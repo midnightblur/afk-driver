@@ -480,6 +480,16 @@ def test_a_row_of_another_kind_or_shape_is_refused(world):
     assert world.run("row", expect=1, log=started["log"], kind="Premise", text="no arrow")["error"]["code"] == "bad-row"
 
 
+def test_a_takeover_row_is_one_row_per_takeover(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    for text in ("R2 · 2026-11-04T10:00:00Z", "R2 · 2026-11-04T10:00:00Z", "R5 · 2026-11-05T09:30:00Z"):
+        world.run("row", log=started["log"], kind="Takeover", text=text)
+    text = (world.spec / "GRILL-LOG.md").read_text("utf-8")
+    assert text.count("- Takeover: R2 · 2026-11-04T10:00:00Z") == 1 and "- Takeover: R5 · 2026-11-05T09:30:00Z" in text
+    assert text.index("## Solution design") < text.index("- Takeover:")
+    assert world.run("row", expect=1, log=started["log"], kind="Takeover", text="R2")["error"]["code"] == "bad-row"
+
+
 def test_a_design_row_leaves_the_requirements_section_alone(world):
     log = world.spec / "GRILL-LOG.md"
     before = log.read_text("utf-8")
