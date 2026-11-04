@@ -15,8 +15,8 @@ The repository name is the folder of the main checkout, also from a linked workt
 
 from __future__ import annotations
 
-import os
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,10 +53,14 @@ def repository_name(start):
 
 
 def _spec_pages(ticket):
+    """The ticket's `pages` folder; a ticket whose folder name holds no letter or digit names no folder of its own."""
     config = read_config()
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
-    return Path(config["spec_folder"]).resolve() / ticket_slug(ticket) / PAGES
+    slug = ticket_slug(ticket)
+    if not re.search(r"[A-Za-z0-9]", slug):
+        raise Refusal("bad-ticket", f"the ticket {ticket!r} gives no folder name in the spec folder")
+    return Path(config["spec_folder"]).resolve() / slug / PAGES
 
 
 def _data_pages():
@@ -84,7 +88,8 @@ def start_page(topic, ticket=None, private=False):
     session = _new_session(pages)
     doc = pages / f"{SKILL}-{session}.json"
     raw_file = doc.with_name(f"{SKILL}-{session}.raw.txt")
-    return {"ok": True, "doc": doc.as_posix(), "session": session, "raw_file": raw_file.as_posix(), "home": home}
+    return {"ok": True, "doc": doc.as_posix(), "session": session, "raw_file": raw_file.as_posix(), "home": home,
+            "private": bool(private)}
 
 
 def _side_files(doc):
@@ -109,19 +114,34 @@ def track_page(doc, ticket):
         raise Refusal("unreadable", f"no page at {doc} and none at {target}", EXIT_UNREADABLE)
     if doc.parent == target.parent:
         return {"ok": True, "doc": target.as_posix(), "moved": []}
-    if doc.is_file() and target.exists():
-        raise Refusal("exists", f"{target} exists already; move or remove one of the 2 pages first")
-    target.parent.mkdir(parents=True, exist_ok=True)
+    copied = doc.is_file() and target.exists()
+    if copied and _session_id(target) != page["session"]["id"]:
+        raise Refusal("exists", f"{target} holds another page; move or remove one of the 2 pages first")
     moved = []
-    for side in _side_files(doc):
-        os.replace(side, target.parent / side.name)
-        moved.append((target.parent / side.name).as_posix())
-    if doc.is_file():
-        page["session"]["ticket"] = page["session"].get("ticket") or ticket
-        write_json(target, page)
-        doc.unlink()
-        moved.append(target.as_posix())
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        for side in _side_files(doc):
+            shutil.move(side, target.parent / side.name)
+            moved.append((target.parent / side.name).as_posix())
+        if doc.is_file():
+            if not copied:
+                page["session"]["ticket"] = page["session"].get("ticket") or ticket
+                write_json(target, page)
+            doc.unlink()
+            moved.append(target.as_posix())
+    except OSError as error:
+        done = ", ".join(moved) or "nothing"
+        raise Refusal("move-failed", f"{error}; moved so far: {done}; run track again to move the rest") from error
     return {"ok": True, "doc": target.as_posix(), "moved": moved}
+
+
+def _session_id(document):
+    """The session id a page document holds, or None when it holds none."""
+    try:
+        value = read_json(document)
+    except Refusal:
+        return None
+    return (value.get("session") or {}).get("id") if isinstance(value, dict) else None
 
 
 def main(argv):

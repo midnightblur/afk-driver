@@ -190,6 +190,67 @@ def test_a_second_track_moves_what_is_left(repo, tmp_path):
     assert page_home.track_page(first["doc"], TICKET)["moved"] == []
 
 
+def test_a_track_that_stopped_after_the_copy_finishes_on_a_second_run(repo, tmp_path):
+    """Review f4: the target holds the page, the source is still there with a side file."""
+    doc = build(page_home.start_page("Cache plan"), tmp_path)
+    target = repo / "specs" / TICKET / "pages" / doc.name
+    target.parent.mkdir(parents=True)
+    target.write_bytes(doc.read_bytes())
+    doc.with_suffix(".shown.txt").write_text("1\n", "utf-8")
+    answer = page_home.track_page(str(doc), TICKET)
+    assert not doc.exists() and not doc.with_suffix(".shown.txt").exists()
+    assert sorted(Path(path).name for path in answer["moved"]) == sorted([doc.name, doc.with_suffix(".shown.txt").name])
+
+
+def test_track_refuses_a_different_page_at_the_target(repo, tmp_path):
+    doc = build(page_home.start_page("Cache plan"), tmp_path)
+    target = repo / "specs" / TICKET / "pages" / doc.name
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps({"session": {"id": "another"}}), "utf-8")
+    with pytest.raises(Refusal) as refused:
+        page_home.track_page(str(doc), TICKET)
+    assert refused.value.code == "exists" and doc.is_file()
+
+
+def test_a_move_that_fails_is_refused_with_what_moved(repo, tmp_path, monkeypatch):
+    """Review f3: a move across drives or onto a locked file answers, and names what moved."""
+    doc = build(page_home.start_page("Cache plan"), tmp_path)
+    page_round.present(str(doc))
+    real, calls = page_home.shutil.move, []
+
+    def move(source, target):
+        calls.append(source)
+        if len(calls) == 2:
+            raise OSError("the drive said no")
+        return real(source, target)
+
+    monkeypatch.setattr(page_home.shutil, "move", move)
+    with pytest.raises(Refusal) as refused:
+        page_home.track_page(str(doc), TICKET)
+    assert refused.value.code == "move-failed" and "the drive said no" in refused.value.reason
+    assert Path(calls[0]).name in refused.value.reason and doc.is_file()
+    monkeypatch.setattr(page_home.shutil, "move", real)
+    assert Path(page_home.track_page(str(doc), TICKET)["doc"]).is_file() and not doc.exists()
+
+
+@pytest.mark.parametrize("ticket", ["..", ".", "!!", "/"])
+def test_a_ticket_that_names_no_folder_of_its_own_is_refused(repo, ticket):
+    """Review f5: the ticket's folder must sit inside the spec folder."""
+    with pytest.raises(Refusal) as refused:
+        page_home.start_page("Cache plan", ticket)
+    assert refused.value.code == "bad-ticket"
+
+
+def test_start_answers_private_and_the_engine_refuses_a_private_page_in_the_spec_folder(repo, tmp_path):
+    """Review f7: the private choice reaches the agent, and a private page never lives in the repository."""
+    assert page_home.start_page("Cache plan", TICKET, True)["private"] is True
+    assert page_home.start_page("Cache plan", TICKET)["private"] is False
+    doc = build(page_home.start_page("Cache plan", TICKET), tmp_path, "--ticket", TICKET, "--private")
+    with pytest.raises(Refusal) as refused:
+        page_round.present(str(doc))
+    assert refused.value.code == "bad-location"
+
+
 def test_track_with_no_ticket_is_refused(repo, tmp_path):
     doc = build(page_home.start_page("Cache plan"), tmp_path)
     for ticket in (None, ""):

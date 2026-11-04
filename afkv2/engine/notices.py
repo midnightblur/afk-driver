@@ -26,12 +26,15 @@ from pathlib import Path
 GIT = "git"
 GIT_TIMEOUT_S = 10
 SCANNED = frozenset({"committed", "untracked"})
+MAX_HITS = 20
 
 
 # The literal start of a token comes first, so the search skips ahead to it; the check behind it wants no
-# letter, digit, `_` or `-` before the token, so a kebab word such as `risk-...` holds no `sk-` key.
+# letter, digit, `_` or `-` before the token, so a kebab word such as `risk-...` holds no `sk-` key. A JSON escape
+# `\n`, `\r` or `\t` before it is a boundary too: the scan reads a page document as raw JSON.
 def _token(literal: str, rest: str) -> re.Pattern:
-    return re.compile(f"{re.escape(literal)}(?<![A-Za-z0-9_-]{re.escape(literal)}){rest}")
+    word = re.escape(literal)
+    return re.compile(rf"{word}(?:(?<![A-Za-z0-9_-]{word})|(?<=\\[nrt]{word})){rest}")
 
 
 SHAPES = {
@@ -89,13 +92,14 @@ def _status(root: Path, paths: list[str]) -> dict[str, str]:
 def _state(code: str | None) -> str:
     if code == "!!":
         return "ignored"
-    if code == "??" or (code and code[0] in "ARC"):
+    if code == "??" or (code and (code[0] in "ARC" or code[1] == "A")):
         return "untracked"
     return "committed"
 
 
 def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
-    """`{"git_state", "git_reason", "secrets"}` of a page; `git_reason` says why a state is unknown, else None."""
+    """`{"git_state", "git_reason", "secrets", "secrets_more"}` of a page. `git_reason` says why a state is unknown,
+    else None; `secrets` holds the first MAX_HITS hits and `secrets_more` counts the rest."""
     root = repository_root(Path.cwd() if start is None else start)
     files = [Path(page), *(Path(path) for path in scan if Path(path).is_file())]
     rels = [_relative(path, root) for path in files]
@@ -105,12 +109,18 @@ def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
         try:
             codes = _status(root, inside)
         except subprocess.TimeoutExpired:
-            return {"git_state": "unknown", "git_reason": f"git status ran past {GIT_TIMEOUT_S} s", "secrets": []}
+            return _unknown(f"git status ran past {GIT_TIMEOUT_S} s")
         except OSError as error:
-            return {"git_state": "unknown", "git_reason": str(error) or type(error).__name__, "secrets": []}
+            return _unknown(str(error) or type(error).__name__)
     states = ["outside" if rel is None else _state(codes.get(os.path.normcase(rel))) for rel in rels]
     chosen = list(dict.fromkeys((path, rel) for path, rel, state in zip(files, rels, states) if state in SCANNED))
-    return {"git_state": states[0], "git_reason": None, "secrets": scan_files(chosen)}
+    hits = scan_files(chosen)
+    return {"git_state": states[0], "git_reason": None, "secrets": hits[:MAX_HITS],
+            "secrets_more": max(0, len(hits) - MAX_HITS)}
+
+
+def _unknown(why: str) -> dict:
+    return {"git_state": "unknown", "git_reason": why, "secrets": [], "secrets_more": 0}
 
 
 def scan_files(files) -> list[dict]:

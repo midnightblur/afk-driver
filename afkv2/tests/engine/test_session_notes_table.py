@@ -17,6 +17,7 @@ from shell import page  # noqa: E402
 
 V0, V1 = "afkv2.page/0", "afkv2.page/1"
 SLOT = 'id="afkv2-notes-replies"'
+CHANGED_BLOCK = 'class="afkv2-banner-list afkv2-banner-changed"'
 CARD_START = 'id="{}" data-afkv2-item='
 BODY = '<div class="afkv2-body">'
 CHANGE_CLASS = "afkv2-nr-changed"
@@ -251,7 +252,7 @@ def test_the_format_0_mark_stays_in_memory_and_the_written_file_is_format_1():
 def test_a_page_read_from_format_0_shows_no_what_changed_list():
     """D-25: a format 0 page holds no change data, so the banner claims nothing about it."""
     html = build(format_0_page())
-    assert "<h3>What changed</h3>" not in html and 'afkv2-banner-list afkv2-banner-changed"' not in html
+    assert "<h3>What changed</h3>" not in html and CHANGED_BLOCK not in html
 
 
 # --- the column widths of the 2 notes tables (D-14): # | Where | Noted text | Your note | Answer [| Open]
@@ -286,3 +287,17 @@ def test_the_card_table_gives_the_text_columns_shares_and_leaves_the_answer_free
     assert card_widths[1].endswith("rem") and 5 not in card_widths
     shares = [float(card_widths[k].rstrip("%")) for k in (2, 3, 4)]
     assert sum(shares) < 80 and shares[1] <= shares[2]
+
+
+def test_a_format_0_answer_paired_by_about_keeps_its_note_row_after_the_page_is_written_as_format_1():
+    """Review f2: the first write ends the in-memory mark; a format 0 answer has no id, so it still reads `about`."""
+    doc = {"schema": V0,
+           "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                       "started": "2026-01-05T09:00:00Z"},
+           "rounds": [round_of(1, {**card("i-a"), "notes": [
+               {"id": "N-1-i-a", "round": 1, "target": "i-a", "text": "old note", "deleted": False}]}),
+               round_of(2, card("i-b"), state="current",
+                        replies=[{"text": "answer by about", "about": ["i-a"]},
+                                 {"text": "answer about nothing", "about": ["i-b"]}])]}
+    written = engine.read_v1(json.loads(json.dumps(engine.read_v0_as_v1(doc))))
+    assert "answer by about" in row(session(page.build(written)), SESSION_ROW + "N-1-i-a")

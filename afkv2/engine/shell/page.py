@@ -59,13 +59,20 @@ def _from_format_0(doc: dict) -> bool:
     return getattr(doc, "from_format_0", False)
 
 
+def _format_1_answer(reply: dict) -> bool:
+    """An answer written in format 1: it has an id. A format 0 answer has none (page-v0.schema.json), and keeps
+    having none after the page is written as format 1, so its `about` stays readable."""
+    return "id" in reply
+
+
 def _answers_read(doc: dict) -> dict:
-    """The document as the notes tables read it: an answer's `about` is read on a page from format 0 only, so a
-    format 1 page goes on without it."""
-    if _from_format_0(doc) or not any("about" in reply for r in doc["rounds"] for reply in r.get("replies") or []):
+    """The document as the notes tables read it: `about` is read on a format 0 answer only, so a format 1 answer
+    goes on without it."""
+    if _from_format_0(doc) or not any("about" in reply and _format_1_answer(reply)
+                                      for r in doc["rounds"] for reply in r.get("replies") or []):
         return doc
-    rounds = [{**r, "replies": [{k: v for k, v in reply.items() if k != "about"} for reply in r["replies"]]}
-              if r.get("replies") else r for r in doc["rounds"]]
+    rounds = [{**r, "replies": [{k: v for k, v in reply.items() if k != "about" or not _format_1_answer(reply)}
+                                for reply in r["replies"]]} if r.get("replies") else r for r in doc["rounds"]]
     return {**doc, "rounds": rounds}
 
 
@@ -243,6 +250,9 @@ def _notices(found: dict | None) -> str:
     lines += [f'<p class="afkv2-notice afkv2-notice--secret">Secret warning: {escape(str(hit["file"]))}, line '
               f'{int(hit["line"])}, holds a value of the shape {escape(str(hit["shape"]))}. Take it out before a commit.</p>'
               for hit in found.get("secrets") or []]
+    if found.get("secrets_more"):
+        lines.append(f'<p class="afkv2-notice afkv2-notice--secret">And {int(found["secrets_more"])} more secret '
+                     'warnings; the present answer counts them.</p>')
     return f'<div class="afkv2-notices" role="status">{"".join(lines)}</div>'
 
 

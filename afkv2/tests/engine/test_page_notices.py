@@ -78,6 +78,9 @@ def test_a_page_added_to_the_index_but_not_committed_reads_untracked(repo):
     path = page_in(repo, "added.json")
     git(repo, "add", "added.json")
     assert notices.page_notices(path, start=repo)["git_state"] == "untracked"
+    intended = page_in(repo, "intended.json")
+    git(repo, "add", "-N", "intended.json")
+    assert notices.page_notices(intended, start=repo)["git_state"] == "untracked"
 
 
 def test_a_page_outside_the_repository_reads_outside_with_no_git_call(repo, tmp_path, monkeypatch):
@@ -293,12 +296,29 @@ def test_a_secret_or_a_git_failure_never_refuses_a_render(spec_repo, capsys, mon
     doc = a_page()
     doc["rounds"][0]["items"][0]["body"]["props"]["text"] = SAMPLES["aws-access-key"]
     path = save_page(spec_repo / "specs" / "feature" / "pages", doc)
-    assert render(capsys, path, "--notices")[0] == 0
+    code, answer = render(capsys, path, "--notices")
+    assert code == 0 and answer["secrets"] == [
+        {"file": "specs/feature/pages/grill-s1.json", "line": 1, "shape": "aws-access-key"}]
     monkeypatch.setattr(notices, "GIT", "afkv2-no-such-git-program")
-    assert render(capsys, path, "--notices")[0] == 0
+    code, answer = render(capsys, path, "--notices")
+    assert code == 0 and answer["git_state"] == "unknown" and answer["secrets"] == []
 
 
 def test_a_page_never_rendered_with_notices_has_no_notices_header(spec_repo, capsys):
     path = save_page(spec_repo / "specs" / "feature" / "pages")
     assert render(capsys, path)[0] == 0
     assert NOTICES not in path.with_suffix(".html").read_text("utf-8")
+
+
+@pytest.mark.parametrize("escape", ["\\n", "\\t", "\\r"])
+def test_a_token_after_a_json_escape_at_a_line_start_is_found(escape):
+    """Review f1: the scan reads the raw JSON, where a line break inside a text is the 2 characters of an escape."""
+    text = '{"text": "Set it:' + escape + SAMPLES["github-token"] + '"}'
+    assert notices.scan_text(text) == [(1, "github-token")]
+
+
+def test_the_hits_are_capped_and_the_rest_counted(repo):
+    """Review f6: a log with many hits gives the first ones and a count, not one line per hit."""
+    page = page_in(repo, "new.json", (SAMPLES["slack-token"] + "\n") * 50)
+    answer = notices.page_notices(page, start=repo)
+    assert len(answer["secrets"]) == notices.MAX_HITS and answer["secrets_more"] == 50 - notices.MAX_HITS

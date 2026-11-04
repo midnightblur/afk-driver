@@ -371,6 +371,9 @@ def _require_home(path: str, doc: dict) -> Path:
                                           f"its spec folder, not in {document.parent}; only a page with no ticket, "
                                           "or a private one, lives in the data folder")
         return _alone_with_its_id(document, session)
+    if session.get("private"):
+        raise Refusal("bad-location", f"item session, field private: a private page lives in the data folder's "
+                                      f"{PAGES_FOLDER}/<repository name>/, not in {document.parent}")
     if data_pages is not None and document.parent == data_pages:
         raise Refusal("bad-location", f"item session, field id: {document} must sit in a repository folder of "
                                       f"{data_pages}")
