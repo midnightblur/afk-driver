@@ -358,6 +358,21 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
+def _answers(doc, note):
+    """True when an answer names the note; an answer of a format 0 page names it, its element or its card in `about`."""
+    named = {note["id"], note.get("target"), note.get("item")} - {None}
+    return any(note["id"] in (answer.get("notes") or []) or named & set(answer.get("about") or [])
+               for rnd in doc.get("rounds") or [] for answer in rnd.get("replies") or [])
+
+
+def unanswered_note_warnings(doc, round_n):
+    """A warning for each live note of round `round_n` that no answer names (SDD §6); the round still builds."""
+    return [{"code": "unanswered-note", "note": note["id"],
+             "reason": f"note {note['id']} of round {round_n} has no answer; answer each note"}
+            for note in doc.get("notes") or [] if note.get("round") == round_n and not note.get("deleted")
+            and not _answers(doc, note)]
+
+
 def _session_text(session, round_input, n):
     """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
     if round_input.get("step") is not None:
@@ -444,6 +459,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     for reply in round_input.get("replies") or []:
         _reply(built, reply)
     doc["rounds"].append(built)
+    warnings += unanswered_note_warnings(doc, n - 1)
     write_json(doc_path, doc)
     return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
             "degraded": degraded, "warnings": warnings}

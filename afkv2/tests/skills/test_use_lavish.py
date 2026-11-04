@@ -235,3 +235,32 @@ def test_a_bad_title_step_or_change_list_is_refused(tmp_path, field):
         rd.build_round_document(tmp_path / "pages" / "grill-s-1.json", SESSION, {**round_input("i-a"), **field})
     assert refused.value.code == "bad-round"
     assert not (tmp_path / "pages" / "grill-s-1.json").exists()
+
+
+def a_round_2(path, replies=()):
+    built = {**round_input("i-c"), "replies": list(replies)}
+    built["items"][0]["carries"] = ["i-b"]
+    return rd.build_round_document(path, SESSION, built)
+
+
+def test_a_note_of_the_last_round_with_no_answer_is_warned_and_the_round_still_builds(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
+                             "open": [{"item": "i-b", "reply": "Asked again."}]})
+    answer = a_round_2(path)
+    assert answer["round"] == 2 and len(read(path)["rounds"]) == 2
+    assert [(w["code"], w["note"]) for w in answer["warnings"]] == [("unanswered-note", "N-1-i-a-1")]
+
+
+def test_a_note_answered_in_the_new_round_is_not_warned(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
+                             "open": [{"item": "i-b", "reply": "Asked again."}]})
+    assert a_round_2(path, [{"text": "Yes.", "notes": ["N-1-i-a-1"]}])["warnings"] == []
+
+
+def test_an_answer_about_a_card_on_an_upgraded_page_answers_its_notes():
+    doc = {"notes": [{"id": "N-1-i-a", "round": 1, "target": "i-a-body", "item": "i-a", "text": "x", "deleted": False},
+                     {"id": "N-1-i-b", "round": 1, "target": "i-b", "item": "i-b", "text": "y", "deleted": True}],
+           "rounds": [{"n": 1, "replies": [{"text": "old", "about": ["i-a"]}]}]}
+    assert rd.unanswered_note_warnings(doc, 1) == []
