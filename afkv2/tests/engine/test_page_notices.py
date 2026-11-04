@@ -202,3 +202,103 @@ def test_the_notices_module_calls_no_model_and_no_network():
     imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
     imported |= {node.module.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module}
     assert imported <= {"__future__", "bisect", "os", "re", "subprocess", "pathlib"}, imported
+
+
+# --- render with notices: the page header, the notices file, and no refusal (SDD §3 row "engine render", §4)
+
+import engine  # noqa: E402
+
+NOTICES = 'class="afkv2-notices"'
+GIT_LINES = {"committed": "this page is committed", "untracked": "in the repository but not committed yet",
+             "ignored": "git ignores this page", "outside": "outside the repository", "unknown": "unknown"}
+
+
+def a_page(session_id="s1"):
+    return {"schema": "afkv2.page/1",
+            "session": {"id": session_id, "skill": "grill", "feature": "feature", "ticket": "PROJ-1",
+                        "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+            "maps": [], "notes": [],
+            "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                        "items": [{"id": "i-a", "kind": "confirm",
+                                   "body": {"type": "text", "props": {"text": "Body of i-a"}}}]}]}
+
+
+@pytest.fixture
+def spec_repo(repo, tmp_path, monkeypatch):
+    """The throwaway repository with a spec folder, the data folder, and the current folder at its root."""
+    (repo / ".afkv2").mkdir()
+    (repo / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs"}), "utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.chdir(repo)
+    return repo
+
+
+def save_page(folder, doc=None):
+    path = folder / "grill-s1.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc or a_page()), "utf-8")
+    return path
+
+
+def render(capsys, path, *args):
+    code = engine.main(["render", str(path), *map(str, args)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def header(path):
+    html = path.with_suffix(".html").read_text("utf-8")
+    start = html.index(NOTICES)
+    return html[start:html.index("</div>", start)]
+
+
+def test_render_with_notices_answers_and_shows_the_git_state_and_each_secret(spec_repo, capsys):
+    path = save_page(spec_repo / "specs" / "feature" / "pages")
+    log = page_in(spec_repo, "specs/feature/GRILL-LOG.md", f"a note\n{SAMPLES['github-token']}\n")
+    code, answer = render(capsys, path, "--notices", "--scan", log)
+    assert code == 0 and answer["git_state"] == "untracked"
+    assert answer["secrets"] == [{"file": "specs/feature/GRILL-LOG.md", "line": 2, "shape": "github-token"}]
+    shown = header(path)
+    assert GIT_LINES["untracked"] in shown and "specs/feature/GRILL-LOG.md" in shown and "github-token" in shown
+    assert SAMPLES["github-token"] not in path.with_suffix(".html").read_text("utf-8")
+
+
+def test_the_last_notices_are_kept_in_the_data_folder_and_a_later_render_keeps_them(spec_repo, capsys, tmp_path):
+    path = save_page(spec_repo / "specs" / "feature" / "pages")
+    render(capsys, path, "--notices")
+    kept = list((tmp_path / "local" / "afkv2" / "page-notices").glob("*.json"))
+    assert len(kept) == 1 and json.loads(kept[0].read_text("utf-8"))["git_state"] == "untracked"
+    assert render(capsys, path)[0] == 0
+    assert GIT_LINES["untracked"] in header(path)
+
+
+@pytest.mark.parametrize("state", ["committed", "ignored", "outside", "unknown"])
+def test_each_git_state_has_its_line_in_the_page_header(spec_repo, capsys, tmp_path, monkeypatch, state):
+    folder = spec_repo / "specs" / "feature" / "pages"
+    path = save_page(folder)
+    if state == "committed":
+        git(spec_repo, "add", ".")
+        git(spec_repo, "commit", "-qm", "page")
+    elif state == "ignored":
+        (spec_repo / ".gitignore").write_text("specs/\n", "utf-8")
+    elif state == "outside":
+        monkeypatch.chdir(tmp_path)
+    else:
+        monkeypatch.setattr(notices, "GIT", "afkv2-no-such-git-program")
+    code, answer = render(capsys, path, "--notices")
+    assert code == 0 and answer["git_state"] == state and GIT_LINES[state] in header(path)
+
+
+def test_a_secret_or_a_git_failure_never_refuses_a_render(spec_repo, capsys, monkeypatch):
+    doc = a_page()
+    doc["rounds"][0]["items"][0]["body"]["props"]["text"] = SAMPLES["aws-access-key"]
+    path = save_page(spec_repo / "specs" / "feature" / "pages", doc)
+    assert render(capsys, path, "--notices")[0] == 0
+    monkeypatch.setattr(notices, "GIT", "afkv2-no-such-git-program")
+    assert render(capsys, path, "--notices")[0] == 0
+
+
+def test_a_page_never_rendered_with_notices_has_no_notices_header(spec_repo, capsys):
+    path = save_page(spec_repo / "specs" / "feature" / "pages")
+    assert render(capsys, path)[0] == 0
+    assert NOTICES not in path.with_suffix(".html").read_text("utf-8")

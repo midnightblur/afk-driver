@@ -8,6 +8,7 @@ Each ticket, change and commit reference in the text links to the URL that `sess
 The heading and the browser tab read `<ticket> · <short title> · <step>`, the same every round. A page with no
 ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name that repeats the
 ticket, or a step that repeats the start of an earlier part, shows once.
+Under the heading, the notices of the page (engine notices): 1 git-state line and 1 line per secret hit.
 """
 
 from __future__ import annotations
@@ -224,6 +225,27 @@ def stable_title(doc: dict) -> str:
     return " · ".join([*parts, *([step] if step and not repeats else [])])
 
 
+GIT_LINES = {
+    "committed": "Git: this page is committed.",
+    "untracked": "Git: this page is in the repository but not committed yet.",
+    "ignored": "Git: git ignores this page, so it is not committed.",
+    "outside": "Git: this page is outside the repository, so it is not committed.",
+    "unknown": "Git: the git state of this page is unknown ({why}), so no secret scan ran.",
+}
+
+
+def _notices(found: dict | None) -> str:
+    """The git-state line and one warning per secret hit: file, line and shape, never the value."""
+    if not found:
+        return ""
+    line = GIT_LINES.get(found.get("git_state"), GIT_LINES["unknown"]).format(why=found.get("git_reason") or "no answer")
+    lines = [f'<p class="afkv2-notice">{escape(line)}</p>']
+    lines += [f'<p class="afkv2-notice afkv2-notice--secret">Secret warning: {escape(str(hit["file"]))}, line '
+              f'{int(hit["line"])}, holds a value of the shape {escape(str(hit["shape"]))}. Take it out before a commit.</p>'
+              for hit in found.get("secrets") or []]
+    return f'<div class="afkv2-notices" role="status">{"".join(lines)}</div>'
+
+
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
     """The side-question listener address `(port, token)` that the btw? panel posts to."""
     if btw is None:
@@ -231,16 +253,16 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
     return f' data-afkv2-btw-port="{int(btw[0])}" data-afkv2-btw-token="{escape(btw[1])}"'
 
 
-def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
+def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = None) -> str:
     """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
-    has no btw? panel."""
+    has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices."""
     doc = _answers_read(doc)
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     title = escape(stable_title(doc))
-    body = (f'<h1 class="afkv2-title">{title}</h1>'
+    body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
             f'{_banner(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'

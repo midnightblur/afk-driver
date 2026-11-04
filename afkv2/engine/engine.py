@@ -1,7 +1,7 @@
 """The page engine: one command, one JSON answer per verb.
 
     engine.py check DOC
-    engine.py render DOC
+    engine.py render DOC [--notices [--scan FILE]...]
     engine.py show DOC [--no-open|--reopen]
     engine.py poll DOC [--reply-file FILE]
     engine.py reply DOC --reply-file FILE
@@ -17,6 +17,10 @@ and lists the side questions of the send apart, in `btw`. A reply file holds Mar
 Poll keeps a round send in `<DOC stem>.delivery.json` before it reads it; a later poll answers from that
 file, and a successful ingest deletes it. An ingest that refuses the response moves the file to
 `<DOC stem>.refused.<stamp>.json`.
+
+Render with `--notices` reads the page's git state and scans the page and each `--scan` file for secrets
+(`notices.py`); it answers `git_state`, `git_reason` and `secrets`, and keeps them in `page-notices/` of the data
+folder, so a later render (show renders too) keeps them in the page header. Neither refuses anything.
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -43,6 +47,7 @@ from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E
 import btw_listener  # noqa: E402
 import ingest  # noqa: E402
 import launcher  # noqa: E402
+import notices  # noqa: E402
 import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 import side_question  # noqa: E402
@@ -59,6 +64,7 @@ MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
 COPIES_FOLDER = "page-copies"
 TABS_FOLDER = "page-tabs"
+NOTICES_FOLDER = "page-notices"
 TAB_GONE = {"ended", "browser_disconnected", "no-session"}
 DELIVERY_SUFFIX = ".delivery.json"
 
@@ -245,6 +251,19 @@ def tab_record(html_path: Path) -> Path:
     return _keyed_path(TABS_FOLDER, html_path)
 
 
+def notices_record(document: Path) -> Path:
+    """The last notices of a page: derived, overwritten by each render with notices (SDD §4)."""
+    return _keyed_path(NOTICES_FOLDER, document)
+
+
+def _last_notices(document: Path) -> dict | None:
+    try:
+        kept = json.loads(notices_record(document).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return kept if isinstance(kept, dict) and isinstance(kept.get("git_state"), str) else None
+
+
 def _forget_tab(html_path: Path) -> None:
     try:
         tab_record(html_path).unlink(missing_ok=True)
@@ -372,15 +391,21 @@ def _alone_with_its_id(document: Path, session: dict) -> Path:
     return document
 
 
-def _render(path: str) -> tuple[dict, Path, Path]:
+def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path, dict | None]:
+    """With `scan` (a list, maybe empty), the notices are read anew and kept; else the last kept notices show."""
     doc, _ = check_document(path)
     document = _require_home(path, doc)
     data_folder()
+    if scan is None:
+        found = _last_notices(document)
+    else:
+        found = notices.page_notices(document, [Path(file) for file in scan])
+        inject.write_if_changed(notices_record(document), json.dumps({"page": str(document), **found}).encode("utf-8"))
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc, btw_listener.address(document)), inject.load_dictionary(html_path))
+    html = inject.inject(page.build(doc, btw_listener.address(document), found), inject.load_dictionary(html_path))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
-    return doc, document, html_path
+    return doc, document, html_path, found
 
 
 def cmd_check(args) -> dict:
@@ -389,12 +414,15 @@ def cmd_check(args) -> dict:
 
 
 def cmd_render(args) -> dict:
-    _, _, html_path = _render(args.document)
-    return {"ok": True, "verb": "render", "page": str(html_path)}
+    if args.scan and not args.notices:
+        raise Refusal("usage", "--scan needs --notices")
+    _, _, html_path, found = _render(args.document, (args.scan or []) if args.notices else None)
+    answer = {"ok": True, "verb": "render", "page": str(html_path)}
+    return {**answer, **found} if args.notices else answer
 
 
 def cmd_show(args) -> dict:
-    _, document, html_path = _render(args.document)
+    _, document, html_path, _ = _render(args.document)
     argv = ["open", str(html_path)]
     tab = tab_record(html_path)
     reused = not (args.no_open or args.reopen) and tab.is_file()
@@ -596,6 +624,9 @@ def _parser() -> argparse.ArgumentParser:
             mode = sub.add_mutually_exclusive_group()
             mode.add_argument("--no-open", action="store_true")
             mode.add_argument("--reopen", action="store_true")
+        if verb == "render":
+            sub.add_argument("--notices", action="store_true")
+            sub.add_argument("--scan", action="append")
         if verb == "ingest":
             sub.add_argument("--raw-file", required=True)
         if verb in ("poll", "reply"):
