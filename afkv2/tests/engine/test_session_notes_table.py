@@ -122,6 +122,21 @@ def test_an_answer_row_links_once_to_each_element_it_changed():
         assert "kept as it is" in answer and CHANGE_CLASS not in answer and "href" not in answer
 
 
+def test_a_repeated_changed_id_gives_one_link_with_the_element_label():
+    doc = document(round_of(1, card("i-a"), card("i-b")), notes=[note("N-1-i-a-1", 1, "i-a", "i-a")])
+    doc["rounds"][0]["replies"] = [
+        {"id": "A-1-1", "text": "changed one", "notes": ["N-1-i-a-1"], "changed": ["i-b-words", "i-b-words"]}]
+    answer = cells(row(session(build(doc)), SESSION_ROW + "N-1-i-a-1"))[4]
+    assert answer.count('href="#i-b-words"') == 1 and ">Body of i-b</a>" in answer
+
+
+def test_an_answer_to_a_deleted_note_stands_alone_in_the_session_table():
+    doc = document(round_of(1, card("i-a")), notes=[{**note("N-1-i-a-1", 1, "i-a", "i-a"), "deleted": True}])
+    doc["rounds"][0]["replies"] = [{"id": "A-1-1", "text": "answer to a gone note", "notes": ["N-1-i-a-1"]}]
+    table = session(build(doc))
+    assert "answer to a gone note" in row(table, CARD_ROW + "reply-1-1") and "From me" in table
+
+
 def test_the_noted_text_column_holds_the_quote_and_your_note_only_the_words():
     doc = document(round_of(1, card("i-a")),
                    notes=[note("N-1-i-a-1", 1, "i-a-words", "i-a", "my words", quote="the <selected> text")])
@@ -211,7 +226,7 @@ def test_a_format_0_page_pairs_an_answer_by_its_about_list():
 # --- the column widths of the 2 notes tables (D-14): # | Where | Noted text | Your note | Answer [| Open]
 
 WIDTH_RULE = re.compile(r"([^{}]*?)th:nth-child\((\d)\)\s*\{\s*width:\s*([^;]+);")
-CARD_MODIFIER = "afkv2-nr-table--card"
+TABLE_CLASS, CARD_MODIFIER = "afkv2-nr-table", "afkv2-nr-table--card"
 
 
 def widths(card_table):
@@ -220,7 +235,7 @@ def widths(card_table):
     found = {}
     for position, match in enumerate(WIDTH_RULE.finditer(page._assets(".css", page.BASE_CSS))):
         selector, column, width = match.group(1).strip(), int(match.group(2)), match.group(3).strip()
-        if "afkv2-nr-table" not in selector or (CARD_MODIFIER in selector and not card_table):
+        if TABLE_CLASS not in selector or (CARD_MODIFIER in selector and not card_table):
             continue
         rank = (selector.count(".") + 1, position)
         if column not in found or rank > found[column][0]:
