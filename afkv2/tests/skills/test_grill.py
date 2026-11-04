@@ -211,7 +211,7 @@ def test_builder_output_has_the_schema_fields(tmp_path):
     result = rd.build_round_document(path, session(), round_one())
     doc = json.loads(path.read_text("utf-8"))
     check_document(doc)
-    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": []}
+    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": [], "warnings": []}
     assert doc["schema"] == "afkv2.page/1"
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", doc["session"]["started"])
     assert doc["rounds"][0]["state"] == "current"
