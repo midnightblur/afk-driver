@@ -19,6 +19,10 @@ SLOT = 'id="afkv2-notes-replies"'
 CARD_START = 'id="{}" data-afkv2-item='
 BODY = '<div class="afkv2-body">'
 CHANGE_CLASS = "afkv2-nr-changed"
+CARD_ROW, SESSION_ROW = "afkv2-nr-", "afkv2-ns-"
+ROW_CLASS = 'class="afkv2-nr-row"'
+ROUND_GROUP = 'data-afkv2-nr-round="{}"'
+ROUND_FOLD = 'data-afkv2-fold="notes-round-{}"'
 
 
 def text(value, **extra):
@@ -67,6 +71,11 @@ def row(html, row_id):
     return html[start:html.index("</tr>", start)]
 
 
+def both(html, item_id):
+    """(the rows of the card, its row prefix) and (the session table, its row prefix)."""
+    return (on_card(html, item_id), CARD_ROW), (session(html), SESSION_ROW)
+
+
 def cells(row_html):
     return re.findall(r"<td[^>]*>(.*?)</td>", row_html, re.S)
 
@@ -79,16 +88,16 @@ def three_notes():
 def test_3_notes_on_one_element_are_3_rows_each_with_its_own_note_id():
     html = build(three_notes())
     for k in (1, 2, 3):
-        assert f"note {k}" in row(on_card(html, "i-a"), f"afkv2-nr-N-1-i-a-{k}")
-        assert f'title="N-1-i-a-{k}"' in row(session(html), f"afkv2-ns-N-1-i-a-{k}")
-    assert on_card(html, "i-a").count('class="afkv2-nr-row"') == 3
+        assert f"note {k}" in row(on_card(html, "i-a"), f"{CARD_ROW}N-1-i-a-{k}")
+        assert f'title="N-1-i-a-{k}"' in row(session(html), f"{SESSION_ROW}N-1-i-a-{k}")
+    assert on_card(html, "i-a").count(ROW_CLASS) == 3
 
 
 def test_one_answer_of_2_notes_stands_in_both_rows_and_no_row_holds_2_notes():
     doc = three_notes()
     doc["rounds"][0]["replies"] = [{"id": "A-1-1", "text": "one answer for two", "notes": ["N-1-i-a-1", "N-1-i-a-3"]}]
     html = build(doc)
-    for table, prefix in ((on_card(html, "i-a"), "afkv2-nr-"), (session(html), "afkv2-ns-")):
+    for table, prefix in both(html, "i-a"):
         assert "one answer for two" in row(table, prefix + "N-1-i-a-1")
         assert "one answer for two" in row(table, prefix + "N-1-i-a-3")
         assert "one answer for two" not in row(table, prefix + "N-1-i-a-2")
@@ -104,11 +113,11 @@ def test_an_answer_row_links_once_to_each_element_it_changed():
         {"id": "A-1-1", "text": "changed two", "notes": ["N-1-i-a-1"], "changed": ["i-b", "i-a-words"]},
         {"id": "A-1-2", "text": "kept as it is", "notes": ["N-1-i-b-1"], "changed": []}]
     html = build(doc)
-    for table, prefix in ((on_card(html, "i-a"), "afkv2-nr-"), (session(html), "afkv2-ns-")):
+    for table, prefix in both(html, "i-a"):
         answer = cells(row(table, prefix + "N-1-i-a-1"))[4]
         assert answer.count('href="#i-b"') == 1 and answer.count('href="#i-a-words"') == 1
         assert CHANGE_CLASS in answer
-    for table, prefix in ((on_card(html, "i-b"), "afkv2-nr-"), (session(html), "afkv2-ns-")):
+    for table, prefix in both(html, "i-b"):
         answer = cells(row(table, prefix + "N-1-i-b-1"))[4]
         assert "kept as it is" in answer and CHANGE_CLASS not in answer and "href" not in answer
 
@@ -117,7 +126,7 @@ def test_the_noted_text_column_holds_the_quote_and_your_note_only_the_words():
     doc = document(round_of(1, card("i-a")),
                    notes=[note("N-1-i-a-1", 1, "i-a-words", "i-a", "my words", quote="the <selected> text")])
     html = build(doc)
-    for table, prefix in ((on_card(html, "i-a"), "afkv2-nr-"), (session(html), "afkv2-ns-")):
+    for table, prefix in both(html, "i-a"):
         assert "<th>Noted text</th><th>Your note</th>" in table
         _, _, noted, words, *_ = cells(row(table, prefix + "N-1-i-a-1"))
         assert "the &lt;selected&gt; text" in noted and "my words" not in noted
@@ -132,10 +141,10 @@ def test_the_session_table_lists_every_note_and_answer_newest_round_first_with_a
     doc["rounds"][1]["replies"] = [{"id": "A-2-1", "text": "an answer alone"}]
     table = session(build(doc))
     places = [table.index(words) for words in ("a steer", "card note two", "an answer alone", "card note one")]
-    assert table.index('data-afkv2-nr-round="2"') < places[0] and places == sorted(places)
-    assert table.index('data-afkv2-nr-round="1"') < places[3]
-    assert 'href="#i-b"' in row(table, "afkv2-ns-N-2-i-b-1") and 'href="#i-a"' in row(table, "afkv2-ns-N-1-i-a-1")
-    assert 'href="#R-2"' in row(table, "afkv2-nr-N-2-R-2-1")
+    assert table.index(ROUND_GROUP.format(2)) < places[0] and places == sorted(places)
+    assert table.index(ROUND_GROUP.format(1)) < places[3]
+    assert 'href="#i-b"' in row(table, SESSION_ROW + "N-2-i-b-1") and 'href="#i-a"' in row(table, SESSION_ROW + "N-1-i-a-1")
+    assert 'href="#R-2"' in row(table, CARD_ROW + "N-2-R-2-1")
 
 
 def test_every_session_row_of_a_card_stands_for_that_card_and_every_id_is_unique():
@@ -164,7 +173,7 @@ def test_on_round_3_or_later_the_current_and_previous_round_are_open_and_each_ol
     assert len(folds) == 2
     (attrs_2, summary_2, body_2), (attrs_1, summary_1, body_1) = folds
     assert " open" not in attrs_2 + attrs_1
-    assert 'data-afkv2-fold="notes-round-2"' in attrs_2 and 'data-afkv2-fold="notes-round-1"' in attrs_1
+    assert ROUND_FOLD.format(2) in attrs_2 and ROUND_FOLD.format(1) in attrs_1
     assert "Round 2" in summary_2 and "1 note from you" in summary_2 and "note of round 2" in body_2
     assert "Round 1" in summary_1 and "2 notes from you, 1 answer from me" in summary_1
     assert "note of round 1" in body_1 and "note of round 2" not in body_1
@@ -195,5 +204,5 @@ def test_a_format_0_page_pairs_an_answer_by_its_about_list():
                round_of(2, card("i-b"), state="current",
                         replies=[{"text": "answer by about", "about": ["i-a"]}])]}
     html = build(doc)
-    assert "answer by about" in row(on_card(html, "i-a"), "afkv2-nr-N-1-i-a")
-    assert "answer by about" in row(session(html), "afkv2-ns-N-1-i-a")
+    assert "answer by about" in row(on_card(html, "i-a"), CARD_ROW + "N-1-i-a")
+    assert "answer by about" in row(session(html), SESSION_ROW + "N-1-i-a")

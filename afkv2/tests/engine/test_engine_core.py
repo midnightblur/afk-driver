@@ -816,6 +816,9 @@ def test_an_open_asking_card_of_an_earlier_round_stays_with_the_live_points():
     assert holds(live, 'data-afkv2-item="i-new"', 'data-afkv2-item="i-3"')
 
 
+SESSION_COPY_OF_NEW = 'id="afkv2-ns-N-2-i-new"'
+
+
 def history_doc(legacy=False):
     doc = three_rounds()
     doc["rounds"][1]["items"][0]["notes"] = [
@@ -837,7 +840,7 @@ def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
     assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
     assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
     assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
-    assert holds(html[:position(html, MAPS_SECTION)], 'id="afkv2-ns-N-2-i-new"', "Say who runs it.")
+    assert holds(html[:position(html, MAPS_SECTION)], SESSION_COPY_OF_NEW, "Say who runs it.")
 
 
 def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_wins():

@@ -59,6 +59,8 @@ EDIT_BUTTON = "data-afkv2-note-edit"
 DELETE_BUTTON = "data-afkv2-note-delete"
 QUOTED_ONE = '<q class="afkv2-nr-text">note of round one</q>'
 NOTE_ROW_A, NOTE_ROW_B = "afkv2-nr-N-1-i-a", "afkv2-nr-N-2-i-b"
+SESSION_ROW_A = "afkv2-ns-N-1-i-a"
+ROUND_FOLD = 'data-afkv2-fold="notes-round-'
 OLD_STEER_ROW = 'id="afkv2-nr-N-1-i-a"'
 ROUND_STEER = "afkv2-nr-N-2-R-2-1"
 OLD_NOTE_ROW = "afkv2-nr-N-1-i-old"
@@ -869,7 +871,7 @@ def test_a_note_row_stands_under_its_card_with_the_reply_that_answers_it():
     assert QUOTED_ONE in note_row and "reply of round one" in note_row
     assert 'title="N-1-i-a">R1.1<' in note_row and "The card" in note_row
     assert "No answer yet" in row(exchange(html, "i-b"), NOTE_ROW_B)
-    assert "note of round one" in row(slot(html), "afkv2-ns-N-1-i-a")
+    assert "note of round one" in row(slot(html), SESSION_ROW_A)
 
 
 def test_a_reply_of_the_next_round_answers_the_note_of_the_round_before():
@@ -1098,7 +1100,7 @@ def test_the_stress_page_passes_the_check_and_renders(path):
     doc = stress_document()
     assert check(save(path, doc)) == 0
     html = build(doc)
-    assert LONG_WORD in html and html.count("<details") == 8 and html.count('data-afkv2-fold="notes-round-') == 7
+    assert LONG_WORD in html and html.count("<details") == 8 and html.count(ROUND_FOLD) == 7
     notes = sum(len(i.get("notes") or []) for r in doc["rounds"] for i in r["items"])
     assert notes == 48 and len(doc["rounds"]) == 9
 

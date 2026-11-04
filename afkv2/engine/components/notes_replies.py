@@ -5,8 +5,8 @@ Every note comes from the session list (ADR-0001 design). The session table (`no
 every row of the session: each note, card notes included, and each answer that stands in no note's row.
 A note on a card, and an answer about a card, is also a row on that card (`card-notes`).
 An answer stands in the row of each note it names (`notes`); on a format 0 page, by its `about` list.
-Each row has an HTML id: `afkv2-nr-<key>` where the row first stands, on its card or else in the session
-table, and `afkv2-ns-<key>` for the session table copy of a card's row. `row_targets` names the element
+Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
+as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
 """
 
