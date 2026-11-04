@@ -476,6 +476,36 @@ def test_a_failed_head_read_ends_the_wait_for_the_new_commit(repo, forge, capsys
     assert code == 0 and answer["status"] == "failed" and forge.verbs().count("ci-wait") == 1
 
 
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_change_that_merges_or_closes_ends_the_watch_from_the_view_of_its_slice(repo, forge, capsys, state):
+    head = git(repo, "rev-parse", "HEAD")
+    view = {**VIEW, "head_sha": head}
+    forge.answers = {"ci-wait": [STILL, GREEN], "change-view": [view, {**view, "state": state}, view]}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
+    assert answer["status"] == "" and answer["head_sha"] == head and state in answer["reason"]
+    assert forge.verbs() == ["change-view", "ci-wait", "change-view"]
+    record = record_of(repo)
+    assert record["state"] == "change-not-open" and record["change_state"] == state
+
+
+def test_a_watch_on_an_open_change_reads_the_view_once_per_slice_as_before(repo, forge, capsys):
+    forge.answers = {"ci-wait": [STILL, GREEN], "change-view": VIEW}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == ""
+    assert forge.verbs() == ["change-view", "ci-wait", "change-view", "ci-wait", "change-view"]
+
+
+def test_a_newer_watch_keeps_its_record_when_the_older_one_sees_the_merge(repo, forge, capsys):
+    def newer_starts(_payload):
+        ci_watch._new_record(ci_watch._record_path("7"), "7", "newhead")
+        return {**VIEW, "state": "merged"}
+    forge.answers = {"change-view": newer_starts}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "superseded"
+    assert record_of(repo)["state"] == "watching" and record_of(repo)["head_sha"] == "newhead"
+
+
 def test_a_red_ci_is_a_report_and_no_refusal(repo, forge, capsys):
     forge.answers = {"ci-wait": RED, "change-view": VIEW}
     code, answer = run(ci_watch, capsys, "watch", id="7")

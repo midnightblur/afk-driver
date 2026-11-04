@@ -28,6 +28,7 @@ LOST_AFTER = 3 * SLICE
 HEAD_GRACE = 300
 HEAD_PAUSE = 15
 PASSED_ON = ("forge", "repo")
+NOT_OPEN = ("merged", "closed")
 CI_REFUSALS = {"failed": "ci-red", "canceled": "ci-red", "running": "ci-running", "": "ci-none"}
 REVIEW_CAN_RUN = {"no-review", "review-owed", "fix-open", "round-open"}
 REVIEW_CAN_RETRY = {"command-failed"}
@@ -150,13 +151,14 @@ def _write_record(path, record):
 
 
 def _new_record(path, change, head):
-    record = {"id": change, "token": uuid.uuid4().hex, "state": "watching", "status": "", "head_sha": head, "reason": "", "beat_at": time.time()}
+    record = {"id": change, "token": uuid.uuid4().hex, "state": "watching", "status": "", "head_sha": head, "reason": "",
+              "change_state": "", "beat_at": time.time()}
     _write_record(path, record)
     return record
 
 
 def _no_result(change, state, reason):
-    return ok(id=change, state=state, status="", head_sha="", current_head=False, reason=reason)
+    return ok(id=change, state=state, status="", head_sha="", current_head=False, reason=reason, change_state="")
 
 
 def _report(change, record):
@@ -166,7 +168,8 @@ def _report(change, record):
     if state == "watching" and time.time() - record.get("beat_at", 0) > LOST_AFTER:
         state, reason = "lost", "the watch stopped with no result: run `start`"
     return ok(id=change, state=state, status=record.get("status") or "", head_sha=record.get("head_sha") or "",
-              current_head=bool(record.get("head_sha")) and record["head_sha"] == _local_head(), reason=reason)
+              current_head=bool(record.get("head_sha")) and record["head_sha"] == _local_head(), reason=reason,
+              change_state=record.get("change_state") or "")
 
 
 def _spawn(payload):
@@ -221,19 +224,32 @@ def _superseded(change):
     return _no_result(change, "superseded", "a newer watch took over")
 
 
+def _write_end(path, record, fields):
+    """Write the result unless a newer watch took over."""
+    if not _is_current(path, record["token"]):
+        return _superseded(record["id"])
+    final = {**record, "change_state": "", **fields, "beat_at": time.time()}
+    _write_record(path, final)
+    return _report(record["id"], final)
+
+
 def _end(payload, path, record, state, status_word, reason=""):
     """Write the result, with the commit the forge now shows, unless a newer watch took over."""
-    change = record["id"]
     head = record["head_sha"]
     try:
-        head = forge_answer("change-view", payload, id=change).get("head_sha") or head
+        head = forge_answer("change-view", payload, id=record["id"]).get("head_sha") or head
     except Refusal:
         pass
-    if not _is_current(path, record["token"]):
-        return _superseded(change)
-    final = {**record, "state": state, "status": status_word, "head_sha": head, "reason": reason, "beat_at": time.time()}
-    _write_record(path, final)
-    return _report(change, final)
+    return _write_end(path, record, {"state": state, "status": status_word, "head_sha": head, "reason": reason})
+
+
+def watch_end_on_merge(path, record, view):
+    """End the watch on a merged or closed change, from the view this slice already read; None while the change is open."""
+    state = view.get("state")
+    if state not in NOT_OPEN:
+        return None
+    return _write_end(path, record, {"state": "change-not-open", "status": "", "head_sha": view.get("head_sha") or record["head_sha"],
+                                     "reason": f"change {record['id']} is {state}", "change_state": state})
 
 
 def _watched_record(payload, path, change):
@@ -245,12 +261,17 @@ def _watched_record(payload, path, change):
     return record if record is not None and record["token"] == token else None
 
 
-def _forge_behind(payload, change, record):
-    """True while the forge shows another commit than the one this watch started on. Right after a push, its answers are those of the last commit."""
+def _slice_view(payload, change):
+    """The one change view of a slice; empty when the forge call failed."""
     try:
-        head = forge_answer("change-view", payload, id=change).get("head_sha")
+        return forge_answer("change-view", payload, id=change)
     except Refusal:
-        return False
+        return {}
+
+
+def _forge_behind(view, record):
+    """True while the forge shows another commit than the one this watch started on. Right after a push, its answers are those of the last commit."""
+    head = view.get("head_sha")
     return bool(head) and head != record["head_sha"]
 
 
@@ -268,7 +289,11 @@ def watch_ci(payload):
     while True:
         left = max(0, int(deadline - time.monotonic()))
         wait = min(SLICE, left)
-        head_seen = head_seen or not _forge_behind(payload, change, record)
+        view = _slice_view(payload, change)
+        ended = watch_end_on_merge(path, record, view)
+        if ended is not None:
+            return ended
+        head_seen = head_seen or not _forge_behind(view, record)
         fields = {"id": change, "budget": wait, **({} if interval is None else {"interval": interval})}
         answer = call_forge("ci-wait", {**passed_on(payload), **fields}, wait + READ_MARGIN)
         if not _is_current(path, record["token"]):
