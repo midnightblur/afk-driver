@@ -354,9 +354,20 @@ def finish_step(cwd, branch, yes=()):
     `branch`, from any folder of the repository. With nothing left the target and its lock file are deleted;
     otherwise the target is kept `waiting` with what is left. No forge call: the stored change gives the head."""
     target = _stored(cwd, branch)
+    folder, here = _same_folder(target["feature_worktree"]), _same_folder(os.getcwd())
+    if "feature worktree" in target["left"] and (here == folder or here.startswith(folder.rstrip(os.sep) + os.sep)):
+        raise Refusal("inside-folder", f"finish runs inside {target['feature_worktree']}, the folder it removes; nothing "
+                                       "was removed; leave the folder first, then run the command again",
+                      folder=target["feature_worktree"])
     main = main_checkout(cwd)
     with gc_target.take_lock(main, branch) as lock:
         target = _stored(main, branch)
+        if target["state"] != "waiting":
+            raise Refusal("not-waiting", f"the gc target of {branch} is {target['state']}, not waiting: nothing was "
+                                         "removed; run gc list and gc remove first")
+        platform = gc_checks.check_platform()["refusal"]
+        if platform:
+            raise Refusal("not-windows", platform["reason"] + "; nothing was removed")
         names, pending = _names(target), list(target["left"])
         local = _local_tip(main, target["feature_branch"])
         outside = _outside_head(main, target, local)

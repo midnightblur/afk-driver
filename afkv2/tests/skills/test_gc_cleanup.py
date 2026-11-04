@@ -696,3 +696,51 @@ def test_finish_with_a_branch_already_gone_reads_already_gone(repo, monkeypatch,
     assert [(entry["item"], entry["result"], entry["tip"]) for entry in answer["removed"]] == [
         ("feature worktree", "already gone", None), ("feature branch", "already gone", "")]
     assert gone(repo)
+
+
+def still_waiting(repo, before):
+    """finish removed nothing: both feature items stay and the target is as it was."""
+    assert Path(repo.feature).is_dir() and FEATURE in local_heads(repo)
+    assert gc_target.read_target(repo.main, FEATURE) == before
+
+
+@pytest.mark.parametrize("where", ["the folder", "a subfolder"])
+def test_finish_inside_the_folder_it_removes_refuses_inside_folder_and_removes_nothing(repo, monkeypatch, windows, where):
+    waiting(repo, monkeypatch)
+    before = gc_target.read_target(repo.main, FEATURE)
+    here = Path(repo.feature) if where == "the folder" else Path(repo.feature) / "sub"
+    here.mkdir(exist_ok=True)
+    monkeypatch.chdir(here)
+    refusal = refused("inside-folder", cleanup.finish_step, repo.main, FEATURE)
+    assert "leave the folder first" in refusal.reason and same(refusal.extra["folder"], repo.feature)
+    monkeypatch.undo()
+    still_waiting(repo, before)
+
+
+def test_finish_refuses_no_target_and_not_waiting_for_a_listed_target(repo, monkeypatch, windows):
+    refused("no-target", cleanup.finish_step, repo.main, FEATURE)
+    merged(repo, monkeypatch)
+    cleanup.list_step(repo.feature)
+    before = gc_target.read_target(repo.main, FEATURE)
+    refusal = refused("not-waiting", cleanup.finish_step, repo.main, FEATURE)
+    assert "listed" in refusal.reason
+    still_waiting(repo, before)
+
+
+def test_finish_refuses_locked_while_another_run_holds_the_target(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    before = gc_target.read_target(repo.main, FEATURE)
+    with gc_target.take_lock(repo.main, FEATURE):
+        refused("locked", cleanup.finish_step, repo.main, FEATURE)
+    still_waiting(repo, before)
+
+
+def test_finish_on_a_system_that_is_not_windows_refuses_not_windows_and_removes_nothing(repo, monkeypatch, windows):
+    import folder_remove
+    waiting(repo, monkeypatch)
+    before = gc_target.read_target(repo.main, FEATURE)
+    real = gc_checks.check_platform
+    monkeypatch.setattr(gc_checks, "check_platform", lambda: real("posix"))
+    monkeypatch.setattr(folder_remove, "WINDOWS", False)
+    refused("not-windows", cleanup.finish_step, repo.main, FEATURE)
+    still_waiting(repo, before)
