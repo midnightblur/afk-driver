@@ -670,7 +670,11 @@ def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
     assert run.returncode == 0, run.stdout + run.stderr
     assert json.loads(run.stdout)["reopened"] == ["i-data"]
     after = json.loads(doc.read_text("utf-8"))
-    assert _find(after, "i-data") == _at("i-data")(_note_on_an_older_card())
+    card = copy.deepcopy(_at("i-data")(_note_on_an_older_card()))
+    notes = card.pop("notes")
+    assert after["schema"] == SCHEMA_1, "ingest writes format 1"
+    assert _find(after, "i-data") == card
+    assert after["notes"] == [{**note, "item": "i-data"} for note in notes]
     assert [rnd["state"] for rnd in after["rounds"]] == ["settled", "current"]
     check = subprocess.run([sys.executable, str(ENGINE), "check", str(doc)], capture_output=True, text=True,
                            encoding="utf-8", timeout=60,
