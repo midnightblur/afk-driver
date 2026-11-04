@@ -2,5 +2,5 @@
   "spec_folder": "docs/afk",
   "tracker": {"kind": "github-issues", "repo": "midnightblur/afk-driver"},
   "forge": "github",
-  "ownership": {"own": ["afkv2/**", "docs/afk/**"], "shared": []}
+  "ownership": {"own": ["afkv2/**", "docs/afk/**", "README.md"], "shared": []}
 }
