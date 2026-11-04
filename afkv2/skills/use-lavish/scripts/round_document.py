@@ -375,9 +375,11 @@ def _apply_maps(doc, maps, n):
 
 
 def _answers(doc, note):
-    """True when an answer names the note; an answer of a format 0 page names it, its element or its card in `about`."""
+    """True when an answer names the note; an answer of a format 0 page, in the note's round or later, names it,
+    its element or its card in `about`."""
     named = {note["id"], note.get("target"), note.get("item")} - {None}
-    return any(note["id"] in (answer.get("notes") or []) or named & set(answer.get("about") or [])
+    return any(note["id"] in (answer.get("notes") or [])
+               or (rnd["n"] >= note.get("round", 0) and named & set(answer.get("about") or []))
                for rnd in doc.get("rounds") or [] for answer in rnd.get("replies") or [])
 
 

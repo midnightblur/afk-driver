@@ -333,3 +333,9 @@ def test_take_over_of_an_unreadable_document_is_refused(tmp_path, content):
     with pytest.raises(Refusal) as refused:
         page_round.take_over(path)
     assert refused.value.code == "unreadable"
+
+
+def test_an_older_about_answer_does_not_answer_a_later_note():
+    doc = {"notes": [{"id": "N-3-i-a-1", "round": 3, "target": "i-a", "item": "i-a", "text": "x", "deleted": False}],
+           "rounds": [{"n": 1, "replies": [{"text": "old", "about": ["i-a"]}]}, {"n": 2}, {"n": 3}]}
+    assert [w["note"] for w in rd.unanswered_note_warnings(doc, 3)] == ["N-3-i-a-1"]
