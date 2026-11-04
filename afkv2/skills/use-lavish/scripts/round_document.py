@@ -39,6 +39,7 @@ REPLY_FIELDS = {"text", "notes", "changed"}
 TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
+SESSION_TEXT_LIMIT = 40
 
 
 def _components(component):
@@ -357,10 +358,25 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
+def _session_text(session, round_input, n):
+    """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
+    if round_input.get("step") is not None:
+        session["step"] = round_input["step"]
+    title = round_input.get("short_title")
+    if title is None:
+        return []
+    if n == 1:
+        session["short_title"] = title
+        return []
+    return [{"code": "ignored-title", "reason": f"the short title is written in round 1 only; round {n} keeps "
+                                                f"{session.get('short_title')!r}, not {title!r}"}]
+
+
 def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
-    `round_input` holds banner, items and optional maps, replies, colour. An item may carry
+    `round_input` holds banner, items and optional maps, replies, colour, short_title (round 1), step and
+    changed (the element ids the agent changed this round). A reply is {text, notes, changed}. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
@@ -376,6 +392,12 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("bad-round", "banner is required: settled, unlocks, parked")
     if not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "items must be a list")
+    for field in ("short_title", "step"):
+        value = round_input.get(field)
+        if value is not None and not (isinstance(value, str) and value.strip() and len(value) <= SESSION_TEXT_LIMIT):
+            raise Refusal("bad-round", f"{field} is text of 1 to {SESSION_TEXT_LIMIT} characters: {value!r}")
+    if not _id_list(round_input.get("changed", [])):
+        raise Refusal("bad-round", "changed is a list of element ids")
     if doc_path.exists():
         doc = read_json(doc_path)
         if doc.get("schema") not in (SCHEMA, FORMAT_0):
@@ -394,6 +416,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if links:
         doc["session"]["links"] = links
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
+    warnings = _session_text(doc["session"], round_input, n)
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
     raw_items = round_input.get("items") or []
@@ -415,14 +438,15 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
             raise Refusal("id-reused", f"item {item['id']}: an id is reused: {reused or new}")
         used.update(new)
     built = {"n": n, "state": "current", "banner": round_input["banner"], "items": items}
-    if "colour" in round_input:
-        built["colour"] = round_input["colour"]
+    for optional in ("colour", "changed"):
+        if optional in round_input:
+            built[optional] = round_input[optional]
     for reply in round_input.get("replies") or []:
         _reply(built, reply)
     doc["rounds"].append(built)
     write_json(doc_path, doc)
     return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
-            "degraded": degraded}
+            "degraded": degraded, "warnings": warnings}
 
 
 def _id_list(value):

@@ -207,3 +207,31 @@ def test_a_reply_that_is_not_text_notes_and_changed_is_refused(tmp_path, capsys,
         rd.apply_readings(path, {"replies": [reply]})
     assert refused.value.code == "bad-reply"
     assert path.read_bytes() == before
+
+
+def test_the_round_input_writes_the_short_title_the_step_and_what_changed(tmp_path, capsys):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    answer = rd.build_round_document(path, SESSION, {**round_input("i-a"), "short_title": "Order export",
+                                                     "step": "Format questions", "changed": ["i-a-body"]})
+    doc = read(path)
+    assert (doc["session"]["short_title"], doc["session"]["step"]) == ("Order export", "Format questions")
+    assert doc["rounds"][0]["changed"] == ["i-a-body"] and answer["warnings"] == []
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_a_short_title_in_a_later_round_is_ignored_with_a_warning(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a accept\ni-b accept")
+    answer = rd.build_round_document(path, SESSION, {**round_input("i-c"), "short_title": "Another title",
+                                                     "step": "Later step"})
+    doc = read(path)
+    assert doc["session"].get("short_title") is None and doc["session"]["step"] == "Later step"
+    assert [warning["code"] for warning in answer["warnings"]] == ["ignored-title"]
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+@pytest.mark.parametrize("field", [{"short_title": "x" * 41}, {"step": ""}, {"changed": "i-a"}])
+def test_a_bad_title_step_or_change_list_is_refused(tmp_path, field):
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(tmp_path / "pages" / "grill-s-1.json", SESSION, {**round_input("i-a"), **field})
+    assert refused.value.code == "bad-round"
+    assert not (tmp_path / "pages" / "grill-s-1.json").exists()
