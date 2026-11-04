@@ -50,7 +50,8 @@ from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
 
 SCHEMA_V0 = "afkv2.page/0"
-SCHEMA_FILES = {SCHEMA_V0: ENGINE_DIR / "schema" / "page-v0.schema.json"}
+SCHEMA_V1 = "afkv2.page/1"
+SCHEMA_FILES = registry.SCHEMA_FILES
 PAGES_FOLDER = "pages"
 MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
@@ -64,7 +65,11 @@ def read_v0(raw: dict) -> dict:
     return raw
 
 
-READERS = {SCHEMA_V0: read_v0}
+def _read_page_v1(raw: dict) -> dict:
+    return raw
+
+
+READERS = {SCHEMA_V0: read_v0, SCHEMA_V1: _read_page_v1}
 
 
 def load_document(path: str) -> tuple[dict, dict]:
@@ -218,10 +223,10 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
         raise _refuse(raw, found, "schema")
     found = []
     for m, map_ in enumerate(doc.get("maps") or []):
-        found += registry.validate(map_, ("maps", m))
+        found += registry.validate(map_, ("maps", m), schema_name=doc["schema"])
     for r, round_ in enumerate(doc["rounds"]):
         for i, item in enumerate(round_["items"]):
-            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"))
+            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"), schema_name=doc["schema"])
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
