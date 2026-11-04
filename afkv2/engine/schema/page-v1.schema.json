@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "page-document-v1",
+  "title": "Page document, version 1",
+  "description": "Frozen once released. A change is a new schema value with its own file and reader. Each component type checks its own props with its registered schema. The rules a schema cannot state live in schema/invariants.py. Document: schema is afkv2.page/1; adds notes (one list for the session) and value_sets: {name: {values, ordered}}.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "session", "rounds"],
+  "properties": {
+    "schema": {"const": "afkv2.page/1"},
+    "session": {"$ref": "#/$defs/session"},
+    "maps": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
+    "notes": {
+      "description": "One list for the whole session (ADR-0001 design). No note write touches a round.",
+      "type": ["array", "null"], "items": {"$ref": "#/$defs/note"}
+    },
+    "value_sets": {
+      "description": "Named value sets, {name: {values, ordered}}. A chip names one by its set.",
+      "type": ["object", "null"], "additionalProperties": {"$ref": "#/$defs/value_set"}
+    },
+    "rounds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/round"}}
+  },
+  "$defs": {
+    "text_list": {"type": "array", "items": {"type": "string"}},
+    "id_list": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "utc_time": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?Z$"},
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "skill", "feature", "started", "step"],
+      "properties": {
+        "id": {"description": "As format 0. Unique per pages folder.", "type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "skill": {"description": "A page writer's name: grill, propose-solution, to-subtasks, use-lavish. Was 1 of 3 names.",
+                  "enum": ["grill", "propose-solution", "to-subtasks", "use-lavish"]},
+        "feature": {"description": "As format 0.", "type": "string", "minLength": 1},
+        "ticket": {"description": "The ticket key; none on an ad-hoc page with no ticket. Was required.",
+                   "type": ["string", "null"], "minLength": 1},
+        "started": {"description": "As format 0.", "$ref": "#/$defs/utc_time"},
+        "links": {"description": "As format 0.", "$ref": "#/$defs/links"},
+        "short_title": {"description": "40 characters at most. Written in round 1, never changed. None on an upgraded format 0 page.",
+                        "type": ["string", "null"], "minLength": 1, "maxLength": 40},
+        "step": {"description": "40 characters at most. grill: Requirements grill; propose-solution: Solution design; to-subtasks: Plan approval; ad hoc: the topic.",
+                 "type": "string", "minLength": 1, "maxLength": 40},
+        "private": {"description": "Default false. True: the content is not for the repository's readers.", "type": "boolean"},
+        "takeovers": {"description": "Default empty. 1 entry per new session that took the page over.",
+                      "type": "array", "items": {"$ref": "#/$defs/takeover"}}
+      }
+    },
+    "takeover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["round", "at"],
+      "properties": {
+        "round": {"type": "integer", "minimum": 1},
+        "at": {"description": "ISO-8601 UTC.", "$ref": "#/$defs/utc_time"}
+      }
+    },
+    "url_template": {"type": "string", "pattern": "^https?://[^\\s\"<>]*[{]id[}][^\\s\"<>]*$"},
+    "links": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "issue": {"$ref": "#/$defs/url_template"},
+        "change": {"$ref": "#/$defs/url_template"},
+        "commit": {"$ref": "#/$defs/url_template"},
+        "ticket": {"$ref": "#/$defs/url_template"},
+        "projects": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"}}
+      }
+    },
+    "value_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["values", "ordered"],
+      "properties": {
+        "values": {"$ref": "#/$defs/text_list"},
+        "ordered": {"type": "boolean"}
+      }
+    },
+    "round": {
+      "description": "Adds changed: the element ids the agent changed this round. Loses notes: they move to the session list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "state", "banner", "items"],
+      "properties": {
+        "n": {"type": "integer", "minimum": 1},
+        "state": {"enum": ["current", "settled"]},
+        "colour": {"type": ["string", "null"]},
+        "banner": {"$ref": "#/$defs/banner"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+        "responses": {"type": ["array", "null"], "items": {"$ref": "#/$defs/response"}},
+        "replies": {"type": ["array", "null"], "items": {"$ref": "#/$defs/answer"}},
+        "changed": {"$ref": "#/$defs/id_list"}
+      }
+    },
+    "banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settled", "unlocks", "parked"],
+      "properties": {
+        "settled": {"$ref": "#/$defs/text_list"},
+        "unlocks": {"$ref": "#/$defs/text_list"},
+        "parked": {"$ref": "#/$defs/text_list"}
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["received", "raw", "signals"],
+      "properties": {
+        "received": {"$ref": "#/$defs/utc_time"},
+        "raw": {"type": "string"},
+        "signals": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["stamp"]}}
+      }
+    },
+    "answer": {
+      "description": "An answer holds id and notes, or, read on format 0 pages only, about.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "id": {"description": "A-<round>-<k>. Unique in the document.", "type": "string", "pattern": "^A-[1-9][0-9]*-[1-9][0-9]*$"},
+        "text": {"description": "The answer.", "type": "string"},
+        "notes": {"description": "1 or more note ids; the answer shows in each note's row.",
+                  "type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "changed": {"description": "Default empty. Each element the answer changed; each gets a link.", "$ref": "#/$defs/id_list"},
+        "about": {"description": "Read on format 0 pages only.", "type": ["array", "null"], "items": {"type": "string"}}
+      }
+    },
+    "item": {
+      "description": "A card. Loses notes: they move to the session list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "body"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["decided", "confirm", "debate", "signoff", "info"]},
+        "title": {"type": ["string", "null"], "minLength": 1, "maxLength": 90},
+        "node": {"type": ["string", "null"]},
+        "carries": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}},
+        "state": {"enum": ["open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"]},
+        "body": {"$ref": "#/$defs/component"},
+        "settled": {"$ref": "#/$defs/settled"}
+      }
+    },
+    "settled": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["by", "round", "signal"],
+      "properties": {
+        "by": {"enum": ["mark", "note"]},
+        "round": {"type": "integer", "minimum": 1},
+        "signal": {"type": "string", "minLength": 1},
+        "reading": {"type": "string"}
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "round", "target", "text", "deleted"],
+      "properties": {
+        "id": {"description": "A card note N-<round>-<card>-<k>, a steer N-<round>-<target>-<k>, k = 1, 2, ... in send order; an older merged id N-<round>-<card> stays valid. Unique in the document.",
+               "type": "string", "minLength": 1},
+        "round": {"description": "The round it was sent in.", "type": "integer", "minimum": 1},
+        "target": {"description": "The element it sits on.", "type": "string", "minLength": 1},
+        "item": {"description": "The card that holds the element; none for a steer.", "type": ["string", "null"], "minLength": 1},
+        "quote": {"description": "300 characters at most. The text the human selected, apart from their words.",
+                  "type": ["string", "null"], "maxLength": 300},
+        "text": {"description": "The human's words only.", "type": "string"},
+        "deleted": {"description": "The human deleted it.", "type": "boolean"}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "id": {"type": ["string", "null"]},
+        "props": {"type": ["object", "null"]},
+        "style": {"type": ["string", "null"]},
+        "fold": {"type": ["string", "null"], "minLength": 1},
+        "tip": {"description": "300 characters at most.", "type": ["string", "null"], "maxLength": 300},
+        "children": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
+        "html": {"type": "string"}
+      }
+    }
+  }
+}

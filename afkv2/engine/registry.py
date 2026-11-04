@@ -16,7 +16,7 @@ from typing import Callable, Iterable
 from schema.validate import check_schema, problems
 
 COMPONENTS = Path(__file__).resolve().parent / "components"
-PAGE_SCHEMA = json.loads((COMPONENTS.parent / "schema" / "page-v0.schema.json").read_text(encoding="utf-8"))
+PAGE_SCHEMA = json.loads((COMPONENTS.parent / "schema" / "page-v1.schema.json").read_text(encoding="utf-8"))
 COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}
@@ -83,9 +83,11 @@ def _held(component: dict, kind: ComponentType | None) -> list[tuple]:
     return held
 
 
-def validate(component: dict, path: tuple = ()) -> list[tuple]:
-    """Problems of a component and of every component it holds, as `(path, why)`."""
-    shape = problems(component, COMPONENT_SHAPE, path, PAGE_SCHEMA)
+def validate(component: dict, path: tuple = (), page_schema: dict | None = None) -> list[tuple]:
+    """Problems of a component and of every component it holds, as `(path, why)`. The component shape is
+    the one of `page_schema`, the schema of the document's format; by default the newest format."""
+    page_schema = page_schema or PAGE_SCHEMA
+    shape = problems(component, COMPONENT_SHAPE, path, page_schema)
     if shape:
         return shape
     kind = lookup(component["type"])
@@ -104,7 +106,7 @@ def validate(component: dict, path: tuple = ()) -> list[tuple]:
     if found:
         return found
     for sub, child in _held(component, kind):
-        found += validate(child, (*path, *sub))
+        found += validate(child, (*path, *sub), page_schema)
     return found
 
 
