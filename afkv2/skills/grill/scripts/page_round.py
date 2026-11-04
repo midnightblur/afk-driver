@@ -41,8 +41,8 @@ def present(doc):
     _engine("check", doc)
     page = _engine("render", doc).get("page")
     record_shown(doc)
-    _engine("show", doc)
-    return {"ok": True, "page": page}
+    shown = _engine("show", doc)
+    return {"ok": True, "page": page, "url": shown.get("url"), "tab": shown.get("tab")}
 
 
 def _side_question():

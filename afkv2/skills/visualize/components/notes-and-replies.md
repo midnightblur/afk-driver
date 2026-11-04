@@ -3,15 +3,19 @@
 ## Holds
 
 The human's notes and your replies, per round. The human writes a note as a
-lavish annotation. The poll gives it the element id that the annotation names;
-a note on no element becomes a steer on the first map. A note on a card lives on
+lavish annotation. Each annotation is one note. The poll gives it the element id
+that the annotation names. A note on no element becomes a steer on the first
+map, or on the round banner when the page has no map. A note on a card lives on
 its item: `items[].notes[]` with `id`, `round`, `target`, `text`, `deleted`, and
-the engine mints its id as `N-<round>-<item>`. A steer, a note on a map, a map
-node or another element that no card holds, lives on its round:
-`rounds[].notes[]`, id `N-<round>-<target>`. A steer names no card. An older
-document can keep a steer on a card; it is still a steer. A reply
-lives on the round: `rounds[].replies[]` with `text` and `about`, the list of
-the element ids it answers.
+the engine mints its id as `N-<round>-<item>-<k>`. A steer, a note on a map, a
+map node, a round banner or another element that no card holds, lives on its
+round: `rounds[].notes[]`, id `N-<round>-<target>-<k>`. `k` counts 1, 2, 3 per
+card or target in the round, in annotation order. The banner of round n has the
+element id `R-<n>`. A steer names no card. An older document keeps its ids
+`N-<round>-<item>` and `N-<round>-<target>`: one note per card or target per
+round. An older document can keep a steer on a card; it is still a steer. A
+reply lives on the round: `rounds[].replies[]` with `text` and `about`, the list
+of the element ids and note ids it answers.
 
 ## Use it when
 
