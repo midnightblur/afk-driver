@@ -159,19 +159,29 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
     return found, ids, nodes
 
 
+def _tip_term_lookups(token: str) -> set[str]:
+    """The lookup strings in shell/tips.js, before case conversion."""
+    forms = {token}
+    units = sum(2 if ord(char) > 0xFFFF else 1 for char in token)
+    if units > 2 and token[-1:] in ("s", "S"):
+        forms.add(token[:-1])
+        if token[-2:-1] in ("e", "E"):
+            forms.add(token[:-2])
+    return forms
+
+
 def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
-    """Check typed page/1 catalogs without discarding duplicate source entries.
+    """Check typed catalogs without discarding duplicate source entries.
 
     Term identity follows shell/tips.js: lowercase keys ignore case; other keys
-    keep their case. A trailing s/es may vary in case when the token exceeds 2
-    UTF-16 units. IDs match only the complete, same-case element ID.
+    keep their case. IDs match only the complete, same-case element ID.
     """
     if doc["schema"] != SCHEMA_V1:
         return []
     found = []
     tips = doc.get("tips", {})
     for catalog, key in (("terms", "term"), ("ids", "id")):
-        exact, folded, insensitive = {}, {}, {}
+        exact, insensitive, witnesses, folded_witnesses = {}, {}, {}, {}
         for index, entry in enumerate(tips.get(catalog, [])):
             token = entry[key]
             path = ("tips", catalog, index, key)
@@ -180,23 +190,35 @@ def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
             ignore_case = catalog == "terms" and token == token.lower()
             forms = {token}
             if catalog == "terms":
-                units = sum(2 if ord(char) > 0xFFFF else 1 for char in token)
-                forms.update(token + tail for tail in ("s", "S", "es", "eS", "Es", "ES")
-                             if units + len(tail) > 2)
+                # Uppercase sigma is the contextual lowercase mapping: adding a
+                # cased plural suffix can change final sigma to medial sigma.
+                if ignore_case:
+                    forms.update(token[:n] + "\u03a3" + token[n + 1:] for n, char in enumerate(token)
+                                 if char in ("\u03c2", "\u03c3"))
+                forms = {base + tail for base in forms for tail in ("", "s", "S", "es", "eS", "Es", "ES")}
+                lookups = set()
+                for form in forms:
+                    candidates = _tip_term_lookups(form)
+                    if token in candidates or (ignore_case and any(part.lower() == token for part in candidates)):
+                        lookups.update(candidates)
+            else:
+                lookups = forms
             conflicts = set()
-            for form in forms:
-                previous = folded.get(form.lower()) if ignore_case else exact.get(form)
-                if previous is not None:
-                    conflicts.add(previous)
-                if catalog == "terms" and form.lower() in insensitive:
-                    conflicts.add(insensitive[form.lower()])
+            previous = (folded_witnesses if ignore_case else witnesses).get(token)
+            if previous is not None:
+                conflicts.add(previous)
+            for part in lookups:
+                for previous in (exact.get(part), insensitive.get(part.lower())):
+                    if previous is not None:
+                        conflicts.add(previous)
             for previous in sorted(conflicts):
                 found.append((path, f"matches the same token as tips.{catalog}[{previous}].{key}"))
-            for form in forms:
-                exact.setdefault(form, index)
-                folded.setdefault(form.lower(), index)
-                if ignore_case:
-                    insensitive.setdefault(form.lower(), index)
+            exact.setdefault(token, index)
+            if ignore_case:
+                insensitive.setdefault(token, index)
+            for part in lookups:
+                witnesses.setdefault(part, index)
+                folded_witnesses.setdefault(part.lower(), index)
     return found
 
 

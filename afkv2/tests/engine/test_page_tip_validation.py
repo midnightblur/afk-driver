@@ -104,3 +104,22 @@ def test_supplementary_unicode_plural_collision_paths(tmp_path, capsys):
     assert answer["error"]["code"] == "invariant"
     assert "tips.terms[0].term" in answer["error"]["reason"]
     assert "tips.terms[1].term" in answer["error"]["reason"]
+
+
+@pytest.mark.parametrize("keys", [["\u03bf\u03c2", "\u039f\u03a3s"], ["\u039f\u03a3s", "\u03bf\u03c2"],
+                                   ["\u03bf\u03c2", "\u03bf\u03c3s"], ["\u03bf\u03c3s", "\u03bf\u03c2"],
+                                   ["\u03bf\u03c3 \u03bf\u03c2", "\u03bf\u03c3 \u03bf\u03c3s"]])
+def test_contextual_lowercase_plural_collision_paths(tmp_path, capsys, keys):
+    doc = document()
+    doc["tips"] = {"terms": [{"term": key, "definition": "Meaning"} for key in keys]}
+    status, answer = check(tmp_path, capsys, doc)
+    assert status == 1, answer
+    assert "tips.terms[0].term" in answer["error"]["reason"]
+    assert "tips.terms[1].term" in answer["error"]["reason"]
+
+
+def test_distinct_sigma_terms_pass(tmp_path, capsys):
+    doc = document()
+    doc["tips"] = {"terms": [{"term": key, "definition": "Meaning"} for key in ("\u03bf\u03c2", "\u03bf\u03c3")]}
+    status, answer = check(tmp_path, capsys, doc)
+    assert status == 0, answer
