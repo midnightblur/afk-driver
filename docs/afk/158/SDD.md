@@ -28,7 +28,7 @@ This SDD and its accepted ADRs are binding on implementing agents and reviewers.
 
 | Aspect | Section | Status | Signed by / date | Approved wording |
 |--------|---------|--------|------------------|------------------|
-| HL-1 Persistence and entity design | §4 | signed | developer / 2026-11-03 | the tables of card s-persistence-r3, signed in round 3 (round 2 sign returned by the note on a change that needs fixing, answered: gc refuses an open change) |
+| HL-1 Persistence and entity design | §4 | signed | developer / 2026-11-03 | the tables of card s-persistence-r3, signed in round 3 (round 2 sign returned by the note on a change that needs fixing, answered: gc refuses an open change); amendment signed in chat 2026-11-03: `change` is null when the forge shows no merged change (plan decision D-7, option A of D-6) |
 | HL-2 API surface | §3 | signed | developer / 2026-11-03 | the tables of card s-api-r3, signed in round 3 (round 2 sign returned by the note on more than 100 changes, answered: a long-lived branch; gc refuses) |
 | HL-3 Authorization and data scoping | §5 | signed | developer / 2026-11-03 | the tables of card s-access, signed in round 2 with no note |
 | HL-4 Life cycle and invariants | §6 | signed | developer / 2026-11-03 | the tables of card s-lifecycle-r3, signed in round 3, with the rename failure told apart by its Windows error as the developer asked in round 2 |
@@ -116,7 +116,7 @@ gc target, signed as HL-1:
 | run_branch | text | no | feature_branch + `-run` | — | — | — | |
 | run_worktree | text, full folder path | no | feature_worktree + `-run` | — | stored even when the folder does not exist | — | |
 | remote | text | no | `origin` | — | — | — | the remote of both remote branches |
-| change | object: number (whole number), url, state (`merged`), head_sha (40 hex), target (branch name) | no | — | — | the newest merged change | — | |
+| change | object: number (whole number), url, state (`merged`), head_sha (40 hex), target (branch name) | yes: null when the forge shows no merged change (refusal RF-1 or RF-2) | — | — | the newest merged change; remove and finish read null as "no head commit" | — | amended 2026-11-03, plan decision D-7 |
 | tips | object: item → commit id | a value may be empty | — | 40 hex | empty = the branch did not exist | — | each branch tip at the list |
 | receipt | text | no | — | 64 hex | SHA-256 of the list shown | — | |
 | state | `listed` or `waiting` | no | `listed` | — | `done` is the file deleted | — | |
