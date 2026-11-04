@@ -264,3 +264,34 @@ def test_an_answer_about_a_card_on_an_upgraded_page_answers_its_notes():
                      {"id": "N-1-i-b", "round": 1, "target": "i-b", "item": "i-b", "text": "y", "deleted": True}],
            "rounds": [{"n": 1, "replies": [{"text": "old", "about": ["i-a"]}]}]}
     assert rd.unanswered_note_warnings(doc, 1) == []
+
+
+@pytest.mark.parametrize("extra", [{"replies": [{"text": "x", "notes": ["N-9-i-z-1"]}]},
+                                   {"replies": [{"text": "x", "notes": ["N-1-i-a-1"], "changed": ["i-nothing"]}]},
+                                   {"changed": ["i-nothing"]}])
+def test_a_build_with_an_id_that_names_nothing_is_refused(tmp_path, capsys, extra):
+    path = a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a note 1\n  why\ni-b accept")
+    rd.apply_readings(path, {"open": [{"item": "i-a", "reply": "Again."}]})
+    before = path.read_bytes()
+    built = {**round_input("i-c"), **extra}
+    built["items"][0]["carries"] = ["i-a"]
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, built)
+    assert refused.value.code == "bad-link" and path.read_bytes() == before
+
+
+@pytest.mark.parametrize("readings", [{"replies": [{"text": "x", "notes": ["N-1-i-z-1"]}]},
+                                      {"replies": [{"text": "x", "notes": ["N-1-i-a-1"], "changed": ["nothing"]}]},
+                                      {"settle": [{"item": "i-a", "note": "N-1-i-a-1", "reading": "r", "changed": ["nothing"]}]}])
+def test_apply_readings_with_an_id_that_names_nothing_is_refused(tmp_path, capsys, readings):
+    path = a_noted_round(tmp_path, capsys)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(path, readings)
+    assert refused.value.code == "bad-link" and path.read_bytes() == before
+
+
+def test_an_answer_may_name_a_card_a_component_and_a_banner(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"replies": [{"text": "x", "notes": ["N-1-i-a-1"], "changed": ["i-a", "i-b-body", "R-1"]}]})
+    assert engine_answer(capsys, "check", path)[0] == 0

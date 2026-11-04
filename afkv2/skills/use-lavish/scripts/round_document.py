@@ -116,6 +116,22 @@ def steer_targets(doc):
     return found
 
 
+def element_ids(doc):
+    """Every id a note, an answer or a change list may name: cards, components, maps, map nodes and the round
+    banners `R-<n>`, as the engine counts them."""
+    return _used_ids(doc) | steer_targets(doc) | {f"R-{rnd['n']}" for rnd in doc.get("rounds") or []}
+
+
+def refuse_bad_links(doc, answers, changed=()):
+    """Refuse `bad-link` when an answer names a note or an element that does not exist, or a change list an element."""
+    notes, elements = {note["id"] for note in doc.get("notes") or []}, element_ids(doc)
+    bad = [f"note {value!r}" for answer in answers for value in answer.get("notes") or [] if value not in notes]
+    bad += [f"element {value!r}" for value in [*changed, *(v for answer in answers for v in answer.get("changed") or [])]
+            if value not in elements]
+    if bad:
+        raise Refusal("bad-link", f"these ids name nothing: {', '.join(dict.fromkeys(bad))}")
+
+
 def card_notes(doc, item, targets):
     """The live notes that name a card and are no steer. An older document names a card in a steer."""
     return [note for note in _notes_of(doc, item) if note.get("target") not in targets]
@@ -459,6 +475,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     for reply in round_input.get("replies") or []:
         _reply(built, reply)
     doc["rounds"].append(built)
+    refuse_bad_links(doc, built.get("replies") or [], built.get("changed") or [])
     warnings += unanswered_note_warnings(doc, n - 1)
     write_json(doc_path, doc)
     return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
@@ -554,6 +571,7 @@ def apply_readings(doc_path, readings):
         raise Refusal("bad-document", "no round is current")
     if not isinstance(readings, dict) or not readings or set(readings) - {"settle", "open", "unblock", "replies"}:
         raise Refusal("bad-payload", "readings: one object with settle, open, unblock, replies")
+    answered = len(current.get("replies") or [])
     for entry in readings.get("settle") or []:
         _settle(doc, current, entry)
     for entry in readings.get("open") or []:
@@ -562,6 +580,7 @@ def apply_readings(doc_path, readings):
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
         _reply(current, reply)
+    refuse_bad_links(doc, (current.get("replies") or [])[answered:])
     write_json(doc_path, doc)
     return {"ok": True, **pending(doc)}
 
