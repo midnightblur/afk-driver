@@ -30,7 +30,7 @@
   body.afkv2-with-nav { padding-top: 3.5rem; }
   @media (min-width: 1100px) {
     #afkv2-nav {
-      top: 14px; left: 14px; width: 236px; max-height: calc(100vh - 28px);
+      top: 14px; left: 14px; width: 236px; max-height: calc(100vh - 70px);
       flex-direction: column; flex-wrap: nowrap; align-items: stretch;
     }
     #afkv2-nav-tools { padding: 0 8px 6px; }

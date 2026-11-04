@@ -295,6 +295,18 @@ def test_the_navigation_no_longer_shares_the_bottom_left_corner_with_btw():
     assert TOOLS_HOLD_JUMP in TIPS_JS
 
 
+BTW_CSS = (SHELL / "btw.css").read_text("utf-8")
+BTW_RULE, BTW_BUTTON_PX = "#afkv2-btw", 32
+
+
+def test_a_full_navigation_on_a_wide_window_ends_above_the_btw_button():
+    """Finding f1 of the review: a long rail reached 14 px above the window bottom, under the btw? button."""
+    top = int(re.search(r"top: (\d+)px", rule(TIPS_CSS, NAV_RULE, wide_query())).group(1))
+    reserved = int(re.search(r"max-height: calc\(100vh - (\d+)px\)", rule(TIPS_CSS, NAV_RULE, wide_query())).group(1))
+    btw_bottom = int(re.search(r"bottom: (\d+)px", rule(BTW_CSS, BTW_RULE)).group(1))
+    assert reserved - top >= btw_bottom + BTW_BUTTON_PX
+
+
 def test_the_collapsed_navigation_is_kept_per_session_where_a_sandboxed_frame_can_write():
     assert NAV_KEY in TIPS_JS and "window.name" in TIPS_JS
     assert "location.pathname" not in TIPS_JS
