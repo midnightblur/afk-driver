@@ -606,3 +606,20 @@ def test_a_run_worktree_in_use_stays_with_its_branch_and_every_later_item(repo, 
     assert partial.extra["removed"] == [] and partial.extra["failed"]["code"] == "in-use"
     assert partial.extra["left"] == [item for _, item, _ in cleanup.ITEMS]
     untouched(repo)
+
+
+@pytest.mark.parametrize("folder", ["relative", "another repository"])
+def test_a_run_worktree_that_is_not_an_absolute_linked_worktree_of_the_repository_is_left_alone(repo, monkeypatch, windows, folder):
+    merged(repo, monkeypatch)
+    if folder == "another repository":
+        git(repo.main, "worktree", "remove", "--force", str(repo.run))
+        Path(repo.run).mkdir()
+        git(repo.run, "init", "-q")
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    if folder == "relative":
+        target = gc_target.read_target(repo.main, FEATURE)
+        gc_target.write_target(repo.main, {**target, "run_worktree": "feature-run"})
+    partial = refused("partial", cleanup.remove_step, repo.main, FEATURE, receipt)
+    assert (partial.extra["failed"]["item"], partial.extra["failed"]["code"]) == ("run worktree", "not-a-worktree")
+    assert partial.extra["removed"] == [] and Path(repo.run).is_dir()
+    assert RUN in local_heads(repo)

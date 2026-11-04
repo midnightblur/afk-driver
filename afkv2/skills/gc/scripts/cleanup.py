@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -212,8 +213,20 @@ def _checked(main, *args):
     return out
 
 
+def _same_folder(path):
+    return os.path.normcase(str(Path(path).resolve()))
+
+
 def _remove_run_worktree(main, target, lease):
-    return folder_remove.remove_worktree_folder(main, target["run_worktree"])["result"]
+    """Remove the run worktree only when its path is absolute and, while it exists, a linked worktree of this
+    repository: the folder removal checks nothing about the folder it gets."""
+    folder = Path(target["run_worktree"])
+    lines = _checked(main, "worktree", "list", "--porcelain").splitlines()
+    linked = {_same_folder(line.removeprefix("worktree ")) for line in lines[1:] if line.startswith("worktree ")}
+    if not folder.is_absolute() or (os.path.lexists(folder) and _same_folder(folder) not in linked):
+        raise Refusal("not-a-worktree", f"{folder} is not an absolute path of a linked worktree of this repository; "
+                                        "gc leaves it", folder=str(folder))
+    return folder_remove.remove_worktree_folder(main, folder)["result"]
 
 
 def _remove_local_branch(main, name, lease):
