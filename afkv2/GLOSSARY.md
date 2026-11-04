@@ -51,7 +51,15 @@ An unprotected branch that several teams merge into. Its CI must stay passable, 
 
 **Run branch**:
 An orphan branch per feature that holds the run files (the plan folder, journal, decision ledger, review telemetry). The spec folder (PRD, SDD, ADRs, grill log, page documents) is not a run file; it stays with the feature's change. gc removes the run branch after the change merges; no record of the run is kept.
-`Related:` Chain
+`Related:` Chain, Run worktree
+
+**Run worktree**:
+The worktree of the run branch, in the folder of the feature worktree plus `-run`. Autopilot adds it; gc removes it, with the run branch, after the change merges.
+`Related:` Run branch, gc target
+
+**gc target**:
+The record of what gc listed for one feature branch: one JSON file in git's own folder, `afkv2-gc/<encoded branch>.json`, never committed. The removal and the later command act only on it. The later command deletes it when nothing is left.
+`Related:` Run worktree, Merged
 
 **Smart zone**:
 The context size in which an agent still works well, about 300k tokens. A subtask must fit inside it; an oversized one is split.
