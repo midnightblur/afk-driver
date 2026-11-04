@@ -393,7 +393,7 @@ def test_we_02_a_note_settles_then_a_mark_and_a_note_reopen(path):
     assert check(save(path, after)) == 0
     engine.save_settled_copy(path, after)
 
-    answer, after = ingested(path, after, "[round R-4]\nV-5 accept | only for terms\ni-4 —")
+    answer, after = ingested(path, after, "[round R-4]\nV-5 accept\nV-5 note 1\n  only for terms\ni-4 —")
     point = item_of(after, "V-5")
     assert point["state"] == "open" and "settled" not in point
     assert answer["reopened"] == ["V-5"]
@@ -509,7 +509,7 @@ def test_two_steers_on_one_target_in_one_round_are_two_notes(path):
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
     _, after = ingested(path, doc, "[round R-1]\ni-a — | card\nn-1 — | one")
-    _, after = ingested(path, after, "[round R-1]\nn-1 — | two")
+    _, after = ingested(path, after, "[round R-1]\nn-1 note 1\n  two")
     assert notes_of(after, "i-a")[0]["text"] == "card"
     assert [(s["id"], s["text"]) for s in steers_of(after, 1)] == [("N-1-n-1-1", "one"), ("N-1-n-1-2", "two")]
     assert check(path) == 0
@@ -571,7 +571,7 @@ def test_a_steer_on_the_round_can_be_edited_and_deleted(path):
     doc = one_round(card("i-a"))
     doc["maps"] = [a_map("n-1")]
     _, after = ingested(path, doc, "[round R-1]\nn-1 — | first")
-    answer, after = ingested(path, after, "[round R-1]\nN-1-n-1-1 edit | second")
+    answer, after = ingested(path, after, "[round R-1]\nN-1-n-1-1 edit\n  second")
     assert steers_of(after, 1)[0]["text"] == "second" and answer["signals"][0]["item"] is None
     answer, after = ingested(path, after, "[round R-1]\nN-1-n-1-1 delete")
     assert steers_of(after, 1)[0]["deleted"] is True and answer["signals"][0]["state"] is None
@@ -697,7 +697,7 @@ def test_notes_on_every_kind_of_element_are_accepted(path):
 def test_editing_a_note_keeps_its_id_and_needs_a_new_reading(path):
     _, after = ingested(path, one_round(card("i-a"), card("i-b")), "[round R-1]\ni-a — | first\ni-b —")
     reading(after, "i-a", "N-1-i-a-1")
-    answer, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 edit | second\nline two\ni-b —")
+    answer, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 edit\n  second\n  line two\ni-b —")
     point = item_of(after, "i-a")
     assert notes_of(after, point["id"]) == [{"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "second\nline two", "deleted": False}]
     assert point["state"] == "open" and "settled" not in point and answer["reopened"] == ["i-a"]
@@ -725,7 +725,7 @@ def test_deleting_the_note_a_point_rests_on_reopens_the_point(path):
 def test_a_new_note_after_a_delete_takes_the_next_id(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | first")
     _, after = ingested(path, after, "[round R-1]\nN-1-i-a-1 delete")
-    _, after = ingested(path, after, "[round R-1]\ni-a — | again")
+    _, after = ingested(path, after, "[round R-1]\ni-a note 1\n  again")
     assert notes_of(after, "i-a") == [
         {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "first", "deleted": True},
         {"id": "N-1-i-a-2", "round": 1, "target": "i-a", "item": "i-a", "text": "again", "deleted": False}]
@@ -776,7 +776,7 @@ def test_a_reply_may_name_a_note_id_in_about(path, capsys):
 
 def test_the_same_note_sent_twice_is_one_note(path):
     _, after = ingested(path, one_round(card("i-a")), "[round R-1]\ni-a — | one")
-    _, after = ingested(path, after, "[round R-1]\ni-a — | one")
+    _, after = ingested(path, after, "[round R-1]\ni-a note 1\n  one")
     assert notes_of(after, "i-a")[0]["text"] == "one"
 
 
@@ -787,7 +787,7 @@ def test_editing_a_note_of_an_older_round_saves_the_copy(path):
     after["rounds"].append(round_of(3, card("i-3")))
     save(path, after)
     engine.save_settled_copy(path, after)
-    _, after = ingested(path, after, "[round R-3]\nN-2-i-old-1 edit | y\ni-3 —")
+    _, after = ingested(path, after, "[round R-3]\nN-2-i-old-1 edit\n  y\ni-3 —")
     assert notes_of(after, "i-old")[0]["id"] == "N-2-i-old-1"
     assert check(path) == 0
 

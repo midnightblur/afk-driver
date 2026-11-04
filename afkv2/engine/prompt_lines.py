@@ -1,4 +1,14 @@
-"""Turn the prompts of one host poll into one raw response in the ingest grammar (`ingest.py`).
+"""Turn the prompts of one host poll into one raw response, in the grammar of the page's format. This module
+is the one home of both grammars; ingest (`ingest.py`) is their one parser.
+
+Format 0: first line `[round R-n]`, then `<id> <token>` or `<id> <token> | <note>`, an em dash for no
+choice; the mark of an element shares the line of its first note; a selection keeps `(on: "<excerpt>")`
+inside the note.
+
+Format 1 (SDD §3): first line `[round R-n]`. A mark is `<element id> <mark>`. Each note is its own entry:
+a line `<element id> note <k>`, k = 1, 2, 3 per element in the send, then an optional line
+`  on: "<noted text>"`, then the note's words on the following lines, each indented 2 spaces. An edit is
+`<note id> edit` with the new words indented the same way; a delete is `<note id> delete`.
 
 A prompt is `{uid, prompt, selector, tag, text}`. The page queues a mark as a prompt with the tag
 `afkv2-mark`. A prompt with the tag `afkv2-btw` is a side question: the btw? panel posts its questions
@@ -11,9 +21,15 @@ from __future__ import annotations
 
 import re
 
-from ingest import NO_CHOICE, NOTE_SEPARATOR
 from schema.note_rules import round_target
 
+FORMAT_0 = "afkv2.page/0"
+NO_CHOICE = "—"
+NOTE_SEPARATOR = " | "
+NOTE_WORD = "note"
+QUOTE_LINE = '  on: "'
+INDENT = "  "
+QUOTE_LIMIT = 300
 MARK_TAG = "afkv2-mark"
 BTW_TAG = "afkv2-btw"
 CONTEXT_DATA = "\n\nContext data:\n"
@@ -42,9 +58,9 @@ def selector_target(selector: str, ids: dict, aliases: dict | None = None) -> st
     return None
 
 
-def _excerpt(text: str) -> str:
+def _excerpt(text: str, limit: int = EXCERPT_LIMIT) -> str:
     words = " ".join(text.split())
-    return words if len(words) <= EXCERPT_LIMIT else words[:EXCERPT_LIMIT - 1] + "…"
+    return words if len(words) <= limit else words[:limit - 1] + "…"
 
 
 def fallback_target(doc: dict, ids: dict) -> str | None:
@@ -71,15 +87,19 @@ def split_side_questions(prompts: list[dict]) -> tuple[list[dict], list[str]]:
     return round_prompts, questions
 
 
-def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None) -> str:
-    """First line `[round R-n]` of the current round; then one line per element, in first-seen order.
+def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None,
+                     page_format: str | None = None) -> str:
+    """First line `[round R-n]` of the current round; then the lines of each element, in first-seen order.
 
     `aliases` maps an HTML id that is no element id, such as a row of the notes table, to its element.
+    `page_format` is the schema value of the page file, by default the document's own: a format 0 page
+    keeps its format 0 grammar.
 
-    Each annotation is one line, so ingest makes one note of it. The mark of an element shares the line
-    of its first note. A selection, and an annotation on no known element, keeps an excerpt of the text it
-    was on. No prompt with words is dropped: a prompt with no known element lands on `fallback_target`.
+    Each annotation is one note. A selection, and an annotation on no known element, keeps the text it was
+    on: format 0 as an excerpt inside the note, format 1 in the note's `on:` line. No prompt with words is
+    dropped: a prompt with no known element lands on `fallback_target`.
     """
+    old_grammar = (page_format or doc.get("schema")) == FORMAT_0
     n = next(r for r in doc["rounds"] if r["state"] == "current")["n"]
     order: list[tuple[str, str]] = []
     marks: dict[str, str] = {}
@@ -111,23 +131,40 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
         seen = str(prompt.get("text") or "")
         target = selector_target(selector, ids, aliases)
         note = text.strip()
+        quote = None
         if seen.strip() and (tag == SELECTION_TAG or (target is None and selector and tag not in NO_EXCERPT_TAGS)):
-            note = f'{note} (on: "{_excerpt(seen)}")'.strip()
-        if not note:
+            quote = _excerpt(seen, EXCERPT_LIMIT if old_grammar else QUOTE_LIMIT)
+        if old_grammar and quote:
+            note, quote = f'{note} (on: "{quote}")'.strip(), None
+        if not note and not quote:
             continue
         target = target or fallback_target(doc, ids)
         if target is None:
             order.append(("line", note))
             continue
         entry(target)
-        notes[target].append(note)
+        notes[target].append((note, quote))
 
     lines = [f"[round R-{n}]"]
     for kind, value in order:
         if kind == "line":
             lines.append(value)
-            continue
-        first, *more = notes[value] or [None]
-        lines.append(f"{value} {marks.get(value, NO_CHOICE)}" + (NOTE_SEPARATOR + first if first else ""))
-        lines += [f"{value} {NO_CHOICE}{NOTE_SEPARATOR}{note}" for note in more]
+        elif old_grammar:
+            first, *more = [note for note, _ in notes[value]] or [None]
+            lines.append(f"{value} {marks.get(value, NO_CHOICE)}" + (NOTE_SEPARATOR + first if first else ""))
+            lines += [f"{value} {NO_CHOICE}{NOTE_SEPARATOR}{note}" for note in more]
+        else:
+            lines += [f"{value} {marks[value]}"] if value in marks else []
+            lines += note_entry(value, notes[value])
     return "\n".join(lines)
+
+
+def note_entry(target: str, notes: list[tuple[str, str | None]]) -> list[str]:
+    """The format 1 lines of the notes on one element: `(words, noted text or None)` each, in send order."""
+    lines = []
+    for k, (words, quote) in enumerate(notes, start=1):
+        lines.append(f"{target} {NOTE_WORD} {k}")
+        if quote:
+            lines.append(f'{QUOTE_LINE}{quote}"')
+        lines += [INDENT + line for line in words.split("\n")] if words else []
+    return lines

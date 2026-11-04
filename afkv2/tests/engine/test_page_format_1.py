@@ -231,3 +231,108 @@ def test_a_format_1_note_settles_its_card_from_the_session_list(capsys, tmp_path
     assert check(capsys, tmp_path, doc)[0] == 0
     note["deleted"] = True
     assert "field settled.signal" in refused(capsys, tmp_path, doc)["reason"]
+
+
+# --- the raw answer text of format 1, and ingest into the session list
+
+
+def raw_of(doc, prompts):
+    raw_doc = doc
+    doc = engine.READERS[raw_doc["schema"]](raw_doc)
+    _, ids, _ = engine._element_ids(doc)
+    return engine.prompt_lines.raw_from_prompts(doc, prompts, ids, None, raw_doc["schema"])
+
+
+def annotation(words, selector="article#i-a", tag="p", seen=""):
+    return {"uid": words, "prompt": words, "selector": selector, "tag": tag, "text": seen}
+
+
+def mark(line):
+    return {"uid": line, "prompt": line, "selector": "", "tag": "afkv2-mark", "text": ""}
+
+
+def ingest(capsys, tmp_path, doc, raw):
+    path = save(tmp_path / "doc.json", doc)
+    raw_file = tmp_path / "raw.txt"
+    raw_file.write_bytes(raw.encode("utf-8"))
+    code, answer = call(capsys, "ingest", path, "--raw-file", raw_file)
+    return code, answer, json.loads(path.read_text("utf-8"))
+
+
+def test_format_1_gives_each_note_its_own_entry():
+    prompts = [mark("i-a accept"), annotation("one"), annotation("two\nlines"),
+               annotation("three", tag="text", seen="the  selected\ntext")]
+    assert raw_of(v1_document(), prompts) == "\n".join([
+        "[round R-1]", "i-a accept",
+        "i-a note 1", "  one",
+        "i-a note 2", "  two", "  lines",
+        "i-a note 3", '  on: "the selected text"', "  three"])
+
+
+def test_a_format_0_page_keeps_its_format_0_grammar():
+    doc = v0_document()
+    prompts = [annotation("one", selector="article#i-new"), annotation("two", selector="article#i-new")]
+    assert raw_of(doc, prompts) == "[round R-2]\ni-new — | one\ni-new — | two"
+
+
+def test_3_notes_on_one_element_are_3_notes_in_the_session_list(capsys, tmp_path):
+    raw = raw_of(v1_document(), [annotation("one"), annotation("two"), annotation("three")])
+    code, answer, after = ingest(capsys, tmp_path, v1_document(), raw)
+    assert code == 0, answer
+    assert [(n["id"], n["item"], n["text"]) for n in after["notes"]] == [
+        ("N-1-i-a-1", "i-a", "one"), ("N-1-i-a-2", "i-a", "two"), ("N-1-i-a-3", "i-a", "three")]
+    assert answer["notes"] == ["N-1-i-a-1", "N-1-i-a-2", "N-1-i-a-3"]
+    assert all("notes" not in item for r in after["rounds"] for item in r["items"])
+    assert after["schema"] == V1 and check(capsys, tmp_path, after)[0] == 0
+
+
+def test_a_note_on_a_selection_keeps_the_noted_text_apart(capsys, tmp_path):
+    seen = "word " * 100
+    raw = raw_of(v1_document(), [annotation("my words", tag="text", seen=seen)])
+    _, answer, after = ingest(capsys, tmp_path, v1_document(), raw)
+    note = after["notes"][0]
+    assert note["text"] == "my words" and len(note["quote"]) == 300 and note["quote"].startswith("word word")
+    assert answer["signals"][0]["quote"] == note["quote"]
+
+
+def test_ingest_parses_the_format_1_entries(capsys, tmp_path):
+    doc = v1_document(round_of(1, card("i-a"), card("i-b")))
+    raw = "\n".join(["[round R-1]", "i-a accept", "i-a note 1", '  on: "a "quoted" bit"', "  first", "    indented",
+                     "  ", "  last", "i-b note 1", "  only words", "R-1 note 1", "  a steer"])
+    code, answer, after = ingest(capsys, tmp_path, doc, raw)
+    assert code == 0, answer
+    first, second, steer = after["notes"]
+    assert first["quote"] == 'a "quoted" bit' and first["text"] == "first\n  indented\n\nlast"
+    assert second.get("quote") is None and second["text"] == "only words"
+    assert steer["item"] is None and steer["id"] == "N-1-R-1-1"
+    assert answer["conflicts"] == [] and answer["needs_reading"] == ["i-a", "i-b"]
+    assert answer["signals"][0]["mark"] == "accept" and answer["signals"][0]["note"] == "N-1-i-a-1"
+
+
+def test_a_note_entry_can_hold_only_the_noted_text(capsys, tmp_path):
+    raw = "[round R-1]\ni-a note 1\n  on: \"just this\""
+    code, answer, after = ingest(capsys, tmp_path, v1_document(), raw)
+    assert code == 0, answer
+    assert after["notes"][0]["quote"] == "just this" and after["notes"][0]["text"] == ""
+
+
+@pytest.mark.parametrize("raw", ["[round R-1]\ni-a — | old form", "[round R-1]\ni-a note 1\nnot indented",
+                                 "[round R-1]\nnope note 1\n  x"])
+def test_a_format_1_page_refuses_a_line_of_another_grammar(capsys, tmp_path, raw):
+    code, answer, _ = ingest(capsys, tmp_path, v1_document(), raw)
+    assert code == 1 and answer["error"]["code"] == "bad-response", answer
+
+
+def test_a_live_format_0_page_ingests_its_format_0_grammar_and_is_written_as_format_1(capsys, tmp_path):
+    raw = "[round R-2]\ni-new — | three"
+    code, answer, after = ingest(capsys, tmp_path, v0_document(), raw)
+    assert code == 0, answer
+    assert after["schema"] == V1 and answer["notes"] == ["N-2-i-new-3"]
+    assert [n["id"] for n in after["notes"]][-1] == "N-2-i-new-3"
+
+
+def test_a_note_edit_in_format_1_takes_the_indented_words(capsys, tmp_path):
+    _, _, after = ingest(capsys, tmp_path, v1_document(), "[round R-1]\ni-a note 1\n  first")
+    code, answer, after = ingest(capsys, tmp_path, after, "[round R-1]\nN-1-i-a-1 edit\n  second")
+    assert code == 0, answer
+    assert after["notes"][0]["text"] == "second" and answer["notes"] == []

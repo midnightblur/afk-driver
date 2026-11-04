@@ -493,9 +493,9 @@ def cmd_poll(args) -> dict:
 
 def poll_raw(document: str, prompts: list[dict]) -> str:
     """The raw response that a poll's prompts make, read against the page document."""
-    _, doc = load_document(document)
+    raw, doc = load_document(document)
     _, ids, _ = _element_ids(doc)
-    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
+    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc), raw["schema"])
 
 
 def set_aside_file(document: str, stamp: str) -> Path:
@@ -522,10 +522,12 @@ def _ingest(args) -> dict:
 
     A refusal of the response sets the kept send aside, with the human's answer in it: a refused send must
     not answer every later poll. A refusal of the document or of an unreadable raw file keeps it."""
+    raw, _ = load_document(args.document)
     check_document(args.document)
     try:
         answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed,
-                                   elements=_element_ids, save_copy=_save_settled_copy_if_possible)
+                                   elements=_element_ids, save_copy=_save_settled_copy_if_possible,
+                                   page_format=raw["schema"])
     except Refusal as refusal:
         aside = None if refusal.code == "unreadable" else _set_aside(args.document, refusal)
         if aside is not None:
