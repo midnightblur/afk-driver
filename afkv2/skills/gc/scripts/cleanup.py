@@ -1,9 +1,11 @@
-"""The gc script: `cleanup.py list [--repo <folder>] [--branch <name>]` and
-`cleanup.py remove --branch <name> --receipt <hex> [--yes <code>[,<code>]] [--repo <folder>]`.
+"""The gc script: `cleanup.py list [--repo <folder>] [--branch <name>]`,
+`cleanup.py remove --branch <name> --receipt <hex> [--yes <code>[,<code>]] [--repo <folder>]` and
+`cleanup.py finish --branch <name> [--yes <code>[,<code>]] [--repo <folder>]`.
 One JSON answer; exit 0 ok, 1 refused, 2 unreadable input.
 
 `list` fixes the target in the feature worktree and answers the list the developer says yes to. `remove` deletes
-the `now` items of that list after the yes and saves the target `waiting`."""
+the `now` items of that list after the yes and saves the target `waiting`. `finish`, the later command, deletes the
+`later` items after the session closes and deletes the target when nothing is left."""
 
 from __future__ import annotations
 
@@ -449,6 +451,10 @@ def _parser():
     removal.add_argument("--branch", required=True)
     removal.add_argument("--receipt", required=True)
     removal.add_argument("--yes", action="append", default=[])
+    finish = steps.add_parser("finish", add_help=False)
+    finish.add_argument("--repo", default=".")
+    finish.add_argument("--branch", required=True)
+    finish.add_argument("--yes", action="append", default=[])
     return parser
 
 
@@ -457,7 +463,8 @@ def _codes(values):
 
 
 STEPS = {"list": lambda args: list_step(args.repo, branch=args.branch),
-         "remove": lambda args: remove_step(args.repo, args.branch, args.receipt, yes=_codes(args.yes))}
+         "remove": lambda args: remove_step(args.repo, args.branch, args.receipt, yes=_codes(args.yes)),
+         "finish": lambda args: finish_step(args.repo, args.branch, yes=_codes(args.yes))}
 
 
 def main(argv=None):

@@ -888,3 +888,43 @@ def test_finish_keeps_the_target_waiting_with_a_remote_item_remove_left(repo, mo
     target = gc_target.read_target(repo.main, FEATURE)
     assert (target["state"], target["left"]) == ("waiting", left)
     assert not gc_target.take_lock(repo.main, FEATURE).release()
+
+
+def test_the_finish_command_answers_one_json_object_and_exits_0_ok_1_refused(repo, monkeypatch, windows, capsys):
+    waiting(repo, monkeypatch)
+    late = repo.commit(repo.feature, "late.txt", "late\n", "a late commit")
+    code, answer = run_cli(capsys, "finish", "--repo", str(repo.main), "--branch", FEATURE)
+    assert code == 1 and answer["error"]["code"] == "refused"
+    code, answer = run_cli(capsys, "finish", "--repo", str(repo.main), "--branch", FEATURE, "--yes", "outside-commits,uncommitted")
+    assert code == 0 and answer["ok"] is True and answer["state"] == "done"
+    assert [entry["tip"] for entry in answer["removed"]] == [None, late]
+    code, answer = run_cli(capsys, "finish", "--repo", str(repo.main), "--branch", FEATURE)
+    assert code == 1 and answer["error"]["code"] == "no-target"
+
+
+@pytest.mark.parametrize("argv", [["finish"], ["finish", "--branch", FEATURE, "--yes", "everything"],
+                                  ["finish", "--branch", FEATURE, "--receipt", "c" * 64]])
+def test_unreadable_finish_arguments_exit_2(capsys, argv):
+    code, answer = run_cli(capsys, *argv)
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="the folder removal runs on Windows only")
+def test_the_later_command_remove_gives_runs_finish_from_the_main_checkout_on_the_stored_target(repo, monkeypatch, windows):
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    assert cleanup.remove_step(repo.main, FEATURE, receipt)["later"] == later_command(repo)
+    argv = [sys.executable, "-I", str(Path(cleanup.__file__).resolve()), "finish", "--repo", str(Path(repo.main).resolve()),
+            "--branch", FEATURE]  # The later command's parts, as PowerShell passes them.
+    done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL, timeout=120,
+                          cwd=repo.main)
+    answer = json.loads(done.stdout)
+    assert done.returncode == 0 and answer["state"] == "done", done.stdout + done.stderr
+    assert not Path(repo.feature).exists() and local_heads(repo) == {"main"} and gone(repo)
+
+
+def test_the_finish_command_runs_in_the_current_folder_by_default(repo, monkeypatch, windows, capsys):
+    waiting(repo, monkeypatch)
+    monkeypatch.chdir(repo.main)
+    code, answer = run_cli(capsys, "finish", "--branch", FEATURE)
+    assert code == 0 and answer["state"] == "done" and gone(repo)
