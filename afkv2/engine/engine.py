@@ -274,7 +274,12 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    return found + invariants.check_invariants(doc, ids, nodes)
+    found += invariants.check_invariants(doc, ids, nodes)
+    if not found:
+        links = invariants.check_links(doc, ids)
+        if links:
+            raise _refuse(raw, links, "bad-link")
+    return found
 
 
 def check_document(path: str) -> tuple[dict, str]:

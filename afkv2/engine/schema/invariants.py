@@ -78,11 +78,36 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
             found += [((*where, "items", i, "carries", c), f"{old!r} is no card of an earlier round")
                       for c, old in enumerate(item.get("carries") or [])
                       if card_round.get(old, round_["n"]) >= round_["n"]]
+    answer_ids: dict[str, tuple] = {}
     for r, round_ in enumerate(rounds):
-        for p, reply in enumerate(round_.get("replies") or []):
-            for a, target in enumerate(reply.get("about") or []):
+        for p, answer in enumerate(round_.get("replies") or []):
+            where = ("rounds", r, "replies", p, "id")
+            if answer.get("id") in answer_ids:
+                found.append((where, f"answer id {answer['id']!r} is not unique"))
+            elif answer.get("id"):
+                answer_ids[answer["id"]] = where
+    return found
+
+
+def check_links(doc: dict, ids: dict[str, tuple]) -> list[tuple]:
+    """The links of the answers and the rounds (SDD §6), refused as `bad-link`: an answer's note ids, changed
+    ids and, on format 0 pages, `about` ids, and a round's changed ids must name a real note or element."""
+    note_ids = {note["id"] for note in doc.get("notes") or []}
+    found = []
+
+    def names_nothing(where: tuple, values, known, what: str) -> None:
+        found.extend(((*where, k), f"{value!r} names no {what}") for k, value in enumerate(values or [])
+                     if value not in known)
+
+    for r, round_ in enumerate(doc["rounds"]):
+        names_nothing(("rounds", r, "changed"), round_.get("changed"), ids, "element")
+        for p, answer in enumerate(round_.get("replies") or []):
+            where = ("rounds", r, "replies", p)
+            names_nothing((*where, "notes"), answer.get("notes"), note_ids, "note")
+            names_nothing((*where, "changed"), answer.get("changed"), ids, "element")
+            for a, target in enumerate(answer.get("about") or []):
                 if target not in ids and target not in note_ids:
-                    found.append((("rounds", r, "replies", p, "about", a), f"{target!r} resolves to no element and no note"))
+                    found.append(((*where, "about", a), f"{target!r} resolves to no element and no note"))
     return found
 
 

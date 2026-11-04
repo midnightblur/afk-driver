@@ -336,3 +336,51 @@ def test_a_note_edit_in_format_1_takes_the_indented_words(capsys, tmp_path):
     code, answer, after = ingest(capsys, tmp_path, after, "[round R-1]\nN-1-i-a-1 edit\n  second")
     assert code == 0, answer
     assert after["notes"][0]["text"] == "second" and answer["notes"] == []
+
+
+# --- the 3 refusing invariants (SDD §6); no page rule or answer rule refuses
+
+
+def answered_document(answer, **round_extra):
+    note = {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "why", "deleted": False}
+    return v1_document(round_of(1, card("i-a"), replies=[answer], **round_extra), notes=[note])
+
+
+@pytest.mark.parametrize("answer, extra, field", [
+    ({"id": "A-1-1", "text": "x", "notes": ["N-1-i-a-9"]}, {}, "replies[0].notes[0]"),
+    ({"id": "A-1-1", "text": "x", "notes": ["N-1-i-a-1"], "changed": ["i-gone"]}, {}, "replies[0].changed[0]"),
+    ({"id": "A-1-1", "text": "x", "notes": ["N-1-i-a-1"]}, {"changed": ["i-gone"]}, "changed[0]"),
+    ({"text": "x", "about": ["i-gone"]}, {}, "replies[0].about[0]"),
+])
+def test_an_answer_link_that_names_nothing_is_refused_as_bad_link(capsys, tmp_path, answer, extra, field):
+    error = refused(capsys, tmp_path, answered_document(answer, **extra))
+    assert error["code"] == "bad-link" and f"round 1, field {field}" in error["reason"], error
+
+
+def test_an_answer_id_is_unique_in_the_document(capsys, tmp_path):
+    answer = {"id": "A-1-1", "text": "x", "notes": ["N-1-i-a-1"]}
+    doc = answered_document(answer)
+    doc["rounds"][0]["replies"].append(dict(answer))
+    error = refused(capsys, tmp_path, doc)
+    assert error["code"] == "invariant" and "'A-1-1' is not unique" in error["reason"]
+
+
+def test_a_duplicate_note_id_is_refused(capsys, tmp_path):
+    note = {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "item": "i-a", "text": "why", "deleted": False}
+    error = refused(capsys, tmp_path, v1_document(notes=[note, dict(note)]))
+    assert error["code"] == "invariant" and "is not unique" in error["reason"]
+
+
+def test_a_note_names_a_card_that_exists(capsys, tmp_path):
+    note = {"id": "N-1-i-x-1", "round": 1, "target": "i-a", "item": "i-x", "text": "why", "deleted": False}
+    assert "'i-x' is no card" in refused(capsys, tmp_path, v1_document(notes=[note]))["reason"]
+
+
+def test_no_check_refuses_a_page_rule_or_an_answer_rule_break(capsys, tmp_path):
+    """A note with no answer and an answer that names one of 2 notes are rules for the agent, not the check."""
+    notes = [{"id": f"N-1-i-a-{k}", "round": 1, "target": "i-a", "item": "i-a", "text": "why", "deleted": False}
+             for k in (1, 2)]
+    doc = v1_document(round_of(1, card("i-a"), replies=[{"id": "A-1-1", "text": "x", "notes": ["N-1-i-a-1"]}]),
+                      notes=notes)
+    assert check(capsys, tmp_path, doc)[0] == 0
+    assert check(capsys, tmp_path, v1_document(notes=notes))[0] == 0
