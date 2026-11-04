@@ -159,6 +159,46 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
     return found, ids, nodes
 
 
+def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
+    """Check typed page/1 catalogs without discarding duplicate source entries.
+
+    Term identity follows shell/tips.js: lowercase keys ignore case; other keys
+    keep their case. A trailing s/es may vary in case when the token exceeds 2
+    characters. IDs match only the complete, same-case element ID.
+    """
+    if doc["schema"] != SCHEMA_V1:
+        return []
+    found = []
+    tips = doc.get("tips", {})
+    for catalog, key in (("terms", "term"), ("ids", "id")):
+        exact, folded, insensitive = {}, {}, {}
+        for index, entry in enumerate(tips.get(catalog, [])):
+            token = entry[key]
+            path = ("tips", catalog, index, key)
+            if catalog == "ids" and (token not in ids or ids[token][-1] == "banner"):
+                found.append((path, f"id {token!r} must reference an existing card, component, or map node"))
+            ignore_case = catalog == "terms" and token == token.lower()
+            forms = {token}
+            if catalog == "terms":
+                forms.update(token + tail for tail in ("s", "S", "es", "eS", "Es", "ES")
+                             if len(token + tail) > 2)
+            conflicts = set()
+            for form in forms:
+                previous = folded.get(form.lower()) if ignore_case else exact.get(form)
+                if previous is not None:
+                    conflicts.add(previous)
+                if catalog == "terms" and form.lower() in insensitive:
+                    conflicts.add(insensitive[form.lower()])
+            for previous in sorted(conflicts):
+                found.append((path, f"matches the same token as tips.{catalog}[{previous}].{key}"))
+            for form in forms:
+                exact.setdefault(form, index)
+                folded.setdefault(form.lower(), index)
+                if ignore_case:
+                    insensitive.setdefault(form.lower(), index)
+    return found
+
+
 def _map_node(node, where: tuple, last_round: int) -> list[tuple]:
     if not isinstance(node, dict):
         return [(where, "a map node must be an object")]
@@ -230,7 +270,7 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    return found + invariants.check_invariants(doc, ids, nodes)
+    return found + _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
 
 
 def check_document(path: str) -> tuple[dict, str]:
