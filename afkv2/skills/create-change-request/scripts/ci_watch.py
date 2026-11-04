@@ -234,17 +234,17 @@ def _write_end(path, record, fields):
 
 
 def _end(payload, path, record, state, status_word, reason=""):
-    """Write the result, with the commit the forge now shows, unless a newer watch took over."""
-    head = record["head_sha"]
-    try:
-        head = forge_answer("change-view", payload, id=record["id"]).get("head_sha") or head
-    except Refusal:
-        pass
+    """Write the result, with the commit the forge now shows, unless a newer watch took over. A merged or closed change ends it as such."""
+    view = _change_view(payload, record["id"])
+    merged = watch_end_on_merge(path, record, view)
+    if merged is not None:
+        return merged
+    head = view.get("head_sha") or record["head_sha"]
     return _write_end(path, record, {"state": state, "status": status_word, "head_sha": head, "reason": reason})
 
 
 def watch_end_on_merge(path, record, view):
-    """End the watch on a merged or closed change, from the view this slice already read; None while the change is open."""
+    """End the watch on a merged or closed change, from a change view the watch already reads; None while the change is open."""
     state = view.get("state")
     if state not in NOT_OPEN:
         return None
@@ -261,8 +261,8 @@ def _watched_record(payload, path, change):
     return record if record is not None and record["token"] == token else None
 
 
-def _slice_view(payload, change):
-    """The one change view of a slice; empty when the forge call failed."""
+def _change_view(payload, change):
+    """The change view; empty when the forge call failed."""
     try:
         return forge_answer("change-view", payload, id=change)
     except Refusal:
@@ -289,11 +289,12 @@ def watch_ci(payload):
     while True:
         left = max(0, int(deadline - time.monotonic()))
         wait = min(SLICE, left)
-        view = _slice_view(payload, change)
-        ended = watch_end_on_merge(path, record, view)
-        if ended is not None:
-            return ended
-        head_seen = head_seen or not _forge_behind(view, record)
+        if not head_seen:
+            view = _change_view(payload, change)
+            ended = watch_end_on_merge(path, record, view)
+            if ended is not None:
+                return ended
+            head_seen = not _forge_behind(view, record)
         fields = {"id": change, "budget": wait, **({} if interval is None else {"interval": interval})}
         answer = call_forge("ci-wait", {**passed_on(payload), **fields}, wait + READ_MARGIN)
         if not _is_current(path, record["token"]):
