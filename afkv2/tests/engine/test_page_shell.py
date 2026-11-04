@@ -112,6 +112,16 @@ def test_an_upgraded_format_0_page_uses_its_feature_name():
     assert page.stable_title(in_memory(doc)) == SEP.join(["PROJ-1", "export", "Requirements grill"])
 
 
+def test_a_step_that_repeats_the_name_shows_once():
+    """Review finding f2: a format 0 skill with no step name took the feature as its step."""
+    doc = two_rounds(skill="propose-verification")
+    doc["schema"] = V0
+    for key in ("short_title", "step"):
+        doc["session"].pop(key)
+    doc.pop("notes")
+    assert page.stable_title(in_memory(doc)) == SEP.join(["PROJ-1", "export"])
+
+
 def test_a_number_ticket_is_an_issue_reference_and_a_repeated_name_shows_once():
     doc = two_rounds(ticket="158", short_title=None, feature="158")
     assert page.stable_title(in_memory(doc)) == SEP.join(["#158", "Requirements grill"])
@@ -160,6 +170,18 @@ def test_a_changed_element_of_this_round_has_a_round_mark_and_others_none():
     assert FRESH_ATTR not in element_tag(html, "i-plain")
     assert FRESH_ATTR not in element_tag(html, "i-old")
     assert html.count(FRESH_ATTR + "=") == 2
+
+
+def test_an_element_that_an_answer_changed_is_listed_and_marked_too():
+    """Review finding f3, SDD §9 row "What changed this round": the round's list and its answers' lists."""
+    doc = changed_rounds()
+    doc["rounds"][1]["replies"] = [{"text": "Done.", "changed": ["i-plain", "i-new"]}]
+    html = build(doc)
+    current = banner(html, 2)
+    assert current.count('href="#i-new"') == 1 and '<a href="#i-plain">i-plain</a>' in current
+    assert current.index("#d-cost") < current.index("#i-plain")
+    assert FRESH.format(2) in element_tag(html, "i-plain")
+    assert html.count(FRESH_ATTR + "=") == 3
 
 
 def test_the_round_mark_has_its_style_on_every_page():

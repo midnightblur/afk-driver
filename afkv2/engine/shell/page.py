@@ -6,8 +6,8 @@ notes and replies under the heading and its earlier cards in a closed "History".
 and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 Each ticket, change and commit reference in the text links to the URL that `session.links` names.
 The heading and the browser tab read `<ticket> · <short title> · <step>`, the same every round. A page with no
-ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name that repeats
-the ticket shows once.
+ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name or a step that
+repeats an earlier part shows once.
 """
 
 from __future__ import annotations
@@ -47,14 +47,19 @@ def _cards(doc: dict) -> dict:
     return {item["id"]: item for round_ in doc["rounds"] for item in round_["items"]}
 
 
+def _changed_ids(round_: dict) -> list:
+    """Each element the round's `changed` list names, then each one its answers' lists name, once."""
+    lists = [round_.get("changed") or [], *((reply.get("changed") or []) for reply in round_.get("replies") or [])]
+    return list(dict.fromkeys(element for found in lists for element in found))
+
+
 def _changed(doc: dict, round_: dict) -> dict:
-    """After round 1, the banner's list of what changed: each element of the round's `changed` list once,
-    a card by its title."""
+    """After round 1, the banner's list of what changed: each changed element once, a card by its title."""
     if round_["n"] == 1:
         return {}
     cards = _cards(doc)
     return {"changed": [{"id": element, "label": (cards.get(element) or {}).get("title") or element}
-                        for element in dict.fromkeys(round_.get("changed") or [])]}
+                        for element in _changed_ids(round_)]}
 
 
 def _banner(doc: dict, round_: dict, current: bool) -> str:
@@ -86,8 +91,8 @@ def _node_cards(doc: dict) -> str:
 
 
 def _round_marks(html: str, round_: dict) -> str:
-    """A mark on each element that the current round's `changed` list names; no other element has one."""
-    for element in dict.fromkeys(round_.get("changed") or []):
+    """A mark on each element that the current round or its answers changed; no other element has one."""
+    for element in _changed_ids(round_):
         anchor = ELEMENT_ATTR.format(escape(element))
         html = html.replace(anchor, anchor + FRESH_ATTR.format(round_["n"]), 1)
     return html
@@ -199,7 +204,8 @@ def stable_title(doc: dict) -> str:
     name = session.get("short_title") or session["feature"]
     if name not in (ticket, *parts):
         parts.append(name)
-    return " · ".join([*parts, *([session["step"]] if session.get("step") else [])])
+    step = session.get("step")
+    return " · ".join([*parts, *([step] if step and step not in parts else [])])
 
 
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
