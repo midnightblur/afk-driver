@@ -25,7 +25,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | `/afkv2:gc` part 1, GitHub #158, design | Claude | beta.6 | pass, one note unanswered | SDD and 5 design records in commit 7c6efe1d; design gate passed; all 6 sign-offs signed; note N-3-m-aspects has no reply, see F-24 |
 | `/afkv2:gc` part 1, GitHub #158, plan to Draft change | Claude | beta.6 | pass | 11 of 11 subtasks done, none parked; PR #168 Ready, CI green at 4af29dcb; 2 owner rulings (D-7, D-14), 13 reversible calls in plan/DECISIONS.md; 6 known bugs and 89 medium and low findings open on the PR; see F-29 to F-32 |
 | gc live round trip, GitHub | plain shell, no agent | PR #168 head 4af29dcb | pass | exit 0; change #170 merged into a scratch target; gc listed 6 items and removed all 6; both commit links still served; target, merged change and main checkout commit stayed; no scratch branch or worktree left (2026-11-04) |
-| gc live round trip, GitLab | | | not run | leaves one merged change on core-services that cannot be deleted; waits for the owner's yes |
+| gc live round trip, GitLab | plain shell, no agent | PR #168 head 4af29dcb | pass | owner's yes; exit 0; merge request !30458 on core-services merged by a push to a scratch target; gc removed all 6 items; both commit links still served; no scratch branch or worktree left. Pushes ran with `push.pushOption=ci.skip`; opening the change still started one merge request pipeline, cancelled; see F-33 (2026-11-04) |
+| PR #168 merged into `feat/afkv2` | | | done | merge commit 6e023fb4 (2026-11-04) |
 | `/afkv2:gc` part 2, GitHub #159 | Codex | | not run | |
 
 ## Failures and findings
@@ -63,4 +64,5 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | F-30 | A subtask marked done by hand at plan time is never reviewed, so marking the change Ready refuses; 0001 got a partial one-round review of its criteria only | open | afkv2 to-subtasks, create-change-request |
 | F-31 | A review must name at least one concern, even when the slice has no diff | open | afkv2 code-review |
 | F-32 | A subagent's report called its checks green while the plugin source check in CI failed (0011, a literal project name) | open | afkv2 autopilot |
+| F-33 | The gc live round trip on GitLab pushes without `ci.skip`, and opening its merge request starts a merge request pipeline on core-services, which then has nothing to test once the branch is gone | open: push with `-o ci.skip` and cancel the change's pipeline at the end | afkv2 gc live test |
 | F-8 | The interim rule block stays in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so a dogfood session holds it next to the afkv2 core behaviors. | Claude: the owner removed it on 2026-11-02 (auto mode refuses the agent this edit). Codex: open, remove it before its dogfood ticket | owner build setup |
