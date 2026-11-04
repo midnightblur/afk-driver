@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
@@ -28,6 +29,8 @@ STATES = ("listed", "waiting")
 WORKTREES = ("run worktree", "feature worktree")
 ITEMS = (("IT-1", "run worktree", "now"), ("IT-2", "run branch", "now"), ("IT-3", "remote run branch", "now"),
          ("IT-4", "remote feature branch", "now"), ("IT-5", "feature worktree", "later"), ("IT-6", "feature branch", "later"))
+NOW = tuple(item for _, item, when in ITEMS if when == "now")
+PLAIN_NAME = re.compile(r"[A-Za-z0-9._/-]+")
 CHANGE_URL = re.compile(r"(?P<project>.+?)(?P<form>/-/merge_requests|/pull)/\d+/?")
 COMMIT_FORM = {"/-/merge_requests": "/-/commit/", "/pull": "/commit/"}
 
@@ -188,12 +191,70 @@ def main_checkout(cwd):
     code, out, error = _git(cwd, "worktree", "list", "--porcelain")
     if code != 0:
         raise Refusal("git-failed", f"git worktree list in {cwd}: {error}")
-    return Path(out.splitlines()[0].removeprefix("worktree "))
+    return Path(out.splitlines()[0].removeprefix("worktree ")).resolve()
+
+
+def later_command(main, branch):
+    """The later command: one PowerShell line that runs finish from the main checkout."""
+    def quoted(text):
+        return '"' + str(text).replace("`", "``").replace("$", "`$") + '"'
+
+    name = branch if PLAIN_NAME.fullmatch(branch) else "'" + branch.replace("'", "''") + "'"
+    return f"& {quoted(sys.executable)} {quoted(Path(__file__).resolve())} finish --repo {quoted(main)} --branch {name}"
+
+
+def _checked(main, *args):
+    code, out, error = _git(main, *args)
+    if code != 0:
+        raise Refusal("git-failed", f"git {' '.join(args[:2])}: {error}")
+    return out
+
+
+def _remove_run_worktree(main, target, lease):
+    return folder_remove.remove_worktree_folder(main, target["run_worktree"])["result"]
+
+
+def _remove_local_branch(main, name, lease):
+    code, now, _ = _git(main, "rev-parse", "--verify", "--quiet", f"refs/heads/{name}^{{commit}}")
+    if code != 0 or not now:
+        return "already gone"
+    if now != lease:
+        raise Refusal("tip-moved", f"{name} moved from {lease[:12] or 'none'} to {now[:12]} after the check; it stays")
+    _checked(main, "branch", "-D", name)
+    return "removed"
+
+
+def _remove_remote_branch(main, remote, name, lease, absent):
+    """`git push --delete` with a lease on the checked tip: the remote refuses when the tip moved (ADR-0004)."""
+    ref = f"refs/heads/{name}"
+    lines = _checked(main, "ls-remote", remote, ref).splitlines()
+    if not any(line.split("	")[-1] == ref for line in lines):
+        return absent
+    _checked(main, "push", "--quiet", f"--force-with-lease={ref}:{lease}", remote, "--delete", ref)
+    return "removed"
+
+
+def _remove_item(main, target, item, lease):
+    if item == "run worktree":
+        return _remove_run_worktree(main, target, lease)
+    if item == "run branch":
+        return _remove_local_branch(main, target["run_branch"], lease)
+    branch = target["run_branch"] if item == "remote run branch" else target["feature_branch"]
+    absent = "none" if item == "remote run branch" and not lease else "already gone"
+    return _remove_remote_branch(main, target["remote"], branch, lease, absent)
+
+
+def _entry(fresh_items, item, tip):
+    shown = fresh_items[item]
+    link = shown["link"] if shown["tip"] == tip else None
+    return {"id": shown["id"], "item": item, "name": shown["name"], "tip": tip, "link": link}
 
 
 def remove_step(cwd, branch, receipt, yes=()):
     """Remove the `now` items of the stored target of `branch`, after the developer's yes on the list with `receipt`.
-    Runs from any folder of the repository. A list that differs from a fresh one refuses `stale-list` with it."""
+    Runs from any folder of the repository. A list that differs from a fresh one refuses `stale-list` with it.
+    The order: run worktree, local run branch, remote run branch, remote feature branch; then the target is saved
+    `waiting` with what is left, and the answer gives the later command."""
     target = _stored(cwd, branch)
     main = main_checkout(cwd)
     with gc_target.take_lock(main, branch):
@@ -203,7 +264,20 @@ def remove_step(cwd, branch, receipt, yes=()):
         if receipt != fresh["receipt"]:
             raise Refusal("stale-list", "the list changed after the yes; nothing was removed; answer the new list",
                           list=fresh)
-        return {}
+        items = {entry["item"]: entry for entry in fresh["items"]}
+        left, removed = [item for _, item, _ in ITEMS], []
+        for item in NOW:
+            lease = tips.get(item)
+            start = time.monotonic()
+            result = _remove_item(main, target, item, lease)
+            removed.append({**_entry(items, item, lease), "result": result, "seconds": round(time.monotonic() - start, 2)})
+            left.remove(item)
+        gc_target.write_target(main, gc_target.new_target(
+            branch, target["feature_worktree"], fresh["change"], tips, receipt, run_branch=target["run_branch"],
+            run_worktree=target["run_worktree"], remote=target["remote"], state="waiting", left=left))
+        waiting = [_entry(items, item, tips.get(item)) for item in left]
+        return {"branch": branch, "change": fresh["change"], "removed": removed, "waiting": waiting,
+                "later": later_command(main, branch), "state": "waiting"}
 
 
 class _Parser(argparse.ArgumentParser):

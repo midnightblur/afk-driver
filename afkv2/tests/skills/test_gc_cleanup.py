@@ -408,3 +408,93 @@ def test_remove_refuses_locked_while_another_run_holds_the_target(repo, monkeypa
         refused("locked", cleanup.remove_step, repo.main, FEATURE, receipt)
     assert len(fake.calls) == 1
     untouched(repo)
+
+
+def steps(monkeypatch):
+    """Record each delete gc runs, in order: the folder removal, and each git branch delete or push."""
+    import folder_remove
+    done, real_folder, real_git = [], folder_remove.remove_worktree_folder, cleanup._git
+
+    def folder(repo, path):
+        done.append(("folder", Path(path).name))
+        return real_folder(repo, path)
+
+    def run_git(cwd, *args):
+        if args[0] in ("branch", "push"):
+            done.append((args[0], args[-1]))
+        return real_git(cwd, *args)
+
+    monkeypatch.setattr(folder_remove, "remove_worktree_folder", folder)
+    monkeypatch.setattr(cleanup, "_git", run_git)
+    return done
+
+
+def worktrees(repo):
+    return [Path(line.removeprefix("worktree ")).resolve() for line in
+            git(repo.main, "worktree", "list", "--porcelain").splitlines() if line.startswith("worktree ")]
+
+
+def outcome(answer):
+    return [(entry["id"], entry["item"], entry["result"], entry["tip"]) for entry in answer["removed"]]
+
+
+def later_command(repo):
+    script = Path(cleanup.__file__).resolve()
+    return f'& "{sys.executable}" "{script}" finish --repo "{Path(repo.main).resolve()}" --branch {FEATURE}'
+
+
+def test_remove_deletes_the_now_items_in_order_and_saves_the_target_waiting_with_the_later_items(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    feature, run = tip(repo, FEATURE), tip(repo, RUN)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    done = steps(monkeypatch)
+    answer = cleanup.remove_step(repo.main, FEATURE, receipt)
+    assert done == [("folder", "feature-run"), ("branch", RUN), ("push", f"refs/heads/{RUN}"), ("push", f"refs/heads/{FEATURE}")]
+    assert outcome(answer) == [("IT-1", "run worktree", "removed", None), ("IT-2", "run branch", "removed", run),
+                               ("IT-3", "remote run branch", "removed", run), ("IT-4", "remote feature branch", "removed", feature)]
+    links = {entry["item"]: entry["link"] for entry in answer["removed"] + answer["waiting"]}
+    assert links == {"run worktree": None, "run branch": None, "remote run branch": None,
+                     "remote feature branch": f"{GITHUB}/commit/{feature}", "feature worktree": None,
+                     "feature branch": f"{GITHUB}/commit/{feature}"}
+    assert all(isinstance(entry["seconds"], (int, float)) and entry["seconds"] >= 0 for entry in answer["removed"])
+    assert [(entry["id"], entry["item"], entry["tip"]) for entry in answer["waiting"]] == [
+        ("IT-5", "feature worktree", None), ("IT-6", "feature branch", feature)]
+    assert answer["later"] == later_command(repo)
+    assert answer["change"]["number"] == 7 and answer["state"] == "waiting"
+    assert len(fake.calls) == 2
+    assert not Path(repo.run).exists() and not Path(str(repo.run) + ".gc-removing").exists()
+    assert Path(repo.run).resolve() not in worktrees(repo)
+    assert local_heads(repo) == {"main", FEATURE} and set(remote_heads(repo)) == {"main"}
+    target = gc_target.read_target(repo.main, FEATURE)
+    assert (target["state"], target["left"], target["receipt"]) == ("waiting", ["feature worktree", "feature branch"], receipt)
+    assert target["tips"]["remote feature branch"] == feature
+
+
+def test_remove_run_from_the_feature_worktree_acts_on_the_same_stored_target(repo, monkeypatch, windows):
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    answer = cleanup.remove_step(repo.feature, FEATURE, receipt)
+    assert [entry["result"] for entry in answer["removed"]] == ["removed"] * 4
+    assert answer["later"] == later_command(repo)
+
+
+def test_remove_deletes_an_orphan_run_branch_and_a_squash_merged_feature_branch(repo, monkeypatch, windows):
+    git(repo.main, "merge", "-q", "--squash", FEATURE)
+    git(repo.main, "commit", "-qm", "the feature, squashed")
+    git(repo.main, "push", "-q", "origin", "main")
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    cleanup.remove_step(repo.main, FEATURE, receipt)
+    assert RUN not in local_heads(repo) and set(remote_heads(repo)) == {"main"}
+
+
+def test_an_absent_item_reads_already_gone_and_no_remote_run_branch_reads_none(repo, monkeypatch, windows):
+    merged(repo, monkeypatch)
+    git(repo.main, "push", "-q", "origin", "--delete", FEATURE, RUN)
+    git(repo.main, "worktree", "remove", "--force", str(repo.run))
+    git(repo.main, "branch", "-D", RUN)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    answer = cleanup.remove_step(repo.main, FEATURE, receipt)
+    assert outcome(answer) == [("IT-1", "run worktree", "already gone", None), ("IT-2", "run branch", "already gone", ""),
+                               ("IT-3", "remote run branch", "none", ""), ("IT-4", "remote feature branch", "already gone", "")]
+    assert gc_target.read_target(repo.main, FEATURE)["left"] == ["feature worktree", "feature branch"]
