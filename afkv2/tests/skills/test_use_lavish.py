@@ -339,3 +339,12 @@ def test_an_older_about_answer_does_not_answer_a_later_note():
     doc = {"notes": [{"id": "N-3-i-a-1", "round": 3, "target": "i-a", "item": "i-a", "text": "x", "deleted": False}],
            "rounds": [{"n": 1, "replies": [{"text": "old", "about": ["i-a"]}]}, {"n": 2}, {"n": 3}]}
     assert [w["note"] for w in rd.unanswered_note_warnings(doc, 3)] == ["N-3-i-a-1"]
+
+
+def test_an_open_entry_keeps_what_it_changed(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"open": [{"item": "i-a", "reply": "Again.", "changed": ["i-a-body"]}]})
+    assert read(path)["rounds"][0]["replies"][0]["changed"] == ["i-a-body"]
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(path, {"open": [{"item": "i-b", "reply": "Again.", "changed": ["nothing"]}]})
+    assert refused.value.code == "bad-link"

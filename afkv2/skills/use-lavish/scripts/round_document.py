@@ -555,8 +555,11 @@ def _return_to_open(doc, current, entry):
     reply = (entry.get("reply") or "").strip()
     if not reply:
         raise Refusal("no-reply", f"{item['id']}: say why the point returns")
+    if not _id_list(entry.get("changed", [])):
+        raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
     item["state"] = "open"
-    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]])
+    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]],
+                entry.get("changed") or [])
 
 
 def _unblock(current, item_id):
