@@ -43,6 +43,7 @@
 /* A scope map: one canvas per group, side by side, wrapping to a stack on a narrow window. */
 .afkv2-map-groups { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }
 .afkv2-map-group { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.afkv2-map-order { margin: .5rem 0 0; padding-left: 1.25rem; font-size: .85rem; color: var(--fg-dim); overflow-wrap: anywhere; }
 
 /* --- sequence diagram ---------------------------------------------------- */
 

@@ -263,9 +263,18 @@ def test_a_scope_map_draws_each_group_on_its_own_canvas_that_wraps():
     assert "flex-wrap: wrap" in rule(DIAGRAM_CSS, GROUPS_RULE)
 
 
-def test_a_map_with_an_arrow_between_groups_stays_one_canvas():
-    html = registry.render_component(scope_map([{"from": "n-a", "to": "n-b"}]))
-    assert GROUPS not in html and html.count(CANVAS) == 1
+ORDER = '<ul class="afkv2-map-order">'
+EDGE = 'data-afkv2-edge="{} {}"'
+
+
+def test_a_scope_map_with_an_arrow_between_groups_keeps_its_groups_side_by_side():
+    """Review finding: the arrow between groups made one canvas that stacked its groups on a wide window.
+    The arrow inside a group stays drawn; the arrow between groups becomes a line under the groups."""
+    html = registry.render_component(scope_map([{"from": "n-a", "to": "n-b"}, {"from": "n-b", "to": "n-c"}]))
+    assert html.count(GROUPS) == 1 and html.count(CANVAS) == 3
+    assert EDGE.format("n-b", "n-c") in html and EDGE.format("n-a", "n-b") not in html
+    order = html[html.index(ORDER):]
+    assert "a" in order and "settles before" in order and html.index(GROUPS) < html.index(ORDER)
 
 
 def test_the_notes_tables_scroll_in_their_own_box_at_phone_width():

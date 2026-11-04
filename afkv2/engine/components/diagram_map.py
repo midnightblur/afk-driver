@@ -1,7 +1,8 @@
 """Map (CMP-3): a diagram that keeps the high-level view, coloured settled, open and current focus.
 
-A scope map, whose arrows all stay inside one group, draws each group on its own canvas; the canvases sit
-side by side and wrap to a stack on a narrow window. A map with an arrow between groups is one canvas.
+A map with groups (a scope map) draws each group on its own canvas; the canvases sit side by side and wrap
+to a stack on a narrow window. An arrow inside a group is drawn; an arrow between groups is a line under
+the groups: "<part> settles before <part>".
 """
 
 from html import escape
@@ -22,32 +23,40 @@ def _node_parts(node):
 
 
 def _bands(props):
-    """The props of each group, in group order, then of the nodes in no group; None when an arrow joins
-    2 bands or the map has no group."""
+    """The props of each group, in group order, then of the nodes in no group, each with the arrows inside
+    it; then the arrows between groups. None when the map has no group."""
     groups = props.get("groups") or []
     if not groups:
         return None
     band = {node["id"]: node.get("group") for node in props["nodes"]}
     edges = props.get("edges") or []
-    if any(band[edge["from"]] != band[edge["to"]] for edge in edges):
-        return None
-    order = [group["id"] for group in groups] + [None]
     parts = []
-    for group in order:
+    for group in [group["id"] for group in groups] + [None]:
         nodes = [node for node in props["nodes"] if node.get("group") == group]
         if nodes:
             parts.append({**props, "nodes": nodes, "groups": [g for g in groups if g["id"] == group],
-                          "edges": [edge for edge in edges if band[edge["from"]] == group]})
-    return parts
+                          "edges": [e for e in edges if band[e["from"]] == group == band[e["to"]]]})
+    return parts, [edge for edge in edges if band[edge["from"]] != band[edge["to"]]]
+
+
+def _order(props, crossing):
+    """Each arrow between groups as one line."""
+    if not crossing:
+        return ""
+    labels = {node["id"]: node["label"] for node in props["nodes"]}
+    lines = "".join(f'<li>{escape(labels[e["from"]])} settles before {escape(labels[e["to"]])}</li>'
+                    for e in crossing)
+    return f'<ul class="afkv2-map-order">{lines}</ul>'
 
 
 def render_map(props, children):
     bands = _bands(props)
     if bands is None:
         return figure(props, draw_boxes(props, HEAD_HEIGHT, _node_parts), children)
+    parts, crossing = bands
     canvases = "".join(f'<div class="afkv2-map-group">{draw_boxes(part, HEAD_HEIGHT, _node_parts)}</div>'
-                       for part in bands)
-    return figure(props, f'<div class="afkv2-map-groups">{canvases}</div>', children)
+                       for part in parts)
+    return figure(props, f'<div class="afkv2-map-groups">{canvases}</div>{_order(props, crossing)}', children)
 
 
 register_component("map", boxes_schema({"state": {"enum": list(STATE_WORDS)}, "round": {"type": "integer", "minimum": 1}},
