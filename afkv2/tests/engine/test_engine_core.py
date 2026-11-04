@@ -906,6 +906,12 @@ def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     assert not (ENGINE_DIR / "shell" / "notes.js").exists()
 
 
+def test_the_copy_hint_gives_the_format_1_note_entry():
+    """The builder writes format 1, and the format 1 parser refuses the format 0 note line `<id> — | <note>`."""
+    assert holds(RUNTIME, f"<id> {prompt_lines.NOTE_WORD} 1", "indented 2 spaces")
+    assert lacks(RUNTIME, "— |", "<id> — ")
+
+
 def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
     assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token, {", "tag: MARK_TAG,",
                  "queueKey: 'afkv2:' + session + ':' + round + ':' + id,", "element: el,",

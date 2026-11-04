@@ -148,7 +148,7 @@
 
   function copy() {
     var text = compose();
-    var done = function () { say('Copied. Paste it to the agent, and add a note line <id> — | <note> where you need one.'); };
+    var done = function () { say('Copied. Paste it to the agent. For a note, add a line <id> note 1 (2, 3 for more notes on the same id), then your words on the next lines, each indented 2 spaces.'); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
     } else {
