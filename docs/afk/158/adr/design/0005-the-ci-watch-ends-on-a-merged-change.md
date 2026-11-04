@@ -29,8 +29,13 @@ flowchart LR
 |-------------|------|------|-----------------|
 | Drop the watch trigger; keep only the check at the end of ship | no watch change | changes a settled requirement | would go back to the grill |
 
+## Amendment 2026-11-04
+
+The context above is wrong: the watch reads change-view only until the forge shows the pushed commit (`ci_watch.py:271` before this change). The developer ruled (plan decision D-14, which replaces D-13): the watch reads change-view every slice, and ends in the slice where the merge shows. This costs one change-view call per slice after the head shows.
+
 ## Consequences
 
-- **Positive** — the trigger the PRD names has a source, at no new forge call.
+- **Positive** — the trigger the PRD names has a source, and a merge shows in the slice where it lands.
+- **Negative** — one change-view call per slice after the head shows (amendment).
 - **Negative** — a watch on a change that merges no longer reports its final CI status.
 - **Follow-ups** — none.
