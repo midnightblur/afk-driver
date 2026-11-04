@@ -279,6 +279,13 @@ def _entry(fresh_items, item, tip):
     return {"id": shown["id"], "item": item, "name": shown["name"], "tip": tip, "link": link}
 
 
+def _known(yes):
+    unknown = sorted(set(yes) - set(PASSABLE) - set(NEVER_PASSED))
+    if unknown:
+        raise Refusal("bad-payload", f"--yes names no refusal gc knows: {', '.join(unknown)}; "
+                                     f"name one of {', '.join(PASSABLE)}")
+
+
 def remove_step(cwd, branch, receipt, yes=()):
     """Remove the `now` items of the stored target of `branch`, after the developer's yes on the list with `receipt`.
     Runs from any folder of the repository. A list that differs from a fresh one refuses `stale-list` with it.
@@ -287,10 +294,7 @@ def remove_step(cwd, branch, receipt, yes=()):
 
     `yes` names the refusals of the list the developer goes past for this run; a refusal it does not name refuses
     `refused`. Not-Windows and a folder in use stay refused whatever `yes` names."""
-    unknown = sorted(set(yes) - set(PASSABLE) - set(NEVER_PASSED))
-    if unknown:
-        raise Refusal("bad-payload", f"--yes names no refusal gc knows: {', '.join(unknown)}; "
-                                     f"name one of {', '.join(PASSABLE)}")
+    _known(yes)
     target = _stored(cwd, branch)
     main = main_checkout(cwd)
     with gc_target.take_lock(main, branch):
@@ -339,20 +343,42 @@ def _local_tip(main, branch):
 
 
 def _outside_head(main, target, local):
-    """The commits of the local feature tip `local` outside the change head, newest first; None when no head can tell."""
+    """(the commits of the local feature tip `local` outside the change head, newest first, or None when no head
+    can tell; the refusal `outside-commits`, or None). An absent tip has no commit."""
     head = (target["change"] or {}).get("head_sha")
-    if not local or not head:
-        return None if local else []
-    try:
-        return gc_checks._outside(main, target["remote"], target["feature_branch"], local, head)
-    except Refusal:
-        return None
+    if not local:
+        return [], None
+    commits, why = None, "unchecked, no merged change gives a head commit"
+    if head:
+        try:
+            commits = gc_checks._outside(main, target["remote"], target["feature_branch"], local, head)
+        except Refusal as failed:
+            why = f"unchecked: the compare with the change head {head[:12]} failed: {failed.reason}"
+    if commits == []:
+        return commits, None
+    shown = why if commits is None else ", ".join(f"{commit['id']} {commit['title']}" for commit in commits)
+    branches = [{"item": "feature branch", "branch": target["feature_branch"], "tip": local, "commits": commits}]
+    return commits, {"code": "outside-commits", "reason": f"commits outside the change: feature branch: {shown}",
+                     "branches": branches, "items": ["feature branch"]}
+
+
+def _finish_refusals(target, pending, tip_refusal):
+    """The refusals of the items finish removes: the feature worktree's uncommitted files and the feature tip."""
+    refusals = []
+    if "feature worktree" in pending:
+        clean = gc_checks.check_clean(target["feature_worktree"])["refusal"]
+        if clean:
+            refusals.append({**clean, "items": ["feature worktree"]})
+    if "feature branch" in pending and tip_refusal:
+        refusals.append(tip_refusal)
+    return refusals
 
 
 def finish_step(cwd, branch, yes=()):
     """The later command: remove the feature worktree, then the local feature branch, of the `waiting` target of
     `branch`, from any folder of the repository. With nothing left the target and its lock file are deleted;
     otherwise the target is kept `waiting` with what is left. No forge call: the stored change gives the head."""
+    _known(yes)
     target = _stored(cwd, branch)
     folder, here = _same_folder(target["feature_worktree"]), _same_folder(os.getcwd())
     if "feature worktree" in target["left"] and (here == folder or here.startswith(folder.rstrip(os.sep) + os.sep)):
@@ -370,7 +396,12 @@ def finish_step(cwd, branch, yes=()):
             raise Refusal("not-windows", platform["reason"] + "; nothing was removed")
         names, pending = _names(target), list(target["left"])
         local = _local_tip(main, target["feature_branch"])
-        outside = _outside_head(main, target, local)
+        outside, tip_refusal = _outside_head(main, target, local)
+        held = [refusal for refusal in _finish_refusals(target, pending, tip_refusal) if refusal["code"] not in yes]
+        if held:
+            shown = "; ".join(f"{refusal['code']}: {refusal['reason']}" for refusal in held)
+            raise Refusal("refused", f"refused: {shown}; nothing was removed; go past a refusal only with the "
+                                     "developer's yes", refusals=held)
         base = (target["change"] or {}).get("url")
         tips = {"feature worktree": None, "feature branch": local}
         links = {"feature worktree": None, "feature branch": commit_link(base, local) if outside == [] else None}

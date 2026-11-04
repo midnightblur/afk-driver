@@ -744,3 +744,51 @@ def test_finish_on_a_system_that_is_not_windows_refuses_not_windows_and_removes_
     monkeypatch.setattr(folder_remove, "WINDOWS", False)
     refused("not-windows", cleanup.finish_step, repo.main, FEATURE)
     still_waiting(repo, before)
+
+
+def codes_of(refusal):
+    return [(entry["code"], entry["items"]) for entry in refusal.extra["refusals"]]
+
+
+def test_a_late_commit_on_the_local_feature_branch_refuses_unless_yes_names_outside_commits(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    late = repo.commit(repo.feature, "late.txt", "late\n", "a late commit")
+    before = gc_target.read_target(repo.main, FEATURE)
+    refusal = refused("refused", cleanup.finish_step, repo.main, FEATURE)
+    assert codes_of(refusal) == [("outside-commits", ["feature branch"])]
+    assert refusal.extra["refusals"][0]["branches"][0]["commits"][0]["title"] == "a late commit"
+    still_waiting(repo, before)
+    answer = cleanup.finish_step(repo.main, FEATURE, yes=["outside-commits"])
+    assert [(entry["item"], entry["result"], entry["tip"], entry["link"]) for entry in answer["removed"]] == [
+        ("feature worktree", "removed", None, None), ("feature branch", "removed", late, None)]
+    assert local_heads(repo) == {"main"} and gone(repo)
+
+
+@pytest.mark.parametrize("head", [None, "1" * 40])
+def test_a_target_with_no_change_head_or_one_this_clone_lacks_leaves_the_tip_unchecked_as_a_refusal(repo, monkeypatch, windows, head):
+    waiting(repo, monkeypatch)
+    target = gc_target.read_target(repo.main, FEATURE)
+    gc_target.write_target(repo.main, {**target, "change": {**target["change"], "head_sha": head} if head else None})
+    refusal = refused("refused", cleanup.finish_step, repo.main, FEATURE)
+    assert codes_of(refusal) == [("outside-commits", ["feature branch"])] and "unchecked" in refusal.reason
+    assert Path(repo.feature).is_dir() and FEATURE in local_heads(repo)
+    answer = cleanup.finish_step(repo.main, FEATURE, yes=["outside-commits"])
+    assert [entry["link"] for entry in answer["removed"]] == [None, None] and gone(repo)
+
+
+def test_an_uncommitted_file_in_the_feature_worktree_refuses_unless_yes_names_uncommitted(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    (Path(repo.feature) / "notes.txt").write_text("not committed\n", encoding="utf-8")
+    before = gc_target.read_target(repo.main, FEATURE)
+    refusal = refused("refused", cleanup.finish_step, repo.main, FEATURE, yes=["not-windows", "in-use"])
+    assert codes_of(refusal) == [("uncommitted", ["feature worktree"])] and refusal.extra["refusals"][0]["files"] == ["notes.txt"]
+    still_waiting(repo, before)
+    assert cleanup.finish_step(repo.main, FEATURE, yes=["uncommitted"])["state"] == "done"
+    assert not Path(repo.feature).exists() and gone(repo)
+
+
+def test_finish_with_a_yes_code_gc_does_not_know_is_unreadable(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    before = gc_target.read_target(repo.main, FEATURE)
+    refused("bad-payload", cleanup.finish_step, repo.main, FEATURE, yes=["everything"])
+    still_waiting(repo, before)
