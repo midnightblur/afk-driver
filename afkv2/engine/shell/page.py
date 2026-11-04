@@ -72,7 +72,8 @@ def _exchange(doc: dict, item: dict) -> str:
     """The card's own notes and replies; the content comes from a registered component."""
     if lookup(CARD_NOTES) is None:
         return ""
-    return render_component({"type": CARD_NOTES, "props": {"document": doc, "item": item["id"]}})
+    rows = render_component({"type": CARD_NOTES, "props": {"document": doc, "item": item["id"]}})
+    return f'<div class="afkv2-nr-scroll">{rows}</div>' if rows else ""
 
 
 def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:

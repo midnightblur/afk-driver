@@ -183,7 +183,12 @@ a { color: var(--accent); }
   background: var(--surface);
 }
 .afkv2-banner > h2 { margin: 0 0 .5rem; font-size: 1.05rem; }
-.afkv2-banner-lists { display: grid; gap: .75rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+/* The 3 lists stack; a window wide enough for 3 columns sets them side by side. What changed spans them. */
+.afkv2-banner-lists { display: grid; gap: .75rem 1.25rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 48rem) {
+  .afkv2-banner-lists { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.afkv2-banner-changed { grid-column: 1 / -1; }
 .afkv2-banner-list > h3 {
   margin: 0 0 .2rem; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
 }

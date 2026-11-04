@@ -136,7 +136,7 @@ def test_after_round_1_the_banner_lists_each_changed_element_with_a_link():
 
 
 def test_round_1_has_no_changed_list_and_a_round_with_none_says_nothing_changed():
-    assert CHANGED_LIST not in build(document(round_of(1, card("i-a"), changed=["i-a"])))
+    assert CHANGED_LIST not in banner(build(document(round_of(1, card("i-a"), changed=["i-a"]))), 1)
     html = build(two_rounds())
     assert CHANGED_LIST in banner(html, 2) and "Nothing." in banner(html, 2)
 
@@ -182,3 +182,68 @@ def test_a_card_heading_and_a_link_keep_their_text():
     start = html.index('id="i-new"')
     assert CARD_LINK.format("i-new") not in html[start:html.index("</h4>", start)]
     assert '<a class="afkv2-card-link"' not in html[html.index("<title>"):html.index("</title>")]
+
+
+# --- layout: the banner's 3 columns, scope map groups, the notes tables at phone width
+
+import re  # noqa: E402
+
+import registry  # noqa: E402
+
+KIT = (SHELL / "kit.css").read_text("utf-8")
+NOTES_CSS = (SHELL / "notes.css").read_text("utf-8")
+DIAGRAM_CSS = (SHELL / "diagram.css").read_text("utf-8")
+CANVAS = 'class="afkv2-boxes"'
+GROUPS = '<div class="afkv2-map-groups">'
+
+
+def rule(css, selector, media=None):
+    """The declarations of `selector`, inside the `@media` block whose query is `media` when given."""
+    if media:
+        start = css.index(f"@media {media}")
+        css = css[start:css.index("\n}", start)]
+    match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", css)
+    assert match, selector
+    return match.group(1)
+
+
+def test_the_banner_lists_stack_and_sit_side_by_side_in_3_columns_when_wide():
+    assert "minmax(0, 1fr)" in rule(KIT, ".afkv2-banner-lists")
+    assert "auto-fit" not in rule(KIT, ".afkv2-banner-lists")
+    assert "repeat(3, minmax(0, 1fr))" in rule(KIT, ".afkv2-banner-lists", "(min-width: 48rem)")
+    assert "grid-column: 1 / -1" in rule(KIT, ".afkv2-banner-changed")
+
+
+def scope_map(edges=()):
+    return {"type": "map", "id": "m-scope", "props": {
+        "groups": [{"id": "web", "label": "web module"}, {"id": "core", "label": "core module"}],
+        "nodes": [{"id": "n-a", "label": "a", "state": "open", "round": 1, "group": "web"},
+                  {"id": "n-b", "label": "b", "state": "open", "round": 1, "group": "core"},
+                  {"id": "n-c", "label": "c", "state": "settled", "round": 1, "group": "core"},
+                  {"id": "n-d", "label": "d", "state": "settled", "round": 1}],
+        "edges": list(edges)}}
+
+
+def test_a_scope_map_draws_each_group_on_its_own_canvas_that_wraps():
+    html = registry.render_component(scope_map([{"from": "n-b", "to": "n-c"}]))
+    assert html.count(GROUPS) == 1 and html.count(CANVAS) == 3
+    assert html.index("web module") < html.index("core module") < html.index('data-afkv2-element="n-d"')
+    assert html.count('data-afkv2-element="n-') == 4
+    assert "flex-wrap: wrap" in rule(DIAGRAM_CSS, ".afkv2-map-groups")
+
+
+def test_a_map_with_an_arrow_between_groups_stays_one_canvas():
+    html = registry.render_component(scope_map([{"from": "n-a", "to": "n-b"}]))
+    assert GROUPS not in html and html.count(CANVAS) == 1
+
+
+def test_the_notes_tables_scroll_in_their_own_box_at_phone_width():
+    """Finding f4 of 0004: at 390 px the fixed and percent widths overflowed the page by about 29 px."""
+    doc = two_rounds()
+    doc["notes"] = [{"id": "N-2-i-new-1", "round": 2, "target": "i-new", "item": "i-new", "quote": None,
+                     "text": "words", "deleted": False}]
+    html = build(doc)
+    card_start = html.index('id="i-new"')
+    assert '<div class="afkv2-nr-scroll"><table' in html[card_start:]
+    assert "overflow-x: auto" in rule(NOTES_CSS, ".afkv2-nr-scroll, .afkv2-notes-replies")
+    assert "min-width: 40rem" in rule(NOTES_CSS, ".afkv2-nr-table")

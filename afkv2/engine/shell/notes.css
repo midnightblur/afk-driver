@@ -1,7 +1,10 @@
 /* Notes and replies (CMP-2): one table of the human's notes and the agent's answers, newest round first. */
 
 .afkv2-nr-intro { margin: 0 0 .5rem; color: var(--fg-dim); font-size: .88rem; }
+/* A narrow window scrolls a notes table in its own box, so the page never scrolls sideways. */
+.afkv2-nr-scroll, .afkv2-notes-replies { max-width: 100%; overflow-x: auto; }
 .afkv2-nr-table {
+  min-width: 40rem;
   width: 100%; margin: 0 0 .75rem; border-collapse: collapse; table-layout: fixed;
   border: 1px solid var(--line); background: var(--surface); font-size: .88rem;
 }

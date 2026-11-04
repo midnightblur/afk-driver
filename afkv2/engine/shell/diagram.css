@@ -39,6 +39,10 @@
 .afkv2-node--focus .afkv2-node-state { color: var(--focus); font-weight: 700; }
 .afkv2-node-round { font-family: ui-monospace, monospace; }
 
+/* A scope map: one canvas per group, side by side, wrapping to a stack on a narrow window. */
+.afkv2-map-groups { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }
+.afkv2-map-group { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+
 /* --- sequence diagram ---------------------------------------------------- */
 
 .afkv2-seq { display: grid; row-gap: .4rem; padding-bottom: .6rem; }
