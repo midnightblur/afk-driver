@@ -70,6 +70,7 @@ This skill writes the section `## Solution design` of `GRILL-LOG.md`, through `d
 | Premise | `- Premise: <claim> → pending \| verified (<citation>) \| refuted (<citation>) \| unverified-external (human acknowledged)` |
 | Spinoff | `- Spinoff: <summary> → <pain>; <why it is out>` |
 | Escape | `- Escape: taken R<n>` |
+| Takeover | `- Takeover: R<n> · <at>`, after `take-over`: `<n>` and `<at>` are the entry it added |
 | Design gate | `- Settled: design gate passed <date> · session <id>`, written by `gate` |
 
 ## Judgment checks before the gate

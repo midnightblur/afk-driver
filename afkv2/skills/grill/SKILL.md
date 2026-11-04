@@ -100,10 +100,12 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    | Key | Entry | Use |
    |-----|-------|-----|
-   | `settle` | `{item, note, reading}` | a clear note settles the point; the reply with your reading is written for you. A `signoff` card refuses `signoff-needs-mark`: only a `sign` mark settles it |
-   | `open` | `{item, reply}` | the signals are unclear or in conflict, or the note is on an `info` or `signoff` card |
+   | `settle` | `{item, note, reading, changed}` | a clear note settles the point; the reply with your reading is written for you. A `signoff` card refuses `signoff-needs-mark`: only a `sign` mark settles it |
+   | `open` | `{item, reply, changed}` | the signals are unclear or in conflict, or the note is on an `info` or `signoff` card |
    | `unblock` | item id | the point it waited on settled |
-   | `replies` | `{text, about}` | every other note: a steer word for word, an answer |
+   | `replies` | `{text, notes, changed}` | every other note: a steer word for word, an answer. `notes` lists each note id it answers |
+
+   `changed` is optional: the ids of the elements the answer changed. An id that names nothing refuses `bad-link`.
 
    A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A human line `take over` is the escape: [ROUNDS.md](ROUNDS.md).
 
