@@ -421,6 +421,10 @@ def finish_step(cwd, branch, yes=()):
             gc_target.write_target(main, {**target, "left": pending})
         else:
             gc_target.delete_target(main, branch, lock)
+        if failed and not removed:  # The first item failed: its own code, as the folder removal names it.
+            code, reason = failed.pop("code"), failed.pop("reason")
+            told = reason if code == "delete-failed" else f"{reason}; nothing was removed"  # A half delete keeps its leftover.
+            raise Refusal(code, told, **failed, left=pending)
         if failed:
             raise Refusal("partial", f"removed {len(removed)}; the {failed['item']} failed: {failed['reason']}; "
                                      "fix the cause and run finish again for what is left",

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -792,3 +794,60 @@ def test_finish_with_a_yes_code_gc_does_not_know_is_unreadable(repo, monkeypatch
     before = gc_target.read_target(repo.main, FEATURE)
     refused("bad-payload", cleanup.finish_step, repo.main, FEATURE, yes=["everything"])
     still_waiting(repo, before)
+
+
+@contextmanager
+def a_process_in(folder):
+    """A child process whose working folder is `folder`, alive until the block ends; it reports ready once it runs."""
+    child = subprocess.Popen([sys.executable, "-c", "import sys; print('ready', flush=True); sys.stdin.read()"],
+                             cwd=folder, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "ready"
+        yield child
+    finally:
+        child.stdin.close()
+        try:
+            child.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait()
+        child.stdout.close()
+
+
+def entries(folder):
+    return sorted(str(path.relative_to(folder)) for path in Path(folder).rglob("*") if ".git" not in path.parts)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="the folder removal runs on Windows only")
+@pytest.mark.parametrize("where, code", [("the folder", "in-use"), ("a subfolder", "in-use-or-no-right")])
+def test_a_feature_worktree_a_process_uses_refuses_and_nothing_in_it_is_touched(repo, monkeypatch, windows, where, code):
+    waiting(repo, monkeypatch)
+    sub = Path(repo.feature) / "sub"
+    sub.mkdir()
+    (sub / "kept.txt").write_text("kept\n", encoding="utf-8")
+    git(repo.feature, "add", ".")
+    git(repo.feature, "commit", "-qm", "a subfolder")
+    git(repo.feature, "push", "-q", "origin", FEATURE)
+    before, files = gc_target.read_target(repo.main, FEATURE), entries(repo.feature)
+    with a_process_in(repo.feature if where == "the folder" else sub):
+        refusal = refused(code, cleanup.finish_step, repo.main, FEATURE, yes=["outside-commits"])
+    assert "nothing was removed" in refusal.reason and refusal.extra["item"] == "feature worktree"
+    assert refusal.extra["left"] == ["feature worktree", "feature branch"]
+    assert entries(repo.feature) == files and not Path(str(repo.feature) + ".gc-removing").exists()
+    assert Path(repo.feature).resolve() in worktrees(repo)
+    still_waiting(repo, before)
+
+
+@pytest.mark.parametrize("folder", ["relative", "another repository"])
+def test_a_feature_worktree_that_is_not_an_absolute_linked_worktree_of_the_repository_is_left_alone(repo, monkeypatch, windows, folder):
+    waiting(repo, monkeypatch)
+    target = gc_target.read_target(repo.main, FEATURE)
+    if folder == "another repository":
+        git(repo.main, "worktree", "remove", "--force", str(repo.feature))
+        Path(repo.feature).mkdir()
+        git(repo.feature, "init", "-q")
+    else:
+        gc_target.write_target(repo.main, target := {**target, "feature_worktree": "feature"})
+    refusal = refused("not-a-worktree", cleanup.finish_step, repo.main, FEATURE, yes=["uncommitted"])
+    assert Path(repo.feature).is_dir() and FEATURE in local_heads(repo)
+    assert gc_target.read_target(repo.main, FEATURE) == target and refusal.extra["left"] == target["left"]
