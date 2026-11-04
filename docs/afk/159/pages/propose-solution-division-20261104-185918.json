@@ -1,0 +1,121 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "division-20261104-185918",
+    "skill": "propose-solution",
+    "feature": "#159",
+    "ticket": "#159",
+    "started": "2026-11-04T19:09:48Z"
+  },
+  "maps": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-c3935593-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-c3935593-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-schema-registry",
+                  "Add the page/1 schema and select page readers and component validation by the document schema. Keep page/0 behavior unchanged.",
+                  "The schema and dual readers establish the compatibility boundary that every later slice consumes.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-shared-page-writer",
+                  "Make the shared round writer create page/1 for new sessions and preserve the stored schema on resume. Add page/1 authoring guidance and compatibility examples.",
+                  "The writer and authoring guide form one slice because all 3 producers must adopt the same page/1 creation rule.",
+                  "0001-schema-registry",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-content-validation",
+                  "Validate page-owned tip references, same-catalog collisions, and repair paths before rendering.",
+                  "Semantic validation is isolated so collision and stale-reference repair paths are proven before rendering changes.",
+                  "0001-schema-registry",
+                  "static, unit"
+                ],
+                [
+                  "0004-durable-tip-source",
+                  "Render validated page tips into a durable, safe source block and preserve the last valid HTML when validation or serialization fails.",
+                  "The page builder and file replacement belong together because the durable source must be complete before valid HTML is replaced.",
+                  "0001-schema-registry, 0003-content-validation",
+                  "static, unit, integration"
+                ],
+                [
+                  "0005-injection-reopen",
+                  "Combine durable page tips with permitted shared sources into separate typed runtime maps on initial render and every reopen.",
+                  "Initial injection and reopen share the same derived-payload contract and legacy sidecar boundary.",
+                  "0004-durable-tip-source",
+                  "static, unit, integration"
+                ],
+                [
+                  "0006-browser-runtime-proof",
+                  "Resolve exact page IDs, page terms, and shared terms in the browser. Prove matching, safety, mutation, no-network, compatibility, and performance behavior through rendered output.",
+                  "Resolver behavior and its supported-browser proof close the matching, safety, mutation, network, and performance contracts together.",
+                  "0002-shared-page-writer, 0005-injection-reopen",
+                  "static, unit, integration"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-c3935593-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 6 subtasks, plan digest c3935593, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T19:11:45Z",
+          "raw": "[round R-1]\ndivision-c3935593-1 sign\n",
+          "signals": [
+            {
+              "target": "division-c3935593-1",
+              "item": "division-c3935593-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "72e6974a7bac4aba"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

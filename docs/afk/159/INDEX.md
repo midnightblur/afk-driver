@@ -13,7 +13,7 @@ Page readers must search or scroll to understand feature-specific terms and page
 | Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-tips-run:plan/PLAN.md | 6 subtasks; division approved 2026-11-04 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
