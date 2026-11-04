@@ -251,9 +251,11 @@ def test_open_with_an_id_updates_that_change(repo, forge, capsys):
     assert code == 0 and answer["created"] is False and forge.calls[0][1]["id"] == "7"
 
 
-def test_open_with_an_id_of_a_closed_change_refuses(repo, forge, capsys):
-    forge.answers = {"change-view": {**VIEW, "state": "merged"}}
-    assert refused(change_request, capsys, "open", id="7", **PARTS)["code"] == "change-not-open"
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_open_with_an_id_of_a_closed_change_refuses(repo, forge, capsys, state):
+    forge.answers = {"change-view": {**VIEW, "state": state}}
+    error = refused(change_request, capsys, "open", id="7", **PARTS)
+    assert error["code"] == "change-not-open" and error["change_state"] == state
     assert forge.verbs() == ["change-view"]
 
 

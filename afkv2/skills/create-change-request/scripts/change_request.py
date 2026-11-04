@@ -91,7 +91,7 @@ def _existing(payload):
     if payload.get("id"):
         view = forge_answer("change-view", payload, id=change_ref(payload))
         if view.get("state") != "opened":
-            raise Refusal("change-not-open", f"change {payload['id']} is {view.get('state')}")
+            raise Refusal("change-not-open", f"change {payload['id']} is {view.get('state')}", change_state=view.get("state") or "")
         return view
     answer = call_forge("change-view", {**passed_on(payload), "id": _current_branch(payload)})
     if answer.get("ok"):
