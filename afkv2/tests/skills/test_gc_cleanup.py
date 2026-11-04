@@ -20,6 +20,7 @@ import gc_target  # noqa: E402
 from gc_repo import FEATURE, RUN, build_gc_repo, git  # noqa: E402
 
 GITHUB = "https://github.test/o/r"
+PLATFORM = gc_checks.check_platform
 GITLAB = "https://gitlab.test/g/p"
 
 
@@ -739,8 +740,7 @@ def test_finish_on_a_system_that_is_not_windows_refuses_not_windows_and_removes_
     import folder_remove
     waiting(repo, monkeypatch)
     before = gc_target.read_target(repo.main, FEATURE)
-    real = gc_checks.check_platform
-    monkeypatch.setattr(gc_checks, "check_platform", lambda: real("posix"))
+    monkeypatch.setattr(gc_checks, "check_platform", lambda: PLATFORM("posix"))
     monkeypatch.setattr(folder_remove, "WINDOWS", False)
     refused("not-windows", cleanup.finish_step, repo.main, FEATURE)
     still_waiting(repo, before)
