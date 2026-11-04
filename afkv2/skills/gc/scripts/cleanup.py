@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal  # noqa: E402
 
+import folder_remove  # noqa: E402
 import gc_checks  # noqa: E402
 import gc_target  # noqa: E402
 from folder_remove import REMOVING_SUFFIX  # noqa: E402
@@ -74,13 +75,15 @@ def _tips(folder, branch, head, remote):
     return tips
 
 
-def _listing(folder, branch):
-    """The list of the feature worktree `folder` on `branch`, without its receipt, and the tips of its target."""
+def _listing(folder, branch, cwd=None):
+    """The list of the feature worktree `folder` on `branch`, without its receipt, and the tips of its target.
+    git and the forge run in `cwd`, any folder of the repository (default `folder`); the list is the same from each."""
+    cwd = folder if cwd is None else cwd
     defaults = gc_target.new_target(branch, str(folder), None, {}, "")
     names, remote = _names(defaults), defaults["remote"]
-    forge = gc_checks.check_change(folder, branch)
+    forge = gc_checks.check_change(cwd, branch)
     change = forge["change"]
-    tips = _tips(folder, branch, change["head_sha"] if change else None, remote)
+    tips = _tips(cwd, branch, change["head_sha"] if change else None, remote)
     clean = {item: gc_checks.check_clean(names[item]) for item in WORKTREES}
     tip_refusal = tips["refusal"]
     refused = [entry["item"] for entry in tip_refusal["branches"]] if tip_refusal else []
@@ -167,6 +170,40 @@ def list_step(cwd, branch=None, lock=None):
     finally:
         if lock is None:
             held.release()
+
+
+def _stored(cwd, branch):
+    """The stored target of `branch`, `listed` or `waiting`. None refuses `no-target`, another state `bad-target`."""
+    target = gc_target.read_target(cwd, branch)
+    if target is None:
+        raise Refusal("no-target", f"no gc target for {branch}; run gc list in its feature worktree")
+    if target["state"] not in STATES:
+        path = gc_target.target_path(cwd, branch)
+        raise Refusal("bad-target", f"{path} has state {target['state']!r}, not listed or waiting; list again")
+    return target
+
+
+def main_checkout(cwd):
+    """The main checkout of the repository `cwd` is in: the first worktree git lists."""
+    code, out, error = _git(cwd, "worktree", "list", "--porcelain")
+    if code != 0:
+        raise Refusal("git-failed", f"git worktree list in {cwd}: {error}")
+    return Path(out.splitlines()[0].removeprefix("worktree "))
+
+
+def remove_step(cwd, branch, receipt, yes=()):
+    """Remove the `now` items of the stored target of `branch`, after the developer's yes on the list with `receipt`.
+    Runs from any folder of the repository. A list that differs from a fresh one refuses `stale-list` with it."""
+    target = _stored(cwd, branch)
+    main = main_checkout(cwd)
+    with gc_target.take_lock(main, branch):
+        target = _stored(main, branch)
+        fresh, tips = _listing(target["feature_worktree"], branch, cwd=main)
+        fresh["receipt"] = gc_target.receipt_of(fresh)
+        if receipt != fresh["receipt"]:
+            raise Refusal("stale-list", "the list changed after the yes; nothing was removed; answer the new list",
+                          list=fresh)
+        return {}
 
 
 class _Parser(argparse.ArgumentParser):

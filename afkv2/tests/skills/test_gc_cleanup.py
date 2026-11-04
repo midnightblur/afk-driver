@@ -352,3 +352,59 @@ def test_the_script_runs_as_a_command_and_finds_its_sibling_modules_in_isolated_
                           capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL, timeout=60, cwd=tmp_path)
     answer = json.loads(done.stdout)
     assert done.returncode == 1 and answer["error"]["code"] in ("git-failed", "no-target")
+
+
+# gc remove
+
+
+@pytest.fixture
+def windows(monkeypatch):
+    """The folder removal runs on Windows only: elsewhere, the tests stand in for it."""
+    import folder_remove
+    real = gc_checks.check_platform
+    monkeypatch.setattr(gc_checks, "check_platform", lambda: real("nt"))
+    monkeypatch.setattr(folder_remove, "WINDOWS", True)
+
+
+def remote_heads(repo):
+    return {line.split("\t")[1].removeprefix("refs/heads/"): line.split("\t")[0]
+            for line in git(repo.main, "ls-remote", str(repo.remote), "refs/heads/*").splitlines() if line}
+
+
+def local_heads(repo):
+    return set(git(repo.main, "for-each-ref", "--format=%(refname:short)", "refs/heads").splitlines())
+
+
+def untouched(repo):
+    """Every item of the work is still there."""
+    assert Path(repo.run).is_dir() and Path(repo.feature).is_dir()
+    assert {FEATURE, RUN} <= local_heads(repo) and {FEATURE, RUN} <= set(remote_heads(repo))
+
+
+def test_remove_with_a_receipt_that_does_not_match_a_fresh_list_refuses_stale_list_with_it_and_removes_nothing(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    repo.commit(repo.feature, "late.txt", "late\n", "a late commit")
+    refusal = refused("stale-list", cleanup.remove_step, repo.main, FEATURE, receipt)
+    fresh = refusal.extra["list"]
+    assert fresh["receipt"] != receipt and fresh["receipt"] == gc_target.receipt_of(fresh)
+    assert [entry["code"] for entry in fresh["refusals"]] == ["outside-commits"]
+    assert len(fake.calls) == 2
+    untouched(repo)
+    assert gc_target.read_target(repo.main, FEATURE)["state"] == "listed"
+
+
+def test_remove_with_no_stored_target_refuses_no_target(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    refused("no-target", cleanup.remove_step, repo.main, FEATURE, "c" * 64)
+    assert fake.calls == []
+    untouched(repo)
+
+
+def test_remove_refuses_locked_while_another_run_holds_the_target(repo, monkeypatch, windows):
+    fake = merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    with gc_target.take_lock(repo.main, FEATURE):
+        refused("locked", cleanup.remove_step, repo.main, FEATURE, receipt)
+    assert len(fake.calls) == 1
+    untouched(repo)
