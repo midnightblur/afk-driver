@@ -206,3 +206,37 @@ def test_a_format_0_page_pairs_an_answer_by_its_about_list():
     html = build(doc)
     assert "answer by about" in row(on_card(html, "i-a"), CARD_ROW + "N-1-i-a")
     assert "answer by about" in row(session(html), SESSION_ROW + "N-1-i-a")
+
+
+# --- the column widths of the 2 notes tables (D-14): # | Where | Noted text | Your note | Answer [| Open]
+
+WIDTH_RULE = re.compile(r"([^{}]*?)th:nth-child\((\d)\)\s*\{\s*width:\s*([^;]+);")
+CARD_MODIFIER = "afkv2-nr-table--card"
+
+
+def widths(card_table):
+    """The width that wins for each column of a notes table in the page's CSS: highest specificity, then the
+    later rule. A rule without the card modifier holds for both tables."""
+    found = {}
+    for position, match in enumerate(WIDTH_RULE.finditer(page._assets(".css", page.BASE_CSS))):
+        selector, column, width = match.group(1).strip(), int(match.group(2)), match.group(3).strip()
+        if "afkv2-nr-table" not in selector or (CARD_MODIFIER in selector and not card_table):
+            continue
+        rank = (selector.count(".") + 1, position)
+        if column not in found or rank > found[column][0]:
+            found[column] = (rank, width)
+    return {column: width for column, (_, width) in found.items()}
+
+
+def test_the_session_table_fixes_the_number_and_open_columns_and_leaves_the_answer_free():
+    session_widths = widths(card_table=False)
+    assert session_widths[1].endswith("rem") and session_widths[6].endswith("rem")
+    assert 5 not in session_widths
+    assert all(session_widths[k].endswith("%") for k in (2, 3, 4))
+
+
+def test_the_card_table_gives_the_text_columns_shares_and_leaves_the_answer_free():
+    card_widths = widths(card_table=True)
+    assert card_widths[1].endswith("rem") and 5 not in card_widths
+    shares = [float(card_widths[k].rstrip("%")) for k in (2, 3, 4)]
+    assert sum(shares) < 80 and shares[1] <= shares[2]

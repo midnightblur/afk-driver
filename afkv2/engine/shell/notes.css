@@ -10,10 +10,15 @@
   overflow-wrap: anywhere;
 }
 .afkv2-nr-table thead th { background: var(--surface-2); font-size: .78rem; color: var(--fg-dim); }
+/* Columns: # | Where | Noted text | Your note | Answer | Open (the card table has no Open). Answer takes the rest. */
 .afkv2-nr-table th:nth-child(1) { width: 4.5rem; }
-.afkv2-nr-table th:nth-child(2) { width: 20%; }
-.afkv2-nr-table th:nth-child(3) { width: 30%; }
-.afkv2-nr-table th:nth-child(5) { width: 6.5rem; }
+.afkv2-nr-table th:nth-child(2) { width: 15%; }
+.afkv2-nr-table th:nth-child(3) { width: 20%; }
+.afkv2-nr-table th:nth-child(4) { width: 22%; }
+.afkv2-nr-table th:nth-child(6) { width: 6.5rem; }
+.afkv2-nr-table.afkv2-nr-table--card th:nth-child(2) { width: 16%; }
+.afkv2-nr-table.afkv2-nr-table--card th:nth-child(3) { width: 22%; }
+.afkv2-nr-table.afkv2-nr-table--card th:nth-child(4) { width: 25%; }
 .afkv2-nr-group > td {
   --nr-tint: var(--afkv2-round, var(--neutral));
   border-left: 4px solid var(--nr-tint); font-weight: 600;
