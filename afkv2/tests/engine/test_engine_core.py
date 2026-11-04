@@ -837,7 +837,7 @@ def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
     assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
     assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
     assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
-    assert lacks(html[:position(html, MAPS_SECTION)], "Say who runs it.")
+    assert holds(html[:position(html, MAPS_SECTION)], 'id="afkv2-ns-N-2-i-new"', "Say who runs it.")
 
 
 def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_wins():
@@ -858,8 +858,9 @@ def test_an_annotation_on_a_history_row_resolves_to_the_old_card(tmp_path):
     doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
     dom = _Dom()
     dom.feed(build(doc))
-    selector = lavish_selector(find_cell(dom.root, "The card"))
+    selector = lavish_selector(find_cell(find_id(dom.root, "i-new"), "The card"))
     assert selector == "tr#afkv2-nr-N-2-i-new > td:nth-of-type(2)"
+    assert lavish_selector(find_cell(dom.root, "The card")) == "tr#afkv2-ns-N-2-i-new > td:nth-of-type(2)"
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [prompt("Still unclear.", selector, "td", "The card")])
     assert raw == '[round R-3]\ni-new — | Still unclear.'
 
@@ -1338,10 +1339,11 @@ def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp
     html = build(doc)
     assert holds(html, 'id="afkv2-nr-N-2-i-new"', 'id="afkv2-nr-reply-2-1"')
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
-        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(3) > q", "q", "Old note."),
+        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(4) > q", "q", "Old note."),
+        prompt("Also wrong.", "tr#afkv2-ns-N-2-i-new > td:nth-of-type(4) > q", "q", "Old note."),
         prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),
-        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(4) > p", "p", "A reply alone.")])
-    assert raw == '[round R-2]\ni-new — | Still wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
+        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(5) > p", "p", "A reply alone.")])
+    assert raw == '[round R-2]\ni-new — | Still wrong.\ni-new — | Also wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
 
 
 VOID_TAGS = {"input", "br", "meta", "img", "hr", "link"}
@@ -1384,6 +1386,12 @@ def lavish_selector(node):
         parts.insert(0, part)
         node = node[2]
     return " > ".join(parts)
+
+
+def find_id(node, identifier):
+    if node[1] == identifier:
+        return node
+    return next((found for child in node[3] if (found := find_id(child, identifier))), None)
 
 
 def find_cell(node, words):

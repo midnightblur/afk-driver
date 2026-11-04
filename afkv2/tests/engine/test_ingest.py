@@ -44,7 +44,6 @@ NOTES_CSS = (ENGINE_DIR / "shell" / "notes.css").read_text("utf-8")
 
 EMPTY_SLOT = '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>'
 TABLE = 'class="afkv2-nr-table"'
-EARLIER = 'id="afkv2-nr-earlier"'
 ROUND_3 = 'data-afkv2-nr-round="3"'
 ROUND_2 = 'data-afkv2-nr-round="2"'
 ROUND_1 = 'data-afkv2-nr-round="1"'
@@ -847,13 +846,13 @@ def session_document():
     return doc
 
 
-def test_the_session_rows_come_newest_round_first_and_older_rounds_fold():
+def test_the_session_rows_come_newest_round_first_and_each_older_round_is_a_closed_group():
     html = slot(build(session_document()))
     places = [html.index(mark) for mark in (SESSION_TITLE, TABLE, ROUND_3, "reply alone of round 3",
-                                            ROUND_2, "reply alone of round 2", EARLIER, ROUND_1, "reply alone of round 1")]
+                                            ROUND_2, "reply alone of round 2", ROUND_1, "reply alone of round 1")]
     assert places == sorted(places)
     assert html.count("<details") == 1 and "<details open" not in html and html.count("<table") == 2
-    assert "note of round one" not in html
+    assert html.index("<details") < html.index(ROUND_1) < html.index("note of round one")
 
 
 def test_two_rounds_stay_open_and_have_no_fold():
@@ -870,7 +869,7 @@ def test_a_note_row_stands_under_its_card_with_the_reply_that_answers_it():
     assert QUOTED_ONE in note_row and "reply of round one" in note_row
     assert 'title="N-1-i-a">R1.1<' in note_row and "The card" in note_row
     assert "No answer yet" in row(exchange(html, "i-b"), NOTE_ROW_B)
-    assert "note of round one" not in slot(html)
+    assert "note of round one" in row(slot(html), "afkv2-ns-N-1-i-a")
 
 
 def test_a_reply_of_the_next_round_answers_the_note_of_the_round_before():
@@ -936,7 +935,8 @@ def test_a_steer_on_a_held_node_names_the_map():
 
 def test_a_row_stands_for_its_card():
     assert targets(noted_document()) == {"afkv2-nr-N-1-i-a": "i-a", "afkv2-nr-N-2-i-b": "i-b",
-                                              REPLY_ROW: "i-c"}
+                                              REPLY_ROW: "i-c", "afkv2-ns-N-1-i-a": "i-a",
+                                              "afkv2-ns-N-2-i-b": "i-b", "afkv2-ns-reply-3-1": "i-c"}
 
 
 def test_every_id_of_the_page_is_unique():
@@ -1098,7 +1098,7 @@ def test_the_stress_page_passes_the_check_and_renders(path):
     doc = stress_document()
     assert check(save(path, doc)) == 0
     html = build(doc)
-    assert LONG_WORD in html and html.count("<details") == 1
+    assert LONG_WORD in html and html.count("<details") == 8 and html.count('data-afkv2-fold="notes-round-') == 7
     notes = sum(len(i.get("notes") or []) for r in doc["rounds"] for i in r["items"])
     assert notes == 48 and len(doc["rounds"]) == 9
 
