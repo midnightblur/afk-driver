@@ -188,20 +188,23 @@
 ## Solution design
 
 - Premise: The page format afkv2.page/0 is frozen; the engine picks a reader by the schema string, so a new version is a new value with its own file and reader → verified (afkv2/engine/schema/page-v0.schema.json:5; afkv2/engine/engine.py:48,60,71-74)
-- Premise: The engine joins every annotation on one element into one note per card per round → verified (afkv2/engine/prompt_lines.py:121-132; afkv2/engine/ingest.py:138-157; afkv2/engine/schema/invariants.py:107,126)
+- Premise: Each lavish annotation is its own note, inside format 0: a card note has the id N-<round>-<card>-<k>, a steer N-<round>-<target>-<k>; the noted text stays inside the note's words as (on: "…") → verified (afkv2/engine/schema/note_rules.py:1-33; afkv2/engine/prompt_lines.py:115; merged from feat/afkv2 in e61de54e)
 - Premise: The engine and the v0 schema refuse a page outside <spec folder>/<ticket>/pages/<skill>-<id>.json, a page with no ticket, and a skill name other than 3 → verified (afkv2/engine/engine.py:237-254; afkv2/engine/schema/page-v0.schema.json:21-26)
 - Premise: The Codex sandbox rules allow only afkv2/engine/engine.py and afkv2/skills/*/scripts/*.py, so a shared script home must sit under a skill's scripts folder → verified (afkv2/skills/setup/scripts/setup.py:470-477)
 - Premise: Every Python file name in the afkv2 tree must be unique, so a moved module leaves no copy or shim → verified (afkv2/tests/test_module_names.py:9-23)
-- Premise: Replies have no stored link to a note; the page pairs them at render time by the reply's about field → verified (afkv2/engine/components/notes_replies.py:93-113)
+- Premise: A reply's about is a list of ids; the page pairs it with a note when it holds the note's target, card or note id → verified (afkv2/engine/components/notes_replies.py:99-109)
 - Premise: A page document records only its session id; no lock, pid or live-session check exists → verified (afkv2/skills/grill/scripts/round_document.py:357-358; rg lock|pid in afkv2/engine and afkv2/skills/grill/scripts found none)
 - Premise: afkv2 has no secret-shape scan and no helper that asks git whether a file is tracked or ignored → verified (rg check-ignore|ls-files|rev-parse and secret shapes over afkv2/; nearest: afkv2/skills/setup/scripts/setup.py:390-400, afkv2/skills/to-subtasks/scripts/plan_files.py:302-309)
 - Premise: A hands-off executor has no flag or variable that marks it; only its brief says so → verified (afkv2/skills/autopilot/scripts/walk.py:137-147; afkv2/skills/execute/SKILL.md:8)
 - Premise: The Codex Stop hook does not call the round commands, so moving them leaves it unchanged → verified (afkv2/hooks/codex_stop.py:20-30)
 - Premise: No propose-verification skill exists in afkv2; the name stands only in the schema enum and the visualize guide → verified (10 skill folders listed under afkv2/skills; afkv2/engine/schema/page-v0.schema.json:24)
-- Premise: The page host can reuse an open browser tab for a new round: a show with --no-open opens no new window, sessions are keyed by the HTML path, and the open tab reloads when the file changes → verified from the host documents at the pin, not live-checked (lavish-axi 0.1.80 README.md:160,195,285; pin afkv2/engine/launcher.py:32)
+- Premise: Show reuses the page's open tab: it keeps a tab record in the data folder, passes --no-open while the record stands, and forgets it when a poll answers ended, browser_disconnected or no-session, or end runs → verified (afkv2/engine/engine.py:11-12,58-59,180-187,308-327,365,425-426)
 - Premise: The installed diagram renderer is mermaid-cli 12.0.0; it takes --svgId, a theme (dark, default and others) and a background colour; setup installs it with no version pin → verified (mmdc --version; mmdc --help; afkv2/skills/setup/scripts/tools.py:23-25)
 - Premise: The page loads nothing from a network: every stylesheet and script is inlined, and the host runs the page in a sandboxed iframe with no content policy → verified (afkv2/engine/shell/page.py:164-168; lavish-axi 0.1.80 README.md:162,195)
 - Premise: The page keeps its own state across reloads in window.name and localStorage, each call wrapped in try → verified (afkv2/engine/shell/runtime.js:12-46; afkv2/engine/shell/tips.js:126-127)
 - Premise: highlight.js 11.12.0 ships a prebuilt bundle of its common languages of 129,254 bytes, plus themes of about 1.3 KB each, under the BSD-3-Clause license → verified (npm pack @highlightjs/cdn-assets@11.12.0: highlight.min.js, styles/github.min.css, styles/github-dark.min.css)
 - Premise: A render of the 622 KB grill page takes 444 to 1,231 ms with no diagram → verified (3 runs of afkv2/engine/engine.py render on a scratch copy)
 - Settled: design gate passed 2026-11-04 · session s-20261104-054758
+- Premise: The page title and tab read <ticket> · <feature> · <skill> R-<n>, so they change every round → verified (afkv2/engine/shell/page.py:142-147)
+- Premise: The host reports browser_disconnected when the human closes the page's tab, so the next show opens a new one → unverified-external (human acknowledged)
+- Settled: design gate passed 2026-11-04 · session s-20261104-064550

@@ -28,16 +28,16 @@ This SDD and its accepted ADRs are binding on implementing agents and reviewers.
 
 | Aspect | Section | Status | Signed by / date | Approved wording |
 |--------|---------|--------|------------------|------------------|
-| HL-1 Persistence and entity design | §4 | signed | owner / 2026-11-04 | sign mark on card s-hl1, round 2, no note: the 4 field tables and the rules of page format 1, as §4 states them |
-| HL-2 API surface | §3 | signed | owner / 2026-11-04 | sign mark on card s-hl2, round 2, no note: the 11 surface rows, as §3 states them |
-| HL-3 Authorization and data scoping | §5 | signed | owner / 2026-11-04 | sign mark on card s-hl3, round 2, no note: the 5 actions with their permitted and denied roles and guards, as §5 states them |
-| HL-4 Life cycle and invariants | §6 | signed | owner / 2026-11-04 | sign mark on card s-hl4, round 2, no note: the 4 life cycles and the 7 rules, as §6 states them |
-| HL-5 Irreversible and outward side effects | §7 | signed | owner / 2026-11-04 | sign mark on card s-hl5, round 2, no note: the 4 effects, as §7 states them |
-| HL-6 Change to existing behaviour | §14 | signed | owner / 2026-11-04 | sign mark on card s-hl6, round 2, no note: the 6 groups that see a difference, as §14 states them |
+| HL-1 Persistence and entity design | §4 | signed | owner / 2026-11-04 | sign mark on card s-hl1, round 2 of session s-20261104-064550, no note: the 4 field tables and the rules of page format 1, as §4 states them |
+| HL-2 API surface | §3 | signed | owner / 2026-11-04 | sign mark on card s-hl2, round 2 of session s-20261104-064550, no note: the 11 surface rows, as §3 states them |
+| HL-3 Authorization and data scoping | §5 | signed | owner / 2026-11-04 | sign mark on card s-hl3, round 2 of session s-20261104-064550, no note: the 5 actions with their permitted and denied roles and guards, as §5 states them |
+| HL-4 Life cycle and invariants | §6 | signed | owner / 2026-11-04 | sign mark on card s-hl4, round 2 of session s-20261104-064550, no note: the 4 life cycles and the 7 rules, as §6 states them |
+| HL-5 Irreversible and outward side effects | §7 | signed | owner / 2026-11-04 | sign mark on card s-hl5, round 2 of session s-20261104-064550, no note: the 4 effects, as §7 states them |
+| HL-6 Change to existing behaviour | §14 | signed | owner / 2026-11-04 | sign mark on card s-hl6, round 2 of session s-20261104-064550, no note: the 6 groups that see a difference, as §14 states them |
 
 ## §1 Context Summary
 
-Pages that afkv2 skills write are hard to follow, note answers depend on luck, and only 3 afk steps can open a page. The PRD fixes the quality bar in instructions (the use-lavish skill) and adds engine abilities. This design says where the round commands live, what page format 1 stores, how the engine draws the new forms, how a page finds its home and reports its git state, and how old pages keep working. The owner's ruling binds every layer: instructions carry the quality bar, and code only warns, never blocks (requirement ADR-0001).
+Pages that afkv2 skills write are hard to follow, note answers depend on luck, and only 3 afk steps can open a page. The PRD fixes the quality bar in instructions (the use-lavish skill) and adds engine abilities. This revision follows the merge of the base branch, which already gives each annotation its own note and reuses the page's tab (PR #167); the owner signed every aspect again in session s-20261104-064550. This design says where the round commands live, what page format 1 stores, how the engine draws the new forms, how a page finds its home and reports its git state, and how old pages keep working. The owner's ruling binds every layer: instructions carry the quality bar, and code only warns, never blocks (requirement ADR-0001).
 
 ## §2 L1 — System Topology
 
@@ -84,7 +84,7 @@ sequenceDiagram
   E->>G: status of the page and the scanned files
   E->>E: secret scan; render new diagrams through the cache
   E->>E: write the page, notices in the header
-  P->>H: show: plain the first time, then with no new window
+  P->>H: show: reuse the open tab, as on the base
   P->>A: git state, secret hits, diagram counts
 ```
 
@@ -94,7 +94,7 @@ sequenceDiagram
 
 | Surface | Input | Success answer | Refusals | Repeat | Existing callers |
 |---------|-------|----------------|----------|--------|------------------|
-| present (use-lavish) | `--doc`; `--scan <file>`, repeatable; `--open` | `page`, `git_state` (one of committed, untracked, ignored, outside, unknown), `secrets` [{file, line, shape}], `diagrams` {rendered, cached, as_text} | as today: a failed `verb` of check, render or show; `round-shown` | safe: a second run shows the same page | grill, propose-solution, to-subtasks: path changes |
+| present (use-lavish) | `--doc`; `--scan <file>`, repeatable | `page`, `tab` (reused, as on the base), `git_state` (one of committed, untracked, ignored, outside, unknown), `secrets` [{file, line, shape}], `diagrams` {rendered, cached, as_text} | as today: a failed `verb` of check, render or show; `round-shown` | safe: a second run shows the same page | grill, propose-solution, to-subtasks: path changes |
 | wait, reply, end (use-lavish) | as today | as today | as today | as today | path changes only |
 | ingest (use-lavish) | as today | as today, plus `notes`: the new note ids | as today | as today: a kept send answers once | path changes only |
 | take-over (use-lavish, new) | `--doc` | `session`, `round`, `takeovers` | `unreadable` | safe: a second run in the same round adds nothing | a resuming skill |
@@ -108,7 +108,7 @@ sequenceDiagram
 
 **Raw answer text, format 1.** The first line stays `[round R-<n>]`. A mark stays `<element id> <mark>`. Each note is its own entry: a line `<element id> note <k>`, then an optional line `  on: "<noted text>"`, then the note's words on the following lines, each indented 2 spaces. The grammar has one home, the engine's prompt-lines module; ingest is its one parser. A format 0 page keeps its format 0 grammar.
 
-**Verdict on existing callers.** Only this plugin calls these surfaces. Every caller changes in the same commit, and the old paths are removed. Checked facts: callers `afkv2/skills/propose-solution/SKILL.md:78,88,96,102,122`, `afkv2/skills/to-subtasks/SKILL.md:68,78,86,92,108`, `afkv2/skills/grill/SKILL.md:62,68,78,86,92,98,133`; the Codex Stop hook calls none of them (`afkv2/hooks/codex_stop.py:20-30`); show already takes `--no-open` (`afkv2/engine/engine.py:278-285`).
+**Verdict on existing callers.** Only this plugin calls these surfaces. Every caller changes in the same commit, and the old paths are removed. Checked facts: callers `afkv2/skills/propose-solution/SKILL.md:78,88,96,102,122`, `afkv2/skills/to-subtasks/SKILL.md:68,78,86,92,108`, `afkv2/skills/grill/SKILL.md:62,68,78,86,92,98,133`; the Codex Stop hook calls none of them (`afkv2/hooks/codex_stop.py:20-30`); show already reuses the open tab through a tab record (`afkv2/engine/engine.py:11-12,180-187,308-327`).
 
 ## §4 L3 — Data Architecture
 
@@ -120,6 +120,7 @@ sequenceDiagram
 | Rendered diagram | SVG file in the data folder, `diagram-cache/`, named by a hash of the text, the theme and the renderer version | 1 per text and theme | none | until the developer deletes it | a new renderer version makes new names | no | no |
 | Last notices of a page | JSON file in the data folder, `page-notices/`, named by a hash of the page path | 1 per page | none | overwritten each show | derived | no; a secret hit holds file, line and shape, never the value | no |
 | Copies of settled rounds | data folder, `page-copies/` | as today | as today | as today | as today | no | no |
+| Tab record of a page | data folder, `page-tabs/`, as on the base | 1 per page | none | while a tab shows the page; forgotten on end or when the host reports the browser left | as on the base | no | no |
 
 The data folder is the afkv2 folder under the local application data, where the settled-round copies already live (card l3-data).
 
@@ -141,7 +142,7 @@ Note (one list for the whole session, card a-entities, [ADR-0001](adr/design/000
 
 | Field | Type | Null? | Default | Unit / precision | Constraint | Indexed / unique | Note |
 |-------|------|-------|---------|------------------|------------|------------------|------|
-| id | text | no | — | — | `N-<round>-<element>-<k>`, k = 1, 2, … in send order | unique in the document | changed |
+| id | text | no | — | — | a card note `N-<round>-<card>-<k>`, a steer `N-<round>-<target>-<k>`, k = 1, 2, … in send order; an older merged id `N-<round>-<card>` stays valid | unique in the document | the base's form, one rule for both formats |
 | round | number | no | — | — | the round it was sent in | — | kept |
 | target | element id | no | — | — | the element it sits on | — | kept |
 | item | card id | yes | none | — | the card that holds the element; none for a steer | — | new |
@@ -181,7 +182,7 @@ Other parts:
 
 **Indexes:** none; a page is read whole. **Surface reachability:** the fields reach 3 surfaces: the rendered page (title, notes table, answer links, round marks, notices), the ingest answer (`notes`) and the grill log rows the skills write from notes. No other surface exposes the document.
 
-**Migration and backfill** (card a-migration, [ADR-0002](adr/design/0002-old-pages-move-to-format-1-at-their-next-round.md)). Opening or rendering a format 0 page never rewrites it. The format 0 reader turns it into format 1 in memory: card notes and steers move into the session list with their old ids; an answer with only `about` keeps it and is paired the format 0 way; `short_title` is none, so the title uses the feature name. A live format 0 session writes format 1 at its next round. It cannot go back to an older plugin, and that is accepted.
+**Migration and backfill** (card a-migration, [ADR-0002](adr/design/0002-old-pages-move-to-format-1-at-their-next-round.md)). Opening or rendering a format 0 page never rewrites it. The format 0 reader turns it into format 1 in memory: card notes and steers move into the session list with their ids as they are, in either id form, the noted text still inside their words; an answer with only `about` keeps it and is paired the format 0 way; `short_title` is none, so the title uses the feature name. A live format 0 session writes format 1 at its next round. It cannot go back to an older plugin, and that is accepted.
 
 ```mermaid
 erDiagram
@@ -223,7 +224,7 @@ erDiagram
 | Retry | none automatic; every failure falls back and the next show tries again |
 | Rate limit | none: one human, one machine |
 | Feature flags | none: format 1 is the only format new pages get |
-| Observability | present answers the git state, each secret hit, and the count of diagrams rendered, cached and shown as text |
+| Observability | present answers the git state, each secret hit, the count of diagrams rendered, cached and shown as text, and, as on the base, whether the tab was reused |
 
 Secrets: the feature handles none; the scan only warns about secret-shaped values.
 
@@ -326,7 +327,7 @@ sequenceDiagram
 |---------------|------------------|--------------------|-----------------|-------|
 | Diagram renderer missing, fails or times out | renderer exit, 60 s | the diagram shows as text, with why | run `/afkv2:setup` | engine |
 | git missing or fails | exit, 10 s | an "unknown" git-state line; no scan | none needed | engine |
-| The human closed the tab | none: the host cannot tell | none | the human says so; the agent runs present with `--open` | agent |
+| The human closed the tab | the host reports the browser left (unverified-external, acknowledged) | the tab record is forgotten; the next show opens a tab | when no report comes, the human opens the page again from the host | engine |
 | A track move stops halfway | track answers what moved | a re-run moves the rest | the agent commits | use-lavish |
 | A session dies mid-round | a new session finds the page open | none | the new session takes over and answers the open notes | agent |
 
@@ -335,7 +336,7 @@ sequenceDiagram
 | Effect | Trigger | Order against the local writes | Idempotency key | Partial failure leaves | Recovery |
 |--------|---------|--------------------------------|-----------------|------------------------|----------|
 | Commit a tracked page | the human asks to track a page | end the old host session; move the page and its side files; the agent commits them on the feature branch | the page's session id: a moved page is skipped | files moved but not committed: the notice says "not committed yet" | the agent commits |
-| Open the page in the browser | present | after check and render | the page path: the host keys a session by it | no tab open | the human says so; present `--open` |
+| Open the page in the browser | present | after check and render | the page path and its tab record | no tab open | the host reports the browser left and the next show opens a tab; without that report, the human opens the page from the host |
 | Write a rendered diagram | a render meets a new diagram text | before the page renders | hash of text, theme and renderer version | no file: the diagram shows as text | the next render tries again |
 | Write the page notices | present | after the git call and the scan | the page path | the last notices stay | the next show |
 
@@ -381,7 +382,7 @@ flowchart TB
 | What changed this round | the agent lists the changed elements in the round and in its answers; the banner list and the round marks are drawn from those lists; beat an engine comparison of rounds, which cannot match parts because new cards have new ids | — |
 | Back after a jump | the page keeps its own list of the last 20 places, kept across reloads the way folds are kept today; beat browser history, which the host's sandboxed frame does not own (inferred) | — |
 | Value colours | one list per named set in the document; colour by position; ordered sets run strong to faint; YOU has one fixed strong colour; beat a colour per chip | — |
-| Tab reuse | a plain show the first time a page is shown, then a show with no new window; the host's live reload refreshes the open tab | — |
+| Tab reuse | built on the base: a tab record and a show with no new window while it stands; this design keeps it as it is | — |
 
 *Each pattern names the runner-up it beat (card l8-patterns).*
 
@@ -389,7 +390,7 @@ flowchart TB
 
 | Boundary | Framework at its pin | What it does to our value | Failure surface | Seam test |
 |----------|----------------------|---------------------------|-----------------|-----------|
-| Page host | lavish-axi 0.1.80 | serves the HTML; keys a session by the file path; a show with no new window opens none; reloads an open tab when the file changes, keeping unsent annotation text | a closed tab stays closed | live: show a page twice, the second with no new window; one tab, reloaded with the new round |
+| Page host | lavish-axi 0.1.80 | serves the HTML; keys a session by the file path; a show with no new window opens none; reloads an open tab when the file changes, keeping unsent annotation text | a closed tab stays closed; the engine keeps a tab record per page (`afkv2/engine/engine.py:180-187`) and forgets it when the host reports the browser left (unverified-external, acknowledged) | live: show a page twice: one tab, reloaded with the new round; close the tab, show again: one new tab |
 | Diagram renderer | mermaid-cli 12.0.0, pinned by setup | turns diagram text into SVG; the SVG id must be set per diagram, or 2 diagrams on one page share one id | missing, exit code, 60 s timeout: the text shows with why | render a page with 2 diagrams; 2 distinct SVG ids; with no renderer on the path, the text block shows and the render succeeds |
 | Code highlighter | highlight.js 11.12.0, copied into the plugin | colours code by language in the browser; leaves the text unchanged | an unknown language shows uncoloured | render a page with code: the library and its 2 themes are inlined once; a page with no code holds none; a browser check shows coloured spans |
 | git | the developer's git | answers the status of the page and the scanned files | missing, exit, 10 s timeout: an unknown line, no scan | in a throwaway repository: 1 test per state (committed, untracked, ignored, outside) |
@@ -437,11 +438,10 @@ Each row was checked against the code at the parent commit by the readers of thi
 |------|-------------------|----------------|----------------|---------------------------|---------|
 | Page format | `afkv2.page/0`, frozen; the engine picks a reader by the schema value (`afkv2/engine/schema/page-v0.schema.json:5`, `afkv2/engine/engine.py:48,60,71-74`) | a new value `afkv2.page/1` with its own schema file and reader; the builder stops pinning format 0 (`afkv2/skills/grill/scripts/round_document.py:23,355-356`) | every page | the validator supports few schema keywords (`afkv2/engine/schema/validate.py:11-13`): a length or count rule may need a check in the invariants | extends ([ADR-0002](adr/design/0002-old-pages-move-to-format-1-at-their-next-round.md)) |
 | Where a page may live | only `<spec folder>/<ticket>/pages/<skill>-<id>.json`, ticket required, 3 skill names (`afkv2/engine/engine.py:237-254`, `afkv2/engine/schema/page-v0.schema.json:21-26`) | also the data folder's `pages/<repository name>/` for ad-hoc pages; ticket optional; use-lavish and to-subtasks as skill names | ad-hoc pages; to-subtasks pages | tests point the local application data at a temp folder (`afkv2/tests/conftest.py:8-10`) | extends |
-| Notes from the host | all annotations on one element join into one line, and all notes on one card in one round into one note (`afkv2/engine/prompt_lines.py:121-132`, `afkv2/engine/ingest.py:138-157`) | 1 note per annotation, with its quote apart; v1 ids; one session list ([ADR-0001](adr/design/0001-notes-in-one-session-list.md)) | ingest, the grill log rows (`afkv2/skills/grill/scripts/grill_log.py:120-122,164-165`) | the needs-reading and conflict logic counts notes per card (`afkv2/engine/ingest.py:52,188,215,231`) | reworked |
+| Notes from the host | since the merge, 1 note per annotation, ids by the note rule module, the noted text inside the words as `(on: "…")`, notes on cards and rounds (`afkv2/engine/schema/note_rules.py:1-33`, `afkv2/engine/prompt_lines.py:115`) | one session list; the noted text in its own field; the same id rule ([ADR-0001](adr/design/0001-notes-in-one-session-list.md)) | ingest, the grill log rows (`afkv2/skills/grill/scripts/grill_log.py:120-122,164-165`) | the needs-reading and conflict logic counts notes per card (`afkv2/engine/ingest.py:52,188,215,231`) | reworked |
 | Session notes table | shows only notes on no card; folds rounds older than the one before (`afkv2/engine/components/notes_replies.py:20,218-242`) | every note, newest round first, a Noted text column, older rounds as closed groups with a count line | every page | row ids today per note (`afkv2/engine/components/notes_replies.py:168`) | reworked |
-| Answer pairing | matched by the `about` text, same round or the one before (`afkv2/engine/components/notes_replies.py:93-113`) | by note ids; `about` read for format 0 only | every page | — | reworked |
-| Page title | `<feature>: round <n>` (`afkv2/engine/shell/page.py:163`) | `<ticket> · <short title> · <step>`, the same every round | every page | — | reworked |
-| Show | a plain show every round (`afkv2/skills/grill/scripts/page_round.py:40-45`) | plain the first time, then with no new window; `--open` on request | every page | the host keys a session by the HTML path; a moved page opens 1 new tab | reworked |
+| Answer pairing | `about` is a list; an answer pairs with a note whose target, card or note id it holds (`afkv2/engine/components/notes_replies.py:99-109`) | by note ids; `about` read for format 0 only | every page | — | reworked |
+| Page title | `<ticket> · <feature> · <skill> R-<n>`, new each round (`afkv2/engine/shell/page.py:142-147`) | `<ticket> · <short title> · <step>`, the same every round | every page | — | reworked |
 | Navigation | fixed at the top right over the content (`afkv2/engine/shell/tips.css:9-14`) | the left margin on a wide window; a button on a narrow one; the collapsed state kept | every page | the jump button and the btw? button share the bottom-left corner today (`afkv2/engine/shell/tips.css:26-27`, `afkv2/engine/shell/btw.css:119-120`) | reworked |
 | Round commands and shared helpers | in the grill skill's scripts; 13 scripts import the helpers (`afkv2/skills/grill/scripts/grill_common.py:12`) | in the use-lavish skill's scripts; every importer and the 3 skills repointed ([ADR-0004](adr/design/0004-shared-page-code-lives-in-use-lavish.md)) | grill, propose-solution, to-subtasks, to-prd | every Python file name must be unique, so no copy stays (`afkv2/tests/test_module_names.py:9-23`); Codex runs only skill scripts and the engine (`afkv2/skills/setup/scripts/setup.py:470-477`); the helpers find the plugin root by file depth, which stays the same | reworked |
 | visualize guide | holds the round pass and the answer rules (`afkv2/skills/visualize/components/card.md:28-63`, `afkv2/skills/visualize/components/notes-and-replies.md:16-29`) | they move to use-lavish; the text that groups notes or repeats a steer goes (`afkv2/skills/visualize/components/notes-and-replies.md:19-20,26-27`, `afkv2/skills/grill/SKILL.md:106`) | every page skill | tests pin the moving text word for word (`afkv2/tests/skills/test_visualize.py:648-695,774-780`); the grill's test allows only 4 skill names in its pointers (`afkv2/tests/skills/test_grill.py:173`) | reworked |
@@ -453,7 +453,7 @@ Each row was checked against the code at the parent commit by the readers of thi
 
 | Who sees it | What changes | Compatible? | Rollback |
 |-------------|--------------|-------------|----------|
-| The human, on every afk page | new title; tab reused; navigation in the left margin; each note its own row; every note in the session table; links to what an answer changed | yes: same marks, same Send | revert the change; format 1 pages then no longer open |
+| The human, on every afk page | a stable title; navigation in the left margin; every note in the session table, each in its own row; links to what an answer changed (one note per annotation and tab reuse are already on the base) | yes: same marks, same Send | revert the change; format 1 pages then no longer open |
 | The grill, design and plan skills | call the round commands at the use-lavish path; point to use-lavish for page order and answers; the grill stops repeating a steer in its answer | yes, in the same commit | revert the commit |
 | to-subtasks pages | their skill name becomes to-subtasks, step Plan approval (today they say propose-solution, `afkv2/skills/to-subtasks/scripts/plan_files.py:35-37`) | yes | revert |
 | Live format 0 pages | move to format 1 at their next round | one way | none for a page already moved |
