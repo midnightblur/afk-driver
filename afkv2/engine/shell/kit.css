@@ -199,6 +199,15 @@ a { color: var(--accent); }
 
 [data-afkv2-fresh] { box-shadow: -6px 0 0 0 var(--open); }
 
+/* --- back after a jump: the rail holds the button; without a rail it floats at the top left --- */
+
+body > #afkv2-back {
+  position: fixed; top: 10px; left: 10px; z-index: 2147483645;
+  background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 12.5px/1.4 system-ui, sans-serif;
+}
+#afkv2-back[hidden] { display: none; }
+
 /* --- card additions ----------------------------------------------------- */
 
 .afkv2-card { border-left-color: var(--afkv2-round, var(--neutral)); }

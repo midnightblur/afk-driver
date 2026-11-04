@@ -12,10 +12,11 @@ the ticket shows once.
 
 from __future__ import annotations
 
+import json
 from html import escape
 from pathlib import Path
 
-from registry import aliases, lookup, render_component
+from registry import aliases, lookup, render_component, walk
 from schema.note_rules import round_target
 from shell.points import grouped
 from shell.references import link_cards, linkify
@@ -26,6 +27,7 @@ TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
 CARD_NOTES = "card-notes"
 GOLDEN_ANGLE = 137.5
+NODE_CARDS_ID = "afkv2-node-cards"
 ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
 
 
@@ -59,6 +61,28 @@ def _banner(doc: dict, round_: dict, current: bool) -> str:
     return render_component({"type": "round-banner", "id": round_target(round_["n"]), "props": {
         "n": round_["n"], "colour": round_colour(round_), "current": current, **round_["banner"],
         **_changed(doc, round_)}})
+
+
+def _node_cards(doc: dict) -> str:
+    """The card of each map box, for the box click and its hover: `{node: [newest card, round of its last
+    change]}`. The last change is the card's round, or a later round whose `changed` list names the card or
+    the box."""
+    trees = [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]
+    boxes = {node["id"] for tree in trees for _, part in walk(tree) if part["type"] == "map"
+             for node in part["props"]["nodes"]}
+    found = {}
+    for round_ in doc["rounds"]:
+        for item in round_["items"]:
+            if item.get("node") in boxes:
+                found[item["node"]] = [item["id"], round_["n"]]
+    for round_ in doc["rounds"]:
+        for node, entry in found.items():
+            if {node, entry[0]} & set(round_.get("changed") or []):
+                entry[1] = max(entry[1], round_["n"])
+    if not found:
+        return ""
+    data = json.dumps(found, sort_keys=True).replace("</", "<\\/")
+    return f'<script type="application/json" id="{NODE_CARDS_ID}">{data}</script>'
 
 
 def _round_marks(html: str, round_: dict) -> str:
@@ -199,7 +223,7 @@ def build(doc: dict, btw: tuple[int, str] | None = None) -> str:
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{_current_section(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
-            f'{_earlier_banners(doc)}')
+            f'{_earlier_banners(doc)}{_node_cards(doc)}')
     body = link_cards(linkify(_round_marks(body, current), session.get("links")), _cards(doc))
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'

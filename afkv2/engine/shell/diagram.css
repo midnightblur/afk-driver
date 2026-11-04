@@ -38,6 +38,7 @@
 .afkv2-node--open .afkv2-node-state { color: var(--open); }
 .afkv2-node--focus .afkv2-node-state { color: var(--focus); font-weight: 700; }
 .afkv2-node-round { font-family: ui-monospace, monospace; }
+.afkv2-box--card { cursor: pointer; }
 
 /* A scope map: one canvas per group, side by side, wrapping to a stack on a narrow window. */
 .afkv2-map-groups { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; }

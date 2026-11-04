@@ -205,8 +205,12 @@ DIAGRAM_CSS = (SHELL / "diagram.css").read_text("utf-8")
 def rule(css, selector, media=None):
     """The declarations of `selector`, inside the `@media` block whose query is `media` when given."""
     if media:
-        start = css.index(f"@media {media}")
-        css = css[start:css.index("\n}", start)]
+        start = css.index("{", css.index(f"@media {media}")) + 1
+        depth, end = 1, start
+        while depth:
+            depth += {"{": 1, "}": -1}.get(css[end], 0)
+            end += 1
+        css = css[start:end]
     match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", css)
     assert match, selector
     return match.group(1)
@@ -252,3 +256,85 @@ def test_the_notes_tables_scroll_in_their_own_box_at_phone_width():
     assert NOTES_WRAP in html[card_start:]
     assert "overflow-x: auto" in rule(NOTES_CSS, NOTES_SCROLL_RULE)
     assert "min-width: 40rem" in rule(NOTES_CSS, NOTES_TABLE_RULE)
+
+
+# --- navigation, back after a jump and map box clicks; the live test drives them in a browser
+
+import json  # noqa: E402
+
+TIPS_JS = (SHELL / "tips.js").read_text("utf-8")
+TIPS_CSS = (SHELL / "tips.css").read_text("utf-8")
+RUNTIME = (SHELL / "runtime.js").read_text("utf-8")
+NODE_CARDS = '<script type="application/json" id="afkv2-node-cards">'
+NAV_RULE, JUMP_RULE, WITH_NAV_RULE = "#afkv2-nav", "#afkv2-jump", "body.afkv2-with-nav"
+MIN_LIST_RULE = "#afkv2-nav.afkv2-min #afkv2-nav-list"
+TOOLS_HOLD_JUMP = "nav.querySelector('#afkv2-nav-tools').appendChild(jump);"
+NAV_KEY = "'afkv2-nav:' + session"
+BACK_KEY = "'afkv2-back:' + holder.getAttribute('data-afkv2-session')"
+NODE_CARDS_READ = "getElementById('afkv2-node-cards')"
+
+
+def wide_query():
+    return re.search(r"var WIDE = '([^']+)';", TIPS_JS).group(1)
+
+
+def test_the_navigation_sits_in_the_left_margin_on_a_wide_window():
+    wide = wide_query()
+    assert "padding-left" in rule(TIPS_CSS, WITH_NAV_RULE, wide)
+    assert "left:" in rule(TIPS_CSS, NAV_RULE, wide) and "right:" not in rule(TIPS_CSS, NAV_RULE)
+    assert "matchMedia(WIDE)" in TIPS_JS
+
+
+def test_on_a_narrow_window_the_navigation_is_a_button_whose_list_closes_after_a_jump():
+    assert "if (!wide.matches) nav.classList.add(MINIMIZED);" in TIPS_JS
+    assert "display: none" in rule(TIPS_CSS, MIN_LIST_RULE)
+
+
+def test_the_navigation_no_longer_shares_the_bottom_left_corner_with_btw():
+    assert "bottom:" not in rule(TIPS_CSS, JUMP_RULE) and "bottom:" not in rule(TIPS_CSS, NAV_RULE)
+    assert TOOLS_HOLD_JUMP in TIPS_JS
+
+
+def test_the_collapsed_navigation_is_kept_per_session_where_a_sandboxed_frame_can_write():
+    assert NAV_KEY in TIPS_JS and "window.name" in TIPS_JS
+    assert "location.pathname" not in TIPS_JS
+
+
+def test_the_page_keeps_its_last_20_places_across_a_reload():
+    assert "var afkv2BackList = read();" in RUNTIME and "var BACK_LIMIT = 20;" in RUNTIME
+    assert BACK_KEY in RUNTIME
+    assert "window.name" in RUNTIME and "window.afkv2Jump = jump;" in RUNTIME
+    assert "window.afkv2Jump" in TIPS_JS
+
+
+def test_an_in_page_link_and_a_map_box_jump_and_the_back_button_returns():
+    assert "closest('a[href^=\"#\"]')" in RUNTIME
+    assert NODE_CARDS_READ in RUNTIME and "box.addEventListener('click'" in RUNTIME
+    assert "back.addEventListener('click', goBack);" in RUNTIME
+
+
+def node_card_rounds():
+    map_ = {"type": "map", "id": "m-1", "props": {"nodes": [
+        {"id": "n-1", "label": "one", "state": "open", "round": 1},
+        {"id": "n-2", "label": "two", "state": "open", "round": 1}]}}
+    first = card("i-a", node="n-1", state="settled_by_mark", settled={"by": "mark", "round": 1, "signal": "accept"})
+    later = card("i-b", node="n-1", carries=["i-a"])
+    return document(round_of(1, first), round_of(2, card("i-x")), round_of(3, later, changed=[]),
+                    maps=[map_])
+
+
+def node_cards(html):
+    start = html.index(NODE_CARDS) + len(NODE_CARDS)
+    return json.loads(html[start:html.index("</script>", start)])
+
+
+def test_each_map_box_names_its_newest_card_and_the_round_of_its_last_change():
+    doc = node_card_rounds()
+    assert node_cards(build(doc)) == {"n-1": ["i-b", 3]}
+    doc["rounds"][2]["items"][0].pop("node")
+    doc["rounds"][1]["changed"] = ["n-1"]
+    assert node_cards(build(doc)) == {"n-1": ["i-a", 2]}
+
+
+def test_a_page_with_no_map_box_of_a_card_has_no_node_list():
+    assert NODE_CARDS not in build(two_rounds())
