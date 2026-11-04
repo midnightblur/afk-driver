@@ -259,3 +259,31 @@ def test_a_deleted_branch_link_the_forge_no_longer_serves_fails_the_run(tmp_path
     world.fail["glab api"] = "404 Commit Not Found"
     answer, _ = round_trip(world)
     assert answer["error"]["code"] == "link-gone" and "404 Commit Not Found" in answer["error"]["reason"]
+
+
+@pytest.mark.parametrize("name", ["main", "feat/afkv2", "afkv2-gc-live", "afkv2-gc-live/", "afkv2-gc-live/a/b",
+                                  "afkv2-gc-live/../main", "x/afkv2-gc-live/a", "afkv2-gc-live/a b"])
+def test_a_branch_name_outside_the_scratch_prefix_is_refused(name):
+    with pytest.raises(live.Refusal) as refused:
+        live.scratch_branch(name)
+    assert refused.value.code == "not-scratch"
+    assert live.scratch_branch("afkv2-gc-live/20261104-120000-abcdef-target")
+
+
+@pytest.mark.parametrize("stamp", ["../main", "a/b", "a b"])
+def test_a_run_whose_names_leave_the_scratch_prefix_writes_nothing(tmp_path, stamp):
+    world = World(tmp_path, "github")
+    answer, _ = round_trip(world, stamp)
+    assert answer["error"]["code"] == "not-scratch"
+    assert not [call for call in world.calls if any(write in " ".join(call) for write in WRITES)]
+
+
+@pytest.mark.parametrize("forge, origin", [("github", "https://github.com/someone/afk-driver.git"),
+                                           ("github", "https://gitlab.com/midnightblur/afk-driver.git"),
+                                           ("gitlab", "git@gitlab.com:group/another-project.git"),
+                                           ("gitlab", f"https://github.com/{GITLAB_PROJECT}.git")])
+def test_a_clone_of_another_project_is_refused_before_any_write(tmp_path, forge, origin):
+    world = World(tmp_path, forge, origin)
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "wrong-project"
+    assert not [call for call in world.calls if any(write in " ".join(call) for write in WRITES)]

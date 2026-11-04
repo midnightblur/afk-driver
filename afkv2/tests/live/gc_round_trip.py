@@ -11,6 +11,7 @@ project's list. One JSON answer; exit 0 passed, 1 failed, 2 bad input."""
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import secrets
@@ -32,6 +33,7 @@ FORGES = ("github", "gitlab")
 GITHUB_PROJECT = "midnightblur/afk-driver"
 GITLAB_PROJECT_SHA256 = "9641736ab3f2e8a9a58c5e6aacfd858d55cd09d1ff876fdfb305e438190b855e"  # the GitLab test project, by hash
 SCRATCH = "afkv2-gc-live/"
+SCRATCH_NAME = re.compile(re.escape(SCRATCH) + r"[A-Za-z0-9][A-Za-z0-9-]*")
 FILE = "afkv2-gc-live.txt"
 COMMAND_LIMIT = 600
 MERGE_WAIT, POLL = 180, 5
@@ -53,6 +55,22 @@ def run_command(args, cwd, stdin=None):
     return done.returncode, done.stdout.strip(), done.stderr.strip()
 
 
+def scratch_branch(name):
+    """`name` when it is a scratch branch of this script: the prefix, then letters, digits and `-`. Every branch the
+    script creates, pushes or deletes passes here first."""
+    if not SCRATCH_NAME.fullmatch(name or ""):
+        raise Refusal("not-scratch", f"{name!r} is outside the scratch prefix {SCRATCH}: the round trip writes no "
+                                     "other branch", branch=name)
+    return name
+
+
+def allowed_project(forge, host, path):
+    """GitHub: this plugin's repository. GitLab: the GitLab test project only."""
+    if forge == "github":
+        return host == "github.com" and path.lower() == GITHUB_PROJECT
+    return host == "gitlab.com" and hashlib.sha256(path.lower().encode("utf-8")).hexdigest() == GITLAB_PROJECT_SHA256
+
+
 def project_of(url):
     """(host, project path) of an https, ssh or scp-form remote."""
     url = url.strip()
@@ -70,8 +88,8 @@ class RoundTrip:
     def __init__(self, forge, main, run, stamp, sleep, merge_wait):
         self.forge, self.main, self.run, self.sleep, self.merge_wait = forge, Path(main), run, sleep, merge_wait
         self.stamp = stamp
-        self.feature = SCRATCH + stamp
-        self.run_branch, self.target = self.feature + "-run", self.feature + "-target"
+        self.feature = scratch_branch(SCRATCH + stamp)
+        self.run_branch, self.target = scratch_branch(self.feature + "-run"), scratch_branch(self.feature + "-target")
         self.folder = Path(str(self.main) + "-worktrees") / ("afkv2-gc-live-" + stamp)
         self.run_folder = Path(str(self.folder) + "-run")
         self.host = self.project = self.change = self.feature_tip = None
@@ -88,7 +106,7 @@ class RoundTrip:
 
     def _push(self, step, sha, name, expect):
         """Push `sha` to the remote branch `name` only while the remote holds `expect` there; empty: no branch."""
-        ref = f"refs/heads/{name}"
+        ref = f"refs/heads/{scratch_branch(name)}"
         self.git(step, "push", "--quiet", f"--force-with-lease={ref}:{expect}", "origin", f"{sha}:{ref}")
 
     def _remote_tip(self, step, name):
@@ -117,21 +135,26 @@ class RoundTrip:
         return answer
 
     def read_origin(self):
-        self.host, self.project = project_of(self.git("project", "remote", "get-url", "origin"))
+        origin = self.git("project", "remote", "get-url", "origin")
+        self.host, self.project = project_of(origin)
+        if not allowed_project(self.forge, self.host, self.project):
+            raise Refusal("wrong-project", f"origin is {origin}: the {self.forge} round trip runs only in a clone of "
+                                           f"{'this plugin repository' if self.forge == 'github' else 'the GitLab test project'}",
+                          step="project")
 
     def make_branches(self, base):
         """The feature worktree with one commit on the feature branch, the run worktree on an orphan run branch, and
         the target at `base`, each pushed. `commit-tree` makes each commit: a scratch commit runs no commit hook."""
-        self.git("feature worktree", "worktree", "add", "-b", self.feature, str(self.folder), base)
+        self.git("feature worktree", "worktree", "add", "-b", scratch_branch(self.feature), str(self.folder), base)
         (self.folder / FILE).write_text(f"gc live round trip {self.stamp}\n", encoding="utf-8")
         self.git("feature commit", "add", FILE, cwd=self.folder)
         tree = self.git("feature commit", "write-tree", cwd=self.folder)
         self.feature_tip = self.git("feature commit", "commit-tree", tree, "-p", base, "-m",
                                     f"afkv2 gc live round trip {self.stamp}", cwd=self.folder)
-        self.git("feature commit", "update-ref", f"refs/heads/{self.feature}", self.feature_tip, base, cwd=self.folder)
+        self.git("feature commit", "update-ref", f"refs/heads/{scratch_branch(self.feature)}", self.feature_tip, base, cwd=self.folder)
         empty = self.git("run branch", "mktree", stdin="")
         run_tip = self.git("run branch", "commit-tree", empty, "-m", f"afkv2 gc live run branch {self.stamp}")
-        self.git("run branch", "update-ref", f"refs/heads/{self.run_branch}", run_tip, "")
+        self.git("run branch", "update-ref", f"refs/heads/{scratch_branch(self.run_branch)}", run_tip, "")
         self.git("run worktree", "worktree", "add", str(self.run_folder), self.run_branch)
         for name, sha in ((self.target, base), (self.feature, self.feature_tip), (self.run_branch, run_tip)):
             self._push("push", sha, name, "")
