@@ -17,6 +17,7 @@ The checkpoint of a grill, in the spec folder. A row is overwritten as its state
 | Spinoff | `row` | `- Spinoff: <summary> → <pain>; <why it is out>` |
 | Devil | `row` | `- Devil: pass ran; <each finding and how it resolved>` |
 | Escape | `row` | `- Escape: taken R<n>` |
+| Takeover | `row` | `- Takeover: R<n> · <at>`: a new session took the page over in round `<n>`; `<n>` and `<at>` are the entry that `take-over` added |
 | Session | `sync` | `- Session: <id> · page document pages/grill-<id>.json` |
 | Settled, by mark | `sync` | `- Settled: <card text> · settled by mark <signal> R<n> · card <id>` |
 | Settled, by note | `sync` | `- Settled: <card text> · settled by note R<n> · reading: <reading> · card <id>` |

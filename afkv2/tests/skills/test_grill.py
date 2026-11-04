@@ -786,6 +786,17 @@ def test_ledger_row_overwrites_in_place_and_refuses_a_bad_status(world):
     world.run("row", expect=1, log=log, kind="Nonsense", text="x")
 
 
+def test_a_takeover_row_is_one_row_per_takeover_and_its_grammar_is_stated(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    log = started["log"]
+    for text in ("R2 · 2026-11-04T10:00:00Z", "R2 · 2026-11-04T10:00:00Z", "R5 · 2026-11-05T09:30:00Z"):
+        world.run("row", log=log, kind="Takeover", text=text)
+    body = Path(log).read_text("utf-8")
+    assert body.count("- Takeover: R2 · 2026-11-04T10:00:00Z") == 1 and "- Takeover: R5 · 2026-11-05T09:30:00Z" in body
+    assert world.run("row", expect=1, log=log, kind="Takeover", text="the new session")["error"]["code"] == "bad-row"
+    assert "| Takeover | `row` | `- Takeover: R<n> · <at>`" in (SKILL_DIR / "GRILL-LOG-FORMAT.md").read_text("utf-8")
+
+
 def test_round_zero_row_keeps_the_human_words_verbatim(world):
     started = world.run("start", ticket_key="PROJ-1")
     words = 'line one\nline "two"'

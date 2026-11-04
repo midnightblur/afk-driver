@@ -24,10 +24,12 @@ from round_document import (ASKING, _carried, _components, card_notes, current_r
                             signature_missing, steer_targets, steers)
 
 SECTION = "## Requirements grill"
-KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}
+KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff", "Takeover"}
 SINGLE_KINDS = {"Round 0", "Examples", "Devil", "Escape"}
 REQUIRED_KINDS = ("Policy", "Staples", "Examples", "Devil")
 STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-external\b.*)$")
+# A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
+TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 GATE_PASSED = "- Settled: exit gate passed"
 GENERATED = re.compile(r"^- (Session|Steer): |^- (Settled|Open|Carried|Info): .* · card \S+$")
 
@@ -86,6 +88,8 @@ def write_row(log, kind, text):
     if kind in ("Ledger", "Term") and not STATUS_ROW.match(value):
         raise Refusal("bad-row", f"a {kind} row reads `<text> → pending | verified (<citation>) | "
                                  f"refuted (<citation>) | unverified-external (<who acknowledged>)`: {text!r}")
+    if kind == "Takeover" and not TAKEOVER_ROW.match(value):
+        raise Refusal("bad-row", f"a Takeover row reads `R<n> · <at>`, the round and the time take-over answers: {text!r}")
     row = f"- {kind}: {value}"
     key = _row_key(kind, value)
     head, blocks, tail = _split(log)
