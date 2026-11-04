@@ -550,7 +550,7 @@ class World:
     def __init__(self, root, prd=True, sdd=True, config=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
-        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd"):
+        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)

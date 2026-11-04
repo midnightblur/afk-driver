@@ -12,8 +12,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, page_documents, read_json, run_command, serve
-from grill_log import exit_gate_passed, ensure_section
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
+
+from grill_common import PLUGIN_ROOT, Parser, Refusal, page_documents, read_json, run_command, serve  # noqa: E402
+from grill_log import exit_gate_passed, ensure_section  # noqa: E402
 
 CONFIG = ".afkv2/config.json"
 SETUP = "/afkv2:setup"

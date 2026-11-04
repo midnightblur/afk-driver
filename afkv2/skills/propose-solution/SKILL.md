@@ -75,7 +75,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    ```
 
    ```sh step=present
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" present --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>"
    ```
 
    `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
@@ -85,7 +85,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. Do other work or end your response until then.
 
    ```sh step=wait
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
@@ -93,13 +93,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
    ```sh step=ingest
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
    The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card by the round pass in [../visualize/components/card.md](../visualize/components/card.md), and each note by [../visualize/components/notes-and-replies.md](../visualize/components/notes-and-replies.md). Write the result to a JSON file and apply it:
 
    ```sh step=apply-readings
-   <python> "<this skill's folder>/../grill/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
    The keys of the readings file: [../grill/SKILL.md](../grill/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill/ROUNDS.md](../grill/ROUNDS.md).
@@ -119,7 +119,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 11. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 
    ```sh step=end
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" end --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" end --doc "<doc>"
    ```
 
    Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:to-subtasks`. Done when the gate answered ok and the commit exists.

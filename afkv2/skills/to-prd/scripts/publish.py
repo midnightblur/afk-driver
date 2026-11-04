@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 import to_prd_v1_facts  # noqa: E402
 from grill_common import EXIT_REFUSED, EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text  # noqa: E402

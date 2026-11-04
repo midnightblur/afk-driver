@@ -37,7 +37,7 @@ from functools import cached_property
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 from grill_common import EXIT_UNREADABLE, Parser, Refusal, serve  # noqa: E402
 

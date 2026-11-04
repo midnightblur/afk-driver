@@ -10,8 +10,11 @@ from __future__ import annotations
 import json
 import re
 import sys
+from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, run_command, serve, write_json
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
+
+from grill_common import PLUGIN_ROOT, Parser, Refusal, run_command, serve, write_json  # noqa: E402
 
 TRACKER = PLUGIN_ROOT / "ports" / "tracker" / "cli.py"
 TIMEOUT_S = 90

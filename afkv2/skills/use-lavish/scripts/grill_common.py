@@ -1,4 +1,4 @@
-"""Shared by the grill scripts: the answer envelope, atomic writes, and calling a port command."""
+"""Shared by the page skill scripts: the answer envelope, atomic writes, and calling a port command."""
 
 from __future__ import annotations
 

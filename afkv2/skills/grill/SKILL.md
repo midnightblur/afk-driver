@@ -59,13 +59,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 5. **Build and show the round.** Done when `present` answers ok.
 
    ```sh step=build
-   <python> "<this skill's folder>/scripts/round_document.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
    ```
 
-   `build` also writes `session.links`, so the page links each ticket, change and commit reference. It takes the templates from the config, the `origin` remote and the Jira base URL of the tracker port (`scripts/page_links.py`), and leaves out a kind it cannot find.
+   `build` also writes `session.links`, so the page links each ticket, change and commit reference. It takes the templates from the config, the `origin` remote and the Jira base URL of the tracker port (`../use-lavish/scripts/page_links.py`), and leaves out a kind it cannot find.
 
    ```sh step=present
-   <python> "<this skill's folder>/scripts/page_round.py" present --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>"
    ```
 
    `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
@@ -75,7 +75,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. The host's prompts, from which the engine built that text, are in `<raw file>.prompts.json`. Do other work or end your response until then.
 
    ```sh step=wait
-   <python> "<this skill's folder>/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send to Agent: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
@@ -83,19 +83,19 @@ Run each command from the repository root. `<python>` is the Python in the setup
    **Side questions.** The page's btw? button sends only its question, at once, to the wait (or the Stop hook). The wait asks it in your terminal pane, and the page shows the answer. The marks the human queued stay queued. A side question does not wake you. When the `wait` answer lists questions in `btw`, no terminal pane could take them: write one short Markdown answer for each to `<reply file>`, show it, and keep the round open. Then go to step 7 if `raw_file` holds a path, else run `wait` again.
 
    ```sh step=reply
-   <python> "<this skill's folder>/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"
    ```
 
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
    ```sh step=ingest
-   <python> "<this skill's folder>/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
    The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card by the round pass in [../visualize/components/card.md](../visualize/components/card.md), and each note by [../visualize/components/notes-and-replies.md](../visualize/components/notes-and-replies.md). Write the result to a JSON file and apply it:
 
    ```sh step=apply-readings
-   <python> "<this skill's folder>/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
    | Key | Entry | Use |
@@ -130,7 +130,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 10. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 
    ```sh step=end
-   <python> "<this skill's folder>/scripts/page_round.py" end --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" end --doc "<doc>"
    ```
 
    Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder and the glossary on the feature branch. Tell the human the next skill is `/afkv2:to-prd`. Done when the gate answered ok and the commit exists.

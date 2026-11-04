@@ -17,9 +17,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
+
+from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
 from round_document import (ASKING, _carried, _components, card_notes, current_round, returning, signature_missing,
-                            steer_targets, steers)
+                            steer_targets, steers)  # noqa: E402
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}

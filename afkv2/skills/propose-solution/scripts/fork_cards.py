@@ -11,7 +11,7 @@ import string
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Refusal  # noqa: E402
 

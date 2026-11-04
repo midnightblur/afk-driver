@@ -115,7 +115,7 @@ class World:
     def __init__(self, root, config=None):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.state_file = root / "calls.log", root / "jira.json"
-        for skill in ("to-prd", "grill"):
+        for skill in ("to-prd", "grill", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_jira_port.py", "ports/tracker/cli.py"), ("fake_v1_facts.py", "ports/tracker/fake_v1_facts.py"),
                              ("fake_config.py", "scripts/afkv2_config.py")):

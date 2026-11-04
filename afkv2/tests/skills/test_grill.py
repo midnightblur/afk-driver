@@ -22,10 +22,11 @@ from test_visualize import V1_WORD, _example, _find, _next_round, check_document
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
+LAVISH_DIR = PLUGIN / "skills" / "use-lavish"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 ENGINE = PLUGIN / "engine" / "engine.py"
 FAKES = Path(__file__).resolve().parent / "fakes"
-sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(LAVISH_DIR / "scripts"))
 
 import round_document as rd  # noqa: E402
 
@@ -45,8 +46,9 @@ class World:
         self.repo = root / "repo"
         self.calls = root / "calls.log"
         self.raw = root / "raw-response.txt"
-        shutil.copytree(SKILL_DIR, self.plugin / "skills" / "grill",
-                        ignore=shutil.ignore_patterns("__pycache__"))
+        for skill_dir in (SKILL_DIR, LAVISH_DIR):
+            shutil.copytree(skill_dir, self.plugin / "skills" / skill_dir.name,
+                            ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"),
                              ("fake_tracker.py", "ports/tracker/cli.py"),
                              ("fake_config.py", "scripts/afkv2_config.py")):
@@ -152,7 +154,7 @@ def test_frontmatter_and_produces_anchors():
     assert re.search(r"^name: grill$", head, re.M)
     assert re.search(r"^description: .+", head, re.M)
     assert "/afkv2:grill" in text_md
-    assert "def build_round_document(" in (SKILL_DIR / "scripts" / "round_document.py").read_text("utf-8")
+    assert "def build_round_document(" in (LAVISH_DIR / "scripts" / "round_document.py").read_text("utf-8")
 
 
 def test_commands_come_in_the_contract_order():
@@ -191,7 +193,7 @@ def test_skill_loads_the_guide_and_never_writes_html():
 
 
 def test_grill_writes_nothing_to_the_tracker():
-    for path in (SKILL_DIR / "scripts").glob("*.py"):
+    for path in [*(SKILL_DIR / "scripts").glob("*.py"), *(LAVISH_DIR / "scripts").glob("*.py")]:
         source = path.read_text("utf-8")
         for verb in ("description-put", "attachment-put", "attachment-delete", "md-to-adf"):
             assert verb not in source, path

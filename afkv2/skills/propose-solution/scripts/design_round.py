@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 import round_document as rd  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
