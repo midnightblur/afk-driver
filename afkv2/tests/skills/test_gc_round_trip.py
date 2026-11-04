@@ -287,3 +287,55 @@ def test_a_clone_of_another_project_is_refused_before_any_write(tmp_path, forge,
     answer, _ = round_trip(world)
     assert answer["error"]["code"] == "wrong-project"
     assert not [call for call in world.calls if any(write in " ".join(call) for write in WRITES)]
+
+
+def scratch_left(world):
+    folders = [folder for folder in (world.folder, world.folder and world.folder + "-run") if folder and Path(folder).exists()]
+    return {name for name in world.remote if name != "main"} | set(world.local) | set(folders)
+
+
+@pytest.mark.parametrize("forge", ["github", "gitlab"])
+def test_the_end_deletes_the_scratch_target_and_leaves_the_merged_change(tmp_path, forge):
+    world = World(tmp_path, forge)
+    answer, _ = round_trip(world)
+    assert answer["ok"], answer
+    assert answer["cleanup"] == [{"item": "remote branch", "name": answer["branches"]["target"], "result": "removed"}]
+    assert world.remote == {"main": BASE} and not scratch_left(world) and world.change["state"] == "merged"
+
+
+@pytest.mark.parametrize("forge, failing", [("github", "gh pr merge"), ("gitlab", "glab mr create"),
+                                            ("github", "cleanup.py remove"), ("gitlab", "-run: origin")])
+def test_a_failure_after_the_first_write_deletes_every_scratch_branch_and_worktree(tmp_path, forge, failing):
+    world = World(tmp_path, forge)
+    world.fail[failing] = "the forge said no"
+    answer, _ = round_trip(world)
+    assert not answer["ok"] and "the forge said no" in answer["error"]["reason"]
+    assert world.remote == {"main": BASE} and not scratch_left(world)
+    assert all(entry["result"] in ("removed", "closed") for entry in answer["error"]["cleanup"])
+    assert not ran(world, "refs/heads/main")
+
+
+def test_a_failure_after_the_change_opened_closes_it(tmp_path):
+    world = World(tmp_path, "github")
+    world.fail["gh pr merge"] = "not mergeable"
+    answer, _ = round_trip(world)
+    assert {"item": "change", "name": world.url(), "result": "closed"} in answer["error"]["cleanup"]
+    assert world.change["state"] == "closed"
+
+
+def test_a_failure_before_any_write_cleans_nothing(tmp_path):
+    world = World(tmp_path, "gitlab")
+    world.fail["fetch"] = "no network"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "step-failed" and answer["error"]["cleanup"] == []
+    assert not ran(world, "ls-remote") and not ran(world, "rev-parse --verify")
+
+
+def test_a_scratch_branch_the_end_cannot_delete_fails_the_passed_run_and_names_it(tmp_path):
+    world = World(tmp_path, "github")
+    world.fail["--delete"] = "protected branch"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "cleanup-failed" and answer["error"]["report"]["links"]
+    target = answer["error"]["report"]["branches"]["target"]
+    assert [entry["name"] for entry in answer["error"]["cleanup"] if entry["result"] == "failed"] == [target]
+    assert target in answer["error"]["reason"]

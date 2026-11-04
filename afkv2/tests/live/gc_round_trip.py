@@ -5,8 +5,9 @@ project the script allows for that forge, it makes scratch branches under `afkv2
 branch with one commit in its worktree, and an orphan run branch in its run worktree. It opens a change from the
 feature branch into the target and merges it: on GitHub by a squash merge, on GitLab by a push of its commit to the
 target. Then it runs gc list, remove and finish, checks that each item gc listed is gone and what stays, and checks
-that the forge still serves the commit of each deleted branch's link. Each run leaves one merged change in the
-project's list. One JSON answer; exit 0 passed, 1 failed, 2 bad input."""
+that the forge still serves the commit of each deleted branch's link. At the end, also after a failure, it closes a
+change it did not merge and deletes each scratch branch and worktree it made that is still there. Each run leaves
+one merged change in the project's list. One JSON answer; exit 0 passed, 1 failed, 2 bad input."""
 
 from __future__ import annotations
 
@@ -93,6 +94,7 @@ class RoundTrip:
         self.folder = Path(str(self.main) + "-worktrees") / ("afkv2-gc-live-" + stamp)
         self.run_folder = Path(str(self.folder) + "-run")
         self.host = self.project = self.change = self.feature_tip = None
+        self.folders, self.locals, self.remotes = [], [], []  # what this run made, each noted before it is made
 
     def call(self, step, args, cwd=None, stdin=None):
         code, out, error = self.run(list(args), str(cwd or self.main), stdin)
@@ -107,6 +109,8 @@ class RoundTrip:
     def _push(self, step, sha, name, expect):
         """Push `sha` to the remote branch `name` only while the remote holds `expect` there; empty: no branch."""
         ref = f"refs/heads/{scratch_branch(name)}"
+        if name not in self.remotes:
+            self.remotes.append(name)
         self.git(step, "push", "--quiet", f"--force-with-lease={ref}:{expect}", "origin", f"{sha}:{ref}")
 
     def _remote_tip(self, step, name):
@@ -145,6 +149,8 @@ class RoundTrip:
     def make_branches(self, base):
         """The feature worktree with one commit on the feature branch, the run worktree on an orphan run branch, and
         the target at `base`, each pushed. `commit-tree` makes each commit: a scratch commit runs no commit hook."""
+        self.folders.append(self.folder)
+        self.locals.append(self.feature)
         self.git("feature worktree", "worktree", "add", "-b", scratch_branch(self.feature), str(self.folder), base)
         (self.folder / FILE).write_text(f"gc live round trip {self.stamp}\n", encoding="utf-8")
         self.git("feature commit", "add", FILE, cwd=self.folder)
@@ -154,7 +160,9 @@ class RoundTrip:
         self.git("feature commit", "update-ref", f"refs/heads/{scratch_branch(self.feature)}", self.feature_tip, base, cwd=self.folder)
         empty = self.git("run branch", "mktree", stdin="")
         run_tip = self.git("run branch", "commit-tree", empty, "-m", f"afkv2 gc live run branch {self.stamp}")
+        self.locals.append(self.run_branch)
         self.git("run branch", "update-ref", f"refs/heads/{scratch_branch(self.run_branch)}", run_tip, "")
+        self.folders.append(self.run_folder)
         self.git("run worktree", "worktree", "add", str(self.run_folder), self.run_branch)
         for name, sha in ((self.target, base), (self.feature, self.feature_tip), (self.run_branch, run_tip)):
             self._push("push", sha, name, "")
@@ -294,6 +302,54 @@ class RoundTrip:
                 "removed": removed, "links": links, "stays": stays}
 
 
+    def _close(self):
+        number, verb = str(self.change["number"]), ("pr" if self.forge == "github" else "mr")
+        self.call("clean up", ["gh" if self.forge == "github" else "glab", verb, "close", number, "-R", self.project])
+        return "closed"
+
+    def _drop_folder(self, folder):
+        if not folder.exists():
+            return None
+        self.git("clean up", "worktree", "remove", "--force", str(folder))
+        return "removed"
+
+    def _drop_local(self, name):
+        code, _, _ = self.run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{name}"], str(self.main), None)
+        if code != 0:
+            return None
+        self.git("clean up", "branch", "-D", scratch_branch(name))
+        return "removed"
+
+    def _drop_remote(self, name):
+        tip = self._remote_tip("clean up", name)
+        if not tip:
+            return None
+        ref = f"refs/heads/{scratch_branch(name)}"
+        self.git("clean up", "push", "--quiet", f"--force-with-lease={ref}:{tip}", "origin", "--delete", ref)
+        return "removed"
+
+    def clean_up(self):
+        """Close a change this run opened and did not merge, then remove each worktree, local branch and remote branch
+        this run made that is still there. Each step stands alone; the answer names each one done or failed."""
+        steps = []
+        if self.change and self.change["state"] != "merged":
+            steps.append(("change", self.change["url"], self._close))
+        steps += [("worktree", str(folder), lambda folder=folder: self._drop_folder(folder)) for folder in self.folders]
+        steps += [("branch", name, lambda name=name: self._drop_local(name)) for name in reversed(self.locals)]
+        steps += [("remote branch", name, lambda name=name: self._drop_remote(name)) for name in reversed(self.remotes)]
+        results = []
+        for item, name, action in steps:
+            try:
+                result = action()
+            except Exception as error:
+                results.append({"item": item, "name": name, "result": "failed",
+                                "reason": error.reason if isinstance(error, Refusal) else f"{type(error).__name__}: {error}"})
+                continue
+            if result:
+                results.append({"item": item, "name": name, "result": result})
+        return results
+
+
 def main_checkout(repo, run):
     code, out, error = run(["git", "worktree", "list", "--porcelain"], str(repo), None)
     if code != 0 or not out.startswith("worktree "):
@@ -304,15 +360,28 @@ def main_checkout(repo, run):
 def run_round_trip(forge, repo, run=run_command, stamp=None, sleep=time.sleep, merge_wait=MERGE_WAIT):
     """One live round trip of gc on `forge` in the clone that holds `repo`; the answer of the run."""
     stamp = stamp or time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(3)
+    trip = None
     try:
-        if forge not in FORGES:
-            raise Refusal("bad-payload", f"--forge is {forge!r}, not one of {', '.join(FORGES)}")
-        trip = RoundTrip(forge, main_checkout(repo, run), run, stamp, sleep, merge_wait)
-        return envelope.ok(**trip.go())
-    except Refusal as refusal:
-        return envelope.fail(refusal.code, refusal.reason, **refusal.extra)
-    except Exception as error:
-        return envelope.fail("internal", f"{type(error).__name__}: {error}")
+        try:
+            if forge not in FORGES:
+                raise Refusal("bad-payload", f"--forge is {forge!r}, not one of {', '.join(FORGES)}")
+            trip = RoundTrip(forge, main_checkout(repo, run), run, stamp, sleep, merge_wait)
+            answer = envelope.ok(**trip.go())
+        except Refusal as refusal:
+            answer = envelope.fail(refusal.code, refusal.reason, **refusal.extra)
+        except Exception as error:
+            answer = envelope.fail("internal", f"{type(error).__name__}: {error}")
+    finally:  # Also on an interrupt: the scratch branches go.
+        cleanup = trip.clean_up() if trip else []
+    if not answer["ok"]:
+        answer["error"]["cleanup"] = cleanup
+        return answer
+    failed = [entry for entry in cleanup if entry["result"] == "failed"]
+    if failed:
+        shown = "; ".join(f"{entry['item']} {entry['name']}: {entry['reason']}" for entry in failed)
+        return envelope.fail("cleanup-failed", f"the round trip passed, but the end left: {shown}; delete these by hand",
+                             report=answer, cleanup=cleanup)
+    return {**answer, "cleanup": cleanup}
 
 
 def main(argv=None):
