@@ -362,7 +362,7 @@ def _head_view(payload, change):
     """The view of the open change at the local head, or the refusal."""
     view = forge_answer("change-view", payload, id=change)
     if view.get("state") != "opened":
-        raise Refusal("change-not-open", f"change {change} is {view.get('state')}")
+        raise Refusal("change-not-open", f"change {change} is {view.get('state')}", change_state=view.get("state") or "")
     local = _local_head()
     if not local or local != view.get("head_sha"):
         raise Refusal("head-differs", f"the local head {local} is not the head {view.get('head_sha')} of the change: push, or run from the branch of the change")

@@ -669,6 +669,15 @@ def _record_with_a_beat(seconds_ago):
     path.write_text(json.dumps(record), encoding="utf-8")
 
 
+def test_an_old_record_with_no_change_state_reads_it_as_empty(repo, capsys):
+    path = ci_watch._record_path("7")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"id": "7", "token": "a", "state": "finished", "status": "success", "head_sha": "abc",
+                                "reason": "", "beat_at": time.time()}), encoding="utf-8")
+    code, answer = run(ci_watch, capsys, "status", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == ""
+
+
 def test_status_reads_a_silent_watch_as_lost(repo, capsys):
     _record_with_a_beat(ci_watch.LOST_AFTER + 1)
     code, answer = run(ci_watch, capsys, "status", id="7")
@@ -943,7 +952,8 @@ def test_ready_is_refused_when_local_commits_are_not_on_the_change(ship, repo, c
 @pytest.mark.parametrize("state", ["merged", "closed"])
 def test_ready_is_refused_on_a_change_that_is_not_open(ship, capsys, state):
     ship["forge"].answers["change-view"] = {**ship["forge"].answers["change-view"], "state": state}
-    assert refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))["code"] == "change-not-open"
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
+    assert error["code"] == "change-not-open" and error["change_state"] == state
 
 
 def test_a_change_that_is_already_ready_is_not_marked_again(ship, capsys):
