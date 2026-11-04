@@ -13,7 +13,7 @@ afkv2 pages are harder to follow than the owner's hand-made review page, the qua
 | Design ADRs | adr/design/ | 6 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-lavish-run:plan/PLAN.md | 10 subtasks; division approved 2026-11-04 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |

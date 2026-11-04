@@ -1,0 +1,149 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "division-20261104-065427",
+    "skill": "propose-solution",
+    "feature": "163",
+    "ticket": "163",
+    "started": "2026-11-04T07:05:08Z"
+  },
+  "maps": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-1bf60d1e-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-1bf60d1e-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-round-commands-move",
+                  "Move the round commands, the round builder and the shared page helpers from the grill skill's scripts into a new `afkv2/skills/use-lavish/scripts/` folder, repoint every importer and the 3 page skills, and remove the old files, in one commit. Behaviour does not change. The use-lavish skill gets a minimal `SKILL.md` that names its commands; 0007 writes its rules.",
+                  "ADR-0004 wants the move and every importer in one commit, and every later subtask edits the scripts at their new home, so the move goes first and alone.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-engine-format-1",
+                  "Add page format `afkv2.page/1` to the engine: its schema file, a format 0 reader that upgrades a page in memory and never rewrites it, one note list for the session with the noted text in its own field, answers with ids and note and change lists, the round's change list, the new session fields, the raw answer grammar of format 1, ingest into the session list, the 3 refusing invariants, and the page home rule for ad-hoc pages. The builder writes format 1 from now on. The existing notes components read the session list so every page still renders; 0004 reworks the table.",
+                  "The schema, the format 0 reader, ingest and the builder's format switch must land together, or a page written by one would not read in the other.",
+                  "0001-round-commands-move",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-builder-answers-takeover",
+                  "Give the round builder and apply-readings the format 1 answer and change fields, add the take-over command, and give each logging skill a Takeover row kind. An answer names its notes and the elements it changed; a round names what changed; the builder writes the short title once and warns on unanswered notes. to-subtasks pages carry their own skill name and step.",
+                  "Answer ids, note and change lists, the warnings and take-over are all the builder's side of format 1; it closes the answer pain early, as the owner asked.",
+                  "0002-engine-format-1",
+                  "static, unit"
+                ],
+                [
+                  "0004-session-notes-table",
+                  "Rework the session notes table and the card notes: every note of the session in its own row, newest round first, a Noted text column, older rounds as closed groups with a count line, answers paired by note ids, and one link per changed element in the answer's row.",
+                  "The notes table is one component; it only reads the new fields, so it can follow format 1 at once and show the human the answer gains.",
+                  "0002-engine-format-1",
+                  "static, unit"
+                ],
+                [
+                  "0005-page-shell",
+                  "Rework the page shell: a stable title and heading, navigation in the left margin (a button on a narrow window) whose collapsed state survives a reload, one-click back after any in-page jump, map box clicks and hover, links from text that names a card, the banner's list of what changed with its 3-column layout, round marks on changed rows and scope map groups side by side. Prove in the live test that a new round reuses the open tab, as built on the base.",
+                  "Title, navigation, back, banner, round marks and map clicks all live in the page shell, the one module behind the rendered page.",
+                  "0002-engine-format-1",
+                  "static, unit, integration"
+                ],
+                [
+                  "0006-page-home-notices",
+                  "Add the page home commands and the page notices. `start` opens an ad-hoc page by the home rule; `track` moves an untracked page into the ticket's spec folder. A new engine notices module answers the git state of a page and scans it and the skill log for secret shapes; present answers both, the page header shows them, and nothing blocks.",
+                  "start, track, the git state and the secret scan meet in present and the page header; they share the throwaway-repository tests.",
+                  "0003-builder-answers-takeover, 0005-page-shell",
+                  "static, unit, integration"
+                ],
+                [
+                  "0007-use-lavish-instructions",
+                  "Write the use-lavish skill text: the page rules (PR), the answer rules (AR), the forms by kind (K) and their refinements (RF), page or chat, the hands-off rule, the home and tracking steps, the secret and private-content warnings and the take-over steps. Move the round pass and the answer rules out of `visualize`, point every page skill and note-reading skill to use-lavish, remove the grill's steer-repeating text, and add the 1 line of the hands-off executor brief. propose-verification has no skill folder in `afkv2/skills/` yet, so it gets its pointer when it is written.",
+                  "The skill text names start, track and take-over, so it comes after those commands exist; it holds every page and answer rule in one place.",
+                  "0006-page-home-notices",
+                  "static, unit"
+                ],
+                [
+                  "0008-component-marks",
+                  "Extend the existing components with the format 1 marks: chip tones for state and certainty, value chips coloured from the document's named value sets, a `tip` on any component and on graph nodes, map nodes, run-strip steps and sequence messages, a YOU mark on those parts, and a removed, kept or new tone on a sequence message. Each change gets its how, look and use in the `visualize` component pages.",
+                  "Tones, value colours, tips and YOU marks change existing components, apart from the new chart forms.",
+                  "0005-page-shell",
+                  "static, unit"
+                ],
+                [
+                  "0009-chart-components",
+                  "Add the 10 chart components that table K marks \"new component\": tile, bars, line, bullet, range, signed-bars, box-plot, flame, sparkline and waterfall. Each is one engine component module that draws inline SVG in Python from its props and the theme tokens, with its own props schema, styles, render test and `visualize` page. The page gets no chart script.",
+                  "The 10 charts share one SVG frame and the theme tokens, so one subtask builds them with one pattern (ADR-0005).",
+                  "0008-component-marks",
+                  "static, unit"
+                ],
+                [
+                  "0010-diagrams-and-code",
+                  "Add the engine diagrams module and the diagram, code and diff components. Diagram text renders once per text and theme through mermaid-cli 12.0.0 into a cache, and falls back to the text with 1 line of why. Code and diffs are coloured in the browser by a copy of highlight.js 11.12.0, inlined only on pages that hold them. Setup pins mermaid-cli at 12.0.0, and present answers the diagram counts.",
+                  "Diagram text and code blocks both bring an outside tool, mermaid-cli and highlight.js, with fallbacks and a page-weight rule; they run last because they touch present, setup and the shell.",
+                  "0006-page-home-notices, 0009-chart-components",
+                  "static, unit, integration"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-1bf60d1e-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 10 subtasks, plan digest 1bf60d1e, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T07:07:37Z",
+          "raw": "[round R-1]\ndivision-1bf60d1e-1 sign",
+          "signals": [
+            {
+              "target": "division-1bf60d1e-1",
+              "item": "division-1bf60d1e-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "773c6626faf68327"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
