@@ -163,7 +163,7 @@ def _page_maps(html: str) -> tuple[dict[str, str], dict[str, str]]:
                 return {}, {}
             result = {}
             for entry in entries:
-                if not isinstance(entry, dict) or not all(isinstance(entry.get(k), str) and entry[k].strip()
+                if not isinstance(entry, dict) or not all(isinstance(entry.get(k), str) and entry[k]
                                                           for k in (key, value)):
                     return {}, {}
                 result[entry[key]] = entry[value]

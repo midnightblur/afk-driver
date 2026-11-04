@@ -136,3 +136,18 @@ def test_empty_page_one_ignores_sidecar(case, capsys):
     path.write_text(json.dumps(doc), "utf-8")
     assert engine.main(["render", str(path)]) == 0, capsys.readouterr().out
     assert "legacy" not in payload(path.with_suffix(".html").read_text("utf-8"))["shared_terms"]
+
+
+@pytest.mark.parametrize("kind, field", [("ids", "title"), ("terms", "definition")])
+def test_valid_whitespace_value_does_not_drop_page_catalog(case, capsys, kind, field):
+    path, doc = case
+    doc["tips"][kind][0][field] = " "
+    path.write_text(json.dumps(doc), "utf-8")
+    assert engine.main(["render", str(path)]) == 0, capsys.readouterr().out
+    html_path = path.with_suffix(".html")
+    first = html_path.read_bytes()
+    maps = payload(first.decode("utf-8"))
+    assert maps["page_ids"] == {"card": doc["tips"]["ids"][0]["title"]}
+    assert maps["page_terms"] == {"queue": doc["tips"]["terms"][0]["definition"]}
+    assert launcher.run(["open", str(html_path), "--reopen"])[0] == 0
+    assert html_path.read_bytes() == first
