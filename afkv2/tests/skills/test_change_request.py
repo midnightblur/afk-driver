@@ -251,9 +251,11 @@ def test_open_with_an_id_updates_that_change(repo, forge, capsys):
     assert code == 0 and answer["created"] is False and forge.calls[0][1]["id"] == "7"
 
 
-def test_open_with_an_id_of_a_closed_change_refuses(repo, forge, capsys):
-    forge.answers = {"change-view": {**VIEW, "state": "merged"}}
-    assert refused(change_request, capsys, "open", id="7", **PARTS)["code"] == "change-not-open"
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_open_with_an_id_of_a_closed_change_refuses(repo, forge, capsys, state):
+    forge.answers = {"change-view": {**VIEW, "state": state}}
+    error = refused(change_request, capsys, "open", id="7", **PARTS)
+    assert error["code"] == "change-not-open" and error["change_state"] == state
     assert forge.verbs() == ["change-view"]
 
 
@@ -476,6 +478,59 @@ def test_a_failed_head_read_ends_the_wait_for_the_new_commit(repo, forge, capsys
     assert code == 0 and answer["status"] == "failed" and forge.verbs().count("ci-wait") == 1
 
 
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_change_that_merges_or_closes_before_the_forge_shows_the_commit_ends_the_watch(repo, forge, capsys, monkeypatch, state):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    monkeypatch.setattr(ci_watch, "HEAD_PAUSE", 0)
+    forge.answers = {"ci-wait": [RED, GREEN], "change-view": [{**VIEW, "head_sha": "last"}, {**VIEW, "head_sha": "merged-head", "state": state}]}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
+    assert answer["status"] == "" and answer["head_sha"] == "merged-head" and state in answer["reason"]
+    assert forge.verbs() == ["change-view", "ci-wait", "change-view"]
+    record = record_of(repo)
+    assert record["state"] == "change-not-open" and record["change_state"] == state
+
+
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_change_that_merges_or_closes_after_the_forge_shows_the_commit_ends_the_watch_in_that_slice(repo, forge, capsys, state):
+    head = git(repo, "rev-parse", "HEAD")
+    forge.answers = {"ci-wait": [STILL, GREEN], "change-view": [{**VIEW, "head_sha": head}, {**VIEW, "head_sha": "merged-head", "state": state}]}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
+    assert answer["status"] == "" and answer["head_sha"] == "merged-head"
+    assert forge.verbs() == ["change-view", "ci-wait", "change-view"]
+
+
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_change_that_merges_or_closes_in_the_last_slice_ends_the_watch_on_its_end_view(repo, forge, capsys, state):
+    head = git(repo, "rev-parse", "HEAD")
+    forge.answers = {"ci-wait": [GREEN], "change-view": [{**VIEW, "head_sha": head}, {**VIEW, "head_sha": "merged-head", "state": state}]}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
+    assert answer["head_sha"] == "merged-head" and forge.verbs() == ["change-view", "ci-wait", "change-view"]
+
+
+@pytest.mark.parametrize("shown", [["head", "head", "head"], ["last", "last", "head"]], ids=["head-seen", "head-behind"])
+def test_a_watch_on_an_open_change_reads_the_view_once_per_slice_and_once_at_the_end(repo, forge, capsys, monkeypatch, shown):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    head = git(repo, "rev-parse", "HEAD")
+    views = [{**VIEW, "head_sha": head if name == "head" else name} for name in shown + ["head"]]
+    forge.answers = {"ci-wait": [STILL, STILL, GREEN], "change-view": views}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == "" and answer["status"] == "success"
+    assert forge.verbs() == ["change-view", "ci-wait"] * 3 + ["change-view"]
+
+
+def test_a_newer_watch_keeps_its_record_when_the_older_one_sees_the_merge(repo, forge, capsys):
+    def newer_starts(_payload):
+        ci_watch._new_record(ci_watch._record_path("7"), "7", "newhead")
+        return {**VIEW, "state": "merged"}
+    forge.answers = {"change-view": newer_starts}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "superseded"
+    assert record_of(repo)["state"] == "watching" and record_of(repo)["head_sha"] == "newhead"
+
+
 def test_a_red_ci_is_a_report_and_no_refusal(repo, forge, capsys):
     forge.answers = {"ci-wait": RED, "change-view": VIEW}
     code, answer = run(ci_watch, capsys, "watch", id="7")
@@ -637,6 +692,15 @@ def _record_with_a_beat(seconds_ago):
     record = json.loads(path.read_text(encoding="utf-8"))
     record["beat_at"] = time.time() - seconds_ago
     path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def test_an_old_record_with_no_change_state_reads_it_as_empty(repo, capsys):
+    path = ci_watch._record_path("7")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"id": "7", "token": "a", "state": "finished", "status": "success", "head_sha": "abc",
+                                "reason": "", "beat_at": time.time()}), encoding="utf-8")
+    code, answer = run(ci_watch, capsys, "status", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == ""
 
 
 def test_status_reads_a_silent_watch_as_lost(repo, capsys):
@@ -913,7 +977,8 @@ def test_ready_is_refused_when_local_commits_are_not_on_the_change(ship, repo, c
 @pytest.mark.parametrize("state", ["merged", "closed"])
 def test_ready_is_refused_on_a_change_that_is_not_open(ship, capsys, state):
     ship["forge"].answers["change-view"] = {**ship["forge"].answers["change-view"], "state": state}
-    assert refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))["code"] == "change-not-open"
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))
+    assert error["code"] == "change-not-open" and error["change_state"] == state
 
 
 def test_a_change_that_is_already_ready_is_not_marked_again(ship, capsys):

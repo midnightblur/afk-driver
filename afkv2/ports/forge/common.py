@@ -30,6 +30,30 @@ def ref(payload):
     return value
 
 
+PAGE = 100
+
+
+def branch(payload):
+    """The source branch. A leading dash would reach the command line as a flag."""
+    value = payload.get("branch")
+    if not isinstance(value, str) or not value.strip() or value.startswith("-"):
+        raise Refusal("bad-payload", "the payload needs `branch`: the name of a source branch")
+    return value
+
+
+def change_list(items, own, entry):
+    """One page of the forge, newest first. A full page can hide an open change: it refuses."""
+    if len(items) >= PAGE:
+        raise Refusal("too-many", f"the forge answered {PAGE} changes for this branch: only one page is read")
+    if not all(isinstance(item, dict) for item in items):
+        raise Refusal("bad-answer", "the change list holds an item that is not a JSON object")
+    changes = [entry(item) for item in items if own(item)]
+    if not all(change["id"].isdigit() for change in changes):
+        raise Refusal("bad-answer", "the change list holds a change with no number")
+    changes.sort(key=lambda change: int(change["id"]), reverse=True)
+    return ok(changes=changes, count=len(changes))
+
+
 def body_text(payload):
     """A blank body is refused: it would wipe the description of the change."""
     body = payload.get("body")

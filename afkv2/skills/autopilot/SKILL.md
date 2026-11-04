@@ -5,7 +5,7 @@ description: /afkv2:autopilot — builds an approved plan hands-off, one subtask
 
 # /afkv2:autopilot
 
-Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. A human merges the change.
+Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. A human merges the change. Never run /afkv2:gc.
 
 ## Input
 
