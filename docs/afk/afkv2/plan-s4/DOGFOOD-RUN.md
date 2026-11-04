@@ -23,7 +23,9 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | `/afkv2:gc` part 1, GitHub #158, grill | Claude | beta.5 | pass | the grill found the ticket's conflict with K-14 (my ticket text); settled log and pages in commit 70fc9f9e on `feat/afkv2-gc`; see F-18, F-19 |
 | `/afkv2:gc` part 1, GitHub #158, PRD | Claude | beta.6 | pass | PRD (33 AC, 4 WE), 2 requirement records, INDEX in commit 58d95195; no publish, the tracker is GitHub issues; commit needed the gate skip, see F-22 |
 | `/afkv2:gc` part 1, GitHub #158, design | Claude | beta.6 | pass, one note unanswered | SDD and 5 design records in commit 7c6efe1d; design gate passed; all 6 sign-offs signed; note N-3-m-aspects has no reply, see F-24 |
-| `/afkv2:gc` part 1, GitHub #158, plan to Draft change | Claude | beta.6 | running | to-subtasks started |
+| `/afkv2:gc` part 1, GitHub #158, plan to Draft change | Claude | beta.6 | pass | 11 of 11 subtasks done, none parked; PR #168 Ready, CI green at 4af29dcb; 2 owner rulings (D-7, D-14), 13 reversible calls in plan/DECISIONS.md; 6 known bugs and 89 medium and low findings open on the PR; see F-29 to F-32 |
+| gc live round trip, GitHub | plain shell, no agent | PR #168 head 4af29dcb | pass | exit 0; change #170 merged into a scratch target; gc listed 6 items and removed all 6; both commit links still served; target, merged change and main checkout commit stayed; no scratch branch or worktree left (2026-11-04) |
+| gc live round trip, GitLab | | | not run | leaves one merged change on core-services that cannot be deleted; waits for the owner's yes |
 | `/afkv2:gc` part 2, GitHub #159 | Codex | | not run | |
 
 ## Failures and findings
@@ -57,4 +59,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | F-26 | Design session: the btw and current-question buttons overlap (owner's steer) | open, for beta.7 | afkv2 engine |
 | F-27 | `design_files.py row` keys a premise row by its claim text, so it cannot rewrite a refuted row with the corrected claim; the design gate refuses any refuted row, and the agent edited GRILL-LOG.md by hand | open | afkv2 propose-solution |
 | F-28 | The plugin fix on the ticket branch happened again (3f6de995, the design page links), as in F-18 | moved to PR #166; the session was told: no plugin changes on that branch | afkv2 core behaviors |
+| F-29 | The #158 feature branch was set to push to `feat/afkv2`, so a bare `git push` would push to the target branch (autopilot report) | open | afkv2 autopilot |
+| F-30 | A subtask marked done by hand at plan time is never reviewed, so marking the change Ready refuses; 0001 got a partial one-round review of its criteria only | open | afkv2 to-subtasks, create-change-request |
+| F-31 | A review must name at least one concern, even when the slice has no diff | open | afkv2 code-review |
+| F-32 | A subagent's report called its checks green while the plugin source check in CI failed (0011, a literal project name) | open | afkv2 autopilot |
 | F-8 | The interim rule block stays in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so a dogfood session holds it next to the afkv2 core behaviors. | Claude: the owner removed it on 2026-11-02 (auto mode refuses the agent this edit). Codex: open, remove it before its dogfood ticket | owner build setup |
