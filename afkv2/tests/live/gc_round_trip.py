@@ -182,26 +182,33 @@ class RoundTrip:
             raise Refusal("step-failed", f"open change: no change link in the answer: {out}", step="open change")
         self.change = {"number": int(match[1]), "url": match[0], "state": "open"}
 
-    def _state(self, step):
+    def _shown(self, step):
+        """The change as the forge port lists it, as gc reads it; empty when the list lacks it."""
         answer = self._port(step, "change-list", {"forge": self.forge, "branch": self.feature})
-        return next((item.get("state") for item in answer.get("changes") or []
-                     if str(item.get("id")) == str(self.change["number"])), None)
+        return next((item for item in answer.get("changes") or []
+                     if isinstance(item, dict) and str(item.get("id")) == str(self.change["number"])), {})
+
+    def _wait(self, code, field, value):
+        """Read the change until its `field` is `value`, at most `merge_wait` seconds; then refuse `code`."""
+        waited = 0
+        while (shown := self._shown("merge")).get(field) != value:
+            if waited >= self.merge_wait:
+                raise Refusal(code, f"after {waited} s the forge shows change {self.change['number']} with {field} "
+                                    f"{shown.get(field)!r}, not {value!r}", step="merge")
+            self.sleep(POLL)
+            waited += POLL
 
     def merge(self, base):
-        """GitHub: a squash merge on the feature tip. GitLab: a push of the feature tip to the target, which GitLab
-        marks merged when the change's commits reach its target. Then wait until the forge port shows it merged."""
+        """GitHub: a squash merge on the feature tip. GitLab: once the change shows the feature tip as its head, a
+        push of that tip to the target, which GitLab marks merged when the change's commits reach its target. Then
+        wait until the forge port shows it merged."""
         if self.forge == "github":
             self.call("merge", ["gh", "pr", "merge", str(self.change["number"]), "-R", self.project, "--squash",
                                 "--match-head-commit", self.feature_tip])
         else:
+            self._wait("no-head", "head_sha", self.feature_tip)
             self._push("merge", self.feature_tip, self.target, base)
-        waited = 0
-        while (state := self._state("merge")) != "merged":
-            if waited >= self.merge_wait:
-                raise Refusal("not-merged", f"the forge shows change {self.change['number']} {state} after "
-                                            f"{waited} s, not merged", step="merge")
-            self.sleep(POLL)
-            waited += POLL
+        self._wait("not-merged", "state", "merged")
         self.change["state"] = "merged"
 
     def _still_there(self, item):
@@ -248,7 +255,7 @@ class RoundTrip:
         checked = []
         for entry in links:
             expected = f"https://{self.host}/{self.project}{COMMIT_FORM[self.forge]}{entry['tip']}"
-            if entry["link"] != expected:
+            if entry["link"].casefold() != expected.casefold():
                 raise Refusal("link-gone", f"the {entry['item']} link {entry['link']} is not {expected}",
                               step="check links")
             served, error = self._served(entry["tip"])
@@ -265,7 +272,7 @@ class RoundTrip:
             problems.append("the main checkout moved off its commit")
         if not self._remote_tip("check stays", self.target):
             problems.append(f"the scratch target {self.target} is gone")
-        if self._state("check stays") != "merged":
+        if self._shown("check stays").get("state") != "merged":
             problems.append(f"change {self.change['number']} is no longer merged")
         left = self._gc(None, "list", "--repo", str(self.main), "--branch", self.feature)
         if (left.get("error") or {}).get("code") != "no-target":

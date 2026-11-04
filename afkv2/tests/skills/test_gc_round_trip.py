@@ -40,6 +40,7 @@ class World:
         self.main.mkdir()
         self.remote, self.local, self.change, self.commits = {"main": BASE}, {}, None, 0
         self.calls, self.fail, self.leave, self.merge_by_push = [], {}, None, True
+        self.headless_reads = 0  # change-list reads that show the new change without its head commit
         self.feature = self.folder = None
         self.target = False
 
@@ -118,7 +119,7 @@ class World:
             return ok()
         sha = args[-1].partition(":")[0]
         self.remote[name] = sha
-        if self.change and self.merge_by_push and name == self.change["target"] and sha == self.change["head"]:
+        if self.change and self.merge_by_push and name == self.change["target"] and sha == self.change["head"]                 and self.change.get("ready", True):
             self.change["state"] = "merged"
         return ok()
 
@@ -138,9 +139,14 @@ class World:
 
     def port(self, payload):
         assert payload["branch"] == self.feature, payload
+        if self.change is not None and self.headless_reads:
+            self.headless_reads -= 1
+            self.change["ready"] = False
+        elif self.change is not None:
+            self.change["ready"] = True
         changes = [] if self.change is None else [
-            {"id": "7", "url": self.url(), "state": self.change["state"], "head_sha": self.change["head"],
-             "target": self.change["target"]}]
+            {"id": "7", "url": self.url(), "state": self.change["state"],
+             "head_sha": self.change["head"] if self.change["ready"] else "", "target": self.change["target"]}]
         return ok(json.dumps({"ok": True, "changes": changes, "count": len(changes)}))
 
     def names(self):
@@ -339,3 +345,11 @@ def test_a_scratch_branch_the_end_cannot_delete_fails_the_passed_run_and_names_i
     target = answer["error"]["report"]["branches"]["target"]
     assert [entry["name"] for entry in answer["error"]["cleanup"] if entry["result"] == "failed"] == [target]
     assert target in answer["error"]["reason"]
+
+
+def test_gitlab_pushes_to_the_target_only_after_the_forge_shows_the_change_head(tmp_path):
+    world = World(tmp_path, "gitlab")
+    world.headless_reads = 3
+    answer, waits = round_trip(world)
+    assert answer["ok"], answer
+    assert len(waits) >= 3 and world.change["state"] == "merged"
