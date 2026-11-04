@@ -86,11 +86,13 @@ def _skip_depth(part: str, depth: int, skipped: set[str]) -> int:
 
 def link_cards(html: str, ids) -> str:
     """The same HTML with each card id in its text a link to that card. A card's own text keeps its id
-    as text; an id with no card stays text. An id of letters only stays text: it reads as a plain word."""
-    names = sorted({escape(i) for i in ids if not i.isalpha()}, key=len, reverse=True)
+    as text; an id with no card stays text. An id of letters only or with no letter stays text: it reads as a
+    plain word or number. A match never starts inside an entity such as `&#x27;`."""
+    names = sorted({escape(i) for i in ids if not i.isalpha() and any(c.isalpha() for c in i)},
+                   key=len, reverse=True)
     if not names:
         return html
-    pattern = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(name) for name in names) + r")(?![\w-])")
+    pattern = re.compile(r"(?<![\w.&#-])(" + "|".join(re.escape(name) for name in names) + r")(?![\w-])")
     skipped, depth, cards, out = SKIPPED | HEADINGS, 0, [], []
     for index, part in enumerate(TAG.split(html)):
         if index % 2:

@@ -210,6 +210,36 @@ def test_a_card_id_of_letters_only_stays_a_plain_word():
     assert CARD_LINK.format("export") not in build(doc)
 
 
+def test_a_card_id_of_digits_only_stays_a_plain_number_and_an_entity_keeps_its_bytes():
+    """Review finding: an id '1' linked every bare 1, and an id 'x27' cut the entity of each apostrophe."""
+    doc = two_rounds()
+    doc["rounds"][0]["items"][0]["id"] = "1"
+    doc["rounds"][1]["items"][0]["id"] = "x27"
+    doc["rounds"][1]["items"].append(card("i-it", body=text("It's 2 settled, 1 left.")))
+    html = build(doc)
+    assert CARD_LINK.format("1") not in html and CARD_LINK.format("x27") not in html
+    assert "It&#x27;s 2 settled, 1 left." in html
+
+
+def test_a_card_keeps_its_own_id_as_text():
+    doc = two_rounds()
+    doc["rounds"][1]["items"][0]["body"] = text("Card i-new is this card.")
+    html = build(doc)
+    own = html[html.index('id="i-new"'):]
+    assert "Card i-new is this card." in own[:own.index("</article>")]
+
+
+def test_a_step_cut_from_the_name_shows_once():
+    """Review finding: a format 0 step falls back to the feature cut to 40 characters."""
+    long_name = "export the monthly report to a spreadsheet file"
+    doc = two_rounds(skill="propose-verification", feature=long_name)
+    doc["schema"] = V0
+    for key in ("short_title", "step"):
+        doc["session"].pop(key)
+    doc.pop("notes")
+    assert page.stable_title(in_memory(doc)) == SEP.join(["PROJ-1", long_name])
+
+
 def test_a_card_heading_and_a_link_keep_their_text():
     html = build(two_rounds())
     start = html.index('id="i-new"')

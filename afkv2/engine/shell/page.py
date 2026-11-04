@@ -6,8 +6,8 @@ notes and replies under the heading and its earlier cards in a closed "History".
 and lavish annotations with lavish's own Send; the copy bar is the fallback without lavish.
 Each ticket, change and commit reference in the text links to the URL that `session.links` names.
 The heading and the browser tab read `<ticket> · <short title> · <step>`, the same every round. A page with no
-ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name or a step that
-repeats an earlier part shows once.
+ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name that repeats the
+ticket, or a step that repeats the start of an earlier part, shows once.
 """
 
 from __future__ import annotations
@@ -204,7 +204,8 @@ def stable_title(doc: dict) -> str:
     if name not in (ticket, *parts):
         parts.append(name)
     step = session.get("step")
-    return " · ".join([*parts, *([step] if step and step not in parts else [])])
+    repeats = step and any(part.startswith(step) for part in parts)
+    return " · ".join([*parts, *([step] if step and not repeats else [])])
 
 
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
