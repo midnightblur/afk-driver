@@ -3,7 +3,7 @@
 banner's list of what changed, round marks and scope map groups. The browser half of each runs in
 `afkv2/tests/live/test_page_live.md`."""
 
-import copy
+import re
 import sys
 from pathlib import Path
 
@@ -14,10 +14,26 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR):
     sys.path.insert(0, str(folder))
 
 import engine  # noqa: E402
+import registry  # noqa: E402
 from shell import page  # noqa: E402
 
 V0, V1 = "afkv2.page/0", "afkv2.page/1"
 SEP = " · "
+HEADING = '<h1 class="afkv2-title">'
+BANNER = 'data-afkv2-banner="{}"'
+ELEMENT = 'data-afkv2-element="{}"'
+CHANGED_LIST = "afkv2-banner-changed"
+FRESH_ATTR = "data-afkv2-fresh"
+FRESH = FRESH_ATTR + '="{}"'
+FRESH_RULE = f"[{FRESH_ATTR}]"
+CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
+CARD_LINK_START = '<a class="afkv2-card-link"'
+CANVAS = 'class="afkv2-boxes"'
+GROUPS = '<div class="afkv2-map-groups">'
+NODE_N = 'data-afkv2-element="n-'
+LISTS_RULE, CHANGED_RULE, GROUPS_RULE = ".afkv2-banner-lists", ".afkv2-banner-changed", ".afkv2-map-groups"
+NOTES_WRAP = '<div class="afkv2-nr-scroll"><table'
+NOTES_SCROLL_RULE, NOTES_TABLE_RULE = ".afkv2-nr-scroll, .afkv2-notes-replies", ".afkv2-nr-table"
 
 
 def text(value, **extra):
@@ -57,7 +73,7 @@ def in_memory(doc):
 
 
 def heading(html):
-    start = html.index('<h1 class="afkv2-title">')
+    start = html.index(HEADING)
     return html[start:html.index("</h1>", start)]
 
 
@@ -103,9 +119,6 @@ def test_a_number_ticket_is_an_issue_reference_and_a_repeated_name_shows_once():
 
 # --- what changed this round: the banner list and the round marks
 
-CHANGED_LIST = "afkv2-banner-changed"
-FRESH = 'data-afkv2-fresh="{}"'
-
 
 def table(table_id):
     return {"type": "table", "id": table_id, "props": {"columns": ["Cost"], "rows": [["low"]]}}
@@ -118,12 +131,12 @@ def changed_rounds():
 
 
 def banner(html, n):
-    start = html.index(f'data-afkv2-banner="{n}"')
+    start = html.index(BANNER.format(n))
     return html[start:html.index("</header>", start)]
 
 
 def element_tag(html, element):
-    start = html.index(f'data-afkv2-element="{element}"')
+    start = html.index(ELEMENT.format(element))
     return html[html.rindex("<", 0, start):html.index(">", start)]
 
 
@@ -144,19 +157,17 @@ def test_round_1_has_no_changed_list_and_a_round_with_none_says_nothing_changed(
 def test_a_changed_element_of_this_round_has_a_round_mark_and_others_none():
     html = build(changed_rounds())
     assert FRESH.format(2) in element_tag(html, "i-new") and FRESH.format(2) in element_tag(html, "d-cost")
-    assert "data-afkv2-fresh" not in element_tag(html, "i-plain")
-    assert "data-afkv2-fresh" not in element_tag(html, "i-old")
-    assert html.count("data-afkv2-fresh=") == 2
+    assert FRESH_ATTR not in element_tag(html, "i-plain")
+    assert FRESH_ATTR not in element_tag(html, "i-old")
+    assert html.count(FRESH_ATTR + "=") == 2
 
 
 def test_the_round_mark_has_its_style_on_every_page():
     kit = (SHELL / "kit.css").read_text("utf-8")
-    assert "[data-afkv2-fresh]" in kit and "[data-afkv2-fresh]" not in (SHELL / "tips.css").read_text("utf-8")
+    assert FRESH_RULE in kit and FRESH_RULE not in (SHELL / "tips.css").read_text("utf-8")
 
 
 # --- text that names a card links to it
-
-CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
 
 
 def test_text_that_names_another_card_links_to_it():
@@ -181,20 +192,14 @@ def test_a_card_heading_and_a_link_keep_their_text():
     html = build(two_rounds())
     start = html.index('id="i-new"')
     assert CARD_LINK.format("i-new") not in html[start:html.index("</h4>", start)]
-    assert '<a class="afkv2-card-link"' not in html[html.index("<title>"):html.index("</title>")]
+    assert CARD_LINK_START not in html[html.index("<title>"):html.index("</title>")]
 
 
 # --- layout: the banner's 3 columns, scope map groups, the notes tables at phone width
 
-import re  # noqa: E402
-
-import registry  # noqa: E402
-
 KIT = (SHELL / "kit.css").read_text("utf-8")
 NOTES_CSS = (SHELL / "notes.css").read_text("utf-8")
 DIAGRAM_CSS = (SHELL / "diagram.css").read_text("utf-8")
-CANVAS = 'class="afkv2-boxes"'
-GROUPS = '<div class="afkv2-map-groups">'
 
 
 def rule(css, selector, media=None):
@@ -208,10 +213,10 @@ def rule(css, selector, media=None):
 
 
 def test_the_banner_lists_stack_and_sit_side_by_side_in_3_columns_when_wide():
-    assert "minmax(0, 1fr)" in rule(KIT, ".afkv2-banner-lists")
-    assert "auto-fit" not in rule(KIT, ".afkv2-banner-lists")
-    assert "repeat(3, minmax(0, 1fr))" in rule(KIT, ".afkv2-banner-lists", "(min-width: 48rem)")
-    assert "grid-column: 1 / -1" in rule(KIT, ".afkv2-banner-changed")
+    assert "minmax(0, 1fr)" in rule(KIT, LISTS_RULE)
+    assert "auto-fit" not in rule(KIT, LISTS_RULE)
+    assert "repeat(3, minmax(0, 1fr))" in rule(KIT, LISTS_RULE, "(min-width: 48rem)")
+    assert "grid-column: 1 / -1" in rule(KIT, CHANGED_RULE)
 
 
 def scope_map(edges=()):
@@ -227,9 +232,9 @@ def scope_map(edges=()):
 def test_a_scope_map_draws_each_group_on_its_own_canvas_that_wraps():
     html = registry.render_component(scope_map([{"from": "n-b", "to": "n-c"}]))
     assert html.count(GROUPS) == 1 and html.count(CANVAS) == 3
-    assert html.index("web module") < html.index("core module") < html.index('data-afkv2-element="n-d"')
-    assert html.count('data-afkv2-element="n-') == 4
-    assert "flex-wrap: wrap" in rule(DIAGRAM_CSS, ".afkv2-map-groups")
+    assert html.index("web module") < html.index("core module") < html.index(ELEMENT.format("n-d"))
+    assert html.count(NODE_N) == 4
+    assert "flex-wrap: wrap" in rule(DIAGRAM_CSS, GROUPS_RULE)
 
 
 def test_a_map_with_an_arrow_between_groups_stays_one_canvas():
@@ -244,6 +249,6 @@ def test_the_notes_tables_scroll_in_their_own_box_at_phone_width():
                      "text": "words", "deleted": False}]
     html = build(doc)
     card_start = html.index('id="i-new"')
-    assert '<div class="afkv2-nr-scroll"><table' in html[card_start:]
-    assert "overflow-x: auto" in rule(NOTES_CSS, ".afkv2-nr-scroll, .afkv2-notes-replies")
-    assert "min-width: 40rem" in rule(NOTES_CSS, ".afkv2-nr-table")
+    assert NOTES_WRAP in html[card_start:]
+    assert "overflow-x: auto" in rule(NOTES_CSS, NOTES_SCROLL_RULE)
+    assert "min-width: 40rem" in rule(NOTES_CSS, NOTES_TABLE_RULE)

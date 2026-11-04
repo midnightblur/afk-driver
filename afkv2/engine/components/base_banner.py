@@ -9,6 +9,7 @@ from html import escape
 from registry import register_component
 
 LISTS = (("settled", "What settled"), ("unlocks", "What it unlocks"), ("parked", "Parked"))
+LIST_CLASS, CHANGED_CLASS = "afkv2-banner-list", "afkv2-banner-changed"
 
 
 def _list(values):
@@ -21,13 +22,13 @@ def _changed(entries):
     if entries is None:
         return ""
     links = [f'<a href="#{escape(entry["id"])}">{escape(entry["label"])}</a>' for entry in entries]
-    return f'<div class="afkv2-banner-list afkv2-banner-changed"><h3>What changed</h3>{_list(links)}</div>'
+    return f'<div class="{LIST_CLASS} {CHANGED_CLASS}"><h3>What changed</h3>{_list(links)}</div>'
 
 
 def render_round_banner(props, children):
     n = props["n"]
     state = "current round" if props["current"] else "settled round"
-    lists = "".join(f'<div class="afkv2-banner-list"><h3>{title}</h3>{_list([escape(v) for v in props[key]])}</div>'
+    lists = "".join(f'<div class="{LIST_CLASS}"><h3>{title}</h3>{_list(list(map(escape, props[key])))}</div>'
                     for key, title in LISTS)
     return (f'<header class="afkv2-banner" data-afkv2-banner="{n}" '
             f'style="--afkv2-round: {escape(props["colour"])}">'

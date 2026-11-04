@@ -26,6 +26,7 @@ TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
 CARD_NOTES = "card-notes"
 GOLDEN_ANGLE = 137.5
+ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
 
 
 def round_colour(round_: dict) -> str:
@@ -63,8 +64,8 @@ def _banner(doc: dict, round_: dict, current: bool) -> str:
 def _round_marks(html: str, round_: dict) -> str:
     """A mark on each element that the current round's `changed` list names; no other element has one."""
     for element in dict.fromkeys(round_.get("changed") or []):
-        anchor = f'data-afkv2-element="{escape(element)}"'
-        html = html.replace(anchor, f'{anchor} data-afkv2-fresh="{round_["n"]}"', 1)
+        anchor = ELEMENT_ATTR.format(escape(element))
+        html = html.replace(anchor, anchor + FRESH_ATTR.format(round_["n"]), 1)
     return html
 
 
@@ -174,7 +175,7 @@ def stable_title(doc: dict) -> str:
     name = session.get("short_title") or session["feature"]
     if name not in (ticket, *parts):
         parts.append(name)
-    return " · ".join([*parts, session["step"]])
+    return " · ".join([*parts, *([session["step"]] if session.get("step") else [])])
 
 
 def _btw_attrs(btw: tuple[int, str] | None) -> str:
