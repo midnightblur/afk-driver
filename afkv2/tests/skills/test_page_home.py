@@ -202,6 +202,17 @@ def test_a_track_that_stopped_after_the_copy_finishes_on_a_second_run(repo, tmp_
     assert sorted(Path(path).name for path in answer["moved"]) == sorted([doc.name, doc.with_suffix(".shown.txt").name])
 
 
+def test_a_second_track_keeps_the_rounds_written_to_the_source_after_a_halfway_move(repo, tmp_path):
+    """Review f15: the source got a round after the first track stopped; the second track writes it over the target."""
+    doc = build(page_home.start_page("Cache plan"), tmp_path)
+    source = json.loads(doc.read_text("utf-8"))
+    target = repo / "specs" / TICKET / "pages" / doc.name
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps({**source, "rounds": []}), "utf-8")
+    page_home.track_page(str(doc), TICKET)
+    assert json.loads(target.read_text("utf-8"))["rounds"] == source["rounds"] and not doc.exists()
+
+
 def test_track_refuses_a_different_page_at_the_target(repo, tmp_path):
     doc = build(page_home.start_page("Cache plan"), tmp_path)
     target = repo / "specs" / TICKET / "pages" / doc.name

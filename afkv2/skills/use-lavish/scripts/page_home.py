@@ -114,8 +114,7 @@ def track_page(doc, ticket):
         raise Refusal("unreadable", f"no page at {doc} and none at {target}", EXIT_UNREADABLE)
     if doc.parent == target.parent:
         return {"ok": True, "doc": target.as_posix(), "moved": []}
-    copied = doc.is_file() and target.exists()
-    if copied and _session_id(target) != page["session"]["id"]:
+    if doc.is_file() and target.exists() and _session_id(target) != page["session"]["id"]:
         raise Refusal("exists", f"{target} holds another page; move or remove one of the 2 pages first")
     moved = []
     try:
@@ -124,9 +123,8 @@ def track_page(doc, ticket):
             shutil.move(side, target.parent / side.name)
             moved.append((target.parent / side.name).as_posix())
         if doc.is_file():
-            if not copied:
-                page["session"]["ticket"] = page["session"].get("ticket") or ticket
-                write_json(target, page)
+            page["session"]["ticket"] = page["session"].get("ticket") or ticket
+            write_json(target, page)
             doc.unlink()
             moved.append(target.as_posix())
     except OSError as error:
