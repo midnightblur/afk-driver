@@ -652,3 +652,47 @@ def test_the_remove_command_runs_in_the_current_folder_by_default(repo, monkeypa
 def test_unreadable_remove_arguments_exit_2(capsys, argv):
     code, answer = run_cli(capsys, *argv)
     assert code == 2 and answer["error"]["code"] == "bad-payload"
+
+
+# gc finish
+
+
+def waiting(repo, monkeypatch, yes=()):
+    """list and remove as the session runs them: the target is left `waiting` with the feature worktree and branch."""
+    fake = merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    cleanup.remove_step(repo.main, FEATURE, receipt, yes=yes)
+    return fake
+
+
+def gone(repo):
+    """The target file and its lock file are deleted."""
+    return not gc_target.target_path(repo.main, FEATURE).exists() and not gc_target.lock_path(repo.main, FEATURE).exists()
+
+
+def test_finish_removes_the_feature_worktree_then_the_local_feature_branch_and_deletes_the_target(repo, monkeypatch, windows):
+    fake = waiting(repo, monkeypatch)
+    feature = tip(repo, FEATURE)
+    done = steps(monkeypatch)
+    answer = cleanup.finish_step(repo.main, FEATURE)
+    assert done == [("folder", "feature"), ("branch", FEATURE)]
+    assert [(entry["id"], entry["item"], entry["result"], entry["tip"], entry["link"]) for entry in answer["removed"]] == [
+        ("IT-5", "feature worktree", "removed", None, None),
+        ("IT-6", "feature branch", "removed", feature, f"{GITHUB}/commit/{feature}")]
+    assert all(isinstance(entry["seconds"], (int, float)) and entry["seconds"] >= 0 for entry in answer["removed"])
+    assert (answer["left"], answer["state"], answer["change"]["number"]) == ([], "done", 7)
+    assert len(fake.calls) == 2
+    assert not Path(repo.feature).exists() and not Path(str(repo.feature) + ".gc-removing").exists()
+    assert Path(repo.feature).resolve() not in worktrees(repo)
+    assert local_heads(repo) == {"main"}
+    assert gone(repo)
+
+
+def test_finish_with_a_branch_already_gone_reads_already_gone(repo, monkeypatch, windows):
+    waiting(repo, monkeypatch)
+    git(repo.main, "worktree", "remove", "--force", str(repo.feature))
+    git(repo.main, "branch", "-D", FEATURE)
+    answer = cleanup.finish_step(repo.main, FEATURE)
+    assert [(entry["item"], entry["result"], entry["tip"]) for entry in answer["removed"]] == [
+        ("feature worktree", "already gone", None), ("feature branch", "already gone", "")]
+    assert gone(repo)

@@ -34,6 +34,7 @@ WORKTREES = ("run worktree", "feature worktree")
 ITEMS = (("IT-1", "run worktree", "now"), ("IT-2", "run branch", "now"), ("IT-3", "remote run branch", "now"),
          ("IT-4", "remote feature branch", "now"), ("IT-5", "feature worktree", "later"), ("IT-6", "feature branch", "later"))
 NOW = tuple(item for _, item, when in ITEMS if when == "now")
+LATER = tuple(item for _, item, when in ITEMS if when == "later")
 PASSABLE = ("not-merged", "forge-failed", "uncommitted", "outside-commits")
 NEVER_PASSED = ("not-windows", "in-use", "in-use-or-no-right")
 PLAIN_NAME = re.compile(r"[A-Za-z0-9._/-]+")
@@ -220,10 +221,10 @@ def _same_folder(path):
     return os.path.normcase(str(Path(path).resolve()))
 
 
-def _remove_run_worktree(main, target, lease):
-    """Remove the run worktree only when its path is absolute and, while it exists, a linked worktree of this
+def _remove_worktree(main, name):
+    """Remove a worktree folder only when its path is absolute and, while it exists, a linked worktree of this
     repository: the folder removal checks nothing about the folder it gets."""
-    folder = Path(target["run_worktree"])
+    folder = Path(name)
     lines = _checked(main, "worktree", "list", "--porcelain").splitlines()
     linked = {_same_folder(line.removeprefix("worktree ")) for line in lines[1:] if line.startswith("worktree ")}
     if not folder.is_absolute() or (os.path.lexists(folder) and _same_folder(folder) not in linked):
@@ -255,10 +256,10 @@ def _remove_remote_branch(main, remote, name, lease, absent):
 
 
 def _remove_item(main, target, item, lease):
-    if item == "run worktree":
-        return _remove_run_worktree(main, target, lease)
-    if item == "run branch":
-        return _remove_local_branch(main, target["run_branch"], lease)
+    if item in WORKTREES:
+        return _remove_worktree(main, _names(target)[item])
+    if item in ("run branch", "feature branch"):
+        return _remove_local_branch(main, _names(target)[item], lease)
     branch = target["run_branch"] if item == "remote run branch" else target["feature_branch"]
     absent = "none" if item == "remote run branch" and not lease else "already gone"
     return _remove_remote_branch(main, target["remote"], branch, lease, absent)
@@ -330,6 +331,60 @@ def remove_step(cwd, branch, receipt, yes=()):
                           removed=removed, failed=failed, left=pending, waiting=waiting)
         return {"branch": branch, "change": change, "removed": removed, "waiting": waiting,
                 "later": later_command(main, branch), "state": "waiting"}
+
+
+def _local_tip(main, branch):
+    code, out, _ = _git(main, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}")
+    return out if code == 0 else ""
+
+
+def _outside_head(main, target, local):
+    """The commits of the local feature tip `local` outside the change head, newest first; None when no head can tell."""
+    head = (target["change"] or {}).get("head_sha")
+    if not local or not head:
+        return None if local else []
+    try:
+        return gc_checks._outside(main, target["remote"], target["feature_branch"], local, head)
+    except Refusal:
+        return None
+
+
+def finish_step(cwd, branch, yes=()):
+    """The later command: remove the feature worktree, then the local feature branch, of the `waiting` target of
+    `branch`, from any folder of the repository. With nothing left the target and its lock file are deleted;
+    otherwise the target is kept `waiting` with what is left. No forge call: the stored change gives the head."""
+    target = _stored(cwd, branch)
+    main = main_checkout(cwd)
+    with gc_target.take_lock(main, branch) as lock:
+        target = _stored(main, branch)
+        names, pending = _names(target), list(target["left"])
+        local = _local_tip(main, target["feature_branch"])
+        outside = _outside_head(main, target, local)
+        base = (target["change"] or {}).get("url")
+        tips = {"feature worktree": None, "feature branch": local}
+        links = {"feature worktree": None, "feature branch": commit_link(base, local) if outside == [] else None}
+        idents = {item: ident for ident, item, _ in ITEMS}
+        removed, failed = [], None
+        for item in (item for item in LATER if item in pending):
+            entry = {"id": idents[item], "item": item, "name": names[item], "tip": tips[item], "link": links[item]}
+            start = time.monotonic()
+            try:
+                result = _remove_item(main, target, item, tips[item])
+            except Exception as error:  # A failure keeps what went before and stops: the branch stays with its folder.
+                failed = {**_failure(error), **entry}
+                break
+            removed.append({**entry, "result": result, "seconds": round(time.monotonic() - start, 2)})
+            pending.remove(item)
+        if pending:
+            gc_target.write_target(main, {**target, "left": pending})
+        else:
+            gc_target.delete_target(main, branch, lock)
+        if failed:
+            raise Refusal("partial", f"removed {len(removed)}; the {failed['item']} failed: {failed['reason']}; "
+                                     "fix the cause and run finish again for what is left",
+                          removed=removed, failed=failed, left=pending)
+        return {"branch": branch, "change": target["change"], "removed": removed, "left": pending,
+                "state": "waiting" if pending else "done"}
 
 
 class _Parser(argparse.ArgumentParser):
