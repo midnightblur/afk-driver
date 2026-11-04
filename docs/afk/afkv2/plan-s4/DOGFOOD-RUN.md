@@ -29,6 +29,7 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | PR #168 merged into `feat/afkv2` | | | done | merge commit 6e023fb4 (2026-11-04) |
 | Install from the tag, setup again | Claude | `afkv2-2.0.0-beta.7` (b80197bd) | pass, one finding | marketplace remove and add, `afk` at user scope, `afkv2` at local scope in the gc worktree; setup: hook proof passed, `afk` off and `afkv2` on in that project, no v1 rule block; the v1 git hook stubs had come back and setup moved them aside again, see F-34 |
 | `/afkv2:gc` on #158, list | Claude | beta.7 | pass | 6 items, no refusals: items 1-4 now (run worktree, local run branch c37f52c4 never pushed, remote feature branch), items 5-6 later (feature worktree with 25 ignored files, local feature branch); waits for the developer's yes |
+| `/afkv2:gc` on #158, remove and later command | Claude | beta.7 | pass | the developer's yes, then the later command after the session closed; checked after: both worktrees and their folders gone, no local or remote `feat/afkv2-gc*` branch left (2026-11-04); gc's own output not read, the pane was closed |
 | `/afkv2:gc` part 2, GitHub #159 | Codex | | not run | |
 
 ## Failures and findings
