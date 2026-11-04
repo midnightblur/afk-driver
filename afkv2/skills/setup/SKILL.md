@@ -55,6 +55,9 @@ you ask in this session; the Jira token never passes through you.
    lavish host 0.1.80 — each with a backup. It also writes `codex_rules`, which lets
    the plugin's own scripts run outside the Codex sandbox with no prompt: tell the
    developer this in the report. After a plugin update, run setup again.
+   A v1 session that starts in the repository installs the git hook stubs again;
+   `removed-again` means setup removed them a second time, so tell the developer
+   that v1 is still running somewhere in this repository.
    - `proof.proved` false: the v1 block stays and its backup is kept. Tell the
      developer each line of `proof.reasons`, then to start a new session and run
      `/afkv2:setup` again.

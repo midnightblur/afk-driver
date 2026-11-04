@@ -4,8 +4,10 @@ The raw grammar: first line `[round R-n]`, then `<id> <token>` or `<id> <token> 
 for no choice. `<id>` is an element id, or a note id with the token `edit` or `delete`. A later line
 continues the note unless it reads as a line of a known id with a token that id takes.
 
-A note on a card element lives on that card as `N-<round>-<item>`. A steer, a note on a map, a map node or
-another element that no card holds, lives on its round as `N-<round>-<target>` and names no card.
+Each line with note text is one note: the page sends one line per lavish annotation. A note on a card
+element lives on that card as `N-<round>-<item>-<k>`. A steer, a note on a map, a map node, a round banner
+or another element that no card holds, lives on its round as `N-<round>-<target>-<k>` and names no card.
+k counts 1, 2, 3 per card or target in the round (`schema/note_rules.py`).
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from pathlib import Path
 from afkv2_config import Refusal
 
 from registry import walk
-from schema import invariants
+from schema import invariants, note_rules
 from shell import inject
 
 NO_CHOICE = "—"
@@ -80,9 +82,9 @@ class _Page:
         self.notes.update((note["id"], (None, note)) for r in doc["rounds"] for note in r.get("notes") or [])
 
     def owner(self, target: str) -> dict | None:
-        """The item that holds an element; None for an element of the `maps` list."""
+        """The item that holds an element; None for an element of the `maps` list and for a round banner."""
         path = self.ids[target]
-        if path[0] != "rounds":
+        if path[2:3] != ("items",):
             return None
         return self.doc["rounds"][path[1]]["items"][path[3]]
 
@@ -135,33 +137,25 @@ def parse_response(raw: str, page: _Page) -> list[Line]:
     return lines
 
 
-def _fold(notes: list[dict], note_id: str, target: str, text: str, n: int, home: str) -> list[dict]:
-    """One note per id (SDD §4): a second one with the same id folds into it. `home` is the target a mixed note takes."""
+def _add(holder: dict, owner: str, target: str, text: str, n: int, earlier: dict) -> str:
+    """One new note on a card or on a round, with the next k of `owner` in round n. A live note of an earlier
+    response with the same round, target and text is that note: a send that comes twice adds nothing."""
+    notes = holder.get("notes") or []
     for note in notes:
-        if note["id"] != note_id:
-            continue
-        if note["deleted"]:
-            note.update(text=text, target=target, deleted=False)
-        elif note["text"] != text:
-            note["text"] += "\n\n" + text
-            if note["target"] != target:
-                note["target"] = home
-        return notes
-    return [*notes, {"id": note_id, "round": n, "target": target, "text": text, "deleted": False}]
-
-
-def _write_note(item: dict, target: str, text: str, n: int) -> str:
-    """One note per item per round."""
-    note_id = f"N-{n}-{item['id']}"
-    item["notes"] = _fold(item.get("notes") or [], note_id, target, text, n, item["id"])
+        if note["id"] in earlier and not note["deleted"] and (note["round"], note["target"], note["text"]) == (n, target, text):
+            return note["id"]
+    note_id = note_rules.next_note_id(notes, n, owner)
+    holder["notes"] = [*notes, {"id": note_id, "round": n, "target": target, "text": text, "deleted": False}]
     return note_id
 
 
-def _write_steer(round_: dict, target: str, text: str) -> str:
-    """One steer per target per round, on the round: a steer names no card."""
-    note_id = f"N-{round_['n']}-{target}"
-    round_["notes"] = _fold(round_.get("notes") or [], note_id, target, text, round_["n"], target)
-    return note_id
+def _write_note(item: dict, target: str, text: str, n: int, earlier: dict) -> str:
+    return _add(item, item["id"], target, text, n, earlier)
+
+
+def _write_steer(round_: dict, target: str, text: str, earlier: dict) -> str:
+    """A steer lives on the round: it names no card."""
+    return _add(round_, target, target, text, round_["n"], earlier)
 
 
 def _edit(note: dict, line: Line) -> str:
@@ -218,7 +212,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
                 _edit(page.notes[line.target][1], line)
                 signal.update(note=line.target, action=EDIT)
             elif line.text:
-                signal["note"] = _write_note(item, line.target, line.text, n)
+                signal["note"] = _write_note(item, line.target, line.text, n, page.notes)
             signals[line.number] = signal
         _set_state(item, after, n, group)
         for line in group:
@@ -251,7 +245,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict) -
                                     "reopened": rests_on_it}
         elif line.text:
             signals[line.number] = {"target": line.target, "item": None, "mark": None, "text": line.text,
-                                    "note": _write_steer(page.current, line.target, line.text), "steer": True}
+                                    "note": _write_steer(page.current, line.target, line.text, page.notes), "steer": True}
             result["steers"].append(line.target)
 
     if not signals:

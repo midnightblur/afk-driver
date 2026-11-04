@@ -297,7 +297,10 @@ def move_v1_git_hooks(places: Places, repo: Path, run: tools.Runner) -> dict:
     moved = {}
     for hook in setup_v1_facts.STUB_LINES:
         target, keep = hooks / hook, saved / hook
-        if keep.exists():
+        if keep.exists() and is_v1_stub(target, hook):
+            target.unlink()
+            moved[hook] = "removed-again"
+        elif keep.exists():
             moved[hook] = "already-moved"
         elif is_v1_stub(target, hook):
             saved.mkdir(parents=True, exist_ok=True)
