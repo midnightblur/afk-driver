@@ -9,8 +9,8 @@ Page readers must search or scroll to understand feature-specific terms and page
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 3 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | — |

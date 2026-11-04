@@ -36,3 +36,22 @@
 - Settled: Devil finding: a retained PAGE-TIPS.md beside a new document could otherwise override or add stale feature meanings. · decided-by agent R3 · accepted 2026-11-04 · spec: Accepted card r2-legacy-sidecar preserves the sidecar for page/0 only; r1-data-boundary makes the new page document authoritative. · reverse: Define a merge order and lifecycle for sidecars on new documents. · card r3-sidecar-boundary
 - Devil: pass ran; shared fallback now applies before unmatched text stays plain; same-catalog collisions fail and an exact id beats a term; PAGE-TIPS.md is limited to legacy page/0
 - Settled: exit gate passed 2026-11-04 · session s-20261104-160923
+
+## Solution design
+
+- Premise: afkv2.page/0 is frozen and rejects a new top-level tips field; a compatible change needs a new schema value, file and reader → verified (afkv2/engine/schema/page-v0.schema.json:3-13; afkv2/engine/engine.py:52-82)
+- Premise: The page JSON is persisted source state and generated HTML is replaceable derived state → verified (afkv2/engine/engine.py:231-292; afkv2/engine/shell/page.py:157-178)
+- Premise: The shared round builder is the only production page-document constructor; new sessions are v0 and resumes refuse another schema → verified (afkv2/skills/grill/scripts/round_document.py:23,334-361)
+- Premise: Grill, propose-solution and to-subtasks share the same page-document constructor → verified (afkv2/skills/propose-solution/scripts/design_round.py:170-183; afkv2/skills/to-subtasks/scripts/plan_files.py:386-409)
+- Premise: The engine registry already maps each schema value to a schema file and reader → verified (afkv2/engine/engine.py:52-82; afkv2/tests/engine/test_engine_core.py:393-412)
+- Premise: The page builder receives the checked document, but tooltip dictionary loading receives only the HTML path → verified (afkv2/engine/engine.py:284-290; afkv2/engine/shell/page.py:157-178)
+- Premise: Opening rendered HTML reinjects the replaceable tooltip block from path-based sources → verified (afkv2/engine/launcher.py:59-82,285-298; afkv2/engine/shell/inject.py:184-194)
+- Premise: The engine already inventories every card, component and map-node ID and refuses duplicates with a field location → verified (afkv2/engine/engine.py:118-143)
+- Premise: The current flat runtime dictionary cannot keep lowercase page IDs case-sensitive because lowercase keys receive case-insensitive fallback → verified (afkv2/engine/shell/tips.js:8-29)
+- Premise: Current dictionary precedence is seed, plugin glossary, repository glossaries, then the legacy sidecar; later sources win → verified (afkv2/engine/shell/inject.py:117-136)
+- Premise: Hover reads local DOM data, writes the tip through textContent and makes no network request → verified (afkv2/engine/shell/tips.js:89-105)
+- Premise: The tooltip runtime has no total catalog or page-size bound; it skips text nodes over 50000 characters and debounces mutation rescans by 300 ms → verified (afkv2/engine/shell/tips.js:31-34,264-270)
+- Premise: No database, service state, new endpoint or separate authorization guard exists for page tips; access stays at the page host boundary → verified (afkv2/engine/engine.py:300-327; afkv2/engine/shell/tips.js:2-6,89-105)
+- Premise: The current test suite has no direct DOM behavior coverage for page-tip precedence, exact IDs, wrapping, hover or mutation recovery → verified (counter-search of afkv2/tests for data-afkv2-tip, promote, harvest and tipFor; afkv2/tests/engine/test_engine_core.py:917-931)
+- Premise: All likely change surfaces are owned by this repository configuration → verified (.afkv2/config.json:2-5)
+- Settled: design gate passed 2026-11-04 · session s-20261104-182229
