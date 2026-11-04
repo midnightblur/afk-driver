@@ -5,7 +5,7 @@ description: /afkv2:execute — runs one subtask of a plan end to end, test firs
 
 # /afkv2:execute
 
-You run in a fresh subagent, from the worktree of the feature branch. The brief holds `subtask`, `plan`, `contract`, `base`, `change`, `python` and any rulings.
+You run in a fresh subagent, from the worktree of the feature branch. The brief holds `subtask`, `plan`, `contract`, `base`, `change`, `python` and any rulings. Never run /afkv2:gc.
 
 ## The commands
 
