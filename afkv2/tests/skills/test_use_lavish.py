@@ -305,3 +305,31 @@ def test_build_runs_with_no_ticket(tmp_path, capsys):
     assert answer["ok"] and answer["round"] == 1
     session = read(path)["session"]
     assert session["ticket"] is None and session["short_title"] == "No ticket"
+
+
+import page_round  # noqa: E402
+
+
+def test_take_over_records_one_takeover_per_round(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a accept\ni-b accept")
+    answer = page_round.main(["take-over", "--doc", str(path)])
+    takeovers = read(path)["session"]["takeovers"]
+    assert len(takeovers) == 1 and takeovers[0]["round"] == 1
+    assert answer == {"ok": True, "session": "s-1", "round": 1, "takeovers": takeovers}
+    before = path.read_bytes()
+    assert page_round.take_over(path)["takeovers"] == takeovers
+    assert path.read_bytes() == before
+    assert engine_answer(capsys, "check", path)[0] == 0
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    assert [entry["round"] for entry in page_round.take_over(path)["takeovers"]] == [1, 2]
+
+
+@pytest.mark.parametrize("content", [None, "not json"])
+def test_take_over_of_an_unreadable_document_is_refused(tmp_path, content):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    if content is not None:
+        path.parent.mkdir()
+        path.write_text(content, "utf-8")
+    with pytest.raises(Refusal) as refused:
+        page_round.take_over(path)
+    assert refused.value.code == "unreadable"

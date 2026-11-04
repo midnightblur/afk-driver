@@ -10,6 +10,8 @@
   ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
                                   round pass must read
   end     --doc D                 ends the page session: the page says the session ended, not 'Working...'
+  take-over --doc D               records that a new agent session took the page over in the current round;
+                                  answers `session`, `round` and `takeovers`. A second run in that round adds nothing
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
 limit here: it returns when the human sends the round. The engine keeps each round send beside the
@@ -21,10 +23,11 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_text
-from round_document import pending, record_shown, shown_record
+from grill_common import EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_json, write_text
+from round_document import FORMAT_0, SCHEMA, current_round, format_1, pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
@@ -142,15 +145,34 @@ def ingest(doc, raw_file):
     return {"ok": True, **pending(read_json(doc))}
 
 
+def take_over(doc):
+    """Add 1 entry to `session.takeovers` for the current round, once (SDD §3 row "take-over"). A format 0 page
+    is written as format 1."""
+    raw = read_json(doc)
+    if not isinstance(raw, dict) or raw.get("schema") not in (SCHEMA, FORMAT_0):
+        raise Refusal("unreadable", f"{doc} is no page document of format 0 or 1", EXIT_UNREADABLE, verb="take-over")
+    page = format_1(raw)
+    current = current_round(page)
+    if current is None:
+        raise Refusal("bad-document", "no round is current", verb="take-over")
+    takeovers = page["session"].setdefault("takeovers", [])
+    if not any(entry.get("round") == current["n"] for entry in takeovers):
+        takeovers.append({"round": current["n"], "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
+        write_json(doc, page)
+    return {"ok": True, "session": page["session"]["id"], "round": current["n"], "takeovers": takeovers}
+
+
 def main(argv):
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply", "end"])
+    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply", "end", "take-over"])
     parser.add_argument("--doc", required=True)
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
     args = parser.parse_args(argv)
     if args.verb == "present":
         return present(args.doc)
+    if args.verb == "take-over":
+        return take_over(args.doc)
     if args.verb == "end":
         _engine("end", args.doc)
         return {"ok": True}
