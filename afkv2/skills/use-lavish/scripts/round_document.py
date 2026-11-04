@@ -1,7 +1,8 @@
 """Write the page document of one page session (schema afkv2.page/1, SDD §4).
 
 Verbs, run from the repository root:
-  build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace]
+  build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
+                 The skill is the name part of `<skill>-<session>.json`. `--private` marks a new page private.
   apply-readings --doc D --readings F
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
@@ -613,6 +614,18 @@ def pending(doc):
             **by_state}
 
 
+def _skill_of(doc, session):
+    """The writer that the file name `<skill>-<session>.json` names; grill for any other name."""
+    skill = Path(doc).name.removesuffix(f"-{session}.json")
+    return skill if skill in {*STEPS, "use-lavish"} else "grill"
+
+
+def _feature_of(doc):
+    """The folder that holds the `pages` folder (a ticket), else the page's own folder (a repository name)."""
+    folder = Path(doc).resolve().parent
+    return folder.parent.name if folder.name == "pages" else folder.name
+
+
 def main(argv):
     parser = Parser(add_help=False)
     parser.add_argument("verb", choices=["build", "apply-readings"])
@@ -623,14 +636,15 @@ def main(argv):
     parser.add_argument("--ticket-file")
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--readings")
+    parser.add_argument("--private", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "build":
         if not (args.session and args.round_input):
             raise Refusal("usage", "build needs --session and --round-input", 2)
         round_input = read_json(args.round_input)
         ticket = read_json(args.ticket_file) if args.ticket_file else None
-        feature = Path(args.doc).parent.parent.name
-        session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
+        session = {"id": args.session, "skill": _skill_of(args.doc, args.session), "feature": _feature_of(args.doc),
+                   "ticket": args.ticket, **({"private": True} if args.private else {})}
         earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
         keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
                                                              *((ticket or {}).get("unread_links") or [])])]

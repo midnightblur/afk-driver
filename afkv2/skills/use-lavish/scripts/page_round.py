@@ -1,7 +1,9 @@
 """Drive one page round through the engine verbs (SDD §3), from the repository root.
 
-  present --doc D                 check, render, show, in that order; stops at the first refusal.
+  present --doc D [--scan F]...   check, render with the notices, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
+                                  Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
+                                  scan file (the skill's log); neither refuses the round.
   wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte, and the host's prompts
                                   to F.prompts.json, for audit. Answers side questions on the page and polls
                                   again; `btw` lists the side questions left to the agent, and `raw_file`
@@ -40,12 +42,13 @@ def _engine(verb, doc, *args, timeout=TIMEOUT_S):
         raise Refusal(refusal.code, refusal.reason, refusal.exit_code, verb=verb) from refusal
 
 
-def present(doc):
+def present(doc, scan=()):
     _engine("check", doc)
-    page = _engine("render", doc).get("page")
+    rendered = _engine("render", doc, "--notices", *(arg for file in scan for arg in ("--scan", str(file))))
     record_shown(doc)
     shown = _engine("show", doc)
-    return {"ok": True, "page": page, "url": shown.get("url"), "tab": shown.get("tab")}
+    return {"ok": True, "page": rendered.get("page"), "url": shown.get("url"), "tab": shown.get("tab"),
+            "git_state": rendered.get("git_state"), "secrets": rendered.get("secrets") or []}
 
 
 def _side_question():
@@ -168,9 +171,10 @@ def main(argv):
     parser.add_argument("--doc", required=True)
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
+    parser.add_argument("--scan", action="append", default=[])
     args = parser.parse_args(argv)
     if args.verb == "present":
-        return present(args.doc)
+        return present(args.doc, args.scan)
     if args.verb == "take-over":
         return take_over(args.doc)
     if args.verb == "end":
