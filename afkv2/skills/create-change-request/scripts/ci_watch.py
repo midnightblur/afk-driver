@@ -244,7 +244,7 @@ def _end(payload, path, record, state, status_word, reason=""):
 
 
 def watch_end_on_merge(path, record, view):
-    """End the watch on a merged or closed change, from a change view the watch already reads; None while the change is open."""
+    """End the watch on a merged or closed change, from the change view of a slice or of the end; None while the change is open."""
     state = view.get("state")
     if state not in NOT_OPEN:
         return None
@@ -289,12 +289,11 @@ def watch_ci(payload):
     while True:
         left = max(0, int(deadline - time.monotonic()))
         wait = min(SLICE, left)
-        if not head_seen:
-            view = _change_view(payload, change)
-            ended = watch_end_on_merge(path, record, view)
-            if ended is not None:
-                return ended
-            head_seen = not _forge_behind(view, record)
+        view = _change_view(payload, change)
+        ended = watch_end_on_merge(path, record, view)
+        if ended is not None:
+            return ended
+        head_seen = head_seen or not _forge_behind(view, record)
         fields = {"id": change, "budget": wait, **({} if interval is None else {"interval": interval})}
         answer = call_forge("ci-wait", {**passed_on(payload), **fields}, wait + READ_MARGIN)
         if not _is_current(path, record["token"]):

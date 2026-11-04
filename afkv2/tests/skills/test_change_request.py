@@ -492,20 +492,33 @@ def test_a_change_that_merges_or_closes_before_the_forge_shows_the_commit_ends_t
 
 
 @pytest.mark.parametrize("state", ["merged", "closed"])
-def test_a_change_that_merges_or_closes_while_ci_runs_ends_the_watch_on_its_end_view(repo, forge, capsys, state):
+def test_a_change_that_merges_or_closes_after_the_forge_shows_the_commit_ends_the_watch_in_that_slice(repo, forge, capsys, state):
     head = git(repo, "rev-parse", "HEAD")
     forge.answers = {"ci-wait": [STILL, GREEN], "change-view": [{**VIEW, "head_sha": head}, {**VIEW, "head_sha": "merged-head", "state": state}]}
     code, answer = run(ci_watch, capsys, "watch", id="7")
     assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
     assert answer["status"] == "" and answer["head_sha"] == "merged-head"
-    assert forge.verbs() == ["change-view", "ci-wait", "ci-wait", "change-view"]
+    assert forge.verbs() == ["change-view", "ci-wait", "change-view"]
 
 
-def test_a_watch_on_an_open_change_reads_the_view_as_before(repo, forge, capsys):
-    forge.answers = {"ci-wait": [STILL, STILL, GREEN], "change-view": {**VIEW, "head_sha": git(repo, "rev-parse", "HEAD")}}
+@pytest.mark.parametrize("state", ["merged", "closed"])
+def test_a_change_that_merges_or_closes_in_the_last_slice_ends_the_watch_on_its_end_view(repo, forge, capsys, state):
+    head = git(repo, "rev-parse", "HEAD")
+    forge.answers = {"ci-wait": [GREEN], "change-view": [{**VIEW, "head_sha": head}, {**VIEW, "head_sha": "merged-head", "state": state}]}
     code, answer = run(ci_watch, capsys, "watch", id="7")
-    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == ""
-    assert forge.verbs() == ["change-view", "ci-wait", "ci-wait", "ci-wait", "change-view"]
+    assert code == 0 and answer["state"] == "change-not-open" and answer["change_state"] == state
+    assert answer["head_sha"] == "merged-head" and forge.verbs() == ["change-view", "ci-wait", "change-view"]
+
+
+@pytest.mark.parametrize("shown", [["head", "head", "head"], ["last", "last", "head"]], ids=["head-seen", "head-behind"])
+def test_a_watch_on_an_open_change_reads_the_view_once_per_slice_and_once_at_the_end(repo, forge, capsys, monkeypatch, shown):
+    monkeypatch.setattr(ci_watch, "HEAD_GRACE", 60)
+    head = git(repo, "rev-parse", "HEAD")
+    views = [{**VIEW, "head_sha": head if name == "head" else name} for name in shown + ["head"]]
+    forge.answers = {"ci-wait": [STILL, STILL, GREEN], "change-view": views}
+    code, answer = run(ci_watch, capsys, "watch", id="7")
+    assert code == 0 and answer["state"] == "finished" and answer["change_state"] == "" and answer["status"] == "success"
+    assert forge.verbs() == ["change-view", "ci-wait"] * 3 + ["change-view"]
 
 
 def test_a_newer_watch_keeps_its_record_when_the_older_one_sees_the_merge(repo, forge, capsys):
