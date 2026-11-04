@@ -25,13 +25,15 @@ from pathlib import Path
 AFKV2 = Path(__file__).resolve().parents[2]
 CLEANUP = AFKV2 / "skills" / "gc" / "scripts" / "cleanup.py"
 FORGE = AFKV2 / "ports" / "forge" / "forge_cli.py"
+PLUGIN_REPOSITORY = AFKV2.parent
 sys.path.insert(0, str(AFKV2 / "ports"))
+sys.path.insert(0, str(AFKV2 / "scripts"))
 
+import afkv2_config  # noqa: E402
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal  # noqa: E402
 
 FORGES = ("github", "gitlab")
-GITHUB_PROJECT = "midnightblur/afk-driver"
 GITLAB_PROJECT_SHA256 = "9641736ab3f2e8a9a58c5e6aacfd858d55cd09d1ff876fdfb305e438190b855e"  # the GitLab test project, by hash
 SCRATCH = "afkv2-gc-live/"
 SCRATCH_NAME = re.compile(re.escape(SCRATCH) + r"[A-Za-z0-9][A-Za-z0-9-]*")
@@ -65,10 +67,24 @@ def scratch_branch(name):
     return name
 
 
+def github_project():
+    """This plugin's GitHub project: `tracker.repo` of the plugin repository's `.afkv2/config.json`, with a
+    `github-issues` tracker."""
+    config = afkv2_config.read_config(PLUGIN_REPOSITORY)
+    tracker = (config.get("tracker") if config.get("ok") else None) or {}
+    repo = tracker.get("repo") if tracker.get("kind") == "github-issues" else None
+    if not isinstance(repo, str) or not repo.strip():
+        failure = (config.get("error") or {}).get("reason")
+        raise Refusal("no-project", f"the config of {PLUGIN_REPOSITORY} names no github-issues tracker repo: the "
+                                    "GitHub round trip knows its project only from there"
+                                    + (f"; {failure}" if failure else ""), step="project")
+    return repo.strip().lower()
+
+
 def allowed_project(forge, host, path):
     """GitHub: this plugin's repository. GitLab: the GitLab test project only."""
     if forge == "github":
-        return host == "github.com" and path.lower() == GITHUB_PROJECT
+        return host == "github.com" and path.lower() == github_project()
     return host == "gitlab.com" and hashlib.sha256(path.lower().encode("utf-8")).hexdigest() == GITLAB_PROJECT_SHA256
 
 

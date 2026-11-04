@@ -431,3 +431,33 @@ def test_the_refusal_of_another_project_shows_no_secret_of_its_address(tmp_path)
     answer, _ = round_trip(world)
     assert answer["error"]["code"] == "wrong-project" and "s3cret-token" not in json.dumps(answer)
     assert "github.com/someone/else" in answer["error"]["reason"]
+
+
+def plugin_config(tmp_path, monkeypatch, tracker):
+    repo = tmp_path / "plugin"
+    (repo / ".afkv2").mkdir(parents=True)
+    config = {"spec_folder": "docs/specs", "tracker": tracker, "forge": "github"}
+    (repo / ".afkv2" / "config.json").write_text(json.dumps(config), encoding="utf-8")
+    monkeypatch.setattr(live, "PLUGIN_REPOSITORY", repo)
+
+
+def test_the_github_project_is_the_tracker_repo_of_the_plugin_repository_config(tmp_path, monkeypatch):
+    plugin_config(tmp_path, monkeypatch, {"kind": "github-issues", "repo": "Someone/Else"})
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    refused = World(tmp_path / "a", "github")
+    answer, _ = round_trip(refused)
+    assert answer["error"]["code"] == "wrong-project"
+    assert not [call for call in refused.calls if any(write in " ".join(call) for write in WRITES)]
+    allowed = World(tmp_path / "b", "github", "https://github.com/someone/else.git")
+    answer, _ = round_trip(allowed)
+    assert answer.get("error", {}).get("code") != "wrong-project", answer
+
+
+@pytest.mark.parametrize("tracker", [{"kind": "jira", "project": "ABC"}, {"kind": "github-issues"}])
+def test_a_plugin_config_without_a_github_project_refuses_before_any_write(tmp_path, monkeypatch, tracker):
+    plugin_config(tmp_path, monkeypatch, tracker)
+    world = World(tmp_path, "github")
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "no-project"
+    assert not [call for call in world.calls if any(write in " ".join(call) for write in WRITES)]
