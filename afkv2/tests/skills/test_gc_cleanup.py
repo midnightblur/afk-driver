@@ -623,3 +623,32 @@ def test_a_run_worktree_that_is_not_an_absolute_linked_worktree_of_the_repositor
     assert (partial.extra["failed"]["item"], partial.extra["failed"]["code"]) == ("run worktree", "not-a-worktree")
     assert partial.extra["removed"] == [] and Path(repo.run).is_dir()
     assert RUN in local_heads(repo)
+
+
+def test_the_remove_command_answers_one_json_object_and_exits_0_ok_1_refused(repo, monkeypatch, windows, capsys):
+    merged(repo, monkeypatch)
+    (Path(repo.run) / "notes.txt").write_text("not committed\n", encoding="utf-8")
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    code, answer = run_cli(capsys, "remove", "--repo", str(repo.main), "--branch", FEATURE, "--receipt", "c" * 64)
+    assert code == 1 and answer["error"]["code"] == "stale-list" and answer["error"]["list"]["receipt"] == receipt
+    code, answer = run_cli(capsys, "remove", "--repo", str(repo.main), "--branch", FEATURE, "--receipt", receipt)
+    assert code == 1 and answer["error"]["code"] == "refused"
+    code, answer = run_cli(capsys, "remove", "--repo", str(repo.main), "--branch", FEATURE, "--receipt", receipt,
+                           "--yes", "uncommitted,not-merged", "--yes", "outside-commits")
+    assert code == 0 and answer["ok"] is True and [entry["result"] for entry in answer["removed"]] == ["removed"] * 4
+    assert answer["later"] == later_command(repo)
+
+
+def test_the_remove_command_runs_in_the_current_folder_by_default(repo, monkeypatch, windows, capsys):
+    merged(repo, monkeypatch)
+    receipt = cleanup.list_step(repo.feature)["receipt"]
+    monkeypatch.chdir(repo.main)
+    code, answer = run_cli(capsys, "remove", "--branch", FEATURE, "--receipt", receipt)
+    assert code == 0 and answer["state"] == "waiting"
+
+
+@pytest.mark.parametrize("argv", [["remove"], ["remove", "--branch", FEATURE], ["remove", "--receipt", "c" * 64],
+                                  ["remove", "--branch", FEATURE, "--receipt", "c" * 64, "--yes", "everything"]])
+def test_unreadable_remove_arguments_exit_2(capsys, argv):
+    code, answer = run_cli(capsys, *argv)
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
