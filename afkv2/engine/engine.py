@@ -63,13 +63,13 @@ TAB_GONE = {"ended", "browser_disconnected", "no-session"}
 DELIVERY_SUFFIX = ".delivery.json"
 
 
-# The step of a session whose writer names none: a format 0 page, or a builder caller that gives no step.
-STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design", "to-subtasks": "Plan approval"}
+# The step of an upgraded format 0 page, by its skill; any other skill takes its feature name.
+V0_STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design"}
 STEP_LIMIT = 40
 
 
-def default_step(session: dict) -> str:
-    return STEPS.get(session.get("skill")) or str(session.get("feature") or session.get("skill"))[:STEP_LIMIT]
+def _v0_step(session: dict) -> str:
+    return V0_STEPS.get(session.get("skill")) or str(session.get("feature") or session.get("skill"))[:STEP_LIMIT]
 
 
 def read_v0_as_v1(raw: dict) -> dict:
@@ -87,7 +87,7 @@ def read_v0_as_v1(raw: dict) -> dict:
         notes += [_session_note(note, None) for note in round_.pop("notes", None) or []]
     doc["notes"] = sorted(notes, key=lambda note: note["round"])
     session = doc["session"]
-    session.update(short_title=None, step=default_step(session), private=False, takeovers=[])
+    session.update(short_title=None, step=_v0_step(session), private=False, takeovers=[])
     return doc
 
 

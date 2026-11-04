@@ -63,3 +63,92 @@ def test_the_page_skills_run_every_round_command_from_the_use_lavish_home():
                 for line in [line for line in text.splitlines() if script in line]:
                     assert f"use-lavish/scripts/{script}" in line, (skill, name, line)
                     assert "grill/scripts" not in line, (skill, name, line)
+
+
+# ---- the builder writes page format 1 (SDD §14 row "Page format"; ADR-0002 design)
+
+import json  # noqa: E402
+import sys  # noqa: E402
+
+for _folder in (HOME / "scripts", SKILLS / "grill" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
+    sys.path.insert(0, str(_folder))
+
+import engine  # noqa: E402
+import grill_log  # noqa: E402
+import round_document as rd  # noqa: E402
+
+SESSION = {"id": "s-1", "skill": "grill", "feature": "PROJ-1", "ticket": "PROJ-1"}
+
+
+def a_card(item_id, **extra):
+    return {"id": item_id, "kind": "confirm", "body": {"type": "text", "id": f"{item_id}-body", "props": {"text": "x"}},
+            **extra}
+
+
+def round_input(*item_ids):
+    return {"banner": {"settled": [], "unlocks": [], "parked": []}, "items": [a_card(i) for i in item_ids]}
+
+
+def engine_answer(capsys, *args):
+    code = engine.main([str(a) for a in args])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def ingest(capsys, path, raw):
+    raw_file = path.with_name("raw.txt")
+    raw_file.write_text(raw, "utf-8")
+    code, answer = engine_answer(capsys, "ingest", path, "--raw-file", raw_file)
+    assert code == 0, answer
+    return answer
+
+
+def test_the_builder_writes_format_1(tmp_path, capsys):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    doc = json.loads(path.read_text("utf-8"))
+    assert doc["schema"] == "afkv2.page/1" and doc["notes"] == []
+    assert doc["session"]["step"] == "Requirements grill"
+    assert doc["session"]["private"] is False and doc["session"]["takeovers"] == []
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_the_next_round_of_a_live_format_0_page_is_written_as_format_1(tmp_path, capsys):
+    note = {"id": "N-1-i-a-1", "round": 1, "target": "i-a", "text": "why", "deleted": False}
+    settled = {"by": "note", "round": 1, "signal": "N-1-i-a-1", "reading": "Yes."}
+    item = {**rd._item(a_card("i-a"), set(), []), "state": "settled_by_note", "settled": settled, "notes": [note]}
+    raw, signal = "[round R-1]\ni-a — | why", {"target": "i-a", "item": "i-a", "note": "N-1-i-a-1"}
+    signal["stamp"] = engine.invariants.ingest_stamp("s-1", 1, "2026-01-05T10:00:00Z", raw, signal)
+    v0 = {"schema": "afkv2.page/0", "session": {**SESSION, "started": "2026-01-05T09:00:00Z"}, "maps": [],
+          "rounds": [{"n": 1, "state": "current", "banner": round_input()["banner"], "items": [item],
+                      "responses": [{"received": "2026-01-05T10:00:00Z", "raw": raw, "signals": [signal]}]}]}
+    path = tmp_path / "pages" / "grill-s-1.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(v0), "utf-8")
+    assert engine_answer(capsys, "check", path)[0] == 0
+    rd.build_round_document(path, SESSION, round_input("i-b"))
+    doc = json.loads(path.read_text("utf-8"))
+    assert doc["schema"] == "afkv2.page/1"
+    assert doc["notes"] == [{**note, "item": "i-a"}]
+    assert all("notes" not in r and all("notes" not in i for i in r["items"]) for r in doc["rounds"])
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_the_round_pass_and_the_readings_read_the_session_list(tmp_path, capsys):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    ingest(capsys, path, "[round R-1]\ni-a note 1\n  why\ni-a note 2\n  and how")
+    pending = rd.pending(json.loads(path.read_text("utf-8")))
+    assert [n["id"] for n in pending["needs_reading"][0]["notes"]] == ["N-1-i-a-1", "N-1-i-a-2"]
+    rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}]})
+    doc = json.loads(path.read_text("utf-8"))
+    assert doc["rounds"][0]["items"][0]["state"] == "settled_by_note"
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_the_grill_log_rows_from_notes_read_the_session_list(tmp_path, capsys):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    ingest(capsys, path, "[round R-1]\ni-a note 1\n  why\nR-1 note 1\n  a steer")
+    rows = [line for row in grill_log._document_rows(json.loads(path.read_text("utf-8"))) for line in row]
+    assert '  owner note on i-a (N-1-i-a-1): "why"' in rows
+    assert '- Steer: R-1 (N-1-R-1-1): "a steer"' in rows

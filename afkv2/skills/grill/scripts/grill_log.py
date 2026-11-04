@@ -20,8 +20,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
-from round_document import (ASKING, _carried, _components, card_notes, current_round, returning, signature_missing,
-                            steer_targets, steers)  # noqa: E402
+from round_document import (ASKING, _carried, _components, card_notes, current_round, format_1, returning,  # noqa: E402
+                            signature_missing, steer_targets, steers)
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff"}
@@ -119,9 +119,10 @@ def _field_text(item, name, prefix=""):
     return None
 
 
-def _note_lines(item, targets):
+def _note_lines(doc, item, targets):
+    """The rows of the notes that name the card, from the session list."""
     return [f"  owner note on {item['id']} ({note['id']}): {json.dumps(note['text'], ensure_ascii=False)}"
-            for note in card_notes(item, targets)]
+            for note in card_notes(doc, item, targets)]
 
 
 def _accepted_date(doc, round_n):
@@ -143,7 +144,7 @@ def _how_settled(doc, item):
 
 
 def _item_row(doc, item, is_current, targets):
-    title, card, notes = _first_text(item), f"· card {item['id']}", _note_lines(item, targets)
+    title, card, notes = _first_text(item), f"· card {item['id']}", _note_lines(doc, item, targets)
     if item.get("settled") and item["state"] in ("settled_by_mark", "settled_by_note"):
         return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *notes]
     if is_current and item["kind"] in ASKING:
@@ -171,8 +172,8 @@ def _document_rows(doc):
 def _session_documents(doc_path):
     """This document and every older grill document beside it, oldest session first."""
     doc_path = Path(doc_path)
-    docs = [read_json(doc_path)]
-    docs += [read_json(path) for path in page_documents(doc_path.parent, "grill-")
+    docs = [format_1(read_json(doc_path))]
+    docs += [format_1(read_json(path)) for path in page_documents(doc_path.parent, "grill-")
              if path.resolve() != doc_path.resolve()]
     return sorted(docs, key=lambda doc: (doc["session"]["started"], doc["session"]["id"]))
 
@@ -239,7 +240,7 @@ def _log_failures(blocks):
 
 
 def gate(doc_path, log):
-    doc = read_json(doc_path)
+    doc = format_1(read_json(doc_path))
     head, blocks, tail = _split(log)
     failures = _doc_failures(doc) + _log_failures(blocks)
     if failures:

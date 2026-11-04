@@ -12,8 +12,9 @@ The raw response grammar here is the fake's own: one line per signal.
   <item id>: accept | sign | option:<letter> | reopen | changes
   <item id>: note: <text>
   <item id>: write-in: <text>
-  <map node id>: note: <text>     a steer, kept on the round
-The grill passes raw text through and never parses it.
+  <map node id>: note: <text>     a steer: a note that names no card
+The grill passes raw text through and never parses it. The fake writes page format 1: every note goes into
+the session list, as the engine writes it.
 """
 
 import json
@@ -21,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-SCHEMA = "afkv2.page/0"
+SCHEMA = "afkv2.page/1"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 LONE_MARKS = ("accept", "sign", "option:")
@@ -45,7 +46,7 @@ def check(doc, doc_path):
     if doc.get("schema") != SCHEMA:
         return f"document: schema {doc.get('schema')}"
     session = doc.get("session") or {}
-    for field in ("id", "skill", "feature", "ticket", "started"):
+    for field in ("id", "skill", "feature", "ticket", "started", "step"):
         if not session.get(field):
             return f"session: {field}"
     rounds = doc.get("rounds")
@@ -70,7 +71,7 @@ def check(doc, doc_path):
                 return f"{where}: body"
             if item["state"] == "settled_by_note":
                 settled = item.get("settled") or {}
-                notes = {n["id"] for n in item.get("notes", [])}
+                notes = {n["id"] for n in doc.get("notes") or [] if n.get("item") == item["id"]}
                 if settled.get("by") != "note" or not settled.get("reading"):
                     return f"{where}: settled.reading"
                 if settled.get("signal") not in notes:
@@ -102,8 +103,8 @@ def ingest(doc, raw):
     by_item, signals = {}, []
     for target, signal in parse(raw):
         if target in nodes:
-            current.setdefault("notes", []).append({
-                "id": f"N-{n}-{target}", "round": n, "target": target,
+            doc.setdefault("notes", []).append({
+                "id": f"N-{n}-{target}", "round": n, "target": target, "item": None,
                 "text": signal.split("note: ", 1)[1], "deleted": False})
             signals.append({"target": target, "item": None, "note": True, "steer": True})
             continue
@@ -113,8 +114,8 @@ def ingest(doc, raw):
         rnd, item = items[item_id]
         for line in lines:
             if line.startswith("note: "):
-                item.setdefault("notes", []).append({
-                    "id": f"N-{n}-{item_id}", "round": n, "target": item_id,
+                doc.setdefault("notes", []).append({
+                    "id": f"N-{n}-{item_id}", "round": n, "target": item_id, "item": item_id,
                     "text": line[len("note: "):], "deleted": False})
         lone = len(lines) == 1 and lines[0].startswith(LONE_MARKS)
         reopened = rnd is not current and item.get("state") in SETTLED

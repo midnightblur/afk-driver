@@ -630,6 +630,10 @@ class World:
         current = next(rnd for rnd in self.doc(started)["rounds"] if rnd["state"] == "current")
         return next(item for item in current["items"] if item["kind"] == "signoff")
 
+    def notes_of(self, started, card_id):
+        """The notes that name the card, from the session list of page format 1."""
+        return [note for note in self.doc(started).get("notes") or [] if note.get("item") == card_id]
+
     def answer(self, started, raw):
         self.raw.write_bytes(raw.encode("utf-8"))
         self.run("present", doc=started["doc"])
@@ -1039,7 +1043,7 @@ def test_a_clear_note_does_not_settle_the_card(world):
     world.division(started)
     card_id = world.card(started)["id"]
     world.answer(started, f"{card_id}: note: Fine, go ahead.")
-    note = world.card(started)["notes"][0]["id"]
+    note = world.notes_of(started, card_id)[0]["id"]
     path = world.scratch / "readings.json"
     path.write_text(json.dumps({"settle": [{"item": card_id, "note": note, "reading": "Approves the division as shown."}]}), "utf-8")
     assert error_of(world.run("apply-readings", expect=1, doc=started["doc"], readings=path))["code"] == "signoff-needs-mark"
@@ -1054,7 +1058,8 @@ def test_a_card_marked_settled_by_a_note_does_not_approve(world):
     path = world.repo / started["doc"]
     doc = json.loads(path.read_text("utf-8"))
     card = next(item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == card_id)
-    card.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": card["notes"][0]["id"], "reading": "Approves."})
+    card.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": next(n["id"] for n in doc["notes"] if n["item"] == card_id),
+                "reading": "Approves."})
     path.write_text(json.dumps(doc), "utf-8")
     assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
 

@@ -1,7 +1,8 @@
 """Tests for the visualize skill: the authoring guide for page documents.
 
 Until the page engine exists, every example is checked by a recorded fake of
-the page document v0 contract (SDD §4 field tables). When the engine file
+the page document v0 contract (SDD §4 field tables). A format 1 document is checked
+for its own fields, then as the format 0 view of it. When the engine file
 exists, every example also goes through `engine check` and must answer ok.
 """
 
@@ -27,6 +28,7 @@ ALL_COMPONENTS = SKILL_DIR / "examples" / "all-components.json"
 ENGINE = PLUGIN / "engine" / "engine.py"
 
 SCHEMA = "afkv2.page/0"
+SCHEMA_1 = "afkv2.page/1"
 
 # PRD catalog id -> the page that holds its entry.
 CATALOG = {
@@ -306,9 +308,51 @@ def _check_document(doc):
     return components
 
 
+# Format 1 (SDD §4): one session note list, the new session fields, answer ids and links.
+DOC_FIELDS_1 = DOC_FIELDS | {"notes", "value_sets"}
+SESSION_FIELDS_1 = {"short_title", "step", "private", "takeovers"}
+SKILLS_1 = {"grill", "propose-solution", "to-subtasks", "use-lavish"}
+ANSWER_FIELDS_1 = {"id", "text", "notes", "changed", "about"}
+
+
+def _format_0_view(doc):
+    """Check the format 1 fields; return the document as format 0, every note back on its card or round."""
+    _only(doc, DOC_FIELDS_1, "document")
+    session = doc.get("session")
+    _only(session, SESSION_FIELDS | SESSION_FIELDS_1 | {"links"}, "session")
+    _need(session.get("skill") in SKILLS_1, "session", "skill")
+    _need(isinstance(session.get("step"), str) and session["step"], "session", "step (required)")
+    _need(isinstance(session.get("private", False), bool), "session", "private")
+    view = copy.deepcopy(doc)
+    view["schema"] = SCHEMA
+    view.pop("value_sets", None)
+    view["session"] = {k: v for k, v in session.items() if k not in SESSION_FIELDS_1}
+    view["session"].setdefault("ticket", None)
+    view["session"]["skill"] = "grill"
+    rounds = {r.get("n"): r for r in view.get("rounds") or []}
+    cards = {item.get("id"): item for r in rounds.values() for item in r.get("items") or []}
+    for n, note in enumerate(_objects(view.pop("notes", []), "document", "notes")):
+        _only(note, NOTE_FIELDS | {"item", "quote"}, f"notes[{n}]")
+        quote = note.pop("quote", None)
+        _need(quote is None or (isinstance(quote, str) and len(quote) <= 300), f"notes[{n}]", "quote")
+        item = note.pop("item", None)
+        holder = cards.get(item) if item is not None else rounds.get(note.get("round"))
+        _need(holder is not None, f"notes[{n}]", "item or round must resolve")
+        holder.setdefault("notes", []).append(note)
+    for r in rounds.values():
+        r.pop("changed", None)
+        for p, reply in enumerate(r.get("replies") or []):
+            _only(reply, ANSWER_FIELDS_1, f"round {r.get('n')}.replies[{p}]")
+            reply.pop("id", None)
+            reply["about"] = [*reply.pop("notes", []), *reply.pop("changed", []), *reply.get("about", [])]
+    return view
+
+
 def check_document(doc):
     """Return every component of a valid document; raise Refused otherwise."""
     try:
+        if isinstance(doc, dict) and doc.get("schema") == SCHEMA_1:
+            return _check_document(_format_0_view(doc))
         return _check_document(doc)
     except (KeyError, TypeError, AttributeError) as exc:
         raise Refused(f"malformed document: {type(exc).__name__}: {exc}") from exc

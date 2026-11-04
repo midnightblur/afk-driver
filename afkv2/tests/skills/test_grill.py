@@ -212,7 +212,7 @@ def test_builder_output_has_the_schema_fields(tmp_path):
     doc = json.loads(path.read_text("utf-8"))
     check_document(doc)
     assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": []}
-    assert doc["schema"] == "afkv2.page/0"
+    assert doc["schema"] == "afkv2.page/1"
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", doc["session"]["started"])
     assert doc["rounds"][0]["state"] == "current"
     assert [i["state"] for i in doc["rounds"][0]["items"]] == ["open", "open"]
@@ -680,10 +680,12 @@ def test_an_older_steer_on_the_map_kept_on_a_card_reads_as_a_steer():
     """An engine before round steers kept a note on the map itself on a free card. It names no card."""
     steer = {"id": "N-1-i-format", "round": 1, "target": "m-scope", "text": "link the issue", "deleted": False}
     first = round_one()
-    doc = {"maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
-        {**first["items"][0], "state": "open"}, {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
+    doc = {"schema": "afkv2.page/0", "session": {**session(), "started": "2026-01-01T00:00:00Z"},
+           "maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
+               {**first["items"][0], "state": "open"},
+               {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
     pending = rd.pending(doc)
-    assert pending["steers"] == [steer]
+    assert pending["steers"] == [{**steer, "item": "i-format"}]
     assert pending["needs_reading"] == [{"id": "i-format", "kind": "debate", "state": "needs_reading", "notes": []}]
 
 
