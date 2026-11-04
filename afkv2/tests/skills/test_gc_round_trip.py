@@ -22,7 +22,7 @@ PROJECT_PAGES = {"github": "https://github.com/midnightblur/afk-driver", "gitlab
 COMMIT_FORMS = {"github": "/commit/", "gitlab": "/-/commit/"}
 CHANGE_FORMS = {"github": "/pull/", "gitlab": "/-/merge_requests/"}
 NOW = ("run worktree", "run branch", "remote run branch", "remote feature branch")
-WRITES = ("push", "update-ref", "worktree add", "branch -D", "worktree remove", " create", " merge", " close")
+WRITES = ("git push", "update-ref", "worktree add", "branch -D", "worktree remove", " create", " merge", " close")
 
 
 def ok(out=""):
@@ -41,6 +41,7 @@ class World:
         self.remote, self.local, self.change, self.commits = {"main": BASE}, {}, None, 0
         self.calls, self.fail, self.leave, self.merge_by_push = [], {}, None, True
         self.headless_reads = 0  # change-list reads that show the new change without its head commit
+        self.head, self.push_url, self.after_finish, self.unreported, self.unlinked = MAIN_HEAD, None, None, None, None
         self.feature = self.folder = None
         self.target = False
 
@@ -69,10 +70,12 @@ class World:
     def git(self, args):
         if args == ["remote", "get-url", "origin"]:
             return ok(self.origin)
+        if args == ["remote", "get-url", "--push", "origin"]:
+            return ok(self.push_url or self.origin)
         if args == ["worktree", "list", "--porcelain"]:
             return ok(f"worktree {self.main}\nHEAD {MAIN_HEAD}\nbranch refs/heads/main")
         if args == ["rev-parse", "HEAD"]:
-            return ok(MAIN_HEAD)
+            return ok(self.head)
         if args == ["rev-parse", "FETCH_HEAD"]:
             return ok(BASE)
         if args[0] in ("fetch", "add"):
@@ -171,9 +174,10 @@ class World:
         names, entries = self.names(), []
         for item in items:
             name, tip = names[item]
-            link = self.link(tip) if item in ("remote feature branch", "feature branch") else None
+            link = self.link(tip) if item in ("remote feature branch", "feature branch") and item != self.unlinked else None
             self.drop(item)
-            entries.append({"item": item, "name": name, "tip": tip, "link": link, "result": "removed"})
+            if item != self.unreported:
+                entries.append({"item": item, "name": name, "tip": tip, "link": link, "result": "removed"})
         return entries
 
     def gc(self, args):
@@ -194,6 +198,8 @@ class World:
         assert args[0] == "finish", args
         removed = self.removed(("feature worktree", "feature branch"))
         self.target = False
+        if self.after_finish:
+            self.after_finish(self)
         return ok(json.dumps({"ok": True, "removed": removed, "left": [], "state": "done"}))
 
 
@@ -353,3 +359,75 @@ def test_gitlab_pushes_to_the_target_only_after_the_forge_shows_the_change_head(
     answer, waits = round_trip(world)
     assert answer["ok"], answer
     assert len(waits) >= 3 and world.change["state"] == "merged"
+
+
+def test_a_merge_on_github_pins_the_feature_tip(tmp_path):
+    world = World(tmp_path, "github")
+    answer, _ = round_trip(world)
+    merge = ran(world, "gh pr merge")[0]
+    assert answer["ok"] and merge[merge.index("--match-head-commit") + 1] == world.change["head"]
+
+
+@pytest.mark.parametrize("after_finish, said", [
+    (lambda world: setattr(world, "head", "d" * 40), "the main checkout moved"),
+    (lambda world: world.remote.pop(world.change["target"]), "is gone"),
+    (lambda world: world.change.update(state="closed"), "no longer merged"),
+    (lambda world: setattr(world, "target", True), "a gc target of"),
+])
+def test_a_thing_gc_must_leave_that_is_gone_fails_the_run(tmp_path, after_finish, said):
+    world = World(tmp_path, "github")
+    world.after_finish = after_finish
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "not-kept" and said in answer["error"]["reason"]
+
+
+def test_an_item_gc_listed_but_did_not_answer_removed_fails_the_run(tmp_path):
+    world = World(tmp_path, "github")
+    world.unreported = "run branch"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "not-removed" and "listed present, gc answered None" in answer["error"]["reason"]
+
+
+def test_a_list_with_a_refusal_removes_nothing(tmp_path, monkeypatch):
+    world = World(tmp_path, "github")
+    listed = world.gc
+
+    def refusing(args):
+        code, out, error = listed(args)
+        if args[0] == "list" and "--branch" not in args:
+            out = json.dumps({**json.loads(out), "refusals": [{"code": "uncommitted", "reason": "a file"}]})
+        return code, out, error
+
+    world.gc = refusing
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "refused" and not ran(world, "cleanup.py remove")
+
+
+@pytest.mark.parametrize("forge", ["github", "gitlab"])
+def test_a_deleted_branch_without_its_link_fails_the_run(tmp_path, forge):
+    world = World(tmp_path, forge)
+    world.unlinked = "feature branch"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "link-gone" and "feature branch" in answer["error"]["reason"]
+
+
+def test_a_commit_github_no_longer_serves_fails_the_run(tmp_path):
+    world = World(tmp_path, "github")
+    world.fail["gh api"] = "HTTP 404"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "link-gone" and "HTTP 404" in answer["error"]["reason"]
+
+
+def test_a_push_address_at_another_project_is_refused_before_any_write(tmp_path):
+    world = World(tmp_path, "github")
+    world.push_url = "https://github.com/someone/else.git"
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "wrong-project"
+    assert not [call for call in world.calls if any(write in " ".join(call) for write in WRITES)]
+
+
+def test_the_refusal_of_another_project_shows_no_secret_of_its_address(tmp_path):
+    world = World(tmp_path, "github", "https://someone:s3cret-token@github.com/someone/else.git")
+    answer, _ = round_trip(world)
+    assert answer["error"]["code"] == "wrong-project" and "s3cret-token" not in json.dumps(answer)
+    assert "github.com/someone/else" in answer["error"]["reason"]

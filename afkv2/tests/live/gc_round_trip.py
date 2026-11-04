@@ -139,12 +139,15 @@ class RoundTrip:
         return answer
 
     def read_origin(self):
-        origin = self.git("project", "remote", "get-url", "origin")
-        self.host, self.project = project_of(origin)
-        if not allowed_project(self.forge, self.host, self.project):
-            raise Refusal("wrong-project", f"origin is {origin}: the {self.forge} round trip runs only in a clone of "
-                                           f"{'this plugin repository' if self.forge == 'github' else 'the GitLab test project'}",
-                          step="project")
+        """The project of origin. Its fetch and its push address must both name the allowed project. A refusal
+        shows only host and path: an address can hold a credential."""
+        self.host, self.project = project_of(self.git("project", "remote", "get-url", "origin"))
+        pushed = project_of(self.git("project", "remote", "get-url", "--push", "origin"))
+        for host, path in ((self.host, self.project), pushed):
+            if not allowed_project(self.forge, host, path):
+                allowed = "this plugin repository" if self.forge == "github" else "the GitLab test project"
+                raise Refusal("wrong-project", f"origin names {host}/{path}: the {self.forge} round trip runs only in a "
+                                               f"clone of {allowed}, for fetch and push", step="project")
 
     def make_branches(self, base):
         """The feature worktree with one commit on the feature branch, the run worktree on an orphan run branch, and
@@ -249,11 +252,15 @@ class RoundTrip:
 
     def check_links(self, removed):
         """Each deleted branch's commit link names this project and the branch tip, and the forge still serves it."""
-        links = [entry for entry in removed if entry["item"] in BRANCH_ITEMS and entry.get("link")]
+        links = [entry for entry in removed if entry["item"] in BRANCH_ITEMS and entry.get("tip")]
         if not links:
-            raise Refusal("link-gone", "gc gave no commit link for a deleted branch", step="check links")
+            raise Refusal("link-gone", "gc deleted no feature branch with a tip, so no commit link is checked",
+                          step="check links")
         checked = []
         for entry in links:
+            if not entry.get("link"):
+                raise Refusal("link-gone", f"gc gave no commit link for the deleted {entry['item']} at "
+                                           f"{entry['tip'][:12]}", step="check links")
             expected = f"https://{self.host}/{self.project}{COMMIT_FORM[self.forge]}{entry['tip']}"
             if entry["link"].casefold() != expected.casefold():
                 raise Refusal("link-gone", f"the {entry['item']} link {entry['link']} is not {expected}",
