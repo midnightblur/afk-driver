@@ -1,7 +1,7 @@
 """Write the page document of one page session (schema afkv2.page/1, SDD §4).
 
 Verbs, run from the repository root:
-  build          --doc D --session S --ticket K --round-input F --ticket-file T [--replace]
+  build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace]
   apply-readings --doc D --readings F
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
@@ -619,8 +619,8 @@ def main(argv):
     parser.add_argument("--readings")
     args = parser.parse_args(argv)
     if args.verb == "build":
-        if not (args.session and args.ticket and args.round_input):
-            raise Refusal("usage", "build needs --session, --ticket and --round-input", 2)
+        if not (args.session and args.round_input):
+            raise Refusal("usage", "build needs --session and --round-input", 2)
         round_input = read_json(args.round_input)
         ticket = read_json(args.ticket_file) if args.ticket_file else None
         feature = Path(args.doc).parent.parent.name

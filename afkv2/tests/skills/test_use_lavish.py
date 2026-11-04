@@ -295,3 +295,13 @@ def test_an_answer_may_name_a_card_a_component_and_a_banner(tmp_path, capsys):
     path = a_noted_round(tmp_path, capsys)
     rd.apply_readings(path, {"replies": [{"text": "x", "notes": ["N-1-i-a-1"], "changed": ["i-a", "i-b-body", "R-1"]}]})
     assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_build_runs_with_no_ticket(tmp_path, capsys):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    round_file = tmp_path / "round.json"
+    round_file.write_text(json.dumps({**round_input("i-a"), "short_title": "No ticket"}), "utf-8")
+    answer = rd.main(["build", "--doc", str(path), "--session", "s-1", "--round-input", str(round_file)])
+    assert answer["ok"] and answer["round"] == 1
+    session = read(path)["session"]
+    assert session["ticket"] is None and session["short_title"] == "No ticket"
