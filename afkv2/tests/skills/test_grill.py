@@ -509,7 +509,7 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     assert items["i-scope"]["state"] == "settled_by_mark"
     assert items["i-format"]["state"] == "settled_by_note"
     assert items["i-format"]["settled"] == {"by": "note", "round": 1, "signal": "N-1-i-format", "reading": "Picks CSV."}
-    assert doc["rounds"][0]["replies"] == [{"text": "Settled by your note: Picks CSV.", "about": ["i-format"]}]
+    assert doc["rounds"][0]["replies"] == [{"id": "A-1-1", "text": "Settled by your note: Picks CSV.", "notes": ["N-1-i-format"]}]
     assert doc["rounds"][0]["responses"][0]["raw"] == raw
     check_authored_part(doc)
 

@@ -35,6 +35,7 @@ PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
 ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+REPLY_FIELDS = {"text", "notes", "changed"}
 TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
@@ -414,13 +415,48 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
             raise Refusal("id-reused", f"item {item['id']}: an id is reused: {reused or new}")
         used.update(new)
     built = {"n": n, "state": "current", "banner": round_input["banner"], "items": items}
-    for optional in ("colour", "replies"):
-        if optional in round_input:
-            built[optional] = round_input[optional]
+    if "colour" in round_input:
+        built["colour"] = round_input["colour"]
+    for reply in round_input.get("replies") or []:
+        _reply(built, reply)
     doc["rounds"].append(built)
     write_json(doc_path, doc)
     return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
             "degraded": degraded}
+
+
+def _id_list(value):
+    return isinstance(value, list) and all(isinstance(entry, str) and entry for entry in value)
+
+
+def _answer_number(rnd, answer):
+    found = re.fullmatch(rf"A-{rnd['n']}-([1-9][0-9]*)", str(answer.get("id") or ""))
+    return int(found.group(1)) if found else 0
+
+
+def _add_answer(rnd, text, notes, changed=()):
+    """Append one answer to the round, with the next id `A-<round>-<k>`. An answer with no note answers a mark."""
+    replies = rnd.setdefault("replies", [])
+    answer = {"id": f"A-{rnd['n']}-{max(map(lambda a: _answer_number(rnd, a), replies), default=0) + 1}", "text": text}
+    if notes:
+        answer["notes"] = list(notes)
+    if changed:
+        answer["changed"] = list(changed)
+    replies.append(answer)
+    return answer
+
+
+def _reply(rnd, raw):
+    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes."""
+    if not isinstance(raw, dict) or set(raw) - REPLY_FIELDS:
+        raise Refusal("bad-reply", f"a reply holds only text, notes and changed: {raw!r}")
+    if not isinstance(raw.get("text"), str) or not raw["text"].strip():
+        raise Refusal("bad-reply", f"a reply needs its text: {raw!r}")
+    if not _id_list(raw.get("notes")) or not raw["notes"]:
+        raise Refusal("bad-reply", f"a reply names 1 or more note ids in notes: {raw!r}")
+    if not _id_list(raw.get("changed", [])):
+        raise Refusal("bad-reply", f"changed is a list of element ids: {raw!r}")
+    return _add_answer(rnd, raw["text"], raw["notes"], raw.get("changed") or [])
 
 
 def _current_item(current, item_id):
@@ -444,12 +480,15 @@ def _settle(doc, current, entry):
     reading = (entry.get("reading") or "").strip()
     if not reading:
         raise Refusal("no-reading", f"{item['id']}: a point settled by a note needs its reading")
+    if not _id_list(entry.get("changed", [])):
+        raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
     item["state"] = "settled_by_note"
     item["settled"] = {"by": "note", "round": current["n"], "signal": entry["note"], "reading": reading}
-    current.setdefault("replies", []).append({"text": f"Settled by your note: {reading}", "about": [item["id"]]})
+    _add_answer(current, f"Settled by your note: {reading}", [entry["note"]], entry.get("changed") or [])
 
 
-def _return_to_open(current, entry):
+def _return_to_open(doc, current, entry):
+    """The answer names the card's live notes of this round; a card that returns on marks alone has none."""
     item = _current_item(current, entry.get("item"))
     if item["state"] != "needs_reading":
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
@@ -457,7 +496,7 @@ def _return_to_open(current, entry):
     if not reply:
         raise Refusal("no-reply", f"{item['id']}: say why the point returns")
     item["state"] = "open"
-    current.setdefault("replies", []).append({"text": reply, "about": [item["id"]]})
+    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]])
 
 
 def _unblock(current, item_id):
@@ -478,11 +517,11 @@ def apply_readings(doc_path, readings):
     for entry in readings.get("settle") or []:
         _settle(doc, current, entry)
     for entry in readings.get("open") or []:
-        _return_to_open(current, entry)
+        _return_to_open(doc, current, entry)
     for item_id in readings.get("unblock") or []:
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
-        current.setdefault("replies", []).append(reply)
+        _reply(current, reply)
     write_json(doc_path, doc)
     return {"ok": True, **pending(doc)}
 

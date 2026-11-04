@@ -152,3 +152,58 @@ def test_the_grill_log_rows_from_notes_read_the_session_list(tmp_path, capsys):
     rows = [line for row in grill_log._document_rows(json.loads(path.read_text("utf-8"))) for line in row]
     assert '  owner note on i-a (N-1-i-a-1): "why"' in rows
     assert '- Steer: R-1 (N-1-R-1-1): "a steer"' in rows
+
+
+# ---- answers, change lists, warnings and take-over (SDD §3 rows "build", "apply-readings", "take-over")
+
+import pytest  # noqa: E402
+
+from grill_common import Refusal  # noqa: E402
+
+
+def a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a note 1\n  why\ni-a note 2\n  and how\ni-b note 1\n  same"):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    rd.build_round_document(path, SESSION, round_input("i-a", "i-b"))
+    ingest(capsys, path, raw)
+    return path
+
+
+def read(path):
+    return json.loads(path.read_text("utf-8"))
+
+
+def test_a_reply_is_an_answer_with_an_id_its_notes_and_what_it_changed(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {
+        "settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both.", "changed": ["i-b-body"]}],
+        "replies": [{"text": "One answer.", "notes": ["N-1-i-a-1", "N-1-i-b-1"]}]})
+    rd.apply_readings(path, {"replies": [{"text": "And more.", "notes": ["N-1-i-b-1"], "changed": ["i-a"]}]})
+    assert read(path)["rounds"][0]["replies"] == [
+        {"id": "A-1-1", "text": "Settled by your note: Both.", "notes": ["N-1-i-a-2"], "changed": ["i-b-body"]},
+        {"id": "A-1-2", "text": "One answer.", "notes": ["N-1-i-a-1", "N-1-i-b-1"]},
+        {"id": "A-1-3", "text": "And more.", "notes": ["N-1-i-b-1"], "changed": ["i-a"]}]
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+def test_a_round_input_reply_is_an_answer_of_the_new_round(tmp_path, capsys):
+    path = a_noted_round(tmp_path, capsys)
+    rd.apply_readings(path, {"open": [{"item": "i-a", "reply": "Asked again."}, {"item": "i-b", "reply": "Again."}]})
+    built = {**round_input("i-c"), "replies": [{"text": "Covered.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]}]}
+    built["items"][0]["carries"] = ["i-a", "i-b"]
+    rd.build_round_document(path, SESSION, built)
+    doc = read(path)
+    assert doc["rounds"][0]["replies"] == [{"id": "A-1-1", "text": "Asked again.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]},
+                                           {"id": "A-1-2", "text": "Again.", "notes": ["N-1-i-b-1"]}]
+    assert doc["rounds"][1]["replies"] == [{"id": "A-2-1", "text": "Covered.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]}]
+    assert engine_answer(capsys, "check", path)[0] == 0
+
+
+@pytest.mark.parametrize("reply", [{"text": "x", "about": ["i-a"]}, {"text": "x"}, {"text": "x", "notes": []},
+                                   {"notes": ["N-1-i-a-1"]}, {"text": "x", "notes": ["N-1-i-a-1"], "id": "A-1-9"}])
+def test_a_reply_that_is_not_text_notes_and_changed_is_refused(tmp_path, capsys, reply):
+    path = a_noted_round(tmp_path, capsys)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(path, {"replies": [reply]})
+    assert refused.value.code == "bad-reply"
+    assert path.read_bytes() == before
