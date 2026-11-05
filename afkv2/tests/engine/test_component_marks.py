@@ -22,6 +22,16 @@ STATE_TONES = ["open", "blocked", "settled", "measured", "inferred", "estimated"
 YOU = "afkv2-you"
 TIP = "Who pushes the export button"
 TIP_ATTR = 'data-afkv2-tip="{}"'
+TIP_NAME = "data-afkv2-tip"
+TONE_CLASS = "afkv2-tone--{}"
+TONE_SELECTOR = r"\.afkv2-tone--"
+CHIP_MARK = re.compile(r'<span class="afkv2-chip-mark" aria-hidden="true">([^<]+)</span>')
+STRENGTH = re.compile(r"var\(--afkv2-scale\) (\d+)%")
+VALUE_VAR = "--afkv2-value"
+SET_TOKEN = "--afkv2-set-{}:"
+THEME_TOKENS = ["--afkv2-you:", "--afkv2-scale:", *map(SET_TOKEN.format, range(1, 9))]
+SEQ_TONE = '<span class="afkv2-seq-tone">{}</span>'
+SEQ_MSG = r'<div class="afkv2-seq-msg [^"]*afkv2-tone--'
 
 GRAPH = {"nodes": [{"id": "g-a", "label": "export endpoint"}, {"id": "g-b", "label": "store"}],
          "edges": [{"from": "g-a", "to": "g-b"}]}
@@ -67,13 +77,13 @@ def theme_block(start):
 def test_a_chip_of_a_state_or_certainty_tone_is_valid_and_shows_its_word_and_mark(tone):
     assert registry.validate(chip(tone)) == []
     drawn = registry.render_component(chip(tone))
-    assert f"afkv2-tone--{tone}" in drawn and f">{tone}<" in drawn
-    mark = re.search(r'<span class="afkv2-chip-mark" aria-hidden="true">([^<]+)</span>', drawn)
+    assert TONE_CLASS.format(tone) in drawn and f">{tone}<" in drawn
+    mark = CHIP_MARK.search(drawn)
     assert mark, f"a {tone} chip has no symbol beside its colour"
 
 
 def test_each_state_and_certainty_tone_has_its_own_mark():
-    marks = [re.search(r'afkv2-chip-mark" aria-hidden="true">([^<]+)<', registry.render_component(chip(tone))).group(1)
+    marks = [CHIP_MARK.search(registry.render_component(chip(tone))).group(1)
              for tone in STATE_TONES]
     assert len(set(marks)) == len(STATE_TONES)
 
@@ -87,8 +97,7 @@ def test_each_tone_has_its_own_look_from_theme_tokens(tone):
 def test_the_you_colour_and_the_set_colours_exist_in_both_themes():
     for start in THEMES:
         block = theme_block(start)
-        assert "--afkv2-you:" in block and "--afkv2-scale:" in block
-        assert all(f"--afkv2-set-{n}:" in block for n in range(1, 9))
+        assert all(token in block for token in THEME_TOKENS)
 
 
 def test_a_text_keeps_its_4_tones():
@@ -104,8 +113,8 @@ def test_a_sequence_message_shows_its_tone_and_its_word(tone):
     component = {"type": "sequence", "props": props}
     assert registry.validate(component) == []
     drawn = registry.render_component(component)
-    message = re.search(r'<div class="afkv2-seq-msg [^"]*afkv2-tone--' + tone + r'[^"]*"[^>]*>(.*?)</div></div>', drawn)
-    assert message and f'<span class="afkv2-seq-tone">{tone}</span>' in message.group(1)
+    message = re.search(SEQ_MSG + tone + r'[^"]*"[^>]*>(.*?)</div></div>', drawn)
+    assert message and SEQ_TONE.format(tone) in message.group(1)
 
 
 def test_a_sequence_message_refuses_another_tone():
@@ -175,7 +184,7 @@ def test_a_part_with_a_tip_carries_its_text_for_the_hover(name):
     assert registry.validate(component) == []
     head = _part(name, registry.render_component(component))
     assert TIP_ATTR.format(TIP + " &amp; &quot;more&quot;") in head.split(">", 1)[0]
-    assert "data-afkv2-tip" not in registry.render_component(PARTS[name]())
+    assert TIP_NAME not in registry.render_component(PARTS[name]())
 
 
 @pytest.mark.parametrize("name", PARTS)
@@ -209,7 +218,7 @@ def test_an_unordered_set_longer_than_the_palette_starts_the_palette_again():
 def test_an_ordered_set_runs_strong_to_faint():
     value_colour = _base_chip().value_colour
     values = ["high", "medium", "low"]
-    strengths = [int(re.search(r"var\(--afkv2-scale\) (\d+)%", value_colour(values, value, True)).group(1))
+    strengths = [int(STRENGTH.search(value_colour(values, value, True)).group(1))
                  for value in values]
     assert strengths[0] == 100 and strengths == sorted(strengths, reverse=True) and len(set(strengths)) == 3
 
@@ -239,7 +248,7 @@ def test_a_component_with_a_tip_carries_its_text_on_its_wrapper(component):
     assert TIP_ATTR.format(TIP + " &amp; &quot;more&quot;") in head
     assert head.startswith("<span" if component["type"] == "chip" else "<div")
     bare = {k: v for k, v in component.items() if k != "tip"}
-    assert "data-afkv2-tip" not in registry.render_component(bare)
+    assert TIP_NAME not in registry.render_component(bare)
 
 
 def test_a_component_refuses_a_tip_over_300_characters():
@@ -278,12 +287,12 @@ def test_a_value_chip_shows_its_word_and_the_colour_of_its_value(value, set_name
 def test_the_page_context_ends_with_its_page():
     with registry.page_context(VALUE_SETS):
         pass
-    assert "--afkv2-value" not in registry.render_component(value_chip("high", "risk"))
+    assert VALUE_VAR not in registry.render_component(value_chip("high", "risk"))
 
 
 def test_the_value_colour_rule_reads_the_value_colour():
     body = rule(".afkv2-chip.afkv2-value")
-    assert "var(--afkv2-value" in body and "#" not in body
+    assert f"var({VALUE_VAR}" in body and "#" not in body
 
 
 def test_the_same_value_has_the_same_colour_on_the_whole_page():
@@ -355,10 +364,10 @@ SHAPE_CUES = {"removed": ("text-decoration", "line-through"), "proposed": ("bord
 @pytest.mark.parametrize("tone", ["removed", "kept", "new", "proposed", *STATE_TONES])
 def test_every_chip_tone_has_a_cue_beside_its_colour(tone):
     drawn = registry.render_component(chip(tone, "export"))
-    mark = re.search(r'<span class="afkv2-chip-mark" aria-hidden="true">([^<]+)</span>export', drawn)
+    mark = re.search(CHIP_MARK.pattern + 'export', drawn)
     if tone in SHAPE_CUES:
         prop, value = SHAPE_CUES[tone]
-        body = " ".join(re.findall(r"\.afkv2-tone--" + tone + r"(?![\w-])[^{]*\{([^}]*)\}", KIT))
+        body = " ".join(re.findall(TONE_SELECTOR + tone + r"(?![\w-])[^{]*\{([^}]*)\}", KIT))
         assert re.search(re.escape(prop) + r"\s*:[^;]*" + value, body) or mark, tone
     else:
         assert mark, f"a {tone} chip shows its meaning by colour alone"

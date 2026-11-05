@@ -17,6 +17,8 @@ SYMBOLS = {"kept": "=", "new": "+", **MARKS}
 SET_COLOURS = 8
 FAINTEST = 35
 YOU_VALUE = "you"
+SCALE = "var(--afkv2-scale)"
+MARK_SPAN = '<span class="afkv2-chip-mark" aria-hidden="true">{}</span>'
 LIST_ITEM = re.compile(r"\s*[-*] (.*)")
 HEADING = re.compile(r"#{1,6}\s+(.*)")
 CODE = re.compile(r"`([^`]+)`")
@@ -89,7 +91,7 @@ def value_colour(values, value, ordered):
     if not ordered:
         return f"var(--afkv2-set-{position % SET_COLOURS + 1})"
     strength = 100 - round((100 - FAINTEST) * position / max(len(values) - 1, 1))
-    return f"color-mix(in srgb, var(--afkv2-scale) {strength}%, var(--surface))"
+    return f"color-mix(in srgb, {SCALE} {strength}%, var(--surface))"
 
 
 def check_chip(props):
@@ -109,7 +111,7 @@ def render_chip(props, children):
     if "set" in props:
         return _value_chip(props) + "".join(children)
     tone = props["tone"]
-    mark = f'<span class="afkv2-chip-mark" aria-hidden="true">{SYMBOLS[tone]}</span>' if tone in SYMBOLS else ""
+    mark = MARK_SPAN.format(SYMBOLS[tone]) if tone in SYMBOLS else ""
     return (f'<span class="afkv2-chip afkv2-tone--{tone}">{mark}{escape(props["text"])}</span>'
             + "".join(children))
 
