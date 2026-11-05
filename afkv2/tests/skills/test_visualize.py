@@ -142,7 +142,8 @@ def _check_props(comp, where, ids, last_round):
         _need(isinstance(props.get("text"), str), where, "props.text")
         tone = props.get("tone")
         _need(tone is None or tone in TONES or (kind == "chip" and tone in STATE_TONES), where, "props.tone")
-        _need(kind == "text" or tone is not None, where, "props.tone")
+        _need(kind == "text" or (tone is None) != (props.get("set") is None), where, "props.tone (a tone or a set)")
+        _need(kind == "chip" or "set" not in props, where, "props.set (a chip only)")
         _need(isinstance(props.get("markdown", False), bool), where, "props.markdown")
     elif kind == "table":
         cols = props.get("columns")
@@ -362,12 +363,47 @@ def _format_0_view(doc):
     return view
 
 
+def _check_value_chips(components, value_sets):
+    """A value chip names a set of the document, and its text is a value of that set (SDD §4)."""
+    for comp in components:
+        props = comp.get("props") or {}
+        if comp["type"] != "chip" or "set" not in props:
+            continue
+        named = (value_sets or {}).get(props["set"])
+        _need(named is not None, f"chip {props['text']}", f"set {props['set']} (names no value set)")
+        _need(props["text"] in named["values"], f"chip {props['text']}", f"text (no value of the set {props['set']})")
+
+
+def _check_tips(doc):
+    """A format 1 component may take `tip`, 1 to 300 characters; the format 0 view drops it."""
+    def strip(obj):
+        if isinstance(obj, dict):
+            if isinstance(obj.get("type"), str) and "tip" in obj:
+                tip = obj.pop("tip")
+                _need(isinstance(tip, str) and 0 < len(tip) <= 300, f"component {obj['type']}", "tip (1 to 300 characters)")
+            for value in obj.values():
+                strip(value)
+        elif isinstance(obj, list):
+            for value in obj:
+                strip(value)
+    strip(doc.get("maps"))
+    for r in doc.get("rounds") or []:
+        for item in r.get("items") or []:
+            strip(item.get("body"))
+
+
 def check_document(doc):
     """Return every component of a valid document; raise Refused otherwise."""
     try:
         if isinstance(doc, dict) and doc.get("schema") == SCHEMA_1:
-            return _check_document(_format_0_view(doc))
-        return _check_document(doc)
+            view = _format_0_view(doc)
+            _check_tips(view)
+            components = _check_document(view)
+            _check_value_chips(components, doc.get("value_sets"))
+            return components
+        components = _check_document(doc)
+        _check_value_chips(components, None)
+        return components
     except (KeyError, TypeError, AttributeError) as exc:
         raise Refused(f"malformed document: {type(exc).__name__}: {exc}") from exc
 
@@ -804,6 +840,40 @@ def test_the_chip_page_states_each_state_and_certainty_tone():
     assert used & STATE_TONES
 
 
+def test_the_chip_page_states_value_chips_and_the_component_tip():
+    holds = " ".join(_entry_section("chip-and-text.md", "## Holds").split())
+    for fact in ("`set`", "`value_sets`", "`{name: {values, ordered}}`", "a tone or a set, never both", "`tip`",
+                 "300 characters"):
+        assert fact in holds, fact
+    looks = " ".join(_entry_section("chip-and-text.md", "## How it looks").split())
+    for fact in ("same colour on the whole page", "strong colour to a faint one", "YOU", "8 different colours"):
+        assert fact in looks, fact
+    use = _entry_section("chip-and-text.md", "## Use it when")
+    assert "value chip" in use and "`tip`" in use
+    documents = [frag for level, frag in fragments(PAGES_DIR / "chip-and-text.md") if level == "document"]
+    assert any(doc["schema"] == SCHEMA_1 and doc.get("value_sets") and '"set": ' in json.dumps(doc)
+               and '"tip": ' in json.dumps(doc) for doc in documents)
+
+
+@pytest.mark.parametrize("mutate, field", [
+    (lambda c: c["props"].update(set="size"), "names no value set"),
+    (lambda c: c["props"].update(text="severe"), "no value of the set"),
+    (lambda c: c["props"].update(tone="new"), "a tone or a set"),
+], ids=["unknown set", "value outside its set", "tone and set"])
+def test_fake_refuses_a_value_chip_that_does_not_resolve(mutate, field):
+    doc = {"schema": SCHEMA_1,
+           "session": {"id": "s-wrap", "skill": "grill", "feature": "example", "ticket": "PROJ-123",
+                       "started": "2026-01-01T09:00:00Z", "step": "Requirements grill"},
+           "maps": [], "notes": [], "value_sets": {"risk": {"values": ["high", "low"], "ordered": True}},
+           "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                       "items": [{"id": "i-a", "kind": "info",
+                                  "body": {"type": "chip", "props": {"text": "high", "set": "risk"}}}]}]}
+    check_document(copy.deepcopy(doc))
+    mutate(doc["rounds"][0]["items"][0]["body"])
+    with pytest.raises(Refused, match=re.escape(field)):
+        check_document(doc)
+
+
 def test_the_page_layout_states_the_session_table_of_every_note():
     """Ruling D-39: the session notes table holds every note, card notes included, with per-round folds."""
     layout = " ".join(SKILL_MD.read_text("utf-8").split("## Page layout\n", 1)[1].split("\n## ", 1)[0].split())
@@ -854,7 +924,7 @@ def test_every_whole_example_document_carries_the_schema_value():
     whole = [frag for _, level, frag in all_fragments() if level == "document"]
     whole.append(_example())
     for doc in whole:
-        assert doc["schema"] == SCHEMA
+        assert doc["schema"] in (SCHEMA, SCHEMA_1)
 
 
 def test_all_components_document_uses_every_component():

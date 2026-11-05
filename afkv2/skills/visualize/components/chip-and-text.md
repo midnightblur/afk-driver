@@ -3,7 +3,7 @@
 ## Holds
 
 A short label (type `chip`) or a run of text (type `text`), with a semantic
-tone. Props: `text` and `tone`. A chip needs a tone; for text the tone is
+tone. Props: `text` and `tone`. A chip needs a tone or a set (below); for text the tone is
 optional. A chip also takes a tone of state or certainty (second table). A `text` takes `markdown: true` to render a safe subset: blank-line
 paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
 http(s) links. The engine escapes all HTML first. A `text` also takes `label`
@@ -30,6 +30,17 @@ State and certainty tones, for a chip only:
 | `unverified` | a claim no one checked | dashed amber outline, ? |
 | `you` | the human does it | the YOU colour, bold, ★ |
 
+A value chip takes `set` instead of a tone: `set` names a value set of the
+document, and `text` is one value of that set. A chip takes a tone or a set, never
+both. The document names its sets in `value_sets` (format 1, `afkv2.page/1`):
+`{name: {values, ordered}}`, with `values` the list of values in order and
+`ordered` true when the values run from strong to weak, such as a risk level. The
+engine refuses a chip whose set is no set of the document, or whose text is no
+value of its set.
+
+Any component, a chip or a text too, takes `tip` (format 1), a text of 1 to 300
+characters that shows when the human points at the component.
+
 A `text` component is also the plain container of a body: its `children` follow
 its text.
 
@@ -50,12 +61,25 @@ certainty chip for how sure a value is: `measured`, `inferred`, `estimated` or
 `unverified`. Write the meaning in the chip's text too, for example "blocked: waits
 on the format". Use the tone for that meaning only; for any other look, use `style`.
 
+Use a value chip for a column or field whose values come from one fixed list, such
+as a risk level or an owner: put a chip with that `set` in each cell of the
+column. Use a set, not a colour per chip: the engine picks the colours, so the same
+value looks the same on the whole page. Give a component a `tip` to explain a term
+or a value where it shows.
+
 ## How it looks
 
 A chip is a small rounded label inline with the text around it; it fits inside
 a table cell. Styled text keeps the text flow and takes the tone's look. A chip of
 a state or certainty tone shows its tone's symbol before its text and its tone's
 colour, in the light and dark themes. No tone shows its meaning by colour alone.
+
+A value chip shows its value as its word, on a tint of the value's colour. The
+colour comes from the value's position in its set, so the same value has the same
+colour on the whole page. A set that is not ordered takes up to 8 different
+colours, then starts again. An ordered set runs from a strong colour to a faint one
+in one hue. The value YOU, in any case, always has the same strong colour. A
+component with a `tip` shows the help cursor, and the tip shows on hover.
 
 ## Example
 
@@ -71,5 +95,43 @@ colour, in the light and dark themes. No tone shows its meaning by colour alone.
     {"type": "chip", "props": {"text": "blocked: waits on the format", "tone": "blocked"}},
     {"type": "text", "props": {"text": "Archive after 7 days", "tone": "proposed"}}
   ]
+}
+```
+
+A format 1 document with a value set, a column of value chips and a tip:
+
+```json fragment=document
+{
+  "schema": "afkv2.page/1",
+  "session": {"id": "s-values", "skill": "grill", "feature": "order-export", "ticket": "PROJ-123",
+              "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+  "maps": [],
+  "notes": [],
+  "value_sets": {
+    "risk": {"values": ["high", "medium", "low"], "ordered": true},
+    "owner": {"values": ["agent", "reviewer", "YOU"], "ordered": false}
+  },
+  "rounds": [{
+    "n": 1, "state": "current",
+    "banner": {"settled": [], "unlocks": [], "parked": []},
+    "items": [{
+      "id": "i-risks", "kind": "info", "title": "Risks of the export",
+      "body": {
+        "type": "table", "id": "t-risks",
+        "tip": "Each risk, how bad it is and who acts on it",
+        "props": {
+          "columns": ["Risk", "Level", "Owner"],
+          "rows": [
+            ["The file is too large to mail", {"type": "chip", "props": {"text": "high", "set": "risk"}},
+             {"type": "chip", "props": {"text": "YOU", "set": "owner"}}],
+            ["An order changes during the export", {"type": "chip", "props": {"text": "medium", "set": "risk"}},
+             {"type": "chip", "props": {"text": "agent", "set": "owner"}}],
+            ["The link opens after 7 days", {"type": "chip", "props": {"text": "low", "set": "risk"}},
+             {"type": "chip", "props": {"text": "reviewer", "set": "owner"}}]
+          ]
+        }
+      }
+    }]
+  }]
 }
 ```
