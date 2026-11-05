@@ -40,6 +40,9 @@ CHARTS = {
     "signed-bars": {"caption": CAPTION, "unit": "ms", "below": "faster", "above": "slower",
                     "items": [{"label": "export", "value": -420}, {"label": "import", "value": 130},
                               {"label": "search", "value": 0}]},
+    "box-plot": {"caption": CAPTION, "unit": "ms",
+                 "items": [{"label": "before", "min": 20, "q1": 80, "median": 120, "q3": 300, "max": 900},
+                           {"label": "after", "min": 15, "q1": 40, "median": 60, "q3": 110, "max": 400}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
@@ -62,6 +65,9 @@ BAD = {
     "signed-bars": [({"items": []}, "items"), ({"items": [{"label": "a", "value": "1"}]}, "items"),
                     ({"items": [{"label": "a", "value": 1}] * 41}, "items"), ({"below": ""}, "below"),
                     ({"items": [{"label": "a", "value": float("-inf")}]}, "items")],
+    "box-plot": [({"items": [{"label": "a", "min": 1, "q1": 5, "median": 4, "q3": 6, "max": 7}]}, "items"),
+                 ({"items": [{"label": "a", "min": 1, "q1": 2, "median": 3, "q3": 4}]}, "items"), ({"items": []}, "items"),
+                 ({"items": [{"label": "a", "min": 1, "q1": 1, "median": 1, "q3": 1, "max": 1}] * 21}, "items")],
 }
 NAMES = sorted(CHARTS)
 
@@ -271,3 +277,20 @@ def test_signed_bars_with_no_side_words_write_none():
     props = {k: v for k, v in CHARTS["signed-bars"].items() if k not in ("below", "above")}
     written = words(registry.render_component({"type": "signed-bars", "props": props}))
     assert written[0] == "export"
+
+
+# --- box plot (K-36) ---
+
+BOX = re.compile(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="16\.0"')
+MEDIAN = re.compile(r'<line x1="([\d.]+)" y1="[\d.]+" x2="\1" y2="[\d.]+" style="stroke:var\(--fg\);stroke-width:2"')
+
+
+def test_box_plots_share_one_scale_and_write_the_median_and_the_spread():
+    html = drawn("box-plot")
+    written = words(html)
+    assert written[:4] == ["before", "median 120 ms (20 to 900)", "after", "median 60 ms (15 to 400)"]
+    assert written[-2:] == ["15", "900"], "the shared scale runs from the lowest min to the highest max"
+    (x1, w1), (x2, w2) = [(float(a), float(b)) for a, b in BOX.findall(html)]
+    assert w1 / w2 == pytest.approx((300 - 80) / (110 - 40), rel=0.01)
+    medians = [float(x) for x in MEDIAN.findall(html)]
+    assert x1 < medians[0] < x1 + w1 and x2 < medians[1] < x2 + w2
