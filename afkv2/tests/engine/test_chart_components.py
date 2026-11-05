@@ -43,7 +43,20 @@ CHARTS = {
     "box-plot": {"caption": CAPTION, "unit": "ms",
                  "items": [{"label": "before", "min": 20, "q1": 80, "median": 120, "q3": 300, "max": 900},
                            {"label": "after", "min": 15, "q1": 40, "median": 60, "q3": 110, "max": 400}]},
+    "flame": {"caption": CAPTION, "unit": "ms",
+              "root": {"name": "export job", "value": 1000, "children": [
+                  {"name": "read orders", "value": 600, "children": [{"name": "sql query", "value": 550}]},
+                  {"name": "write file", "value": 300}]}},
 }
+
+
+def _deep(levels):
+    frame = {"name": "leaf", "value": 1}
+    for _ in range(levels - 1):
+        frame = {"name": "caller", "value": 1, "children": [frame]}
+    return frame
+
+
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
     "tile": [({"grade": "guessed"}, "grade"), ({"low": 1300}, "low"), ({"high": None}, "high"),
@@ -68,6 +81,11 @@ BAD = {
     "box-plot": [({"items": [{"label": "a", "min": 1, "q1": 5, "median": 4, "q3": 6, "max": 7}]}, "items"),
                  ({"items": [{"label": "a", "min": 1, "q1": 2, "median": 3, "q3": 4}]}, "items"), ({"items": []}, "items"),
                  ({"items": [{"label": "a", "min": 1, "q1": 1, "median": 1, "q3": 1, "max": 1}] * 21}, "items")],
+    "flame": [({"root": {"name": "a", "value": 10, "children": [{"name": "b", "value": 8}, {"name": "c", "value": 5}]}},
+               "root"),
+              ({"root": {"name": "a", "value": 0}}, "root"), ({"root": {"name": "", "value": 1}}, "root"),
+              ({"root": {"name": "a", "value": 1, "self": 1}}, "root"), ({"root": _deep(17)}, "root"),
+              ({"root": {"name": "a", "value": 501, "children": [{"name": "b", "value": 1}] * 500}}, "root")],
 }
 NAMES = sorted(CHARTS)
 
@@ -294,3 +312,19 @@ def test_box_plots_share_one_scale_and_write_the_median_and_the_spread():
     assert w1 / w2 == pytest.approx((300 - 80) / (110 - 40), rel=0.01)
     medians = [float(x) for x in MEDIAN.findall(html)]
     assert x1 < medians[0] < x1 + w1 and x2 < medians[1] < x2 + w2
+
+
+# --- flame graph (K-47) ---
+
+FRAME = re.compile(r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="18\.0" [^>]*><title>([^<]*)</title>')
+
+
+def test_a_flame_graph_sizes_each_box_by_its_share_with_callers_below_callees():
+    frames = {title.split(":")[0]: (float(x), float(y), float(w), title)
+              for x, y, w, title in FRAME.findall(drawn("flame"))}
+    root, read, query, write = (frames[n] for n in ("export job", "read orders", "sql query", "write file"))
+    assert root[1] > read[1] > query[1] and read[1] == write[1], "the caller sits below its callees"
+    assert read[2] / root[2] == pytest.approx(0.6, rel=0.01) and query[0] == read[0]
+    assert write[0] == pytest.approx(read[0] + read[2], abs=0.2)
+    assert read[3] == "read orders: 600 ms, 60% of the total"
+    assert {"export job", "read orders", "sql query", "write file"} <= set(words(drawn("flame")))
