@@ -88,7 +88,7 @@ def text_width(words: str, size: float = FONT) -> float:
 
 def clip(words: str, width: float, size: float = FONT) -> str:
     """The words cut with an ellipsis to fit `width`."""
-    room = int(width // (size * CHAR))
+    room = int(width / (size * CHAR) + 1e-6)
     if len(words) <= room:
         return words
     return words[:max(room - 1, 0)] + "…" if room > 1 else ""

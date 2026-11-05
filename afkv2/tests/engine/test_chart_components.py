@@ -49,6 +49,12 @@ CHARTS = {
                   {"name": "write file", "value": 300}]}},
     "sparkline": {"caption": CAPTION, "rows": [{"label": "export time", "values": [2400, 2100, 1300, 1240], "unit": "ms"},
                                                {"label": "error rate", "values": [2, 3, 1, 0.5], "unit": "%"}]},
+    "waterfall": {"caption": CAPTION, "unit": "ms", "spans": [
+        {"id": "s-api", "label": "export endpoint", "start": 0, "duration": 900},
+        {"id": "s-auth", "label": "check access", "start": 10, "duration": 60, "parent": "s-api"},
+        {"id": "s-read", "label": "read orders", "start": 80, "duration": 700, "parent": "s-api"},
+        {"id": "s-sql", "label": "sql query", "start": 90, "duration": 650, "parent": "s-read"},
+        {"id": "s-mail", "label": "send mail", "start": 100, "duration": 200, "parent": "s-api"}]},
 }
 
 
@@ -91,6 +97,12 @@ BAD = {
     "sparkline": [({"rows": [{"label": "a", "values": [1]}]}, "rows"), ({"rows": []}, "rows"),
                   ({"rows": [{"label": "a", "values": [1, 2]}] * 41}, "rows"),
                   ({"rows": [{"label": "a", "values": [1] * 401}]}, "rows"), ({"rows": [{"label": "", "values": [1, 2]}]}, "rows")],
+    "waterfall": [({"spans": [{"id": "a", "label": "a", "start": 0, "duration": 1, "parent": "b"}]}, "spans"),
+                  ({"spans": [{"id": "a", "label": "a", "start": 0, "duration": 1, "parent": "b"},
+                              {"id": "b", "label": "b", "start": 0, "duration": 1}]}, "spans"),
+                  ({"spans": [{"id": "a", "label": "a", "start": 0, "duration": 1}] * 2}, "spans"),
+                  ({"spans": []}, "spans"), ({"spans": [{"id": "a", "label": "a", "start": 0, "duration": -1}]}, "spans"),
+                  ({"spans": [{"id": f"s{k}", "label": "a", "start": 0, "duration": 1} for k in range(201)]}, "spans")],
 }
 NAMES = sorted(CHARTS)
 
@@ -345,3 +357,29 @@ def test_sparklines_draw_a_tiny_line_per_row_with_the_latest_value_beside_it():
     first, second = lines
     assert max(y for _, y in first) < min(y for _, y in second), "each row keeps its own band"
     assert first[0][1] < first[-1][1] and second[1][1] < second[0][1], "a higher value sits higher in its row"
+
+
+# --- span waterfall (K-49) ---
+
+SPAN = re.compile(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="12\.0" style="fill:([^;"]+)')
+
+
+def test_a_waterfall_draws_each_step_on_one_time_axis_with_the_slowest_path_strong():
+    html = drawn("waterfall")
+    written = words(html)
+    assert written[0] == "\u25c6 the slowest path"
+    assert written[1:11] == ["\u25c6 export endpoint", "900 ms", "check access", "60 ms", "\u25c6 read orders", "700 ms",
+                             "\u25c6 sql query", "650 ms", "send mail", "200 ms"]
+    assert written[-2:] == ["0", "900 ms"]
+    spans = [(float(x), float(w), fill) for x, w, fill in SPAN.findall(html)]
+    api, auth, read, sql, mail = spans
+    per_ms = api[1] / 900
+    assert read[0] - api[0] == pytest.approx(80 * per_ms, abs=0.2) and sql[1] == pytest.approx(650 * per_ms, abs=0.2)
+    strong = {fill for _, _, fill in (api, read, sql)}
+    assert strong == {"var(--accent)"} and auth[2] != "var(--accent)" and mail[2] != "var(--accent)"
+
+
+def test_a_waterfall_indents_a_step_under_its_parent():
+    html = drawn("waterfall")
+    xs = {w: float(x) for x, w in re.findall(r'<text x="([\d.]+)" [^>]*>([^<]*)</text>', html)}
+    assert xs["\u25c6 export endpoint"] < xs["check access"] < xs["\u25c6 sql query"]
