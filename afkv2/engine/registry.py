@@ -2,6 +2,8 @@
 
 A new component is one module in `components/` that calls `register_component`. The renderer
 has no list of types. `render(props, children)` takes the rendered children and returns HTML.
+A page build sets a render context with `page_context`: a renderer reads the document's named value sets
+with `value_set`.
 """
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from __future__ import annotations
 import html
 import importlib.util
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
@@ -21,6 +24,7 @@ COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}
 _loaded = False
+_value_sets: dict = {}
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,22 @@ def lookup(type_name: str) -> ComponentType | None:
 def known_types() -> list[str]:
     load_components()
     return sorted(_types)
+
+
+@contextmanager
+def page_context(value_sets: dict | None):
+    """The render context of one page build: the document's named value sets, `{name: {values, ordered}}`."""
+    global _value_sets
+    previous, _value_sets = _value_sets, value_sets or {}
+    try:
+        yield
+    finally:
+        _value_sets = previous
+
+
+def value_set(name: str) -> dict | None:
+    """The named value set of the page being built, or None outside a page build or for an unknown name."""
+    return _value_sets.get(name)
 
 
 def _children(component: dict) -> list[dict]:

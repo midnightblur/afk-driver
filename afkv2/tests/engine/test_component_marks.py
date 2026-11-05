@@ -244,3 +244,67 @@ def test_a_component_with_a_tip_carries_its_text_on_its_wrapper(component):
 
 def test_a_component_refuses_a_tip_over_300_characters():
     assert registry.validate({"type": "chip", "tip": "t" * 301, "props": {"text": "x", "tone": "new"}}) != []
+
+
+# --- a value chip: its word and its colour from the document's named set (AC-028, PR-07) ---
+
+RISK = {"values": ["high", "medium", "low"], "ordered": True}
+OWNER = {"values": ["agent", "reviewer", "YOU"], "ordered": False}
+VALUE_SETS = {"risk": RISK, "owner": OWNER}
+VALUE_STYLE = re.compile(r'<span class="afkv2-chip afkv2-value" style="--afkv2-value: ([^"]+)">([^<]+)</span>')
+
+
+def value_chip(value, set_name):
+    return {"type": "chip", "props": {"text": value, "set": set_name}}
+
+
+def test_a_chip_takes_a_tone_or_a_set_and_never_both_or_neither():
+    assert registry.validate(value_chip("high", "risk")) == []
+    assert registry.validate({"type": "chip", "props": {"text": "high"}}) != []
+    assert registry.validate({"type": "chip", "props": {"text": "high", "set": "risk", "tone": "new"}}) != []
+
+
+@pytest.mark.parametrize("value, set_name", [("high", "risk"), ("low", "risk"), ("reviewer", "owner"), ("YOU", "owner")])
+def test_a_value_chip_shows_its_word_and_the_colour_of_its_value(value, set_name):
+    value_colour = _base_chip().value_colour
+    with registry.page_context(VALUE_SETS):
+        drawn = registry.render_component(value_chip(value, set_name))
+    found = VALUE_STYLE.search(drawn)
+    assert found, drawn
+    expected = value_colour(VALUE_SETS[set_name]["values"], value, VALUE_SETS[set_name]["ordered"])
+    assert found.groups() == (expected, value)
+
+
+def test_the_page_context_ends_with_its_page():
+    with registry.page_context(VALUE_SETS):
+        pass
+    assert "--afkv2-value" not in registry.render_component(value_chip("high", "risk"))
+
+
+def test_the_value_colour_rule_reads_the_value_colour():
+    body = rule(".afkv2-chip.afkv2-value")
+    assert "var(--afkv2-value" in body and "#" not in body
+
+
+def test_the_same_value_has_the_same_colour_on_the_whole_page():
+    sys.path.insert(0, str(ENGINE_DIR.parent / "scripts"))
+    import engine  # noqa: E402
+    from shell import page  # noqa: E402
+
+    def table(table_id, values):
+        return {"type": "table", "id": table_id, "props": {"columns": ["Risk"],
+                                                           "rows": [[value_chip(v, "risk")] for v in values]}}
+
+    doc = {"schema": "afkv2.page/1",
+           "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                       "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+           "maps": [], "notes": [], "value_sets": {"risk": RISK},
+           "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                       "items": [{"id": "i-a", "kind": "info", "body": table("t-a", ["high", "low"])},
+                                 {"id": "i-b", "kind": "info", "body": table("t-b", ["low", "medium", "high"])}]}]}
+    html = page.build(engine.READERS[doc["schema"]](doc))
+    colours = {}
+    for colour, value in VALUE_STYLE.findall(html):
+        colours.setdefault(value, set()).add(colour)
+    assert set(colours) == {"high", "medium", "low"}
+    assert all(len(found) == 1 for found in colours.values()), colours

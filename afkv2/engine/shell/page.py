@@ -17,7 +17,7 @@ import json
 from html import escape
 from pathlib import Path
 
-from registry import aliases, lookup, render_component, walk
+from registry import aliases, lookup, page_context, render_component, walk
 from schema.note_rules import round_target
 from shell.points import grouped
 from shell.references import link_cards, linkify
@@ -265,8 +265,13 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
 
 def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = None) -> str:
     """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
-    has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices."""
-    doc = _answers_read(doc)
+    has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices.
+    Each component renders in the context of the document's named value sets."""
+    with page_context(doc.get("value_sets")):
+        return _build(_answers_read(doc), btw, notices)
+
+
+def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
     session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)

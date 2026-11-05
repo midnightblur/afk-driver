@@ -283,6 +283,9 @@ body > #afkv2-back {
 .afkv2-chip.afkv2-tone--estimated { color: var(--fg); border-style: dotted; border-color: var(--neutral); }
 .afkv2-chip.afkv2-tone--unverified { color: var(--open); border-style: dashed; border-color: var(--open); }
 .afkv2-chip.afkv2-tone--you { color: var(--afkv2-you); border-color: var(--afkv2-you); font-weight: 700; }
+/* A value chip: its word on a tint of its value's colour, a border in that colour. */
+.afkv2-chip.afkv2-value { color: var(--fg); border-color: var(--afkv2-value, var(--neutral));
+  background: color-mix(in srgb, var(--afkv2-value, var(--neutral)) 22%, var(--surface)); }
 /* A sequence message's tone: its word after the text; a removed message's line is dashed. */
 .afkv2-seq-tone { margin-left: .35em; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
 .afkv2-seq-msg.afkv2-tone--removed .afkv2-seq-line { border-top-style: dashed; border-top-color: var(--blocked); }
