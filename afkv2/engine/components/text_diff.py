@@ -12,6 +12,8 @@ from registry import register_component
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$")
 KINDS = {" ": "kept", "-": "removed", "+": "added", "\\": "note", "": "kept"}
 NO_FILE = "/dev/null"
+# The line that opens the signature of a `git format-patch` mail, after the last hunk.
+SIGNATURE = "-- "
 
 
 class _NoDiff(Exception):
@@ -46,6 +48,8 @@ def parse(text, path=None):
             if left[0] < 0 or left[1] < 0:
                 raise _NoDiff(f"line {number}: the hunk holds more lines than its header counts")
             continue
+        if left and line[:1] in KINDS and line[:1] and not line.startswith(("--- ", "+++ ")) and line != SIGNATURE:
+            raise _NoDiff(f"line {number}: the hunk holds more lines than its header counts")
         if line.startswith("@@"):
             found = HUNK.match(line)
             if not found:

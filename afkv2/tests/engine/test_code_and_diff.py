@@ -193,6 +193,8 @@ def test_a_line_with_no_newline_at_the_end_shows_as_a_note():
     ("--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n-a\n+b\n", "ends"),
     ("--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n?a\n+b\n", "line 4"),
     ("--- a/x\n+++ b/x\n@@ broken @@\n-a\n", "line 3"),
+    ("--- a/x\n+++ b/x\n@@ -1 +1 @@\n a\n-b\n+c\n", "more lines than its header counts"),
+    ("--- a/x\n+++ b/x\n@@ -1,1 +1,2 @@\n-a\n-b\n+c\n", "more lines than its header counts"),
 ])
 def test_a_diff_that_is_no_unified_diff_is_refused(body, why):
     found = registry.validate({"type": "diff", "props": {"text": body}})
