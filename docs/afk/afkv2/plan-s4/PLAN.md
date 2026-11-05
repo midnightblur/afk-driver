@@ -3,7 +3,7 @@
 > Parent ticket: GitHub #153   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/afkv2
-> Last updated: 2026-10-30 (status column maintained by /afk:execute)
+> Last updated: 2026-11-05 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
@@ -70,8 +70,8 @@ flowchart LR
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0016-dogfood-run | dogfood run | pending | — | static, unit, integration | use §14, use §14 |
-| 2 | 0017-sync-harness | sync harness | pending | 0016-dogfood-run | static | — |
+| 1 | 0016-dogfood-run | dogfood run | done | — | static, unit, integration | use §14, use §14 |
+| 2 | 0017-sync-harness | sync harness | done | 0016-dogfood-run | static | — |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
 or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
