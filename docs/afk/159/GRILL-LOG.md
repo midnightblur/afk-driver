@@ -55,3 +55,7 @@
 - Premise: The current test suite has no direct DOM behavior coverage for page-tip precedence, exact IDs, wrapping, hover or mutation recovery → verified (counter-search of afkv2/tests for data-afkv2-tip, promote, harvest and tipFor; afkv2/tests/engine/test_engine_core.py:917-931)
 - Premise: All likely change surfaces are owned by this repository configuration → verified (.afkv2/config.json:2-5)
 - Settled: design gate passed 2026-11-04 · session s-20261104-182229
+- Premise: The page-tip resolver and browser fixture use browser-neutral standard DOM APIs → verified (afkv2/engine/shell/tips.js:1-89; afkv2/tests/live/page_tip_browser.html:10-80)
+- Premise: Installed Chrome is available at C:/Program Files/Google/Chrome/Application/chrome.exe and Node v24.18.0 is on PATH → verified (Get-Command node; Test-Path chrome.exe, 2026-11-04)
+- Premise: The Computer Use browser host is unavailable in this session, so the proof needs a local Chrome DevTools Protocol driver → verified (cua.getState, 2026-11-04)
+- Settled: design gate passed 2026-11-05 · session s-20261104-221155

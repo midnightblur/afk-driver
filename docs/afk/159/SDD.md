@@ -132,6 +132,8 @@ The page owns every entry; ID entries also reference the existing element invent
 
 Validation errors name the field or both colliding fields. Performance tests report first-scan and rescan time. The design introduces 0 secrets.
 
+The browser proof starts the installed Chrome binary with an isolated temporary profile and a local Chrome DevTools Protocol endpoint. It uses Node.js built-in HTTP and WebSocket clients. It downloads no browser and adds no browser-automation framework. It closes the process and removes the profile after every result. A failed proof keeps its diagnostic output.
+
 ## §6 L5 — Domain Model
 
 | Invariant | Owner | Guardian | Answer to a violation |
@@ -195,6 +197,7 @@ sequenceDiagram
 | Same-catalog collision | Both conflicting paths | Keep last valid HTML | Rename or remove one entry | Page writer |
 | Source or payload serialization | Render failure before replacement | Keep last valid HTML | Repair serializable page data | Page engine maintainer |
 | Browser payload parse | Runtime reports no page tips; unrelated page chrome continues | Shared terms remain available | Repair payload generation and rerender | Page engine maintainer |
+| Chrome proof launch or CDP attach | Process exit, connection error, or protocol error | Close the launched process and remove its temporary profile | Read the preserved command and protocol diagnostics; repair the local prerequisite or fixture | Test maintainer |
 | Performance budget failure | NFR test exceeds 1,000 ms | CI fails | Optimize resolver or scan without changing validity | Page engine maintainer |
 
 Irreversible or outward effects: none.
@@ -230,6 +233,7 @@ The dependency graph has no cycle. Component renderers remain unaware of tip cat
 | Runtime reconstruction | Durable source block plus replaceable derived payload | [ADR-0002](adr/design/0002-use-typed-page-tip-payloads.md) |
 | Meaning over rounds | Page-wide current meaning | [ADR-0003](adr/design/0003-use-current-page-wide-tip-meanings.md) |
 | Large catalogs | Measured budget without a count cap | [ADR-0004](adr/design/0004-bound-tip-cost-with-a-performance-contract.md) |
+| Browser runtime proof | Installed Chrome through local CDP with Node.js built-ins | [ADR-0005](adr/design/0005-use-installed-chrome-cdp-for-browser-proof.md) |
 
 ## §9b External Seams & Failure Affordance
 
@@ -237,15 +241,15 @@ The dependency graph has no cycle. Component renderers remain unaware of tip cat
 |----------|----------------------|---------------------------|-----------------|-----------|
 | Page schema | In-tree schema validator at the feature commit | Checks arrays, required fields, string lengths, and closed shapes | Bad-document field path | Run the real engine check on valid and invalid page/1 fixtures. |
 | JSON-to-HTML source block | Python JSON encoder from the setup interpreter | Serializes typed tips and escapes closing-script text | Render failure before output replacement | Render unsafe text, reopen HTML, and compare the reconstructed payload. |
-| Browser text scan | Supported Edge runtime selected by setup | Walks eligible text nodes and wraps matches | Missing or incorrect tip span | Drive the real rendered page and assert repeated, exact-case, plural, and unmatched text. |
-| Browser hover | Supported Edge runtime selected by setup | Reads local tip data and writes `textContent` | Hidden or misplaced tip box | Hover unsafe text in the real page and assert literal output and 0 network requests. |
+| Browser text scan | Installed Chrome controlled through a local Chrome DevTools Protocol endpoint | Walks eligible text nodes and wraps matches | Missing or incorrect tip span | Drive the real rendered page and assert repeated, exact-case, plural, and unmatched text. |
+| Browser hover | Installed Chrome controlled through a local Chrome DevTools Protocol endpoint | Reads local tip data and writes `textContent` | Hidden or misplaced tip box | Hover unsafe text in the real page and assert literal output and 0 network requests. |
 | Local file replacement | Existing page engine write contract | Replaces generated HTML only when content changed | Render error leaves old output | Start with valid HTML, render an invalid document, and prove the prior file remains. |
 
 ## §10 NFRs
 
 | Concern | Target | Measurement | Owner |
 |---------|--------|-------------|-------|
-| First tip scan | ≤ 1,000 ms for 2,000 total tips over 200,000 visible characters | CI browser fixture on the supported Edge runtime | Browser tip resolver |
+| First tip scan | ≤ 1,000 ms for 2,000 total tips over 200,000 visible characters | Browser fixture in installed Chrome through local CDP | Browser tip resolver |
 | Mutation rescan | ≤ 1,000 ms after the existing 300 ms debounce on the same fixture | CI browser fixture | Browser tip resolver |
 | Hover network use | 0 requests | Browser network capture during hover | Browser tip resolver |
 | Unsafe content execution | 0 markup, script, or link actions from tip values | Browser fixture with active-looking text | Browser tip resolver |
@@ -282,6 +286,6 @@ The dependency graph has no cycle. Component renderers remain unaware of tip cat
 | Injector and launcher reopen | Reopen removes and rebuilds the marked block from path sources ([inject.py:184](../../../afkv2/engine/shell/inject.py); [launcher.py:285](../../../afkv2/engine/launcher.py)) | Read the durable source block; ignore legacy sidecar for page/1; retain it for page/0 | Render, show, arbitrary HTML open | Arbitrary HTML may have no source block; keep shared terms and page chrome working | extends (ADR-0002) |
 | Browser tip resolver | One flat dictionary gives lowercase keys case-insensitive fallback ([tips.js:8](../../../afkv2/engine/shell/tips.js)) | Resolve exact page IDs, then page terms, then shared terms from separate maps | Initial scan, mutation scan, hover | Do not let harvest override authored IDs; payload parse failure must not disable unrelated chrome | reworked |
 | Authoring guide and examples | Page document guidance and fixtures state page/0 | Document page/1 tips and keep explicit page/0 compatibility examples | Agent-authored page documents | Runtime source has one home; guidance points to the schema | extends (ADR-0001) |
-| Engine, writer, and browser tests | Existing tests cover dictionary injection and idempotence, not DOM behavior ([test_engine_core.py:917](../../../afkv2/tests/engine/test_engine_core.py)) | Add page/1, resume, collision, reopen, exact-ID, plural, precedence, safety, no-network, and performance proofs | Local selective tests and CI | Use real engine entry points; browser assertions must inspect rendered output | fits |
+| Engine, writer, and browser tests | Existing tests cover dictionary injection and idempotence, not DOM behavior ([test_engine_core.py:917](../../../afkv2/tests/engine/test_engine_core.py)) | Add page/1, resume, collision, reopen, exact-ID, plural, precedence, safety, no-network, and performance proofs; drive the browser proof in installed Chrome through local CDP | Local selective tests and CI | Use real engine entry points; isolate the Chrome profile; clean up the process and profile; preserve diagnostics on failure; browser assertions must inspect rendered output | extends (ADR-0005) |
 
 Accepted compatibility findings: page/0 remains valid; open page/0 sessions remain page/0; the legacy sidecar applies only to page/0; page/1 readers remain after writer rollback; earlier rounds show the latest page-wide tip meaning.

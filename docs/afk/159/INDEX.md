@@ -10,7 +10,7 @@ Page readers must search or scroll to understand feature-specific terms and page
 | Requirement ADRs | adr/requirements/ | 3 records |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | draft |
-| Design ADRs | adr/design/ | 4 records |
+| Design ADRs | adr/design/ | 5 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | feat/afkv2-tips-run:plan/PLAN.md | 6 subtasks; division approved 2026-11-04 |

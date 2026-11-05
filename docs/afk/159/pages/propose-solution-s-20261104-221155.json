@@ -1,0 +1,1930 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261104-221155",
+    "skill": "propose-solution",
+    "feature": "159",
+    "ticket": "#159",
+    "started": "2026-11-05T02:17:20Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    }
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "settled",
+            "round": 3
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 3
+          }
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "The developer authorized installed Chrome through local Chrome DevTools Protocol automation for the browser proof."
+        ],
+        "unlocks": [
+          "Confirm which design aspects remain unchanged and which verification seam changes."
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "chrome-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-entities-table",
+            "props": {
+              "columns": [
+                "Area",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Page document and typed tip payload",
+                  "Unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-entities-question",
+                "props": {
+                  "text": "Confirm that changing the browser proof adds or changes no stored entity or field."
+                }
+              }
+            ]
+          },
+          "title": "No entity or stored field changes",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-relations-table",
+            "props": {
+              "columns": [
+                "Relation",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Page source → typed payload → browser resolver",
+                  "Same ownership and number",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-relations-question",
+                "props": {
+                  "text": "Confirm that the proof runtime does not change ownership or relations."
+                }
+              }
+            ]
+          },
+          "title": "No data relation changes",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-keys-table",
+            "props": {
+              "columns": [
+                "Key",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Exact page IDs, page terms and shared terms",
+                  "Existing identity and precedence rules",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-keys-question",
+                "props": {
+                  "text": "Confirm that Chrome DevTools Protocol automation changes no key or uniqueness rule."
+                }
+              }
+            ]
+          },
+          "title": "Tip identity rules stay unchanged",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-constraints-table",
+            "props": {
+              "columns": [
+                "Constraint",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Matching, safety, mutation, 0 requests",
+                  "Required",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "2,000 tips / 200,000 characters / 1,000 ms",
+                  "Required",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Browser runtime",
+                  "Installed Edge through Computer Use",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "installed Chrome via CDP",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-constraints-question",
+                "props": {
+                  "text": "Confirm that only the browser driver changes; every assertion and numeric budget remains unchanged."
+                }
+              }
+            ]
+          },
+          "title": "All browser assertions and budgets remain binding",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-cascade-table",
+            "props": {
+              "columns": [
+                "Area",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Deletes and orphans",
+                  "No feature-owned persistent data",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-cascade-question",
+                "props": {
+                  "text": "Confirm that this verification change has no cascade behavior."
+                }
+              }
+            ]
+          },
+          "title": "No delete or orphan behavior changes",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-api-table",
+            "props": {
+              "columns": [
+                "Surface",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Page schema, engine verbs, rendered payload",
+                  "Existing contracts",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Browser proof control",
+                  "Computer Use on Edge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "local CDP on Chrome",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-api-question",
+                "props": {
+                  "text": "Confirm that no product callable surface changes and the CDP driver remains test-only."
+                }
+              }
+            ]
+          },
+          "title": "Product APIs stay unchanged; the test driver changes",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-migration-table",
+            "props": {
+              "columns": [
+                "Existing data",
+                "Current result",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "page/0 and page/1 documents",
+                  "No migration",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-migration-question",
+                "props": {
+                  "text": "Confirm that changing the proof runtime migrates no document or generated page."
+                }
+              }
+            ]
+          },
+          "title": "No data migration is required",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-authorization-table",
+            "props": {
+              "columns": [
+                "Boundary",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Rendered page and embedded tips",
+                  "Inherit page access; local resolution",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-authorization-question",
+                "props": {
+                  "text": "Confirm that the local CDP proof adds no production access or data scope."
+                }
+              }
+            ]
+          },
+          "title": "Access and data scoping stay unchanged",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-lifecycle-table",
+            "props": {
+              "columns": [
+                "Flow",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Write → validate → render → reopen → scan",
+                  "Existing state transitions",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Proof process",
+                  "Open browser fixture",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "launch isolated Chrome/CDP session and close it",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-lifecycle-question",
+                "props": {
+                  "text": "Confirm that only the test-process life cycle changes."
+                }
+              }
+            ]
+          },
+          "title": "Page and payload life cycles stay unchanged",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-other-teams-table",
+            "props": {
+              "columns": [
+                "Module",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "AFKv2 browser fixture and test driver",
+                  "Feature-owned test seam",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Setup Edge used by diagram rendering",
+                  "Separate capability",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-other-teams-question",
+                "props": {
+                  "text": "Confirm that setup's Edge dependency for diagrams remains untouched and no outside team module changes."
+                }
+              }
+            ]
+          },
+          "title": "No outside module ownership changes",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-large-data",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "chrome-large-data-table",
+            "props": {
+              "columns": [
+                "Fixture",
+                "Current design",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "2,000 tips over 200,000 visible characters",
+                  "Both scan budgets ≤ 1,000 ms",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-large-data-question",
+                "props": {
+                  "text": "Confirm that Chrome runs the existing measured fixture without reducing its size or budgets."
+                }
+              }
+            ]
+          },
+          "title": "The same large-fixture cost contract applies",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-05T02:18:35Z",
+          "raw": "[round R-1]\nchrome-entities accept\nchrome-relations accept\nchrome-keys accept\nchrome-constraints accept\nchrome-cascade accept\nchrome-api accept\nchrome-migration accept\nchrome-authorization accept\nchrome-lifecycle accept\nchrome-other-teams accept\nchrome-large-data accept\n",
+          "signals": [
+            {
+              "target": "chrome-entities",
+              "item": "chrome-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6c406f23467ca053"
+            },
+            {
+              "target": "chrome-relations",
+              "item": "chrome-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7d3daa4de08c0e16"
+            },
+            {
+              "target": "chrome-keys",
+              "item": "chrome-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ab531fc5c6dfdc37"
+            },
+            {
+              "target": "chrome-constraints",
+              "item": "chrome-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e369a599d7a74b43"
+            },
+            {
+              "target": "chrome-cascade",
+              "item": "chrome-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2e721b0ed5801a6d"
+            },
+            {
+              "target": "chrome-api",
+              "item": "chrome-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c50737436d7edf55"
+            },
+            {
+              "target": "chrome-migration",
+              "item": "chrome-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a09835691fef9cf2"
+            },
+            {
+              "target": "chrome-authorization",
+              "item": "chrome-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "137841c2d616d038"
+            },
+            {
+              "target": "chrome-lifecycle",
+              "item": "chrome-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "763b50de037d602c"
+            },
+            {
+              "target": "chrome-other-teams",
+              "item": "chrome-other-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7dcfd643d092b8d5"
+            },
+            {
+              "target": "chrome-large-data",
+              "item": "chrome-large-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ec1ba90c0a12ab37"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "All critical aspects keep product behavior unchanged and authorize local Chrome CDP for the proof."
+        ],
+        "unlocks": [
+          "The complete L1–L9 design and its browser-proof seam."
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "chrome-l1",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The plugin, local engine and rendered-page runtime keep the existing topology."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l1-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Inherited. The proof launches an isolated local Chrome process beside the existing test runner."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "The product runtime is browser-neutral and needs no deployment change."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Move verification into a hosted browser service; rejected because it cannot read the local fixture without adding infrastructure."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "afkv2/engine/shell/tips.js:1-89; afkv2/tests/live/page_tip_browser.html:10-80"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Return the proof to another installed browser driver without changing product topology."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-entities through chrome-large-data"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l1-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L1 — System topology is inherited",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The change is test-only."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l2-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Keep the page schema, engine commands, payload and browser runtime contracts unchanged. Add no production callable surface."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "Chrome consumes the same rendered HTML and JavaScript as Edge."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Add a browser-specific product adapter; rejected because standard DOM APIs already define the boundary."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "afkv2/engine/shell/tips.js:1-89"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Remove the Chrome test driver; production contracts need no rollback."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-api"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l2-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L2 — Product boundaries and callable surfaces stay unchanged",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "No product data shape or retention changes."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l3-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Keep page/0, page/1 and typed payload fields unchanged. Test output remains ephemeral."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "The proof observes existing output only."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Persist benchmark history; rejected because the feature requires a pass/fail gate, not analytics."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "spec",
+                  "text": "SDD §4 and accepted aspect cards chrome-entities, chrome-relations, chrome-keys."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Remove ephemeral proof files."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-entities, chrome-relations, chrome-keys, chrome-migration"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l3-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L3 — Data architecture is inherited",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The browser vendor changes; the quality contract does not."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l4-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Run installed Chrome against 2,000 tips and 200,000 visible characters. Require first scan and mutation rescan each ≤ 1,000 ms, 0 network requests and literal unsafe text."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "It preserves the signed non-functional contract while using an executable local browser seam."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Reduce the fixture or loosen budgets; rejected because that changes accepted behavior. Use Computer Use; rejected because its browser host is unavailable."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "measured",
+                  "text": "Chrome exists at C:/Program Files/Google/Chrome/Application/chrome.exe; Node v24.18.0 is on PATH; SDD §10 owns the budgets."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Restore another installed-browser driver while retaining the same fixture and assertions."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-constraints, chrome-authorization, chrome-large-data"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l4-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L4 — Chrome must meet the same safety and timing contract",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Tip identity, precedence and safety remain product invariants."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l5-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Keep exact ID precedence, page-term fallback, shared fallback, safe boundaries and literal display unchanged."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "The proof runtime must validate the same domain result."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Use Chrome-specific matching expectations; rejected because browser vendor is not a domain rule."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "spec",
+                  "text": "SDD §6; ADR-0003 design."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "No domain rollback is required."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-keys, chrome-constraints"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l5-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L5 — Domain model and invariants are inherited",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The proof owns one temporary browser process."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l6-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Generate the fixture, launch Chrome with an isolated user-data directory and remote-debugging endpoint, connect through CDP, run assertions, capture results, close Chrome, then remove only the scratch profile. A launch, connection or assertion failure fails the gate and preserves diagnostic output."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "Isolation avoids the user's profile and makes cleanup and failure ownership deterministic."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Attach to the user's current Chrome session; rejected because tabs, extensions and profile state make results non-deterministic."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "afkv2/tests/live/test_page_live.md documents the existing local CDP pattern and deterministic browser shutdown."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Remove the Chrome driver and restore another isolated installed-browser session."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-l4"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l6-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L6 — Isolated Chrome session with deterministic cleanup",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l7",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The existing production modules stay untouched."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l7-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "The fixture builder remains in afkv2/tests/live/page_tip_browser.py and the CDP driver lives beside it as test code. It consumes the rendered fixture and emits a machine-readable result."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "The module boundary matches the external seam and keeps browser control out of production code."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Place browser automation in the engine; rejected because the engine does not own test process control."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "afkv2/tests/live/page_tip_browser.py; afkv2/tests/live/page_tip_browser.html"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Delete the test driver and keep the production modules unchanged."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-l6"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l7-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L7 — Keep the driver in the live browser-test module",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l8",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The tactical pattern is a small protocol driver over Chrome's local debugging endpoint."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l8-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Use Node's built-in HTTP and WebSocket support to discover the target and send the required CDP commands. Add no downloaded browser or automation framework."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "It uses installed Chrome, avoids the unavailable browser host and follows an existing repository pattern."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Use Computer Use or a browser extension; rejected because the host is unavailable. Install Playwright or Puppeteer; rejected because the proof needs no new browser download or framework dependency."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "afkv2/tests/live/test_page_live.md; afkv2/tests/engine/fixtures/send_from_edge.mjs"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Replace the local protocol adapter with another browser driver that preserves isolation and all assertions."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-l6, chrome-l7"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l8-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L8 — Use direct CDP instead of browser-extension control",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "chrome-l9",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The real-output seam changes from Edge through Computer Use to installed Chrome through CDP."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "chrome-l9-decision",
+                "props": {
+                  "label": "Decision",
+                  "text": "Amend SDD §9b Browser text scan and Browser hover, plus §10 First tip scan, to name installed Chrome driven through local CDP. Keep the mutation row on the same fixture. Add ADR-0005. Update the fixture instructions from Edge to Chrome. Do not change setup's separate Edge dependency for diagram rendering."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-why",
+                "props": {
+                  "label": "Why this one",
+                  "text": "It changes the infeasible seam and nothing downstream of the rendered output."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-alt",
+                "props": {
+                  "label": "Other options considered (rejected)",
+                  "text": "Keep the blocked Edge/Computer Use seam; rejected after repeated activation and browser-host failures. Change production resolver code; rejected because it is browser-neutral and already green."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-evidence",
+                "props": {
+                  "label": "Evidence",
+                  "badge": "repo",
+                  "text": "SDD §9b and §10; afkv2/tests/live/page_tip_browser.py:1-4; setup Edge dependency at afkv2/skills/setup/scripts/tools.py:272-303 remains separate."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-reverse",
+                "props": {
+                  "label": "To undo",
+                  "text": "Restore the former browser seam and delete ADR-0005 only after that seam is executable again."
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-depends",
+                "props": {
+                  "label": "Depends on",
+                  "text": "chrome-l4, chrome-l6, chrome-l7, chrome-l8"
+                }
+              },
+              {
+                "type": "text",
+                "id": "chrome-l9-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L9 — Replace only the browser-proof seam",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-05T02:22:13Z",
+          "raw": "[round R-2]\nchrome-l1 accept\nchrome-l2 accept\nchrome-l3 accept\nchrome-l4 accept\nchrome-l5 accept\nchrome-l6 accept\nchrome-l7 accept\nchrome-l8 accept\nchrome-l9 accept\n",
+          "signals": [
+            {
+              "target": "chrome-l1",
+              "item": "chrome-l1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "b4d6c53ed870ac78"
+            },
+            {
+              "target": "chrome-l2",
+              "item": "chrome-l2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d058dc9323a7e849"
+            },
+            {
+              "target": "chrome-l3",
+              "item": "chrome-l3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6dd8deeb24bc7a5e"
+            },
+            {
+              "target": "chrome-l4",
+              "item": "chrome-l4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7d15c1fbd9b2879d"
+            },
+            {
+              "target": "chrome-l5",
+              "item": "chrome-l5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a0602ac9fd48eb0b"
+            },
+            {
+              "target": "chrome-l6",
+              "item": "chrome-l6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2ae61b986278b88a"
+            },
+            {
+              "target": "chrome-l7",
+              "item": "chrome-l7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ca1d8f90d7accd30"
+            },
+            {
+              "target": "chrome-l8",
+              "item": "chrome-l8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3a94c839d6d964e6"
+            },
+            {
+              "target": "chrome-l9",
+              "item": "chrome-l9",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "aa5016b2f455111e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "The Chrome CDP proof design is accepted at L1–L9."
+        ],
+        "unlocks": [
+          "The amended SDD and ADR-0005 after the unchanged binding contracts are confirmed."
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "chrome-sign-hl-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "chrome-sign-hl-1-text",
+            "props": {
+              "text": "The Chrome proof amendment does not change fields, relations, retention, migration, or rollback. The signed HL-1 contract in SDD §0 and §4 remains exact."
+            }
+          },
+          "title": "Confirm the unchanged persistence contract",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "chrome-sign-hl-2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "chrome-sign-hl-2-text",
+            "props": {
+              "text": "The Chrome proof amendment adds no command, endpoint, role, host route, or schema change. The signed HL-2 page/1 public contract in SDD §0 and §3 remains exact."
+            }
+          },
+          "title": "Confirm the unchanged public contract",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "chrome-sign-hl-4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "chrome-sign-hl-4-text",
+            "props": {
+              "text": "The Chrome proof amendment does not change page-tip states, legal moves, guardians, or violation answers. The signed HL-4 contract in SDD §0 and §6 remains exact."
+            }
+          },
+          "title": "Confirm the unchanged life-cycle contract",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "chrome-sign-hl-6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "chrome-sign-hl-6-text",
+            "props": {
+              "text": "The Chrome proof amendment changes only the test runtime. New-session, legacy-session, reopen, matching, compatibility, performance-budget, and rollback behavior remain exact under the signed HL-6 contract in SDD §0 and §14."
+            }
+          },
+          "title": "Confirm the unchanged product behavior",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-05T03:19:01Z",
+          "raw": "[round R-3]\nchrome-sign-hl-1 sign\nchrome-sign-hl-2 sign\nchrome-sign-hl-4 sign\nchrome-sign-hl-6 sign",
+          "signals": [
+            {
+              "target": "chrome-sign-hl-1",
+              "item": "chrome-sign-hl-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5bd3de38239e2d05"
+            },
+            {
+              "target": "chrome-sign-hl-2",
+              "item": "chrome-sign-hl-2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d1c2a925d691a597"
+            },
+            {
+              "target": "chrome-sign-hl-4",
+              "item": "chrome-sign-hl-4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0c9d17982293a182"
+            },
+            {
+              "target": "chrome-sign-hl-6",
+              "item": "chrome-sign-hl-6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4620319de019cb4a"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
