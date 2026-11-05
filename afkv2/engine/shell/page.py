@@ -16,6 +16,7 @@ a page with neither holds none of them (ADR-0003 design).
 from __future__ import annotations
 
 import json
+import re
 from html import escape
 from pathlib import Path
 
@@ -35,6 +36,7 @@ NODE_CARDS_ID = "afkv2-node-cards"
 HIGHLIGHT = HERE / "highlight"
 HIGHLIGHTED = {"code", "diff"}
 LIGHT_THEME = ':root[data-theme="light"]{{{}}}'
+COMMENT = re.compile(r"/\*.*?\*/", re.S)
 
 ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
 
@@ -221,8 +223,11 @@ def targets(doc: dict) -> dict:
     return found
 
 
-def _read_highlight(name: str) -> str:
-    return (HIGHLIGHT / name).read_text(encoding="utf-8")
+def _read_highlight(name: str, bare: bool = False) -> str:
+    """A highlighter file; `bare` drops its comments, which keeps the page under its weight cap. The library keeps
+    its banner, which holds its licence."""
+    text = (HIGHLIGHT / name).read_text(encoding="utf-8")
+    return COMMENT.sub("", text).strip() if bare else text
 
 
 def _highlighter(doc: dict) -> tuple[str, str]:
@@ -231,9 +236,9 @@ def _highlighter(doc: dict) -> tuple[str, str]:
     trees = [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]
     if not any(part["type"] in HIGHLIGHTED for tree in trees for _, part in walk(tree)):
         return "", ""
-    themes = _read_highlight("github-dark.min.css") + "\n" + LIGHT_THEME.format(_read_highlight("github.min.css"))
-    return (f"<style>\n{themes}\n</style>\n",
-            f"<script>\n{_read_highlight('highlight.min.js')}\n{_read_highlight('run.js')}</script>\n")
+    themes = _read_highlight("github-dark.min.css", True) + LIGHT_THEME.format(_read_highlight("github.min.css", True))
+    return (f"<style>{themes}</style>\n",
+            f"<script>{_read_highlight('highlight.min.js')}\n{_read_highlight('run.js', True)}</script>\n")
 
 
 def _reference(ticket: str) -> str:

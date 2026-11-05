@@ -24,7 +24,10 @@ BUNDLE = HIGHLIGHT / "highlight.min.js"
 BUNDLE_BYTES = 129254
 BUNDLE_SHA256 = "8ab71eb09c51f501e5e25157d9cff100e46cc29bcbfc744d0b746d451fca7f53"
 BANNER = "Highlight.js v11.12.0"
-LIMIT = 132 * 1024
+# 132 KB as the design counts it (ADR-0003: 129,254 bytes and 2 themes of about 1.3 KB make about 132 KB).
+LIMIT = 132_000
+DARK_BASE = ".hljs{color:#c9d1d9;background:#0d1117}"
+LIGHT_BASE = ".hljs{color:#24292e;background:#fff}"
 # The marks of the code and diff HTML, each on a line of its own (plugin_check: a marker is never matched by part).
 CODE_FIGURE = '<figure class="afkv2-code">'
 CODE_WHERE = '<span class="afkv2-code-where">{}</span>'
@@ -220,7 +223,7 @@ def test_git_keeps_the_copied_files_byte_for_byte():
 def test_a_page_with_code_and_a_diff_inlines_the_library_and_both_themes_once():
     html = page.build(page_of(code(language="python"), code(language="sql", text="select 1"), diff()))
     assert html.count(BANNER) == 1
-    assert html.count("Theme: GitHub Dark") == 1 and html.count("Theme: GitHub\n") == 1
+    assert html.count(DARK_BASE) == 1 and html.count(LIGHT_BASE) == 1
     assert ':root[data-theme="light"]{' in html
     assert html.index(BANNER) > html.index(LANG_MARK.format("python")), "the library runs after the blocks it colours"
 
@@ -237,7 +240,7 @@ def test_the_highlighter_adds_132_kb_at_most(body):
 
 def test_a_page_with_neither_code_nor_a_diff_holds_0_bytes_of_the_highlighter():
     html = page.build(page_of(text_body(), {"type": "diagram", "props": {"caption": "c", "text": "flowchart LR; a-->b"}}))
-    assert BANNER not in html and "hljs" not in html and "Theme: GitHub" not in html
+    assert BANNER not in html and "hljs" not in html and DARK_BASE not in html and LIGHT_BASE not in html
 
 
 def test_the_run_script_colours_only_a_known_language():
