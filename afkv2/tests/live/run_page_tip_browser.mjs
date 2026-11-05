@@ -10,6 +10,19 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WAIT_MS = 20_000;
+const OPERATION_MS = 5_000;
+const MAX_RESPONSE_BYTES = 1024 * 1024;
+
+export function withDeadline(promise, timeout, label, cancel = () => {}) {
+  let timer;
+  const expired = new Promise((resolve, reject) => {
+    timer = setTimeout(() => {
+      cancel();
+      reject(new Error(`Timed out waiting for ${label}`));
+    }, timeout);
+  });
+  return Promise.race([promise, expired]).finally(() => clearTimeout(timer));
+}
 
 function chromeCandidates() {
   const values = [process.env.CHROME_PATH];
@@ -55,7 +68,11 @@ function getJson(port, route) {
     const request = http.get({ host: "127.0.0.1", port, path: route }, response => {
       let body = "";
       response.setEncoding("utf8");
-      response.on("data", chunk => { body += chunk; });
+      response.on("data", chunk => {
+        body += chunk;
+        if (body.length > MAX_RESPONSE_BYTES) response.destroy(new Error(`CDP ${route} exceeded ${MAX_RESPONSE_BYTES} bytes`));
+      });
+      response.on("error", reject);
       response.on("end", () => {
         try {
           resolve(JSON.parse(body));
@@ -65,6 +82,7 @@ function getJson(port, route) {
       });
     });
     request.on("error", reject);
+    request.setTimeout(OPERATION_MS, () => request.destroy(new Error(`Timed out waiting for CDP ${route}`)));
   });
 }
 
@@ -73,7 +91,8 @@ async function until(label, action, accept, timeout = WAIT_MS) {
   let last;
   while (Date.now() < stop) {
     try {
-      last = await action();
+      const remaining = stop - Date.now();
+      last = await withDeadline(Promise.resolve().then(action), Math.min(OPERATION_MS, remaining), label);
       if (accept(last)) return last;
     } catch (error) {
       last = error;
@@ -106,19 +125,20 @@ class Cdp {
       for (const pending of this.pending.values()) pending.reject(new Error("CDP socket closed"));
       this.pending.clear();
     });
-    await new Promise((resolve, reject) => {
+    await withDeadline(new Promise((resolve, reject) => {
       this.socket.addEventListener("open", resolve, { once: true });
       this.socket.addEventListener("error", () => reject(new Error(`Cannot connect to ${this.url}`)), { once: true });
-    });
+    }), OPERATION_MS, `CDP WebSocket ${this.url}`, () => this.socket.close());
   }
 
   call(method, params = {}) {
     const id = ++this.nextId;
     this.diagnostics.push(`${id} ${method}`);
-    return new Promise((resolve, reject) => {
+    const answer = new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.socket.send(JSON.stringify({ id, method, params }));
     });
+    return withDeadline(answer, OPERATION_MS, `CDP ${method}`, () => this.pending.delete(id));
   }
 
   close() {
