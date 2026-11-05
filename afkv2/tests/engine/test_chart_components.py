@@ -47,6 +47,8 @@ CHARTS = {
               "root": {"name": "export job", "value": 1000, "children": [
                   {"name": "read orders", "value": 600, "children": [{"name": "sql query", "value": 550}]},
                   {"name": "write file", "value": 300}]}},
+    "sparkline": {"caption": CAPTION, "rows": [{"label": "export time", "values": [2400, 2100, 1300, 1240], "unit": "ms"},
+                                               {"label": "error rate", "values": [2, 3, 1, 0.5], "unit": "%"}]},
 }
 
 
@@ -86,6 +88,9 @@ BAD = {
               ({"root": {"name": "a", "value": 0}}, "root"), ({"root": {"name": "", "value": 1}}, "root"),
               ({"root": {"name": "a", "value": 1, "self": 1}}, "root"), ({"root": _deep(17)}, "root"),
               ({"root": {"name": "a", "value": 501, "children": [{"name": "b", "value": 1}] * 500}}, "root")],
+    "sparkline": [({"rows": [{"label": "a", "values": [1]}]}, "rows"), ({"rows": []}, "rows"),
+                  ({"rows": [{"label": "a", "values": [1, 2]}] * 41}, "rows"),
+                  ({"rows": [{"label": "a", "values": [1] * 401}]}, "rows"), ({"rows": [{"label": "", "values": [1, 2]}]}, "rows")],
 }
 NAMES = sorted(CHARTS)
 
@@ -328,3 +333,15 @@ def test_a_flame_graph_sizes_each_box_by_its_share_with_callers_below_callees():
     assert write[0] == pytest.approx(read[0] + read[2], abs=0.2)
     assert read[3] == "read orders: 600 ms, 60% of the total"
     assert {"export job", "read orders", "sql query", "write file"} <= set(words(drawn("flame")))
+
+
+# --- sparklines (K-48) ---
+
+def test_sparklines_draw_a_tiny_line_per_row_with_the_latest_value_beside_it():
+    html = drawn("sparkline")
+    assert words(html) == ["export time", "1,240 ms", "error rate", "0.5%"]
+    lines = [[tuple(float(n) for n in pair.split(",")) for pair in found.split()] for found in POLYLINE.findall(html)]
+    assert [len(points) for points in lines] == [4, 4]
+    first, second = lines
+    assert max(y for _, y in first) < min(y for _, y in second), "each row keeps its own band"
+    assert first[0][1] < first[-1][1] and second[1][1] < second[0][1], "a higher value sits higher in its row"
