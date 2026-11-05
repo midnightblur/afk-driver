@@ -138,7 +138,8 @@ def _brief(plan, subtask, record, change, rulings, resume):
     lines = ["Run /afkv2:execute for one subtask. This prompt is all you get from the run.",
              f"subtask: {subtask}", f"plan: {plan}", f"contract: {plan / (subtask + '.md')}", f"base: {record['base']}",
              f"change: {change or 'none'}", f"python: {sys.executable}",
-             "You may start read-only subagents for the review, one level down. They start no subagents."]
+             "You may start read-only subagents for the review, one level down. They start no subagents.",
+             "No human reads a page in this run: open no page, and park a question for the human."]
     if resume:
         lines.append(f"An earlier subagent worked on this subtask. Read `git log {record['base']}..HEAD`, read `{plan / 'review'}`, and go on from there.")
     if rulings:
