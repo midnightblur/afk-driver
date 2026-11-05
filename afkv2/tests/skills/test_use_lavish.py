@@ -537,7 +537,9 @@ def test_each_page_skill_points_here_and_scans_its_files():
         text = (SKILLS / skill / "SKILL.md").read_text("utf-8")
         assert "../use-lavish/SKILL.md" in text and "../use-lavish/ROUND-PASS.md" in text, skill
         assert "visualize/components/card.md" not in text and "notes-and-replies" not in text, skill
-        assert "--scan" in dict(STEP_LINE.findall(text))["present"], skill
+        assert "answer rules of `/afkv2:use-lavish`" in text and '"Take over a page"' in text, skill
+        scan = '--scan "<spec dir>/INDEX.md"' if skill == "to-subtasks" else '--scan "<log>"'
+        assert dict(STEP_LINE.findall(text))["present"].endswith(scan), skill
     rounds = (SKILLS / "grill" / "ROUNDS.md").read_text("utf-8")
     assert "visualize/components/card.md" not in rounds and "use-lavish/ROUND-PASS.md" in rounds
 
@@ -545,3 +547,27 @@ def test_each_page_skill_points_here_and_scans_its_files():
 def test_the_grill_repeats_no_steer_in_an_answer():
     text = (SKILLS / "grill" / "SKILL.md").read_text("utf-8")
     assert "a steer word for word" not in text
+
+
+def test_the_ad_hoc_wait_answers_side_questions_and_present_refusals_have_a_path():
+    """Review r1 (correctness): a send of side questions only has no raw response; a refused present has a path."""
+    steps = _section(SKILL_MD.read_text("utf-8"), "## An ad-hoc page")
+    for words in ("`btw`", "scripts/page_round.py reply", "`raw_file` is null", "--replace", "round-shown",
+                  "as Markdown in chat"):
+        assert words in steps, words
+
+
+def test_a_private_page_is_never_tracked_and_ends_only_after_track_passed():
+    """Review r1 (correctness): track refuses a private page for good, so the page stays shown."""
+    track = _section(SKILL_MD.read_text("utf-8"), "## Track a page")
+    assert "A private page cannot be tracked" in track
+    assert track.index("A private page cannot be tracked") < track.index("Run `end`") < track.index("page_home.py track")
+
+
+def test_one_term_for_the_json_a_command_prints():
+    """Review r1 (rules): 'answer' is the reply to a note; a command prints its result; the human sends a round."""
+    text = SKILL_MD.read_text("utf-8")
+    head = text[:text.index("## The rules")]
+    assert "Every result is one JSON object" in head
+    for gone in ("Every answer is one JSON object", "answers `doc`", "answers ok", "the answer holds"):
+        assert gone not in head, gone

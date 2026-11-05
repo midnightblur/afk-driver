@@ -706,6 +706,9 @@ MOVED_RULES = (
     "group of notes",
     "State your reading",
     "When\n2 steers",
+    "Fold long text and secondary detail",
+    "A heading states the conclusion",
+    "Never repeat the human's note",
 )
 
 

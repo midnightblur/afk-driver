@@ -15,32 +15,32 @@ A hands-off subagent, such as an autopilot executor, has no human at a page: ope
 
 ## The commands
 
-Run each command from the repository root: `<python> "<this skill's folder>/<command>"`. `<python>` is the Python in the setup install record (line `python`). Every answer is one JSON object: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`; exit 0 is ok, 1 is refused, 2 is unreadable input.
+Run each command from the repository root: `<python> "<this skill's folder>/<command>"`. `<python>` is the Python in the setup install record (line `python`). Every result is one JSON object: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`; exit 0 is ok, 1 is refused, 2 is unreadable input.
 
 | Command | Does |
 |---------|------|
 | `scripts/page_home.py start --topic T [--ticket K] [--private]` | gives a new ad-hoc page its `doc`, `session`, `raw_file` and `home` by the home rule; writes nothing |
-| `scripts/page_home.py track --doc D --ticket K` | moves a page and its side files into the ticket's spec folder; answers `doc` and `moved` |
+| `scripts/page_home.py track --doc D --ticket K` | moves a page and its side files into the ticket's spec folder; its result holds `doc` and `moved` |
 | `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document |
-| `scripts/page_round.py present --doc D [--scan F]...` | checks, renders and shows the round; scans the page and each F (the skill's log) for secrets |
-| `scripts/page_round.py wait --doc D --raw-file F` | waits for the round answer and writes it to F |
+| `scripts/page_round.py present --doc D [--scan F]...` | checks, renders and shows the round; scans the page and each F (a file the skill writes beside the page, such as its log) for secrets |
+| `scripts/page_round.py wait --doc D --raw-file F` | waits for the human's round send and writes it to F |
 | `scripts/page_round.py reply --doc D --reply-file F` | shows the Markdown in F on the page |
-| `scripts/page_round.py ingest --doc D --raw-file F` | reads the answer into the page document |
+| `scripts/page_round.py ingest --doc D --raw-file F` | reads the round send into the page document |
 | `scripts/round_document.py apply-readings --doc D --readings F` | writes the readings of the round pass ([ROUND-PASS.md](ROUND-PASS.md)) |
-| `scripts/page_round.py take-over --doc D` | records that this session took the page over; answers `session`, `round` and `takeovers` |
+| `scripts/page_round.py take-over --doc D` | records that this session took the page over; its result holds `session`, `round` and `takeovers` |
 | `scripts/page_round.py end --doc D` | ends the page session |
 
 ## An ad-hoc page
 
 1. **Topic.** With no topic, ask in chat what the page is about, and open no page. Done when you hold a topic.
-2. **Start.** Run `scripts/page_home.py start --topic "<topic>"`. Add `--ticket` when the work has a ticket. Add `--private` when the content is not for the repository's readers: customer data, personal notes, work context. Done when the answer holds `doc`.
-3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. Done when `present` answers ok and you reported its notices ("After each show").
-4. **Wait.** Run `wait` as a background command the harness tracks; its exit tells you the answer is in `raw_file`. On a harness whose Stop hook waits for the page, end your turn after `present` instead, and write the raw response it hands back to `raw_file`, word for word.
-5. **Answer.** Run `ingest`, read the answer by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with an answer for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
+2. **Start.** Run `scripts/page_home.py start --topic "<topic>"`. Add `--ticket` when the work has a ticket. Add `--private` when the content is not for the repository's readers: customer data, personal notes, work context. Done when the result holds `doc`.
+3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen the round: fix the named field in the round input, and run `build` again with `--replace`. `round-shown`: the human may be answering the round in the browser, so wait for it. On `show`, the page host is not available: show the round as Markdown in chat, with every card id, write the human's reply to `raw_file`, and go to step 5. Done when `present` succeeds and you reported its notices ("After each show").
+4. **Wait.** Run `wait` as a background command the harness tracks; its exit tells you the round send is in `raw_file`. On a harness whose Stop hook waits for the page, end your turn after `present` instead, and write the raw response it hands back to `raw_file`, word for word. When the result lists side questions in `btw`, write one short Markdown answer for each to a reply file and run `scripts/page_round.py reply`. Then go to step 5, or run `wait` again when `raw_file` is null.
+5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with an answer for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
 
 ## After each show
 
-Read the `present` answer and tell the human in chat:
+Read the result of `present` and tell the human in chat:
 
 - `git_state` other than `committed`: git does not track the page. Say where it lives in one line: in the repository but not committed yet (`untracked`), ignored by git (`ignored`), outside the repository (`outside`), or unknown and not scanned (`unknown`).
 - Each entry of `secrets`: the file, the line and the shape, never the value. Ask the human to take it out before a commit. With `secrets_more` above 0, give that count of further hits. The round still shows.
@@ -51,10 +51,11 @@ Read the `present` answer and tell the human in chat:
 
 When the human asks to track the page:
 
-1. Run `end` on the page at its old path.
-2. Run `scripts/page_home.py track --doc D --ticket K`. `needs-ticket`: ask the human which ticket. `private`: say what must come out of the page before it can live in the repository. `move-failed`: run `track` again; it moves the rest.
-3. Commit the files in `moved` on the feature branch; with `moved` empty, the page was in the spec folder already, so commit `doc`.
-4. Run `present` on the new `doc`. Done when the commit exists and `present` answers ok.
+1. A private page cannot be tracked: its content is not for the repository's readers. Say what must come out, and offer a new page, started without `--private`, that holds only what the readers may see. A page with no ticket needs one: ask the human which ticket. Done when the page is not private and you hold its ticket.
+2. Run `end` on the page at its old path.
+3. Run `scripts/page_home.py track --doc D --ticket K`. `move-failed`: run `track` again; it moves the rest. `needs-ticket` or `private`: run `present` on the old `doc`, and go to step 1.
+4. Commit the files in `moved` on the feature branch; with `moved` empty, the page was in the spec folder already, so commit `doc`.
+5. Run `present` on the new `doc`. Done when the commit exists and `present` succeeds.
 
 ## Take over a page
 

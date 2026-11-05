@@ -3,8 +3,9 @@
   present --doc D [--scan F]...   check, render with the notices, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
                                   Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
-                                  scan file (the skill's log), `secrets_more` (the hits past the cap) and
-                                  `scan_cut` (each file scanned only to its first 2 MB); none refuses the round.
+                                  scan file (a file the skill writes beside the page, such as its log),
+                                  `secrets_more` (the hits past the cap) and `scan_cut` (each file scanned only to
+                                  its first 2 MB); none refuses the round.
   wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte, and the host's prompts
                                   to F.prompts.json, for audit. Answers side questions on the page and polls
                                   again; `btw` lists the side questions left to the agent, and `raw_file`
