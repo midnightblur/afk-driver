@@ -159,19 +159,19 @@
           }
         },
         {
-          "id": "i-load",
+          "id": "i-scores",
           "kind": "info",
           "state": "open",
           "body": {
             "type": "text",
-            "props": {"text": "Measured export time per day:"},
+            "props": {"text": "Quality scores of the 5 export checks:"},
             "style": "font-size: 0.9em",
             "children": [
               {
                 "type": "freestyle",
-                "id": "f-load-curve",
-                "props": {"reason": "line chart of a measured value over time"},
-                "html": "<svg viewBox=\"0 0 120 40\" role=\"img\" aria-label=\"export time per day\"><polyline points=\"0,35 30,30 60,18 90,12 120,5\" fill=\"none\" stroke=\"currentColor\"/></svg>"
+                "id": "f-score-radar",
+                "props": {"reason": "radar chart of 5 scores"},
+                "html": "<svg viewBox=\"0 0 40 40\" role=\"img\" aria-label=\"5 quality scores\"><polygon points=\"20,4 36,16 30,36 10,36 4,16\" fill=\"none\" stroke=\"currentColor\"/></svg>"
               }
             ]
           }

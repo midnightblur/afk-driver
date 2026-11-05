@@ -694,9 +694,9 @@ REFUSALS = [
      "props.messages"),
     ("sequence actors malformed", _set(_props("q-export"), "actors", ["user"]), "props.actors"),
     ("run strip lanes", _set(_at("r-export-run"), "props", {}), "props.current"),
-    ("freestyle reason", _set(_at("f-load-curve"), "props", {}), "props.reason"),
-    ("freestyle id", _drop(_at("f-load-curve"), "id"), "id"),
-    ("freestyle html", _drop(_at("f-load-curve"), "html"), "html"),
+    ("freestyle reason", _set(_at("f-score-radar"), "props", {}), "props.reason"),
+    ("freestyle id", _drop(_at("f-score-radar"), "id"), "id"),
+    ("freestyle html", _drop(_at("f-score-radar"), "html"), "html"),
 ]
 
 
@@ -942,6 +942,17 @@ def test_the_fake_refuses_a_chart_with_no_caption():
     frag = {"type": "bars", "props": {"items": [{"label": "a", "value": 1}]}}
     with pytest.raises(Refused, match="caption"):
         check_document(wrap("component", frag))
+
+
+# The forms a chart component draws, as a freestyle reason would name them (D-49).
+CHART_FORM_WORDS = ("line chart", "bar chart", "bullet", "box plot", "range bar", "signed bar", "flame",
+                    "sparkline", "waterfall", "tile")
+
+
+@pytest.mark.parametrize("name,doc", all_documents(), ids=lambda v: v if isinstance(v, str) else "")
+def test_no_freestyle_example_draws_a_form_that_a_chart_component_draws(name, doc):
+    reasons = [c["props"]["reason"].lower() for c in check_document(doc) if c["type"] == "freestyle"]
+    assert not [r for r in reasons for word in CHART_FORM_WORDS if word in r], name
 
 
 def test_fragment_levels_are_known():
