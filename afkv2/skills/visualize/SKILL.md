@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: Authoring guide for page documents (schema afkv2.page/0) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
+description: Authoring guide for page documents (schema afkv2.page/1) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
 ---
 
 # visualize — write a page document

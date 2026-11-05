@@ -52,6 +52,9 @@ CHART_PAGES = {
 CHART_FIELDS = {"tile": {"value", "label", "grade", "source"}, "bars": {"items"}, "line": {"points"},
                 "bullet": {"label", "value", "target", "bands"}, "range": {"items", "means"}, "signed-bars": {"items"},
                 "box-plot": {"items"}, "flame": {"root"}, "sparkline": {"rows"}, "waterfall": {"spans"}}
+# The diagram text, code block and diff components (PRD EG-13, EG-15): the page of each, with its required props.
+TEXT_PAGES = {"diagram": "diagram.md", "code": "code.md", "diff": "diff.md"}
+TEXT_FIELDS = {"diagram": {"caption", "text"}, "code": {"text"}, "diff": {"text"}}
 
 # Recorded fake of the page document v0 contract: SDD §4 field sets, props as the guide states them.
 
@@ -185,6 +188,12 @@ def _check_props(comp, where, ids, last_round):
                 _need(step.get("tone") is None or step["tone"] in TONES, where,
                       f"props.{lane}[{s}].tone")
                 _check_marks(step, f"{where}.props.{lane}[{s}]")
+    elif kind in TEXT_FIELDS:
+        missing = TEXT_FIELDS[kind] - set(props)
+        _need(not missing, where, f"props {sorted(missing)} (required)")
+        _need(all(isinstance(props[field], str) and props[field] for field in TEXT_FIELDS[kind]), where,
+              f"props {sorted(TEXT_FIELDS[kind])} (text)")
+        _need(kind != "diagram" or len(props["caption"]) <= 160, where, "props.caption (1 to 160 characters)")
     elif kind in CHART_FIELDS:
         caption = props.get("caption")
         _need(isinstance(caption, str) and 0 < len(caption) <= 160, where, "props.caption (1 to 160 characters)")
@@ -508,6 +517,11 @@ def _example():
     return json.loads(ALL_COMPONENTS.read_text("utf-8"))
 
 
+def _example_v0():
+    """The format 0 view of the example: the fake's refusal tests and the format 0 ingest tests start from it."""
+    return _format_0_view(_example())
+
+
 def all_documents():
     docs = [("all-components.json", _example())]
     docs += [(f"{name}:{level}", wrap(level, frag)) for name, level, frag in all_fragments()]
@@ -703,7 +717,7 @@ REFUSALS = [
 @pytest.mark.parametrize("mutate, field", [(m, f) for _, m, f in REFUSALS],
                          ids=[name for name, _, _ in REFUSALS])
 def test_fake_refuses_a_broken_document(mutate, field):
-    doc = _example()
+    doc = _example_v0()
     mutate(doc)
     with pytest.raises(Refused, match=re.escape(field)):
         check_document(doc)
@@ -718,20 +732,20 @@ def test_fake_refuses_a_broken_document(mutate, field):
     ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}, []),
 ], ids=["by-note", "by-note-on-a-component", "by-mark"])
 def test_fake_accepts_a_settled_point(state, settled, notes):
-    doc = _example()
+    doc = _example_v0()
     _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=notes)
     check_document(doc)
 
 
 def test_fake_accepts_a_settled_round_and_a_next_round():
-    doc = _next_round(_example())
+    doc = _next_round(_example_v0())
     components = check_document(doc)
     assert any(c.get("props", {}).get("text") == "Carried from i-format." for c in components)
 
 
 def _note_on_an_older_card():
     """The card as the real ingest leaves it; the responses of the round are left out, because only ingest writes them."""
-    doc = _next_round(_example())
+    doc = _next_round(_example_v0())
     item = _at("i-data")(doc)
     del item["settled"]
     item.update(state="open", notes=[{**_note("i-data", 2), "id": "N-2-i-data-1"}])
@@ -744,7 +758,7 @@ def test_fake_accepts_a_note_on_an_older_card():
 
 def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
     doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
-    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    doc.write_text(json.dumps(_next_round(_example_v0())), "utf-8")
     raw.write_text("[round R-2]\ni-data — | Accepts it.", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
                          capture_output=True, text=True, encoding="utf-8", timeout=60,
@@ -909,9 +923,14 @@ def test_every_skill_file_has_agent_skills_frontmatter():
     assert len(meta.get("description", "")) > 40
 
 
+def test_the_frontmatter_names_page_format_1():
+    description = _frontmatter(SKILL_MD)["description"]
+    assert SCHEMA_1 in description and SCHEMA not in description
+
+
 def test_one_entry_per_catalog_component():
     pages = {p.name for p in PAGES_DIR.glob("*.md")}
-    assert pages == set(CATALOG.values()) | set(CHART_PAGES.values())
+    assert pages == set(CATALOG.values()) | set(CHART_PAGES.values()) | set(TEXT_PAGES.values())
     index = SKILL_MD.read_text("utf-8")
     for cmp_id, name in CATALOG.items():
         text = (PAGES_DIR / name).read_text("utf-8")
@@ -946,6 +965,38 @@ def test_the_components_table_has_a_row_for_each_chart_page_and_the_fields_name_
         assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
     fields = index[index.index("takes an open `style` field"):index.index("## Page layout")]
     assert "`tip`" in fields and "300" in fields, "SKILL.md states no component tip beside style and fold (f4)"
+
+
+@pytest.mark.parametrize("kind", sorted(TEXT_PAGES))
+def test_the_diagram_code_and_diff_components_each_have_a_page(kind):
+    name = TEXT_PAGES[kind]
+    text = (PAGES_DIR / name).read_text("utf-8")
+    for section in ENTRY_SECTIONS:
+        assert section in text, f"{name} has no {section!r}"
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert f"Type `{kind}`" in holds
+    for field in sorted(TEXT_FIELDS[kind]):
+        assert f"`{field}`" in holds, field
+    found = fragments(PAGES_DIR / name)
+    assert found and all(level == "component" and frag["type"] == kind for level, frag in found)
+
+
+def test_the_diagram_page_names_each_diagram_text_kind_and_the_text_fallback():
+    text = " ".join((PAGES_DIR / "diagram.md").read_text("utf-8").split())
+    for kind in ("stateDiagram", "erDiagram", "classDiagram", "flowchart", "gantt", "quadrantChart", "sankey",
+                 "mindmap", "treemap", "gitGraph", "xychart"):
+        assert kind in text, kind
+    assert "as text" in text and "/afkv2:setup" not in text
+
+
+def test_the_diff_page_shows_red_minus_and_green_plus():
+    look = _entry_section("diff.md", "## How it looks")
+    assert "red" in look and "green" in look and "`-`" in look and "`+`" in look
+
+
+def test_the_fake_refuses_a_diagram_with_no_caption():
+    with pytest.raises(Refused, match="caption"):
+        check_document(wrap("component", {"type": "diagram", "props": {"text": "flowchart LR; a --> b"}}))
 
 
 def test_the_fake_refuses_a_chart_with_no_caption():
@@ -985,10 +1036,13 @@ def test_every_whole_example_document_carries_the_schema_value():
 
 
 def test_all_components_document_uses_every_component():
+    """Ruling D-50: format 1, with every component, the charts, the diagram text, the code block and the diff included."""
     doc = _example()
+    assert doc["schema"] == SCHEMA_1
     components = check_document(doc)
     types = {c["type"] for c in components}
-    assert types >= {"map", "graph", "table", "sequence", "run-strip", "chip", "text", "freestyle"}
+    assert types >= {"map", "graph", "table", "sequence", "run-strip", "chip", "text", "freestyle",
+                     *CHART_FIELDS, *TEXT_FIELDS}
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     assert any(current["banner"].values()), "round banner is empty"
     assert current.get("replies"), "no agent reply"

@@ -1,11 +1,13 @@
 {
-  "schema": "afkv2.page/0",
+  "schema": "afkv2.page/1",
   "session": {
     "id": "s-example",
     "skill": "propose-solution",
     "feature": "order-export",
     "ticket": "PROJ-123",
-    "started": "2026-01-05T09:00:00Z"
+    "started": "2026-01-05T09:00:00Z",
+    "short_title": "Order export",
+    "step": "Solution design"
   },
   "maps": [
     {
@@ -38,8 +40,9 @@
       },
       "replies": [
         {
+          "id": "A-1-1",
           "text": "Read the requirements as: the export stays per order. This round asks the three design points that follow from it.",
-          "about": ["i-data", "i-flow", "i-format"]
+          "changed": ["i-data", "i-flow", "i-format"]
         }
       ],
       "items": [
@@ -63,10 +66,7 @@
                     {"id": "g-service", "label": "order service", "group": "core"},
                     {"id": "g-store", "label": "order store", "group": "core"}
                   ],
-                  "edges": [
-                    {"from": "g-controller", "to": "g-service"},
-                    {"from": "g-service", "to": "g-store"}
-                  ]
+                  "edges": [{"from": "g-controller", "to": "g-service"}, {"from": "g-service", "to": "g-store"}]
                 }
               },
               {
@@ -119,11 +119,7 @@
                 "type": "run-strip",
                 "id": "r-export-run",
                 "props": {
-                  "current": [
-                    {"label": "read orders"},
-                    {"label": "write file"},
-                    {"label": "email file", "tone": "removed"}
-                  ],
+                  "current": [{"label": "read orders"}, {"label": "write file"}, {"label": "email file", "tone": "removed"}],
                   "proposed": [
                     {"label": "read orders", "tone": "kept"},
                     {"label": "write file", "tone": "kept"},
@@ -149,10 +145,20 @@
                 "id": "i-format-options",
                 "props": {
                   "columns": ["A — CSV", "B — JSON lines"],
-                  "rows": [[
-                    {"type": "text", "id": "i-format-opt-a", "props": {"text": "Opens in a spreadsheet; flat rows only."}},
-                    {"type": "text", "id": "i-format-opt-b", "props": {"text": "Keeps nested fields; needs a reader tool."}}
-                  ]]
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-format-opt-a",
+                        "props": {"text": "Opens in a spreadsheet; flat rows only."}
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-format-opt-b",
+                        "props": {"text": "Keeps nested fields; needs a reader tool."}
+                      }
+                    ]
+                  ]
                 }
               }
             ]
@@ -177,14 +183,194 @@
           }
         },
         {
+          "id": "i-measures",
+          "kind": "info",
+          "title": "What the export costs today",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "The measures of the export, before and after the cache:"},
+            "children": [
+              {
+                "type": "tile",
+                "id": "k-export-time",
+                "props": {
+                  "caption": "Export time halved after the cache",
+                  "value": 1240,
+                  "unit": "ms",
+                  "low": 900,
+                  "high": 1500,
+                  "label": "export time",
+                  "grade": "estimated",
+                  "source": "3 runs on the staging host"
+                }
+              },
+              {
+                "type": "bars",
+                "id": "k-rows",
+                "props": {
+                  "caption": "Returns hold most of the rows",
+                  "unit": "rows",
+                  "items": [
+                    {"label": "orders", "value": 120},
+                    {"label": "returns", "value": 340},
+                    {"label": "refunds", "value": 15}
+                  ]
+                }
+              },
+              {
+                "type": "line",
+                "id": "k-trend",
+                "props": {
+                  "caption": "Export time fell below the 1 s target in week 3",
+                  "unit": "ms",
+                  "target": 1000,
+                  "points": [
+                    {"at": "2026-10-01", "value": 2400},
+                    {"at": "2026-10-08", "value": 2100},
+                    {"at": "2026-10-15", "value": 900},
+                    {"at": "2026-10-22", "value": 870}
+                  ]
+                }
+              },
+              {
+                "type": "bullet",
+                "id": "k-coverage",
+                "props": {
+                  "caption": "Coverage is fair, 8 points under the target",
+                  "label": "test coverage",
+                  "value": 72,
+                  "target": 80,
+                  "unit": "%",
+                  "bands": [{"upto": 50, "label": "poor"}, {"upto": 75, "label": "fair"}, {"upto": 100, "label": "good"}]
+                }
+              },
+              {
+                "type": "range",
+                "id": "k-estimates",
+                "props": {
+                  "caption": "The rework can take up to 9 days",
+                  "unit": "days",
+                  "means": "9 in 10 such tasks end between low and high",
+                  "items": [
+                    {"label": "export rework", "low": 3, "likely": 5, "high": 9},
+                    {"label": "cache", "low": 1, "likely": 2, "high": 3}
+                  ]
+                }
+              },
+              {
+                "type": "signed-bars",
+                "id": "k-change",
+                "props": {
+                  "caption": "Only import got slower",
+                  "unit": "ms",
+                  "below": "faster",
+                  "above": "slower",
+                  "items": [
+                    {"label": "export", "value": -420},
+                    {"label": "import", "value": 130},
+                    {"label": "search", "value": 0}
+                  ]
+                }
+              },
+              {
+                "type": "box-plot",
+                "id": "k-spread",
+                "props": {
+                  "caption": "The tail shrank more than the median",
+                  "unit": "ms",
+                  "items": [
+                    {"label": "before", "min": 20, "q1": 80, "median": 120, "q3": 300, "max": 900},
+                    {"label": "after", "min": 15, "q1": 40, "median": 60, "q3": 110, "max": 400}
+                  ]
+                }
+              },
+              {
+                "type": "flame",
+                "id": "k-profile",
+                "props": {
+                  "caption": "The sql query takes most of the export",
+                  "unit": "ms",
+                  "root": {
+                    "name": "export job",
+                    "value": 1000,
+                    "children": [
+                      {"name": "read orders", "value": 600, "children": [{"name": "sql query", "value": 550}]},
+                      {"name": "write file", "value": 300}
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "sparkline",
+                "id": "k-health",
+                "props": {
+                  "caption": "Both measures improved in the last release",
+                  "rows": [
+                    {"label": "export time", "values": [2400, 2100, 1300, 1240], "unit": "ms"},
+                    {"label": "error rate", "values": [2, 3, 1, 0.5], "unit": "%"}
+                  ]
+                }
+              },
+              {
+                "type": "waterfall",
+                "id": "k-spans",
+                "props": {
+                  "caption": "Reading orders takes most of the request",
+                  "unit": "ms",
+                  "spans": [
+                    {"id": "s-api", "label": "export endpoint", "start": 0, "duration": 900},
+                    {"id": "s-auth", "label": "check access", "start": 10, "duration": 60, "parent": "s-api"},
+                    {"id": "s-read", "label": "read orders", "start": 80, "duration": 700, "parent": "s-api"}
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-change",
+          "kind": "info",
+          "title": "Only paid orders are exported",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {"text": "The order states, the export code and the change to it:"},
+            "children": [
+              {
+                "type": "diagram",
+                "id": "d-order-states",
+                "props": {
+                  "caption": "An order is exported only from the paid state",
+                  "text": "stateDiagram-v2\n  [*] --> open\n  open --> paid: pay\n  paid --> exported: export\n  open --> cancelled: cancel"
+                }
+              },
+              {
+                "type": "code",
+                "id": "c-export",
+                "props": {
+                  "path": "shop/export.py",
+                  "line": 10,
+                  "language": "python",
+                  "text": "def export(orders):\n    rows = []\n    for o in orders:\n        rows.append(o)\n    return rows\n"
+                }
+              },
+              {
+                "type": "diff",
+                "id": "x-export-paid",
+                "props": {
+                  "text": "--- a/shop/export.py\n+++ b/shop/export.py\n@@ -11,3 +11,3 @@ def export(orders):\n     rows = []\n-    for o in orders:\n+    for o in paid(orders):\n         rows.append(o)\n"
+                }
+              }
+            ]
+          }
+        },
+        {
           "id": "i-export",
           "kind": "info",
           "node": "n-export",
           "state": "open",
-          "body": {
-            "type": "text",
-            "props": {"text": "Settled in the requirements: one export file per order."}
-          }
+          "body": {"type": "text", "props": {"text": "Settled in the requirements: one export file per order."}}
         }
       ]
     }
