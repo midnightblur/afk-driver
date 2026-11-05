@@ -17,6 +17,14 @@
   var legacy = !document.getElementById('afkv2-page-tip-source');
   var keys, re;
   var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  function folded(map) {
+    var result = {};
+    Object.keys(map).forEach(function (key) {
+      if (key === key.toLowerCase()) result[key.replace(/\u03c2/g, '\u03c3')] = map[key];
+    });
+    return result;
+  }
+  var pageTermFolded = folded(pageTerms), dictFolded = folded(dict);
   function rebuild() {
     keys = Array.from(new Set(Object.keys(dict).concat(Object.keys(pageTerms), Object.keys(pageIds))))
       .sort(function (a, b) { return b.length - a.length; });
@@ -31,7 +39,10 @@
     var exact = own(map, s);
     if (exact !== null) return exact;
     var lower = s.toLowerCase();
-    return own(map, lower);
+    var tip = own(map, lower);
+    if (tip !== null) return tip;
+    var aliases = map === pageTerms ? pageTermFolded : dictFolded;
+    return own(aliases, lower.replace(/\u03c2/g, '\u03c3'));
   }
   // The wrap regex admits a plural tail; resolve "MRs"/"classes" to their
   // singular key under the same case rules.

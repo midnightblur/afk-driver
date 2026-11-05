@@ -42,6 +42,10 @@ def test_page_term_case_plural_and_shared_precedence(text):
     assert resolve(text, terms={"queue": "Page"}, shared={"queues": "Shared plural"}) == "Page"
 
 
+def test_page_term_unicode_case_alias():
+    assert resolve("Σ", terms={"ς": "Final sigma"}) == "Final sigma"
+
+
 def test_legacy_case_plural_and_unknown():
     assert resolve("MRs", shared={"MR": "Merge request"}) == "Merge request"
     assert resolve("mrs", shared={"MR": "Merge request"}) is None
