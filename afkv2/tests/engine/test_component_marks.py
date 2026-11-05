@@ -142,8 +142,8 @@ def _sequence(**marks):
 
 PARTS = {"graph node": _graph, "map node": _map, "run-strip step": _run, "sequence message": _sequence}
 MARKED = {
-    "graph node": r'<div class="afkv2-box[^"]*"[^>]*>(?:(?!</div>).)*export endpoint',
-    "map node": r'<div class="afkv2-box[^"]*"[^>]*data-afkv2-element="n-a"',
+    "graph node": r'<div class="afkv2-box(?: [^"]*)?"[^>]*>(?:(?!</div>).)*export endpoint',
+    "map node": r'<div class="afkv2-box(?: [^"]*)?"[^>]*data-afkv2-element="n-a"[^>]*>',
     "run-strip step": r'<li class="afkv2-run-step[^"]*"[^>]*>(?:(?!</li>).)*press export',
     "sequence message": r'<div class="afkv2-seq-msg[^"]*"[^>]*>(?:(?!afkv2-seq-line).)*start export',
 }
@@ -166,7 +166,7 @@ def test_a_part_marked_you_shows_the_you_mark(name):
 
 
 def test_the_you_mark_reads_you_in_the_kit():
-    assert 'content: "YOU"' in rule(f".{YOU}::after")
+    assert 'content: "YOU"' in rule(f".{YOU}::before")
 
 
 @pytest.mark.parametrize("name", PARTS)

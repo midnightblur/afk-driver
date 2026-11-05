@@ -1,6 +1,7 @@
 """Sequence diagram (CMP-7): actors and ordered messages, drawn on a grid with one column per actor.
-A message may carry a tone, removed, kept or new, drawn with its word."""
+A message may carry a tone, removed, kept or new, drawn with its word, a tip and a YOU mark."""
 
+from components.diagram_marks import MARK_FIELDS, marks
 from registry import register_component
 from shell.diagram_parts import LABEL, TEXT, TITLE, figure, held_in, label_html, repeated_ids, unknown_ends
 
@@ -24,9 +25,10 @@ def _message(n, message, columns):
     way = "self" if start == end else "right" if start < end else "left"
     margin = "" if start == end else f";margin-inline:calc(100% / {2 * span})"
     tone = message.get("tone")
-    css = f"afkv2-seq-msg afkv2-seq-msg--{way}" + (f" afkv2-tone--{tone}" if tone else "")
+    extra, attrs = marks(message)
+    css = f"afkv2-seq-msg afkv2-seq-msg--{way}" + (f" afkv2-tone--{tone}" if tone else "") + extra
     word = f' <span class="afkv2-seq-tone">{tone}</span>' if tone else ""
-    return (f'<div class="{css}" style="grid-column:{low} / {high + 1};grid-row:{n + 1}{margin}">'
+    return (f'<div class="{css}"{attrs} style="grid-column:{low} / {high + 1};grid-row:{n + 1}{margin}">'
             f'<div class="afkv2-seq-text"><span class="afkv2-seq-n">{n}.</span> '
             f'{label_html(message["text"], "afkv2-seq-words")}{word}</div><div class="afkv2-seq-line"></div></div>')
 
@@ -57,6 +59,6 @@ register_component("sequence", {
             "properties": {"id": TEXT, "label": LABEL}}},
         "messages": {"type": "array", "minItems": 1, "items": {
             "type": "object", "additionalProperties": False, "required": ["from", "to", "text"],
-            "properties": {"from": TEXT, "to": TEXT, "text": LABEL, "tone": {"enum": MESSAGE_TONES}}}},
+            "properties": {"from": TEXT, "to": TEXT, "text": LABEL, "tone": {"enum": MESSAGE_TONES}, **MARK_FIELDS}}},
     },
 }, render_sequence, nested=nested_labels, check=check_sequence)

@@ -287,6 +287,16 @@ body > #afkv2-back {
 .afkv2-seq-tone { margin-left: .35em; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
 .afkv2-seq-msg.afkv2-tone--removed .afkv2-seq-line { border-top-style: dashed; border-top-color: var(--blocked); }
 .afkv2-seq-msg.afkv2-tone--new .afkv2-seq-line { border-top-color: var(--accent); }
+/* A human act on a diagram part: a YOU badge in the YOU colour at the top right. A part with a tip shows it on hover. */
+.afkv2-you { position: relative; }
+.afkv2-you::before {
+  content: "YOU"; position: absolute; top: -.55rem; right: .35rem; padding: 0 .3rem; border-radius: 3px;
+  background: var(--afkv2-you); color: var(--bg); font: 700 .62rem/1.3 system-ui, sans-serif; letter-spacing: .05em;
+}
+.afkv2-box.afkv2-you, .afkv2-run-step.afkv2-you { border-color: var(--afkv2-you); }
+.afkv2-box.afkv2-you { position: absolute; }
+.afkv2-box.afkv2-you::before { top: 2px; right: 2px; }
+[data-afkv2-tip]:not(.afkv2-tip) { cursor: help; }
 
 /* --- points: one card per point, its notes on top, its history folded --- */
 

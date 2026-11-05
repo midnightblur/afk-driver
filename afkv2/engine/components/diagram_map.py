@@ -7,6 +7,7 @@ the groups: "<part> settles before <part>".
 
 from html import escape
 
+from components.diagram_marks import MARK_FIELDS, marks
 from registry import register_component
 from shell.diagram_boxes import boxes_schema, check_boxes, draw_boxes, nested_labels
 from shell.diagram_parts import figure
@@ -19,7 +20,9 @@ def _node_parts(node):
     state = node["state"]
     above = (f'<span class="afkv2-node-head"><span class="afkv2-node-state">{STATE_WORDS[state]}</span> '
              f'<span class="afkv2-node-round">R-{node["round"]}</span></span>')
-    return f"afkv2-node--{state}", f' id="{escape(node["id"])}" data-afkv2-element="{escape(node["id"])}"', above
+    css, attrs = marks(node)
+    return (f"afkv2-node--{state}{css}", f' id="{escape(node["id"])}" data-afkv2-element="{escape(node["id"])}"{attrs}',
+            above)
 
 
 def _bands(props):
@@ -59,6 +62,7 @@ def render_map(props, children):
     return figure(props, f'<div class="afkv2-map-groups">{canvases}</div>{_order(props, crossing)}', children)
 
 
-register_component("map", boxes_schema({"state": {"enum": list(STATE_WORDS)}, "round": {"type": "integer", "minimum": 1}},
+register_component("map", boxes_schema({"state": {"enum": list(STATE_WORDS)}, "round": {"type": "integer", "minimum": 1},
+                                        **MARK_FIELDS},
                                        ["state", "round"]),
                    render_map, nested=nested_labels, check=check_boxes)
