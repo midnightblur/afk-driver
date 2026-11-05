@@ -45,6 +45,7 @@ Read the result of `present` and tell the human in chat:
 - `git_state` other than `committed`: git does not track the page. Say where it lives in one line: in the repository but not committed yet (`untracked`), ignored by git (`ignored`), outside the repository (`outside`), or unknown and not scanned (`unknown`).
 - Each entry of `secrets`: the file, the line and the shape, never the value. Ask the human to take it out before a commit. With `secrets_more` above 0, give that count of further hits. The round still shows.
 - Each file in `scan_cut`: the scan read only its first 2 MB.
+- `diagrams` with `as_text` above 0: give the counts rendered, cached and as text in one line, and the reason that the page states under each diagram it shows as text.
 - Content with no known shape (customer data, personal notes, work context) on a page in the repository: warn the human, and offer to take it out.
 
 ## Track a page

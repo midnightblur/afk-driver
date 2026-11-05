@@ -459,6 +459,14 @@ def test_the_notices_reach_chat_and_track_moves_the_page():
         assert word in track, word
 
 
+def test_the_diagram_counts_reach_chat_when_a_diagram_shows_as_text():
+    """Ruling D-52: present answers `diagrams`; this line is its reader."""
+    shown = _section(SKILL_MD.read_text("utf-8"), "## After each show")
+    line = next((row for row in shown.splitlines() if "`diagrams`" in row), "")
+    for word in ("as_text", "rendered", "cached", "reason"):
+        assert word in line, word
+
+
 def test_a_resuming_session_takes_the_page_over():
     """PRD AC-054; SDD §7 "Take over a page"; SDD §14 row "Log rows of a takeover"."""
     steps = _section(SKILL_MD.read_text("utf-8"), "## Take over a page")
