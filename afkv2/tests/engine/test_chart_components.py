@@ -29,6 +29,9 @@ CHARTS = {
     "bars": {"caption": CAPTION, "unit": "rows", "items": [{"label": "orders", "value": 120},
                                                           {"label": "returns", "value": 340},
                                                           {"label": "refunds", "value": 15}]},
+    "line": {"caption": CAPTION, "unit": "ms", "target": 1000,
+             "points": [{"at": "2026-10-01", "value": 2400}, {"at": "2026-10-08", "value": 2100},
+                        {"at": "2026-10-15", "value": 1300}, {"at": "2026-10-22", "value": 1240}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
@@ -38,6 +41,9 @@ BAD = {
              ({"items": [{"label": f"r{k}", "value": k} for k in range(41)]}, "items"),
              ({"split": True, "items": [{"label": "a", "value": 0}]}, "items"),
              ({"items": [{"label": "a", "value": 1, "colour": "red"}]}, "items")],
+    "line": [({"points": [{"at": "d1", "value": 1}]}, "points"), ({"points": [{"at": "", "value": 1}] * 2}, "points"),
+             ({"points": [{"at": "d", "value": "1"}] * 2}, "points"), ({"target": float("inf")}, "target"),
+             ({"points": [{"at": "d", "value": 1}] * 401}, "points")],
 }
 NAMES = sorted(CHARTS)
 
@@ -163,3 +169,28 @@ def test_bars_of_a_share_draw_one_split_bar_with_a_numbered_key_not_a_pie():
     written = words(html)
     assert "1. returns: 340 rows, 72%" in written and "3. refunds: 15 rows, 3%" in written
     assert all(f"var(--afkv2-set-{k})" in html for k in (1, 2, 3))
+
+
+# --- line (K-03) ---
+
+POLYLINE = re.compile(r'<polyline points="([^"]*)"')
+
+
+def _line_points(html):
+    return [tuple(float(n) for n in pair.split(",")) for pair in POLYLINE.search(html).group(1).split()]
+
+
+def test_a_line_joins_dated_points_and_labels_the_latest_value():
+    html = drawn("line")
+    written = words(html)
+    assert "latest 1,240 ms" in written and "2026-10-01" in written and "2026-10-22" in written
+    points = _line_points(html)
+    assert len(points) == 4 and [x for x, _ in points] == sorted(x for x, _ in points)
+    assert points[0][1] < points[-1][1], "the higher value sits higher"
+
+
+def test_a_line_draws_its_target_as_a_labelled_dashed_line_only_when_one_exists():
+    assert "target 1,000 ms" in words(drawn("line")) and "stroke-dasharray" in drawn("line")
+    props = {k: v for k, v in CHARTS["line"].items() if k != "target"}
+    html = registry.render_component({"type": "line", "props": props})
+    assert "stroke-dasharray" not in html and not any(w.startswith("target") for w in words(html))
