@@ -61,6 +61,9 @@ NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
 COMPONENT_FIELDS = {"type", "id", "props", "style", "fold", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
+# A chip also takes the state and certainty tones; a sequence message takes 3 tones (SDD §4 "Other parts").
+STATE_TONES = {"open", "blocked", "settled", "measured", "inferred", "estimated", "unverified", "you"}
+MESSAGE_TONES = {"removed", "kept", "new"}
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 
 
@@ -94,6 +97,13 @@ def _ids(value, where, field):
     return {o["id"] for o in objs}
 
 
+def _check_marks(part, where):
+    """The tip and you of a graph node, map node, run-strip step or sequence message."""
+    tip = part.get("tip")
+    _need(tip is None or (isinstance(tip, str) and 0 < len(tip) <= 300), where, "tip (1 to 300 characters)")
+    _need(isinstance(part.get("you", False), bool), where, "you (true or false)")
+
+
 def _check_graph(kind, props, where, ids, last_round):
     nodes = _objects(props.get("nodes"), where, "props.nodes")
     _need(nodes, where, "props.nodes")
@@ -111,6 +121,7 @@ def _check_graph(kind, props, where, ids, last_round):
             ids.add(node["id"])
         _need(node.get("group") is None or node["group"] in groups, where,
               f"props.nodes[{n}].group")
+        _check_marks(node, f"{where}.props.nodes[{n}]")
         node_ids.add(node["id"])
     for e, edge in enumerate(_objects(props.get("edges", []), where, "props.edges")):
         _need(edge.get("from") in node_ids and edge.get("to") in node_ids, where,
@@ -130,8 +141,8 @@ def _check_props(comp, where, ids, last_round):
     if kind in ("chip", "text"):
         _need(isinstance(props.get("text"), str), where, "props.text")
         tone = props.get("tone")
-        _need(tone is None or tone in TONES, where, "props.tone")
-        _need(kind == "text" or tone in TONES, where, "props.tone")
+        _need(tone is None or tone in TONES or (kind == "chip" and tone in STATE_TONES), where, "props.tone")
+        _need(kind == "text" or tone is not None, where, "props.tone")
         _need(isinstance(props.get("markdown", False), bool), where, "props.markdown")
     elif kind == "table":
         cols = props.get("columns")
@@ -154,6 +165,8 @@ def _check_props(comp, where, ids, last_round):
             _need(msg.get("from") in actors and msg.get("to") in actors, where,
                   f"props.messages[{m}]")
             _need(isinstance(msg.get("text"), str), where, f"props.messages[{m}].text")
+            _need(msg.get("tone") is None or msg["tone"] in MESSAGE_TONES, where, f"props.messages[{m}].tone")
+            _check_marks(msg, f"{where}.props.messages[{m}]")
     elif kind == "run-strip":
         lanes = [k for k in ("current", "proposed") if k in props]
         _need(lanes, where, "props.current or props.proposed")
@@ -162,6 +175,7 @@ def _check_props(comp, where, ids, last_round):
                 _need(isinstance(step.get("label"), str), where, f"props.{lane}[{s}].label")
                 _need(step.get("tone") is None or step["tone"] in TONES, where,
                       f"props.{lane}[{s}].tone")
+                _check_marks(step, f"{where}.props.{lane}[{s}]")
     else:
         raise Refused(f"{where}: unknown type {kind!r}")
 
@@ -755,6 +769,46 @@ def test_the_notes_page_holds_the_answer_of_format_1():
     assert "`about` is read on format 0 pages only" in holds
     found = fragments(PAGES_DIR / "notes-and-replies.md")
     assert [(level, set(frag)) for level, frag in found] == [("answer", {"text", "notes", "changed"})]
+
+
+# Each component page states the format 1 marks: the fields, how they look, when to use them (SDD §8 row "visualize").
+PART_PAGES = ("graph.md", "map.md", "run-strip.md", "sequence.md")
+
+
+@pytest.mark.parametrize("name", PART_PAGES)
+def test_a_part_page_states_tip_and_you(name):
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert "`tip`" in holds and "`you`" in holds and "300 characters" in holds
+    assert "YOU" in _entry_section(name, "## How it looks")
+    use = _entry_section(name, "## Use it when")
+    assert "`you`" in use and "`tip`" in use
+    marked = [frag for level, frag in fragments(PAGES_DIR / name)]
+    assert any('"you": true' in json.dumps(frag) and '"tip":' in json.dumps(frag) for frag in marked)
+
+
+def test_the_sequence_page_states_the_message_tone():
+    holds = " ".join(_entry_section("sequence.md", "## Holds").split())
+    assert "`tone` (`removed`, `kept` or `new`)" in holds
+    assert "tone" in _entry_section("sequence.md", "## How it looks")
+    assert any('"tone": "removed"' in json.dumps(frag) for _, frag in fragments(PAGES_DIR / "sequence.md"))
+
+
+def test_the_chip_page_states_each_state_and_certainty_tone():
+    holds = _entry_section("chip-and-text.md", "## Holds")
+    for tone in sorted(STATE_TONES):
+        assert re.search(rf"^\| `{tone}` \| [^|]+ \| [^|]+ \|$", holds, re.M), tone
+    assert "symbol" in _entry_section("chip-and-text.md", "## How it looks")
+    assert "certainty" in _entry_section("chip-and-text.md", "## Use it when")
+    used = {frag_tone for _, frag in fragments(PAGES_DIR / "chip-and-text.md")
+            for frag_tone in re.findall(r'"tone": "(\w+)"', json.dumps(frag))}
+    assert used & STATE_TONES
+
+
+def test_the_page_layout_states_the_session_table_of_every_note():
+    """Ruling D-39: the session notes table holds every note, card notes included, with per-round folds."""
+    layout = " ".join(SKILL_MD.read_text("utf-8").split("## Page layout\n", 1)[1].split("\n## ", 1)[0].split())
+    assert "every note of the session, card notes included" in layout and "one fold per round" in layout
+    assert "stand on no card" not in layout
 
 
 def _frontmatter(path):
