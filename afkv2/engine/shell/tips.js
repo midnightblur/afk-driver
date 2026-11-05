@@ -2,7 +2,6 @@
   var DICT_ID = 'afkv2-tips-dict';
   var el = document.getElementById(DICT_ID);
   var dict; try { dict = JSON.parse(el.textContent); } catch (e) { return; }
-  if (!Object.keys(dict).length) return;
   var ciMap = {}, keys, re;
   var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
   function rebuild() {
@@ -28,7 +27,9 @@
     return tip;
   }
 
+  // An empty dictionary wraps nothing; authored tips (data-afkv2-tip) still show on hover.
   function wrap(root) {
+    if (!keys.length) return;
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
         if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
