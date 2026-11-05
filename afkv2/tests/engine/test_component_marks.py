@@ -255,6 +255,12 @@ def test_a_component_refuses_a_tip_over_300_characters():
     assert registry.validate({"type": "chip", "tip": "t" * 301, "props": {"text": "x", "tone": "new"}}) != []
 
 
+def test_a_component_refuses_an_empty_tip():
+    """Ruling D-47: a component tip holds 1 to 300 characters, as a diagram part's tip does."""
+    assert registry.validate({"type": "chip", "tip": "", "props": {"text": "x", "tone": "new"}}) != []
+    assert registry.validate({"type": "chip", "tip": "t", "props": {"text": "x", "tone": "new"}}) == []
+
+
 # --- a value chip: its word and its colour from the document's named set (AC-028, PR-07) ---
 
 RISK = {"values": ["high", "medium", "low"], "ordered": True}

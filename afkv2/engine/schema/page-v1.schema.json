@@ -179,7 +179,7 @@
         "props": {"type": ["object", "null"]},
         "style": {"type": ["string", "null"]},
         "fold": {"type": ["string", "null"], "minLength": 1},
-        "tip": {"description": "300 characters at most.", "type": ["string", "null"], "maxLength": 300},
+        "tip": {"description": "1 to 300 characters.", "type": ["string", "null"], "minLength": 1, "maxLength": 300},
         "children": {"type": ["array", "null"], "items": {"$ref": "#/$defs/component"}},
         "html": {"type": "string"}
       }
