@@ -4,6 +4,7 @@ carries a 1-line caption, writes its numbers as text, and refuses props outside 
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ sys.path.insert(0, str(ENGINE_DIR))
 
 import engine  # noqa: E402
 import registry  # noqa: E402
+from shell import inject, page  # noqa: E402
 
 KIT = (ENGINE_DIR / "shell" / "kit.css").read_text(encoding="utf-8")
 DARK, LIGHT = KIT.split(':root[data-theme="light"] {', 1)
@@ -385,3 +387,43 @@ def test_a_waterfall_indents_a_step_under_its_parent():
     html = drawn("waterfall")
     xs = {w: float(x) for x, w in re.findall(r'<text x="([\d.]+)" [^>]*>([^<]*)</text>', html)}
     assert xs["\u25c6 export endpoint"] < xs["check access"] < xs["\u25c6 sql query"]
+
+
+# --- render time (SDD §10 row "Render time") ---
+
+PAGE_BYTES, RENDER_LIMIT = 1_000_000, 2.0
+
+
+def _big_page():
+    """A made-up page of at least 1 MB with no diagram text: cards of text, tables and every chart."""
+    cards, k = [], 0
+    while True:
+        k += 1
+        body = {"type": "text", "id": f"t-{k}", "props": {"text": f"Point {k}. " + "The export reads orders. " * 30},
+                "children": [{"type": "table", "props": {"columns": ["Field", "Value"],
+                                                         "rows": [[f"field {r}", f"value {r}"] for r in range(8)]}},
+                             *({**chart(name), "id": f"c-{k}-{name}"} for name in NAMES)]}
+        cards.append({"id": f"i-{k}", "kind": "info", "title": f"Point {k}", "body": body})
+        doc = {"schema": "afkv2.page/1",
+               "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                           "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+               "maps": [], "notes": [],
+               "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                           "items": cards}]}
+        text = json.dumps(doc)
+        if len(text) >= PAGE_BYTES:
+            return text
+
+
+def test_a_1_mb_page_with_no_new_diagram_renders_in_2_seconds_at_most(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    document = tmp_path / "grill-s1.json"
+    document.write_text(_big_page(), "utf-8")
+    best = None
+    for _ in range(2):
+        began = time.perf_counter()
+        doc, _ = engine.check_document(str(document))
+        html = inject.inject(page.build(doc), inject.load_dictionary(tmp_path / "grill-s1.html"))
+        spent = time.perf_counter() - began
+        best = spent if best is None else min(best, spent)
+    assert html.count("<svg") >= len(NAMES) and best <= RENDER_LIMIT, f"{best:.2f} s"
