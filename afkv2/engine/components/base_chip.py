@@ -1,5 +1,6 @@
 """Chip and styled text (CMP-9), with the 4 semantic tones. Text may render a safe Markdown subset,
-and may carry a label line with a badge above its words."""
+and may carry a label line with a badge above its words. A chip also takes a tone of state or certainty,
+drawn with its own symbol beside its colour (PR-07: never colour alone)."""
 
 import re
 from html import escape
@@ -7,6 +8,9 @@ from html import escape
 from registry import register_component
 
 TONES = ["removed", "kept", "new", "proposed"]
+MARKS = {"open": "○", "blocked": "✕", "settled": "✓", "measured": "●",
+         "inferred": "◐", "estimated": "≈", "unverified": "?", "you": "★"}
+CHIP_TONES = TONES + list(MARKS)
 LIST_ITEM = re.compile(r"\s*[-*] (.*)")
 HEADING = re.compile(r"#{1,6}\s+(.*)")
 CODE = re.compile(r"`([^`]+)`")
@@ -69,7 +73,9 @@ def markdown(text):
 
 
 def render_chip(props, children):
-    return (f'<span class="afkv2-chip afkv2-tone--{props["tone"]}">{escape(props["text"])}</span>'
+    tone = props["tone"]
+    mark = f'<span class="afkv2-chip-mark" aria-hidden="true">{MARKS[tone]}</span>' if tone in MARKS else ""
+    return (f'<span class="afkv2-chip afkv2-tone--{tone}">{mark}{escape(props["text"])}</span>'
             + "".join(children))
 
 
@@ -94,7 +100,7 @@ def render_text(props, children):
 
 register_component("chip", {
     "type": "object", "additionalProperties": False, "required": ["text", "tone"],
-    "properties": {"text": {"type": "string"}, "tone": {"enum": TONES}},
+    "properties": {"text": {"type": "string"}, "tone": {"enum": CHIP_TONES}},
 }, render_chip, inline=True)
 
 register_component("text", {

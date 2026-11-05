@@ -15,6 +15,17 @@
   --neutral: #94a3b8;
   --accent: #7dd3fc;
   --focus: #7dd3fc;
+  /* YOU: one fixed strong colour; a value set colours by position, an ordered set from --afkv2-scale. */
+  --afkv2-you: #f472b6;
+  --afkv2-scale: #a78bfa;
+  --afkv2-set-1: #60a5fa;
+  --afkv2-set-2: #34d399;
+  --afkv2-set-3: #fbbf24;
+  --afkv2-set-4: #f87171;
+  --afkv2-set-5: #a78bfa;
+  --afkv2-set-6: #22d3ee;
+  --afkv2-set-7: #fb923c;
+  --afkv2-set-8: #a3e635;
 }
 
 :root[data-theme="light"] {
@@ -31,6 +42,16 @@
   --neutral: #52606d;
   --accent: #0369a1;
   --focus: #0369a1;
+  --afkv2-you: #be185d;
+  --afkv2-scale: #6d28d9;
+  --afkv2-set-1: #1d4ed8;
+  --afkv2-set-2: #047857;
+  --afkv2-set-3: #b45309;
+  --afkv2-set-4: #b91c1c;
+  --afkv2-set-5: #6d28d9;
+  --afkv2-set-6: #0e7490;
+  --afkv2-set-7: #c2410c;
+  --afkv2-set-8: #4d7c0f;
 }
 
 * { box-sizing: border-box; }
@@ -252,6 +273,16 @@ body > #afkv2-back {
 .afkv2-tone--proposed { color: var(--fg); }
 .afkv2-chip.afkv2-tone--proposed { border-style: dashed; }
 .afkv2-text.afkv2-tone--proposed { border: 1px dashed var(--line); border-radius: 4px; padding: .25rem .5rem; }
+/* State and certainty tones: a chip only; each has its own colour, border and symbol (afkv2-chip-mark). */
+.afkv2-chip-mark { margin-right: .3em; font-weight: 700; }
+.afkv2-chip.afkv2-tone--open { color: var(--open); border-color: var(--open); }
+.afkv2-chip.afkv2-tone--blocked { color: var(--blocked); border-color: var(--blocked); background: var(--surface-2); }
+.afkv2-chip.afkv2-tone--settled { color: var(--settled); border-color: var(--settled); }
+.afkv2-chip.afkv2-tone--measured { color: var(--accent); border-color: var(--accent); }
+.afkv2-chip.afkv2-tone--inferred { color: var(--fg); border-style: dashed; border-color: var(--accent); }
+.afkv2-chip.afkv2-tone--estimated { color: var(--fg); border-style: dotted; border-color: var(--neutral); }
+.afkv2-chip.afkv2-tone--unverified { color: var(--open); border-style: dashed; border-color: var(--open); }
+.afkv2-chip.afkv2-tone--you { color: var(--afkv2-you); border-color: var(--afkv2-you); font-weight: 700; }
 
 /* --- points: one card per point, its notes on top, its history folded --- */
 
