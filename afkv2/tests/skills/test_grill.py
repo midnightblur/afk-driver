@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from test_visualize import V1_WORD, _example, _find, _next_round, check_document
+from test_visualize import V1_WORD, _example_v0, _find, _next_round, check_document
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
@@ -652,7 +652,7 @@ def test_a_reopen_on_an_older_card_returns_and_must_be_carried(world):
 @pytest.mark.parametrize("line", ["i-data reopen", "i-data — | Use the new name."])
 def test_the_real_ingest_returns_an_older_card(tmp_path, line):
     doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
-    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    doc.write_text(json.dumps(_next_round(_example_v0())), "utf-8")
     raw.write_text(f"[round R-2]\n{line}", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
                          capture_output=True, text=True, encoding="utf-8", timeout=60,
