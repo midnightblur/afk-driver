@@ -222,3 +222,25 @@ def test_you_has_one_fixed_strong_colour_in_every_set():
 
 def test_a_value_outside_its_set_has_no_colour():
     assert _base_chip().value_colour(["low", "high"], "medium", True) is None
+
+
+# --- the tip of any component (AC-025) ---
+
+@pytest.mark.parametrize("component", [
+    {"type": "chip", "props": {"text": "SLA", "tone": "new"}},
+    {"type": "text", "props": {"text": "The export runs nightly."}},
+    {"type": "chip", "id": "c-sla", "style": "margin: 0", "props": {"text": "SLA", "tone": "new"}},
+], ids=["chip", "text", "chip with id and style"])
+def test_a_component_with_a_tip_carries_its_text_on_its_wrapper(component):
+    component = {**component, "tip": TIP + ' & "more"'}
+    assert registry.validate(component) == []
+    drawn = registry.render_component(component)
+    head = drawn.split(">", 1)[0]
+    assert TIP_ATTR.format(TIP + " &amp; &quot;more&quot;") in head
+    assert head.startswith("<span" if component["type"] == "chip" else "<div")
+    bare = {k: v for k, v in component.items() if k != "tip"}
+    assert "data-afkv2-tip" not in registry.render_component(bare)
+
+
+def test_a_component_refuses_a_tip_over_300_characters():
+    assert registry.validate({"type": "chip", "tip": "t" * 301, "props": {"text": "x", "tone": "new"}}) != []

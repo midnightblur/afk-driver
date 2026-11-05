@@ -139,19 +139,20 @@ def aliases(component: dict) -> dict:
 
 
 def render_component(component: dict) -> str:
-    """The HTML of one valid component, in the wrapper that carries its id and style. A `fold` label
+    """The HTML of one valid component, in the wrapper that carries its id, style and tip. A `fold` label
     puts the component in a closed `<details>` inside that wrapper. A fold of a component with an id
     has the key `fold-<id>`, so the page keeps it open through a reload; a fold with no id has no key.
 
-    The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
+    The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector. The tip is
+    the hover text of the tooltip layer (`shell/tips.js`)."""
     kind = lookup(component["type"])
     inner = kind.render(_render_props(component, kind), [render_component(child) for child in _children(component)])
-    element, style = component.get("id"), component.get("style")
+    element, style, tip = component.get("id"), component.get("style"), component.get("tip")
     if component.get("fold"):
         key = f' data-afkv2-fold="fold-{html.escape(element)}"' if element else ""
         inner = (f'<details class="afkv2-fold"{key}><summary>{html.escape(component["fold"])}</summary>'
                  f'<div class="afkv2-fold-body">{inner}</div></details>')
-    if not element and not style:
+    if not element and not style and not tip:
         return inner
     tag = "span" if kind.inline else "div"
     attrs = ""
@@ -159,4 +160,6 @@ def render_component(component: dict) -> str:
         attrs += f' id="{html.escape(element)}" data-afkv2-element="{html.escape(element)}"'
     if style:
         attrs += f' style="{html.escape(style)}"'
+    if tip:
+        attrs += f' data-afkv2-tip="{html.escape(tip)}"'
     return f"<{tag}{attrs}>{inner}</{tag}>"
