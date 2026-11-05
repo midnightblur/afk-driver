@@ -65,6 +65,9 @@ Load the page of each component you use.
 | flame graph | any body, type `flame` | `components/flame.md` |
 | sparklines | any body, type `sparkline` | `components/sparkline.md` |
 | span waterfall | any body, type `waterfall` | `components/waterfall.md` |
+| diagram text | any body, type `diagram` | `components/diagram.md` |
+| code block | any body, type `code` | `components/code.md` |
+| diff | any body, type `diff` | `components/diff.md` |
 | freestyle | any body, type `freestyle` | `components/freestyle.md` |
 
 Every component takes an open `style` field (any CSS) and nests inside any other.

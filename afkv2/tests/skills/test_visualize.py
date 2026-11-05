@@ -968,6 +968,14 @@ def test_the_components_table_has_a_row_for_each_chart_page_and_the_fields_name_
 
 
 @pytest.mark.parametrize("kind", sorted(TEXT_PAGES))
+def test_the_components_table_has_a_row_for_the_diagram_code_and_diff_pages(kind):
+    """Ruling D-52: the guide routes an author to each page, in the same form as the chart rows (f3, f23)."""
+    rows = [line for line in SKILL_MD.read_text("utf-8").splitlines() if line.startswith("|")]
+    name = TEXT_PAGES[kind]
+    assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
+
+
+@pytest.mark.parametrize("kind", sorted(TEXT_PAGES))
 def test_the_diagram_code_and_diff_components_each_have_a_page(kind):
     name = TEXT_PAGES[kind]
     text = (PAGES_DIR / name).read_text("utf-8")
