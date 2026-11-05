@@ -37,6 +37,9 @@ CHARTS = {
     "range": {"caption": CAPTION, "unit": "days", "means": "9 in 10 such tasks end between low and high",
               "items": [{"label": "export rework", "low": 3, "likely": 5, "high": 9},
                         {"label": "cache", "low": 1, "likely": 2, "high": 3}]},
+    "signed-bars": {"caption": CAPTION, "unit": "ms", "below": "faster", "above": "slower",
+                    "items": [{"label": "export", "value": -420}, {"label": "import", "value": 130},
+                              {"label": "search", "value": 0}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
@@ -56,6 +59,9 @@ BAD = {
     "range": [({"items": [{"label": "a", "low": 1, "likely": 5, "high": 3}]}, "items"),
               ({"items": [{"label": "a", "low": 4, "likely": 2, "high": 6}]}, "items"), ({"means": None}, "means"),
               ({"items": []}, "items"), ({"items": [{"label": "a", "low": 1, "likely": 1, "high": 1}] * 41}, "items")],
+    "signed-bars": [({"items": []}, "items"), ({"items": [{"label": "a", "value": "1"}]}, "items"),
+                    ({"items": [{"label": "a", "value": 1}] * 41}, "items"), ({"below": ""}, "below"),
+                    ({"items": [{"label": "a", "value": float("-inf")}]}, "items")],
 }
 NAMES = sorted(CHARTS)
 
@@ -242,3 +248,26 @@ def test_range_bars_share_one_scale_with_a_dot_at_the_likely_value_and_numbers_a
     assert w1 / w2 == pytest.approx((9 - 3) / (3 - 1), rel=0.01), "one scale for every bar"
     dots = [float(x) for x in LIKELY.findall(html)]
     assert x1 < dots[0] < x1 + w1 and x2 < dots[1] < x2 + w2
+
+
+# --- signed bars (K-38) ---
+
+ZERO = re.compile(r'<line x1="([\d.]+)" y1="0\.0" x2="\1" y2="[\d.]+" style="stroke:var\(--fg\)')
+SIGNED_BAR = re.compile(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="14\.0"')
+
+
+def test_signed_bars_grow_left_and_right_of_a_zero_line_with_the_sign_in_the_label():
+    html = drawn("signed-bars")
+    written = words(html)
+    assert written[:2] == ["\u2190 faster", "slower \u2192"]
+    assert written[2:] == ["export", "\u2212420 ms", "import", "+130 ms", "search", "0 ms"]
+    zero = float(ZERO.search(html).group(1))
+    (x1, w1), (x2, w2), (x3, w3) = [(float(a), float(b)) for a, b in SIGNED_BAR.findall(html)]
+    assert x1 + w1 == pytest.approx(zero, abs=0.2) and x2 == pytest.approx(zero, abs=0.2) and w3 == 0
+    assert w1 / w2 == pytest.approx(420 / 130, rel=0.01)
+
+
+def test_signed_bars_with_no_side_words_write_none():
+    props = {k: v for k, v in CHARTS["signed-bars"].items() if k not in ("below", "above")}
+    written = words(registry.render_component({"type": "signed-bars", "props": props}))
+    assert written[0] == "export"
