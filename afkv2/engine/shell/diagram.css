@@ -4,6 +4,18 @@
 .afkv2-diagram-title { margin-bottom: .35rem; font-weight: 600; }
 .afkv2-diagram-scroll { max-width: 100%; overflow-x: auto; }
 
+/* --- diagram text: one picture per theme; the page shows the one of its theme -- */
+
+.afkv2-diagram-picture { max-width: 100%; overflow-x: auto; }
+.afkv2-diagram-theme svg { display: block; max-width: 100%; height: auto; }
+.afkv2-diagram-theme--light { display: none; }
+:root[data-theme="light"] .afkv2-diagram-theme--light { display: block; }
+:root[data-theme="light"] .afkv2-diagram-theme--dark { display: none; }
+.afkv2-diagram-caption { margin: .2rem 0 0; color: var(--fg-dim); font-size: .85rem; }
+.afkv2-diagram-text { margin: 0; padding: .5rem .75rem; overflow-x: auto; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--surface-2); font: .82rem/1.45 ui-monospace, monospace; }
+.afkv2-diagram-why { margin: .25rem 0 0; color: var(--open); font-size: .82rem; }
+
 /* --- boxes and arrows ---------------------------------------------------- */
 
 .afkv2-boxes { position: relative; }

@@ -17,6 +17,7 @@ import json
 from html import escape
 from pathlib import Path
 
+import diagrams
 from registry import aliases, lookup, page_context, render_component, walk
 from schema.note_rules import round_target
 from shell.points import grouped
@@ -266,8 +267,9 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
 def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = None) -> str:
     """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
     has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices.
-    Each component renders in the context of the document's named value sets."""
-    with page_context(doc.get("value_sets")):
+    Each component renders in the context of the document's named value sets, in one diagram run: the SVG ids of
+    the page's diagrams start afresh, so the same document builds the same bytes."""
+    with page_context(doc.get("value_sets")), diagrams.page_run():
         return _build(_answers_read(doc), btw, notices)
 
 

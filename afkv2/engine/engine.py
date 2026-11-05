@@ -18,6 +18,7 @@ Poll keeps a round send in `<DOC stem>.delivery.json` before it reads it; a late
 file, and a successful ingest deletes it. An ingest that refuses the response moves the file to
 `<DOC stem>.refused.<stamp>.json`.
 
+Render answers `diagrams`: the count of the page's diagrams rendered, cached and shown as text (`diagrams.py`).
 Render with `--notices` reads the page's git state and scans the page and each `--scan` file for secrets
 (`notices.py`); it answers `git_state`, `git_reason` and `secrets`, and keeps them in `page-notices/` of the data
 folder, so a later render (show renders too) keeps them in the page header. Neither refuses anything.
@@ -45,6 +46,7 @@ for folder in (ENGINE_DIR.parent / "scripts", ENGINE_DIR):
 from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E402
 
 import btw_listener  # noqa: E402
+import diagrams  # noqa: E402
 import ingest  # noqa: E402
 import launcher  # noqa: E402
 import notices  # noqa: E402
@@ -394,8 +396,9 @@ def _alone_with_its_id(document: Path, session: dict) -> Path:
     return document
 
 
-def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path, dict | None]:
-    """With `scan` (a list, maybe empty), the notices are read anew and kept; else the last kept notices show."""
+def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path, dict | None, dict]:
+    """With `scan` (a list, maybe empty), the notices are read anew and kept; else the last kept notices show.
+    The last value counts the page's diagrams: rendered, cached and shown as text."""
     doc, _ = check_document(path)
     document = _require_home(path, doc)
     data_folder()
@@ -405,10 +408,12 @@ def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path,
         found = notices.page_notices(document, [Path(file) for file in scan])
         inject.write_if_changed(notices_record(document), json.dumps({"page": str(document), **found}).encode("utf-8"))
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc, btw_listener.address(document), found), inject.load_dictionary(html_path))
+    with diagrams.page_run() as counts:
+        built = page.build(doc, btw_listener.address(document), found)
+    html = inject.inject(built, inject.load_dictionary(html_path))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
-    return doc, document, html_path, found
+    return doc, document, html_path, found, dict(counts)
 
 
 def cmd_check(args) -> dict:
@@ -419,13 +424,13 @@ def cmd_check(args) -> dict:
 def cmd_render(args) -> dict:
     if args.scan and not args.notices:
         raise Refusal("usage", "--scan needs --notices")
-    _, _, html_path, found = _render(args.document, (args.scan or []) if args.notices else None)
-    answer = {"ok": True, "verb": "render", "page": str(html_path)}
+    _, _, html_path, found, counts = _render(args.document, (args.scan or []) if args.notices else None)
+    answer = {"ok": True, "verb": "render", "page": str(html_path), "diagrams": counts}
     return {**answer, **found} if args.notices else answer
 
 
 def cmd_show(args) -> dict:
-    _, document, html_path, _ = _render(args.document)
+    _, document, html_path, _, _ = _render(args.document)
     argv = ["open", str(html_path)]
     tab = tab_record(html_path)
     reused = not (args.no_open or args.reopen) and tab.is_file()

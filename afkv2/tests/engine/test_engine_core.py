@@ -961,7 +961,8 @@ def test_a_closing_script_tag_in_a_tip_does_not_end_the_block():
 def test_render_writes_the_page_beside_the_document(repo, capsys):
     path = in_home(repo, two_rounds())
     code, answer = call(capsys, "render", path)
-    assert code == 0 and answer == {"ok": True, "verb": "render", "page": str(path.with_suffix(".html").resolve())}
+    assert code == 0 and answer == {"ok": True, "verb": "render", "page": str(path.with_suffix(".html").resolve()),
+                                    "diagrams": {"rendered": 0, "cached": 0, "as_text": 0}}
     assert path.with_suffix(".html").is_file()
     assert sorted(p.name for p in path.parent.iterdir()) == ["grill-s1.html", "grill-s1.json"]
 
