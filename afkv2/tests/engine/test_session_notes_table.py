@@ -301,3 +301,35 @@ def test_a_format_0_answer_paired_by_about_keeps_its_note_row_after_the_page_is_
                                  {"text": "answer about nothing", "about": ["i-b"]}])]}
     written = engine.read_v1(json.loads(json.dumps(engine.read_v0_as_v1(doc))))
     assert "answer by about" in row(session(page.build(written)), SESSION_ROW + "N-1-i-a")
+
+
+def _index_counter(monkeypatch):
+    """Counts the element index builds of the notes and replies module (ruling D-49)."""
+    from registry import lookup
+    module = lookup("card-notes").render.__globals__
+    calls = []
+    original = module["_elements"]
+
+    def counted(doc):
+        calls.append(1)
+        return original(doc)
+
+    monkeypatch.setitem(module, "_elements", counted)
+    return calls
+
+
+def test_one_page_build_indexes_the_elements_of_the_document_once(monkeypatch):
+    cards = [card(f"i-{k}") for k in range(6)]
+    notes = [note(f"N-1-i-{k}", 1, f"i-{k}", item=f"i-{k}") for k in range(6)]
+    doc = engine.READERS[V1](document(round_of(1, *cards), notes=notes))
+    calls = _index_counter(monkeypatch)
+    html = page.build(doc)
+    assert len(calls) == 1 and all(f'id="{CARD_ROW}N-1-i-{k}"' in on_card(html, f"i-{k}") for k in range(6))
+
+
+def test_a_second_build_of_a_document_changed_in_place_shows_the_new_note():
+    doc = engine.READERS[V1](document(round_of(1, card("i-a"), card("i-b"))))
+    page.build(doc)
+    doc["notes"].append(note("N-1-i-b", 1, "i-b", item="i-b", words="a later note"))
+    html = page.build(doc)
+    assert "a later note" in on_card(html, "i-b") and "a later note" in session(html)

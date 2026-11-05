@@ -8,6 +8,8 @@ An answer stands in the row of each note it names (`notes`); on a format 0 page,
 Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
 as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
+A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
+the same rows, so a build indexes the elements of the document once.
 """
 
 from html import escape
@@ -217,6 +219,19 @@ def _rows(doc: dict) -> list[Row]:
     return rows
 
 
+_built: dict = {"doc": None, "rows": []}
+
+
+def _fresh_rows(doc: dict) -> list[Row]:
+    """The rows of the document, read anew; a card of the same document object reads them again from `_built`."""
+    _built["doc"], _built["rows"] = doc, _rows(doc)
+    return _built["rows"]
+
+
+def _build_rows(doc: dict) -> list[Row]:
+    return _built["rows"] if _built["doc"] is doc else _fresh_rows(doc)
+
+
 def _session_id(row: Row) -> str:
     """A row on a card keeps `afkv2-nr-` on the card; its session table copy takes `afkv2-ns-`."""
     return (SESSION_PREFIX if row.home else ROW_PREFIX) + row.key
@@ -275,7 +290,7 @@ def render_card_notes(props, children):
     """The rows of one card, newest round first, in a table without the link column."""
     doc = props["document"]
     colours = {r["n"]: round_colour(r) for r in doc["rounds"]}
-    rows = sorted((row for row in _rows(doc) if row.home == props["item"]), key=lambda row: -row.round)
+    rows = sorted((row for row in _build_rows(doc) if row.home == props["item"]), key=lambda row: -row.round)
     if not rows:
         return "".join(children)
     body = "".join(_tr(row, ROW_PREFIX + row.key, colours[row.round], False) for row in rows)
@@ -287,7 +302,7 @@ def render_notes_replies(props, children):
     open; each older round is its own closed group."""
     doc = props["document"]
     by_round: dict[int, list[Row]] = {}
-    for row in _rows(doc):
+    for row in _fresh_rows(doc):
         by_round.setdefault(row.round, []).append(row)
     if not by_round:
         return "".join(children)
