@@ -19,6 +19,8 @@ DARK, LIGHT = KIT.split(':root[data-theme="light"] {', 1)
 TOKEN_USE = re.compile(r"var\((--[\w-]+)\)")
 HEX_COLOUR = re.compile(r"(?<![&\w])#[0-9a-fA-F]{3,8}\b")
 SVG_TEXT = re.compile(r"<text [^>]*>([^<]*)</text>")
+GRADE_CHIP = 'class="afkv2-chip afkv2-tone--estimated"'
+SET_COLOUR = "var(--afkv2-set-{})"
 FIGURE = re.compile(r'^<figure class="afkv2-chart afkv2-chart--([\w-]+)"[^>]*><svg [^>]*role="img"[^>]*>.*</svg>'
                     r'.*<figcaption[^>]*>([^<]*)</figcaption></figure>$', re.S)
 
@@ -200,7 +202,7 @@ def test_a_tile_shows_the_number_large_its_label_its_range_and_how_it_is_known()
     assert written[0] == "1,240 ms"
     assert "export time" in written and "range 900 to 1,500 ms" in written
     assert int(re.search(r'font-size:(\d+)px;font-weight:700">1,240 ms', html).group(1)) >= 28
-    assert 'class="afkv2-chip afkv2-tone--estimated"' in html and "estimated" in html
+    assert GRADE_CHIP in html and "estimated" in html
     assert "3 runs on the staging host" in html
 
 
@@ -227,7 +229,7 @@ def test_bars_of_a_share_draw_one_split_bar_with_a_numbered_key_not_a_pie():
     assert "<circle" not in html and "<path" not in html
     written = words(html)
     assert "1. returns: 340 rows, 72%" in written and "3. refunds: 15 rows, 3%" in written
-    assert all(f"var(--afkv2-set-{k})" in html for k in (1, 2, 3))
+    assert all(SET_COLOUR.format(k) in html for k in (1, 2, 3))
 
 
 # --- line (K-03) ---
