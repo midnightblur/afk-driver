@@ -53,7 +53,7 @@ When the human asks to track the page:
 
 1. Run `end` on the page at its old path.
 2. Run `scripts/page_home.py track --doc D --ticket K`. `needs-ticket`: ask the human which ticket. `private`: say what must come out of the page before it can live in the repository. `move-failed`: run `track` again; it moves the rest.
-3. Commit the files in `moved` on the feature branch.
+3. Commit the files in `moved` on the feature branch; with `moved` empty, the page was in the spec folder already, so commit `doc`.
 4. Run `present` on the new `doc`. Done when the commit exists and `present` answers ok.
 
 ## Take over a page
