@@ -14,10 +14,16 @@ test("a stalled Chrome DevTools operation is canceled", async () => {
 });
 
 test("a stalled fixture builder is terminated", async () => {
+  let child;
   await assert.rejects(
-    run(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { timeout: 20 }),
+    run(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      timeout: 20,
+      terminationGrace: 20,
+      observeChild: value => { child = value; },
+    }),
     /Timed out waiting for subprocess/,
   );
+  assert.ok(child.exitCode !== null || child.signalCode !== null, "timed-out builder still runs");
 });
 
 test("subprocess and protocol diagnostics have size bounds", async () => {
@@ -29,6 +35,15 @@ test("subprocess and protocol diagnostics have size bounds", async () => {
 test("Chrome cleanup reports a process that survives hard termination", async () => {
   const child = new EventEmitter();
   child.exitCode = null;
+  child.signalCode = null;
   child.kill = () => true;
   await assert.rejects(terminateProcess(child, 10), /Chrome did not exit/);
+});
+
+test("a signal-terminated process is already clean", async () => {
+  const child = new EventEmitter();
+  child.exitCode = null;
+  child.signalCode = "SIGTERM";
+  child.kill = () => { throw new Error("must not kill an exited process"); };
+  await terminateProcess(child, 10);
 });

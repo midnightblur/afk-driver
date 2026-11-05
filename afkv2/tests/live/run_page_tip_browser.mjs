@@ -55,16 +55,22 @@ function boundedDiagnostic(text) {
 
 export function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const { timeout = WAIT_MS, ...spawnOptions } = options;
+    const { timeout = WAIT_MS, terminationGrace = 1000, observeChild, ...spawnOptions } = options;
     const child = spawn(command, args, { windowsHide: true, ...spawnOptions });
+    observeChild?.(child);
     let stdout = "";
     let stderr = "";
     let settled = false;
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (settled) return;
       settled = true;
-      child.kill();
-      reject(new Error(`Timed out waiting for subprocess: ${command} ${args.join(" ")}\n${stdout}${stderr}`));
+      let cleanup = "";
+      try {
+        await terminateProcess(child, terminationGrace, "Subprocess");
+      } catch (error) {
+        cleanup = `\nCleanup failure: ${error.message}`;
+      }
+      reject(new Error(`Timed out waiting for subprocess: ${command} ${args.join(" ")}\n${stdout}${stderr}${cleanup}`));
     }, timeout);
     child.stdout?.on("data", chunk => { stdout = boundedDiagnostic(stdout + chunk); });
     child.stderr?.on("data", chunk => { stderr = boundedDiagnostic(stderr + chunk); });
@@ -189,8 +195,12 @@ async function buildFixture(folder) {
   return url;
 }
 
+function exited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
 function waitForExit(child, timeout) {
-  if (child.exitCode !== null) return Promise.resolve(true);
+  if (exited(child)) return Promise.resolve(true);
   return new Promise(resolve => {
     const onExit = () => finish(true);
     const finish = exited => {
@@ -198,17 +208,17 @@ function waitForExit(child, timeout) {
       child.removeListener("exit", onExit);
       resolve(exited);
     };
-    const timer = setTimeout(() => finish(child.exitCode !== null), timeout);
+    const timer = setTimeout(() => finish(exited(child)), timeout);
     child.once("exit", onExit);
   });
 }
 
-export async function terminateProcess(child, grace = 3000) {
-  if (!child || child.exitCode !== null) return;
+export async function terminateProcess(child, grace = 3000, label = "Chrome") {
+  if (!child || exited(child)) return;
   child.kill();
   if (await waitForExit(child, grace)) return;
   child.kill("SIGKILL");
-  if (!await waitForExit(child, grace)) throw new Error("Chrome did not exit after hard termination");
+  if (!await waitForExit(child, grace)) throw new Error(`${label} did not exit after hard termination`);
 }
 
 async function stopChrome(browser, chrome, diagnostics) {
