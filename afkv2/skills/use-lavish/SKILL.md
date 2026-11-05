@@ -21,7 +21,7 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 |---------|------|
 | `scripts/page_home.py start --topic T [--ticket K] [--private]` | gives a new ad-hoc page its `doc`, `session`, `raw_file` and `home` by the home rule; writes nothing |
 | `scripts/page_home.py track --doc D --ticket K` | moves a page and its side files into the ticket's spec folder; its result holds `doc` and `moved` |
-| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document |
+| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document; each entry of `warnings` in its result names a note of the last round with no answer, or a short title it ignored: answer that note in this round, and run `build` again with `--replace` |
 | `scripts/page_round.py present --doc D [--scan F]...` | checks, renders and shows the round; scans the page and each F (a file the skill writes beside the page, such as its log) for secrets |
 | `scripts/page_round.py wait --doc D --raw-file F` | waits for the human's round send and writes it to F |
 | `scripts/page_round.py reply --doc D --reply-file F` | shows the Markdown in F on the page |

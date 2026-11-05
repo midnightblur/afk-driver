@@ -12,14 +12,15 @@ the human reads and answers. You never write page HTML: HTML goes only into the
 ## The document
 
 Save the document in the feature spec folder as `pages/<skill>-<session id>.json`.
-Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
+Field constraints: the engine's schema file `engine/schema/page-v1.schema.json`
 (plugin root). The shape:
 
 ```json fragment=document
 {
-  "schema": "afkv2.page/0",
+  "schema": "afkv2.page/1",
   "session": {"id": "s-01", "skill": "grill", "feature": "example-feature",
-              "ticket": "PROJ-123", "started": "2026-01-05T09:00:00Z"},
+              "ticket": "PROJ-123", "started": "2026-01-05T09:00:00Z",
+              "short_title": "Order export", "step": "Requirements grill"},
   "maps": [],
   "rounds": [
     {"n": 1, "state": "current",
@@ -33,12 +34,13 @@ Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
 ```
 
 - `session.skill` is `grill`, `propose-solution` or `propose-verification`; `started` is ISO-8601 UTC.
+- `session.step` and `session.short_title` come from the round input's `step` and `short_title`; the build writes the short title in round 1 only.
 - `session.links` (optional) holds the URL templates that link references in the page text: `issue`, `change`, `commit`, `ticket`, each with `{id}` for the reference, and `projects`, the Jira project keys that `ticket` links. The skill's build writes it; the forms: `components/chip-and-text.md`.
 - `maps` holds the session's maps; you update their nodes in place.
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
-- `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading.
+- `responses`, the document's `notes` list and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading.
 
 ## Components
 
