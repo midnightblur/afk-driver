@@ -3,11 +3,12 @@ a certainty chip and the source. Against a target, a bullet graph is the better 
 
 from html import escape
 
-from components.chart_svg import LABEL, NUMBER, UNIT, chart_schema, note_line, number, svg_frame, text, unfinite
+from components.chart_svg import (LABEL, NUMBER, UNIT, chart_schema, note_line, number, svg_frame, text, text_width,
+                                  unfinite)
 from registry import register_component, render_component
 
 GRADES = ["measured", "inferred", "estimated", "unverified"]
-WIDTH, HEIGHT, RANGED = 300, 78, 98
+WIDTH, HEIGHT, RANGED, PAD, VALUE_SIZE, LABEL_SIZE = 300, 78, 98, 16, 36, 13
 
 
 def check_tile(props):
@@ -20,14 +21,17 @@ def check_tile(props):
 
 
 def render_tile(props, children):
-    unit = props.get("unit")
-    body = text(16, 46, number(props["value"], unit), size=36, bold=True)
-    body += text(16, 68, props["label"], tone="dim", size=13)
-    ranged = "low" in props
+    unit, ranged = props.get("unit"), "low" in props
+    value = number(props["value"], unit)
+    span = f"range {number(props['low'])} to {number(props['high'], unit)}" if ranged else ""
+    width = max(WIDTH, 2 * PAD + max(text_width(value, VALUE_SIZE), text_width(props["label"], LABEL_SIZE),
+                                     text_width(span)))
+    body = text(PAD, 46, value, size=VALUE_SIZE, bold=True)
+    body += text(PAD, 68, props["label"], tone="dim", size=LABEL_SIZE)
     if ranged:
-        body += text(16, 88, f"range {number(props['low'])} to {number(props['high'], unit)}", tone="dim")
+        body += text(PAD, 88, span, tone="dim")
     grade = render_component({"type": "chip", "props": {"text": props["grade"], "tone": props["grade"]}})
-    return svg_frame("tile", props["caption"], WIDTH, RANGED if ranged else HEIGHT, body, children,
+    return svg_frame("tile", props["caption"], width, RANGED if ranged else HEIGHT, body, children,
                      after=note_line(f'{grade} {escape(props["source"])}'))
 
 

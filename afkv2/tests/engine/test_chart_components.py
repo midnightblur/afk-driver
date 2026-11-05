@@ -234,6 +234,43 @@ def test_bars_of_a_share_draw_one_split_bar_with_a_numbered_key_not_a_pie():
     assert all(SET_COLOUR.format(k) in html for k in (1, 2, 3))
 
 
+VIEW_BOX = re.compile(r'viewBox="0 0 ([\d.]+) [\d.]+"')
+TEXT_AT = re.compile(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="(\w+)" style="[^"]*font-size:([\d.]+)px[^"]*">([^<]*)</text>')
+
+
+def overflow(html):
+    """Each text the SVG writes that ends past the right edge of its viewBox, by the width estimate of the charts."""
+    from components.chart_svg import text_width
+    edge = float(VIEW_BOX.search(html).group(1))
+    out = []
+    for x, anchor, size, written in TEXT_AT.findall(html):
+        width = text_width(written.replace("&amp;", "&"), float(size))
+        end = float(x) + {"start": width, "middle": width / 2, "end": 0}[anchor]
+        if end > edge + 0.5:
+            out.append((written, round(end), edge))
+    return out
+
+
+BIG_BARS = {"unit": "requests", "items": [{"label": "orders", "value": 120000}, {"label": "returns", "value": 1234567890}]}
+
+
+def test_bars_with_long_values_write_each_whole_number_inside_the_drawing():
+    html = drawn("bars", **BIG_BARS)
+    assert "1,234,567,890 requests" in words(html) and overflow(html) == []
+
+
+def test_a_split_bar_key_with_a_long_label_and_number_stays_inside_the_drawing():
+    items = [{"label": "l" * 60, "value": 1234567890}, {"label": "short", "value": 5}]
+    html = drawn("bars", split=True, unit="requests", items=items)
+    assert any(w.endswith(": 1,234,567,890 requests, 100%") for w in words(html)) and overflow(html) == []
+
+
+def test_a_tile_with_a_long_value_and_label_writes_both_whole_inside_the_drawing():
+    html = drawn("tile", value=12345678, unit="requests", label="m" * 60, low=1, high=99999999)
+    written = words(html)
+    assert "12,345,678 requests" in written and "m" * 60 in written and overflow(html) == []
+
+
 # --- line (K-03) ---
 
 POLYLINE = re.compile(r'<polyline points="([^"]*)"')

@@ -6,7 +6,7 @@ from components.chart_svg import (COUNT, LABEL, UNIT, WIDTH, chart_schema, clip,
                                   rect, scale, set_colour, svg_frame, text, text_width, too_many, unfinite)
 from registry import register_component
 
-ROW, BAR, VALUE_ROOM, KEY_ROW, SPLIT_BAR = 24, 14, 84, 20, 24
+ROW, BAR, GAP, MIN_PLOT, KEY_ROW, SPLIT_BAR, SWATCH, MIN_LABEL = 24, 14, 6, 120, 20, 24, 18, 60
 
 
 def check_bars(props):
@@ -23,21 +23,26 @@ def _ranked(props):
 def _bars(props):
     items, unit = _ranked(props), props.get("unit")
     left = label_width(item["label"] for item in items)
-    place = scale(0, max(items[0]["value"], 1e-9), left, WIDTH - VALUE_ROOM)
+    room = max(text_width(number(item["value"], unit)) for item in items) + 2 * GAP
+    width = max(WIDTH, left + MIN_PLOT + room)
+    place = scale(0, max(items[0]["value"], 1e-9), left, width - room)
     body = ""
     for k, item in enumerate(items):
         top = k * ROW
         end = place(item["value"])
         body += text(0, top + 16, clip(item["label"], left - 10))
         body += rect(left, top + 5, end - left, BAR, fill="mark")
-        body += text(end + 6, top + 16, number(item["value"], unit), tone="dim")
-    return body, len(items) * ROW + 4
+        body += text(end + GAP, top + 16, number(item["value"], unit), tone="dim")
+    return body, len(items) * ROW + 4, width
 
 
 def _split(props):
     items, unit = _ranked(props), props.get("unit")
     total = sum(item["value"] for item in items)
-    place = scale(0, total, 0, WIDTH)
+    keys = [(f"{k + 1}. ", f": {number(item['value'], unit)}, {round(100 * item['value'] / total)}%")
+            for k, item in enumerate(items)]
+    width = max(WIDTH, max(SWATCH + text_width(head + tail) for head, tail in keys) + MIN_LABEL)
+    place = scale(0, total, 0, width)
     body, start = "", 0.0
     for k, item in enumerate(items):
         x, end = place(start), place(start + item["value"])
@@ -48,14 +53,15 @@ def _split(props):
     for k, item in enumerate(items):
         top = SPLIT_BAR + 8 + k * KEY_ROW
         body += rect(0, top + 3, 12, 12, fill=set_colour(k))
-        share = round(100 * item["value"] / total)
-        body += text(18, top + 13, f"{k + 1}. {item['label']}: {number(item['value'], unit)}, {share}%")
-    return body, SPLIT_BAR + 12 + len(items) * KEY_ROW
+        head, tail = keys[k]
+        label = clip(item["label"], width - SWATCH - text_width(head + tail))
+        body += text(SWATCH, top + 13, head + label + tail)
+    return body, SPLIT_BAR + 12 + len(items) * KEY_ROW, width
 
 
 def render_bars(props, children):
-    body, height = (_split if props.get("split") else _bars)(props)
-    return svg_frame("bars", props["caption"], WIDTH, height, body, children)
+    body, height, width = (_split if props.get("split") else _bars)(props)
+    return svg_frame("bars", props["caption"], width, height, body, children)
 
 
 register_component("bars", chart_schema({
