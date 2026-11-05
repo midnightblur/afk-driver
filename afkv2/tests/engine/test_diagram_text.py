@@ -313,3 +313,15 @@ def test_a_page_spends_at_most_its_renderer_budget_and_each_call_waits_only_for_
     assert [call["timeout"] for call in stub.calls] == [60, 50, 10]
     assert counts == {"rendered": 1, "cached": 0, "as_text": 1}
     assert "90 s" in FALLBACK.search(html).group(2)
+
+
+# --- the tip layer leaves pictures and code alone (review round 2 of 0010)
+
+SKIP_LIST = re.compile(r"p\.closest\('([^']+)'\)")
+DIFF_CLASS = ".afkv2-diff"
+
+
+def test_the_tip_layer_wraps_no_word_inside_a_diagram_picture_or_a_code_block():
+    """A tip span is HTML: inside SVG text the browser draws nothing, so the word would vanish from the picture."""
+    skipped = SKIP_LIST.search((ENGINE_DIR / "shell" / "tips.js").read_text("utf-8")).group(1).split(",")
+    assert {"svg", "pre", DIFF_CLASS} <= set(skipped), skipped

@@ -35,7 +35,7 @@
         if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
         re.lastIndex = 0;
         var p = n.parentElement;
-        if (!p || p.closest('script,style,noscript,textarea,.afkv2-tip,#afkv2-tip-box,#afkv2-nav,#afkv2-jump')) return NodeFilter.FILTER_REJECT;
+        if (!p || p.closest('script,style,noscript,textarea,svg,pre,.afkv2-diff,.afkv2-tip,#afkv2-tip-box,#afkv2-nav,#afkv2-jump')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
