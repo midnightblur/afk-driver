@@ -32,6 +32,8 @@ CHARTS = {
     "line": {"caption": CAPTION, "unit": "ms", "target": 1000,
              "points": [{"at": "2026-10-01", "value": 2400}, {"at": "2026-10-08", "value": 2100},
                         {"at": "2026-10-15", "value": 1300}, {"at": "2026-10-22", "value": 1240}]},
+    "bullet": {"caption": CAPTION, "label": "test coverage", "value": 72, "target": 80, "unit": "%",
+               "bands": [{"upto": 50, "label": "poor"}, {"upto": 75, "label": "fair"}, {"upto": 100, "label": "good"}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
@@ -44,6 +46,10 @@ BAD = {
     "line": [({"points": [{"at": "d1", "value": 1}]}, "points"), ({"points": [{"at": "", "value": 1}] * 2}, "points"),
              ({"points": [{"at": "d", "value": "1"}] * 2}, "points"), ({"target": float("inf")}, "target"),
              ({"points": [{"at": "d", "value": 1}] * 401}, "points")],
+    "bullet": [({"bands": [{"upto": 75, "label": "fair"}, {"upto": 50, "label": "poor"}]}, "bands"),
+               ({"value": 101}, "value"), ({"target": -1}, "target"), ({"bands": []}, "bands"),
+               ({"bands": [{"upto": k, "label": "b"} for k in range(1, 7)], "value": 1, "target": 1}, "bands"),
+               ({"start": 75, "bands": [{"upto": 100, "label": "good"}]}, "value")],
 }
 NAMES = sorted(CHARTS)
 
@@ -194,3 +200,22 @@ def test_a_line_draws_its_target_as_a_labelled_dashed_line_only_when_one_exists(
     props = {k: v for k, v in CHARTS["line"].items() if k != "target"}
     html = registry.render_component({"type": "line", "props": props})
     assert "stroke-dasharray" not in html and not any(w.startswith("target") for w in words(html))
+
+
+# --- bullet (K-35) ---
+
+MIX = re.compile(r"color-mix\(in srgb, var\(--neutral\) (\d+)%")
+TICK = re.compile(r'<line x1="([\d.]+)" y1="[\d.]+" x2="\1" y2="[\d.]+" style="stroke:var\(--fg\);stroke-width:3"')
+VALUE_BAR = re.compile(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="10\.0" style="fill:var\(--fg\)')
+
+
+def test_a_bullet_draws_the_value_bar_the_target_tick_and_named_bands():
+    html = drawn("bullet")
+    written = words(html)
+    assert {"test coverage", "poor", "fair", "good"} <= set(written)
+    assert "72% · target 80% · fair" in written
+    strengths = MIX.findall(html)
+    assert len(strengths) == 3 and len(set(strengths)) == 3, "each band its own strength of one hue"
+    start, width = (float(n) for n in VALUE_BAR.search(html).groups())
+    tick = float(TICK.search(html).group(1))
+    assert (tick - start) / width == pytest.approx(80 / 72, rel=0.01)
