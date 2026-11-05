@@ -35,6 +35,8 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | `/afkv2:gc` on #159 | Codex | beta.7 | pass | list: 6 items, no refusals; the developer's yes, then the later command; checked after: both worktrees and folders gone, no local or remote `feat/afkv2-tips*` branch (2026-11-05) |
 | #163 use-lavish skill, plan to merged change | Claude | beta.6 | pass | PR #171 merged by the owner (9b91b71f, 2026-11-05) |
 | `/afkv2:gc` on #163 | Claude | beta.7 | pass | list: 6 items, no refusals; the developer's yes, then the later command; checked after: both worktrees and folders gone, no local or remote `feat/afkv2-lavish*` branch (2026-11-05) |
+| Install from the tag, setup again | Claude | `afkv2-2.0.0-beta.8` (4a399e67) | pass | marketplace remove and add at the tag, `afk` at user scope, `afkv2` at local scope in the `afkv2` worktree; plain `claude` in the test pane, since auto mode refused the agent a start with permissions skipped; setup: hook proof passed, `afk` off in that project, no v1 rule block, the v1 git hook stubs back and moved aside again (F-34); it also wrote the Codex rules for the beta.8 folder |
+| Install from the tag, setup again | Codex | `afkv2-2.0.0-beta.8` | pass | marketplace remove and add at the tag, `codex plugin add afkv2`; `afk` stayed disabled; the owner chose "Trust all" on 3 changed hooks; setup healthy, takeover complete, rules for 38 scripts, lavish 0.1.80; no approval prompt, because the Claude setup had written the rules first (F-36) |
 
 ## Failures and findings
 
