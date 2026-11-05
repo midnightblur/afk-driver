@@ -377,3 +377,19 @@ def test_every_chip_tone_has_a_cue_beside_its_colour(tone):
         assert re.search(re.escape(prop) + r"\s*:[^;]*" + value, body) or mark, tone
     else:
         assert mark, f"a {tone} chip shows its meaning by colour alone"
+
+
+def test_the_you_badge_of_a_map_box_leaves_room_for_its_round_label():
+    """Review f2/f10 of 0008: the badge sits at the top right of the box, where the head line ends with R-n."""
+    room = rule(".afkv2-box.afkv2-you .afkv2-node-head")
+    assert re.search(r"padding-right:\s*2\.\d+rem", room), room
+
+
+def test_a_sequence_message_marked_you_draws_its_line_and_arrowhead_in_the_you_colour():
+    """Review f3/f11 of 0008: sequence.md says the message's line is in the YOU colour."""
+    assert "border-top-color: var(--afkv2-you)" in rule(".afkv2-seq-msg.afkv2-you .afkv2-seq-line")
+    assert "border-left-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--right.afkv2-you .afkv2-seq-line::after")
+    assert "border-right-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--left.afkv2-you .afkv2-seq-line::after")
+    assert "border-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--self.afkv2-you .afkv2-seq-line")
+    assert KIT.index(".afkv2-seq-msg.afkv2-you .afkv2-seq-line") > KIT.index(".afkv2-seq-msg.afkv2-tone--new .afkv2-seq-line"), \
+        "the YOU colour wins over a tone colour"

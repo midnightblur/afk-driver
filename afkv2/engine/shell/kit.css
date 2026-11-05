@@ -299,6 +299,13 @@ body > #afkv2-back {
 .afkv2-box.afkv2-you, .afkv2-run-step.afkv2-you { border-color: var(--afkv2-you); }
 .afkv2-box.afkv2-you { position: absolute; }
 .afkv2-box.afkv2-you::before { top: 2px; right: 2px; }
+/* The badge sits where a map box's head line ends with its round: the head ends before the badge. */
+.afkv2-box.afkv2-you .afkv2-node-head { padding-right: 2.1rem; }
+/* A sequence message marked YOU: its line and arrowhead in the YOU colour, over a tone colour. */
+.afkv2-seq-msg.afkv2-you .afkv2-seq-line { border-top-color: var(--afkv2-you); }
+.afkv2-seq-msg--right.afkv2-you .afkv2-seq-line::after { border-left-color: var(--afkv2-you); }
+.afkv2-seq-msg--self.afkv2-you .afkv2-seq-line { border-color: var(--afkv2-you); }
+.afkv2-seq-msg--left.afkv2-you .afkv2-seq-line::after, .afkv2-seq-msg--self.afkv2-you .afkv2-seq-line::after { border-right-color: var(--afkv2-you); }
 [data-afkv2-tip]:not(.afkv2-tip) { cursor: help; }
 
 /* --- points: one card per point, its notes on top, its history folded --- */
