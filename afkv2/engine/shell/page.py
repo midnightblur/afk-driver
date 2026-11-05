@@ -9,6 +9,8 @@ The heading and the browser tab read `<ticket> · <short title> · <step>`, the 
 ticket drops it; a page with no short title (an upgraded format 0 page) shows its feature; a name that repeats the
 ticket, or a step that repeats the start of an earlier part, shows once.
 Under the heading, the notices of the page (engine notices): 1 git-state line and 1 line per secret hit.
+A page with a code block or a diff inlines the copy of highlight.js and its 2 themes once, after the page script;
+a page with neither holds none of them (ADR-0003 design).
 """
 
 from __future__ import annotations
@@ -30,6 +32,10 @@ NOTES_AND_REPLIES = "notes-and-replies"
 CARD_NOTES = "card-notes"
 GOLDEN_ANGLE = 137.5
 NODE_CARDS_ID = "afkv2-node-cards"
+HIGHLIGHT = HERE / "highlight"
+HIGHLIGHTED = {"code", "diff"}
+LIGHT_THEME = ':root[data-theme="light"]{{{}}}'
+
 ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
 
 
@@ -215,6 +221,21 @@ def targets(doc: dict) -> dict:
     return found
 
 
+def _read_highlight(name: str) -> str:
+    return (HIGHLIGHT / name).read_text(encoding="utf-8")
+
+
+def _highlighter(doc: dict) -> tuple[str, str]:
+    """(the 2 themes, the library and its run script) on a page with a code block or a diff; else nothing. The page
+    is dark first: the dark theme applies, and the light theme applies under `data-theme="light"`."""
+    trees = [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]
+    if not any(part["type"] in HIGHLIGHTED for tree in trees for _, part in walk(tree)):
+        return "", ""
+    themes = _read_highlight("github-dark.min.css") + "\n" + LIGHT_THEME.format(_read_highlight("github.min.css"))
+    return (f"<style>\n{themes}\n</style>\n",
+            f"<script>\n{_read_highlight('highlight.min.js')}\n{_read_highlight('run.js')}</script>\n")
+
+
 def _reference(ticket: str) -> str:
     """A ticket that is a number is a GitHub issue: `#` makes it a reference that links."""
     return f"#{ticket}" if ticket.isdigit() else ticket
@@ -287,8 +308,9 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}{_node_cards(doc)}')
     body = link_cards(linkify(_round_marks(body, current), session.get("links")), _cards(doc))
+    themes, highlighter = _highlighter(doc)
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-            f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n</head>\n'
+            f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n{themes}</head>\n'
             f'<body>\n<div class="afkv2-page"{_btw_attrs(btw)}>{body}</div>\n'
-            f'<script>\n{_assets(".js", BASE_JS)}</script>\n</body>\n</html>\n')
+            f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')
