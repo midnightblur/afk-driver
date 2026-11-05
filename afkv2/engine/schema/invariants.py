@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+import registry
 from schema import note_rules
 
 STAMP_SALT = "afkv2 ingest stamp v0"
@@ -78,6 +79,7 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
             found += [((*where, "items", i, "carries", c), f"{old!r} is no card of an earlier round")
                       for c, old in enumerate(item.get("carries") or [])
                       if card_round.get(old, round_["n"]) >= round_["n"]]
+    found += _value_chips(doc)
     answer_ids: dict[str, tuple] = {}
     for r, round_ in enumerate(rounds):
         for p, answer in enumerate(round_.get("replies") or []):
@@ -108,6 +110,28 @@ def check_links(doc: dict, ids: dict[str, tuple]) -> list[tuple]:
             for a, target in enumerate(answer.get("about") or []):
                 if target not in ids and target not in note_ids:
                     found.append(((*where, "about", a), f"{target!r} resolves to no element and no note"))
+    return found
+
+
+def _value_chips(doc: dict) -> list[tuple]:
+    """A chip's `set` names a value set of the document, and its text is a value of that set (SDD §4: chip ->
+    value set, many to 1)."""
+    sets = doc.get("value_sets") or {}
+    trees = [(("maps", m), tree) for m, tree in enumerate(doc.get("maps") or [])]
+    trees += [(("rounds", r, "items", i, "body"), item["body"])
+              for r, round_ in enumerate(doc["rounds"]) for i, item in enumerate(round_["items"])]
+    found = []
+    for root, tree in trees:
+        for path, part in registry.walk(tree):
+            props = part.get("props") or {}
+            if part["type"] != "chip" or "set" not in props:
+                continue
+            named = sets.get(props["set"])
+            if named is None:
+                found.append(((*root, *path, "props", "set"), f"{props['set']!r} names no value set of the document"))
+            elif props["text"] not in named["values"]:
+                found.append(((*root, *path, "props", "text"),
+                              f"{props['text']!r} is no value of the set {props['set']!r}"))
     return found
 
 

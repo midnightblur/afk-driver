@@ -308,3 +308,40 @@ def test_the_same_value_has_the_same_colour_on_the_whole_page():
         colours.setdefault(value, set()).add(colour)
     assert set(colours) == {"high", "medium", "low"}
     assert all(len(found) == 1 for found in colours.values()), colours
+
+
+# --- check refuses a value chip that resolves to no set or no value of its set (ruling D-44) ---
+
+def _checked(capsys, tmp_path, cell, value_sets):
+    sys.path.insert(0, str(ENGINE_DIR.parent / "scripts"))
+    import json
+    import engine  # noqa: E402
+
+    body = {"type": "text", "props": {"text": "Risks"},
+            "children": [{"type": "table", "props": {"columns": ["Risk"], "rows": [[cell]]}}]}
+    doc = {"schema": "afkv2.page/1",
+           "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                       "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+           "maps": [], "notes": [], "value_sets": value_sets,
+           "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                       "items": [{"id": "i-a", "kind": "info", "body": body}]}]}
+    path = tmp_path / "doc.json"
+    path.write_text(json.dumps(doc), "utf-8")
+    code = engine.main(["check", str(path)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def test_check_accepts_a_value_chip_of_its_set(capsys, tmp_path):
+    assert _checked(capsys, tmp_path, value_chip("low", "risk"), {"risk": RISK})[0] == 0
+
+
+@pytest.mark.parametrize("cell, value_sets, why", [
+    (value_chip("low", "size"), {"risk": RISK}, "'size' names no value set of the document"),
+    (value_chip("low", "risk"), None, "'risk' names no value set of the document"),
+    (value_chip("severe", "risk"), {"risk": RISK}, "'severe' is no value of the set 'risk'"),
+], ids=["unknown set", "no sets", "value outside its set"])
+def test_check_refuses_a_value_chip_that_does_not_resolve(capsys, tmp_path, cell, value_sets, why):
+    code, answer = _checked(capsys, tmp_path, cell, value_sets)
+    assert code == 1
+    reason = answer["error"]["reason"]
+    assert why in reason and "body.children[0].props.rows[0][0].props" in reason, reason
