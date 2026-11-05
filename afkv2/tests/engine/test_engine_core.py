@@ -454,7 +454,7 @@ def scratch_type():
 
 def test_a_type_name_maps_to_a_schema_and_a_renderer():
     kind = registry.lookup("chip")
-    assert kind.name == "chip" and kind.schema["required"] == ["text", "tone"] and callable(kind.render)
+    assert kind.name == "chip" and kind.schema["required"] == ["text"] and callable(kind.render)
     assert registry.lookup("no-such") is None
 
 
