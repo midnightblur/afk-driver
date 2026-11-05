@@ -196,7 +196,7 @@ def test_a_part_refuses_a_tip_over_300_characters_and_a_you_that_is_no_flag(name
 def test_an_authored_tip_shows_on_a_page_with_no_dictionary():
     """The hover handler and the harvest of authored tips run when the dictionary is empty."""
     assert "if (!Object.keys(dict).length) return;" not in TIPS_JS
-    assert "if (!keys.length) return;" in TIPS_JS
+    assert "if (!re) return;" in TIPS_JS  # re is null when no catalog holds a key
 
 
 # --- the colour of a value in its named set (AC-028, SDD §9 row "Value colours") ---
