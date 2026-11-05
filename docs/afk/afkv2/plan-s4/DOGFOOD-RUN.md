@@ -31,7 +31,10 @@ The run in progress for subtask `0016-dogfood-run`. One row for each step, then 
 | `/afkv2:gc` on #158, list | Claude | beta.7 | pass | 6 items, no refusals: items 1-4 now (run worktree, local run branch c37f52c4 never pushed, remote feature branch), items 5-6 later (feature worktree with 25 ignored files, local feature branch); waits for the developer's yes |
 | `/afkv2:gc` on #158, remove and later command | Claude | beta.7 | pass | the developer's yes, then the later command after the session closed; checked after: both worktrees and their folders gone, no local or remote `feat/afkv2-gc*` branch left (2026-11-04); gc's own output not read, the pane was closed |
 | Install from the tag, setup again | Codex 0.166 | `afkv2-2.0.0-beta.7` | pass, one finding | interim block removed from `~/.codex/AGENTS.md` by the owner (F-8 closed); marketplace remove and add at the tag, `codex plugin add afkv2`; `afk` stayed disabled this time; "Trust all" on 3 new hooks; setup healthy: hook proof passed, takeover complete for both harnesses, rules for 37 scripts, lavish 0.1.80; 5 approvals, see F-36; the next session asked no trust and no approval at start |
-| `/afkv2:gc` part 2, GitHub #159, grill | Codex | beta.7 | in progress | worktree `afkv2-tips`, branch `feat/afkv2-tips` from `feat/afkv2` d37ae945 with no upstream (F-29) |
+| `/afkv2:gc` part 2, GitHub #159, grill to merged change | Codex | beta.7 | pass | worktree `afkv2-tips`, branch `feat/afkv2-tips` from `feat/afkv2` d37ae945 with no upstream (F-29); PR #172 merged by the owner (765c91bc, 2026-11-05); the owner drove the session, so the steps in between are not recorded here |
+| `/afkv2:gc` on #159 | Codex | beta.7 | pass | list: 6 items, no refusals; the developer's yes, then the later command; checked after: both worktrees and folders gone, no local or remote `feat/afkv2-tips*` branch (2026-11-05) |
+| #163 use-lavish skill, plan to merged change | Claude | beta.6 | pass | PR #171 merged by the owner (9b91b71f, 2026-11-05) |
+| `/afkv2:gc` on #163 | Claude | beta.7 | pass | list: 6 items, no refusals; the developer's yes, then the later command; checked after: both worktrees and folders gone, no local or remote `feat/afkv2-lavish*` branch (2026-11-05) |
 
 ## Failures and findings
 
