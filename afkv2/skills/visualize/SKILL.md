@@ -55,9 +55,20 @@ Load the page of each component you use.
 | sequence diagram | any body, type `sequence` | `components/sequence.md` |
 | simulated-run strip | any body, type `run-strip` | `components/run-strip.md` |
 | chip and styled text | any body, types `chip` and `text` | `components/chip-and-text.md` |
+| key-number tile | any body, type `tile` | `components/tile.md` |
+| bar chart | any body, type `bars` | `components/bars.md` |
+| line chart | any body, type `line` | `components/line.md` |
+| bullet graph | any body, type `bullet` | `components/bullet.md` |
+| range bars | any body, type `range` | `components/range.md` |
+| signed bars | any body, type `signed-bars` | `components/signed-bars.md` |
+| box plot | any body, type `box-plot` | `components/box-plot.md` |
+| flame graph | any body, type `flame` | `components/flame.md` |
+| sparklines | any body, type `sparkline` | `components/sparkline.md` |
+| span waterfall | any body, type `waterfall` | `components/waterfall.md` |
 | freestyle | any body, type `freestyle` | `components/freestyle.md` |
 
 Every component takes an open `style` field (any CSS) and nests inside any other.
+Every component also takes `tip` (format 1), a hover text of 1 to 300 characters: `components/chip-and-text.md`.
 Every component also takes `fold`, a label: the page shows the component closed
 under that label, and the human opens it.
 Give a folded component an `id`: only then does an open fold stay open through a reload.

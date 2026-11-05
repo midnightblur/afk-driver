@@ -938,6 +938,16 @@ def test_each_chart_has_a_page_with_its_props_its_look_and_when_to_use_it(form):
                          for level, frag in found)
 
 
+def test_the_components_table_has_a_row_for_each_chart_page_and_the_fields_name_the_tip():
+    index = SKILL_MD.read_text("utf-8")
+    rows = [line for line in index.splitlines() if line.startswith("|")]
+    for name in CHART_PAGES.values():
+        kind = name.removesuffix(".md")
+        assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
+    fields = index[index.index("takes an open `style` field"):index.index("## Page layout")]
+    assert "`tip`" in fields and "300" in fields, "SKILL.md states no component tip beside style and fold (f4)"
+
+
 def test_the_fake_refuses_a_chart_with_no_caption():
     frag = {"type": "bars", "props": {"items": [{"label": "a", "value": 1}]}}
     with pytest.raises(Refused, match="caption"):
