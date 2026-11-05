@@ -4,10 +4,13 @@ A diagram text renders through mermaid-cli once per theme, dark and default, int
 `diagram-cache/`; a picture is named by a hash of the renderer version, the theme and the text, so a text
 that did not change costs no renderer call. The page CSS shows the picture of the page's theme
 (`shell/diagram.css`). A missing renderer or browser config, a failure or a 60 s timeout shows the text
-in a code block with 1 line that says why; a failure is not cached, so the next render tries again.
+in a code block with 1 line that says why; a failure is not cached, so the next render tries again. A page build
+gives the renderer 90 s in all: a call waits only for what is left, and after a timeout or once the time is spent
+each diagram left shows as text, so the build stays inside the 120 s its caller allows.
 
 Each picture holds its own SVG id: `<element id>--dark` and `--light`, or `afkv2-diagram--…` for a diagram
-with no id, with a number when the id repeats on the page. Every other id inside a picture starts with
+with no id, with a number when the id repeats on the page. An element id that is not safe in HTML and CSS takes
+`afkv2-diagram-<hash>` instead (`svg_base`). Every other id inside a picture starts with
 that SVG id; an id that nothing in the picture names is dropped, so a note on the picture lands on its
 diagram. A page build counts each diagram as rendered, cached or shown as text (`page_run`).
 """
@@ -21,6 +24,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 from contextlib import contextmanager
 from html import escape
 from pathlib import Path
@@ -33,6 +37,9 @@ RENDERER = "mmdc"
 CONFIG_FILE = "puppeteer-config.json"
 CACHE_FOLDER = "diagram-cache"
 TIMEOUT_S = 60
+# The renderer time of one page build, under the 120 s that present gives one engine call.
+PAGE_BUDGET_S = 90
+MIN_CALL_S = 1
 SETUP = "/afkv2:setup"
 # The page theme, and the renderer theme that draws it.
 THEMES = (("dark", "dark"), ("light", "default"))
@@ -40,6 +47,9 @@ TOKEN = "afkv2svgtoken"
 NO_ID_BASE = "afkv2-diagram"
 WHY_LIMIT = 200
 ID_ATTR = re.compile(r'(\sid=")([^"]+)(")')
+SAFE_ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
+HASH_CHARS = 12
+clock = time.monotonic
 
 _run: dict | None = None
 
@@ -52,7 +62,7 @@ def page_run():
     if _run is not None:
         yield _run["counts"]
         return
-    _run = {"counts": {"rendered": 0, "cached": 0, "as_text": 0}, "ids": set()}
+    _run = {"counts": {"rendered": 0, "cached": 0, "as_text": 0}, "ids": set(), "spent": 0.0, "stopped": None}
     try:
         yield _run["counts"]
     finally:
@@ -122,18 +132,34 @@ class _NoPicture(Exception):
     """The why of a diagram that shows as text."""
 
 
-def _render(text: str, theme: str, renderer: str, config: Path) -> str:
+def _time_left(run: dict) -> float:
+    """The seconds the next renderer call may wait; `_NoPicture` once the page may call the renderer no more."""
+    if run["stopped"]:
+        raise _NoPicture(run["stopped"])
+    left = PAGE_BUDGET_S - run["spent"]
+    if left < MIN_CALL_S:
+        run["stopped"] = f"the diagrams of this page used their {PAGE_BUDGET_S} s of renderer time"
+        raise _NoPicture(run["stopped"])
+    return min(TIMEOUT_S, left)
+
+
+def _render(text: str, theme: str, renderer: str, config: Path, run: dict) -> str:
+    wait = _time_left(run)
     with tempfile.TemporaryDirectory(prefix="afkv2-diagram-") as work:
         source, out = Path(work) / "diagram.mmd", Path(work) / "diagram.svg"
         source.write_text(text, encoding="utf-8")
         argv = [renderer, "-p", str(config), "-i", str(source), "-o", str(out), "-t", theme, "-b", "transparent",
                 "-I", TOKEN, "-q"]
+        start = clock()
         try:
-            code, err = call_renderer(argv, TIMEOUT_S)
+            code, err = call_renderer(argv, wait)
         except subprocess.TimeoutExpired:
-            raise _NoPicture(f"the diagram renderer gave no answer in {TIMEOUT_S} s") from None
+            run["stopped"] = f"the diagram renderer gave no answer in {wait:g} s"
+            raise _NoPicture(run["stopped"]) from None
         except OSError as error:
             raise _NoPicture(f"the diagram renderer did not start: {error}") from None
+        finally:
+            run["spent"] += clock() - start
         svg = out.read_text(encoding="utf-8") if code == 0 and out.is_file() else ""
     if "<svg" not in svg:
         lines = [line.strip() for line in err.splitlines() if line.strip()]
@@ -142,12 +168,12 @@ def _render(text: str, theme: str, renderer: str, config: Path) -> str:
     return _own_ids(svg[svg.index("<svg"):])
 
 
-def _picture(text: str, theme: str, cache: Path | None, renderer: str, config: Path) -> tuple[str, bool]:
+def _picture(text: str, theme: str, cache: Path | None, renderer: str, config: Path, run: dict) -> tuple[str, bool]:
     """(the SVG of one theme with TOKEN as its id, whether the renderer ran)."""
     path = cache / cache_name(theme, text) if cache else None
     if path and path.is_file():
         return path.read_text(encoding="utf-8"), False
-    svg = _render(text, theme, renderer, config)
+    svg = _render(text, theme, renderer, config, run)
     if path:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,7 +185,7 @@ def _picture(text: str, theme: str, cache: Path | None, renderer: str, config: P
     return svg, True
 
 
-def _pictures(text: str) -> tuple[list[tuple[str, str]], bool]:
+def _pictures(text: str, run: dict) -> tuple[list[tuple[str, str]], bool]:
     data = _data()
     renderer = find_renderer()
     if not renderer:
@@ -170,22 +196,33 @@ def _pictures(text: str) -> tuple[list[tuple[str, str]], bool]:
     cache = data / CACHE_FOLDER
     found, ran = [], False
     for page_theme, renderer_theme in THEMES:
-        svg, new = _picture(text, renderer_theme, cache, renderer, config)
+        svg, new = _picture(text, renderer_theme, cache, renderer, config, run)
         found.append((page_theme, svg))
         ran = ran or new
     return found, ran
 
 
-def svg_id(element: str | None, page_theme: str) -> str:
-    return f"{element or NO_ID_BASE}--{page_theme}"
+def svg_base(element: str | None) -> str:
+    """The SVG id base of a diagram: its element id when that is safe in an HTML attribute and a CSS selector."""
+    if not element:
+        return NO_ID_BASE
+    if SAFE_ID.fullmatch(element):
+        return element
+    return f"{NO_ID_BASE}-{hashlib.sha256(element.encode('utf-8')).hexdigest()[:HASH_CHARS]}"
+
+
+def svg_id(base: str, page_theme: str) -> str:
+    return f"{base}--{page_theme}"
 
 
 def _base(element: str | None, run: dict) -> str:
-    """The id base of this diagram on the page: its element id, with a number when it is already used."""
-    base, n = element or NO_ID_BASE, 1
+    """The id base of this diagram on the page, with a number when it is already used. Element ids are unique on a
+    page and never start with `afkv2-`, so only a diagram with no id takes a number."""
+    first = svg_base(element)
+    base, n = first, 1
     while base in run["ids"]:
         n += 1
-        base = f"{element or NO_ID_BASE}-{n}"
+        base = f"{first}-{n}"
     run["ids"].add(base)
     return base
 
@@ -195,7 +232,7 @@ def diagram_picture(text: str, element: str | None = None) -> str:
     with page_run():
         run = _run
         try:
-            pictures, ran = _pictures(text)
+            pictures, ran = _pictures(text, run)
         except _NoPicture as why:
             run["counts"]["as_text"] += 1
             return (f'<pre class="afkv2-diagram-text"><code>{escape(text)}</code></pre>'

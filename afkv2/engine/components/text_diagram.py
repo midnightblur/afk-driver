@@ -22,7 +22,7 @@ def diagram_targets(props):
     element = props.get("id")
     if not element:
         return {}
-    return {diagrams.svg_id(element, theme): element for theme, _ in diagrams.THEMES}
+    return {diagrams.svg_id(diagrams.svg_base(element), theme): element for theme, _ in diagrams.THEMES}
 
 
 register_component("diagram", {

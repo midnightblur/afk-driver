@@ -263,3 +263,53 @@ def test_render_answers_the_diagram_counts(renderer, capsys, tmp_path):
     assert json.loads(capsys.readouterr().out)["diagrams"] == {"rendered": 2, "cached": 0, "as_text": 0}
     assert engine.main(["render", str(path)]) == 0
     assert json.loads(capsys.readouterr().out)["diagrams"] == {"rendered": 0, "cached": 2, "as_text": 0}
+
+
+# --- an element id that is not safe in HTML or CSS (review f1 of 0010)
+
+UNSAFE = 'd-x"><i data-marker="1"></i><b x="'
+
+
+@pytest.mark.parametrize("element", [UNSAFE, "1 flow", "d.flow#2"])
+def test_an_element_id_unsafe_in_html_or_css_never_reaches_the_picture_raw(renderer, element):
+    html = registry.render_component(diagram(id=element))
+    assert "data-marker" not in html.replace("data-marker=&quot;", "")
+    roots = SVG_ROOT.findall(html)
+    assert len(roots) == 2 and all(re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", root) for root in roots), roots
+    targets = registry.lookup("diagram").targets({"id": element, **diagram()["props"]})
+    assert {targets.get(root) for root in roots} == {element}, "a note on the picture still lands on its diagram"
+
+
+# --- one renderer time budget per page (review f2 of 0010)
+
+class Clock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_after_a_renderer_timeout_the_rest_of_the_page_shows_as_text_with_no_more_calls(renderer):
+    renderer.timeout = True
+    html, counts = built(page_of(diagram(FLOW), diagram(STATES), diagram("flowchart LR; x --> y")))
+    assert len(renderer.calls) == 1
+    assert counts == {"rendered": 0, "cached": 0, "as_text": 3}
+    assert html.count("The diagram shows as text:") == 3
+
+
+def test_a_page_spends_at_most_its_renderer_budget_and_each_call_waits_only_for_what_is_left(renderer, monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(diagrams, "clock", clock)
+    stub = renderer
+
+    def slow(argv, timeout):
+        clock.now += 40
+        return stub(argv, timeout)
+
+    monkeypatch.setattr(diagrams, "call_renderer", slow)
+    html, counts = built(page_of(diagram(FLOW), diagram(STATES)))
+    assert diagrams.PAGE_BUDGET_S == 90
+    assert [call["timeout"] for call in stub.calls] == [60, 50, 10]
+    assert counts == {"rendered": 1, "cached": 0, "as_text": 1}
+    assert "90 s" in FALLBACK.search(html).group(2)
