@@ -519,10 +519,10 @@ note-list)
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
   edits=$(issue_comment_edits_json "$repo" "$number")
-  gh api --paginate "repos/$repo/issues/$number/comments?per_page=100" 2>/dev/null \
+  { printf '%s\n' "$edits"; gh api --paginate "repos/$repo/issues/$number/comments?per_page=100" 2>/dev/null; } \
     | "$PY" -c "$PAGES"'
 import json, sys
-edits = json.loads(sys.argv[1])
+edits = json.loads(sys.stdin.readline())
 if "error" in edits:
     print(json.dumps({"error": True, "reason": edits["error"]}))
     raise SystemExit(0)
@@ -546,7 +546,7 @@ for n in data:
                   "edited": flag})
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
-' "$edits"
+'
   ;;
 
 commit-changes)
@@ -594,9 +594,10 @@ thread-list)
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
   graph=$(review_threads_json "$repo" "$number")
-  gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
+  { printf '%s\n' "$graph"; gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null; } \
+    | "$PY" -c "$PAGES"'
 import json, sys
-graph=json.loads(sys.argv[1])
+graph=json.loads(sys.stdin.readline())
 if "error" in graph:
     print(json.dumps({"error": True, "reason": graph["error"]}))
     raise SystemExit(0)
@@ -647,7 +648,7 @@ for root in order:
     })
 threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), t["id"]))
 print(json.dumps({"threads": threads, "count": len(threads)}))
-' "$graph"
+'
   ;;
 
 thread-reply)

@@ -134,6 +134,54 @@ def test_thread_list_reads_every_page(tmp_path, kind, body):
     assert answer["count"] == 2, done.stdout
 
 
+def _many(kind: str, verb: str, count: int) -> tuple[dict, list]:
+    """A GraphQL answer and a REST page for `count` comments on one change."""
+    ids = range(1, count + 1)
+    if kind == "github" and verb == "thread-list":
+        nodes = [{"id": f"T{i}", "isResolved": False, "comments": {"nodes": [{"databaseId": i, "lastEditedAt": None}]}}
+                 for i in ids]
+        return ({"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}},
+                [{"id": i, "body": "x", "path": "a.txt", "line": 1, "side": "RIGHT", "user": {"login": "a"}}
+                 for i in ids])
+    if kind == "github":
+        return ({"data": {"repository": {"pullRequest": {"comments": {"nodes": [
+                    {"databaseId": i, "lastEditedAt": None} for i in ids]}}}}},
+                [{"id": i, "body": "x", "user": {"login": "a"}, "created_at": "2025", "updated_at": "2025"}
+                 for i in ids])
+    nodes = [{"id": f"gid://gitlab/{'DiffNote' if verb == 'thread-list' else 'Note'}/{i}", "lastEditedBy": None,
+              "author": {"id": "gid://gitlab/User/1"}} for i in ids]
+    rest = ([{"id": f"d{i}", "notes": [{"id": i, "body": "x", "author": {"username": "a"}}]} for i in ids]
+            if verb == "thread-list" else
+            [{"id": i, "body": "x", "author": {"username": "a"}, "created_at": "2025", "updated_at": "2025",
+              "system": False} for i in ids])
+    return {"data": {"project": {"mergeRequest": {"notes": {"nodes": nodes}}}}}, rest
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("verb", ("thread-list", "note-list"))
+def test_a_change_with_many_comments_reads_past_the_windows_command_line_cap(tmp_path, kind, verb):
+    graphql, rest = _many(kind, verb, 6000)
+    (tmp_path / "graphql.json").write_text(json.dumps(graphql), encoding="utf-8")
+    (tmp_path / "rest.json").write_text(json.dumps(rest), encoding="utf-8")
+    assert len(json.dumps(graphql)) > 32768
+    data = tmp_path.as_posix()
+    body = f"""
+case "$1 $2" in
+  "repo view") echo 'acme/widget' ;;
+  "pr view") echo '7' ;;
+  "mr view") echo '{{"iid":7,"web_url":"https://gitlab.example/mr/7"}}' ;;
+  "api projects/:id") echo '{{"path_with_namespace":"acme/widget"}}' ;;
+  "api graphql") cat '{data}/graphql.json' ;;
+  "api --paginate"*) cat '{data}/rest.json' ;;
+  *) echo '{{}}' ;;
+esac
+"""
+    done = forge(kind, stub(tmp_path, kind, body), verb, '{"id":"7"}', cwd=tmp_path)
+    answer = json.loads(done.stdout)
+    assert "error" not in answer, done.stdout[:400] + done.stderr[-400:]
+    assert answer["count"] == 6000
+
+
 NOTE_PAGES = {
     "gitlab": """
 case "$1 $2" in
