@@ -10,7 +10,7 @@ import pytest
 PLUGIN = Path(__file__).resolve().parents[2]
 PRODUCERS = ["grill/scripts/round_document.py", "propose-solution/scripts/design_round.py"]
 TIPS = {"terms": [{"term": "batch", "definition": "A group of records."}],
-        "ids": [{"id": "REQ-1", "title": "Export the selected records."}]}
+        "ids": [{"id": "t-export", "title": "Export the selected records."}]}
 
 
 def run_build(tmp_path, producer, content, replace=False):
@@ -24,7 +24,14 @@ def run_build(tmp_path, producer, content, replace=False):
 
 
 def round_input():
-    return {"banner": {"settled": [], "unlocks": [], "parked": []}, "items": []}
+    return {
+        "banner": {"settled": [], "unlocks": [], "parked": []},
+        "items": [{
+            "id": "i-export",
+            "kind": "confirm",
+            "body": {"type": "text", "id": "t-export", "props": {"text": "REQ-1 exports one batch."}},
+        }],
+    }
 
 
 def check(path):

@@ -9,7 +9,7 @@
   },
   "tips": {
     "terms": [{"term": "batch", "definition": "A group of records processed together."}],
-    "ids": [{"id": "REQ-1", "title": "Export the selected records."}]
+    "ids": [{"id": "t-export", "title": "Export the selected records."}]
   },
   "maps": [],
   "rounds": [{
