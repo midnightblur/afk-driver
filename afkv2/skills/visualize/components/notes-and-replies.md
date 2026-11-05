@@ -13,9 +13,14 @@ round: `rounds[].notes[]`, id `N-<round>-<target>-<k>`. `k` counts 1, 2, 3 per
 card or target in the round, in annotation order. The banner of round n has the
 element id `R-<n>`. A steer names no card. An older document keeps its ids
 `N-<round>-<item>` and `N-<round>-<target>`: one note per card or target per
-round. An older document can keep a steer on a card; it is still a steer. A
-reply lives on the round: `rounds[].replies[]` with `text` and `about`, the list
-of the element ids and note ids it answers.
+round. An older document can keep a steer on a card; it is still a steer. On a
+format 1 page, every note lives in the one session list `notes[]`, with `item`,
+the card that holds it (none for a steer), and `quote`, the text the human
+selected. A reply lives on the round: `rounds[].replies[]` with `text`, `notes`
+and `changed`. `notes` lists the 1 or more note ids it answers; `changed` lists
+each element id it changed. The engine gives each reply its id `A-<round>-<k>`.
+`about` is read on format 0 pages only: the element ids and note ids a reply
+answers.
 
 ## Use it when
 
@@ -50,9 +55,10 @@ steer. An annotation on any other row is a steer.
 
 ## Example
 
-```json fragment=reply
+```json fragment=answer
 {
   "text": "Read as: the export stays per order. The format question moves to this round.",
-  "about": ["i-export"]
+  "notes": ["N-1-i-export-1"],
+  "changed": ["i-export"]
 }
 ```

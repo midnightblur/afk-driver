@@ -361,7 +361,8 @@ def check_document(doc):
 # Fragments: ```json fragment=<level> blocks in the guide.
 
 FENCE = re.compile(r"```json fragment=(\w+)\n(.*?)\n```", re.S)
-LEVELS = {"document", "round", "banner", "reply", "item", "component", "map"}
+LEVELS = {"document", "round", "banner", "reply", "answer", "item", "component", "map"}
+NOTE_ID = re.compile(r"N-(\d+)-(.+)-(\d+)")
 
 
 def fragments(path):
@@ -379,6 +380,8 @@ def wrap(level, frag):
     """
     if level == "document":
         return frag
+    if level == "answer":
+        return _wrap_answer(frag)
     doc = {
         "schema": SCHEMA,
         "session": {"id": "s-wrap", "skill": "grill", "feature": "example",
@@ -412,6 +415,22 @@ def wrap(level, frag):
                 "title": "wrap", "nodes": [{"id": node, "label": node, "state": "focus",
                                             "round": 1}]}})
     return doc
+
+
+def _wrap_answer(frag):
+    """A format 1 answer, {text, notes, changed}, in the smallest format 1 document: each note and element it names."""
+    notes = [{"id": nid, "round": 1, "target": NOTE_ID.fullmatch(nid).group(2),
+              "item": NOTE_ID.fullmatch(nid).group(2), "text": "x", "deleted": False} for nid in frag.get("notes", [])]
+    ids = dict.fromkeys([*(n["item"] for n in notes), *frag.get("changed", [])])
+    items = [{"id": i, "kind": "info", "body": {"type": "text", "props": {"text": "x"}}} for i in ids]
+    return {
+        "schema": SCHEMA_1,
+        "session": {"id": "s-wrap", "skill": "grill", "feature": "example", "ticket": "PROJ-123",
+                    "started": "2026-01-01T09:00:00Z", "step": "Requirements grill"},
+        "maps": [], "notes": notes,
+        "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                    "items": items, "replies": [frag]}],
+    }
 
 
 def all_fragments():
@@ -727,6 +746,15 @@ def test_the_notes_page_shows_the_session_table_of_format_1():
                  "its own closed group", "the note ids in its `notes`"):
         assert fact in looks, fact
     assert "Earlier rounds" not in looks
+
+
+def test_the_notes_page_holds_the_answer_of_format_1():
+    """Ruling D-38: Holds and the Example show the format 1 answer {text, notes, changed}; about is format 0 only."""
+    holds = " ".join(_entry_section("notes-and-replies.md", "## Holds").split())
+    assert "`rounds[].replies[]` with `text`, `notes` and `changed`" in holds
+    assert "`about` is read on format 0 pages only" in holds
+    found = fragments(PAGES_DIR / "notes-and-replies.md")
+    assert [(level, set(frag)) for level, frag in found] == [("answer", {"text", "notes", "changed"})]
 
 
 def _frontmatter(path):

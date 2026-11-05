@@ -540,8 +540,9 @@ def test_each_page_skill_points_here_and_scans_its_files():
         assert "answer rules of `/afkv2:use-lavish`" in text and '"Take over a page"' in text, skill
         scan = '--scan "<spec dir>/INDEX.md"' if skill == "to-subtasks" else '--scan "<log>"'
         assert dict(STEP_LINE.findall(text))["present"].endswith(scan), skill
-    rounds = (SKILLS / "grill" / "ROUNDS.md").read_text("utf-8")
-    assert "visualize/components/card.md" not in rounds and "use-lavish/ROUND-PASS.md" in rounds
+    for other in (SKILLS / "grill" / "ROUNDS.md", SKILLS / "propose-solution" / "DRAFT.md"):
+        text = other.read_text("utf-8")
+        assert "visualize/components/card.md" not in text and "use-lavish/ROUND-PASS.md" in text, other.name
 
 
 def test_the_grill_repeats_no_steer_in_an_answer():
