@@ -44,6 +44,14 @@ CATALOG = {
     "CMP-10": "freestyle.md",
 }
 ENTRY_SECTIONS = ("## Holds", "## Use it when", "## How it looks", "## Example")
+# PRD table K id -> the page of its chart component, with the props each chart requires beside `caption`.
+CHART_PAGES = {
+    "K-01": "tile.md", "K-02": "bars.md", "K-03": "line.md", "K-35": "bullet.md", "K-36": "box-plot.md",
+    "K-37": "range.md", "K-38": "signed-bars.md", "K-47": "flame.md", "K-48": "sparkline.md", "K-49": "waterfall.md",
+}
+CHART_FIELDS = {"tile": {"value", "label", "grade", "source"}, "bars": {"items"}, "line": {"points"},
+                "bullet": {"label", "value", "target", "bands"}, "range": {"items", "means"}, "signed-bars": {"items"},
+                "box-plot": {"items"}, "flame": {"root"}, "sparkline": {"rows"}, "waterfall": {"spans"}}
 
 # Recorded fake of the page document v0 contract: SDD §4 field sets, props as the guide states them.
 
@@ -177,6 +185,11 @@ def _check_props(comp, where, ids, last_round):
                 _need(step.get("tone") is None or step["tone"] in TONES, where,
                       f"props.{lane}[{s}].tone")
                 _check_marks(step, f"{where}.props.{lane}[{s}]")
+    elif kind in CHART_FIELDS:
+        caption = props.get("caption")
+        _need(isinstance(caption, str) and 0 < len(caption) <= 160, where, "props.caption (1 to 160 characters)")
+        missing = CHART_FIELDS[kind] - set(props)
+        _need(not missing, where, f"props {sorted(missing)} (required)")
     else:
         raise Refused(f"{where}: unknown type {kind!r}")
 
@@ -898,7 +911,7 @@ def test_every_skill_file_has_agent_skills_frontmatter():
 
 def test_one_entry_per_catalog_component():
     pages = {p.name for p in PAGES_DIR.glob("*.md")}
-    assert pages == set(CATALOG.values())
+    assert pages == set(CATALOG.values()) | set(CHART_PAGES.values())
     index = SKILL_MD.read_text("utf-8")
     for cmp_id, name in CATALOG.items():
         text = (PAGES_DIR / name).read_text("utf-8")
@@ -906,6 +919,29 @@ def test_one_entry_per_catalog_component():
             assert section in text, f"{cmp_id} ({name}) has no {section!r}"
         assert fragments(PAGES_DIR / name), f"{cmp_id} ({name}) has no example fragment"
         assert f"components/{name}" in index, f"SKILL.md does not point at {name}"
+
+
+@pytest.mark.parametrize("form", sorted(CHART_PAGES))
+def test_each_chart_has_a_page_with_its_props_its_look_and_when_to_use_it(form):
+    name = CHART_PAGES[form]
+    kind = name.removesuffix(".md")
+    text = (PAGES_DIR / name).read_text("utf-8")
+    for section in ENTRY_SECTIONS:
+        assert section in text, f"{name} has no {section!r}"
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert f"Type `{kind}`" in holds and "`caption`" in holds
+    for field in sorted(CHART_FIELDS[kind]):
+        assert f"`{field}`" in holds, field
+    assert "colour" in _entry_section(name, "## How it looks"), "the page states the cue beside the colour (PR-07)"
+    found = fragments(PAGES_DIR / name)
+    assert found and all(level == "component" and frag["type"] == kind and frag["props"]["caption"]
+                         for level, frag in found)
+
+
+def test_the_fake_refuses_a_chart_with_no_caption():
+    frag = {"type": "bars", "props": {"items": [{"label": "a", "value": 1}]}}
+    with pytest.raises(Refused, match="caption"):
+        check_document(wrap("component", frag))
 
 
 def test_fragment_levels_are_known():
