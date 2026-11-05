@@ -3,12 +3,11 @@ a certainty chip and the source. Against a target, a bullet graph is the better 
 
 from html import escape
 
-from components.chart_svg import LABEL, NUMBER, UNIT, chart_schema, number, svg_frame, text, unfinite
+from components.chart_svg import LABEL, NUMBER, UNIT, chart_schema, note_line, number, svg_frame, text, unfinite
 from registry import register_component, render_component
 
 GRADES = ["measured", "inferred", "estimated", "unverified"]
 WIDTH, HEIGHT, RANGED = 300, 78, 98
-SOURCE_LINE = '<p style="margin:.25rem 0 0;font-size:.85rem;color:var(--fg-dim)">{} {}</p>'
 
 
 def check_tile(props):
@@ -29,7 +28,7 @@ def render_tile(props, children):
         body += text(16, 88, f"range {number(props['low'])} to {number(props['high'], unit)}", tone="dim")
     grade = render_component({"type": "chip", "props": {"text": props["grade"], "tone": props["grade"]}})
     return svg_frame("tile", props["caption"], WIDTH, RANGED if ranged else HEIGHT, body, children,
-                     after=SOURCE_LINE.format(grade, escape(props["source"])))
+                     after=note_line(f'{grade} {escape(props["source"])}'))
 
 
 register_component("tile", chart_schema({

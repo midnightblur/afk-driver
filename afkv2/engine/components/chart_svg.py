@@ -28,6 +28,7 @@ FRAME_CLASS = "afkv2-chart afkv2-chart--{}"
 FIGURE_STYLE = "margin:0 0 .5rem;max-width:{}px"
 SVG_STYLE = "display:block;width:100%;height:auto;font:{}px ui-sans-serif,system-ui,sans-serif"
 CAPTION_STYLE = "margin:.2rem 0 0;color:var(--fg-dim);font-size:.85rem"
+NOTE_LINE = '<p style="margin:.25rem 0 0;font-size:.85rem;color:var(--fg-dim)">{}</p>'
 FONT = 12
 CHAR = 0.6
 WIDTH = 560
@@ -146,6 +147,11 @@ def polyline(points: list[tuple[float, float]], tone: str = "mark", width: float
 def mix(tone: str, strength: int) -> str:
     """A token at `strength` percent over the card surface: one hue, weaker or stronger."""
     return f"color-mix(in srgb, {paint(tone)} {strength}%, var(--surface))"
+
+
+def note_line(html: str) -> str:
+    """An HTML line under the SVG for words that may wrap, such as a source or what a range means."""
+    return NOTE_LINE.format(html)
 
 
 def svg_frame(kind: str, caption: str, width: float, height: float, body: str, children: Iterable[str] = (),

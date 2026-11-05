@@ -34,6 +34,9 @@ CHARTS = {
                         {"at": "2026-10-15", "value": 1300}, {"at": "2026-10-22", "value": 1240}]},
     "bullet": {"caption": CAPTION, "label": "test coverage", "value": 72, "target": 80, "unit": "%",
                "bands": [{"upto": 50, "label": "poor"}, {"upto": 75, "label": "fair"}, {"upto": 100, "label": "good"}]},
+    "range": {"caption": CAPTION, "unit": "days", "means": "9 in 10 such tasks end between low and high",
+              "items": [{"label": "export rework", "low": 3, "likely": 5, "high": 9},
+                        {"label": "cache", "low": 1, "likely": 2, "high": 3}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
@@ -50,6 +53,9 @@ BAD = {
                ({"value": 101}, "value"), ({"target": -1}, "target"), ({"bands": []}, "bands"),
                ({"bands": [{"upto": k, "label": "b"} for k in range(1, 7)], "value": 1, "target": 1}, "bands"),
                ({"start": 75, "bands": [{"upto": 100, "label": "good"}]}, "value")],
+    "range": [({"items": [{"label": "a", "low": 1, "likely": 5, "high": 3}]}, "items"),
+              ({"items": [{"label": "a", "low": 4, "likely": 2, "high": 6}]}, "items"), ({"means": None}, "means"),
+              ({"items": []}, "items"), ({"items": [{"label": "a", "low": 1, "likely": 1, "high": 1}] * 41}, "items")],
 }
 NAMES = sorted(CHARTS)
 
@@ -219,3 +225,20 @@ def test_a_bullet_draws_the_value_bar_the_target_tick_and_named_bands():
     start, width = (float(n) for n in VALUE_BAR.search(html).groups())
     tick = float(TICK.search(html).group(1))
     assert (tick - start) / width == pytest.approx(80 / 72, rel=0.01)
+
+
+# --- range (K-37) ---
+
+RANGE_BAR = re.compile(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="8\.0"')
+LIKELY = re.compile(r'<circle cx="([\d.]+)"')
+
+
+def test_range_bars_share_one_scale_with_a_dot_at_the_likely_value_and_numbers_at_the_end():
+    html = drawn("range")
+    written = words(html)
+    assert written[:4] == ["export rework", "3 to 9 days, likely 5", "cache", "1 to 3 days, likely 2"]
+    assert len(written) == 4 and "The range: 9 in 10 such tasks end between low and high</p>" in html
+    (x1, w1), (x2, w2) = [(float(a), float(b)) for a, b in RANGE_BAR.findall(html)]
+    assert w1 / w2 == pytest.approx((9 - 3) / (3 - 1), rel=0.01), "one scale for every bar"
+    dots = [float(x) for x in LIKELY.findall(html)]
+    assert x1 < dots[0] < x1 + w1 and x2 < dots[1] < x2 + w2
