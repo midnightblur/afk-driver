@@ -636,7 +636,7 @@ class World:
 
     def answer(self, started, raw):
         self.raw.write_bytes(raw.encode("utf-8"))
-        self.run("present", doc=started["doc"])
+        self.run("present", doc=started["doc"], spec_dir=self.spec)
         self.run("wait", doc=started["doc"], raw_file=started["raw_file"])
         return self.run("ingest", doc=started["doc"], raw_file=started["raw_file"])
 
@@ -1120,7 +1120,7 @@ def test_a_corrected_round_replaces_an_unanswered_one(world):
 def test_a_shown_round_is_not_replaced(world):
     started = world.committed_plan()
     world.division(started)
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], spec_dir=world.spec)
     assert error_of(world.division(started, expect=1, replace=True))["code"] == "round-shown"
 
 

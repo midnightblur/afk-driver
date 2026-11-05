@@ -372,3 +372,176 @@ def test_only_the_notes_of_the_last_round_are_warned(tmp_path, capsys):
     ingest(capsys, path, "[round R-2]\ni-c accept\nR-2 note 1\n  a steer")
     warned = rd.build_round_document(path, SESSION, round_input("i-d"))["warnings"]
     assert [w["note"] for w in warned] == ["N-2-R-2-1"]
+
+
+# ---- the skill text: page rules, answer rules, forms by kind, page or chat (PRD Catalog; SDD §8 row "use-lavish
+# skill: instructions"). The quality of the rules is proved by a dogfood run; these tests pin where they live.
+
+SKILL_MD = HOME / "SKILL.md"
+ROUND_PASS_MD = HOME / "ROUND-PASS.md"
+RETIRED_KINDS = (30, 31, 32, 43)
+STEP_LINE = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
+
+
+def _section(text, heading):
+    """The text under `heading` up to the next heading of the same or a higher level."""
+    level = heading.split(" ", 1)[0]
+    start = text.index(heading + "\n")
+    rest = text[start + len(heading) + 1:]
+    stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
+    return rest[:stop.start()] if stop else rest
+
+
+def _table_ids(text, prefix):
+    return re.findall(rf"^\| ({prefix}-\d\d) \|", text, re.M)
+
+
+def test_the_skill_holds_the_four_tables_with_every_id():
+    text = SKILL_MD.read_text("utf-8")
+    assert _table_ids(_section(text, "### Page rules"), "PR") == [f"PR-{k:02}" for k in range(1, 15)]
+    assert _table_ids(_section(text, "### Answer rules"), "AR") == [f"AR-{k:02}" for k in range(1, 11)]
+    forms = [f"K-{k:02}" for k in range(1, 54) if k not in RETIRED_KINDS]
+    assert _table_ids(_section(text, "### Forms by kind"), "K") == forms
+    assert _table_ids(_section(text, "### Refinements"), "RF") == [f"RF-{k:02}" for k in range(1, 10)]
+
+
+def test_table_k_holds_no_retired_kind():
+    """PRD AC-007: for goals, open questions, quality requirements and guarantees the agent picks a form."""
+    text = SKILL_MD.read_text("utf-8")
+    for k in RETIRED_KINDS:
+        assert f"K-{k}" not in text
+    assert "retired" not in text
+
+
+def test_an_answer_holds_no_copy_of_the_note():
+    """PRD AC-017, AR-09; ADR-0004 requirements: one note, one row."""
+    rules = _section(SKILL_MD.read_text("utf-8"), "### Answer rules")
+    assert "| AR-09 | Never repeat the human's note in the answer, steers included" in rules
+    assert "| AR-10 | Each note gets its own row." in rules
+
+
+def test_another_form_than_table_k_states_why_in_one_line():
+    forms = _section(SKILL_MD.read_text("utf-8"), "### Forms by kind")
+    assert "state on the page in one line why" in forms
+
+
+def test_page_or_chat_and_the_hands_off_rule():
+    """PRD AC-008, AC-009."""
+    rule = _section(SKILL_MD.read_text("utf-8"), "## Page or chat")
+    assert "Offer a page for options side by side, a picture, or 3 or more questions." in rule
+    assert "Ask a one-line question in chat." in rule
+    assert "hands-off subagent" in rule and "open no page, and park the question" in rule
+
+
+def test_the_skill_lists_every_page_command():
+    """The 0006 IOU: start, track and present --scan have their caller here; take-over too."""
+    commands = _section(SKILL_MD.read_text("utf-8"), "## The commands")
+    for command in ("scripts/page_home.py start --topic", "scripts/page_home.py track --doc",
+                    "scripts/page_round.py present --doc D [--scan F]", "scripts/page_round.py take-over --doc"):
+        assert command in commands, command
+
+
+def test_an_ad_hoc_page_needs_a_topic_and_starts_by_the_home_rule():
+    """PRD AC-001, AC-002."""
+    steps = _section(SKILL_MD.read_text("utf-8"), "## An ad-hoc page")
+    assert "ask in chat what the page is about, and open no page" in steps
+    assert "page_home.py start" in steps and "--private" in steps
+
+
+def test_the_notices_reach_chat_and_track_moves_the_page():
+    """PRD AC-047, AC-048, AC-049, AC-053."""
+    text = SKILL_MD.read_text("utf-8")
+    shown = _section(text, "## After each show")
+    for word in ("git_state", "secrets", "secrets_more", "scan_cut", "no known shape"):
+        assert word in shown, word
+    track = _section(text, "## Track a page")
+    for word in ("page_home.py track", "needs-ticket", "private", "commit"):
+        assert word in track, word
+
+
+def test_a_resuming_session_takes_the_page_over():
+    """PRD AC-054; SDD §7 "Take over a page"; SDD §14 row "Log rows of a takeover"."""
+    steps = _section(SKILL_MD.read_text("utf-8"), "## Take over a page")
+    assert "page_round.py take-over" in steps
+    assert "- Takeover: R<n> · <at>" in steps
+    assert "every note that has no answer" in steps
+
+
+# The round pass moved here from the visualize guide (SDD §14 row "visualize guide"): a changed sentence must fail.
+ROUND_PASS = """
+When the human sends a round, the engine settles a point with one `accept`,
+`sign` or option mark. It moves a point to `needs_reading` on `reopen`,
+`changes`, a write-in, a note, a mark plus a note, or 2 marks. On a card that is
+already settled, a signal that changes the answer sets `state` to `open` and
+removes `settled`, and a note stays on that card, also in a settled round. Its
+signal has `reopened: true`. Before you mark the round `settled`, go through the
+cards of the current round. Never change a card in a settled round: only the
+engine writes there. A steer lives on the round, and its signal has `steer: true`
+and no `item`: leave it out when you read the signals, because it settles nothing.
+
+- `needs_reading` with a clear note and no signal that disagrees with it: set
+  `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
+  The `signal` is the note id. A note that leaves the answer open is not a clear
+  note. A `signoff` card settles only by a `sign` mark: a note on it is never a clear
+  note, even when it keeps the wording, and `apply-readings` refuses that reading. The
+  new card asks the human to sign. A note on an `info` card is not a
+  clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
+  mark always disagrees.
+- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
+  id, so it cannot settle by note: the new card for that point is a `confirm` card
+  that states the write-in as your reading.
+- `blocked` with the point it waits on now settled: set `state` to `open`.
+
+Then mark the round `settled` and append the next round. Make one new card for
+each point that returns:
+
+- a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
+  is still `open` or `blocked`;
+- a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
+  human noted or reopened in this send.
+
+The new card has a new id. Its `carries` lists each old card id; each id must be
+a card of an earlier round. Its body shows the signals that returned the point,
+for example both the mark and the note. A carried
+`blocked` card names the current card id of the point it waits on. An `info` card
+stays in its round. The old card stays as it is.
+"""
+SETTLED_FIELDS = {"by", "round", "signal", "reading"}
+
+
+def test_the_round_pass_lives_here_word_for_word():
+    found = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the cards")
+    assert found.split() == ROUND_PASS.split()
+
+
+def test_the_settled_example_has_the_schema_shape():
+    found = re.findall(r"`(\{\"by\": .*?\})`", ROUND_PASS_MD.read_text("utf-8"))
+    assert found, "ROUND-PASS.md has no settled example"
+    for raw in found:
+        settled = json.loads(raw)
+        assert set(settled) == SETTLED_FIELDS and settled["by"] == "note"
+        assert settled["signal"].startswith(f"N-{settled['round']}-")
+
+
+def test_the_note_reading_answers_by_the_rules_and_repeats_no_steer():
+    """SDD §14 row "visualize guide": the text that groups notes or repeats a steer goes."""
+    notes = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the notes")
+    assert "answer rules" in notes and "Read every note" in notes
+    for gone in ("word for word", "group of notes", "per group"):
+        assert gone not in notes, gone
+
+
+def test_each_page_skill_points_here_and_scans_its_files():
+    """PRD AC-003, AC-004; the 0006 IOU: each page skill passes --scan where it presents a round."""
+    for skill in PAGE_SKILLS:
+        text = (SKILLS / skill / "SKILL.md").read_text("utf-8")
+        assert "../use-lavish/SKILL.md" in text and "../use-lavish/ROUND-PASS.md" in text, skill
+        assert "visualize/components/card.md" not in text and "notes-and-replies" not in text, skill
+        assert "--scan" in dict(STEP_LINE.findall(text))["present"], skill
+    rounds = (SKILLS / "grill" / "ROUNDS.md").read_text("utf-8")
+    assert "visualize/components/card.md" not in rounds and "use-lavish/ROUND-PASS.md" in rounds
+
+
+def test_the_grill_repeats_no_steer_in_an_answer():
+    text = (SKILLS / "grill" / "SKILL.md").read_text("utf-8")
+    assert "a steer word for word" not in text

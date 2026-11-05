@@ -19,37 +19,31 @@ of the element ids and note ids it answers.
 
 ## Use it when
 
-Every round that follows input from the human: the notes of the last round, or
-the human's input in Round 0. Treat Round 0 input as unverified. Read every note,
-then write one reply per note or per group of notes on the same point. State your
-reading in the reply for every point a note settled. Leave `notes` to the engine:
-every note in the document comes from the human. A note with `deleted` set is not
-input.
-
-A steer is a note on the round, or a note whose `target` is a map or a map node.
-It is a steer for that element. Repeat it word for word in your reply and hold
-to it for that element until the session ends. When
-2 steers on one node conflict, do not choose: state the conflict in your reply
-and ask the human.
+Every round that follows input from the human: write `replies`, the answers to
+the notes. The engine writes `notes`.
 
 ## How it looks
 
-One row per note, with the human's words quoted: `# | Where you wrote it | Your
-note | My answer / what changed`. A deleted note has no row.
+One row per note, with the human's words quoted: `# | Where you wrote it | Noted
+text | Your note | My answer / what changed`. Noted text holds the text the human
+selected, when the note is on a selection; Your note holds only the human's
+words. A deleted note has no row.
 
 A note on a card, or on a part of a card, is a row under the heading of that
 card, newest round first. A history card shows its own rows.
 
-"Notes on the whole session", below the round banner, holds the other rows: the
-steers, and the replies that name no card. It adds an `Open` column. A group row
-with the round colour opens each round, newest round first. The current round
-and the round before stay open; older rounds fold into "Earlier rounds".
+"Notes on the whole session", below the round banner, holds every note and every
+answer of the session, card notes included, newest round first. It adds an
+`Open` column, a link to the card, map or round the row is on. A group row with
+the round colour and a count line opens each round. The current round and the
+round before stay open; each older round is its own closed group, and its count
+line opens it with one click.
 
-A reply answers a note when its `about` holds the note's `target`, its item id
-or its note id. The engine looks in the round of the reply first, then in the
-round before. A reply that answers no note gets its own row, "From me", on the
-first card, card element or note that its `about` names, else in the session
-table. So name the noted element in `about`.
+An answer stands in the row of each note it names: the note ids in its `notes`.
+One answer that names 2 notes stands in both rows. Under the answer, "Changed:"
+links each element in its `changed`. An answer that names no note gets its own
+row, "From me", on the first card, card element or note that it names, else in
+the session table. On a page from format 0, an answer pairs by its `about`.
 
 An annotation on a row stands for the card of that row, or for the node of a
 steer. An annotation on any other row is a steer.

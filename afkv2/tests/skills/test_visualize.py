@@ -689,65 +689,41 @@ def test_examples_carry_no_note_and_no_response():
             assert not any(item.get("notes") for item in rnd["items"]), label
 
 
-def test_card_page_settled_example_has_the_schema_shape():
-    text = (PAGES_DIR / "card.md").read_text("utf-8")
-    found = re.findall(r"`(\{\"by\": .*?\})`", text)
-    assert found, "card.md has no settled example"
-    for raw in found:
-        settled = json.loads(raw)
-        assert set(settled) == SETTLED_FIELDS
-        assert settled["by"] == "note"
-        assert settled["signal"].startswith(f"N-{settled['round']}-")
+def _entry_section(name, heading):
+    text = (PAGES_DIR / name).read_text("utf-8")
+    return text.split(heading + "\n", 1)[1].split("\n## ", 1)[0]
 
 
-# The guide is the program, so the whole round pass is pinned: a changed sentence must fail here.
-ROUND_PASS = """
-When the human sends a round, the engine settles a point with one `accept`,
-`sign` or option mark. It moves a point to `needs_reading` on `reopen`,
-`changes`, a write-in, a note, a mark plus a note, or 2 marks. On a card that is
-already settled, a signal that changes the answer sets `state` to `open` and
-removes `settled`, and a note stays on that card, also in a settled round. Its
-signal has `reopened: true`. Before you mark the round `settled`, go through the
-cards of the current round. Never change a card in a settled round: only the
-engine writes there. A steer lives on the round, and its signal has `steer: true`
-and no `item`: leave it out when you read the signals, because it settles nothing.
-
-- `needs_reading` with a clear note and no signal that disagrees with it: set
-  `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
-  The `signal` is the note id. A note that leaves the answer open is not a clear
-  note. A `signoff` card settles only by a `sign` mark: a note on it is never a clear
-  note, even when it keeps the wording, and `apply-readings` refuses that reading. The
-  new card asks the human to sign. A note on an `info` card is not a
-  clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
-  mark always disagrees.
-- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
-  id, so it cannot settle by note: the new card for that point is a `confirm` card
-  that states the write-in as your reading.
-- `blocked` with the point it waits on now settled: set `state` to `open`.
-
-Then mark the round `settled` and append the next round. Make one new card for
-each point that returns:
-
-- a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
-  is still `open` or `blocked`;
-- a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
-  human noted or reopened in this send.
-
-The new card has a new id. Its `carries` lists each old card id; each id must be
-a card of an earlier round. Its body shows the signals that returned the point,
-for example both the mark and the note. A carried
-`blocked` card names the current card id of the point it waits on. An `info` card
-stays in its round. The old card stays as it is.
-"""
+# The round pass and the answer rules moved to the use-lavish skill (SDD §14 row "visualize guide"; PRD AC-005):
+# the guide holds how each component holds, looks and is used, and no rule for reading or answering a round.
+MOVED_RULES = (
+    "When the human sends a round",
+    "with a clear note and no signal that disagrees",
+    "Then mark the round `settled` and append the next round",
+    "Read every note",
+    "Treat Round 0 input as unverified",
+    "word for word",
+    "group of notes",
+    "State your reading",
+    "When\n2 steers",
+)
 
 
-def test_card_page_states_the_round_pass():
-    text = (PAGES_DIR / "card.md").read_text("utf-8")
-    start = text.index("When the human sends a round")
-    found = text[start:text.index("## How it looks")]
-    assert found.split() == ROUND_PASS.split()
-    assert "settles only by a `sign` mark" in text
-    assert "card never settles" not in text
+@pytest.mark.parametrize("rule", MOVED_RULES)
+def test_the_guide_holds_no_rule_for_reading_or_answering_a_round(rule):
+    text = _guide_text()
+    assert " ".join(rule.split()) not in " ".join(text.split()), rule
+
+
+def test_the_notes_page_shows_the_session_table_of_format_1():
+    """PR #171 finding f5: the How it looks section describes the current notes table."""
+    looks = " ".join(_entry_section("notes-and-replies.md", "## How it looks").split())
+    for fact in ("`# | Where you wrote it | Noted text | Your note | My answer / what changed`",
+                 "every note and every answer of the session", "card notes included",
+                 "The current round and the round before stay open",
+                 "its own closed group", "the note ids in its `notes`"):
+        assert fact in looks, fact
+    assert "Earlier rounds" not in looks
 
 
 def _frontmatter(path):

@@ -38,7 +38,7 @@ Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
-- `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading (`card` page).
+- `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading.
 
 ## Components
 
@@ -59,7 +59,7 @@ Load the page of each component you use.
 
 Every component takes an open `style` field (any CSS) and nests inside any other.
 Every component also takes `fold`, a label: the page shows the component closed
-under that label, and the human opens it. Fold long text and secondary detail.
+under that label, and the human opens it.
 Give a folded component an `id`: only then does an open fold stay open through a reload.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.

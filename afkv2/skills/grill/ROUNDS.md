@@ -1,6 +1,6 @@
 # Grill rounds
 
-The rules for what goes on a round. How it looks: the page guide. How a signal settles: the round pass in `../visualize/components/card.md`.
+The rules for what goes on a round. How it looks: the page guide. How a signal settles: the round pass in `../use-lavish/ROUND-PASS.md`.
 
 ## What to find
 
