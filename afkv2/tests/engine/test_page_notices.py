@@ -343,3 +343,21 @@ def test_every_file_with_a_secret_is_named_past_the_cap(repo):
     assert [hit["file"] for hit in answer["secrets"]] == [f"logs/LOG-{k:02}.md" for k in range(notices.MAX_HITS + 2)]
     assert {hit["line"] for hit in answer["secrets"]} == {1}
     assert answer["secrets_more"] == notices.MAX_HITS + 2
+
+
+def test_a_file_over_the_size_limit_is_scanned_to_the_limit_and_named(repo, monkeypatch):
+    """Review f20: the scan reads at most MAX_SCAN_BYTES of a file, and `scan_cut` names each file it cut."""
+    monkeypatch.setattr(notices, "MAX_SCAN_BYTES", 64)
+    page = page_in(repo, "new.json", f"{SAMPLES['github-token']}\n{'x' * 100}\n{SAMPLES['slack-token']}\n")
+    log = page_in(repo, "LOG.md", SAMPLES["api-key"])
+    answer = notices.page_notices(page, [log], start=repo)
+    assert answer["secrets"] == [{"file": "new.json", "line": 1, "shape": "github-token"},
+                                 {"file": "LOG.md", "line": 1, "shape": "api-key"}]
+    assert answer["scan_cut"] == ["new.json"]
+
+
+def test_no_file_is_cut_under_the_limit_and_the_limit_is_2_mb(repo, monkeypatch):
+    assert notices.MAX_SCAN_BYTES == 2 * 1024 * 1024
+    assert notices.page_notices(page_in(repo, "new.json"), start=repo)["scan_cut"] == []
+    monkeypatch.setattr(notices, "GIT", "afkv2-no-such-git-program")
+    assert notices.page_notices(page_in(repo, "new.json"), start=repo)["scan_cut"] == []

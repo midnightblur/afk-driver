@@ -12,7 +12,8 @@ the repository that holds `start` (default: the current folder), with a 10 s lim
 The scan reads the page and each scan file that is in the repository and not ignored, for about 10 shapes copied
 from the v1 report-issue redactor (`skills/utils/report-issue/scripts/redact.py`, TOKEN_SHAPES and its
 private-key, bearer and credential-authority rules). A hit holds the file, the line and the shape, never the
-value. Nothing here blocks, calls a model or uses the network.
+value. A file over MAX_SCAN_BYTES is scanned to that limit, and `scan_cut` names it. Nothing here blocks, calls a
+model or uses the network.
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ GIT = "git"
 GIT_TIMEOUT_S = 10
 SCANNED = frozenset({"committed", "untracked"})
 MAX_HITS = 20
+# The scan reads at most this many bytes of a file: the SDD §10 budget is 60 ms for 2 MB.
+MAX_SCAN_BYTES = 2 * 1024 * 1024
 
 
 # The literal start of a token comes first, so the search skips ahead to it; the check behind it wants no
@@ -98,9 +101,9 @@ def _state(code: str | None) -> str:
 
 
 def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
-    """`{"git_state", "git_reason", "secrets", "secrets_more"}` of a page. `git_reason` says why a state is unknown,
-    else None; `secrets` holds the first hit of each file, then the next hits up to MAX_HITS, and `secrets_more`
-    counts the rest."""
+    """`{"git_state", "git_reason", "secrets", "secrets_more", "scan_cut"}` of a page. `git_reason` says why a
+    state is unknown, else None; `secrets` holds the first hit of each file, then the next hits up to MAX_HITS, and
+    `secrets_more` counts the rest. `scan_cut` names each scanned file over MAX_SCAN_BYTES."""
     root = repository_root(Path.cwd() if start is None else start)
     files = [Path(page), *(Path(path) for path in scan if Path(path).is_file())]
     rels = [_relative(path, root) for path in files]
@@ -117,7 +120,16 @@ def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
     chosen = list(dict.fromkeys((path, rel) for path, rel, state in zip(files, rels, states) if state in SCANNED))
     hits = scan_files(chosen)
     shown = _capped(hits)
-    return {"git_state": states[0], "git_reason": None, "secrets": shown, "secrets_more": len(hits) - len(shown)}
+    cut = [name for path, name in chosen if _size(path) > MAX_SCAN_BYTES]
+    return {"git_state": states[0], "git_reason": None, "secrets": shown, "secrets_more": len(hits) - len(shown),
+            "scan_cut": cut}
+
+
+def _size(path: Path) -> int:
+    try:
+        return Path(path).stat().st_size
+    except OSError:
+        return 0
 
 
 def _capped(hits: list[dict]) -> list[dict]:
@@ -136,15 +148,17 @@ def _capped(hits: list[dict]) -> list[dict]:
 
 
 def _unknown(why: str) -> dict:
-    return {"git_state": "unknown", "git_reason": why, "secrets": [], "secrets_more": 0}
+    return {"git_state": "unknown", "git_reason": why, "secrets": [], "secrets_more": 0, "scan_cut": []}
 
 
 def scan_files(files) -> list[dict]:
-    """The hits `{file, line, shape}` of each `(path, name)`, in file order, then line order; `name` names the file."""
+    """The hits `{file, line, shape}` of each `(path, name)`, in file order, then line order; `name` names the file.
+    Each file is read to MAX_SCAN_BYTES at most."""
     hits = []
     for path, name in files:
         try:
-            text = Path(path).read_bytes().decode("utf-8", "replace")
+            with open(path, "rb") as handle:
+                text = handle.read(MAX_SCAN_BYTES).decode("utf-8", "replace")
         except OSError:
             continue
         hits += [{"file": name, "line": line, "shape": shape} for line, shape in scan_text(text)]
