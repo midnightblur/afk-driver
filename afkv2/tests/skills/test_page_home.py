@@ -156,6 +156,15 @@ def test_present_names_each_file_with_a_secret_and_never_refuses(repo, tmp_path)
     assert page_round.main(["present", "--doc", str(doc), "--scan", str(log)])["secrets"] == shown["secrets"]
 
 
+def test_present_keeps_the_count_past_the_cap_and_the_files_it_cut(repo, tmp_path):
+    """Review f16: the page says the present answer counts the hits past the cap, so present answers that count."""
+    doc = build(page_home.start_page("Cache plan", TICKET), tmp_path, "--ticket", TICKET)
+    log = repo / "specs" / TICKET / "LOG.md"
+    log.write_text(f"{TOKEN}\n" * 23, "utf-8")
+    shown = page_round.present(str(doc), [str(log)])
+    assert len(shown["secrets"]) == 20 and shown["secrets_more"] == 3 and shown["scan_cut"] == []
+
+
 def test_a_committed_page_presents_as_committed(repo, tmp_path):
     doc = build(page_home.start_page("Cache plan", TICKET), tmp_path, "--ticket", TICKET)
     git(repo, "add", ".")
