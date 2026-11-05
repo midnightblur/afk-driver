@@ -26,11 +26,18 @@ CAPTION = "Export time halved after the cache"
 CHARTS = {
     "tile": {"caption": CAPTION, "value": 1240, "unit": "ms", "low": 900, "high": 1500, "label": "export time",
              "grade": "estimated", "source": "3 runs on the staging host"},
+    "bars": {"caption": CAPTION, "unit": "rows", "items": [{"label": "orders", "value": 120},
+                                                          {"label": "returns", "value": 340},
+                                                          {"label": "refunds", "value": 15}]},
 }
 # Each chart: props that break a rule, with the field the refusal names.
 BAD = {
     "tile": [({"grade": "guessed"}, "grade"), ({"low": 1300}, "low"), ({"high": None}, "high"),
              ({"value": float("nan")}, "value")],
+    "bars": [({"items": []}, "items"), ({"items": [{"label": "a", "value": -1}]}, "items"),
+             ({"items": [{"label": f"r{k}", "value": k} for k in range(41)]}, "items"),
+             ({"split": True, "items": [{"label": "a", "value": 0}]}, "items"),
+             ({"items": [{"label": "a", "value": 1, "colour": "red"}]}, "items")],
 }
 NAMES = sorted(CHARTS)
 
@@ -136,3 +143,23 @@ def test_a_tile_with_no_range_writes_no_range_line():
     props = {k: v for k, v in CHARTS["tile"].items() if k not in ("low", "high")}
     html = registry.render_component({"type": "tile", "props": props})
     assert not any(w.startswith("range") for w in words(html))
+
+
+# --- bars (K-02) ---
+
+BAR = re.compile(r'<rect x="[\d.]+" y="[\d.]+" width="([\d.]+)" height="14\.0" style="fill:var\(--accent\)')
+
+
+def test_bars_sort_largest_first_and_write_each_value_at_the_end():
+    written = words(drawn("bars"))
+    assert written == ["returns", "340 rows", "orders", "120 rows", "refunds", "15 rows"]
+    widths = [float(w) for w in BAR.findall(drawn("bars"))]
+    assert widths == sorted(widths, reverse=True) and widths[0] / widths[1] == pytest.approx(340 / 120, rel=0.01)
+
+
+def test_bars_of_a_share_draw_one_split_bar_with_a_numbered_key_not_a_pie():
+    html = drawn("bars", split=True)
+    assert "<circle" not in html and "<path" not in html
+    written = words(html)
+    assert "1. returns: 340 rows, 72%" in written and "3. refunds: 15 rows, 3%" in written
+    assert all(f"var(--afkv2-set-{k})" in html for k in (1, 2, 3))
