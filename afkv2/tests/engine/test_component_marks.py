@@ -387,9 +387,13 @@ def test_the_you_badge_of_a_map_box_leaves_room_for_its_round_label():
 
 def test_a_sequence_message_marked_you_draws_its_line_and_arrowhead_in_the_you_colour():
     """Review f3/f11 of 0008: sequence.md says the message's line is in the YOU colour."""
-    assert "border-top-color: var(--afkv2-you)" in rule(".afkv2-seq-msg.afkv2-you .afkv2-seq-line")
-    assert "border-left-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--right.afkv2-you .afkv2-seq-line::after")
-    assert "border-right-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--left.afkv2-you .afkv2-seq-line::after")
-    assert "border-color: var(--afkv2-you)" in rule(".afkv2-seq-msg--self.afkv2-you .afkv2-seq-line")
-    assert KIT.index(".afkv2-seq-msg.afkv2-you .afkv2-seq-line") > KIT.index(".afkv2-seq-msg.afkv2-tone--new .afkv2-seq-line"), \
-        "the YOU colour wins over a tone colour"
+    colour = "var(--afkv2-you)"
+    line, new_line = ".afkv2-seq-msg.afkv2-you .afkv2-seq-line", ".afkv2-seq-msg.afkv2-tone--new .afkv2-seq-line"
+    right_head = ".afkv2-seq-msg--right.afkv2-you .afkv2-seq-line::after"
+    left_head = ".afkv2-seq-msg--left.afkv2-you .afkv2-seq-line::after"
+    self_line = ".afkv2-seq-msg--self.afkv2-you .afkv2-seq-line"
+    assert f"border-top-color: {colour}" in rule(line)
+    assert f"border-left-color: {colour}" in rule(right_head)
+    assert f"border-right-color: {colour}" in rule(left_head)
+    assert f"border-color: {colour}" in rule(self_line)
+    assert KIT.index(line) > KIT.index(new_line), "the YOU colour wins over a tone colour"

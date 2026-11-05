@@ -25,6 +25,25 @@ BUNDLE_BYTES = 129254
 BUNDLE_SHA256 = "8ab71eb09c51f501e5e25157d9cff100e46cc29bcbfc744d0b746d451fca7f53"
 BANNER = "Highlight.js v11.12.0"
 LIMIT = 132 * 1024
+# The marks of the code and diff HTML, each on a line of its own (plugin_check: a marker is never matched by part).
+CODE_FIGURE = '<figure class="afkv2-code">'
+CODE_WHERE = '<span class="afkv2-code-where">{}</span>'
+CODE_WHERE_CLASS = "afkv2-code-where"
+CODE_LANG = '<span class="afkv2-code-lang">{}</span>'
+CODE_NUMBERS = re.compile(r'<pre class="afkv2-code-numbers" aria-hidden="true">([^<]*)</pre>')
+CODE_PYTHON = re.compile(r'<code class="afkv2-code-text language-python" data-afkv2-lang="python">(.*?)</code>', re.S)
+PLAIN_CODE = '<code class="afkv2-code-text">'
+CODE_FONT = re.compile(r"\.afkv2-code-numbers,\s*\.afkv2-code-body pre[^{]*\{[^}]*font:[^;}]*monospace")
+LANG_NAME = "data-afkv2-lang"
+LANG_MARK = 'data-afkv2-lang="{}"'
+DIFF_HUNK = re.compile(r'<div class="afkv2-diff-hunk">(.*?)</table></div>', re.S)
+DIFF_ROW = re.compile(r'<tr class="afkv2-diff-line afkv2-diff-line--(\w+)"><td class="afkv2-diff-n">(\d*)</td>'
+                      r'<td class="afkv2-diff-n">(\d*)</td><td class="afkv2-diff-sign">(.)</td>'
+                      r'<td class="afkv2-diff-code"><code[^>]*>(.*?)</code></td></tr>', re.S)
+DIFF_WHERE = '<span class="afkv2-diff-where">{}</span>'
+DIFF_WHERE_TEXT = re.compile(r'<span class="afkv2-diff-where">([^<]*)</span>')
+REMOVED_TINT = re.compile(r"\.afkv2-diff-line--removed[^{]*\{[^}]*var\(--blocked\)")
+ADDED_TINT = re.compile(r"\.afkv2-diff-line--added[^{]*\{[^}]*var\(--settled\)")
 
 PYTHON = "def export(orders):\n    return [o for o in orders if o.paid]\n"
 DIFF = """diff --git a/shop/export.py b/shop/export.py
@@ -75,23 +94,23 @@ def text_body(value="x"):
 
 def test_a_code_block_shows_a_path_line_header_line_numbers_and_its_language_mark():
     html = drawn(code(path="shop/export.py", line=10, language="python"))
-    assert re.search(r'<figure class="afkv2-code">', html)
-    assert '<span class="afkv2-code-where">shop/export.py:10</span>' in html
-    numbers = re.search(r'<pre class="afkv2-code-numbers" aria-hidden="true">([^<]*)</pre>', html).group(1)
+    assert CODE_FIGURE in html
+    assert CODE_WHERE.format("shop/export.py:10") in html
+    numbers = CODE_NUMBERS.search(html).group(1)
     assert numbers == "10\n11"
-    block = re.search(r'<code class="afkv2-code-text language-python" data-afkv2-lang="python">(.*?)</code>', html, re.S)
+    block = CODE_PYTHON.search(html)
     assert block and unescape(block.group(1)) == PYTHON.rstrip("\n")
 
 
 def test_a_code_block_starts_at_line_1_and_without_a_path_names_its_language():
     html = drawn(code(language="sql", text="select 1"))
-    assert re.search(r'<pre class="afkv2-code-numbers" aria-hidden="true">1</pre>', html)
-    assert "afkv2-code-where" not in html and '<span class="afkv2-code-lang">sql</span>' in html
+    assert CODE_NUMBERS.search(html).group(1) == "1"
+    assert CODE_WHERE_CLASS not in html and CODE_LANG.format("sql") in html
 
 
 def test_a_code_block_with_no_language_carries_no_language_mark():
     html = drawn(code(path="notes.txt"))
-    assert "data-afkv2-lang" not in html and '<code class="afkv2-code-text">' in html
+    assert LANG_NAME not in html and PLAIN_CODE in html
 
 
 def test_the_code_text_is_escaped():
@@ -101,7 +120,7 @@ def test_the_code_text_is_escaped():
 
 def test_the_kit_gives_code_a_fixed_width_font():
     css = (ENGINE_DIR / "shell" / "code.css").read_text("utf-8")
-    assert re.search(r"\.afkv2-code-numbers,\s*\.afkv2-code-body pre[^{]*\{[^}]*font:[^;}]*monospace", css)
+    assert CODE_FONT.search(css)
 
 
 @pytest.mark.parametrize("bad", [{"text": ""}, {"line": 0}, {"line": 1.5}, {"path": ""}, {"language": "c sharp"},
@@ -113,19 +132,17 @@ def test_a_code_block_refuses_props_outside_its_rules(bad):
 # --- diff (AC-030)
 
 def _hunks(html):
-    return re.findall(r'<div class="afkv2-diff-hunk">(.*?)</table></div>', html, re.S)
+    return DIFF_HUNK.findall(html)
 
 
 def _rows(hunk):
-    return re.findall(r'<tr class="afkv2-diff-line afkv2-diff-line--(\w+)"><td class="afkv2-diff-n">(\d*)</td>'
-                      r'<td class="afkv2-diff-n">(\d*)</td><td class="afkv2-diff-sign">(.)</td>'
-                      r'<td class="afkv2-diff-code"><code[^>]*>(.*?)</code></td></tr>', hunk, re.S)
+    return DIFF_ROW.findall(hunk)
 
 
 def test_a_diff_shows_a_file_and_line_header_per_hunk():
     hunks = _hunks(drawn(diff()))
     assert len(hunks) == 2
-    heads = [re.search(r'<span class="afkv2-diff-where">([^<]*)</span>', hunk).group(1) for hunk in hunks]
+    heads = [DIFF_WHERE_TEXT.search(hunk).group(1) for hunk in hunks]
     assert heads == ["shop/export.py:10", "shop/export.py:40"]
     assert "@@ -10,4 +10,4 @@ def export(orders):" in unescape(hunks[0])
 
@@ -141,27 +158,27 @@ def test_removed_lines_show_with_minus_and_added_lines_with_plus_and_their_numbe
 
 def test_the_kit_paints_removed_lines_red_and_added_lines_green_in_both_themes():
     css = (ENGINE_DIR / "shell" / "code.css").read_text("utf-8")
-    assert re.search(r"\.afkv2-diff-line--removed[^{]*\{[^}]*var\(--blocked\)", css)
-    assert re.search(r"\.afkv2-diff-line--added[^{]*\{[^}]*var\(--settled\)", css)
+    assert REMOVED_TINT.search(css)
+    assert ADDED_TINT.search(css)
 
 
 def test_a_diff_line_is_marked_with_the_language_of_its_file():
     html = drawn(diff())
-    assert 'data-afkv2-lang="py"' in html
-    assert 'data-afkv2-lang="sql"' in drawn(diff(language="sql"))
+    assert LANG_MARK.format("py") in html
+    assert LANG_MARK.format("sql") in drawn(diff(language="sql"))
 
 
 def test_a_diff_with_no_file_lines_takes_its_path():
     body = "@@ -1,2 +1,2 @@\n-a = 1\n+a = 2\n b = 3\n"
     html = drawn(diff(body, path="conf/app.yml"))
-    assert '<span class="afkv2-diff-where">conf/app.yml:1</span>' in html and 'data-afkv2-lang="yml"' in html
+    assert DIFF_WHERE.format("conf/app.yml:1") in html and LANG_MARK.format("yml") in html
 
 
 def test_a_new_file_names_its_new_path_and_a_deleted_file_its_old_path():
     added = "--- /dev/null\n+++ b/docs/new.md\n@@ -0,0 +1,1 @@\n+hello\n"
     removed = "--- a/docs/old.md\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-bye\n"
-    assert '<span class="afkv2-diff-where">docs/new.md:1</span>' in drawn(diff(added))
-    assert '<span class="afkv2-diff-where">docs/old.md:1</span>' in drawn(diff(removed))
+    assert DIFF_WHERE.format("docs/new.md:1") in drawn(diff(added))
+    assert DIFF_WHERE.format("docs/old.md:1") in drawn(diff(removed))
 
 
 def test_a_line_with_no_newline_at_the_end_shows_as_a_note():
@@ -203,7 +220,7 @@ def test_a_page_with_code_and_a_diff_inlines_the_library_and_both_themes_once():
     assert html.count(BANNER) == 1
     assert html.count("Theme: GitHub Dark") == 1 and html.count("Theme: GitHub\n") == 1
     assert ':root[data-theme="light"]{' in html
-    assert html.index(BANNER) > html.index('data-afkv2-lang="python"'), "the library runs after the blocks it colours"
+    assert html.index(BANNER) > html.index(LANG_MARK.format("python")), "the library runs after the blocks it colours"
 
 
 @pytest.mark.parametrize("body", [code(language="python"), diff()])
@@ -223,4 +240,4 @@ def test_a_page_with_neither_code_nor_a_diff_holds_0_bytes_of_the_highlighter():
 
 def test_the_run_script_colours_only_a_known_language():
     script = (HIGHLIGHT / "run.js").read_text("utf-8")
-    assert "hljs.getLanguage(" in script and "data-afkv2-lang" in script and "ignoreIllegals: true" in script
+    assert "hljs.getLanguage(" in script and LANG_NAME in script and "ignoreIllegals: true" in script

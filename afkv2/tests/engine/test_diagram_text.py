@@ -27,6 +27,13 @@ STATES = "stateDiagram-v2\n  [*] --> open\n  open --> settled"
 CAPTION = "An order moves from open to settled"
 SVG_ROOT = re.compile(r'<svg id="([^"]+)"')
 ID_ATTR = re.compile(r'\sid="([^"]+)"')
+# The marks of the diagram HTML and CSS, each on a line of its own (plugin_check: a marker is never matched by part).
+THEME_DIV = 'class="afkv2-diagram-theme afkv2-diagram-theme--{}"'
+LIGHT_HIDDEN = re.compile(r"\.afkv2-diagram-theme--light\s*\{\s*display:\s*none")
+LIGHT_SHOWN = re.compile(r':root\[data-theme="light"\] \.afkv2-diagram-theme--light\s*\{\s*display:\s*block')
+DARK_HIDDEN = re.compile(r':root\[data-theme="light"\] \.afkv2-diagram-theme--dark\s*\{\s*display:\s*none')
+FALLBACK = re.compile(r'<pre class="afkv2-diagram-text"><code>(.*?)</code></pre><p class="afkv2-diagram-why">([^<]*)</p>',
+                      re.S)
 
 
 class StubRenderer:
@@ -92,8 +99,8 @@ def test_a_diagram_shows_as_a_picture_in_each_theme_with_its_caption(renderer):
     assert registry.validate(component) == []
     html = registry.render_component(component)
     assert SVG_ROOT.findall(html) == ["d-flow--dark", "d-flow--light"]
-    assert 'class="afkv2-diagram-theme afkv2-diagram-theme--dark"' in html
-    assert 'class="afkv2-diagram-theme afkv2-diagram-theme--light"' in html
+    assert THEME_DIV.format("dark") in html
+    assert THEME_DIV.format("light") in html
     assert f"<figcaption" in html and CAPTION in html
     assert [call["argv"][call["argv"].index("-t") + 1] for call in renderer.calls] == ["dark", "default"]
 
@@ -109,9 +116,9 @@ def test_each_render_has_the_browser_config_a_transparent_background_and_60_s(re
 
 def test_the_page_css_shows_the_picture_of_the_theme_it_uses():
     css = (ENGINE_DIR / "shell" / "diagram.css").read_text("utf-8")
-    assert re.search(r"\.afkv2-diagram-theme--light\s*\{\s*display:\s*none", css)
-    assert re.search(r':root\[data-theme="light"\] \.afkv2-diagram-theme--light\s*\{\s*display:\s*block', css)
-    assert re.search(r':root\[data-theme="light"\] \.afkv2-diagram-theme--dark\s*\{\s*display:\s*none', css)
+    assert LIGHT_HIDDEN.search(css)
+    assert LIGHT_SHOWN.search(css)
+    assert DARK_HIDDEN.search(css)
 
 
 @pytest.mark.parametrize("bad", [{"text": ""}, {"caption": ""}, {"caption": "c" * 161}, {"text": "x" * 20001},
@@ -195,8 +202,7 @@ def test_the_renderer_version_is_the_setup_pin():
 # --- the text fallback (AC-033)
 
 def _fallback(html):
-    found = re.search(r'<pre class="afkv2-diagram-text"><code>(.*?)</code></pre><p class="afkv2-diagram-why">([^<]*)</p>',
-                      html, re.S)
+    found = FALLBACK.search(html)
     assert found, html
     assert "<svg" not in html
     return found.group(1), found.group(2)

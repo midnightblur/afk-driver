@@ -96,8 +96,8 @@ def _hunk(hunk, language):
 
 def render_diff(props, children):
     hunks = parse(props["text"], props.get("path"))
-    return (f'<figure class="afkv2-diff">{"".join(_hunk(hunk, props.get("language")) for hunk in hunks)}</figure>'
-            + "".join(children))
+    drawn = "".join(_hunk(hunk, props.get("language")) for hunk in hunks)
+    return f'<figure class="afkv2-diff">{drawn}</figure>' + "".join(children)
 
 
 register_component("diff", {
