@@ -99,15 +99,16 @@ def _data() -> Path | None:
 
 def _own_ids(svg: str) -> str:
     """Every id the picture keeps starts with TOKEN, and each reference follows its id. An id that nothing in the
-    picture names is dropped."""
-    names = {}
+    picture names is dropped, and so is a repeat of an id."""
+    names, seen = {}, set()
 
     def rename(match: re.Match) -> str:
         found = match.group(2)
-        if found == TOKEN or found.startswith(TOKEN):
-            return match.group(0)
-        if f"#{found}" not in svg or found in names:
+        if found in seen or (found != TOKEN and f"#{found}" not in svg):
             return ""
+        seen.add(found)
+        if found.startswith(TOKEN):
+            return match.group(0)
         names[found] = f"{TOKEN}-{len(names)}-{found}"
         return f"{match.group(1)}{names[found]}{match.group(3)}"
 

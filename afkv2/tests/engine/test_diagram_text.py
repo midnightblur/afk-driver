@@ -31,7 +31,7 @@ ID_ATTR = re.compile(r'\sid="([^"]+)"')
 
 class StubRenderer:
     """mermaid-cli as an in-process stub: it writes a small SVG with the id, the theme and the text it was given,
-    a marker and a gradient that the drawing names, and a node id that nothing names."""
+    a marker and a gradient that the drawing names, ids that nothing names, and an id twice, as a mind map has."""
 
     def __init__(self, code=0, stderr="", timeout=False):
         self.calls, self.code, self.stderr, self.timeout = [], code, stderr, timeout
@@ -47,6 +47,8 @@ class StubRenderer:
                 f'<svg id="{svg_id}" xmlns="http://www.w3.org/2000/svg"><style>#{svg_id} .node{{fill:red}}</style>'
                 f'<defs><marker id="{svg_id}_arrow"></marker><linearGradient id="shade"></linearGradient></defs>'
                 f'<g id="flowchart-a-0" class="node"><rect fill="url(#shade)"></rect></g>'
+                f'<g id="{svg_id}-node_1"></g><g id="{svg_id}-node_1"><use href="#{svg_id}-node_1"></use></g>'
+                f'<g id="{svg_id}-lone"></g>'
                 f'<path marker-end="url(#{svg_id}_arrow)"></path><text>{theme}: {len(text)}</text></svg>', "utf-8")
         return self.code, self.stderr
 
@@ -146,7 +148,8 @@ def test_each_id_inside_a_picture_starts_with_its_svg_id_and_each_reference_foll
     assert "url(#d-flow--dark_arrow)" in dark and "#d-flow--dark .node" in dark
     shade = re.search(r'<linearGradient id="([^"]+)"', dark).group(1)
     assert f"url(#{shade})" in dark
-    assert "flowchart-a-0" not in dark, "an id nothing names is dropped, so a note lands on the diagram"
+    assert "flowchart-a-0" not in dark and "lone" not in dark, "an id nothing names is dropped: a note lands on the diagram"
+    assert dark.count('id="d-flow--dark-node_1"') == 1, "an id the renderer wrote twice is kept once"
 
 
 def test_a_note_on_a_picture_lands_on_the_diagram():
