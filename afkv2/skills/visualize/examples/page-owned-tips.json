@@ -1,0 +1,26 @@
+{
+  "schema": "afkv2.page/1",
+  "session": {
+    "id": "s-example-tips",
+    "skill": "grill",
+    "feature": "hypothetical-export",
+    "ticket": "1",
+    "started": "2026-01-05T09:00:00Z"
+  },
+  "tips": {
+    "terms": [{"term": "batch", "definition": "A group of records processed together."}],
+    "ids": [{"id": "t-export", "title": "Export the selected records."}]
+  },
+  "maps": [],
+  "rounds": [{
+    "n": 1,
+    "state": "current",
+    "banner": {"settled": [], "unlocks": [], "parked": []},
+    "items": [{
+      "id": "i-export",
+      "kind": "confirm",
+      "title": "Export scope",
+      "body": {"type": "text", "id": "t-export", "props": {"text": "REQ-1 exports one batch."}}
+    }]
+  }]
+}

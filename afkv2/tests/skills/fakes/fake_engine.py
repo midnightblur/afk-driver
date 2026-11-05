@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-SCHEMA = "afkv2.page/0"
+SCHEMAS = {"afkv2.page/0", "afkv2.page/1"}
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 LONE_MARKS = ("accept", "sign", "option:")
@@ -42,7 +42,7 @@ def saved_copy(doc_path):
 
 
 def check(doc, doc_path):
-    if doc.get("schema") != SCHEMA:
+    if doc.get("schema") not in SCHEMAS:
         return f"document: schema {doc.get('schema')}"
     session = doc.get("session") or {}
     for field in ("id", "skill", "feature", "ticket", "started"):

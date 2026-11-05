@@ -1,4 +1,4 @@
-"""Write the page document of one grill session (schema afkv2.page/0, SDD §4).
+"""Write a session's page document, preserving its schema on resume.
 
 Verbs, run from the repository root:
   build          --doc D --session S --ticket K --round-input F --ticket-file T [--replace]
@@ -20,7 +20,8 @@ from pathlib import Path
 from grill_common import Parser, Refusal, read_json, serve, write_json, write_text
 from page_links import links_for
 
-SCHEMA = "afkv2.page/0"
+SCHEMA = "afkv2.page/1"
+SUPPORTED_SCHEMAS = {"afkv2.page/0", SCHEMA}
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 ASKING = KINDS - {"info"}
 NEW_STATES = {"open", "blocked"}
@@ -331,10 +332,19 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
+def _document_schema(doc):
+    """New sessions use page/1; resumed sessions keep their supported schema."""
+    schema = SCHEMA if doc is None else doc.get("schema")
+    if not isinstance(schema, str) or schema not in SUPPORTED_SCHEMAS:
+        raise Refusal("bad-schema", f"document has schema {schema!r}; supported: {sorted(SUPPORTED_SCHEMAS)}")
+    return schema
+
+
 def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
-    `round_input` holds banner, items and optional maps, replies, colour. An item may carry
+    `round_input` holds banner, items and optional maps, replies, colour, tips. `tips` replaces
+    the page/1 document dictionary; omitting it preserves the stored tips. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
@@ -350,19 +360,22 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("bad-round", "banner is required: settled, unlocks, parked")
     if not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "items must be a list")
-    if doc_path.exists():
-        doc = read_json(doc_path)
-        if doc.get("schema") != SCHEMA:
-            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes {SCHEMA}")
+    doc = read_json(doc_path) if doc_path.exists() else None
+    schema = _document_schema(doc)
+    if "tips" in round_input and schema != SCHEMA:
+        raise Refusal("bad-schema", f"document tips need {SCHEMA}; this session keeps {schema}")
+    if doc is not None:
         if (doc.get("session") or {}).get("id") != session["id"]:
             raise Refusal("bad-session", f"{doc_path} belongs to session {(doc.get('session') or {}).get('id')!r}")
     else:
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        doc = {"schema": SCHEMA, "session": {**session, "started": started}, "maps": [], "rounds": []}
+        doc = {"schema": schema, "session": {**session, "started": started}, "maps": [], "rounds": []}
     if replace:
         _drop_unanswered_round(doc, doc_path)
     if links:
         doc["session"]["links"] = links
+    if "tips" in round_input:
+        doc["tips"] = round_input["tips"]
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)

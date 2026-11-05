@@ -1,38 +1,75 @@
 (function () {
-  var DICT_ID = 'afkv2-tips-dict';
-  var el = document.getElementById(DICT_ID);
-  var dict; try { dict = JSON.parse(el.textContent); } catch (e) { return; }
-  if (!Object.keys(dict).length) return;
-  var ciMap = {}, keys, re;
+  function read(id) {
+    try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return null; }
+  }
+  function validMap(value) {
+    return value && typeof value === 'object' && !Array.isArray(value) &&
+      Object.keys(value).every(function (k) { return k.length && typeof value[k] === 'string'; });
+  }
+  var payload = read('afkv2-tips-payload');
+  var pageIds = {}, pageTerms = {}, dict = read('afkv2-tips-dict');
+  if (!validMap(dict)) dict = {};
+  if (payload && validMap(payload.page_ids) && validMap(payload.page_terms) && validMap(payload.shared_terms)) {
+    pageIds = payload.page_ids;
+    pageTerms = payload.page_terms;
+    dict = payload.shared_terms;
+  }
+  var legacy = !document.getElementById('afkv2-page-tip-source');
+  var keys, re;
   var esc = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  function folded(map) {
+    var result = {};
+    Object.keys(map).forEach(function (key) {
+      if (key === key.toLowerCase()) result[key.replace(/\u03c2/g, '\u03c3')] = map[key];
+    });
+    return result;
+  }
+  var pageTermFolded = folded(pageTerms), dictFolded = folded(dict);
   function rebuild() {
-    keys = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
-    keys.forEach(function (k) { if (k === k.toLowerCase()) ciMap[k] = dict[k]; });
-    re = new RegExp('(?<![\\w-])(?:' + keys.map(esc).join('|') + ')(?:e?s)?(?!\\w)', 'gi');
+    keys = Array.from(new Set(Object.keys(dict).concat(Object.keys(pageTerms), Object.keys(pageIds))))
+      .sort(function (a, b) { return b.length - a.length; });
+    re = keys.length ? new RegExp('(?<![\\w-])(?:' + keys.map(esc).join('|') + ')(?:e?s)?(?!\\w)', 'gi') : null;
   }
   rebuild();
 
-  function lookup(s) {
-    if (Object.prototype.hasOwnProperty.call(dict, s)) return dict[s];
+  function own(map, s) {
+    return Object.prototype.hasOwnProperty.call(map, s) ? map[s] : null;
+  }
+  function lookup(map, s) {
+    var exact = own(map, s);
+    if (exact !== null) return exact;
     var lower = s.toLowerCase();
-    return Object.prototype.hasOwnProperty.call(ciMap, lower) ? ciMap[lower] : null;
+    var tip = own(map, lower);
+    if (tip !== null) return tip;
+    var aliases = map === pageTerms ? pageTermFolded : dictFolded;
+    return own(aliases, lower.replace(/\u03c2/g, '\u03c3'));
   }
   // The wrap regex admits a plural tail; resolve "MRs"/"classes" to their
   // singular key under the same case rules.
-  function tipFor(matched) {
-    var tip = lookup(matched);
+  function termFor(map, matched) {
+    var tip = lookup(map, matched);
     if (tip === null && matched.length > 2 && /s$/i.test(matched)) {
-      tip = lookup(matched.slice(0, -1));
-      if (tip === null && /es$/i.test(matched)) tip = lookup(matched.slice(0, -2));
+      tip = lookup(map, matched.slice(0, -1));
+      if (tip === null && /es$/i.test(matched)) tip = lookup(map, matched.slice(0, -2));
     }
     return tip;
   }
 
+  function pageFor(matched, complete) {
+    var tip = complete === false ? null : own(pageIds, matched);
+    return tip === null ? termFor(pageTerms, matched) : tip;
+  }
+  function tipFor(matched, complete) {
+    var tip = pageFor(matched, complete);
+    return tip === null ? termFor(dict, matched) : tip;
+  }
+
   function wrap(root) {
+    if (!re) return;
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
-        if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
         re.lastIndex = 0;
+        if (!n.nodeValue || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
         var p = n.parentElement;
         if (!p || p.closest('script,style,noscript,textarea,.afkv2-tip,#afkv2-tip-box,#afkv2-nav,#afkv2-jump')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
@@ -44,7 +81,9 @@
       var text = node.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
       re.lastIndex = 0;
       while ((m = re.exec(text))) {
-        var tip = tipFor(m[0]);
+        var complete = !/[\w.-]/.test(text.charAt(m.index - 1)) &&
+                       !/[\w.-]/.test(text.charAt(m.index + m[0].length));
+        var tip = tipFor(m[0], complete);
         if (tip === null) continue;
         frag.appendChild(document.createTextNode(text.slice(last, m.index)));
         var span = document.createElement('span');
@@ -64,7 +103,8 @@
   function promote(root) {
     root.querySelectorAll('[title],[data-tip]').forEach(function (elx) {
       if (elx.id === 'afkv2-tip-box') return;
-      var t = elx.getAttribute('data-tip') || elx.getAttribute('title');
+      var t = pageFor((elx.textContent || '').trim());
+      if (t === null) t = elx.getAttribute('data-tip') || elx.getAttribute('title');
       if (!t) return;
       elx.setAttribute('data-afkv2-tip', t);
       elx.removeAttribute('title');
@@ -74,6 +114,7 @@
 
   // An id tipped once serves every later bare occurrence: single-token authored tips join the dictionary.
   function harvest(root) {
+    if (!legacy) return;
     var dirty = false;
     root.querySelectorAll('[data-afkv2-tip]').forEach(function (elx) {
       if (elx.closest('#afkv2-tip-box,#afkv2-nav')) return;

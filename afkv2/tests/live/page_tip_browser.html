@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Page tip browser proof</title>
+<style>body{font:16px system-ui;margin:24px}pre{white-space:pre-wrap}iframe{width:100%;height:180px;border:1px solid #aaa}button{padding:12px}#result{padding:16px;background:#eee}</style>
+<h1 id="page-tip-performance-fixture">Page tip browser proof</h1>
+<button id="run">Run proof</button>
+<pre id="result">Ready</pre>
+<div id="frames"></div>
+<script id="cases" type="application/json">__CASES__</script>
+<script>
+const cases = JSON.parse(document.getElementById('cases').textContent);
+const output = document.getElementById('result');
+const frames = document.getElementById('frames');
+function assert(ok, label) { if (!ok) throw Error(label); }
+function frame(html) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.onload = () => resolve(iframe.contentWindow);
+    iframe.srcdoc = html;
+    frames.appendChild(iframe);
+  });
+}
+function tips(root) { return [...root.querySelectorAll('.afkv2-tip')].map(el => [el.textContent, el.getAttribute('data-afkv2-tip')]); }
+function same(actual, expected, label) { assert(JSON.stringify(actual) === JSON.stringify(expected), label + ': ' + JSON.stringify(actual)); }
+function until(test) {
+  return new Promise((resolve, reject) => {
+    const start = performance.now();
+    function poll() {
+      if (test()) resolve();
+      else if (performance.now() - start > 2000) reject(Error('Mutation did not finish'));
+      else setTimeout(poll, 10);
+    }
+    poll();
+  });
+}
+document.getElementById('run').onclick = async () => {
+  output.textContent = 'Running'; frames.replaceChildren();
+  const results = [];
+  try {
+    const w = await frame(cases.normal), d = w.document;
+    const expected = [['card','Current title'],['card','Current title'],['CASE-1','Exact title'],
+      ['Queue','Page queue'],['queues','Page queue'],['classes','Page class'],['worker','Shared worker'],['unsafe',cases.literal]];
+    same(tips(d.getElementById('sample')), expected, 'Repeated, exact, case, boundary, plural and precedence matches');
+    assert(d.getElementById('sample').textContent === cases.text, 'Unmatched text changed');
+    results.push('PASS repeated matches, exact IDs, case, safe boundaries, plurals and precedence');
+    assert(d.getElementById('afkv2-nav') && d.getElementById('afkv2-jump'), 'Page chrome absent');
+    const before = w.performance.getEntriesByType('resource').length;
+    const sampleTips = [...d.querySelectorAll('#sample .afkv2-tip')];
+    const unsafe = sampleTips.find(el => el.textContent === 'unsafe');
+    unsafe.dispatchEvent(new w.MouseEvent('mouseover', {bubbles:true}));
+    const box = d.getElementById('afkv2-tip-box');
+    assert(box.textContent === cases.literal && box.children.length === 0, 'Hover was not literal text');
+    assert(!w.tipExecuted && !d.getElementById('tip-injected'), 'Tip executed markup');
+    await new Promise(resolve => setTimeout(resolve, 400));
+    assert(w.tipRequests === 0 && w.performance.getEntriesByType('resource').length === before, 'Hover made a request');
+    results.push('PASS literal hover; 0 fetch, XHR, beacon, socket or resource requests; no markup executed');
+    const mutation = d.createElement('p'); mutation.id = 'mutation'; mutation.textContent = 'CASE-1 CASE-1s case-1 Queue queues card'; d.body.appendChild(mutation);
+    await until(() => tips(mutation).length === 4);
+    same(tips(mutation), [['CASE-1','Exact title'],['Queue','Page queue'],['queues','Page queue'],['card','Current title']], 'Mutation');
+    results.push('PASS mutation matches and no ID plural alias after rescan');
+    const broken = await frame(cases.broken);
+    assert(broken.document.getElementById('afkv2-nav'), 'Malformed payload disabled chrome');
+    assert(tips(broken.document.getElementById('sample')).every(pair => pair[1] === 'Shared worker'), 'Malformed payload kept page tips');
+    same(tips(broken.document.getElementById('sample')), [['worker','Shared worker']], 'Shared fallback');
+    const legacy = await frame(cases.legacy);
+    same(tips(legacy.document.getElementById('sample')), [['MRs','Merge request'],['Queue','Shared queue']], 'Legacy page/0');
+    results.push('PASS malformed payload isolation, shared fallback and rendered page/0 compatibility');
+    const p = await frame(cases.performance), sample = p.document.getElementById('sample');
+    assert(sample.textContent.length === 200000, 'Performance fixture visible character count');
+    assert(Object.keys(JSON.parse(p.document.getElementById('afkv2-tips-payload').textContent).page_terms).length === 2000, 'Performance tip count');
+    assert(tips(sample).length === cases.matches, 'Initial large text scan missed matches');
+    assert(p.tipScanMs <= 1000, 'Initial scan exceeded 1000ms: ' + p.tipScanMs);
+    const start = p.performance.now(); sample.textContent = cases.performanceText;
+    await until(() => sample.querySelectorAll('.afkv2-tip').length === cases.matches);
+    const mutationMs = p.performance.now() - start;
+    assert(mutationMs <= 1000, 'Mutation exceeded 1000ms: ' + mutationMs);
+    results.push('PASS 2000 tips / 200000 visible characters / ' + cases.matches + ' matches');
+    results.push('Initial scan: ' + p.tipScanMs.toFixed(1) + ' ms; mutation rescan including debounce: ' + mutationMs.toFixed(1) + ' ms');
+    output.textContent = 'PASS ALL\n' + results.join('\n') + '\nBrowser: ' + navigator.userAgent;
+  } catch (error) { output.textContent = 'FAIL: ' + error.message + '\n' + results.join('\n'); }
+};
+</script>

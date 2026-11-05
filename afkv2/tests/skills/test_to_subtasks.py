@@ -905,6 +905,26 @@ def test_every_citation_failure_is_listed(world):
 
 # The division.
 
+@pytest.mark.parametrize("schema", ["afkv2.page/0", "afkv2.page/1"])
+def test_division_uses_page_one_and_preserves_the_schema_on_resume(world, schema):
+    started = world.committed_plan()
+    world.division(started)
+    doc = world.doc(started)
+    assert doc["schema"] == "afkv2.page/1"
+    doc["schema"] = schema
+    if schema.endswith("/1"):
+        doc["tips"] = {"terms": [{"term": "division", "definition": "The cut into subtasks."}]}
+    path = world.repo / started["doc"]
+    path.write_text(json.dumps(doc), "utf-8")
+    world.division(started, replace=True)
+    resumed = world.doc(started)
+    assert resumed["schema"] == schema
+    assert resumed.get("tips") == doc.get("tips")
+    result = subprocess.run([sys.executable, str(PLUGIN / "engine/engine.py"), "check", str(path)],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
     started = world.committed_plan()
     answer = world.division(started)

@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: Authoring guide for page documents (schema afkv2.page/0) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
+description: Authoring guide for page documents (page/1 and page/0 compatibility) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
 ---
 
 # visualize — write a page document
@@ -12,12 +12,12 @@ the human reads and answers. You never write page HTML: HTML goes only into the
 ## The document
 
 Save the document in the feature spec folder as `pages/<skill>-<session id>.json`.
-Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
-(plugin root). The shape:
+New sessions use `afkv2.page/1`. Preserve the stored schema when resuming a session.
+Field constraints: `engine/schema/page-v1.schema.json` (plugin root). The shape:
 
 ```json fragment=document
 {
-  "schema": "afkv2.page/0",
+  "schema": "afkv2.page/1",
   "session": {"id": "s-01", "skill": "grill", "feature": "example-feature",
               "ticket": "PROJ-123", "started": "2026-01-05T09:00:00Z"},
   "maps": [],
@@ -39,6 +39,28 @@ Field constraints: the engine's schema file `engine/schema/page-v0.schema.json`
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
 - `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading (`card` page).
+
+## Page-owned tips
+
+For page/1, put optional `tips` at the document root. Its entries supply local
+explanations for terms and identifier titles:
+
+| Field | Entry |
+|-------|-------|
+| `tips.terms` | `term`, `definition` |
+| `tips.ids` | `id`, `title` |
+
+The field contract and limits live in `engine/schema/page-v1.schema.json`, under
+`$defs.tips`. Use plain text for definitions and titles. Example:
+`examples/page-owned-tips.json`.
+
+The shared round writer accepts `tips` in its round input and writes it at the
+document root. Supplying `tips` replaces the dictionary; omit it to keep existing
+entries. Supply `{}` to clear them.
+
+For a resumed page/0 document, use `engine/schema/page-v0.schema.json` and omit
+`tips`. Keep its schema unchanged. `examples/all-components.json` remains a page/0
+compatibility example. Run the engine `check` verb for either schema.
 
 ## Components
 

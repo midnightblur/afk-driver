@@ -50,7 +50,8 @@ from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
 
 SCHEMA_V0 = "afkv2.page/0"
-SCHEMA_FILES = {SCHEMA_V0: ENGINE_DIR / "schema" / "page-v0.schema.json"}
+SCHEMA_V1 = "afkv2.page/1"
+SCHEMA_FILES = registry.SCHEMA_FILES
 PAGES_FOLDER = "pages"
 MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
@@ -64,7 +65,11 @@ def read_v0(raw: dict) -> dict:
     return raw
 
 
-READERS = {SCHEMA_V0: read_v0}
+def _read_page_v1(raw: dict) -> dict:
+    return raw
+
+
+READERS = {SCHEMA_V0: read_v0, SCHEMA_V1: _read_page_v1}
 
 
 def load_document(path: str) -> tuple[dict, dict]:
@@ -154,6 +159,69 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
     return found, ids, nodes
 
 
+def _tip_term_lookups(token: str) -> set[str]:
+    """The lookup strings in shell/tips.js, before case conversion."""
+    forms = {token}
+    units = sum(2 if ord(char) > 0xFFFF else 1 for char in token)
+    if units > 2 and token[-1:] in ("s", "S"):
+        forms.add(token[:-1])
+        if token[-2:-1] in ("e", "E"):
+            forms.add(token[:-2])
+    return forms
+
+
+def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
+    """Check typed catalogs without discarding duplicate source entries.
+
+    Term identity follows shell/tips.js: lowercase keys ignore case; other keys
+    keep their case. IDs match only the complete, same-case element ID.
+    """
+    if doc["schema"] != SCHEMA_V1:
+        return []
+    found = []
+    tips = doc.get("tips", {})
+    for catalog, key in (("terms", "term"), ("ids", "id")):
+        exact, insensitive, witnesses, folded_witnesses = {}, {}, {}, {}
+        for index, entry in enumerate(tips.get(catalog, [])):
+            token = entry[key]
+            path = ("tips", catalog, index, key)
+            if catalog == "ids" and (token not in ids or ids[token][-1] == "banner"):
+                found.append((path, f"id {token!r} must reference an existing card, component, or map node"))
+            ignore_case = catalog == "terms" and token == token.lower()
+            forms = {token}
+            if catalog == "terms":
+                # Uppercase sigma is the contextual lowercase mapping: adding a
+                # cased plural suffix can change final sigma to medial sigma.
+                if ignore_case:
+                    forms.update(token[:n] + "\u03a3" + token[n + 1:] for n, char in enumerate(token)
+                                 if char in ("\u03c2", "\u03c3"))
+                forms = {base + tail for base in forms for tail in ("", "s", "S", "es", "eS", "Es", "ES")}
+                lookups = set()
+                for form in forms:
+                    candidates = _tip_term_lookups(form)
+                    if token in candidates or (ignore_case and any(part.lower() == token for part in candidates)):
+                        lookups.update(candidates)
+            else:
+                lookups = forms
+            conflicts = set()
+            previous = (folded_witnesses if ignore_case else witnesses).get(token)
+            if previous is not None:
+                conflicts.add(previous)
+            for part in lookups:
+                for previous in (exact.get(part), insensitive.get(part.lower())):
+                    if previous is not None:
+                        conflicts.add(previous)
+            for previous in sorted(conflicts):
+                found.append((path, f"matches the same token as tips.{catalog}[{previous}].{key}"))
+            exact.setdefault(token, index)
+            if ignore_case:
+                insensitive.setdefault(token, index)
+            for part in lookups:
+                witnesses.setdefault(part, index)
+                folded_witnesses.setdefault(part.lower(), index)
+    return found
+
+
 def _map_node(node, where: tuple, last_round: int) -> list[tuple]:
     if not isinstance(node, dict):
         return [(where, "a map node must be an object")]
@@ -218,14 +286,14 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
         raise _refuse(raw, found, "schema")
     found = []
     for m, map_ in enumerate(doc.get("maps") or []):
-        found += registry.validate(map_, ("maps", m))
+        found += registry.validate(map_, ("maps", m), schema_name=doc["schema"])
     for r, round_ in enumerate(doc["rounds"]):
         for i, item in enumerate(round_["items"]):
-            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"))
+            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"), schema_name=doc["schema"])
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    return found + invariants.check_invariants(doc, ids, nodes)
+    return found + _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
 
 
 def check_document(path: str) -> tuple[dict, str]:
@@ -286,7 +354,8 @@ def _render(path: str) -> tuple[dict, Path, Path]:
     document = _require_home(path, doc)
     data_folder()
     html_path = document.with_suffix(".html")
-    html = inject.inject(page.build(doc, btw_listener.address(document)), inject.load_dictionary(html_path))
+    html = page.build(doc, btw_listener.address(document))
+    html = inject.inject(html, inject.load_dictionary(html_path, html))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
     return doc, document, html_path

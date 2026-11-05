@@ -263,7 +263,7 @@ def _check_round(r, ids, node_ids, last_round, components):
 
 def _check_document(doc):
     _only(doc, DOC_FIELDS, "document")
-    _need(doc.get("schema") == SCHEMA, "document", f"schema (expected {SCHEMA})")
+    _need(doc.get("schema") in {SCHEMA, "afkv2.page/1"}, "document", "schema (expected page/0 or page/1)")
     session = doc.get("session")
     _only(session, SESSION_FIELDS | {"links"}, "session")
     _need(SESSION_FIELDS <= set(session), "session", "missing field")
@@ -745,7 +745,7 @@ def test_every_whole_example_document_carries_the_schema_value():
     whole = [frag for _, level, frag in all_fragments() if level == "document"]
     whole.append(_example())
     for doc in whole:
-        assert doc["schema"] == SCHEMA
+        assert doc["schema"] in {SCHEMA, "afkv2.page/1"}
 
 
 def test_all_components_document_uses_every_component():
