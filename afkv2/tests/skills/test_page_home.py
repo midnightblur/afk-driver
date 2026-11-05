@@ -165,6 +165,17 @@ def test_present_keeps_the_count_past_the_cap_and_the_files_it_cut(repo, tmp_pat
     assert len(shown["secrets"]) == 20 and shown["secrets_more"] == 3 and shown["scan_cut"] == []
 
 
+def test_present_answers_the_diagram_counts(repo, tmp_path, monkeypatch):
+    import diagrams
+    monkeypatch.setattr(diagrams, "find_renderer", lambda: None)
+    doc = build(page_home.start_page("Cache plan", TICKET), tmp_path, "--ticket", TICKET)
+    page = json.loads(doc.read_text("utf-8"))
+    page["rounds"][0]["items"][0]["body"] = {"type": "diagram", "props": {"caption": "The flow", "text": "flowchart LR; a --> b"}}
+    doc.write_text(json.dumps(page), "utf-8")
+    shown = page_round.present(str(doc))
+    assert shown["diagrams"] == {"rendered": 0, "cached": 0, "as_text": 1}
+
+
 def test_a_committed_page_presents_as_committed(repo, tmp_path):
     doc = build(page_home.start_page("Cache plan", TICKET), tmp_path, "--ticket", TICKET)
     git(repo, "add", ".")

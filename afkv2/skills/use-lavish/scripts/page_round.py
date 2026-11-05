@@ -5,7 +5,8 @@
                                   Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
                                   scan file (a file the skill writes beside the page, such as its log),
                                   `secrets_more` (the hits past the cap) and `scan_cut` (each file scanned only to
-                                  its first 2 MB); none refuses the round.
+                                  its first 2 MB); none refuses the round. Answers `diagrams` {rendered, cached,
+                                  as_text}: the page's diagrams drawn anew, taken from the cache and shown as text.
   wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte, and the host's prompts
                                   to F.prompts.json, for audit. Answers side questions on the page and polls
                                   again; `btw` lists the side questions left to the agent, and `raw_file`
@@ -51,7 +52,8 @@ def present(doc, scan=()):
     shown = _engine("show", doc)
     return {"ok": True, "page": rendered.get("page"), "url": shown.get("url"), "tab": shown.get("tab"),
             "git_state": rendered.get("git_state"), "secrets": rendered.get("secrets") or [],
-            "secrets_more": rendered.get("secrets_more") or 0, "scan_cut": rendered.get("scan_cut") or []}
+            "secrets_more": rendered.get("secrets_more") or 0, "scan_cut": rendered.get("scan_cut") or [],
+            "diagrams": rendered.get("diagrams") or {"rendered": 0, "cached": 0, "as_text": 0}}
 
 
 def _side_question():
