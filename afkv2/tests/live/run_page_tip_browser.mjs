@@ -189,6 +189,28 @@ async function buildFixture(folder) {
   return url;
 }
 
+function waitForExit(child, timeout) {
+  if (child.exitCode !== null) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const onExit = () => finish(true);
+    const finish = exited => {
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      resolve(exited);
+    };
+    const timer = setTimeout(() => finish(child.exitCode !== null), timeout);
+    child.once("exit", onExit);
+  });
+}
+
+export async function terminateProcess(child, grace = 3000) {
+  if (!child || child.exitCode !== null) return;
+  child.kill();
+  if (await waitForExit(child, grace)) return;
+  child.kill("SIGKILL");
+  if (!await waitForExit(child, grace)) throw new Error("Chrome did not exit after hard termination");
+}
+
 async function stopChrome(browser, chrome, diagnostics) {
   try {
     await Promise.race([browser?.call("Browser.close"), new Promise(resolve => setTimeout(resolve, 1000))]);
@@ -196,13 +218,7 @@ async function stopChrome(browser, chrome, diagnostics) {
     diagnostics.push(`Browser.close: ${error.message}`);
   }
   browser?.close();
-  if (chrome && chrome.exitCode === null) chrome.kill();
-  if (chrome && chrome.exitCode === null) {
-    await Promise.race([
-      new Promise(resolve => chrome.once("exit", resolve)),
-      new Promise(resolve => setTimeout(resolve, 3000)),
-    ]);
-  }
+  await terminateProcess(chrome);
 }
 
 export async function runBrowserProof() {
@@ -212,6 +228,8 @@ export async function runBrowserProof() {
   let chrome;
   let browser;
   let page;
+  let failure;
+  const cleanupFailures = [];
   try {
     const fixture = await buildFixture(path.join(scratch, "fixture"));
     const executable = await findChrome();
@@ -254,11 +272,24 @@ export async function runBrowserProof() {
     if (!proof.startsWith("PASS ALL")) throw new Error(proof);
     console.log(proof);
   } catch (error) {
-    throw new Error(`${error.stack || error.message}\n\nDiagnostics:\n${diagnostics.join("\n")}`);
+    failure = error;
   } finally {
     page?.close();
-    await stopChrome(browser, chrome, diagnostics);
-    await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    try {
+      await stopChrome(browser, chrome, diagnostics);
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+    try {
+      await rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
+  if (failure || cleanupFailures.length) {
+    const primary = failure ? failure.stack || failure.message : "Browser proof passed, but cleanup failed";
+    const cleanup = cleanupFailures.length ? `\n\nCleanup failures:\n${cleanupFailures.map(error => error.stack || error.message).join("\n")}` : "";
+    throw new Error(`${primary}\n\nDiagnostics:\n${diagnostics.join("\n")}${cleanup}`);
   }
 }
 
