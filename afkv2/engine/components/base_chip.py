@@ -93,7 +93,7 @@ def value_colour(values, value, ordered):
 def check_chip(props):
     """A chip takes a tone or a set: never both, never neither."""
     if ("tone" in props) == ("set" in props):
-        yield (), "takes a tone or a set, exactly one"
+        yield ("tone",), "takes a tone or a set, exactly one"
 
 
 def _value_chip(props):
