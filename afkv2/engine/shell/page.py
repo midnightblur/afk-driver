@@ -290,6 +290,18 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
     return f' data-afkv2-btw-port="{int(btw[0])}" data-afkv2-btw-token="{escape(btw[1])}"'
 
 
+def _tip_source(doc: dict) -> str:
+    """Page-owned catalogs survive replacement of the derived tooltip runtime. A page read from a format 0
+    file has none: it keeps its legacy sidecar tips, which the injector reads only without this block."""
+    if doc["schema"] != "afkv2.page/1" or _from_format_0(doc):
+        return ""
+    tips = doc.get("tips", {})
+    source = {kind: tips.get(kind, []) for kind in ("terms", "ids")}
+    # Escaping '<' blocks script termination, HTML comments and injector markers.
+    payload = json.dumps(source, ensure_ascii=True).replace("<", "\\u003c")
+    return f'<script id="afkv2-page-tip-source" type="application/json">{payload}</script>\n'
+
+
 def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = None) -> str:
     """The page; `btw` is the side-question listener address (`btw_listener.address`). With None the page
     has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices.
@@ -318,4 +330,5 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{title}</title>\n<style>\n{_assets(".css", BASE_CSS)}</style>\n{themes}</head>\n'
             f'<body>\n<div class="afkv2-page"{_btw_attrs(btw)}>{body}</div>\n'
+            f'{_tip_source(doc)}'
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')

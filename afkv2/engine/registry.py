@@ -19,7 +19,12 @@ from typing import Callable, Iterable
 from schema.validate import check_schema, problems
 
 COMPONENTS = Path(__file__).resolve().parent / "components"
-PAGE_SCHEMA = json.loads((COMPONENTS.parent / "schema" / "page-v1.schema.json").read_text(encoding="utf-8"))
+SCHEMA_FILES = {
+    "afkv2.page/0": COMPONENTS.parent / "schema" / "page-v0.schema.json",
+    "afkv2.page/1": COMPONENTS.parent / "schema" / "page-v1.schema.json",
+}
+PAGE_SCHEMAS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in SCHEMA_FILES.items()}
+NEWEST_SCHEMA = "afkv2.page/1"
 COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}
@@ -103,11 +108,15 @@ def _held(component: dict, kind: ComponentType | None) -> list[tuple]:
     return held
 
 
-def validate(component: dict, path: tuple = (), page_schema: dict | None = None) -> list[tuple]:
+def component_schema_for(schema_name: str) -> dict:
+    """The schema root that owns component shapes for this document version."""
+    return PAGE_SCHEMAS[schema_name]
+
+
+def validate(component: dict, path: tuple = (), *, schema_name: str = NEWEST_SCHEMA) -> list[tuple]:
     """Problems of a component and of every component it holds, as `(path, why)`. The component shape is
-    the one of `page_schema`, the schema of the document's format; by default the newest format."""
-    page_schema = page_schema or PAGE_SCHEMA
-    shape = problems(component, COMPONENT_SHAPE, path, page_schema)
+    the one of the schema of the document's format `schema_name`; by default the newest format."""
+    shape = problems(component, COMPONENT_SHAPE, path, component_schema_for(schema_name))
     if shape:
         return shape
     kind = lookup(component["type"])
@@ -126,7 +135,7 @@ def validate(component: dict, path: tuple = (), page_schema: dict | None = None)
     if found:
         return found
     for sub, child in _held(component, kind):
-        found += validate(child, (*path, *sub), page_schema)
+        found += validate(child, (*path, *sub), schema_name=schema_name)
     return found
 
 

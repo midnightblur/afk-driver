@@ -427,10 +427,10 @@ def test_a_push_address_at_another_project_is_refused_before_any_write(tmp_path)
 
 
 def test_the_refusal_of_another_project_shows_no_secret_of_its_address(tmp_path):
-    world = World(tmp_path, "github", "https://someone:s3cret-token@github.com/someone/else.git")
+    world = World(tmp_path, "github", "https://{user}:s3cret-token}@github.com/{user}/else.git")
     answer, _ = round_trip(world)
     assert answer["error"]["code"] == "wrong-project" and "s3cret-token" not in json.dumps(answer)
-    assert "github.com/someone/else" in answer["error"]["reason"]
+    assert "github.com/{user}/else" in answer["error"]["reason"]
 
 
 def plugin_config(tmp_path, monkeypatch, tracker):

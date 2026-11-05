@@ -16,3 +16,10 @@ SEC-4
 SEC-5
 SEC-6
 Z0-9       # character class of the tracker-key regex [A-Z][A-Z0-9]+-\d+ (skills/utils/settle-change/SKILL.md)
+TIP-01     # runtime PRD catalog notation for the first typed tip category
+TIP-02     # runtime PRD catalog notation for the second typed tip category
+TIP-03     # runtime PRD catalog notation for the shared fallback category
+TIP-04     # runtime PRD catalog notation for the legacy compatibility category
+WE-01      # runtime PRD worked-example notation, not a tracker ticket
+WE-02      # runtime PRD worked-example notation, not a tracker ticket
+WE-03      # runtime PRD worked-example notation, not a tracker ticket

@@ -59,8 +59,7 @@ from shell import inject, page  # noqa: E402
 
 SCHEMA_V0 = "afkv2.page/0"
 SCHEMA_V1 = "afkv2.page/1"
-SCHEMA_FILES = {SCHEMA_V0: ENGINE_DIR / "schema" / "page-v0.schema.json",
-                SCHEMA_V1: ENGINE_DIR / "schema" / "page-v1.schema.json"}
+SCHEMA_FILES = registry.SCHEMA_FILES
 PAGES_FOLDER = "pages"
 MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
@@ -123,17 +122,13 @@ def read_v1(raw: dict) -> dict:
 READERS = {SCHEMA_V0: read_v0_as_v1, SCHEMA_V1: read_v1}
 
 
-def _schema(version: str) -> dict:
-    return json.loads(SCHEMA_FILES[version].read_text(encoding="utf-8"))
-
-
-def _schema_checked(value: dict) -> dict:
-    """The schema of the value's format, after the value passed it; a problem is refused as `schema`."""
-    schema = _schema(value["schema"])
-    found = problems(value, schema)
+def _schema_checked(value: dict) -> str:
+    """The schema value of the value's format, after the value passed its schema; a problem is refused as
+    `schema`."""
+    found = problems(value, registry.component_schema_for(value["schema"]))
     if found:
         raise _refuse(value, found, "schema")
-    return schema
+    return value["schema"]
 
 
 def load_document(path: str) -> tuple[dict, dict]:
@@ -225,6 +220,69 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
     return found, ids, nodes
 
 
+def _tip_term_lookups(token: str) -> set[str]:
+    """The lookup strings in shell/tips.js, before case conversion."""
+    forms = {token}
+    units = sum(2 if ord(char) > 0xFFFF else 1 for char in token)
+    if units > 2 and token[-1:] in ("s", "S"):
+        forms.add(token[:-1])
+        if token[-2:-1] in ("e", "E"):
+            forms.add(token[:-2])
+    return forms
+
+
+def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
+    """Check typed catalogs without discarding duplicate source entries.
+
+    Term identity follows shell/tips.js: lowercase keys ignore case; other keys
+    keep their case. IDs match only the complete, same-case element ID.
+    """
+    if doc["schema"] != SCHEMA_V1:
+        return []
+    found = []
+    tips = doc.get("tips", {})
+    for catalog, key in (("terms", "term"), ("ids", "id")):
+        exact, insensitive, witnesses, folded_witnesses = {}, {}, {}, {}
+        for index, entry in enumerate(tips.get(catalog, [])):
+            token = entry[key]
+            path = ("tips", catalog, index, key)
+            if catalog == "ids" and (token not in ids or ids[token][-1] == "banner"):
+                found.append((path, f"id {token!r} must reference an existing card, component, or map node"))
+            ignore_case = catalog == "terms" and token == token.lower()
+            forms = {token}
+            if catalog == "terms":
+                # Uppercase sigma is the contextual lowercase mapping: adding a
+                # cased plural suffix can change final sigma to medial sigma.
+                if ignore_case:
+                    forms.update(token[:n] + "\u03a3" + token[n + 1:] for n, char in enumerate(token)
+                                 if char in ("\u03c2", "\u03c3"))
+                forms = {base + tail for base in forms for tail in ("", "s", "S", "es", "eS", "Es", "ES")}
+                lookups = set()
+                for form in forms:
+                    candidates = _tip_term_lookups(form)
+                    if token in candidates or (ignore_case and any(part.lower() == token for part in candidates)):
+                        lookups.update(candidates)
+            else:
+                lookups = forms
+            conflicts = set()
+            previous = (folded_witnesses if ignore_case else witnesses).get(token)
+            if previous is not None:
+                conflicts.add(previous)
+            for part in lookups:
+                for previous in (exact.get(part), insensitive.get(part.lower())):
+                    if previous is not None:
+                        conflicts.add(previous)
+            for previous in sorted(conflicts):
+                found.append((path, f"matches the same token as tips.{catalog}[{previous}].{key}"))
+            exact.setdefault(token, index)
+            if ignore_case:
+                insensitive.setdefault(token, index)
+            for part in lookups:
+                witnesses.setdefault(part, index)
+                folded_witnesses.setdefault(part.lower(), index)
+    return found
+
+
 def _map_node(node, where: tuple, last_round: int) -> list[tuple]:
     if not isinstance(node, dict):
         return [(where, "a map node must be an object")]
@@ -297,17 +355,18 @@ def save_settled_copy(document: Path, doc: dict) -> None:
 def _content_problems(raw: dict, doc: dict) -> list[tuple]:
     """The invariant problems of the in-memory form `doc` of `raw`. A problem of schema or component shape is
     refused here: `raw` against the schema of its own format."""
-    schema = _schema_checked(raw)
+    schema_name = _schema_checked(raw)
     found = []
     for m, map_ in enumerate(doc.get("maps") or []):
-        found += registry.validate(map_, ("maps", m), schema)
+        found += registry.validate(map_, ("maps", m), schema_name=schema_name)
     for r, round_ in enumerate(doc["rounds"]):
         for i, item in enumerate(round_["items"]):
-            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"), schema)
+            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"),
+                                       schema_name=schema_name)
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    found += invariants.check_invariants(doc, ids, nodes)
+    found += _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
     if not found:
         links = invariants.check_links(doc, ids)
         if links:
@@ -410,7 +469,7 @@ def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path,
     html_path = document.with_suffix(".html")
     with diagrams.page_run() as counts:
         built = page.build(doc, btw_listener.address(document), found)
-    html = inject.inject(built, inject.load_dictionary(html_path))
+    html = inject.inject(built, inject.load_dictionary(html_path, built))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
     return doc, document, html_path, found, dict(counts)

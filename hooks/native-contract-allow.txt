@@ -72,6 +72,15 @@ CHANGELOG.md	harness-name	^  short of a manifest that listed it. Codex parsed th
 hooks/hooks*.json	hook-deadline	protected-branch-guard\.py	The guard enforces its own 20 s deadline (DEADLINE_SECONDS in hooks/lib/protected_branch_guard.py), below this entry's 30 s timeout.
 hooks/hooks*.json	hook-deadline	protected-branch-occupancy\.py	The session hook enforces the guard's 20 s deadline (guard.deadline in hooks/protected-branch-occupancy.py), below this entry's 30 s timeout.
 hooks/native-contract-gate.sh	repo-scan	plugin\.rglob\(|fixture_dir\.rglob\(	Plugin-tree inventory of this gate's own files (hundreds of files), not a consuming-repository content scan.
+# Archived requirement records hold harness-parity evidence and verbatim owner notes. Keep each
+# exception pinned to the one historical statement that requires the names.
+docs/afk/158/GRILL-LOG.md	harness-name	Claude and Codex both fire a SessionEnd hook	Historical requirement evidence compares the two supported harnesses.
+docs/afk/158/GRILL-LOG.md	harness-name	was the Codex build	Historical dogfood decision identifies which harness built the paired change.
+docs/afk/158/GRILL-LOG.md	harness-name	path \(Claude \+ Codex\)	Verbatim owner note names the two processes whose worktree use must be detected.
+docs/afk/158/GRILL-LOG.md	harness-name	both Claude & Codex support it	Verbatim owner note states the required page-control parity.
+docs/afk/158/PRD.md	harness-name	on Claude or on Codex	Acceptance criterion requires the same page control on both supported harnesses.
+docs/afk/158/PRD.md	harness-name	built on Codex	Historical delivery split identifies which harness owns the paired change.
+docs/afk/158/PRD.md	harness-name	Claude and Codex both fire a session-end hook	Requirement evidence compares lifecycle behavior across both supported harnesses.
 # Live surfaces naming an interpreter that is not one (check J).
 skills/afk/setup/scripts/bootstrap.sh	interpreter	^"\$uv" python install "\$cpython"	uv's own `python install` subcommand, not an interpreter.
 skills/afk/setup/scripts/bootstrap.ps1	interpreter	^Invoke-Step 'uv python install' \{ & \$uv python install \$python 	uv's own `python install` subcommand, not an interpreter.

@@ -42,6 +42,27 @@ Field constraints: the engine's schema file `engine/schema/page-v1.schema.json`
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
 - `responses`, the document's `notes` list and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading.
 
+## Page-owned tips
+
+Put optional `tips` at the document root. Its entries supply local
+explanations for terms and identifier titles:
+
+| Field | Entry |
+|-------|-------|
+| `tips.terms` | `term`, `definition` |
+| `tips.ids` | `id`, `title` |
+
+The field contract and limits live in `engine/schema/page-v1.schema.json`, under
+`$defs.tips`. Use plain text for definitions and titles. Example:
+`examples/page-owned-tips.json`.
+
+The shared round writer accepts `tips` in its round input and writes it at the
+document root. Supplying `tips` replaces the dictionary; omit it to keep existing
+entries. Supply `{}` to clear them.
+
+A format 0 file opens and renders as it is, with its legacy feature tips file.
+Its next round writes format 1; from then on the page reads only its own `tips`.
+
 ## Components
 
 Load the page of each component you use.

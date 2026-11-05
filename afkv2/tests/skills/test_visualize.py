@@ -346,7 +346,7 @@ def _check_document(doc):
 
 
 # Format 1 (SDD §4): one session note list, the new session fields, answer ids and links.
-DOC_FIELDS_1 = DOC_FIELDS | {"notes", "value_sets"}
+DOC_FIELDS_1 = DOC_FIELDS | {"notes", "value_sets", "tips"}
 SESSION_FIELDS_1 = {"short_title", "step", "private", "takeovers"}
 SKILLS_1 = {"grill", "propose-solution", "to-subtasks", "use-lavish"}
 ANSWER_FIELDS_1 = {"id", "text", "notes", "changed", "about"}
@@ -363,6 +363,7 @@ def _format_0_view(doc):
     view = copy.deepcopy(doc)
     view["schema"] = SCHEMA
     view.pop("value_sets", None)
+    view.pop("tips", None)
     view["session"] = {k: v for k, v in session.items() if k not in SESSION_FIELDS_1}
     view["session"].setdefault("ticket", None)
     view["session"]["skill"] = "grill"

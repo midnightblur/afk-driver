@@ -1,0 +1,2266 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261104-182229",
+    "skill": "propose-solution",
+    "feature": "159",
+    "ticket": "#159",
+    "started": "2026-11-04T18:29:16Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    }
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "focus",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 2
+          }
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "The page-tip data contract, compatibility path and runtime boundaries"
+        ],
+        "parked": [
+          "The L1-L9 draft waits for all 11 critical aspects"
+        ]
+      },
+      "items": [
+        {
+          "id": "a-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-entities-now",
+            "props": {
+              "columns": [
+                "State",
+                "Today",
+                "Proposed"
+              ],
+              "rows": [
+                [
+                  "Page document",
+                  "schema, session, maps, rounds",
+                  "same fields plus page tips"
+                ],
+                [
+                  "Feature terms",
+                  "external glossaries or legacy sidecar",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "owned term entries",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Page IDs",
+                  "no generic title catalog",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "owned ID-title entries",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Rendered HTML",
+                  "derived file",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "derived file",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-entities-question",
+                "props": {
+                  "text": "Confirm: the page JSON is the only persisted entity. It gains 2 typed entry arrays, `terms` and `ids`; HTML remains derived."
+                }
+              }
+            ]
+          },
+          "title": "One page document owns 2 tip catalogs",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-relations-now",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "rel-page",
+                  "label": "1 page document"
+                },
+                {
+                  "id": "rel-terms",
+                  "label": "0..n term entries"
+                },
+                {
+                  "id": "rel-ids",
+                  "label": "0..n ID entries"
+                },
+                {
+                  "id": "rel-elements",
+                  "label": "existing page element IDs"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "rel-page",
+                  "to": "rel-terms",
+                  "label": "owns"
+                },
+                {
+                  "from": "rel-page",
+                  "to": "rel-ids",
+                  "label": "owns"
+                },
+                {
+                  "from": "rel-ids",
+                  "to": "rel-elements",
+                  "label": "references exactly 1"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-relations-question",
+                "props": {
+                  "text": "Confirm: each ID-tip entry references one existing card, component, or map-node ID. Term entries have no relation to a page element."
+                }
+              }
+            ]
+          },
+          "title": "The page owns entries; ID tips reference page elements",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-keys-now",
+            "props": {
+              "columns": [
+                "Catalog",
+                "Key",
+                "Identity rule",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "terms",
+                  "term",
+                  "existing term normalization and plural matching",
+                  "definition"
+                ],
+                [
+                  "ids",
+                  "id",
+                  "complete identifier with the same case",
+                  "title"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-keys-question",
+                "props": {
+                  "text": "Confirm: use arrays of typed entries, not JSON maps, so duplicate or colliding input survives parsing and validation can name it."
+                }
+              }
+            ]
+          },
+          "title": "Typed arrays preserve duplicate keys for validation",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-constraints-now",
+            "props": {
+              "columns": [
+                "Rule",
+                "Enforcement",
+                "Failure"
+              ],
+              "rows": [
+                [
+                  "non-empty term, definition, id, title",
+                  "page/1 schema",
+                  "field path"
+                ],
+                [
+                  "ID references an existing page element",
+                  "engine invariant",
+                  "ID-entry field path"
+                ],
+                [
+                  "no 2 entries in one catalog match one token",
+                  "engine invariant",
+                  "both conflicting fields"
+                ],
+                [
+                  "exact ID beats term; page tip beats shared term",
+                  "runtime resolver",
+                  "deterministic result"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-constraints-question",
+                "props": {
+                  "text": "Confirm this enforcement split. Validation runs before HTML generation, so a refusal leaves the last valid HTML unchanged."
+                }
+              }
+            ]
+          },
+          "title": "Schema checks shape; invariants check semantic collisions",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-cascade-now",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "cas-page",
+                  "label": "page deleted"
+                },
+                {
+                  "id": "cas-all",
+                  "label": "all owned tips deleted"
+                },
+                {
+                  "id": "cas-element",
+                  "label": "element ID removed"
+                },
+                {
+                  "id": "cas-refusal",
+                  "label": "stale ID tip refuses validation"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "cas-page",
+                  "to": "cas-all",
+                  "label": "ownership cascade"
+                },
+                {
+                  "from": "cas-element",
+                  "to": "cas-refusal",
+                  "label": "repair: remove or retarget tip"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-cascade-question",
+                "props": {
+                  "text": "Confirm: page deletion removes all tip data. Removing a referenced page element does not silently delete its tip; validation names the stale entry for repair."
+                }
+              }
+            ]
+          },
+          "title": "Removing an element requires removing its ID tip",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "sequence",
+            "id": "a-api-now",
+            "props": {
+              "actors": [
+                {
+                  "id": "api-writer",
+                  "label": "Page writer"
+                },
+                {
+                  "id": "api-engine",
+                  "label": "Page engine"
+                },
+                {
+                  "id": "api-browser",
+                  "label": "Browser"
+                }
+              ],
+              "messages": [
+                {
+                  "from": "api-writer",
+                  "to": "api-engine",
+                  "text": "new session: afkv2.page/1 with tips"
+                },
+                {
+                  "from": "api-writer",
+                  "to": "api-engine",
+                  "text": "existing session: keep afkv2.page/0"
+                },
+                {
+                  "from": "api-engine",
+                  "to": "api-browser",
+                  "text": "same check, render, show, ingest and end commands"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api-question",
+                "props": {
+                  "text": "Confirm: the only published contract change is a new `afkv2.page/1` document schema. Existing page/0 documents and engine commands keep working."
+                }
+              }
+            ]
+          },
+          "title": "Add page/1; keep every engine command compatible",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-migration-now",
+            "props": {
+              "columns": [
+                "Case",
+                "Action",
+                "Rollback"
+              ],
+              "rows": [
+                [
+                  "new session",
+                  "write page/1",
+                  "writers may stop, reader stays"
+                ],
+                [
+                  "open page/0 session",
+                  "append as page/0",
+                  "unchanged"
+                ],
+                [
+                  "stored page/0",
+                  "no rewrite or backfill",
+                  "unchanged"
+                ],
+                [
+                  "stored page/1",
+                  "read with page/1 reader",
+                  "reader remains after rollback"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-migration-question",
+                "props": {
+                  "text": "Confirm this expand-only migration. Rollback may stop new page/1 writes but must retain the page/1 reader."
+                }
+              }
+            ]
+          },
+          "title": "No file migration; both schema readers remain",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-authorization-now",
+            "props": {
+              "columns": [
+                "Surface",
+                "Permitted",
+                "Denied",
+                "Guard"
+              ],
+              "rows": [
+                [
+                  "rendered page and embedded tips",
+                  "person with page access",
+                  "person without page access",
+                  "existing page host before HTML delivery"
+                ],
+                [
+                  "hover resolution",
+                  "reader of delivered page",
+                  "no separate role",
+                  "local DOM only; no endpoint"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-authorization-question",
+                "props": {
+                  "text": "Confirm: add no authorization surface. Tip data ships inside the same HTML and scope as the page content."
+                }
+              }
+            ]
+          },
+          "title": "Tips inherit the page host access boundary",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-lifecycle",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "run-strip",
+            "id": "a-lifecycle-now",
+            "props": {
+              "current": [
+                {
+                  "label": "round text",
+                  "detail": "settled cards never rewrite"
+                },
+                {
+                  "label": "no page tip catalog",
+                  "detail": "shared sources only"
+                }
+              ],
+              "proposed": [
+                {
+                  "label": "round 1",
+                  "tone": "kept"
+                },
+                {
+                  "label": "tip corrected in round 2",
+                  "tone": "new"
+                },
+                {
+                  "label": "choose current meaning or snapshots",
+                  "tone": "proposed"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-lifecycle-question",
+                "props": {
+                  "text": "How should page-owned tips evolve across design rounds? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-lifecycle-options",
+                "props": {
+                  "columns": [
+                    "A — A — page-wide current meaning",
+                    "B — B — round snapshots"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-lifecycle-opt-a",
+                        "props": {
+                          "text": "One mutable page catalog serves every round. Earlier visible text gets the latest corrected tip. Cost: old hover wording is not a snapshot."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-lifecycle-opt-b",
+                        "props": {
+                          "text": "Each round keeps its tip meanings. Cost: duplicate data, round-aware resolution, and more complex cross-round precedence."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-lifecycle-why-open",
+                "props": {
+                  "text": "Both choices preserve settled card text, but they give archived hover text different audit meaning. Code evidence cannot choose that product trade-off."
+                }
+              }
+            ]
+          },
+          "title": "Which meaning should earlier rounds show after a tip changes?",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-other-teams-now",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "owned",
+                  "label": "ownership: own"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "own-schema",
+                  "label": "schema + engine",
+                  "group": "owned"
+                },
+                {
+                  "id": "own-writer",
+                  "label": "shared page writer",
+                  "group": "owned"
+                },
+                {
+                  "id": "own-runtime",
+                  "label": "tooltip runtime",
+                  "group": "owned"
+                },
+                {
+                  "id": "own-tests",
+                  "label": "skill + engine tests",
+                  "group": "owned"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "own-writer",
+                  "to": "own-schema",
+                  "label": "writes"
+                },
+                {
+                  "from": "own-schema",
+                  "to": "own-runtime",
+                  "label": "renders"
+                },
+                {
+                  "from": "own-tests",
+                  "to": "own-schema",
+                  "label": "proves"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-other-teams-question",
+                "props": {
+                  "text": "Confirm: the change crosses no shared or unowned module. No other-team contract or coordination is required."
+                }
+              }
+            ]
+          },
+          "title": "All touched modules are owned here",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-large-data",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-large-data-now",
+            "props": {
+              "columns": [
+                "Cost today",
+                "Bound"
+              ],
+              "rows": [
+                [
+                  "regex build",
+                  "one alternation over every key; no total key bound"
+                ],
+                [
+                  "DOM scan",
+                  "all eligible text; one node over 50,000 characters is skipped"
+                ],
+                [
+                  "mutation recovery",
+                  "full rescan after 300 ms debounce"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-large-data-question",
+                "props": {
+                  "text": "How should the design bound large tip catalogs? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-large-data-options",
+                "props": {
+                  "columns": [
+                    "A — A — measured budget, no count cap",
+                    "B — B — schema count cap"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-large-data-opt-a",
+                        "props": {
+                          "text": "Require 2,000 total tips over 200,000 visible characters to finish first scan and a debounced rescan within 1,000 ms on the CI runner. Keep fields at 1–128 key characters and 1–1,000 value characters."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-large-data-opt-b",
+                        "props": {
+                          "text": "Use the same timing target and field limits, and refuse more than 2,000 total tips. Gives a hard ceiling but makes catalog size part of page validity."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-large-data-why-open",
+                "props": {
+                  "text": "The runtime cost is linear but unmeasured, and the PRD sets no valid catalog maximum. A hard cap could reject a legitimate page."
+                }
+              }
+            ]
+          },
+          "title": "Performance contract or hard catalog cap",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T18:37:12Z",
+          "raw": "[round R-1]\na-lifecycle a\na-large-data a\na-entities accept\na-relations accept\na-keys accept\na-constraints accept\na-cascade accept\na-api accept\na-migration accept\na-authorization accept\na-other-teams accept\n",
+          "signals": [
+            {
+              "target": "a-lifecycle",
+              "item": "a-lifecycle",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "73e94a6cf58ebd92"
+            },
+            {
+              "target": "a-large-data",
+              "item": "a-large-data",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9f93059cb93bda62"
+            },
+            {
+              "target": "a-entities",
+              "item": "a-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9d6326b4dd538ad9"
+            },
+            {
+              "target": "a-relations",
+              "item": "a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "105c704969936cbd"
+            },
+            {
+              "target": "a-keys",
+              "item": "a-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e8655d927b95003e"
+            },
+            {
+              "target": "a-constraints",
+              "item": "a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0bdf4191f0c10f38"
+            },
+            {
+              "target": "a-cascade",
+              "item": "a-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d7cbf49f6ed3eed2"
+            },
+            {
+              "target": "a-api",
+              "item": "a-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "48c42b2992762d93"
+            },
+            {
+              "target": "a-migration",
+              "item": "a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f1726eb471365acb"
+            },
+            {
+              "target": "a-authorization",
+              "item": "a-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "555b73eb0ed4ee91"
+            },
+            {
+              "target": "a-other-teams",
+              "item": "a-other-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "fc5e5725d20fa742"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "All 11 critical aspects",
+          "Page-wide current tip meanings",
+          "A measured 2,000-tip performance budget without a catalog-count cap"
+        ],
+        "unlocks": [
+          "The complete L1-L9 design and 4 live human-signoff contracts"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "sign-hl-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-1-text",
+            "props": {
+              "text": "Sign this exact persistence and entity contract."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-1-fields",
+                "props": {
+                  "columns": [
+                    "Entity / field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Unit / limit",
+                    "Identity / constraint",
+                    "Index"
+                  ],
+                  "rows": [
+                    [
+                      "page.tips",
+                      "object",
+                      "no",
+                      "empty terms and ids arrays",
+                      "1 per page",
+                      "owned by page",
+                      "none"
+                    ],
+                    [
+                      "term entry.term",
+                      "string",
+                      "no",
+                      "none",
+                      "1–128 characters",
+                      "term match identity; unique by matching rules",
+                      "none"
+                    ],
+                    [
+                      "term entry.definition",
+                      "string",
+                      "no",
+                      "none",
+                      "1–1,000 characters",
+                      "plain text",
+                      "none"
+                    ],
+                    [
+                      "ID entry.id",
+                      "string",
+                      "no",
+                      "none",
+                      "1–128 characters",
+                      "same-case page element ID; unique",
+                      "none"
+                    ],
+                    [
+                      "ID entry.title",
+                      "string",
+                      "no",
+                      "none",
+                      "1–1,000 characters",
+                      "plain text",
+                      "none"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "sign-hl-1-relations",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Cardinality",
+                    "Owner",
+                    "Delete / orphan",
+                    "Retention / evolution"
+                  ],
+                  "rows": [
+                    [
+                      "page → term entries",
+                      "1 to 0..n",
+                      "page",
+                      "page delete removes entries",
+                      "spec-folder lifetime; page/1 expand-only schema"
+                    ],
+                    [
+                      "page → ID entries",
+                      "1 to 0..n",
+                      "page",
+                      "page delete removes entries",
+                      "spec-folder lifetime; page/1 expand-only schema"
+                    ],
+                    [
+                      "ID entry → page element",
+                      "n to 1",
+                      "page",
+                      "removed element makes the tip invalid until repaired",
+                      "no backfill; validation names the stale entry"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "sign-hl-1-migration",
+                "props": {
+                  "text": "No page/0 file is rewritten. New sessions write page/1. Existing page/0 sessions remain page/0. Rollback keeps the page/1 reader.",
+                  "label": "Migration and rollback"
+                }
+              }
+            ]
+          },
+          "title": "Sign the persisted page-tip entity contract",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-2-text",
+            "props": {
+              "text": "Sign this exact public page-document contract."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-2-surface",
+                "props": {
+                  "columns": [
+                    "Surface",
+                    "Method / path",
+                    "Roles",
+                    "Request fields",
+                    "Success",
+                    "Errors",
+                    "Paging",
+                    "Idempotency",
+                    "Existing callers"
+                  ],
+                  "rows": [
+                    [
+                      "page document schema",
+                      "JSON schema value `afkv2.page/1`",
+                      "page writers; page readers",
+                      "optional tips object with terms[] and ids[]",
+                      "existing check, render, show, ingest and end verbs",
+                      "bad document with exact field path; semantic collision with both paths",
+                      "none",
+                      "same document gives same validated payload and HTML",
+                      "page/0 remains registered; open page/0 sessions keep page/0"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "sign-hl-2-compat",
+                "props": {
+                  "text": "No command, endpoint, role, or host route changes. New writers emit page/1. Existing page/0 files and callers keep their current behavior.",
+                  "label": "Compatibility verdict"
+                }
+              }
+            ]
+          },
+          "title": "Sign the page/1 public contract",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-4-text",
+            "props": {
+              "text": "Sign these page-tip states, moves, guardians, and violation results."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-4-lifecycle",
+                "props": {
+                  "columns": [
+                    "State / move",
+                    "Trigger",
+                    "Legal result"
+                  ],
+                  "rows": [
+                    [
+                      "absent tips",
+                      "new or legacy page has no entries",
+                      "shared glossary or legacy page/0 sidecar behavior applies"
+                    ],
+                    [
+                      "add or update page tip",
+                      "page writer builds a later round",
+                      "page-wide current meaning changes for every visible round"
+                    ],
+                    [
+                      "remove page tip",
+                      "page writer removes an entry",
+                      "shared fallback may apply; otherwise text stays plain"
+                    ],
+                    [
+                      "invalid catalog",
+                      "schema or invariant fails",
+                      "render refuses before replacing the last valid HTML"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "sign-hl-4-invariants",
+                "props": {
+                  "columns": [
+                    "Invariant",
+                    "Guardian",
+                    "Violation answer"
+                  ],
+                  "rows": [
+                    [
+                      "keys and values are non-empty and within field limits",
+                      "page/1 schema",
+                      "refuse with field path"
+                    ],
+                    [
+                      "ID tips reference existing page elements",
+                      "engine content invariant",
+                      "refuse with stale ID-entry path"
+                    ],
+                    [
+                      "one catalog cannot contain 2 entries that match one token",
+                      "engine content invariant",
+                      "refuse with both paths"
+                    ],
+                    [
+                      "exact page ID beats page term; page-owned beats shared",
+                      "runtime resolver",
+                      "one deterministic tip"
+                    ],
+                    [
+                      "tip values stay text",
+                      "runtime display",
+                      "never execute markup, script, or link action"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Sign the life cycle and invariant contract",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-6-text",
+            "props": {
+              "text": "Sign these changes, compatibility promises, and rollback rules."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-6-impact",
+                "props": {
+                  "columns": [
+                    "Existing flow",
+                    "New behavior",
+                    "Compatibility",
+                    "Rollback"
+                  ],
+                  "rows": [
+                    [
+                      "new page session",
+                      "writer emits page/1 and can author tips",
+                      "engine verbs unchanged",
+                      "stop page/1 writes; retain reader"
+                    ],
+                    [
+                      "open page/0 session",
+                      "writer keeps page/0",
+                      "legacy sidecar and rendering unchanged",
+                      "none"
+                    ],
+                    [
+                      "render then reopen HTML",
+                      "embedded page-tip source rebuilds runtime payload",
+                      "page/1 tips survive reinjection; page/0 uses sidecar",
+                      "retain page/1 source reader"
+                    ],
+                    [
+                      "tooltip match",
+                      "separate ID, page-term and shared-term resolution",
+                      "existing shared-term rules remain; exact IDs now win",
+                      "page/0 keeps legacy resolver inputs"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "sign-hl-6-risk",
+                "props": {
+                  "text": "Accepted risks: earlier rounds show the latest page-wide tip wording; runtime work stays linear in tip count and visible text; the NFR fixture proves 2,000 tips over 200,000 characters within 1,000 ms.",
+                  "label": "Accepted behavior and risk"
+                }
+              }
+            ]
+          },
+          "title": "Sign the changes to existing page behavior",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "l1-topology",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The deployment and runtime topology is inherited."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l1-topology-decision",
+                "props": {
+                  "text": "Keep one local page engine that produces static HTML for the existing browser host; add no service or network boundary.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-why",
+                "props": {
+                  "text": "The inherited topology meets the access and no-hover-request requirements with no new deployable unit.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-alternatives",
+                "props": {
+                  "text": "- Add a tooltip service or browser endpoint; rejected because all source data already exists in the page artifact and hover must make no request.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-evidence",
+                "props": {
+                  "text": "afkv2/engine/engine.py:284-327; afkv2/engine/shell/tips.js:89-105",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-reverse",
+                "props": {
+                  "text": "Introduce a service only with a new access, failure, latency, and offline contract.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-scope",
+                "props": {
+                  "text": "a-authorization",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L1 — Keep the single local page runtime",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l2-boundaries",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The schema registry is the integration boundary."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-boundaries-decision",
+                "props": {
+                  "text": "Register afkv2.page/1 and keep check, render, show, ingest, reply, poll and end unchanged; each existing page/0 caller remains valid.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l2-boundaries-why",
+                "props": {
+                  "text": "A new schema value extends the contract without changing existing callers or command surfaces.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-boundaries-alternatives",
+                "props": {
+                  "text": "- Change page/0 in place; rejected by the frozen contract.\n- Add separate tip commands or a new endpoint; rejected because page tips are document data.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-boundaries-evidence",
+                "props": {
+                  "text": "afkv2/engine/schema/page-v0.schema.json:3-13; afkv2/engine/engine.py:52-82,494-510",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-boundaries-reverse",
+                "props": {
+                  "text": "Stop page/1 writes but keep its reader for stored documents.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-boundaries-scope",
+                "props": {
+                  "text": "a-api, a-migration",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L2 — Add page/1 behind the existing engine verbs",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l3-data",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Page JSON remains the source of truth; HTML stores a derived source block."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-data-decision",
+                "props": {
+                  "text": "Add optional page/1 tips.terms[] and tips.ids[] arrays; validate field shape in schema and reference or collision rules in engine invariants.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l3-data-why",
+                "props": {
+                  "text": "Typed arrays preserve invalid duplicate input for precise errors and cover every page element uniformly.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-alternatives",
+                "props": {
+                  "text": "- Use JSON maps; rejected because duplicate keys disappear during parsing.\n- Derive every ID title from renderer-specific fields; rejected because arbitrary components have no title field.\n- Keep an adjacent sidecar; rejected by the page-ownership requirement.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-evidence",
+                "props": {
+                  "text": "afkv2/engine/engine.py:118-143; afkv2/engine/schema/validate.py:45-102; afkv2/engine/schema/page-v0.schema.json:87-101,126-138",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-reverse",
+                "props": {
+                  "text": "Add a reader conversion before changing stored shape; never rewrite page/0.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-scope",
+                "props": {
+                  "text": "a-entities, a-relations, a-keys, a-constraints, a-cascade",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L3 — Store typed term and ID entry arrays",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l4-quality",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The accepted large-data option sets the numeric posture."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l4-quality-decision",
+                "props": {
+                  "text": "Resolve tips locally as plain text; allow any catalog count; require 2,000 tips over 200,000 visible characters to scan and rescan within 1,000 ms on the CI runner, after the existing 300 ms debounce.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l4-quality-why",
+                "props": {
+                  "text": "A measured budget controls cost without rejecting a valid page solely by catalog count.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-quality-alternatives",
+                "props": {
+                  "text": "- Reject catalogs above 2,000 entries; rejected by the human in a-large-data because count should not define validity.\n- Leave performance unmeasured; rejected because the regex and DOM walk scale with input.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-quality-evidence",
+                "props": {
+                  "text": "Human choice a-large-data; afkv2/engine/shell/tips.js:8-18,31-60,264-270",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-quality-reverse",
+                "props": {
+                  "text": "Add a hard limit only after measured failure and a requirements decision on oversized pages.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-quality-scope",
+                "props": {
+                  "text": "a-large-data, a-authorization",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L4 — Keep local plain-text resolution under a measured budget",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l5-domain",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The page owns meanings; the engine guards validity; the runtime guards precedence."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l5-domain-decision",
+                "props": {
+                  "text": "Make schema validation the guardian of entry shape, engine content validation the guardian of references and collisions, and one runtime resolver the guardian of precedence and text safety.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-why",
+                "props": {
+                  "text": "Each invariant has one guardian at the earliest boundary that has the required information.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-alternatives",
+                "props": {
+                  "text": "- Let each component renderer validate and resolve its own tips; rejected because rules and errors would drift.\n- Let flat dictionary merge order define precedence; rejected because lowercase IDs lose exact-case identity.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-evidence",
+                "props": {
+                  "text": "afkv2/engine/engine.py:118-143,213-228; afkv2/engine/shell/tips.js:8-29",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-reverse",
+                "props": {
+                  "text": "Move a rule only with equivalent error paths and cross-component tests.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-scope",
+                "props": {
+                  "text": "a-constraints, a-lifecycle",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L5 — Centralize page-tip invariants",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l6-process",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Render and reopen must produce the same tip payload."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l6-process-decision",
+                "props": {
+                  "text": "The page builder emits a typed page-tip source block outside the replaceable runtime marker; render and HTML reopen both combine that source with shared terms, while page/0 alone may read the legacy sidecar.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l6-process-why",
+                "props": {
+                  "text": "A durable embedded source survives reinjection and keeps arbitrary-HTML opening compatible.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-alternatives",
+                "props": {
+                  "text": "- Store page tips only in the replaceable injected block; rejected because reopen deletes and rebuilds that block.\n- Read sibling page JSON when HTML opens; rejected because the launcher also opens arbitrary HTML.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-evidence",
+                "props": {
+                  "text": "afkv2/engine/launcher.py:59-82,285-298; afkv2/engine/shell/inject.py:150-194",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-reverse",
+                "props": {
+                  "text": "Replace the source transport only with render-and-reopen parity tests.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-scope",
+                "props": {
+                  "text": "a-api, a-migration, a-lifecycle",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L6 — Embed a durable source block, then derive runtime data",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l7-modules",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Dependency direction remains writer → schema/engine → page builder → injector → browser runtime."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l7-modules-decision",
+                "props": {
+                  "text": "Extend the schema registry, shared round writer, content invariants, page builder/injector, and tooltip runtime; keep component renderers unaware of tip catalogs.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-why",
+                "props": {
+                  "text": "The narrow interfaces reuse the sole writer and sole reader boundaries and avoid component coupling.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-alternatives",
+                "props": {
+                  "text": "- Teach every component renderer about ID tips; rejected because arbitrary components and future components would duplicate the contract.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-evidence",
+                "props": {
+                  "text": "afkv2/skills/grill/scripts/round_document.py:334-392; afkv2/engine/engine.py:213-292; afkv2/engine/registry.py:86-108",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-reverse",
+                "props": {
+                  "text": "Reassign a duty only with an updated public-interface table and dependency test.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-scope",
+                "props": {
+                  "text": "a-other-teams",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L7 — Extend 5 existing modules with narrow interfaces",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-patterns",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Three patterns carry the design."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-patterns-decision",
+                "props": {
+                  "text": "Use an expand-only schema adapter for page/1, typed entry catalogs for authored tips, and a durable-source/derived-payload pattern for render and reopen parity.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-why",
+                "props": {
+                  "text": "Each pattern isolates one contract: stored compatibility, author validation, or runtime reconstruction.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-alternatives",
+                "props": {
+                  "text": "- Mutate v0, use flat maps, and inject once; rejected by compatibility, duplicate-validation, exact-ID, and reopen requirements.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-evidence",
+                "props": {
+                  "text": "Settled aspects a-api, a-keys, a-constraints and a-migration; afkv2/engine/engine.py:52-82",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-reverse",
+                "props": {
+                  "text": "Supersede the matching design ADR before changing any of the 3 patterns.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-scope",
+                "props": {
+                  "text": "l2-boundaries, l3-data, l6-process",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L8 — Use schema adapters, typed catalogs, and source-block reconstruction",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l9-seams",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Every planned seam has a checked caller and consumer."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l9-seams-decision",
+                "props": {
+                  "text": "Change 7 seams: page/1 schema and registry; shared writer new-session/resume policy; content invariants; durable page-tip source emission; schema-aware injection/reinjection; structured browser resolution; focused engine, writer, and DOM behavior tests.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-why",
+                "props": {
+                  "text": "These are the smallest closed boundaries that carry the stored contract from every writer to the rendered browser behavior.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-alternatives",
+                "props": {
+                  "text": "- Patch only the browser dictionary; rejected because it cannot author, validate, persist, or safely reopen page-owned tips.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-evidence",
+                "props": {
+                  "text": "afkv2/engine/engine.py:52-82,118-143,284-290; afkv2/skills/grill/scripts/round_document.py:334-361; afkv2/engine/launcher.py:285-298; afkv2/engine/shell/tips.js:8-60",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-reverse",
+                "props": {
+                  "text": "Rollback writers first, retain both readers and source reconstruction, then remove only after no stored page/1 document remains.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-scope",
+                "props": {
+                  "text": "l2-boundaries, l3-data, l4-quality, l5-domain, l6-process, l7-modules, l8-patterns",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "L9 — Extend the verified writer, schema, render, reopen, and test seams",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T18:45:18Z",
+          "raw": "[round R-2]\nl1-topology accept\nl2-boundaries accept\nl3-data accept\nl4-quality accept\nl5-domain accept\nl6-process accept\nl7-modules accept\nl8-patterns accept\nl9-seams accept\nsign-hl-1 sign\nsign-hl-2 sign\nsign-hl-4 sign\nsign-hl-6 sign\n",
+          "signals": [
+            {
+              "target": "l1-topology",
+              "item": "l1-topology",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4b7c8048ca117d62"
+            },
+            {
+              "target": "l2-boundaries",
+              "item": "l2-boundaries",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d019c6f762879966"
+            },
+            {
+              "target": "l3-data",
+              "item": "l3-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "34a054960fb75db2"
+            },
+            {
+              "target": "l4-quality",
+              "item": "l4-quality",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "105053e5c921fcea"
+            },
+            {
+              "target": "l5-domain",
+              "item": "l5-domain",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "b97589b580a1a4c4"
+            },
+            {
+              "target": "l6-process",
+              "item": "l6-process",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "98d3cdd53651d886"
+            },
+            {
+              "target": "l7-modules",
+              "item": "l7-modules",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4309d33158e6388f"
+            },
+            {
+              "target": "l8-patterns",
+              "item": "l8-patterns",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "794665bdab4a4828"
+            },
+            {
+              "target": "l9-seams",
+              "item": "l9-seams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7c32d0a9fd9f22e9"
+            },
+            {
+              "target": "sign-hl-1",
+              "item": "sign-hl-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1c0818ca61dc4dae"
+            },
+            {
+              "target": "sign-hl-2",
+              "item": "sign-hl-2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0012b6cb303bb803"
+            },
+            {
+              "target": "sign-hl-4",
+              "item": "sign-hl-4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "805b60cfdbadd763"
+            },
+            {
+              "target": "sign-hl-6",
+              "item": "sign-hl-6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0c1f9d41d87e3014"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

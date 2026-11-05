@@ -318,3 +318,9 @@ _Avoid_: retro item (aggregation comes later), todo (a lesson carries its own dr
 
 **Escalation ladder**:
 The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.
+
+**Page feature term**:
+A term whose meaning is specific to one page's feature; the page document carries the term and its plain-language definition.
+
+**Page id tip**:
+A page-document mapping from one page identifier to the title of the thing it names; each visible occurrence can show that title on hover.

@@ -410,7 +410,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     """Create the document or append the next round; write nothing on a refusal.
 
     `round_input` holds banner, items and optional maps, replies, colour, short_title (round 1), step and
-    changed (the element ids the agent changed this round). A reply is {text, notes, changed}. An item may carry
+    changed (the element ids the agent changed this round) and tips. A reply is {text, notes, changed}. `tips`
+    replaces the document's tips catalog; omitting it keeps the stored tips. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
@@ -449,6 +450,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         _drop_unanswered_round(doc, doc_path)
     if links:
         doc["session"]["links"] = links
+    if "tips" in round_input:
+        doc["tips"] = round_input["tips"]
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     warnings = _session_text(doc["session"], round_input, n)
     _apply_maps(doc, round_input.get("maps"), n)

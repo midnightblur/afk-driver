@@ -909,6 +909,23 @@ def test_every_citation_failure_is_listed(world):
 
 # The division.
 
+def test_division_uses_page_one_and_keeps_its_tips_on_resume(world):
+    started = world.committed_plan()
+    world.division(started)
+    doc = world.doc(started)
+    assert doc["schema"] == "afkv2.page/1"
+    doc["tips"] = {"terms": [{"term": "division", "definition": "The cut into subtasks."}]}
+    path = world.repo / started["doc"]
+    path.write_text(json.dumps(doc), "utf-8")
+    world.division(started, replace=True)
+    resumed = world.doc(started)
+    assert resumed["schema"] == "afkv2.page/1"
+    assert resumed["tips"] == doc["tips"]
+    result = subprocess.run([sys.executable, str(PLUGIN / "engine/engine.py"), "check", str(path)],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
     started = world.committed_plan()
     answer = world.division(started)

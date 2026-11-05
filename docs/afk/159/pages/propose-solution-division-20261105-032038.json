@@ -1,0 +1,121 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "division-20261105-032038",
+    "skill": "propose-solution",
+    "feature": "#159",
+    "ticket": "#159",
+    "started": "2026-11-05T03:22:29Z"
+  },
+  "maps": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-f79b6310-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-f79b6310-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-schema-registry",
+                  "Add the page/1 schema and select page readers and component validation by the document schema. Keep page/0 behavior unchanged.",
+                  "Owns the page/1 schema and dual-reader contract that every later slice consumes.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-shared-page-writer",
+                  "Make the shared round writer create page/1 for new sessions and preserve the stored schema on resume. Add page/1 authoring guidance and compatibility examples.",
+                  "Owns the shared writer and authoring guidance that create page/1 documents without changing resumed page/0 sessions.",
+                  "0001-schema-registry",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-content-validation",
+                  "Validate page-owned tip references, same-catalog collisions, and repair paths before rendering.",
+                  "Owns page-tip reference and collision invariants before rendering.",
+                  "0001-schema-registry",
+                  "static, unit"
+                ],
+                [
+                  "0004-durable-tip-source",
+                  "Render validated page tips into a durable, safe source block and preserve the last valid HTML when validation or serialization fails.",
+                  "Owns validated page-tip serialization and safe local file replacement.",
+                  "0001-schema-registry, 0003-content-validation",
+                  "static, unit, integration"
+                ],
+                [
+                  "0005-injection-reopen",
+                  "Combine durable page tips with permitted shared sources into separate typed runtime maps on initial render and every reopen.",
+                  "Owns reconstruction of typed runtime maps during render and reopen.",
+                  "0004-durable-tip-source",
+                  "static, unit, integration"
+                ],
+                [
+                  "0006-browser-runtime-proof",
+                  "Resolve exact page IDs, page terms, and shared terms in installed Chrome through local Chrome DevTools Protocol control. Prove matching, safety, mutation, no-network, compatibility, cleanup, diagnostics, and performance behavior through rendered output.",
+                  "Owns the browser resolver and its installed-Chrome CDP proof, including cleanup, diagnostics, and all behavior and performance assertions.",
+                  "0002-shared-page-writer, 0005-injection-reopen",
+                  "static, unit, integration"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-f79b6310-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 6 subtasks, plan digest f79b6310, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-05T03:30:11Z",
+          "raw": "[round R-1]\ndivision-f79b6310-1 sign\n",
+          "signals": [
+            {
+              "target": "division-f79b6310-1",
+              "item": "division-f79b6310-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "07578ecda0fc1dda"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
