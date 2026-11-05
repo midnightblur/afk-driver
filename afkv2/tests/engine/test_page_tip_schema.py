@@ -14,10 +14,14 @@ import registry
 
 
 def document(version="afkv2.page/1"):
+    """A page of either format; a format 1 session also names its step."""
+    session = {"id": "tips", "skill": "grill", "feature": "sample", "ticket": "sample",
+               "started": "2026-01-05T09:00:00Z"}
+    if version == "afkv2.page/1":
+        session["step"] = "Requirements grill"
     return {
         "schema": version,
-        "session": {"id": "tips", "skill": "grill", "feature": "sample", "ticket": "sample",
-                    "started": "2026-01-05T09:00:00Z"},
+        "session": session,
         "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
                     "items": [{"id": "card", "kind": "info", "body": {
                         "type": "text", "props": {"text": "Parent"},
@@ -74,13 +78,16 @@ def test_catalog_shapes_are_closed_and_typed(tmp_path, capsys, tips, path):
     assert f"field {path}:" in answer["error"]["reason"]
 
 
-def test_readers_preserve_the_stored_version_and_source(tmp_path):
+def test_readers_keep_the_stored_source_and_read_format_one(tmp_path):
     for version in ("afkv2.page/0", "afkv2.page/1"):
         doc = document(version)
         path = tmp_path / "page.json"
         path.write_text(json.dumps(doc), encoding="utf-8")
         raw, read = engine.load_document(str(path))
-        assert raw == read == doc
+        assert raw == doc and read["schema"] == "afkv2.page/1"
+        assert engine.from_format_0(read) == (version == "afkv2.page/0")
+        if version == "afkv2.page/1":
+            assert read == doc
         assert json.loads(path.read_text("utf-8")) == doc
 
 

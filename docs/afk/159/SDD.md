@@ -35,6 +35,8 @@ This SDD and its accepted ADRs are binding on implementing agents and reviewers.
 | HL-5 Irreversible and outward side effects | §7 | n/a | developer / 2026-11-04 | No write leaves the page artifact; generated HTML and browser state are derived. |
 | HL-6 Change to existing behaviour | §14 | signed | developer / 2026-11-04 | Signed `sign-hl-6` in R2: new-session, legacy-session, reopen, matching, compatibility, and rollback behavior is final. |
 
+HL-6 note: Superseded in part on 2026-11-05 by the developer: an existing page/0 session writes page/1 at its next round, by #163 design ADR-0002 (one write path). Stored page/0 files are still not rewritten on read.
+
 ## §1 Context Summary
 
 Page readers need feature terms and page IDs to explain themselves on hover. The design adds page-owned tip data without changing legacy page/0 documents, engine commands, access boundaries, or the local static-page topology.
@@ -88,6 +90,8 @@ The flow keeps page access and rendering in one boundary. No new endpoint or com
 **Surface reachability.** The root `tips` field is visible to the shared page writer, schema reader, content validator, page builder, injector, and browser resolver. Component public shapes do not change.
 
 **Migration and backfill.** New sessions write page/1. An existing page/0 session appends as page/0. Stored page/0 documents receive no rewrite or backfill. Rollback may stop page/1 writes but keeps the page/1 reader.
+
+Superseded in part on 2026-11-05 by the developer: an existing page/0 session writes page/1 at its next round, by #163 design ADR-0002 (one write path). Stored page/0 files are still not rewritten on read.
 
 ```mermaid
 erDiagram

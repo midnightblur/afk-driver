@@ -15,7 +15,7 @@ def document():
     return {
         "schema": "afkv2.page/1",
         "session": {"id": "tips", "skill": "grill", "feature": "sample", "ticket": "sample",
-                    "started": "2026-01-05T09:00:00Z"},
+                    "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
         "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
                     "items": [{"id": "card", "kind": "info", "body": {
                         "type": "text", "id": "body", "props": {"text": "Terms"}}}]}],

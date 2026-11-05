@@ -2,6 +2,8 @@
 
 A new component is one module in `components/` that calls `register_component`. The renderer
 has no list of types. `render(props, children)` takes the rendered children and returns HTML.
+A page build sets a render context with `page_context`: a renderer reads the document's named value sets
+with `value_set`.
 """
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from __future__ import annotations
 import html
 import importlib.util
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
@@ -21,10 +24,12 @@ SCHEMA_FILES = {
     "afkv2.page/1": COMPONENTS.parent / "schema" / "page-v1.schema.json",
 }
 PAGE_SCHEMAS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in SCHEMA_FILES.items()}
+NEWEST_SCHEMA = "afkv2.page/1"
 COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}
 _loaded = False
+_value_sets: dict = {}
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,22 @@ def known_types() -> list[str]:
     return sorted(_types)
 
 
+@contextmanager
+def page_context(value_sets: dict | None):
+    """The render context of one page build: the document's named value sets, `{name: {values, ordered}}`."""
+    global _value_sets
+    previous, _value_sets = _value_sets, value_sets or {}
+    try:
+        yield
+    finally:
+        _value_sets = previous
+
+
+def value_set(name: str) -> dict | None:
+    """The named value set of the page being built, or None outside a page build or for an unknown name."""
+    return _value_sets.get(name)
+
+
 def _children(component: dict) -> list[dict]:
     return component.get("children") or []
 
@@ -92,8 +113,9 @@ def component_schema_for(schema_name: str) -> dict:
     return PAGE_SCHEMAS[schema_name]
 
 
-def validate(component: dict, path: tuple = (), *, schema_name: str = "afkv2.page/0") -> list[tuple]:
-    """Problems of a component and of every component it holds, as `(path, why)`."""
+def validate(component: dict, path: tuple = (), *, schema_name: str = NEWEST_SCHEMA) -> list[tuple]:
+    """Problems of a component and of every component it holds, as `(path, why)`. The component shape is
+    the one of the schema of the document's format `schema_name`; by default the newest format."""
     shape = problems(component, COMPONENT_SHAPE, path, component_schema_for(schema_name))
     if shape:
         return shape
@@ -146,19 +168,20 @@ def aliases(component: dict) -> dict:
 
 
 def render_component(component: dict) -> str:
-    """The HTML of one valid component, in the wrapper that carries its id and style. A `fold` label
+    """The HTML of one valid component, in the wrapper that carries its id, style and tip. A `fold` label
     puts the component in a closed `<details>` inside that wrapper. A fold of a component with an id
     has the key `fold-<id>`, so the page keeps it open through a reload; a fold with no id has no key.
 
-    The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector."""
+    The id is also the HTML id: a lavish annotation names the nearest ancestor id in its selector. The tip is
+    the hover text of the tooltip layer (`shell/tips.js`)."""
     kind = lookup(component["type"])
     inner = kind.render(_render_props(component, kind), [render_component(child) for child in _children(component)])
-    element, style = component.get("id"), component.get("style")
+    element, style, tip = component.get("id"), component.get("style"), component.get("tip")
     if component.get("fold"):
         key = f' data-afkv2-fold="fold-{html.escape(element)}"' if element else ""
         inner = (f'<details class="afkv2-fold"{key}><summary>{html.escape(component["fold"])}</summary>'
                  f'<div class="afkv2-fold-body">{inner}</div></details>')
-    if not element and not style:
+    if not element and not style and not tip:
         return inner
     tag = "span" if kind.inline else "div"
     attrs = ""
@@ -166,4 +189,6 @@ def render_component(component: dict) -> str:
         attrs += f' id="{html.escape(element)}" data-afkv2-element="{html.escape(element)}"'
     if style:
         attrs += f' style="{html.escape(style)}"'
+    if tip:
+        attrs += f' data-afkv2-tip="{html.escape(tip)}"'
     return f"<{tag}{attrs}>{inner}</{tag}>"

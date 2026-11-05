@@ -18,14 +18,15 @@ from pathlib import Path
 
 import pytest
 
-from test_visualize import V1_WORD, _example, _find, _next_round, check_document
+from test_visualize import V1_WORD, _example_v0, _find, _next_round, check_document
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
+LAVISH_DIR = PLUGIN / "skills" / "use-lavish"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 ENGINE = PLUGIN / "engine" / "engine.py"
 FAKES = Path(__file__).resolve().parent / "fakes"
-sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(LAVISH_DIR / "scripts"))
 
 import round_document as rd  # noqa: E402
 
@@ -45,8 +46,9 @@ class World:
         self.repo = root / "repo"
         self.calls = root / "calls.log"
         self.raw = root / "raw-response.txt"
-        shutil.copytree(SKILL_DIR, self.plugin / "skills" / "grill",
-                        ignore=shutil.ignore_patterns("__pycache__"))
+        for skill_dir in (SKILL_DIR, LAVISH_DIR):
+            shutil.copytree(skill_dir, self.plugin / "skills" / skill_dir.name,
+                            ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"),
                              ("fake_tracker.py", "ports/tracker/cli.py"),
                              ("fake_config.py", "scripts/afkv2_config.py")):
@@ -152,7 +154,7 @@ def test_frontmatter_and_produces_anchors():
     assert re.search(r"^name: grill$", head, re.M)
     assert re.search(r"^description: .+", head, re.M)
     assert "/afkv2:grill" in text_md
-    assert "def build_round_document(" in (SKILL_DIR / "scripts" / "round_document.py").read_text("utf-8")
+    assert "def build_round_document(" in (LAVISH_DIR / "scripts" / "round_document.py").read_text("utf-8")
 
 
 def test_commands_come_in_the_contract_order():
@@ -170,7 +172,7 @@ def test_no_v1_name_and_no_upstream_caller():
         assert not v1.search(path.relative_to(SKILL_DIR).as_posix()), path
         assert not v1.search(path.read_text("utf-8")), path
     refs = set(re.findall(r"/afkv2:[\w-]+", SKILL_MD.read_text("utf-8")))
-    assert refs <= {"/afkv2:grill", "/afkv2:visualize", "/afkv2:setup", "/afkv2:to-prd"}, refs
+    assert refs <= {"/afkv2:grill", "/afkv2:visualize", "/afkv2:use-lavish", "/afkv2:setup", "/afkv2:to-prd"}, refs
 
 
 def test_skill_states_each_harness_wait():
@@ -191,7 +193,7 @@ def test_skill_loads_the_guide_and_never_writes_html():
 
 
 def test_grill_writes_nothing_to_the_tracker():
-    for path in (SKILL_DIR / "scripts").glob("*.py"):
+    for path in [*(SKILL_DIR / "scripts").glob("*.py"), *(LAVISH_DIR / "scripts").glob("*.py")]:
         source = path.read_text("utf-8")
         for verb in ("description-put", "attachment-put", "attachment-delete", "md-to-adf"):
             assert verb not in source, path
@@ -209,7 +211,7 @@ def test_builder_output_has_the_schema_fields(tmp_path):
     result = rd.build_round_document(path, session(), round_one())
     doc = json.loads(path.read_text("utf-8"))
     check_document(doc)
-    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": []}
+    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": [], "warnings": []}
     assert doc["schema"] == "afkv2.page/1"
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", doc["session"]["started"])
     assert doc["rounds"][0]["state"] == "current"
@@ -457,7 +459,7 @@ def first_round(world):
     started = world.start_and_read()
     built = world.build_round(started, round_one())
     assert built["round"] == 1
-    presented = world.run("present", doc=started["doc"])
+    presented = world.run("present", doc=started["doc"], log=started["log"])
     assert presented["ok"] is True
     return started
 
@@ -507,7 +509,7 @@ def test_dry_run_on_claude_settles_one_by_mark_and_one_by_note(world):
     assert items["i-scope"]["state"] == "settled_by_mark"
     assert items["i-format"]["state"] == "settled_by_note"
     assert items["i-format"]["settled"] == {"by": "note", "round": 1, "signal": "N-1-i-format", "reading": "Picks CSV."}
-    assert doc["rounds"][0]["replies"] == [{"text": "Settled by your note: Picks CSV.", "about": ["i-format"]}]
+    assert doc["rounds"][0]["replies"] == [{"id": "A-1-1", "text": "Settled by your note: Picks CSV.", "notes": ["N-1-i-format"]}]
     assert doc["rounds"][0]["responses"][0]["raw"] == raw
     check_authored_part(doc)
 
@@ -534,7 +536,7 @@ def test_present_stops_at_the_first_refusal_and_names_the_verb(world):
     started = world.start_and_read()
     world.build_round(started, round_one())
     world.env["FAKE_ENGINE_REFUSE"] = "render"
-    answer = world.run("present", expect=1, doc=started["doc"])
+    answer = world.run("present", expect=1, doc=started["doc"], log=started["log"])
     assert answer["error"]["verb"] == "render"
     assert world.verbs()[-2:] == ["check", "render"]
 
@@ -611,7 +613,7 @@ def test_unclear_note_returns_to_open_and_must_be_carried(world):
     carried = {"id": "i-format-2", "kind": "debate", "node": "n-format", "carries": ["i-format"],
                "body": text("Your note: maybe. Which file format?")}
     world.build_round(started, next_round([carried]), ticket=False)
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
     assert doc["rounds"][1]["items"][0]["carries"] == ["i-format"]
@@ -650,7 +652,7 @@ def test_a_reopen_on_an_older_card_returns_and_must_be_carried(world):
 @pytest.mark.parametrize("line", ["i-data reopen", "i-data — | Use the new name."])
 def test_the_real_ingest_returns_an_older_card(tmp_path, line):
     doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
-    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    doc.write_text(json.dumps(_next_round(_example_v0())), "utf-8")
     raw.write_text(f"[round R-2]\n{line}", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
                          capture_output=True, text=True, encoding="utf-8", timeout=60,
@@ -678,10 +680,12 @@ def test_an_older_steer_on_the_map_kept_on_a_card_reads_as_a_steer():
     """An engine before round steers kept a note on the map itself on a free card. It names no card."""
     steer = {"id": "N-1-i-format", "round": 1, "target": "m-scope", "text": "link the issue", "deleted": False}
     first = round_one()
-    doc = {"maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
-        {**first["items"][0], "state": "open"}, {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
+    doc = {"schema": "afkv2.page/0", "session": {**session(), "started": "2026-01-01T00:00:00Z"},
+           "maps": first["maps"], "rounds": [{"n": 1, "state": "current", "banner": first["banner"], "items": [
+               {**first["items"][0], "state": "open"},
+               {**first["items"][1], "state": "needs_reading", "notes": [steer]}]}]}
     pending = rd.pending(doc)
-    assert pending["steers"] == [steer]
+    assert pending["steers"] == [{**steer, "item": "i-format"}]
     assert pending["needs_reading"] == [{"id": "i-format", "kind": "debate", "state": "needs_reading", "notes": []}]
 
 
@@ -782,6 +786,17 @@ def test_ledger_row_overwrites_in_place_and_refuses_a_bad_status(world):
     world.run("row", expect=1, log=log, kind="Nonsense", text="x")
 
 
+def test_a_takeover_row_is_one_row_per_takeover_and_its_grammar_is_stated(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    log = started["log"]
+    for text in ("R2 · 2026-11-04T10:00:00Z", "R2 · 2026-11-04T10:00:00Z", "R5 · 2026-11-05T09:30:00Z"):
+        world.run("row", log=log, kind="Takeover", text=text)
+    body = Path(log).read_text("utf-8")
+    assert body.count("- Takeover: R2 · 2026-11-04T10:00:00Z") == 1 and "- Takeover: R5 · 2026-11-05T09:30:00Z" in body
+    assert world.run("row", expect=1, log=log, kind="Takeover", text="the new session")["error"]["code"] == "bad-row"
+    assert "| Takeover | `row` | `- Takeover: R<n> · <at>`" in (SKILL_DIR / "GRILL-LOG-FORMAT.md").read_text("utf-8")
+
+
 def test_round_zero_row_keeps_the_human_words_verbatim(world):
     started = world.run("start", ticket_key="PROJ-1")
     words = 'line one\nline "two"'
@@ -854,14 +869,14 @@ def test_a_round_the_engine_refused_can_be_built_again(world):
     started = world.start_and_read()
     world.build_round(started, round_one())
     world.env["FAKE_ENGINE_REFUSE"] = "check"
-    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "check"
+    assert world.run("present", expect=1, doc=started["doc"], log=started["log"])["error"]["verb"] == "check"
     del world.env["FAKE_ENGINE_REFUSE"]
     corrected = round_one()
     corrected["items"][0]["body"] = text("Corrected.")
     answer = world.run("build", swap=REPLACE, doc=started["doc"], session=started["session"], ticket_key=started["ticket"],
                        round_input=world.file("round.json", corrected), ticket_file=world.scratch / "ticket.json")
     assert answer["round"] == 1
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert len(doc["rounds"]) == 1 and doc["rounds"][0]["state"] == "current"
     shown = json.dumps(doc["rounds"][0]["items"])
@@ -879,7 +894,7 @@ def test_replace_restores_the_round_before_and_closes_it_again(world):
     assert answer["round"] == 2
     doc = json.loads(Path(started["doc"]).read_text("utf-8"))
     assert [r["state"] for r in doc["rounds"]] == ["settled", "current"]
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
 
 
 def test_replace_refuses_a_round_with_an_answer(world):
@@ -910,7 +925,7 @@ def test_replace_refuses_a_round_whose_show_failed_because_chat_shows_it(world):
     started = world.start_and_read()
     world.build_round(started, round_one())
     world.env["FAKE_ENGINE_REFUSE"] = "show"
-    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "show"
+    assert world.run("present", expect=1, doc=started["doc"], log=started["log"])["error"]["verb"] == "show"
     del world.env["FAKE_ENGINE_REFUSE"]
     assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
 
@@ -920,7 +935,7 @@ def test_replace_works_on_a_later_round_the_engine_refused(world):
     answered(world, started, "i-scope: accept\ni-format: accept\n")
     world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
     world.env["FAKE_ENGINE_REFUSE"] = "render"
-    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "render"
+    assert world.run("present", expect=1, doc=started["doc"], log=started["log"])["error"]["verb"] == "render"
     del world.env["FAKE_ENGINE_REFUSE"]
     corrected = next_round([{"id": "i-two", "kind": "confirm", "body": text("Two, corrected.")}])
     assert replace_round(world, started, content=corrected)["round"] == 2
@@ -937,7 +952,7 @@ def test_ingest_removes_the_shown_record(world):
 def test_resume_of_a_shown_round_presents_again_with_no_replace(world):
     started = first_round(world)
     assert world.start_and_read()["session"] == started["session"]
-    assert world.run("present", doc=started["doc"])["ok"] is True
+    assert world.run("present", doc=started["doc"], log=started["log"])["ok"] is True
     assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
 
 

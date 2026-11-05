@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(PLUGIN / "engine"), str(PLUGIN / "skills/grill/scripts")]
+sys.path[:0] = [str(PLUGIN / "engine"), str(PLUGIN / "skills/use-lavish/scripts")]
 import engine
 import round_document
 from shell import inject
@@ -51,8 +51,11 @@ def build(output):
             value["tips"] = tips
         round_document.build_round_document(path, {"id": name, "skill": "grill", "feature": "sample", "ticket": "sample"}, value)
         if legacy:
-            doc = json.loads(path.read_text("utf-8")); doc["schema"] = "afkv2.page/0"
-            path.write_text(json.dumps(doc), "utf-8")
+            # The page/0 file of the same session: no notes and no format 1 session fields.
+            doc = json.loads(path.read_text("utf-8"))
+            session = {key: doc["session"][key] for key in ("id", "skill", "feature", "ticket", "started")}
+            legacy_doc = {"schema": "afkv2.page/0", "session": session, "maps": doc["maps"], "rounds": doc["rounds"]}
+            path.write_text(json.dumps(legacy_doc), "utf-8")
         with contextlib.redirect_stdout(io.StringIO()) as log:
             assert engine.main(["render", str(path)]) == 0, log.getvalue()
         html = inject.inject(path.with_suffix(".html").read_text("utf-8"), shared or {})

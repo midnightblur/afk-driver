@@ -2,6 +2,7 @@
 
 `design_files.py start --ticket KEY`: the paths of the spec folder; refuses a missing input and names its writer.
 `design_files.py row --log FILE --kind K --text T`: one row of this skill's section of the grill log.
+  A `Takeover` row reads `- Takeover: R<n> · <at>`: the entry that `take-over` added; one row per takeover.
 `design_files.py gate --doc FILE --spec-dir DIR`: the mechanical part of the design gate; lists every failure.
 """
 
@@ -15,6 +16,7 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 import design_round as dr  # noqa: E402
 import grill_log  # noqa: E402
@@ -24,7 +26,7 @@ from grill_common import Parser, Refusal, page_documents, read_json, serve, writ
 
 TO_PRD = "/afkv2:to-prd"
 SECTION = "## Solution design"
-KINDS = {"Premise", "Spinoff", "Escape"}
+KINDS = {"Premise", "Spinoff", "Escape", "Takeover"}
 PREMISE = re.compile(r"^- Premise: (.+) → (pending|refuted)\b", re.M)
 GATE_PASSED = "- Settled: design gate passed"
 DOC_PREFIX = f"{dr.SKILL_NAME}-"
@@ -131,6 +133,8 @@ def row(argv):
     if args.kind == "Premise" and not grill_log.STATUS_ROW.match(value):
         raise Refusal("bad-row", f"a Premise row reads `<claim> → pending | verified (<citation>) | refuted (<citation>) | "
                                  f"unverified-external (human acknowledged)`: {args.text!r}")
+    if args.kind == "Takeover" and not grill_log.TAKEOVER_ROW.match(value):
+        raise Refusal("bad-row", f"a Takeover row reads `R<n> · <at>`, the round and the time take-over answers: {args.text!r}")
     text = f"- {args.kind}: {value}"
     key = f"- {args.kind}: " if args.kind == "Escape" else f"- {args.kind}: {value.split(' → ')[0]}"
     if args.kind == "Escape":

@@ -30,7 +30,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/design_files.py" start --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: read `doc`, honour every steer in it, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 2, read `doc`, honour every steer in it, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
 
 2. **Read the input and the code.** Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
 
@@ -50,7 +50,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `draft` | step 4 with [DRAFT.md](DRAFT.md): propose `layers_to_ask` from the top down, and return each of `layers_open` and `locked_open` |
    | `write` | step 9 |
 
-4. **Work one round.** Load the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify premises, weigh the options, and take every decision the rules allow ([DRAFT.md](DRAFT.md) "Cards"). Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. The build draws the maps of the aspects, the layers and the human-locked set; `maps` holds only your own. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
+4. **Work one round.** Load the page rules and forms of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)) for page order and wording, and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify premises, weigh the options, and take every decision the rules allow ([DRAFT.md](DRAFT.md) "Cards"). Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. The build draws the maps of the aspects, the layers and the human-locked set; `maps` holds only your own. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
    An item has the page document fields, plus these fields of the input only:
 
@@ -75,17 +75,17 @@ Run each command from the repository root. `<python>` is the Python in the setup
    ```
 
    ```sh step=present
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" present --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>" --scan "<log>"
    ```
 
-   `present` runs check, render and show. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
+   `present` runs check, render and show, and scans the page and the log for secrets. Report its notices by `/afkv2:use-lavish` "After each show". A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field in the round input, then run `build` again with `--replace`. It works only on a round that `present` did not try to show. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the round as Markdown in chat, with every card id, take the human's reply as the raw response, write it to `raw_file`, and go to step 7 (the raw response form of this path is not verified until the page engine merges).
 
 6. **Wait for the answer.** The answer reaches you with no chat message from the human.
 
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. Do other work or end your response until then.
 
    ```sh step=wait
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
@@ -93,13 +93,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
    ```sh step=ingest
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card by the round pass in [../visualize/components/card.md](../visualize/components/card.md), and each note by [../visualize/components/notes-and-replies.md](../visualize/components/notes-and-replies.md). Write the result to a JSON file and apply it:
+   The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and answer each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it:
 
    ```sh step=apply-readings
-   <python> "<this skill's folder>/../grill/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
    The keys of the readings file: [../grill/SKILL.md](../grill/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill/ROUNDS.md](../grill/ROUNDS.md).
@@ -119,7 +119,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 11. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 
    ```sh step=end
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" end --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" end --doc "<doc>"
    ```
 
    Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:to-subtasks`. Done when the gate answered ok and the commit exists.

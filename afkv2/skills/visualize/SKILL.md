@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: Authoring guide for page documents (page/1 and page/0 compatibility) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
+description: Authoring guide for page documents (schema afkv2.page/1) — the components, when to use each, how each looks, and example fragments. Use before you write or change a page document.
 ---
 
 # visualize — write a page document
@@ -12,14 +12,15 @@ the human reads and answers. You never write page HTML: HTML goes only into the
 ## The document
 
 Save the document in the feature spec folder as `pages/<skill>-<session id>.json`.
-New sessions use `afkv2.page/1`. Preserve the stored schema when resuming a session.
-Field constraints: `engine/schema/page-v1.schema.json` (plugin root). The shape:
+Field constraints: the engine's schema file `engine/schema/page-v1.schema.json`
+(plugin root). The shape:
 
 ```json fragment=document
 {
   "schema": "afkv2.page/1",
   "session": {"id": "s-01", "skill": "grill", "feature": "example-feature",
-              "ticket": "PROJ-123", "started": "2026-01-05T09:00:00Z"},
+              "ticket": "PROJ-123", "started": "2026-01-05T09:00:00Z",
+              "short_title": "Order export", "step": "Requirements grill"},
   "maps": [],
   "rounds": [
     {"n": 1, "state": "current",
@@ -33,16 +34,17 @@ Field constraints: `engine/schema/page-v1.schema.json` (plugin root). The shape:
 ```
 
 - `session.skill` is `grill`, `propose-solution` or `propose-verification`; `started` is ISO-8601 UTC.
+- `session.step` and `session.short_title` come from the round input's `step` and `short_title`; the build writes the short title in round 1 only.
 - `session.links` (optional) holds the URL templates that link references in the page text: `issue`, `change`, `commit`, `ticket`, each with `{id}` for the reference, and `projects`, the Jira project keys that `ticket` links. The skill's build writes it; the forms: `components/chip-and-text.md`.
 - `maps` holds the session's maps; you update their nodes in place.
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
 - Ids: every item id and component id is unique in the document and never reused. Give an id to every element the human may want to note. An id is also the HTML id of its element, so it never starts with `afkv2-` or `lavish-`.
-- `responses`, `notes` (on items and on rounds) and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading (`card` page).
+- `responses`, the document's `notes` list and the mark settles are written by the engine. You write `replies`, and for a point the human settled by a note, its `settled` reading.
 
 ## Page-owned tips
 
-For page/1, put optional `tips` at the document root. Its entries supply local
+Put optional `tips` at the document root. Its entries supply local
 explanations for terms and identifier titles:
 
 | Field | Entry |
@@ -58,9 +60,8 @@ The shared round writer accepts `tips` in its round input and writes it at the
 document root. Supplying `tips` replaces the dictionary; omit it to keep existing
 entries. Supply `{}` to clear them.
 
-For a resumed page/0 document, use `engine/schema/page-v0.schema.json` and omit
-`tips`. Keep its schema unchanged. `examples/all-components.json` remains a page/0
-compatibility example. Run the engine `check` verb for either schema.
+A format 0 file opens and renders as it is, with its legacy feature tips file.
+Its next round writes format 1; from then on the page reads only its own `tips`.
 
 ## Components
 
@@ -77,11 +78,25 @@ Load the page of each component you use.
 | sequence diagram | any body, type `sequence` | `components/sequence.md` |
 | simulated-run strip | any body, type `run-strip` | `components/run-strip.md` |
 | chip and styled text | any body, types `chip` and `text` | `components/chip-and-text.md` |
+| key-number tile | any body, type `tile` | `components/tile.md` |
+| bar chart | any body, type `bars` | `components/bars.md` |
+| line chart | any body, type `line` | `components/line.md` |
+| bullet graph | any body, type `bullet` | `components/bullet.md` |
+| range bars | any body, type `range` | `components/range.md` |
+| signed bars | any body, type `signed-bars` | `components/signed-bars.md` |
+| box plot | any body, type `box-plot` | `components/box-plot.md` |
+| flame graph | any body, type `flame` | `components/flame.md` |
+| sparklines | any body, type `sparkline` | `components/sparkline.md` |
+| span waterfall | any body, type `waterfall` | `components/waterfall.md` |
+| diagram text | any body, type `diagram` | `components/diagram.md` |
+| code block | any body, type `code` | `components/code.md` |
+| diff | any body, type `diff` | `components/diff.md` |
 | freestyle | any body, type `freestyle` | `components/freestyle.md` |
 
 Every component takes an open `style` field (any CSS) and nests inside any other.
+Every component also takes `tip` (format 1), a hover text of 1 to 300 characters: `components/chip-and-text.md`.
 Every component also takes `fold`, a label: the page shows the component closed
-under that label, and the human opens it. Fold long text and secondary detail.
+under that label, and the human opens it.
 Give a folded component an `id`: only then does an open fold stay open through a reload.
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
@@ -91,7 +106,7 @@ One document that uses every component: `examples/all-components.json`.
 The engine lays out the page in this order:
 
 1. the title and the banner of the current round;
-2. "Notes on the whole session": the notes and replies that stand on no card;
+2. "Notes on the whole session": every note of the session, card notes included, with its answer, in one fold per round;
 3. the maps;
 4. the points of the current round, one card per point, then the copy bar;
 5. "Settled by earlier rounds": the other points, each folded to its heading and settled line;
@@ -99,11 +114,12 @@ The engine lays out the page in this order:
 
 A point is the newest card and the cards it `carries` (`components/card.md`).
 
-The browser tab title is `<ticket> · <feature> · <skill> R-<n>`. The feature
-drops out when it equals the ticket. A later round shows in the tab that the
+The browser tab title and the page heading are `<ticket> · <short title> · <step>`.
+They hold no round number, so they stay the same every round. A page with no
+`short_title` (an upgraded format 0 page) shows its feature. A part drops out when
+it is empty or repeats an earlier part. A later round shows in the tab that the
 first show opened: `present` answers `tab: reused`. Give the human the `url` in
-one line then, so a closed tab costs nothing. The host keeps the tab title of
-the first load until the human reloads the tab.
+one line then, so a closed tab costs nothing.
 
 ## Controls the engine adds
 

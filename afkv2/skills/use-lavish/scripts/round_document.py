@@ -1,12 +1,16 @@
-"""Write a session's page document, preserving its schema on resume.
+"""Write the page document of one page session (schema afkv2.page/1, SDD §4).
 
 Verbs, run from the repository root:
-  build          --doc D --session S --ticket K --round-input F --ticket-file T [--replace]
+  build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
+                 The skill is the name part of `<skill>-<session>.json`. `--private` marks a new page private.
   apply-readings --doc D --readings F
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
 the decided-card contract, the picture before a critical-aspect question, the settle-by-note
 fields, and that no asking card is lost when a round closes.
+
+Every note is in the session list (ADR-0001 design). A format 0 document is read through the engine's
+format 0 reader, and its next write is format 1 (ADR-0002 design).
 """
 
 from __future__ import annotations
@@ -17,11 +21,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import Parser, Refusal, read_json, serve, write_json, write_text
+from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text
 from page_links import links_for
 
 SCHEMA = "afkv2.page/1"
-SUPPORTED_SCHEMAS = {"afkv2.page/0", SCHEMA}
+FORMAT_0 = "afkv2.page/0"
+# The step of a page by its writer, until the round input names one (SDD §4 Session).
+STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design", "to-subtasks": "Plan approval"}
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 ASKING = KINDS - {"info"}
 NEW_STATES = {"open", "blocked"}
@@ -30,9 +36,11 @@ PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
 ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+REPLY_FIELDS = {"text", "notes", "changed"}
 TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
+SESSION_TEXT_LIMIT = 40
 
 
 def _components(component):
@@ -69,9 +77,25 @@ def current_round(doc):
     return next((rnd for rnd in doc.get("rounds") or [] if rnd.get("state") == "current"), None)
 
 
-def _live_notes(holder):
-    """The notes of a card, or the steers of a round, that are not deleted."""
-    return [note for note in holder.get("notes") or [] if not note.get("deleted")]
+def format_1(doc):
+    """The document in format 1: a format 0 document goes through the engine's one format 0 reader, which
+    changes nothing on disk."""
+    if doc.get("schema") != FORMAT_0:
+        return doc
+    folder = str(PLUGIN_ROOT / "engine")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    import engine
+    return engine.read_v0_as_v1(doc)
+
+
+def session_notes(doc):
+    """The live notes of the session list."""
+    return [note for note in format_1(doc).get("notes") or [] if not note.get("deleted")]
+
+
+def _notes_of(doc, item):
+    return [note for note in session_notes(doc) if note.get("item") == item["id"]]
 
 
 def _node_ids(component):
@@ -93,16 +117,34 @@ def steer_targets(doc):
     return found
 
 
-def card_notes(item, targets):
-    """The live notes on a card that are no steer. An older document keeps a steer on a card."""
-    return [note for note in _live_notes(item) if note.get("target") not in targets]
+def element_ids(doc):
+    """Every id a note, an answer or a change list may name: cards, components, maps, map nodes and the round
+    banners `R-<n>`, as the engine counts them."""
+    return _used_ids(doc) | steer_targets(doc) | {f"R-{rnd['n']}" for rnd in doc.get("rounds") or []}
+
+
+def refuse_bad_links(doc, answers, changed=()):
+    """Refuse `bad-link` when an answer names a note or an element that does not exist, or a change list an element."""
+    notes, elements = {note["id"] for note in doc.get("notes") or []}, element_ids(doc)
+    bad = [f"note {value!r}" for answer in answers for value in answer.get("notes") or [] if value not in notes]
+    bad += [f"element {value!r}" for value in [*changed, *(v for answer in answers for v in answer.get("changed") or [])]
+            if value not in elements]
+    if bad:
+        raise Refusal("bad-link", f"these ids name nothing: {', '.join(dict.fromkeys(bad))}")
+
+
+def card_notes(doc, item, targets):
+    """The live notes that name a card and are no steer. An older document names a card in a steer."""
+    return [note for note in _notes_of(doc, item) if note.get("target") not in targets]
 
 
 def steers(doc):
-    """Every live steer, oldest round first: the round's steers, and the steers an older document kept on a card."""
+    """Every live steer, oldest round first: the notes that name no card, and the steers an older document
+    kept on a card."""
+    doc = format_1(doc)
     targets = steer_targets(doc)
-    return [note for rnd in doc["rounds"] for note in
-            [*(n for item in rnd["items"] for n in _live_notes(item) if n.get("target") in targets), *_live_notes(rnd)]]
+    found = [note for note in session_notes(doc) if note.get("item") is None or note.get("target") in targets]
+    return sorted(found, key=lambda note: note.get("round", 0))
 
 
 def holds_sign_mark(item):
@@ -248,6 +290,7 @@ def _carries_card(item, card_id):
 
 def returning(doc):
     """Asking cards of the rounds before the current one that the human noted or reopened in this send."""
+    doc = format_1(doc)
     current = current_round(doc)
     if not current:
         return []
@@ -259,7 +302,7 @@ def returning(doc):
         if rnd is current:
             continue
         for item in rnd["items"]:
-            noted = any(note.get("round") == current["n"] for note in card_notes(item, targets))
+            noted = any(note.get("round") == current["n"] for note in card_notes(doc, item, targets))
             unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
             if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
@@ -268,7 +311,7 @@ def returning(doc):
 
 def _carried(doc, item, own_round):
     """True when a card of a later round than the item's last note carries it: the point lives there now."""
-    after = max([own_round, *(note.get("round", own_round) for note in _live_notes(item))])
+    after = max([own_round, *(note.get("round", own_round) for note in _notes_of(doc, item))])
     return any(_carries_card(card, item["id"]) for rnd in doc["rounds"] if rnd["n"] > after for card in rnd["items"])
 
 
@@ -332,19 +375,43 @@ def _apply_maps(doc, maps, n):
     doc["maps"] = maps
 
 
-def _document_schema(doc):
-    """New sessions use page/1; resumed sessions keep their supported schema."""
-    schema = SCHEMA if doc is None else doc.get("schema")
-    if not isinstance(schema, str) or schema not in SUPPORTED_SCHEMAS:
-        raise Refusal("bad-schema", f"document has schema {schema!r}; supported: {sorted(SUPPORTED_SCHEMAS)}")
-    return schema
+def _answers(doc, note):
+    """True when an answer names the note; an answer of a format 0 page, in the note's round or later, names it,
+    its element or its card in `about`."""
+    named = {note["id"], note.get("target"), note.get("item")} - {None}
+    return any(note["id"] in (answer.get("notes") or [])
+               or (rnd["n"] >= note.get("round", 0) and named & set(answer.get("about") or []))
+               for rnd in doc.get("rounds") or [] for answer in rnd.get("replies") or [])
+
+
+def unanswered_note_warnings(doc, round_n):
+    """A warning for each live note of round `round_n` that no answer names (SDD §6); the round still builds."""
+    return [{"code": "unanswered-note", "note": note["id"],
+             "reason": f"note {note['id']} of round {round_n} has no answer; answer each note"}
+            for note in doc.get("notes") or [] if note.get("round") == round_n and not note.get("deleted")
+            and not _answers(doc, note)]
+
+
+def _session_text(session, round_input, n):
+    """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
+    if round_input.get("step") is not None:
+        session["step"] = round_input["step"]
+    title = round_input.get("short_title")
+    if title is None:
+        return []
+    if n == 1:
+        session["short_title"] = title
+        return []
+    return [{"code": "ignored-title", "reason": f"the short title is written in round 1 only; round {n} keeps "
+                                                f"{session.get('short_title')!r}, not {title!r}"}]
 
 
 def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
-    `round_input` holds banner, items and optional maps, replies, colour, tips. `tips` replaces
-    the page/1 document dictionary; omitting it preserves the stored tips. An item may carry
+    `round_input` holds banner, items and optional maps, replies, colour, short_title (round 1), step and
+    changed (the element ids the agent changed this round) and tips. A reply is {text, notes, changed}. `tips`
+    replaces the document's tips catalog; omitting it keeps the stored tips. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
@@ -360,16 +427,25 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("bad-round", "banner is required: settled, unlocks, parked")
     if not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "items must be a list")
-    doc = read_json(doc_path) if doc_path.exists() else None
-    schema = _document_schema(doc)
-    if "tips" in round_input and schema != SCHEMA:
-        raise Refusal("bad-schema", f"document tips need {SCHEMA}; this session keeps {schema}")
-    if doc is not None:
+    for field in ("short_title", "step"):
+        value = round_input.get(field)
+        if value is not None and not (isinstance(value, str) and value.strip() and len(value) <= SESSION_TEXT_LIMIT):
+            raise Refusal("bad-round", f"{field} is text of 1 to {SESSION_TEXT_LIMIT} characters: {value!r}")
+    if not _id_list(round_input.get("changed", [])):
+        raise Refusal("bad-round", "changed is a list of element ids")
+    if doc_path.exists():
+        doc = read_json(doc_path)
+        if doc.get("schema") not in (SCHEMA, FORMAT_0):
+            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes {SCHEMA}")
         if (doc.get("session") or {}).get("id") != session["id"]:
             raise Refusal("bad-session", f"{doc_path} belongs to session {(doc.get('session') or {}).get('id')!r}")
+        doc = format_1(doc)
     else:
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        doc = {"schema": schema, "session": {**session, "started": started}, "maps": [], "rounds": []}
+        fields = {"step": STEPS.get(session.get("skill")) or str(session.get("feature"))[:40],
+                  "private": False, "takeovers": []}
+        doc = {"schema": SCHEMA, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
+               "rounds": []}
     if replace:
         _drop_unanswered_round(doc, doc_path)
     if links:
@@ -377,6 +453,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if "tips" in round_input:
         doc["tips"] = round_input["tips"]
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
+    warnings = _session_text(doc["session"], round_input, n)
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
     raw_items = round_input.get("items") or []
@@ -398,13 +475,52 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
             raise Refusal("id-reused", f"item {item['id']}: an id is reused: {reused or new}")
         used.update(new)
     built = {"n": n, "state": "current", "banner": round_input["banner"], "items": items}
-    for optional in ("colour", "replies"):
+    for optional in ("colour", "changed"):
         if optional in round_input:
             built[optional] = round_input[optional]
+    for reply in round_input.get("replies") or []:
+        _reply(built, reply)
     doc["rounds"].append(built)
+    refuse_bad_links(doc, built.get("replies") or [], built.get("changed") or [])
+    warnings += unanswered_note_warnings(doc, n - 1)
     write_json(doc_path, doc)
     return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
-            "degraded": degraded}
+            "degraded": degraded, "warnings": warnings}
+
+
+def _id_list(value):
+    return isinstance(value, list) and all(isinstance(entry, str) and entry for entry in value)
+
+
+def _answer_number(rnd, answer):
+    found = re.fullmatch(rf"A-{rnd['n']}-([1-9][0-9]*)", str(answer.get("id") or ""))
+    return int(found.group(1)) if found else 0
+
+
+def _add_answer(rnd, text, notes, changed=()):
+    """Append one answer to the round, with the next id `A-<round>-<k>`. An answer with no note answers a mark."""
+    replies = rnd.setdefault("replies", [])
+    k = max((_answer_number(rnd, old) for old in replies), default=0) + 1
+    answer = {"id": f"A-{rnd['n']}-{k}", "text": text}
+    if notes:
+        answer["notes"] = list(notes)
+    if changed:
+        answer["changed"] = list(changed)
+    replies.append(answer)
+    return answer
+
+
+def _reply(rnd, raw):
+    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes."""
+    if not isinstance(raw, dict) or set(raw) - REPLY_FIELDS:
+        raise Refusal("bad-reply", f"a reply holds only text, notes and changed: {raw!r}")
+    if not isinstance(raw.get("text"), str) or not raw["text"].strip():
+        raise Refusal("bad-reply", f"a reply needs its text: {raw!r}")
+    if not _id_list(raw.get("notes")) or not raw["notes"]:
+        raise Refusal("bad-reply", f"a reply names 1 or more note ids in notes: {raw!r}")
+    if not _id_list(raw.get("changed", [])):
+        raise Refusal("bad-reply", f"changed is a list of element ids: {raw!r}")
+    return _add_answer(rnd, raw["text"], raw["notes"], raw.get("changed") or [])
 
 
 def _current_item(current, item_id):
@@ -414,7 +530,7 @@ def _current_item(current, item_id):
     raise Refusal("not-in-round", f"{item_id} is not a card of round {current['n']}; a settled round is never rewritten")
 
 
-def _settle(current, entry):
+def _settle(doc, current, entry):
     item = _current_item(current, entry.get("item"))
     if item["state"] != "needs_reading":
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
@@ -423,25 +539,31 @@ def _settle(current, entry):
     if item["kind"] == "signoff":
         raise Refusal("signoff-needs-mark", f"{item['id']} settles only by a `sign` mark; return it with `open`, "
                                             "and a new card asks the human to sign")
-    if entry.get("note") not in {note["id"] for note in _live_notes(item)}:
+    if entry.get("note") not in {note["id"] for note in _notes_of(doc, item)}:
         raise Refusal("no-note", f"{item['id']} has no live note {entry.get('note')!r}")
     reading = (entry.get("reading") or "").strip()
     if not reading:
         raise Refusal("no-reading", f"{item['id']}: a point settled by a note needs its reading")
+    if not _id_list(entry.get("changed", [])):
+        raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
     item["state"] = "settled_by_note"
     item["settled"] = {"by": "note", "round": current["n"], "signal": entry["note"], "reading": reading}
-    current.setdefault("replies", []).append({"text": f"Settled by your note: {reading}", "about": [item["id"]]})
+    _add_answer(current, f"Settled by your note: {reading}", [entry["note"]], entry.get("changed") or [])
 
 
-def _return_to_open(current, entry):
+def _return_to_open(doc, current, entry):
+    """The answer names the card's live notes of this round; a card that returns on marks alone has none."""
     item = _current_item(current, entry.get("item"))
     if item["state"] != "needs_reading":
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
     reply = (entry.get("reply") or "").strip()
     if not reply:
         raise Refusal("no-reply", f"{item['id']}: say why the point returns")
+    if not _id_list(entry.get("changed", [])):
+        raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
     item["state"] = "open"
-    current.setdefault("replies", []).append({"text": reply, "about": [item["id"]]})
+    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]],
+                entry.get("changed") or [])
 
 
 def _unblock(current, item_id):
@@ -453,33 +575,36 @@ def _unblock(current, item_id):
 
 def apply_readings(doc_path, readings):
     """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies."""
-    doc = read_json(doc_path)
+    doc = format_1(read_json(doc_path))
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
     if not isinstance(readings, dict) or not readings or set(readings) - {"settle", "open", "unblock", "replies"}:
         raise Refusal("bad-payload", "readings: one object with settle, open, unblock, replies")
+    answered = len(current.get("replies") or [])
     for entry in readings.get("settle") or []:
-        _settle(current, entry)
+        _settle(doc, current, entry)
     for entry in readings.get("open") or []:
-        _return_to_open(current, entry)
+        _return_to_open(doc, current, entry)
     for item_id in readings.get("unblock") or []:
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
-        current.setdefault("replies", []).append(reply)
+        _reply(current, reply)
+    refuse_bad_links(doc, (current.get("replies") or [])[answered:])
     write_json(doc_path, doc)
     return {"ok": True, **pending(doc)}
 
 
 def pending(doc):
     """What the round pass still has to read, from the document alone."""
+    doc = format_1(doc)
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
     targets = steer_targets(doc)
 
     def card(item):
-        return {"id": item["id"], "kind": item["kind"], "state": item["state"], "notes": card_notes(item, targets)}
+        return {"id": item["id"], "kind": item["kind"], "state": item["state"], "notes": card_notes(doc, item, targets)}
 
     responses = current.get("responses") or []
     by_state = {state: [item["id"] for item in current["items"] if item["state"] == state]
@@ -492,6 +617,18 @@ def pending(doc):
             **by_state}
 
 
+def _skill_of(doc, session):
+    """The writer that the file name `<skill>-<session>.json` names; grill for any other name."""
+    skill = Path(doc).name.removesuffix(f"-{session}.json")
+    return skill if skill in {*STEPS, "use-lavish"} else "grill"
+
+
+def _feature_of(doc):
+    """The folder that holds the `pages` folder (a ticket), else the page's own folder (a repository name)."""
+    folder = Path(doc).resolve().parent
+    return folder.parent.name if folder.name == "pages" else folder.name
+
+
 def main(argv):
     parser = Parser(add_help=False)
     parser.add_argument("verb", choices=["build", "apply-readings"])
@@ -502,14 +639,15 @@ def main(argv):
     parser.add_argument("--ticket-file")
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--readings")
+    parser.add_argument("--private", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "build":
-        if not (args.session and args.ticket and args.round_input):
-            raise Refusal("usage", "build needs --session, --ticket and --round-input", 2)
+        if not (args.session and args.round_input):
+            raise Refusal("usage", "build needs --session and --round-input", 2)
         round_input = read_json(args.round_input)
         ticket = read_json(args.ticket_file) if args.ticket_file else None
-        feature = Path(args.doc).parent.parent.name
-        session = {"id": args.session, "skill": "grill", "feature": feature, "ticket": args.ticket}
+        session = {"id": args.session, "skill": _skill_of(args.doc, args.session), "feature": _feature_of(args.doc),
+                   "ticket": args.ticket, **({"private": True} if args.private else {})}
         earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
         keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
                                                              *((ticket or {}).get("unread_links") or [])])]

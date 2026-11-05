@@ -79,7 +79,7 @@ class World:
         self.repo = root / "repo"
         self.calls = root / "calls.log"
         self.raw = root / "raw-response.txt"
-        for skill in ("propose-solution", "grill", "to-prd"):
+        for skill in ("propose-solution", "grill", "to-prd", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
@@ -480,6 +480,16 @@ def test_a_row_of_another_kind_or_shape_is_refused(world):
     assert world.run("row", expect=1, log=started["log"], kind="Premise", text="no arrow")["error"]["code"] == "bad-row"
 
 
+def test_a_takeover_row_is_one_row_per_takeover(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    for text in ("R2 · 2026-11-04T10:00:00Z", "R2 · 2026-11-04T10:00:00Z", "R5 · 2026-11-05T09:30:00Z"):
+        world.run("row", log=started["log"], kind="Takeover", text=text)
+    text = (world.spec / "GRILL-LOG.md").read_text("utf-8")
+    assert text.count("- Takeover: R2 · 2026-11-04T10:00:00Z") == 1 and "- Takeover: R5 · 2026-11-05T09:30:00Z" in text
+    assert text.index("## Solution design") < text.index("- Takeover:")
+    assert world.run("row", expect=1, log=started["log"], kind="Takeover", text="R2")["error"]["code"] == "bad-row"
+
+
 def test_a_design_row_leaves_the_requirements_section_alone(world):
     log = world.spec / "GRILL-LOG.md"
     before = log.read_text("utf-8")
@@ -706,7 +716,7 @@ def test_dry_run_first_round_has_the_picture_before_the_question_and_a_fork(worl
     content = json.loads((FIXTURES / "design" / "round-1.json").read_text("utf-8"))
     answer = world.build(started, content)
     assert answer["round"] == 1 and answer["items"] == ["a-entities", "f-relations"] and answer["degraded"] == []
-    assert world.run("present", doc=started["doc"])["ok"] is True
+    assert world.run("present", doc=started["doc"], log=started["log"])["ok"] is True
     assert [line.split()[1] for line in world.calls.read_text("utf-8").splitlines()] == ["check", "render", "show"]
     doc = world.doc(started)
     assert doc["schema"] == "afkv2.page/1" and doc["session"]["skill"] == "propose-solution"
@@ -725,13 +735,13 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
     started = world.run("start", ticket_key="PROJ-1")
     world.run("row", log=started["log"], kind="Premise", text="orders live in one table → verified (src/orders.py:12)")
     world.build(started, json.loads((FIXTURES / "design" / "round-1.json").read_text("utf-8")))
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     pending = world.answer(started, "a-entities: accept\nf-relations: option:a")
     assert pending["settled_by_mark"] == ["a-entities", "f-relations"]
 
     rest = [aspect_card(key) for key in CAT_A[2:]]
     world.build(started, round_of(*rest))
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     lines = [f"a-{key}: accept" for key in CAT_A[2:] if key not in ("keys", "cascade")]
     pending = world.answer(started, "\n".join([*lines, "a-keys: note: Keep the order id as the key.", "a-cascade: reopen"]))
     assert {card["id"] for card in pending["needs_reading"]} == {"a-keys", "a-cascade"}
@@ -745,7 +755,7 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
                       round_input=world.file("round.json", round_of(layer_card("L1"))))
     assert stuck["error"]["code"] == "aspects-first"
     world.build(started, round_of(aspect_card("cascade", "a-cascade-2", carries=["a-cascade"])))
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     world.answer(started, "a-cascade-2: accept")
 
     step = world.run("next", doc=started["doc"])
@@ -755,7 +765,7 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
                       "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}})
     assert world.run("second-provider", round_input=world.file("draft.json", draft))["forks"] == []
     world.build(started, draft)
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     world.accept_all(started)
     assert world.run("next", doc=started["doc"])["phase"] == "write"
 
@@ -771,7 +781,7 @@ def test_a_refused_round_is_corrected_with_replace(world):
     started = world.run("start", ticket_key="PROJ-1")
     world.build(started, round_of(aspect_card("entities")))
     world.env["FAKE_ENGINE_REFUSE"] = "render"
-    assert world.run("present", expect=1, doc=started["doc"])["error"]["verb"] == "render"
+    assert world.run("present", expect=1, doc=started["doc"], log=started["log"])["error"]["verb"] == "render"
     del world.env["FAKE_ENGINE_REFUSE"]
     answer = world.run("build", swap=['--round-input', '--replace --round-input'], doc=started["doc"],
                        session=started["session"], ticket_key=started["ticket"],
@@ -782,7 +792,7 @@ def test_a_refused_round_is_corrected_with_replace(world):
 def test_replace_refuses_a_shown_round_with_no_answer(world):
     started = world.run("start", ticket_key="PROJ-1")
     world.build(started, round_of(aspect_card("entities")))
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], log=started["log"])
     before = (world.repo / started["doc"]).read_bytes()
     answer = world.run("build", expect=1, swap=['--round-input', '--replace --round-input'], doc=started["doc"],
                        session=started["session"], ticket_key=started["ticket"],

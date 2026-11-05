@@ -253,7 +253,7 @@ def test_the_package_installs_with_the_browser_download_off_and_the_config_names
     env, edge = _edge(tmp_path)
     answer = tools.ensure_diagram_renderer(places, runner, env)
     assert answer["ok"] and answer["action"] == "installed" and answer["edge"] == str(edge)
-    assert ["npm", "install", "-g", tools.MERMAID_PACKAGE] in runner.calls
+    assert ["npm", "install", "-g", f"{tools.MERMAID_PACKAGE}@12.0.0"] in runner.calls and answer["version"] == "12.0.0"
     assert runner.mermaid_install_env["PUPPETEER_SKIP_DOWNLOAD"] == "true"
     assert json.loads(places.puppeteer_config.read_text(encoding="utf-8"))["executablePath"] == str(edge)
     assert answer["config"] == str(places.puppeteer_config)
@@ -263,16 +263,30 @@ def test_the_config_file_is_in_the_setup_data_folder(places):
     assert places.puppeteer_config == places.data / "puppeteer-config.json"
 
 
+def test_the_renderer_pin_is_12_0_0():
+    assert tools.MERMAID_VERSION == "12.0.0"
+
+
 def test_a_present_package_is_kept_and_the_config_is_written_again(places, runner, tmp_path):
-    runner.mermaid = "10.0.0"
+    runner.mermaid = "12.0.0"
     runner.paths["mmdc"] = "/npm/mmdc"
     env, edge = _edge(tmp_path)
     places.puppeteer_config.parent.mkdir(parents=True, exist_ok=True)
     places.puppeteer_config.write_text('{"executablePath": "old"}', encoding="utf-8")
     answer = tools.ensure_diagram_renderer(places, runner, env)
-    assert answer["ok"] and answer["action"] == "present" and answer["version"] == "10.0.0"
+    assert answer["ok"] and answer["action"] == "present" and answer["version"] == "12.0.0"
     assert not any("install" in call for call in runner.calls)
     assert json.loads(places.puppeteer_config.read_text(encoding="utf-8"))["executablePath"] == str(edge)
+
+
+def test_a_present_package_of_another_version_is_replaced_by_the_pin(places, runner, tmp_path):
+    runner.mermaid = "10.0.0"
+    runner.paths["mmdc"] = "/npm/mmdc"
+    env, _ = _edge(tmp_path)
+    answer = tools.ensure_diagram_renderer(places, runner, env)
+    assert ["npm", "install", "-g", f"{tools.MERMAID_PACKAGE}@12.0.0"] in runner.calls
+    assert answer["ok"] and answer["action"] == "installed" and answer["version"] == "12.0.0"
+    assert runner.mermaid_install_env["PUPPETEER_SKIP_DOWNLOAD"] == "true"
 
 
 def test_a_failed_install_is_named_and_writes_no_config(places, runner, tmp_path):
@@ -289,6 +303,6 @@ def test_no_answer_from_npm_is_named(places, runner, tmp_path):
 
 
 def test_an_installed_package_with_no_command_on_the_path_is_named(places, runner, tmp_path):
-    runner.mermaid = "10.0.0"
+    runner.mermaid = "12.0.0"
     env, _ = _edge(tmp_path)
     assert tools.ensure_diagram_renderer(places, runner, env)["error"]["code"] == "mmdc-not-found"

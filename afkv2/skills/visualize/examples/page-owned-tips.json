@@ -5,7 +5,8 @@
     "skill": "grill",
     "feature": "hypothetical-export",
     "ticket": "1",
-    "started": "2026-01-05T09:00:00Z"
+    "started": "2026-01-05T09:00:00Z",
+    "step": "Requirements grill"
   },
   "tips": {
     "terms": [{"term": "batch", "definition": "A group of records processed together."}],

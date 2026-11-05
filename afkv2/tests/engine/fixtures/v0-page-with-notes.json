@@ -1,0 +1,4109 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261103-182116",
+    "skill": "propose-solution",
+    "feature": "158",
+    "ticket": "158",
+    "started": "2026-11-03T18:31:08Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    }
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "focus",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "settled",
+            "round": 3
+          }
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "Where gc keeps its fixed target",
+          "How gc proves 'merged' when a branch has 2 changes",
+          "Where the GitLab live test runs",
+          "The top-down draft (L1 to L9) and the sign-offs"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "a-entities",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-entities-now",
+            "props": {
+              "columns": [
+                "Thing",
+                "Where it is today",
+                "gc does"
+              ],
+              "rows": [
+                [
+                  "Run worktree (the folder that holds plan/)",
+                  "beside the feature worktree, same name plus -run",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removes at once",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "Run branch, local",
+                  "your machine",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removes at once",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "Run branch, remote",
+                  "only when someone pushed it by hand",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removes at once",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "Feature branch, remote",
+                  "the forge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removes at once",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "Feature worktree and feature branch, local",
+                  "your machine; the session works in this folder",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removes later, by your command",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "The change (pull or merge request)",
+                  "the forge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "read only",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "gc's fixed target: what gc listed, for the removal and your later command",
+                  "does not exist",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-entities-question",
+                "props": {
+                  "text": "gc must remember its target from the list step until your later command, after the run worktree and the session are gone (decision i-target of the grill). Where does that target live? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-entities-options",
+                "props": {
+                  "columns": [
+                    "A — A file in git's own folder",
+                    "B — No file: the command carries it",
+                    "C — A file in the afkv2 data folder"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-entities-opt-a",
+                        "props": {
+                          "text": "One small JSON file per piece of work, inside the repository's .git folder, under afkv2-gc. It survives every worktree removal, is never committed, and your later command is short: it names the file. gc deletes the file when the last removal is done. Cost: one file to keep tidy."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-entities-opt-b",
+                        "props": {
+                          "text": "Nothing is stored. The list answer goes back to the agent, and your later command carries the folder, branch and commit as arguments. Nothing goes stale. Cost: a long command, and an edited argument can point gc at other work, which the grill rejected (i-target)."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-entities-opt-c",
+                        "props": {
+                          "text": "As A, but in your user data folder (LOCALAPPDATA\\afkv2), keyed by repository. Outside the repository. Cost: a second key (which repository) and a stale file when you delete a clone."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-entities-why-open",
+                "props": {
+                  "text": "This adds stored state (a human-locked aspect: persistence), so I may only recommend. A is the cheapest safe option."
+                }
+              }
+            ]
+          },
+          "title": "What gc changes, and the one new thing it stores",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-relations-now",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "g-fw",
+                  "label": "feature worktree"
+                },
+                {
+                  "id": "g-fb",
+                  "label": "feature branch"
+                },
+                {
+                  "id": "g-rw",
+                  "label": "run worktree"
+                },
+                {
+                  "id": "g-rb",
+                  "label": "run branch"
+                },
+                {
+                  "id": "g-ch",
+                  "label": "change on the forge"
+                },
+                {
+                  "id": "g-tg",
+                  "label": "gc target (new)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "g-fw",
+                  "to": "g-fb",
+                  "label": "has checked out"
+                },
+                {
+                  "from": "g-fw",
+                  "to": "g-rw",
+                  "label": "path + -run"
+                },
+                {
+                  "from": "g-fb",
+                  "to": "g-rb",
+                  "label": "name + -run"
+                },
+                {
+                  "from": "g-rw",
+                  "to": "g-rb",
+                  "label": "has checked out"
+                },
+                {
+                  "from": "g-ch",
+                  "to": "g-fb",
+                  "label": "source branch"
+                },
+                {
+                  "from": "g-tg",
+                  "to": "g-fw",
+                  "label": "names, 1 to 1"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-relations-q",
+                "props": {
+                  "text": "Please confirm. gc derives the run branch and run worktree by the same '-run' rule the planner uses to make them (start_gate.py:27, plan_files.py:117). It never searches for them. One target per feature branch. A run branch or run worktree that does not exist is reported as 'absent', not as an error."
+                }
+              }
+            ]
+          },
+          "title": "How gc finds the run branch and run worktree from the feature",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-keys-now",
+            "props": {
+              "columns": [
+                "Thing",
+                "Key",
+                "Unique because"
+              ],
+              "rows": [
+                [
+                  "Feature branch",
+                  "its name, for example feat/afkv2-gc",
+                  "git allows one branch per name"
+                ],
+                [
+                  "Run branch",
+                  "feature branch name + -run",
+                  "same rule"
+                ],
+                [
+                  "Worktree",
+                  "its full folder path",
+                  "git allows one worktree per path"
+                ],
+                [
+                  "Change",
+                  "the forge number, for example #165",
+                  "the forge"
+                ],
+                [
+                  "Branch tip",
+                  "commit id (full sha)",
+                  "git"
+                ],
+                [
+                  "gc target (new)",
+                  "the feature branch name, with each character a file name cannot hold encoded (feat%2Fafkv2-gc)",
+                  "one per feature branch"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-keys-q",
+                "props": {
+                  "text": "Please confirm. The target is keyed by the feature branch name. A second list for the same branch replaces the target, until a removal has started. The tip check compares full commit ids."
+                }
+              }
+            ]
+          },
+          "title": "What identifies each thing",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-constraints-now",
+            "props": {
+              "columns": [
+                "Rule (PRD)",
+                "Checked by",
+                "When"
+              ],
+              "rows": [
+                [
+                  "Change merged, none open (AC-008)",
+                  "the forge",
+                  "at the list, and again at the removal"
+                ],
+                [
+                  "No uncommitted or untracked file (RF-3)",
+                  "git status, in each worktree",
+                  "at the list, and again at the removal"
+                ],
+                [
+                  "No commit outside the change (RF-4)",
+                  "git: each local and remote tip is the change's head commit or older",
+                  "at the list, and again at the removal"
+                ],
+                [
+                  "No process in a worktree folder (RF-5)",
+                  "a rename of the folder",
+                  "just before each folder delete"
+                ],
+                [
+                  "Windows only, for a folder delete (RF-6)",
+                  "the operating system name",
+                  "at the list"
+                ],
+                [
+                  "New: the list you said yes to is still the list",
+                  "a receipt of the list, compared by the removal",
+                  "at the removal"
+                ],
+                [
+                  "New: one gc run per target at a time",
+                  "a lock file beside the target",
+                  "the whole run"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-constraints-q",
+                "props": {
+                  "text": "Please confirm. One addition the PRD does not name: files git ignores (build output, a local .env) are not a refusal, but the list names how many there are and the first 5, so your yes sees them. They go with the folder."
+                }
+              }
+            ]
+          },
+          "title": "The rules gc checks, and where",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-cascade-now",
+            "props": {
+              "columns": [
+                "Delete",
+                "Also reaches",
+                "So gc"
+              ],
+              "rows": [
+                [
+                  "Run worktree folder",
+                  "plan files not committed; git's record of the worktree",
+                  "checks them first (RF-3); runs 'git worktree prune' after"
+                ],
+                [
+                  "Run branch",
+                  "its commits become unreachable; git drops them later",
+                  "deletes it after its worktree: git refuses a branch a worktree holds"
+                ],
+                [
+                  "Remote feature branch",
+                  "nothing on the change: the merged change keeps its commits (#162: branch gone, commit still answers)",
+                  "deletes it with a lease on the tip it checked"
+                ],
+                [
+                  "Feature worktree folder",
+                  "ignored files too",
+                  "lists them first (see constraints card)"
+                ],
+                [
+                  "Local feature branch",
+                  "commits only on it",
+                  "checks the tip first (RF-4); deletes it after its worktree"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-cascade-q",
+                "props": {
+                  "text": "Please confirm the order: worktree folder, then git's record, then its branch. A remote delete uses git's lease: the forge deletes the branch only when it still points at the tip gc checked, so a push after the check is never lost."
+                }
+              }
+            ]
+          },
+          "title": "What each delete reaches, and in which order",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-api",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-api-now",
+            "props": {
+              "columns": [
+                "Surface",
+                "Today",
+                "After"
+              ],
+              "rows": [
+                [
+                  "/afkv2:gc skill, on the slash menu of Claude and Codex",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "gc script: list, remove, finish (finish is your later command)",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "forge change-view: one change per branch",
+                  "used by create-change-request",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "create-change-request: what the agent does on 'change-not-open'",
+                  "reports it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extended: offers gc when merged",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "remote branch delete",
+                  "no surface",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "plain git push --delete",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api-question",
+                "props": {
+                  "text": "The PRD rule is 'merged, and no change on the branch is open' (AC-008). change-view answers one change. On this repository, feat/afkv2-ci has #157 merged and #165 open, and change-view answered #165. #165 is also the newer one, so I cannot tell whether an open change always wins. How does gc prove the rule? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-api-options",
+                "props": {
+                  "columns": [
+                    "A — A new forge verb: change-list",
+                    "B — change-view only",
+                    "C — change-view, then git"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-a",
+                        "props": {
+                          "text": "The forge port gets one verb that lists every change of a branch with its state (gh pr list --head, glab mr list --source-branch). gc goes on when at least one is merged and none is open. Closes the gap on both forges. Cost: one verb in the port contract, 2 adapters, tests."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-b",
+                        "props": {
+                          "text": "gc trusts the one answer. No port change. Cost: a reused branch with an old open change and a newer merged one reads as merged, so gc could delete a branch an open change still uses."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-c",
+                        "props": {
+                          "text": "change-view, plus a check that the remote branch tip is the merged change's head commit. Catches a new push, but not an old open change on the same tip."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api-why-open",
+                "props": {
+                  "text": "A changes the forge port contract (a human-locked aspect: API surface). Existing callers of change-view keep working with every option."
+                }
+              }
+            ]
+          },
+          "title": "New surfaces, and proving 'no open change' on a branch with 2 changes",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-migration-now",
+            "props": {
+              "columns": [
+                "Existing data",
+                "Count today",
+                "gc does"
+              ],
+              "rows": [
+                [
+                  "Run branches",
+                  "0 on this repository (grill ledger, 2026-11-02)",
+                  "nothing; the first real target is this work's own"
+                ],
+                [
+                  "Feature worktrees made before gc",
+                  "several",
+                  "works on them as they are: it needs only the '-run' rule"
+                ],
+                [
+                  "gc targets",
+                  "0",
+                  "nothing"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-migration-q",
+                "props": {
+                  "text": "Please confirm. To go back: remove the gc skill. A target file left in the .git folder harms nothing, and a later gc of that branch replaces it. A removal itself cannot go back, which is why it waits for your yes."
+                }
+              }
+            ]
+          },
+          "title": "Nothing to migrate",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-authorization-now",
+            "props": {
+              "columns": [
+                "Step",
+                "Permitted",
+                "Denied",
+                "Guard"
+              ],
+              "rows": [
+                [
+                  "list",
+                  "an agent in your session; you from the slash menu",
+                  "a hands-off build",
+                  "the gc and autopilot instructions"
+                ],
+                [
+                  "remove",
+                  "the same, after your yes on the list",
+                  "anyone without your yes; a hands-off build",
+                  "the receipt of the list you saw; a changed list refuses"
+                ],
+                [
+                  "go ahead past a refusal",
+                  "your explicit yes for that run",
+                  "an agent alone; RF-5 and RF-6 for anyone",
+                  "the receipt covers the refusals you saw"
+                ],
+                [
+                  "finish (your later command)",
+                  "you, after the session closes",
+                  "—",
+                  "it refuses inside the folder it removes"
+                ],
+                [
+                  "remote delete",
+                  "a forge account with push right",
+                  "no push right: the forge refuses",
+                  "the forge"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-authorization-q",
+                "props": {
+                  "text": "Please confirm. No script can tell a hands-off run (no marker exists today), so that denial is an instruction in the gc, autopilot and execute skills, as the PRD accepts. The receipt is the guard below the agent: the removal refuses unless it gets the receipt of the very list you answered."
+                }
+              }
+            ]
+          },
+          "title": "Who may run each step, and what guards it",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-lifecycle-now",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "s-none",
+                  "label": "no target"
+                },
+                {
+                  "id": "s-listed",
+                  "label": "listed (receipt shown)"
+                },
+                {
+                  "id": "s-waiting",
+                  "label": "waiting for your command"
+                },
+                {
+                  "id": "s-done",
+                  "label": "done (file deleted)"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "s-none",
+                  "to": "s-listed",
+                  "label": "list (agent or you)"
+                },
+                {
+                  "from": "s-listed",
+                  "to": "s-listed",
+                  "label": "list again"
+                },
+                {
+                  "from": "s-listed",
+                  "to": "s-waiting",
+                  "label": "remove, after your yes"
+                },
+                {
+                  "from": "s-waiting",
+                  "to": "s-waiting",
+                  "label": "remove again: finishes what failed"
+                },
+                {
+                  "from": "s-waiting",
+                  "to": "s-done",
+                  "label": "finish (you)"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-lifecycle-q",
+                "props": {
+                  "text": "Please confirm. A refusal leaves the state as it was. A remove that fails part way stays 'waiting' and records what is left, so a second remove does only that. finish refuses unless the state is 'waiting'."
+                }
+              }
+            ]
+          },
+          "title": "The states of a gc target",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "a-other-teams-now",
+            "props": {
+              "columns": [
+                "Area",
+                "Ownership (.afkv2/config.json)",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "afkv2/ (gc skill, forge port, create-change-request, autopilot, execute, glossary)",
+                  "own",
+                  "free"
+                ],
+                [
+                  "docs/specs/158/",
+                  "own",
+                  "free"
+                ],
+                [
+                  "README.md at the root",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "not listed, so not owned",
+                      "tone": "proposed"
+                    }
+                  },
+                  "one short section that states the afkv2 platform limit, in the README's style"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-other-teams-q",
+                "props": {
+                  "text": "Please confirm. The README belongs to the v1 plugin and documents only v1. The diff there stays one section, and the change states it as a fact."
+                }
+              }
+            ]
+          },
+          "title": "Code outside what we own",
+          "node": "aspect-other-teams",
+          "notes": [
+            {
+              "id": "N-1-a-other-teams",
+              "round": 1,
+              "target": "a-other-teams-q",
+              "text": "I don't get it. we are in a feature branch, why the README belongs to the v1? README in v2 branch belongs to v2, no?",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-a-other-teams",
+            "reading": "You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/specs/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes."
+          }
+        },
+        {
+          "id": "a-large-data",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "a-large-data-now",
+            "props": {
+              "columns": [
+                "What",
+                "Size",
+                "Cost"
+              ],
+              "rows": [
+                [
+                  "Branches",
+                  "at most 4",
+                  "one git call each"
+                ],
+                [
+                  "Forge calls",
+                  "about 3 per run",
+                  "60 s time limit each (port default)"
+                ],
+                [
+                  "Files in a worktree folder",
+                  "this worktree today: a few thousand; a project with installed packages: 100 000 or more",
+                  "the delete time grows with the count"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-large-data-q",
+                "props": {
+                  "text": "Please confirm. No cap on the folder size. The rename check runs before the delete, so a slow delete never meets a folder in use. The report gives the time each folder delete took."
+                }
+              }
+            ]
+          },
+          "title": "Large data: one folder delete can be large",
+          "node": "aspect-large-data",
+          "notes": [
+            {
+              "id": "N-1-a-large-data",
+              "round": 1,
+              "target": "a-large-data-q",
+              "text": "as the delete op could be long, or even stale if pc resources is constraint, agents should watch the process and act accordingly. maybe overkill?",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-a-large-data",
+            "reading": "Accepted, with no watcher: I think it is overkill. In the session, gc deletes only the run worktree, which holds the plan files only (no build output). The large folder is the feature worktree, and your own command deletes it in your terminal, where you see it. That command prints a line when it starts and a line with the time when it ends. If it hangs, you stop it with Ctrl+C: the folder already has its 'being removed' name, so the next run of the same command finds it and finishes the delete."
+          }
+        },
+        {
+          "id": "i-gitlab",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-gitlab-question",
+            "props": {
+              "text": "The PRD asks a live round trip on GitLab (AC-026). This repository is on GitHub, and no GitLab project for afkv2 tests exists. glab is signed in to gitlab.com on this machine. Where does the test run? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-gitlab-options",
+                "props": {
+                  "columns": [
+                    "A — A private scratch project",
+                    "B — A project you name",
+                    "C — Later, on the first real change"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-gitlab-opt-a",
+                        "props": {
+                          "text": "The test makes a private project on gitlab.com under your account, pushes a feature branch, opens and merges a change, runs gc, checks the result, and deletes the project. Repeatable. Cost: it writes to your GitLab account each run."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-gitlab-opt-b",
+                        "props": {
+                          "text": "You give an existing GitLab project and branch to use. Cost: a test that changes a project other people may see."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-gitlab-opt-c",
+                        "props": {
+                          "text": "The GitLab form waits for the first real GitLab change, as the forge port's open item does today. Cost: AC-026 stays open at merge."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-gitlab-why-open",
+                "props": {
+                  "text": "Every option writes outside this repository, to an account that is yours, so I may only recommend."
+                }
+              }
+            ]
+          },
+          "title": "Where the GitLab live test runs",
+          "notes": [
+            {
+              "id": "N-1-i-gitlab",
+              "round": 1,
+              "target": "i-gitlab-options",
+              "text": "use core-services",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-gitlab",
+            "reading": "Option B, with gitlab.com nakisainc/core/core-services as the project. The test makes only scratch branches under one prefix, never touches master or a protected branch, and deletes its branches at the end. The project lets a change merge only after a green pipeline, and a branch with no .gitlab-ci.yml gets no pipeline. So the test marks its change merged by pushing the change commit to its own scratch target branch. GitLab then marks the change merged (inferred from GitLab behaviour; the first run proves it). One cost: each run leaves one merged test change in the project's merge request list, because your role there (Maintainer) cannot delete a merge request (GitLab permission rule, not checked here). Tell me if that trace is not acceptable."
+          }
+        }
+      ],
+      "notes": [
+        {
+          "id": "N-1-m-aspects",
+          "round": 1,
+          "target": "m-aspects",
+          "text": "the btw and current question buttons are overlapping (on: \"158 propose-solution · #158 R-1 Round 1: current round WHAT SETTLED Nothing. WHAT IT UNLOCKS Where gc keeps its fixed t…\")",
+          "deleted": false
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T20:00:50Z",
+          "raw": "[round R-1]\na-entities a\na-api a\ni-gitlab b\ni-gitlab-options — | use core-services\na-relations accept\na-keys accept\na-constraints accept\nm-aspects — | the btw and current question buttons are overlapping (on: \"158 propose-solution · #158 R-1 Round 1: current round WHAT SETTLED Nothing. WHAT IT UNLOCKS Where gc keeps its fixed t…\")\na-cascade accept\na-migration accept\na-authorization accept\na-lifecycle accept\na-other-teams-q — | I don't get it. we are in a feature branch, why the README belongs to the v1? README in v2 branch belongs to v2, no?\na-other-teams write-in\na-large-data accept\na-large-data-q — | as the delete op could be long, or even stale if pc resources is constraint, agents should watch the process and act accordingly. maybe overkill?",
+          "signals": [
+            {
+              "target": "a-entities",
+              "item": "a-entities",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c586876e048f2e52"
+            },
+            {
+              "target": "a-api",
+              "item": "a-api",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4768c063bd9f65ed"
+            },
+            {
+              "target": "i-gitlab",
+              "item": "i-gitlab",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "a2b67b40082c320e"
+            },
+            {
+              "target": "i-gitlab-options",
+              "item": "i-gitlab",
+              "mark": null,
+              "note": "N-1-i-gitlab",
+              "text": "use core-services",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "757bf9ac2fb63695"
+            },
+            {
+              "target": "a-relations",
+              "item": "a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f28b4b41dbdbcdf6"
+            },
+            {
+              "target": "a-keys",
+              "item": "a-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c269e14b87f4deb8"
+            },
+            {
+              "target": "a-constraints",
+              "item": "a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "60f84cccd7f0929f"
+            },
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "the btw and current question buttons are overlapping (on: \"158 propose-solution · #158 R-1 Round 1: current round WHAT SETTLED Nothing. WHAT IT UNLOCKS Where gc keeps its fixed t…\")",
+              "note": "N-1-m-aspects",
+              "steer": true,
+              "stamp": "b1c00ce9654fb488"
+            },
+            {
+              "target": "a-cascade",
+              "item": "a-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "fce369a0322a5a7a"
+            },
+            {
+              "target": "a-migration",
+              "item": "a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5e661f0a673f3c75"
+            },
+            {
+              "target": "a-authorization",
+              "item": "a-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e6bdd434d39032aa"
+            },
+            {
+              "target": "a-lifecycle",
+              "item": "a-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bc5f1ce32bdcaa0d"
+            },
+            {
+              "target": "a-other-teams-q",
+              "item": "a-other-teams",
+              "mark": null,
+              "note": "N-1-a-other-teams",
+              "text": "I don't get it. we are in a feature branch, why the README belongs to the v1? README in v2 branch belongs to v2, no?",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "0ece2623a1c63f8d"
+            },
+            {
+              "target": "a-other-teams",
+              "item": "a-other-teams",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "7d2706d1d15a0638"
+            },
+            {
+              "target": "a-large-data",
+              "item": "a-large-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "fcfde62a078a8825"
+            },
+            {
+              "target": "a-large-data-q",
+              "item": "a-large-data",
+              "mark": null,
+              "note": "N-1-a-large-data",
+              "text": "as the delete op could be long, or even stale if pc resources is constraint, agents should watch the process and act accordingly. maybe overkill?",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "5d34f553e99b2829"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Settled by your note: You are right: on this branch the root README.md is ours. I called it not owned only because the ownership list in .afkv2/config.json names afkv2/** and docs/specs/** and not README.md. So this change adds README.md to that list, and the README gets its own afkv2 section with the Windows-only limit (AC-027), with no limit on the size of the edit. No code of another team changes.",
+          "about": [
+            "a-other-teams"
+          ]
+        },
+        {
+          "text": "Settled by your note: Accepted, with no watcher: I think it is overkill. In the session, gc deletes only the run worktree, which holds the plan files only (no build output). The large folder is the feature worktree, and your own command deletes it in your terminal, where you see it. That command prints a line when it starts and a line with the time when it ends. If it hangs, you stop it with Ctrl+C: the folder already has its 'being removed' name, so the next run of the same command finds it and finishes the delete.",
+          "about": [
+            "a-large-data"
+          ]
+        },
+        {
+          "text": "Settled by your note: Option B, with gitlab.com nakisainc/core/core-services as the project. The test makes only scratch branches under one prefix, never touches master or a protected branch, and deletes its branches at the end. The project lets a change merge only after a green pipeline, and a branch with no .gitlab-ci.yml gets no pipeline. So the test marks its change merged by pushing the change commit to its own scratch target branch. GitLab then marks the change merged (inferred from GitLab behaviour; the first run proves it). One cost: each run leaves one merged test change in the project's merge request list, because your role there (Maintainer) cannot delete a merge request (GitLab permission rule, not checked here). Tell me if that trace is not acceptable.",
+          "about": [
+            "i-gitlab"
+          ]
+        },
+        {
+          "text": "Steer, word for word: \"the btw and current question buttons are overlapping\". This is a defect of the page engine. I make no plugin changes on this branch, so I report it to the orchestrator, and this page keeps the overlap for this session.",
+          "about": [
+            "m-aspects"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "The target file lives in git's own folder, under afkv2-gc",
+          "A new forge verb lists every change of a branch; gc goes on when one merged and none is open",
+          "The GitLab live test runs on core-services, on scratch branches only",
+          "The root README is ours on this branch; no watcher on the folder delete",
+          "The run branch and run worktree come from the '-run' rule; the order of deletes; nothing to migrate; who may run each step; the target's states"
+        ],
+        "unlocks": [
+          "The whole draft, top down, and your sign-off on the 6 aspects only you may approve",
+          "Then I write SDD.md and the design records"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l1-topology",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l1-topology-decision",
+            "props": {
+              "text": "gc is one skill plus local Python scripts on your Windows machine. The agent or you run them. They call git directly and reach GitHub or GitLab only through the forge port (gh or glab). No service, no background process, no job on the forge.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "l1-topology-why",
+                "props": {
+                  "text": "Only your machine can see and delete your worktree folders, and the grill already rejected a waiting background process (record 0002).",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-alternatives",
+                "props": {
+                  "text": "- A background process that waits for the merge: the developer rejected it in the grill, because its survival on Windows was not proved (record 0002).\n- A forge job that runs on merge: it can delete remote branches, but it cannot reach the folders on your machine, so half of the work stays.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-evidence",
+                "props": {
+                  "text": "PRD 'Implementation Decisions': one gc skill and one script; adr/requirements/0002-the-developer-runs-the-last-removal.md",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-reverse",
+                "props": {
+                  "text": "Nothing to undo: no new runtime is added.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Where gc runs: your machine, no new process",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l2-surfaces",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "l2-surfaces-now",
+            "props": {
+              "columns": [
+                "Surface",
+                "Owner",
+                "Style",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "/afkv2:gc skill, on the slash menu",
+                  "afkv2",
+                  "instructions the agent follows",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "gc script, 3 steps: list, remove, finish (finish is your later command)",
+                  "afkv2",
+                  "one JSON answer, exit 0 ok, 1 refused, 2 unreadable input",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "forge port: list every change of a branch",
+                  "afkv2",
+                  "same JSON envelope as the other forge verbs",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "CI watch: a new end state when the change is merged or closed",
+                  "afkv2",
+                  "the watch record, read by 'status'",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "create-change-request skill: offers gc at the end of ship, and when the watch or mark-ready sees a merged change",
+                  "afkv2",
+                  "instructions",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extended",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "autopilot and execute skills: one line 'never run /afkv2:gc'",
+                  "afkv2",
+                  "instructions",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extended",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "git: worktree prune, branch delete, push delete with a lease, ls-remote, fetch",
+                  "git",
+                  "direct calls; git is a local tool, so it gets no port",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "used",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-surfaces-q",
+                "props": {
+                  "text": "Please confirm the split: gc calls git directly and the forge only through the port, as create-change-request does today. The exact fields and errors of each surface are on the sign-off card 'API surface'. One detail: your later command names the gc script by its full path in the installed plugin. If a plugin update removes that path before you run it, run /afkv2:gc in any session of this repository with the branch name: it shows what is left and gives the command again with the new path."
+                }
+              }
+            ]
+          },
+          "title": "Every callable surface gc adds or changes",
+          "node": "layer-l2",
+          "notes": [
+            {
+              "id": "N-2-l2-surfaces",
+              "round": 2,
+              "target": "l2-surfaces-now",
+              "text": "what does this step do? after everything was removed already (on: \"finish\")",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-l2-surfaces",
+            "reading": "Accepted. 'finish' is your later command. The removal step cannot delete the feature worktree and the local feature branch, because the session that runs gc has that folder as its working folder (record 0002). So the removal deletes the run worktree, the run branch and the remote feature branch, and leaves those 2. After you close the session, finish deletes the feature worktree folder, then the local feature branch, then the target file."
+          }
+        },
+        {
+          "id": "l3-data",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "l3-data-now",
+            "props": {
+              "columns": [
+                "State",
+                "Where",
+                "How long it lives",
+                "How it changes later"
+              ],
+              "rows": [
+                [
+                  "gc target: what gc listed, for the removal and your later command",
+                  "one JSON file per feature branch in git's own folder: afkv2-gc/<encoded branch>.json, never committed",
+                  "until your later command ends with nothing left; a new list replaces it while no removal has started",
+                  "a 'schema' field; a file with an unknown schema refuses, and you list again"
+                ],
+                [
+                  "gc lock",
+                  "an empty file beside the target: afkv2-gc/<encoded branch>.lock, held by a Windows file lock",
+                  "the lock ends when the gc process ends, even on a crash; the file goes with the target",
+                  "none"
+                ],
+                [
+                  "CI watch record (exists today)",
+                  "as today",
+                  "as today",
+                  "gains one field: the change state the watch saw last"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-data-q",
+                "props": {
+                  "text": "Please confirm. gc stores nothing else: no record of the run (record 0001). Every field of the target file is on the sign-off card 'Persistence'."
+                }
+              }
+            ]
+          },
+          "title": "Every piece of state, where it lives and how long",
+          "node": "layer-l3",
+          "notes": [
+            {
+              "id": "N-2-l3-data",
+              "round": 2,
+              "target": "l3-data-now",
+              "text": "how long this file live? what will clean it up?\n\nwhat is the purpose of this file?",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "l4-quality",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l4-quality-now",
+            "props": {
+              "columns": [
+                "Concern",
+                "Posture"
+              ],
+              "rows": [
+                [
+                  "Forge calls",
+                  "1 call per list and 1 per removal (list every change of the branch); 0 in your later command. 60 seconds limit each, the port default. No retry: a failed call is the 'forge failed' refusal, and you run gc again."
+                ],
+                [
+                  "Repeat runs",
+                  "each item is removed at most once. An item already gone counts as done and the answer says 'already gone'. A second run does only what is left."
+                ],
+                [
+                  "Two runs at once",
+                  "one run per target. A second run while one holds the lock refuses with 'locked'."
+                ],
+                [
+                  "Secrets",
+                  "none stored. gc uses the sign-in of gh or glab and of git."
+                ],
+                [
+                  "Platform",
+                  "Windows only. gc checks the system at the list and again before each folder delete; on another system the folder delete refuses and stays refused."
+                ],
+                [
+                  "Folder delete time",
+                  "no cap. The answer gives the seconds each folder delete took."
+                ],
+                [
+                  "Proof on a scratch repository",
+                  "the script tests: an orphan run branch, a squash-merged feature branch, an uncommitted file, a commit after the merge, a failed remote delete and its rerun, and a folder held 3 ways (working folder, subfolder, open file)."
+                ],
+                [
+                  "Live proof",
+                  "GitHub: scratch branches on this repository, one change merged into a scratch target. GitLab: scratch branches on core-services only, the change marked merged by a push of its commit to the scratch target. Each run checks that a deleted branch's commit link still opens."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l4-quality-q",
+                "props": {
+                  "text": "Please confirm. The live tests never touch a branch they did not make, and delete their scratch branches at the end."
+                }
+              }
+            ]
+          },
+          "title": "Retries, repeats, secrets, time and proof, each with a number",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l5-domain",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l5-domain-now",
+            "props": {
+              "columns": [
+                "Rule that must never break",
+                "Its one guardian"
+              ],
+              "rows": [
+                [
+                  "Nothing is removed unless you said yes to that exact list",
+                  "the removal step compares the receipt of the list you saw with a fresh one"
+                ],
+                [
+                  "A folder that a process uses is never touched",
+                  "the rename of the folder just before its delete"
+                ],
+                [
+                  "A branch with commits outside the change is not deleted without your yes",
+                  "the tip check at the removal and in your later command; a remote delete carries a lease on the tip it checked"
+                ],
+                [
+                  "One gc run per target at a time",
+                  "the Windows file lock"
+                ],
+                [
+                  "gc acts only on the target it fixed in the feature worktree",
+                  "the removal and your later command take only the target file, never the folder they run in"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l5-domain-q",
+                "props": {
+                  "text": "Please confirm. The gc script is the only writer of the target file. The states and moves are on the sign-off card 'Life cycle'."
+                }
+              }
+            ]
+          },
+          "title": "Who owns the target, and what guards each rule",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l6-process",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "sequence",
+            "id": "l6-process-flow",
+            "props": {
+              "actors": [
+                {
+                  "id": "dev",
+                  "label": "You"
+                },
+                {
+                  "id": "agent",
+                  "label": "Agent"
+                },
+                {
+                  "id": "gc",
+                  "label": "gc script"
+                },
+                {
+                  "id": "forge",
+                  "label": "Forge"
+                }
+              ],
+              "messages": [
+                {
+                  "from": "agent",
+                  "to": "gc",
+                  "text": "list, in the feature worktree"
+                },
+                {
+                  "from": "gc",
+                  "to": "forge",
+                  "text": "every change of the branch"
+                },
+                {
+                  "from": "gc",
+                  "to": "agent",
+                  "text": "items, refusals, receipt"
+                },
+                {
+                  "from": "agent",
+                  "to": "dev",
+                  "text": "the list in plain words"
+                },
+                {
+                  "from": "dev",
+                  "to": "agent",
+                  "text": "yes (and yes past each refusal you accept)"
+                },
+                {
+                  "from": "agent",
+                  "to": "gc",
+                  "text": "remove, with the receipt"
+                },
+                {
+                  "from": "gc",
+                  "to": "forge",
+                  "text": "check again: merged, none open"
+                },
+                {
+                  "from": "gc",
+                  "to": "agent",
+                  "text": "what went, what waits, your command"
+                },
+                {
+                  "from": "dev",
+                  "to": "gc",
+                  "text": "after the session closes: finish"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "l6-process-fail",
+                "props": {
+                  "columns": [
+                    "Step of the removal, in order",
+                    "If it fails"
+                  ],
+                  "rows": [
+                    [
+                      "1. Lock, then check every rule again and compare the receipt",
+                      "nothing removed; the answer names the cause"
+                    ],
+                    [
+                      "2. Run worktree: rename, delete, then git forgets it",
+                      "rename refused: nothing touched, and the run branch stays too (git keeps a branch a worktree holds)"
+                    ],
+                    [
+                      "3. Local run branch",
+                      "stays in the 'left' list"
+                    ],
+                    [
+                      "4. Remote run branch, when one exists",
+                      "stays in 'left'; step 5 still runs"
+                    ],
+                    [
+                      "5. Remote feature branch",
+                      "stays in 'left'"
+                    ],
+                    [
+                      "6. Save the target as 'waiting' with what is left, unlock",
+                      "—"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-q",
+                "props": {
+                  "text": "Please confirm. A delete that fails part way never undoes what went before it. The answer exits as failed and lists what is left. A new gc run (list, your yes, remove) does only that. Your later command does the feature worktree, then git forgets it, then the local feature branch, then deletes the target file once nothing is left."
+                }
+              }
+            ]
+          },
+          "title": "The order of one gc run, and what a failure leaves",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l7-modules",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l7-modules-decision",
+            "props": {
+              "text": "New folder afkv2/skills/gc: SKILL.md, and scripts cleanup.py (the 3 steps and their answers), gc_target.py (target file, key, lock, receipt), gc_checks.py (the refusal checks) and folder_remove.py (rename check, delete, resume). cleanup.py depends on the other 3; none depends on cleanup.py. Forge calls go through forge_cli.py as a subprocess, as the CI watch does. The '-run' suffix is imported from the planner's check_plan.py, not copied. The JSON envelope comes from ports/tracker/envelope.py.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "l7-modules-why",
+                "props": {
+                  "text": "Each module has one reason to change, and the names are unique in the plugin, as the plugin check demands (plugin_check.py:122-128).",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-alternatives",
+                "props": {
+                  "text": "- One script for everything: about 600 lines that mix git, the forge, file locks and folder deletes, so a test of one part loads all.\n- A shared gc module under ports/: a port is for an outside system, and gc is not one.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-evidence",
+                "props": {
+                  "text": "afkv2/skills/create-change-request/scripts/ci_watch.py:14-17, 52 (envelope import, forge subprocess); afkv2/skills/to-subtasks/scripts/check_plan.py:59 (RUN_SUFFIX); afkv2/scripts/plugin_check.py:122-128",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-reverse",
+                "props": {
+                  "text": "Merge or split files on the branch; no caller outside the gc skill.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "The modules and which way they depend",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-lock",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l8-lock-decision",
+            "props": {
+              "text": "gc opens afkv2-gc/<encoded branch>.lock and takes a Windows byte lock on it (msvcrt.locking, no wait). Windows releases the lock when the process ends, crash included. A second run gets 'locked'.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-lock-why",
+                "props": {
+                  "text": "The operating system releases it, so no stale lock needs a check of whether its owner still lives.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-lock-alternatives",
+                "props": {
+                  "text": "- A lock file that holds the process id and start time, as v1's records do: it needs a liveness check, and a wrong check blocks gc or lets 2 runs in.\n- No lock: 2 agents in 2 sessions could both delete the same folder and report false failures.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-lock-evidence",
+                "props": {
+                  "text": "learn.microsoft.com LockFile, Remarks: 'If a process terminates with a portion of a file locked or closes a file that has outstanding locks, the locks are unlocked by the operating system.' msvcrt.locking calls this lock. afkv2 runs on Windows only (PRD Out of Scope).",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-lock-reverse",
+                "props": {
+                  "text": "Swap the lock helper in gc_target.py.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-lock-scope",
+                "props": {
+                  "text": "l3-data",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "One run at a time: a Windows file lock",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-probe",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l8-probe-now",
+            "props": {
+              "columns": [
+                "Step",
+                "What gc does"
+              ],
+              "rows": [
+                [
+                  "Check",
+                  "rename <folder> to <folder>.gc-removing, in the same parent folder. Windows refuses it when any process uses the folder: 'in use', nothing touched."
+                ],
+                [
+                  "Delete",
+                  "delete <folder>.gc-removing, read-only files included, then 'git worktree prune' so git forgets the worktree."
+                ],
+                [
+                  "Stops half way (Ctrl+C, crash)",
+                  "the next run finds <folder>.gc-removing and finishes its delete; the original folder name is already free."
+                ],
+                [
+                  "Option I rejected",
+                  "ask Windows which process holds a file (Restart Manager or handle.exe): an extra tool or a Windows API binding, and it misses a process that only has the folder as its working folder."
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-probe-q",
+                "props": {
+                  "text": "Please confirm. The rename check is the one the grill settled; this card adds only the folder name during the delete and the resume."
+                }
+              }
+            ]
+          },
+          "title": "The in-use check and a delete that stops half way",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-receipt",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l8-receipt-now",
+            "props": {
+              "columns": [
+                "Option",
+                "What it proves",
+                "Cost"
+              ],
+              "rows": [
+                [
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "proposed",
+                      "tone": "proposed"
+                    }
+                  },
+                  "SHA-256 of the list in a fixed form: the change, each item with its tip commit, each refusal with its detail, the count of ignored files. The removal builds the list again and compares. Any change (a new commit, a new file, a new change on the forge) refuses with 'stale-list' and the new list.",
+                  "one hash"
+                ],
+                [
+                  "A random token saved in the target file",
+                  "only that a list ran, not that it still holds",
+                  "none, but it lets a changed list through"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-receipt-q",
+                "props": {
+                  "text": "Please confirm. The agent passes the receipt it showed you. Your yes past a refusal names those refusals, and the receipt covers them."
+                }
+              }
+            ]
+          },
+          "title": "The receipt: a hash of the list you saw",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-remote",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "table",
+            "id": "l8-remote-now",
+            "props": {
+              "columns": [
+                "Option",
+                "Gives",
+                "Costs"
+              ],
+              "rows": [
+                [
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "proposed",
+                      "tone": "proposed"
+                    }
+                  },
+                  "'git push origin --delete' with a lease on the tip gc checked: the forge refuses when someone pushed after the check. Works the same on GitHub and GitLab.",
+                  "none"
+                ],
+                [
+                  "A new forge verb 'branch-delete' (GitHub and GitLab APIs)",
+                  "a forge-side delete",
+                  "2 adapters and tests, and neither API compares the tip, so a push after the check is lost"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-remote-q",
+                "props": {
+                  "text": "Please confirm. Before the delete, gc reads the remote tip with 'git ls-remote'. No branch: 'already gone'. A tip that is not the change's head commit or older: the commits-outside-the-change refusal. The exact lease form is proved in the script tests."
+                }
+              }
+            ]
+          },
+          "title": "Remote deletes: git push with a lease, not a forge verb",
+          "node": "layer-l8",
+          "notes": [
+            {
+              "id": "N-2-l8-remote",
+              "round": 2,
+              "target": "l8-remote-now",
+              "text": "explain this please (on: \"with a lease on the tip\")",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-l8-remote",
+            "reading": "Accepted. The lease: gc tells the forge 'delete this branch only if it still points at commit X', where X is the tip gc checked. If someone pushed a new commit to the branch after the check, the forge refuses the delete, so that new commit is not lost. gc then reports it as a failed delete. Git calls this --force-with-lease."
+          }
+        },
+        {
+          "id": "l9-seams",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "l9-seams-now",
+            "props": {
+              "columns": [
+                "Seam",
+                "Where today",
+                "Verdict"
+              ],
+              "rows": [
+                [
+                  "Forge port verb table",
+                  "ports/forge/forge_cli.py:18-30, 72; github.py and gitlab.py VERBS; CONTRACT.md:11-23",
+                  "extends: one new verb; 'change-view' is unchanged"
+                ],
+                [
+                  "CI watch loop",
+                  "create-change-request/scripts/ci_watch.py:248-288",
+                  "reworked: ends when the change is merged or closed (see the next card)"
+                ],
+                [
+                  "CI watch states table",
+                  "create-change-request/SKILL.md:48-56",
+                  "extends: one row, merged → offer gc"
+                ],
+                [
+                  "mark-ready refusal 'change-not-open'",
+                  "create-change-request/SKILL.md:77",
+                  "extends: merged → offer gc; closed → report, as today"
+                ],
+                [
+                  "End of ship",
+                  "create-change-request/SKILL.md, Ship step 3",
+                  "extends: one forge check through gc list; merged → ask your yes; not yet → tell you to run /afkv2:gc after the merge"
+                ],
+                [
+                  "Hands-off denial",
+                  "autopilot/SKILL.md:6-8; execute/SKILL.md:24",
+                  "extends: 'Never run /afkv2:gc.'"
+                ],
+                [
+                  "Glossary",
+                  "afkv2/GLOSSARY.md:52-53 already says gc removes the run branch",
+                  "extends: adds 'Run worktree' and 'gc target'"
+                ],
+                [
+                  "Ownership list",
+                  ".afkv2/config.json 'own'",
+                  "extends: adds README.md"
+                ],
+                [
+                  "Root README",
+                  "README.md names no afkv2 today",
+                  "extends: an afkv2 section, Windows only"
+                ],
+                [
+                  "The '-run' rule",
+                  "to-subtasks/scripts/check_plan.py:59",
+                  "used, unchanged"
+                ],
+                [
+                  "Page links on the design page",
+                  "propose-solution/scripts/design_round.py (commit 3f6de995)",
+                  "done on this branch; the plan lists it as done work"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l9-seams-q",
+                "props": {
+                  "text": "Please confirm. No seam crosses code of another team. What each 'extends' or 'reworked' changes for existing callers is on the sign-off card 'Change to existing behaviour'."
+                }
+              }
+            ]
+          },
+          "title": "Each place gc touches existing code, checked against the code",
+          "node": "layer-l9",
+          "notes": [
+            {
+              "id": "N-2-l9-seams",
+              "round": 2,
+              "target": "l9-seams-now",
+              "text": "what if the change request stay Open for a long time, agents no longer watching, then human merge the request. what should happen in this case?\n\nthe README should be completely rewritten for afkv2 and updated as v2 being continuously developed",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "l9-watch",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l9-watch-now",
+            "props": {
+              "columns": [
+                "",
+                "Today (checked in the code)",
+                "After"
+              ],
+              "rows": [
+                [
+                  "The grill said",
+                  "the CI watch ends with 'change-not-open' when the change merges",
+                  "—"
+                ],
+                [
+                  "The code says",
+                  "the watch never reads the change state; it ends only as finished, no-verdict or superseded (ci_watch.py:257-288). 'change-not-open' is a refusal of mark-ready alone (ci_watch.py:336-340).",
+                  "the watch reads the state from the change view it already asks for each slice (ci_watch.py:248-254), and ends with 'change-not-open' and the state, merged or closed"
+                ],
+                [
+                  "Forge calls",
+                  "1 change view per slice",
+                  "the same: no new call"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l9-watch-q",
+                "props": {
+                  "text": "Please confirm this fix. Without it, the grill's trigger 'a CI watch reports the change as no longer open' (acceptance 007) has no source. Other option, rejected: drop that trigger and keep only the check at the end of ship; that changes a settled requirement, so it would go back to the grill."
+                }
+              }
+            ]
+          },
+          "title": "Correction: the CI watch does not report a merged change today",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "s-persistence",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "s-persistence-fields",
+            "props": {
+              "columns": [
+                "Field of the gc target",
+                "Type",
+                "Empty allowed",
+                "Default",
+                "Meaning and unit"
+              ],
+              "rows": [
+                [
+                  "schema",
+                  "text, 'afkv2.gc/0'",
+                  "no",
+                  "—",
+                  "the file format; an unknown value refuses with 'bad-target'"
+                ],
+                [
+                  "feature_branch",
+                  "text",
+                  "no",
+                  "—",
+                  "the identity; the file name is this name with \\ / : * ? \" < > | % and control characters encoded as %XX"
+                ],
+                [
+                  "feature_worktree",
+                  "text, full folder path",
+                  "no",
+                  "—",
+                  "the worktree gc fixed its target in"
+                ],
+                [
+                  "run_branch",
+                  "text",
+                  "no",
+                  "feature_branch + '-run'",
+                  ""
+                ],
+                [
+                  "run_worktree",
+                  "text, full folder path",
+                  "no",
+                  "feature_worktree + '-run'",
+                  "stored even when the folder does not exist"
+                ],
+                [
+                  "remote",
+                  "text",
+                  "no",
+                  "'origin'",
+                  "the remote of both remote branches"
+                ],
+                [
+                  "change",
+                  "object: number (whole number), url, state ('merged'), head_sha (40 hex), target (branch name)",
+                  "no",
+                  "—",
+                  "the newest merged change of the branch"
+                ],
+                [
+                  "tips",
+                  "object: item → commit id (40 hex)",
+                  "a value may be empty",
+                  "—",
+                  "each branch tip at the list; empty = the branch did not exist"
+                ],
+                [
+                  "receipt",
+                  "text, 64 hex",
+                  "no",
+                  "—",
+                  "SHA-256 of the list you saw"
+                ],
+                [
+                  "state",
+                  "'listed' or 'waiting'",
+                  "no",
+                  "'listed'",
+                  "'done' is the file deleted"
+                ],
+                [
+                  "left",
+                  "list of items",
+                  "no",
+                  "empty",
+                  "items not yet removed; set by the removal"
+                ],
+                [
+                  "listed_at",
+                  "UTC time, ISO 8601, seconds",
+                  "no",
+                  "—",
+                  "when the list ran"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-persistence-rules",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Contract"
+                  ],
+                  "rows": [
+                    [
+                      "Identity and uniqueness",
+                      "one file per feature branch: afkv2-gc/<encoded branch>.json in git's common folder; a second list replaces it while 'listed', and answers the stored target while 'waiting'"
+                    ],
+                    [
+                      "Relations",
+                      "names one feature worktree and one run worktree, 1 to 1; nothing refers to the file"
+                    ],
+                    [
+                      "Delete behaviour",
+                      "deleted by your later command when 'left' is empty; the lock file goes with it"
+                    ],
+                    [
+                      "Indexes",
+                      "none: one file per key"
+                    ],
+                    [
+                      "Retention",
+                      "until your later command ends with nothing left; a target you never finish stays (about 1 kB) until /afkv2:gc runs for that branch again"
+                    ],
+                    [
+                      "Writes",
+                      "a temporary file, then an atomic replace; never committed"
+                    ],
+                    [
+                      "Migration of existing rows",
+                      "none exist today"
+                    ],
+                    [
+                      "CI watch record (exists)",
+                      "gains 'change_state': 'opened', 'merged' or 'closed'; empty when the forge gave no answer; an old record without it reads as empty"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "s-persistence-risk",
+                "props": {
+                  "text": "Options weighed: a file in git's folder (your choice in round 1), no file, a file in the afkv2 data folder. Risk you accept: a target file stays when you never run the later command."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Persistence: the gc target file and one new watch field",
+          "node": "locked-hl-1",
+          "notes": [
+            {
+              "id": "N-2-s-persistence",
+              "round": 2,
+              "target": "s-persistence-rules",
+              "text": "how about the change have failed job or conflicts, basically a \"need-fixing\" situation?",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "s-api",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "s-api-surfaces",
+            "props": {
+              "columns": [
+                "Surface",
+                "Who",
+                "Request and checks",
+                "Success answer",
+                "Errors (code)"
+              ],
+              "rows": [
+                [
+                  "gc list",
+                  "an agent in your session; you",
+                  "no argument: run in the feature worktree, on a branch not ending '-run'. --branch <name>: from anywhere in the repository, only to show a 'waiting' target",
+                  "the change (number, link, state, target), each item with its tip, link, 'now' or 'later', present or absent; each refusal with its detail; ignored files (count, first 5); the receipt; the state",
+                  "not-feature-worktree, no-target, locked, bad-target. A forge failure is not an error here: it is a refusal in the list"
+                ],
+                [
+                  "gc remove",
+                  "the same, after your yes",
+                  "--branch, --receipt, optional --yes with the refusals you accept (folder in use and not-Windows are never accepted). The receipt must match a fresh list",
+                  "each removed item with its tip, link and seconds; each 'already gone'; what waits for your command; your command, one line",
+                  "stale-list (with the new list), refused, locked, no-target, partial (removed, failed with reasons, left)"
+                ],
+                [
+                  "gc finish (your later command)",
+                  "you, after the session closes",
+                  "--branch, optional --yes; refuses inside the folder it removes; state must be 'waiting'",
+                  "the feature worktree and the local feature branch removed; the target file deleted, or what is still left",
+                  "inside-folder, in-use, not-windows, not-waiting, no-target, locked, refused, partial"
+                ],
+                [
+                  "forge: list the changes of a branch",
+                  "gc",
+                  "branch (required), forge and repo as every verb",
+                  "every change whose source is that branch in this repository: number, link, state opened, merged or closed, head commit, target; newest first; at most 100",
+                  "the port's codes (auth, not-found, timeout, command-failed, bad-answer), and too-many when the forge returns 100"
+                ],
+                [
+                  "CI watch 'status'",
+                  "create-change-request",
+                  "as today",
+                  "new state 'change-not-open' with change_state merged or closed",
+                  "as today"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-api-rules",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Contract"
+                  ],
+                  "rows": [
+                    [
+                      "Exit codes",
+                      "0 ok, 1 refused or failed part way, 2 unreadable input, on every gc step"
+                    ],
+                    [
+                      "Paging",
+                      "none: the forge verb reads one page of 100 (GitHub: gh pr list --head --state all; GitLab: glab mr list --source-branch --all). A change from a fork with the same branch name is left out"
+                    ],
+                    [
+                      "GitLab 'locked' state",
+                      "counts as opened"
+                    ],
+                    [
+                      "Repeat calls",
+                      "list writes only the target file; remove and finish do only what is left"
+                    ],
+                    [
+                      "Your later command",
+                      "one PowerShell line: & \"<python>\" \"<path of cleanup.py>\" finish --repo \"<main checkout>\" --branch <name>"
+                    ],
+                    [
+                      "Existing callers",
+                      "change-view: unchanged. CI watch: its only reader, create-change-request, gets one new state row"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "s-api-risk",
+                "props": {
+                  "text": "Options weighed for 'none open': the new verb (your choice in round 1), change-view alone, change-view plus a git tip check. Risk you accept: a branch with more than 100 changes refuses."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: API surface: the 3 gc steps, the new forge verb, the watch state",
+          "node": "locked-hl-2",
+          "notes": [
+            {
+              "id": "N-2-s-api",
+              "round": 2,
+              "target": "s-api-risk",
+              "text": "what is this scenario, how a branch can have more than 100 changes? (on: \"a branch with more than 100 changes refuses\")",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "s-access",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-access-table",
+            "props": {
+              "columns": [
+                "Step",
+                "Permitted",
+                "Denied",
+                "Guard above (instructions)",
+                "Guard below (script)"
+              ],
+              "rows": [
+                [
+                  "list",
+                  "an agent in your session; you from the slash menu",
+                  "a hands-off build",
+                  "gc, autopilot and execute skills",
+                  "none needed: list removes nothing"
+                ],
+                [
+                  "remove",
+                  "the same, after your yes on the list",
+                  "anyone without your yes; a hands-off build",
+                  "gc skill: run only after your yes in this session",
+                  "the receipt of the list you saw; a changed list refuses"
+                ],
+                [
+                  "go ahead past a refusal",
+                  "your explicit yes for that run",
+                  "an agent alone; 'folder in use' and 'not Windows' for anyone",
+                  "gc skill: pass --yes only with your words",
+                  "--yes names refusals the receipt covers; the 2 fixed refusals ignore it"
+                ],
+                [
+                  "finish",
+                  "you, after the session closes",
+                  "—",
+                  "gc skill gives the command to you, never runs it",
+                  "refuses inside the folder it removes and on a folder in use"
+                ],
+                [
+                  "remote delete",
+                  "a forge account with push right",
+                  "no push right",
+                  "—",
+                  "the forge refuses; the lease refuses a moved tip"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "s-access-risk",
+                "props": {
+                  "text": "Data scope: only the target fixed in the feature worktree; gc never searches for other work. Risk you accept: no script can tell a hands-off run, so that denial is an instruction only (as the PRD accepts)."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Authorization: who may run each step",
+          "node": "locked-hl-3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-lifecycle",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "s-lifecycle-moves",
+            "props": {
+              "columns": [
+                "From",
+                "To",
+                "Move",
+                "Who"
+              ],
+              "rows": [
+                [
+                  "no target",
+                  "listed",
+                  "list in the feature worktree",
+                  "agent or you"
+                ],
+                [
+                  "listed",
+                  "listed",
+                  "list again: the target is replaced",
+                  "agent or you"
+                ],
+                [
+                  "listed",
+                  "waiting",
+                  "remove, with the receipt",
+                  "agent after your yes, or you"
+                ],
+                [
+                  "waiting",
+                  "waiting",
+                  "list (shows what is left), then remove: does only what is left",
+                  "agent after your yes, or you"
+                ],
+                [
+                  "waiting",
+                  "done (file deleted)",
+                  "finish, when nothing is left after it",
+                  "you"
+                ],
+                [
+                  "any",
+                  "the same",
+                  "a refusal or 'locked'",
+                  "—"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-lifecycle-rules",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Guardian",
+                    "On a violation"
+                  ],
+                  "rows": [
+                    [
+                      "Nothing is removed without your yes on that exact list",
+                      "receipt compare in remove",
+                      "refuse 'stale-list', remove nothing"
+                    ],
+                    [
+                      "A folder in use is never touched",
+                      "the rename before each folder delete",
+                      "refuse 'in-use' for that folder; its branch stays too"
+                    ],
+                    [
+                      "No branch with commits outside the change goes without your yes",
+                      "tip check in remove and finish; the lease on remote deletes",
+                      "refuse with each commit's short id and title"
+                    ],
+                    [
+                      "One run per target",
+                      "the Windows file lock",
+                      "refuse 'locked'"
+                    ],
+                    [
+                      "gc acts only on its fixed target",
+                      "remove and finish read only the target file",
+                      "refuse 'no-target'"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Life cycle and the rules gc must never break",
+          "node": "locked-hl-4",
+          "notes": [
+            {
+              "id": "N-2-s-lifecycle",
+              "round": 2,
+              "target": "s-lifecycle-rules",
+              "text": "maybe it needs to be able to distinguish between different renaming failure, such as folder name already exists or folder used by a process",
+              "deleted": false
+            }
+          ]
+        },
+        {
+          "id": "s-effects",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-effects-table",
+            "props": {
+              "columns": [
+                "Delete",
+                "Trigger and order",
+                "Repeat key",
+                "A partial failure leaves",
+                "Recovery"
+              ],
+              "rows": [
+                [
+                  "Run worktree folder (with any file you accepted to lose)",
+                  "remove, step 2, after the lock and the checks",
+                  "the item; 'already gone' when absent",
+                  "a '.gc-removing' folder",
+                  "the next run finishes it"
+                ],
+                [
+                  "Local run branch",
+                  "remove, step 3, after its worktree",
+                  "the item",
+                  "the branch, in 'left'",
+                  "a new gc run"
+                ],
+                [
+                  "Remote run branch, when one exists",
+                  "remove, step 4",
+                  "the item; absent = 'already gone'",
+                  "the branch, in 'left'",
+                  "a new gc run with push right"
+                ],
+                [
+                  "Remote feature branch",
+                  "remove, step 5",
+                  "the item; absent = 'already gone'",
+                  "the branch, in 'left'",
+                  "a new gc run with push right"
+                ],
+                [
+                  "Feature worktree folder",
+                  "finish, first",
+                  "the item",
+                  "a '.gc-removing' folder",
+                  "run finish again"
+                ],
+                [
+                  "Local feature branch",
+                  "finish, after its worktree",
+                  "the item",
+                  "the branch, in 'left'",
+                  "run finish again"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "s-effects-risk",
+                "props": {
+                  "text": "No local transaction exists: each delete stands alone, and a failure never undoes an earlier one. Every report gives each branch tip's commit id, with a link where the forge holds it, so you can recreate a branch by hand. Risk you accept: files you accepted to lose are gone; a deleted run branch's commits are gone once git cleans up (no record, record 0001)."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Deletes that cannot be undone",
+          "node": "locked-hl-5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-existing",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-existing-table",
+            "props": {
+              "columns": [
+                "Existing part",
+                "What changes for its callers",
+                "Compatibility",
+                "Rollback"
+              ],
+              "rows": [
+                [
+                  "CI watch",
+                  "a watch on a change that merges or closes now ends at once with 'change-not-open', not later with 'finished'",
+                  "an old record reads as before; no new forge call",
+                  "revert the watch commit"
+                ],
+                [
+                  "create-change-request, watch states and mark-ready",
+                  "on a merged change the agent offers gc instead of only reporting it; closed: report, as today",
+                  "instructions only",
+                  "revert the lines"
+                ],
+                [
+                  "create-change-request, end of ship",
+                  "one more step: ask the forge once through gc list",
+                  "instructions only",
+                  "revert the lines"
+                ],
+                [
+                  "autopilot and execute",
+                  "one line: never run /afkv2:gc",
+                  "none affected: they never ran it",
+                  "revert the line"
+                ],
+                [
+                  "Forge port",
+                  "one new verb; existing verbs unchanged",
+                  "full",
+                  "remove the verb"
+                ],
+                [
+                  "Root README and ownership list",
+                  "README.md becomes own; an afkv2 section states Windows only, not Linux, macOS or WSL",
+                  "text only",
+                  "revert"
+                ],
+                [
+                  "Glossary",
+                  "2 new terms",
+                  "text only",
+                  "revert"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "s-existing-risk",
+                "props": {
+                  "text": "Risk you accept: a watch that ends on a merge no longer reports the final CI status of that change."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: What existing skills and files do differently",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T20:46:38Z",
+          "raw": "[round R-2]\nl2-surfaces-now — | what does this step do? after everything was removed already (on: \"finish\")\nl2-surfaces accept\nl3-data-now — | how long this file live? what will clean it up?\n\nwhat is the purpose of this file?\nl3-data write-in\nl4-quality accept\nl5-domain accept\nl6-process accept\nl8-probe accept\nl8-receipt accept\nl8-remote-now — | explain this please (on: \"with a lease on the tip\")\nl8-remote accept\nl9-seams-now — | what if the change request stay Open for a long time, agents no longer watching, then human merge the request. what should happen in this case?\n\nthe README should be completely rewritten for afkv2 and updated as v2 being continuously developed\nl9-seams accept\nl9-watch accept\nl1-topology accept\nl7-modules accept\nl8-lock accept\ns-persistence-rules — | how about the change have failed job or conflicts, basically a \"need-fixing\" situation?\ns-persistence sign\ns-api sign\ns-api-risk — | what is this scenario, how a branch can have more than 100 changes? (on: \"a branch with more than 100 changes refuses\")\ns-access sign\ns-lifecycle-rules — | maybe it needs to be able to distinguish between different renaming failure, such as folder name already exists or folder used by a process\ns-lifecycle sign\ns-effects sign\ns-existing sign",
+          "signals": [
+            {
+              "target": "l2-surfaces-now",
+              "item": "l2-surfaces",
+              "mark": null,
+              "note": "N-2-l2-surfaces",
+              "text": "what does this step do? after everything was removed already (on: \"finish\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "107a9984dd7d341d"
+            },
+            {
+              "target": "l2-surfaces",
+              "item": "l2-surfaces",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "5f7f25a393a3a31a"
+            },
+            {
+              "target": "l3-data-now",
+              "item": "l3-data",
+              "mark": null,
+              "note": "N-2-l3-data",
+              "text": "how long this file live? what will clean it up?\n\nwhat is the purpose of this file?",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "988575c004e1792a"
+            },
+            {
+              "target": "l3-data",
+              "item": "l3-data",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "098b11942a601638"
+            },
+            {
+              "target": "l4-quality",
+              "item": "l4-quality",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "805c827e90dea791"
+            },
+            {
+              "target": "l5-domain",
+              "item": "l5-domain",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "575abb4ca159f947"
+            },
+            {
+              "target": "l6-process",
+              "item": "l6-process",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1ca66b7b21dc674d"
+            },
+            {
+              "target": "l8-probe",
+              "item": "l8-probe",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6151369449d87905"
+            },
+            {
+              "target": "l8-receipt",
+              "item": "l8-receipt",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "b78bc9439eb487fd"
+            },
+            {
+              "target": "l8-remote-now",
+              "item": "l8-remote",
+              "mark": null,
+              "note": "N-2-l8-remote",
+              "text": "explain this please (on: \"with a lease on the tip\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "6acce435006f8839"
+            },
+            {
+              "target": "l8-remote",
+              "item": "l8-remote",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "67556ee004a63cfc"
+            },
+            {
+              "target": "l9-seams-now",
+              "item": "l9-seams",
+              "mark": null,
+              "note": "N-2-l9-seams",
+              "text": "what if the change request stay Open for a long time, agents no longer watching, then human merge the request. what should happen in this case?\n\nthe README should be completely rewritten for afkv2 and updated as v2 being continuously developed",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "2b67587474f37d5f"
+            },
+            {
+              "target": "l9-seams",
+              "item": "l9-seams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "4e80395e441969e7"
+            },
+            {
+              "target": "l9-watch",
+              "item": "l9-watch",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e5cf2c6c63b53bdd"
+            },
+            {
+              "target": "l1-topology",
+              "item": "l1-topology",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "61f9bd14cf0e6530"
+            },
+            {
+              "target": "l7-modules",
+              "item": "l7-modules",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a5815cf0fa49cfbd"
+            },
+            {
+              "target": "l8-lock",
+              "item": "l8-lock",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1b84f6019f6fd974"
+            },
+            {
+              "target": "s-persistence-rules",
+              "item": "s-persistence",
+              "mark": null,
+              "note": "N-2-s-persistence",
+              "text": "how about the change have failed job or conflicts, basically a \"need-fixing\" situation?",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "417a840e4f95643f"
+            },
+            {
+              "target": "s-persistence",
+              "item": "s-persistence",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "c6ce9dc72cbca5de"
+            },
+            {
+              "target": "s-api",
+              "item": "s-api",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "b84d7fa5fd738f9c"
+            },
+            {
+              "target": "s-api-risk",
+              "item": "s-api",
+              "mark": null,
+              "note": "N-2-s-api",
+              "text": "what is this scenario, how a branch can have more than 100 changes? (on: \"a branch with more than 100 changes refuses\")",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "e62d953aa08f2256"
+            },
+            {
+              "target": "s-access",
+              "item": "s-access",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "8d24b159879a24e7"
+            },
+            {
+              "target": "s-lifecycle-rules",
+              "item": "s-lifecycle",
+              "mark": null,
+              "note": "N-2-s-lifecycle",
+              "text": "maybe it needs to be able to distinguish between different renaming failure, such as folder name already exists or folder used by a process",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "ec2054d48be31540"
+            },
+            {
+              "target": "s-lifecycle",
+              "item": "s-lifecycle",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "c1214cbae9a2a18d"
+            },
+            {
+              "target": "s-effects",
+              "item": "s-effects",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "86beb5ae245bc5f3"
+            },
+            {
+              "target": "s-existing",
+              "item": "s-existing",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3f1ee65c3df0913b"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Settled by your note: Accepted. 'finish' is your later command. The removal step cannot delete the feature worktree and the local feature branch, because the session that runs gc has that folder as its working folder (record 0002). So the removal deletes the run worktree, the run branch and the remote feature branch, and leaves those 2. After you close the session, finish deletes the feature worktree folder, then the local feature branch, then the target file.",
+          "about": [
+            "l2-surfaces"
+          ]
+        },
+        {
+          "text": "Settled by your note: Accepted. The lease: gc tells the forge 'delete this branch only if it still points at commit X', where X is the tip gc checked. If someone pushed a new commit to the branch after the check, the forge refuses the delete, so that new commit is not lost. gc then reports it as a failed delete. Git calls this --force-with-lease.",
+          "about": [
+            "l8-remote"
+          ]
+        },
+        {
+          "text": "The target file carries what gc listed from the list step, which runs in the feature worktree, to the removal and to your later command. Your command runs after the session closes, maybe from the main checkout, so it must not guess its target from the folder it runs in (grill decision i-target). It lives until your later command ends with nothing left, and that command deletes it. Round 3 asks this again as one card.",
+          "about": [
+            "l3-data"
+          ]
+        },
+        {
+          "text": "A change that merges long after the agents stopped: nothing tells anyone, because an idle agent receives no event (PRD, the trigger decision). You run /afkv2:gc yourself when you come back (user story 2). An agent that later runs the CI watch or mark-ready on that change offers gc too. Your README request is a scope question, so round 3 asks it as a fork.",
+          "about": [
+            "l9-seams"
+          ]
+        },
+        {
+          "text": "A change that is still open, with a failed job or a conflict: gc refuses it as 'not merged' and removes nothing. Fixing it is the work of create-change-request, not of gc. A merged change cannot have a conflict any more. The contract does not change, but a note returns a sign-off, so round 3 asks for your sign again.",
+          "about": [
+            "s-persistence"
+          ]
+        },
+        {
+          "text": "Over 100 changes from one source branch happens only on a long-lived branch that is merged again and again, for example a develop branch with one change per release over years. A feature branch has 1 or 2. Refusing is the safe side, because gc cannot prove that none of the unread changes is open. The contract does not change; round 3 asks for your sign again.",
+          "about": [
+            "s-api"
+          ]
+        },
+        {
+          "text": "Agreed. I checked the Windows errors on this machine: a folder used as working folder gives error 32, a process in a subfolder or a file held open gives error 5 (the same code as a missing right), a taken name gives 183, and a folder already gone gives 2. Round 3 shows the new rule rows for your sign.",
+          "about": [
+            "s-lifecycle"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "Every layer except data and seams; the sign-offs on authorization, the deletes, and the change to existing skills",
+          "The finish step and the lease are explained in the replies"
+        ],
+        "unlocks": [
+          "SDD.md and the design records, once the 3 sign-offs below carry your sign"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l3-data-r3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l3-data-now-r3",
+            "props": {
+              "columns": [
+                "State",
+                "Where",
+                "How long it lives",
+                "How it changes later"
+              ],
+              "rows": [
+                [
+                  "gc target: what gc listed, for the removal and your later command",
+                  "one JSON file per feature branch in git's own folder: afkv2-gc/<encoded branch>.json, never committed",
+                  "until your later command ends with nothing left; a new list replaces it while no removal has started",
+                  "a 'schema' field; a file with an unknown schema refuses, and you list again"
+                ],
+                [
+                  "gc lock",
+                  "an empty file beside the target: afkv2-gc/<encoded branch>.lock, held by a Windows file lock",
+                  "the lock ends when the gc process ends, even on a crash; the file goes with the target",
+                  "none"
+                ],
+                [
+                  "CI watch record (exists today)",
+                  "as today",
+                  "as today",
+                  "gains one field: the change state the watch saw last"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-data-r3-q",
+                "props": {
+                  "text": "Please confirm, with your 3 questions answered. Purpose: the target file carries what gc listed, in the feature worktree, to the removal and to your later command. Your command runs after the session closes, maybe from the main checkout, so it must not guess its target from the folder it runs in. How long: until your later command ends with nothing left. What cleans it up: that command deletes it, with its lock file. A target you never finish stays (about 1 kB, in git's own folder, never committed) until /afkv2:gc runs for that branch again. gc stores nothing else: no record of the run (record 0001)."
+                }
+              }
+            ]
+          },
+          "title": "Every piece of state, where it lives and how long",
+          "node": "layer-l3",
+          "carries": [
+            "l3-data"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l9-seams-r3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "l9-seams-now-r3",
+            "props": {
+              "columns": [
+                "Seam",
+                "Where today",
+                "Verdict"
+              ],
+              "rows": [
+                [
+                  "Forge port verb table",
+                  "ports/forge/forge_cli.py:18-30, 72; github.py and gitlab.py VERBS; CONTRACT.md:11-23",
+                  "extends: one new verb; 'change-view' is unchanged"
+                ],
+                [
+                  "CI watch loop",
+                  "create-change-request/scripts/ci_watch.py:248-288",
+                  "reworked: ends when the change is merged or closed (see the next card)"
+                ],
+                [
+                  "CI watch states table",
+                  "create-change-request/SKILL.md:48-56",
+                  "extends: one row, merged → offer gc"
+                ],
+                [
+                  "mark-ready refusal 'change-not-open'",
+                  "create-change-request/SKILL.md:77",
+                  "extends: merged → offer gc; closed → report, as today"
+                ],
+                [
+                  "End of ship",
+                  "create-change-request/SKILL.md, Ship step 3",
+                  "extends: one forge check through gc list; merged → ask your yes; not yet → tell you to run /afkv2:gc after the merge"
+                ],
+                [
+                  "Hands-off denial",
+                  "autopilot/SKILL.md:6-8; execute/SKILL.md:24",
+                  "extends: 'Never run /afkv2:gc.'"
+                ],
+                [
+                  "Glossary",
+                  "afkv2/GLOSSARY.md:52-53 already says gc removes the run branch",
+                  "extends: adds 'Run worktree' and 'gc target'"
+                ],
+                [
+                  "Ownership list",
+                  ".afkv2/config.json 'own'",
+                  "extends: adds README.md"
+                ],
+                [
+                  "Root README",
+                  "README.md names no afkv2 today",
+                  "holds if the README card below = option 1: an afkv2 section with gc and Windows only; option 2: the whole README rewritten for afkv2"
+                ],
+                [
+                  "The '-run' rule",
+                  "to-subtasks/scripts/check_plan.py:59",
+                  "used, unchanged"
+                ],
+                [
+                  "Page links on the design page",
+                  "propose-solution/scripts/design_round.py (commit 3f6de995)",
+                  "done on this branch; the plan lists it as done work"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l9-seams-r3-q",
+                "props": {
+                  "text": "Please confirm the seams again; only the README row depends on the next card. Your question: a change that merges long after the agents stopped gets no automatic offer, because an idle agent receives no event. You run /afkv2:gc yourself when you come back, and an agent that later runs the CI watch or mark-ready on that change offers gc too."
+                }
+              }
+            ]
+          },
+          "title": "Each place gc touches existing code, checked against the code",
+          "node": "layer-l9",
+          "carries": [
+            "l9-seams"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l9-readme",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "l9-readme-question",
+            "props": {
+              "text": "You asked that the README be completely rewritten for afkv2 and kept current as v2 grows. Today README.md has 895 lines, all about v1, and afkv2 has 10 skills. Where does that work go? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "l9-readme-options",
+                "props": {
+                  "columns": [
+                    "A — Its own ticket",
+                    "B — In this change",
+                    "C — A short afkv2 README now, the full one later"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "l9-readme-opt-a",
+                        "props": {
+                          "text": "A new ticket: rewrite README.md for afkv2, plus a rule that each afkv2 change updates it in the same commit. This change adds one afkv2 section to today's README: what /afkv2:gc does, and that afkv2 runs on Windows only, not Linux, macOS or WSL. Gives a gc change that stays about gc. Cost: the README stays mostly v1 until that ticket lands."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "l9-readme-opt-b",
+                        "props": {
+                          "text": "This change replaces README.md with an afkv2 README: install, the 10 skills, the chain, Windows only. Gives a current README at once. Cost: the gc change grows by a whole-plugin document that needs facts on every skill, and its review mixes 2 subjects; the 'keep it current' rule still needs a home."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "l9-readme-opt-c",
+                        "props": {
+                          "text": "This change replaces README.md with a short afkv2 page (install, one line per skill, Windows only) and moves the v1 text out; a new ticket writes the full README and the rule. Cost: 2 README changes, and the v1 text needs a new place while v1 is still in use."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-readme-why-open",
+                "props": {
+                  "text": "It changes the scope the PRD settled (acceptance 027 asks only the platform statement), so only you can widen it."
+                }
+              }
+            ]
+          },
+          "title": "Your README request: in this change, or its own ticket",
+          "node": "layer-l9",
+          "notes": [
+            {
+              "id": "N-3-l9-readme",
+              "round": 3,
+              "target": "l9-readme-opt-a",
+              "text": "README needs to stay always up to date to plugin's changes, so agents should have that instruction when they work on this repo",
+              "deleted": false
+            }
+          ],
+          "settled": {
+            "by": "note",
+            "round": 3,
+            "signal": "N-3-l9-readme",
+            "reading": "Option 1, its own ticket. That ticket rewrites README.md for afkv2 and adds a standing instruction for every agent that works on this repository: a change to the plugin updates the README in the same commit. This change adds only one afkv2 section to today's README: what /afkv2:gc does, and that afkv2 runs on Windows only, not Linux, macOS or WSL."
+          }
+        },
+        {
+          "id": "s-persistence-r3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-persistence-fields-r3",
+            "props": {
+              "columns": [
+                "Field of the gc target",
+                "Type",
+                "Empty allowed",
+                "Default",
+                "Meaning and unit"
+              ],
+              "rows": [
+                [
+                  "schema",
+                  "text, 'afkv2.gc/0'",
+                  "no",
+                  "—",
+                  "the file format; an unknown value refuses with 'bad-target'"
+                ],
+                [
+                  "feature_branch",
+                  "text",
+                  "no",
+                  "—",
+                  "the identity; the file name is this name with \\ / : * ? \" < > | % and control characters encoded as %XX"
+                ],
+                [
+                  "feature_worktree",
+                  "text, full folder path",
+                  "no",
+                  "—",
+                  "the worktree gc fixed its target in"
+                ],
+                [
+                  "run_branch",
+                  "text",
+                  "no",
+                  "feature_branch + '-run'",
+                  ""
+                ],
+                [
+                  "run_worktree",
+                  "text, full folder path",
+                  "no",
+                  "feature_worktree + '-run'",
+                  "stored even when the folder does not exist"
+                ],
+                [
+                  "remote",
+                  "text",
+                  "no",
+                  "'origin'",
+                  "the remote of both remote branches"
+                ],
+                [
+                  "change",
+                  "object: number (whole number), url, state ('merged'), head_sha (40 hex), target (branch name)",
+                  "no",
+                  "—",
+                  "the newest merged change of the branch"
+                ],
+                [
+                  "tips",
+                  "object: item → commit id (40 hex)",
+                  "a value may be empty",
+                  "—",
+                  "each branch tip at the list; empty = the branch did not exist"
+                ],
+                [
+                  "receipt",
+                  "text, 64 hex",
+                  "no",
+                  "—",
+                  "SHA-256 of the list you saw"
+                ],
+                [
+                  "state",
+                  "'listed' or 'waiting'",
+                  "no",
+                  "'listed'",
+                  "'done' is the file deleted"
+                ],
+                [
+                  "left",
+                  "list of items",
+                  "no",
+                  "empty",
+                  "items not yet removed; set by the removal"
+                ],
+                [
+                  "listed_at",
+                  "UTC time, ISO 8601, seconds",
+                  "no",
+                  "—",
+                  "when the list ran"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-persistence-rules-r3",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Contract"
+                  ],
+                  "rows": [
+                    [
+                      "Identity and uniqueness",
+                      "one file per feature branch: afkv2-gc/<encoded branch>.json in git's common folder; a second list replaces it while 'listed', and answers the stored target while 'waiting'"
+                    ],
+                    [
+                      "Relations",
+                      "names one feature worktree and one run worktree, 1 to 1; nothing refers to the file"
+                    ],
+                    [
+                      "Delete behaviour",
+                      "deleted by your later command when 'left' is empty; the lock file goes with it"
+                    ],
+                    [
+                      "Indexes",
+                      "none: one file per key"
+                    ],
+                    [
+                      "Retention",
+                      "until your later command ends with nothing left; a target you never finish stays (about 1 kB) until /afkv2:gc runs for that branch again"
+                    ],
+                    [
+                      "Writes",
+                      "a temporary file, then an atomic replace; never committed"
+                    ],
+                    [
+                      "Migration of existing rows",
+                      "none exist today"
+                    ],
+                    [
+                      "CI watch record (exists)",
+                      "gains 'change_state': 'opened', 'merged' or 'closed'; empty when the forge gave no answer; an old record without it reads as empty"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "s-persistence-risk-r3",
+                "props": {
+                  "text": "Options weighed: a file in git's folder (your choice in round 1), no file, a file in the afkv2 data folder. Risk you accept: a target file stays when you never run the later command."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Persistence: the gc target file and one new watch field",
+          "node": "locked-hl-1",
+          "carries": [
+            "s-persistence"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-api-r3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-api-surfaces-r3",
+            "props": {
+              "columns": [
+                "Surface",
+                "Who",
+                "Request and checks",
+                "Success answer",
+                "Errors (code)"
+              ],
+              "rows": [
+                [
+                  "gc list",
+                  "an agent in your session; you",
+                  "no argument: run in the feature worktree, on a branch not ending '-run'. --branch <name>: from anywhere in the repository, only to show a 'waiting' target",
+                  "the change (number, link, state, target), each item with its tip, link, 'now' or 'later', present or absent; each refusal with its detail; ignored files (count, first 5); the receipt; the state",
+                  "not-feature-worktree, no-target, locked, bad-target. A forge failure is not an error here: it is a refusal in the list"
+                ],
+                [
+                  "gc remove",
+                  "the same, after your yes",
+                  "--branch, --receipt, optional --yes with the refusals you accept (folder in use and not-Windows are never accepted). The receipt must match a fresh list",
+                  "each removed item with its tip, link and seconds; each 'already gone'; what waits for your command; your command, one line",
+                  "stale-list (with the new list), refused, locked, no-target, partial (removed, failed with reasons, left)"
+                ],
+                [
+                  "gc finish (your later command)",
+                  "you, after the session closes",
+                  "--branch, optional --yes; refuses inside the folder it removes; state must be 'waiting'",
+                  "the feature worktree and the local feature branch removed; the target file deleted, or what is still left",
+                  "inside-folder, in-use, not-windows, not-waiting, no-target, locked, refused, partial"
+                ],
+                [
+                  "forge: list the changes of a branch",
+                  "gc",
+                  "branch (required), forge and repo as every verb",
+                  "every change whose source is that branch in this repository: number, link, state opened, merged or closed, head commit, target; newest first; at most 100",
+                  "the port's codes (auth, not-found, timeout, command-failed, bad-answer), and too-many when the forge returns 100"
+                ],
+                [
+                  "CI watch 'status'",
+                  "create-change-request",
+                  "as today",
+                  "new state 'change-not-open' with change_state merged or closed",
+                  "as today"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-api-rules-r3",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Contract"
+                  ],
+                  "rows": [
+                    [
+                      "Exit codes",
+                      "0 ok, 1 refused or failed part way, 2 unreadable input, on every gc step"
+                    ],
+                    [
+                      "Paging",
+                      "none: the forge verb reads one page of 100 (GitHub: gh pr list --head --state all; GitLab: glab mr list --source-branch --all). A change from a fork with the same branch name is left out"
+                    ],
+                    [
+                      "GitLab 'locked' state",
+                      "counts as opened"
+                    ],
+                    [
+                      "Repeat calls",
+                      "list writes only the target file; remove and finish do only what is left"
+                    ],
+                    [
+                      "Your later command",
+                      "one PowerShell line: & \"<python>\" \"<path of cleanup.py>\" finish --repo \"<main checkout>\" --branch <name>"
+                    ],
+                    [
+                      "Existing callers",
+                      "change-view: unchanged. CI watch: its only reader, create-change-request, gets one new state row"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "s-api-risk-r3",
+                "props": {
+                  "text": "Options weighed for 'none open': the new verb (your choice in round 1), change-view alone, change-view plus a git tip check. Risk you accept: a branch with more than 100 changes refuses."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: API surface: the 3 gc steps, the new forge verb, the watch state",
+          "node": "locked-hl-2",
+          "carries": [
+            "s-api"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-lifecycle-r3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "s-lifecycle-moves-r3",
+            "props": {
+              "columns": [
+                "From",
+                "To",
+                "Move",
+                "Who"
+              ],
+              "rows": [
+                [
+                  "no target",
+                  "listed",
+                  "list in the feature worktree",
+                  "agent or you"
+                ],
+                [
+                  "listed",
+                  "listed",
+                  "list again: the target is replaced",
+                  "agent or you"
+                ],
+                [
+                  "listed",
+                  "waiting",
+                  "remove, with the receipt",
+                  "agent after your yes, or you"
+                ],
+                [
+                  "waiting",
+                  "waiting",
+                  "list (shows what is left), then remove: does only what is left",
+                  "agent after your yes, or you"
+                ],
+                [
+                  "waiting",
+                  "done (file deleted)",
+                  "finish, when nothing is left after it",
+                  "you"
+                ],
+                [
+                  "any",
+                  "the same",
+                  "a refusal or 'locked'",
+                  "—"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s-lifecycle-rules-r3",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Guardian",
+                    "On a violation"
+                  ],
+                  "rows": [
+                    [
+                      "Nothing is removed without your yes on that exact list",
+                      "receipt compare in remove",
+                      "refuse 'stale-list', remove nothing"
+                    ],
+                    [
+                      "A folder in use is never touched",
+                      "the rename before each folder delete, read by its Windows error",
+                      "error 32: refuse 'in-use' (a process has it as working folder); error 5: refuse 'in-use-or-no-right' (a process in a subfolder or a file held open gives the same code as a missing right); either way nothing is touched and its branch stays too"
+                    ],
+                    [
+                      "A leftover '.gc-removing' folder is gc's own, from a run you approved",
+                      "the list names it under its item; the removal deletes it before the rename",
+                      "error 183 can then not happen; if it still does (a new leftover appeared after the list), refuse 'name-taken' and touch nothing"
+                    ],
+                    [
+                      "A folder already gone is not a failure",
+                      "the rename's Windows error 2",
+                      "'already gone', then git forgets the worktree"
+                    ],
+                    [
+                      "Any other rename error",
+                      "the rename",
+                      "refuse 'rename-failed' with the Windows error text; nothing touched"
+                    ],
+                    [
+                      "No branch with commits outside the change goes without your yes",
+                      "tip check in remove and finish; the lease on remote deletes",
+                      "refuse with each commit's short id and title"
+                    ],
+                    [
+                      "One run per target",
+                      "the Windows file lock",
+                      "refuse 'locked'"
+                    ],
+                    [
+                      "gc acts only on its fixed target",
+                      "remove and finish read only the target file",
+                      "refuse 'no-target'"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "s-lifecycle-r3-what",
+                "props": {
+                  "text": "Changed since round 2, as you asked: the rename failure is told apart by its Windows error (checked on this machine, 2026-11-03). The 3 new rows and the reworded row are the change."
+                }
+              }
+            ]
+          },
+          "title": "Sign-off: Life cycle and the rules gc must never break",
+          "node": "locked-hl-4",
+          "carries": [
+            "s-lifecycle"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        }
+      ],
+      "notes": [
+        {
+          "id": "N-3-m-aspects",
+          "round": 3,
+          "target": "m-aspects",
+          "text": "I would like the next round would use the same tab as previous round instead of opening a new tab every new round (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")\n\nalso we should have a formula to name the browser tab reflecting the work being done here, use things like ticket id, a short title, and current afk step (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")",
+          "deleted": false
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-03T21:03:59Z",
+          "raw": "[round R-3]\nm-aspects — | I would like the next round would use the same tab as previous round instead of opening a new tab every new round (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")\n\nalso we should have a formula to name the browser tab reflecting the work being done here, use things like ticket id, a short title, and current afk step (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")\nl9-readme a\nl9-readme-opt-a — | README needs to stay always up to date to plugin's changes, so agents should have that instruction when they work on this repo\nl3-data-r3 accept\nl9-seams-r3 accept\ns-persistence-r3 sign\ns-api-r3 sign\ns-lifecycle-r3 sign",
+          "signals": [
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "I would like the next round would use the same tab as previous round instead of opening a new tab every new round (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")\n\nalso we should have a formula to name the browser tab reflecting the work being done here, use things like ticket id, a short title, and current afk step (on: \"158 propose-solution · #158 R-3 Round 3: current round WHAT SETTLED Every layer except data and seams; the sign-offs on…\")",
+              "note": "N-3-m-aspects",
+              "steer": true,
+              "stamp": "ffe0115b5cb6f093"
+            },
+            {
+              "target": "l9-readme",
+              "item": "l9-readme",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "413e66996f70036e"
+            },
+            {
+              "target": "l9-readme-opt-a",
+              "item": "l9-readme",
+              "mark": null,
+              "note": "N-3-l9-readme",
+              "text": "README needs to stay always up to date to plugin's changes, so agents should have that instruction when they work on this repo",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "a3d78acfaafc81fe"
+            },
+            {
+              "target": "l3-data-r3",
+              "item": "l3-data-r3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "efb715409f44857a"
+            },
+            {
+              "target": "l9-seams-r3",
+              "item": "l9-seams-r3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f1ebf141c12e72e8"
+            },
+            {
+              "target": "s-persistence-r3",
+              "item": "s-persistence-r3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "8135ab85e9616cf2"
+            },
+            {
+              "target": "s-api-r3",
+              "item": "s-api-r3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "26e74a4db5faa7ff"
+            },
+            {
+              "target": "s-lifecycle-r3",
+              "item": "s-lifecycle-r3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cbd6c26a3f370f53"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "text": "Settled by your note: Option 1, its own ticket. That ticket rewrites README.md for afkv2 and adds a standing instruction for every agent that works on this repository: a change to the plugin updates the README in the same commit. This change adds only one afkv2 section to today's README: what /afkv2:gc does, and that afkv2 runs on Windows only, not Linux, macOS or WSL.",
+          "about": [
+            "l9-readme"
+          ]
+        }
+      ]
+    }
+  ]
+}

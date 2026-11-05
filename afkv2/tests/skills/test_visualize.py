@@ -1,7 +1,8 @@
 """Tests for the visualize skill: the authoring guide for page documents.
 
 Until the page engine exists, every example is checked by a recorded fake of
-the page document v0 contract (SDD §4 field tables). When the engine file
+the page document v0 contract (SDD §4 field tables). A format 1 document is checked
+for its own fields, then as the format 0 view of it. When the engine file
 exists, every example also goes through `engine check` and must answer ok.
 """
 
@@ -27,6 +28,7 @@ ALL_COMPONENTS = SKILL_DIR / "examples" / "all-components.json"
 ENGINE = PLUGIN / "engine" / "engine.py"
 
 SCHEMA = "afkv2.page/0"
+SCHEMA_1 = "afkv2.page/1"
 
 # PRD catalog id -> the page that holds its entry.
 CATALOG = {
@@ -42,6 +44,17 @@ CATALOG = {
     "CMP-10": "freestyle.md",
 }
 ENTRY_SECTIONS = ("## Holds", "## Use it when", "## How it looks", "## Example")
+# PRD table K id -> the page of its chart component, with the props each chart requires beside `caption`.
+CHART_PAGES = {
+    "K-01": "tile.md", "K-02": "bars.md", "K-03": "line.md", "K-35": "bullet.md", "K-36": "box-plot.md",
+    "K-37": "range.md", "K-38": "signed-bars.md", "K-47": "flame.md", "K-48": "sparkline.md", "K-49": "waterfall.md",
+}
+CHART_FIELDS = {"tile": {"value", "label", "grade", "source"}, "bars": {"items"}, "line": {"points"},
+                "bullet": {"label", "value", "target", "bands"}, "range": {"items", "means"}, "signed-bars": {"items"},
+                "box-plot": {"items"}, "flame": {"root"}, "sparkline": {"rows"}, "waterfall": {"spans"}}
+# The diagram text, code block and diff components (PRD EG-13, EG-15): the page of each, with its required props.
+TEXT_PAGES = {"diagram": "diagram.md", "code": "code.md", "diff": "diff.md"}
+TEXT_FIELDS = {"diagram": {"caption", "text"}, "code": {"text"}, "diff": {"text"}}
 
 # Recorded fake of the page document v0 contract: SDD §4 field sets, props as the guide states them.
 
@@ -59,6 +72,9 @@ NOTE_FIELDS = {"id", "round", "target", "text", "deleted"}
 COMPONENT_FIELDS = {"type", "id", "props", "style", "fold", "children", "html"}
 NODE_STATES = {"open", "settled", "focus"}
 TONES = {"removed", "kept", "new", "proposed"}
+# A chip also takes the state and certainty tones; a sequence message takes 3 tones (SDD §4 "Other parts").
+STATE_TONES = {"open", "blocked", "settled", "measured", "inferred", "estimated", "unverified", "you"}
+MESSAGE_TONES = {"removed", "kept", "new"}
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 
 
@@ -92,6 +108,13 @@ def _ids(value, where, field):
     return {o["id"] for o in objs}
 
 
+def _check_marks(part, where):
+    """The tip and you of a graph node, map node, run-strip step or sequence message."""
+    tip = part.get("tip")
+    _need(tip is None or (isinstance(tip, str) and 0 < len(tip) <= 300), where, "tip (1 to 300 characters)")
+    _need(isinstance(part.get("you", False), bool), where, "you (true or false)")
+
+
 def _check_graph(kind, props, where, ids, last_round):
     nodes = _objects(props.get("nodes"), where, "props.nodes")
     _need(nodes, where, "props.nodes")
@@ -109,6 +132,7 @@ def _check_graph(kind, props, where, ids, last_round):
             ids.add(node["id"])
         _need(node.get("group") is None or node["group"] in groups, where,
               f"props.nodes[{n}].group")
+        _check_marks(node, f"{where}.props.nodes[{n}]")
         node_ids.add(node["id"])
     for e, edge in enumerate(_objects(props.get("edges", []), where, "props.edges")):
         _need(edge.get("from") in node_ids and edge.get("to") in node_ids, where,
@@ -128,8 +152,9 @@ def _check_props(comp, where, ids, last_round):
     if kind in ("chip", "text"):
         _need(isinstance(props.get("text"), str), where, "props.text")
         tone = props.get("tone")
-        _need(tone is None or tone in TONES, where, "props.tone")
-        _need(kind == "text" or tone in TONES, where, "props.tone")
+        _need(tone is None or tone in TONES or (kind == "chip" and tone in STATE_TONES), where, "props.tone")
+        _need(kind == "text" or (tone is None) != (props.get("set") is None), where, "props.tone (a tone or a set)")
+        _need(kind == "chip" or "set" not in props, where, "props.set (a chip only)")
         _need(isinstance(props.get("markdown", False), bool), where, "props.markdown")
     elif kind == "table":
         cols = props.get("columns")
@@ -152,6 +177,8 @@ def _check_props(comp, where, ids, last_round):
             _need(msg.get("from") in actors and msg.get("to") in actors, where,
                   f"props.messages[{m}]")
             _need(isinstance(msg.get("text"), str), where, f"props.messages[{m}].text")
+            _need(msg.get("tone") is None or msg["tone"] in MESSAGE_TONES, where, f"props.messages[{m}].tone")
+            _check_marks(msg, f"{where}.props.messages[{m}]")
     elif kind == "run-strip":
         lanes = [k for k in ("current", "proposed") if k in props]
         _need(lanes, where, "props.current or props.proposed")
@@ -160,6 +187,18 @@ def _check_props(comp, where, ids, last_round):
                 _need(isinstance(step.get("label"), str), where, f"props.{lane}[{s}].label")
                 _need(step.get("tone") is None or step["tone"] in TONES, where,
                       f"props.{lane}[{s}].tone")
+                _check_marks(step, f"{where}.props.{lane}[{s}]")
+    elif kind in TEXT_FIELDS:
+        missing = TEXT_FIELDS[kind] - set(props)
+        _need(not missing, where, f"props {sorted(missing)} (required)")
+        _need(all(isinstance(props[field], str) and props[field] for field in TEXT_FIELDS[kind]), where,
+              f"props {sorted(TEXT_FIELDS[kind])} (text)")
+        _need(kind != "diagram" or len(props["caption"]) <= 160, where, "props.caption (1 to 160 characters)")
+    elif kind in CHART_FIELDS:
+        caption = props.get("caption")
+        _need(isinstance(caption, str) and 0 < len(caption) <= 160, where, "props.caption (1 to 160 characters)")
+        missing = CHART_FIELDS[kind] - set(props)
+        _need(not missing, where, f"props {sorted(missing)} (required)")
     else:
         raise Refused(f"{where}: unknown type {kind!r}")
 
@@ -263,7 +302,7 @@ def _check_round(r, ids, node_ids, last_round, components):
 
 def _check_document(doc):
     _only(doc, DOC_FIELDS, "document")
-    _need(doc.get("schema") in {SCHEMA, "afkv2.page/1"}, "document", "schema (expected page/0 or page/1)")
+    _need(doc.get("schema") == SCHEMA, "document", f"schema (expected {SCHEMA})")
     session = doc.get("session")
     _only(session, SESSION_FIELDS | {"links"}, "session")
     _need(SESSION_FIELDS <= set(session), "session", "missing field")
@@ -306,10 +345,88 @@ def _check_document(doc):
     return components
 
 
+# Format 1 (SDD §4): one session note list, the new session fields, answer ids and links.
+DOC_FIELDS_1 = DOC_FIELDS | {"notes", "value_sets", "tips"}
+SESSION_FIELDS_1 = {"short_title", "step", "private", "takeovers"}
+SKILLS_1 = {"grill", "propose-solution", "to-subtasks", "use-lavish"}
+ANSWER_FIELDS_1 = {"id", "text", "notes", "changed", "about"}
+
+
+def _format_0_view(doc):
+    """Check the format 1 fields; return the document as format 0, every note back on its card or round."""
+    _only(doc, DOC_FIELDS_1, "document")
+    session = doc.get("session")
+    _only(session, SESSION_FIELDS | SESSION_FIELDS_1 | {"links"}, "session")
+    _need(session.get("skill") in SKILLS_1, "session", "skill")
+    _need(isinstance(session.get("step"), str) and session["step"], "session", "step (required)")
+    _need(isinstance(session.get("private", False), bool), "session", "private")
+    view = copy.deepcopy(doc)
+    view["schema"] = SCHEMA
+    view.pop("value_sets", None)
+    view.pop("tips", None)
+    view["session"] = {k: v for k, v in session.items() if k not in SESSION_FIELDS_1}
+    view["session"].setdefault("ticket", None)
+    view["session"]["skill"] = "grill"
+    rounds = {r.get("n"): r for r in view.get("rounds") or []}
+    cards = {item.get("id"): item for r in rounds.values() for item in r.get("items") or []}
+    for n, note in enumerate(_objects(view.pop("notes", []), "document", "notes")):
+        _only(note, NOTE_FIELDS | {"item", "quote"}, f"notes[{n}]")
+        quote = note.pop("quote", None)
+        _need(quote is None or (isinstance(quote, str) and len(quote) <= 300), f"notes[{n}]", "quote")
+        item = note.pop("item", None)
+        holder = cards.get(item) if item is not None else rounds.get(note.get("round"))
+        _need(holder is not None, f"notes[{n}]", "item or round must resolve")
+        holder.setdefault("notes", []).append(note)
+    for r in rounds.values():
+        r.pop("changed", None)
+        for p, reply in enumerate(r.get("replies") or []):
+            _only(reply, ANSWER_FIELDS_1, f"round {r.get('n')}.replies[{p}]")
+            reply.pop("id", None)
+            reply["about"] = [*reply.pop("notes", []), *reply.pop("changed", []), *reply.get("about", [])]
+    return view
+
+
+def _check_value_chips(components, value_sets):
+    """A value chip names a set of the document, and its text is a value of that set (SDD §4)."""
+    for comp in components:
+        props = comp.get("props") or {}
+        if comp["type"] != "chip" or "set" not in props:
+            continue
+        named = (value_sets or {}).get(props["set"])
+        _need(named is not None, f"chip {props['text']}", f"set {props['set']} (names no value set)")
+        _need(props["text"] in named["values"], f"chip {props['text']}", f"text (no value of the set {props['set']})")
+
+
+def _check_tips(doc):
+    """A format 1 component may take `tip`, 1 to 300 characters; the format 0 view drops it."""
+    def strip(obj):
+        if isinstance(obj, dict):
+            if isinstance(obj.get("type"), str) and "tip" in obj:
+                tip = obj.pop("tip")
+                _need(isinstance(tip, str) and 0 < len(tip) <= 300, f"component {obj['type']}", "tip (1 to 300 characters)")
+            for value in obj.values():
+                strip(value)
+        elif isinstance(obj, list):
+            for value in obj:
+                strip(value)
+    strip(doc.get("maps"))
+    for r in doc.get("rounds") or []:
+        for item in r.get("items") or []:
+            strip(item.get("body"))
+
+
 def check_document(doc):
     """Return every component of a valid document; raise Refused otherwise."""
     try:
-        return _check_document(doc)
+        if isinstance(doc, dict) and doc.get("schema") == SCHEMA_1:
+            view = _format_0_view(doc)
+            _check_tips(view)
+            components = _check_document(view)
+            _check_value_chips(components, doc.get("value_sets"))
+            return components
+        components = _check_document(doc)
+        _check_value_chips(components, None)
+        return components
     except (KeyError, TypeError, AttributeError) as exc:
         raise Refused(f"malformed document: {type(exc).__name__}: {exc}") from exc
 
@@ -317,7 +434,8 @@ def check_document(doc):
 # Fragments: ```json fragment=<level> blocks in the guide.
 
 FENCE = re.compile(r"```json fragment=(\w+)\n(.*?)\n```", re.S)
-LEVELS = {"document", "round", "banner", "reply", "item", "component", "map"}
+LEVELS = {"document", "round", "banner", "reply", "answer", "item", "component", "map"}
+NOTE_ID = re.compile(r"N-(\d+)-(.+)-(\d+)")
 
 
 def fragments(path):
@@ -335,6 +453,8 @@ def wrap(level, frag):
     """
     if level == "document":
         return frag
+    if level == "answer":
+        return _wrap_answer(frag)
     doc = {
         "schema": SCHEMA,
         "session": {"id": "s-wrap", "skill": "grill", "feature": "example",
@@ -370,6 +490,22 @@ def wrap(level, frag):
     return doc
 
 
+def _wrap_answer(frag):
+    """A format 1 answer, {text, notes, changed}, in the smallest format 1 document: each note and element it names."""
+    notes = [{"id": nid, "round": 1, "target": NOTE_ID.fullmatch(nid).group(2),
+              "item": NOTE_ID.fullmatch(nid).group(2), "text": "x", "deleted": False} for nid in frag.get("notes", [])]
+    ids = dict.fromkeys([*(n["item"] for n in notes), *frag.get("changed", [])])
+    items = [{"id": i, "kind": "info", "body": {"type": "text", "props": {"text": "x"}}} for i in ids]
+    return {
+        "schema": SCHEMA_1,
+        "session": {"id": "s-wrap", "skill": "grill", "feature": "example", "ticket": "PROJ-123",
+                    "started": "2026-01-01T09:00:00Z", "step": "Requirements grill"},
+        "maps": [], "notes": notes,
+        "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                    "items": items, "replies": [frag]}],
+    }
+
+
 def all_fragments():
     out = []
     for page in [SKILL_MD, *sorted(PAGES_DIR.glob("*.md"))]:
@@ -380,6 +516,11 @@ def all_fragments():
 
 def _example():
     return json.loads(ALL_COMPONENTS.read_text("utf-8"))
+
+
+def _example_v0():
+    """The format 0 view of the example: the fake's refusal tests and the format 0 ingest tests start from it."""
+    return _format_0_view(_example())
 
 
 def all_documents():
@@ -568,16 +709,16 @@ REFUSALS = [
      "props.messages"),
     ("sequence actors malformed", _set(_props("q-export"), "actors", ["user"]), "props.actors"),
     ("run strip lanes", _set(_at("r-export-run"), "props", {}), "props.current"),
-    ("freestyle reason", _set(_at("f-load-curve"), "props", {}), "props.reason"),
-    ("freestyle id", _drop(_at("f-load-curve"), "id"), "id"),
-    ("freestyle html", _drop(_at("f-load-curve"), "html"), "html"),
+    ("freestyle reason", _set(_at("f-score-radar"), "props", {}), "props.reason"),
+    ("freestyle id", _drop(_at("f-score-radar"), "id"), "id"),
+    ("freestyle html", _drop(_at("f-score-radar"), "html"), "html"),
 ]
 
 
 @pytest.mark.parametrize("mutate, field", [(m, f) for _, m, f in REFUSALS],
                          ids=[name for name, _, _ in REFUSALS])
 def test_fake_refuses_a_broken_document(mutate, field):
-    doc = _example()
+    doc = _example_v0()
     mutate(doc)
     with pytest.raises(Refused, match=re.escape(field)):
         check_document(doc)
@@ -592,20 +733,20 @@ def test_fake_refuses_a_broken_document(mutate, field):
     ("settled_by_mark", {"by": "mark", "round": 1, "signal": "accept"}, []),
 ], ids=["by-note", "by-note-on-a-component", "by-mark"])
 def test_fake_accepts_a_settled_point(state, settled, notes):
-    doc = _example()
+    doc = _example_v0()
     _at("i-data")(doc).update(state=state, settled=copy.deepcopy(settled), notes=notes)
     check_document(doc)
 
 
 def test_fake_accepts_a_settled_round_and_a_next_round():
-    doc = _next_round(_example())
+    doc = _next_round(_example_v0())
     components = check_document(doc)
     assert any(c.get("props", {}).get("text") == "Carried from i-format." for c in components)
 
 
 def _note_on_an_older_card():
     """The card as the real ingest leaves it; the responses of the round are left out, because only ingest writes them."""
-    doc = _next_round(_example())
+    doc = _next_round(_example_v0())
     item = _at("i-data")(doc)
     del item["settled"]
     item.update(state="open", notes=[{**_note("i-data", 2), "id": "N-2-i-data-1"}])
@@ -618,7 +759,7 @@ def test_fake_accepts_a_note_on_an_older_card():
 
 def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
     doc, raw = tmp_path / "doc.json", tmp_path / "raw.txt"
-    doc.write_text(json.dumps(_next_round(_example())), "utf-8")
+    doc.write_text(json.dumps(_next_round(_example_v0())), "utf-8")
     raw.write_text("[round R-2]\ni-data — | Accepts it.", "utf-8")
     run = subprocess.run([sys.executable, str(ENGINE), "ingest", str(doc), "--raw-file", str(raw)],
                          capture_output=True, text=True, encoding="utf-8", timeout=60,
@@ -626,7 +767,11 @@ def test_real_ingest_leaves_this_shape_on_an_older_card(tmp_path):
     assert run.returncode == 0, run.stdout + run.stderr
     assert json.loads(run.stdout)["reopened"] == ["i-data"]
     after = json.loads(doc.read_text("utf-8"))
-    assert _find(after, "i-data") == _at("i-data")(_note_on_an_older_card())
+    card = copy.deepcopy(_at("i-data")(_note_on_an_older_card()))
+    notes = card.pop("notes")
+    assert after["schema"] == SCHEMA_1, "ingest writes format 1"
+    assert _find(after, "i-data") == card
+    assert after["notes"] == [{**note, "item": "i-data"} for note in notes]
     assert [rnd["state"] for rnd in after["rounds"]] == ["settled", "current"]
     check = subprocess.run([sys.executable, str(ENGINE), "check", str(doc)], capture_output=True, text=True,
                            encoding="utf-8", timeout=60,
@@ -641,65 +786,127 @@ def test_examples_carry_no_note_and_no_response():
             assert not any(item.get("notes") for item in rnd["items"]), label
 
 
-def test_card_page_settled_example_has_the_schema_shape():
-    text = (PAGES_DIR / "card.md").read_text("utf-8")
-    found = re.findall(r"`(\{\"by\": .*?\})`", text)
-    assert found, "card.md has no settled example"
-    for raw in found:
-        settled = json.loads(raw)
-        assert set(settled) == SETTLED_FIELDS
-        assert settled["by"] == "note"
-        assert settled["signal"].startswith(f"N-{settled['round']}-")
+def _entry_section(name, heading):
+    text = (PAGES_DIR / name).read_text("utf-8")
+    return text.split(heading + "\n", 1)[1].split("\n## ", 1)[0]
 
 
-# The guide is the program, so the whole round pass is pinned: a changed sentence must fail here.
-ROUND_PASS = """
-When the human sends a round, the engine settles a point with one `accept`,
-`sign` or option mark. It moves a point to `needs_reading` on `reopen`,
-`changes`, a write-in, a note, a mark plus a note, or 2 marks. On a card that is
-already settled, a signal that changes the answer sets `state` to `open` and
-removes `settled`, and a note stays on that card, also in a settled round. Its
-signal has `reopened: true`. Before you mark the round `settled`, go through the
-cards of the current round. Never change a card in a settled round: only the
-engine writes there. A steer lives on the round, and its signal has `steer: true`
-and no `item`: leave it out when you read the signals, because it settles nothing.
-
-- `needs_reading` with a clear note and no signal that disagrees with it: set
-  `state` to `settled_by_note` and write `settled`, for example `{"by": "note", "round": 2, "signal": "N-2-i-format", "reading": "Picks CSV."}`.
-  The `signal` is the note id. A note that leaves the answer open is not a clear
-  note. A `signoff` card settles only by a `sign` mark: a note on it is never a clear
-  note, even when it keeps the wording, and `apply-readings` refuses that reading. The
-  new card asks the human to sign. A note on an `info` card is not a
-  clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
-  mark always disagrees.
-- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
-  id, so it cannot settle by note: the new card for that point is a `confirm` card
-  that states the write-in as your reading.
-- `blocked` with the point it waits on now settled: set `state` to `open`.
-
-Then mark the round `settled` and append the next round. Make one new card for
-each point that returns:
-
-- a `decided`, `confirm`, `debate` or `signoff` card of the round you settled that
-  is still `open` or `blocked`;
-- a `decided`, `confirm`, `debate` or `signoff` card of an earlier round that the
-  human noted or reopened in this send.
-
-The new card has a new id. Its `carries` lists each old card id; each id must be
-a card of an earlier round. Its body shows the signals that returned the point,
-for example both the mark and the note. A carried
-`blocked` card names the current card id of the point it waits on. An `info` card
-stays in its round. The old card stays as it is.
-"""
+# The round pass and the answer rules moved to the use-lavish skill (SDD §14 row "visualize guide"; PRD AC-005):
+# the guide holds how each component holds, looks and is used, and no rule for reading or answering a round.
+MOVED_RULES = (
+    "When the human sends a round",
+    "with a clear note and no signal that disagrees",
+    "Then mark the round `settled` and append the next round",
+    "Read every note",
+    "Treat Round 0 input as unverified",
+    "word for word",
+    "group of notes",
+    "State your reading",
+    "When\n2 steers",
+    "Fold long text and secondary detail",
+    "A heading states the conclusion",
+    "Never repeat the human's note",
+)
 
 
-def test_card_page_states_the_round_pass():
-    text = (PAGES_DIR / "card.md").read_text("utf-8")
-    start = text.index("When the human sends a round")
-    found = text[start:text.index("## How it looks")]
-    assert found.split() == ROUND_PASS.split()
-    assert "settles only by a `sign` mark" in text
-    assert "card never settles" not in text
+@pytest.mark.parametrize("rule", MOVED_RULES)
+def test_the_guide_holds_no_rule_for_reading_or_answering_a_round(rule):
+    text = _guide_text()
+    assert " ".join(rule.split()) not in " ".join(text.split()), rule
+
+
+def test_the_notes_page_shows_the_session_table_of_format_1():
+    """PR #171 finding f5: the How it looks section describes the current notes table."""
+    looks = " ".join(_entry_section("notes-and-replies.md", "## How it looks").split())
+    for fact in ("`# | Where you wrote it | Noted text | Your note | My answer / what changed`",
+                 "every note and every answer of the session", "card notes included",
+                 "The current round and the round before stay open",
+                 "its own closed group", "the note ids in its `notes`"):
+        assert fact in looks, fact
+    assert "Earlier rounds" not in looks
+
+
+def test_the_notes_page_holds_the_answer_of_format_1():
+    """Ruling D-38: Holds and the Example show the format 1 answer {text, notes, changed}; about is format 0 only."""
+    holds = " ".join(_entry_section("notes-and-replies.md", "## Holds").split())
+    assert "`rounds[].replies[]` with `text`, `notes` and `changed`" in holds
+    assert "`about` is read on format 0 pages only" in holds
+    found = fragments(PAGES_DIR / "notes-and-replies.md")
+    assert [(level, set(frag)) for level, frag in found] == [("answer", {"text", "notes", "changed"})]
+
+
+# Each component page states the format 1 marks: the fields, how they look, when to use them (SDD §8 row "visualize").
+PART_PAGES = ("graph.md", "map.md", "run-strip.md", "sequence.md")
+
+
+@pytest.mark.parametrize("name", PART_PAGES)
+def test_a_part_page_states_tip_and_you(name):
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert "`tip`" in holds and "`you`" in holds and "300 characters" in holds
+    assert "YOU" in _entry_section(name, "## How it looks")
+    use = _entry_section(name, "## Use it when")
+    assert "`you`" in use and "`tip`" in use
+    marked = [frag for level, frag in fragments(PAGES_DIR / name)]
+    assert any('"you": true' in json.dumps(frag) and '"tip":' in json.dumps(frag) for frag in marked)
+
+
+def test_the_sequence_page_states_the_message_tone():
+    holds = " ".join(_entry_section("sequence.md", "## Holds").split())
+    assert "`tone` (`removed`, `kept` or `new`)" in holds
+    assert "tone" in _entry_section("sequence.md", "## How it looks")
+    assert any('"tone": "removed"' in json.dumps(frag) for _, frag in fragments(PAGES_DIR / "sequence.md"))
+
+
+def test_the_chip_page_states_each_state_and_certainty_tone():
+    holds = _entry_section("chip-and-text.md", "## Holds")
+    for tone in sorted(STATE_TONES):
+        assert re.search(rf"^\| `{tone}` \| [^|]+ \| [^|]+ \|$", holds, re.M), tone
+    assert "symbol" in _entry_section("chip-and-text.md", "## How it looks")
+    assert "certainty" in _entry_section("chip-and-text.md", "## Use it when")
+    used = {frag_tone for _, frag in fragments(PAGES_DIR / "chip-and-text.md")
+            for frag_tone in re.findall(r'"tone": "(\w+)"', json.dumps(frag))}
+    assert used & STATE_TONES
+
+
+def test_the_chip_page_states_value_chips_and_the_component_tip():
+    holds = " ".join(_entry_section("chip-and-text.md", "## Holds").split())
+    for fact in ("`set`", "`value_sets`", "`{name: {values, ordered}}`", "a tone or a set, never both", "`tip`",
+                 "300 characters"):
+        assert fact in holds, fact
+    looks = " ".join(_entry_section("chip-and-text.md", "## How it looks").split())
+    for fact in ("same colour on the whole page", "strong colour to a faint one", "YOU", "8 different colours"):
+        assert fact in looks, fact
+    use = _entry_section("chip-and-text.md", "## Use it when")
+    assert "value chip" in use and "`tip`" in use
+    documents = [frag for level, frag in fragments(PAGES_DIR / "chip-and-text.md") if level == "document"]
+    assert any(doc["schema"] == SCHEMA_1 and doc.get("value_sets") and '"set": ' in json.dumps(doc)
+               and '"tip": ' in json.dumps(doc) for doc in documents)
+
+
+@pytest.mark.parametrize("mutate, field", [
+    (lambda c: c["props"].update(set="size"), "names no value set"),
+    (lambda c: c["props"].update(text="severe"), "no value of the set"),
+    (lambda c: c["props"].update(tone="new"), "a tone or a set"),
+], ids=["unknown set", "value outside its set", "tone and set"])
+def test_fake_refuses_a_value_chip_that_does_not_resolve(mutate, field):
+    doc = {"schema": SCHEMA_1,
+           "session": {"id": "s-wrap", "skill": "grill", "feature": "example", "ticket": "PROJ-123",
+                       "started": "2026-01-01T09:00:00Z", "step": "Requirements grill"},
+           "maps": [], "notes": [], "value_sets": {"risk": {"values": ["high", "low"], "ordered": True}},
+           "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
+                       "items": [{"id": "i-a", "kind": "info",
+                                  "body": {"type": "chip", "props": {"text": "high", "set": "risk"}}}]}]}
+    check_document(copy.deepcopy(doc))
+    mutate(doc["rounds"][0]["items"][0]["body"])
+    with pytest.raises(Refused, match=re.escape(field)):
+        check_document(doc)
+
+
+def test_the_page_layout_states_the_session_table_of_every_note():
+    """Ruling D-39: the session notes table holds every note, card notes included, with per-round folds."""
+    layout = " ".join(SKILL_MD.read_text("utf-8").split("## Page layout\n", 1)[1].split("\n## ", 1)[0].split())
+    assert "every note of the session, card notes included" in layout and "one fold per round" in layout
+    assert "stand on no card" not in layout
 
 
 def _frontmatter(path):
@@ -717,9 +924,14 @@ def test_every_skill_file_has_agent_skills_frontmatter():
     assert len(meta.get("description", "")) > 40
 
 
+def test_the_frontmatter_names_page_format_1():
+    description = _frontmatter(SKILL_MD)["description"]
+    assert SCHEMA_1 in description and SCHEMA not in description
+
+
 def test_one_entry_per_catalog_component():
     pages = {p.name for p in PAGES_DIR.glob("*.md")}
-    assert pages == set(CATALOG.values())
+    assert pages == set(CATALOG.values()) | set(CHART_PAGES.values()) | set(TEXT_PAGES.values())
     index = SKILL_MD.read_text("utf-8")
     for cmp_id, name in CATALOG.items():
         text = (PAGES_DIR / name).read_text("utf-8")
@@ -727,6 +939,90 @@ def test_one_entry_per_catalog_component():
             assert section in text, f"{cmp_id} ({name}) has no {section!r}"
         assert fragments(PAGES_DIR / name), f"{cmp_id} ({name}) has no example fragment"
         assert f"components/{name}" in index, f"SKILL.md does not point at {name}"
+
+
+@pytest.mark.parametrize("form", sorted(CHART_PAGES))
+def test_each_chart_has_a_page_with_its_props_its_look_and_when_to_use_it(form):
+    name = CHART_PAGES[form]
+    kind = name.removesuffix(".md")
+    text = (PAGES_DIR / name).read_text("utf-8")
+    for section in ENTRY_SECTIONS:
+        assert section in text, f"{name} has no {section!r}"
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert f"Type `{kind}`" in holds and "`caption`" in holds
+    for field in sorted(CHART_FIELDS[kind]):
+        assert f"`{field}`" in holds, field
+    assert "colour" in _entry_section(name, "## How it looks"), "the page states the cue beside the colour (PR-07)"
+    found = fragments(PAGES_DIR / name)
+    assert found and all(level == "component" and frag["type"] == kind and frag["props"]["caption"]
+                         for level, frag in found)
+
+
+def test_the_components_table_has_a_row_for_each_chart_page_and_the_fields_name_the_tip():
+    index = SKILL_MD.read_text("utf-8")
+    rows = [line for line in index.splitlines() if line.startswith("|")]
+    for name in CHART_PAGES.values():
+        kind = name.removesuffix(".md")
+        assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
+    fields = index[index.index("takes an open `style` field"):index.index("## Page layout")]
+    assert "`tip`" in fields and "300" in fields, "SKILL.md states no component tip beside style and fold (f4)"
+
+
+@pytest.mark.parametrize("kind", sorted(TEXT_PAGES))
+def test_the_components_table_has_a_row_for_the_diagram_code_and_diff_pages(kind):
+    """Ruling D-52: the guide routes an author to each page, in the same form as the chart rows (f3, f23)."""
+    rows = [line for line in SKILL_MD.read_text("utf-8").splitlines() if line.startswith("|")]
+    name = TEXT_PAGES[kind]
+    assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
+
+
+@pytest.mark.parametrize("kind", sorted(TEXT_PAGES))
+def test_the_diagram_code_and_diff_components_each_have_a_page(kind):
+    name = TEXT_PAGES[kind]
+    text = (PAGES_DIR / name).read_text("utf-8")
+    for section in ENTRY_SECTIONS:
+        assert section in text, f"{name} has no {section!r}"
+    holds = " ".join(_entry_section(name, "## Holds").split())
+    assert f"Type `{kind}`" in holds
+    for field in sorted(TEXT_FIELDS[kind]):
+        assert f"`{field}`" in holds, field
+    found = fragments(PAGES_DIR / name)
+    assert found and all(level == "component" and frag["type"] == kind for level, frag in found)
+
+
+def test_the_diagram_page_names_each_diagram_text_kind_and_the_text_fallback():
+    text = " ".join((PAGES_DIR / "diagram.md").read_text("utf-8").split())
+    for kind in ("stateDiagram", "erDiagram", "classDiagram", "flowchart", "gantt", "quadrantChart", "sankey",
+                 "mindmap", "treemap", "gitGraph", "xychart"):
+        assert kind in text, kind
+    assert "as text" in text and "/afkv2:setup" not in text
+
+
+def test_the_diff_page_shows_red_minus_and_green_plus():
+    look = _entry_section("diff.md", "## How it looks")
+    assert "red" in look and "green" in look and "`-`" in look and "`+`" in look
+
+
+def test_the_fake_refuses_a_diagram_with_no_caption():
+    with pytest.raises(Refused, match="caption"):
+        check_document(wrap("component", {"type": "diagram", "props": {"text": "flowchart LR; a --> b"}}))
+
+
+def test_the_fake_refuses_a_chart_with_no_caption():
+    frag = {"type": "bars", "props": {"items": [{"label": "a", "value": 1}]}}
+    with pytest.raises(Refused, match="caption"):
+        check_document(wrap("component", frag))
+
+
+# The forms a chart component draws, as a freestyle reason would name them (D-49).
+CHART_FORM_WORDS = ("line chart", "bar chart", "bullet", "box plot", "range bar", "signed bar", "flame",
+                    "sparkline", "waterfall", "tile")
+
+
+@pytest.mark.parametrize("name,doc", all_documents(), ids=lambda v: v if isinstance(v, str) else "")
+def test_no_freestyle_example_draws_a_form_that_a_chart_component_draws(name, doc):
+    reasons = [c["props"]["reason"].lower() for c in check_document(doc) if c["type"] == "freestyle"]
+    assert not [r for r in reasons for word in CHART_FORM_WORDS if word in r], name
 
 
 def test_fragment_levels_are_known():
@@ -745,14 +1041,17 @@ def test_every_whole_example_document_carries_the_schema_value():
     whole = [frag for _, level, frag in all_fragments() if level == "document"]
     whole.append(_example())
     for doc in whole:
-        assert doc["schema"] in {SCHEMA, "afkv2.page/1"}
+        assert doc["schema"] in (SCHEMA, SCHEMA_1)
 
 
 def test_all_components_document_uses_every_component():
+    """Ruling D-50: format 1, with every component, the charts, the diagram text, the code block and the diff included."""
     doc = _example()
+    assert doc["schema"] == SCHEMA_1
     components = check_document(doc)
     types = {c["type"] for c in components}
-    assert types >= {"map", "graph", "table", "sequence", "run-strip", "chip", "text", "freestyle"}
+    assert types >= {"map", "graph", "table", "sequence", "run-strip", "chip", "text", "freestyle",
+                     *CHART_FIELDS, *TEXT_FIELDS}
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     assert any(current["banner"].values()), "round banner is empty"
     assert current.get("replies"), "no agent reply"

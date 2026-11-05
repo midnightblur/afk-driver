@@ -19,7 +19,8 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 SKILLS = SCRIPTS.parents[1]
-sys.path[:0] = [str(SCRIPTS), str(SKILLS / "propose-solution" / "scripts"), str(SKILLS / "to-prd" / "scripts"), str(SKILLS / "grill" / "scripts")]
+sys.path[:0] = [str(SCRIPTS), str(SKILLS / "propose-solution" / "scripts"), str(SKILLS / "to-prd" / "scripts"), str(SKILLS / "grill" / "scripts"),
+               str(SKILLS / "use-lavish" / "scripts")]
 
 import check_plan as cp  # noqa: E402
 import design_files  # noqa: E402
@@ -32,7 +33,7 @@ TO_PRD = "/afkv2:to-prd"
 PROPOSE = "/afkv2:propose-solution"
 ADR_WRITERS = {"requirements": TO_PRD, "design": PROPOSE}
 ADR_LINK = re.compile(r"adr/(requirements|design)/[\w.-]+\.md")
-PAGE_SKILL = "propose-solution"
+PAGE_SKILL = "to-subtasks"
 SESSION_PREFIX = "division-"
 DOC_PREFIX = f"{PAGE_SKILL}-"
 CARD_PREFIX = "division-"

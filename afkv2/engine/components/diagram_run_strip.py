@@ -1,7 +1,9 @@
-"""Simulated-run strip (CMP-8): the steps of a run in time order, current and proposed."""
+"""Simulated-run strip (CMP-8): the steps of a run in time order, current and proposed. A step may carry a
+tip and a YOU mark."""
 
 from html import escape
 
+from components.diagram_marks import MARK_FIELDS, marks
 from registry import register_component
 from shell.diagram_parts import LABEL, TITLE, figure, held_in, label_html
 
@@ -9,7 +11,7 @@ LANES = (("current", "Current"), ("proposed", "Proposed"))
 STEPS = {"type": "array", "items": {
     "type": "object", "additionalProperties": False, "required": ["label"],
     "properties": {"label": LABEL, "detail": {"type": "string"},
-                   "tone": {"enum": ["kept", "removed", "new", "proposed"]}}}}
+                   "tone": {"enum": ["kept", "removed", "new", "proposed"]}, **MARK_FIELDS}}}
 
 
 def nested_labels(props):
@@ -23,10 +25,11 @@ def check_lanes(props):
 
 def _step(step):
     tone = step.get("tone")
-    css = f"afkv2-run-step afkv2-tone--{tone}" if tone else "afkv2-run-step"
+    extra, attrs = marks(step)
+    css = (f"afkv2-run-step afkv2-tone--{tone}" if tone else "afkv2-run-step") + extra
     detail = f'<span class="afkv2-run-detail">{escape(step["detail"])}</span>' if step.get("detail") else ""
     word = f'<span class="afkv2-run-tone">{tone}</span>' if tone else ""
-    return f'<li class="{css}">{label_html(step["label"], "afkv2-run-label")}{detail}{word}</li>'
+    return f'<li class="{css}"{attrs}>{label_html(step["label"], "afkv2-run-label")}{detail}{word}</li>'
 
 
 def _lane(heading, steps):

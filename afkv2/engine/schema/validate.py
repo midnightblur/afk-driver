@@ -2,6 +2,7 @@
 
 A problem is `(path, why)`; `path` is a tuple of object keys and list indexes.
 A schema with any other keyword raises `SchemaError`, so a keyword is never ignored in silence.
+`additionalProperties` is `false` or the schema of every other field.
 """
 
 from __future__ import annotations
@@ -38,6 +39,8 @@ def check_schema(schema: dict) -> None:
     subs += schema.get("anyOf", [])
     if "items" in schema:
         subs.append(schema["items"])
+    if isinstance(schema.get("additionalProperties"), dict):
+        subs.append(schema["additionalProperties"])
     for sub in subs:
         check_schema(sub)
 
@@ -93,10 +96,12 @@ def _scalar_problems(value, schema: dict, path: tuple, root: dict) -> list[tuple
 
 def _object_problems(value: dict, schema: dict, path: tuple, root: dict) -> list[tuple]:
     found = [((*path, key), "is required") for key in schema.get("required", []) if key not in value]
-    known = schema.get("properties", {})
+    known, extra = schema.get("properties", {}), schema.get("additionalProperties")
     for key, entry in value.items():
         if key in known:
             found += problems(entry, known[key], (*path, key), root)
-        elif schema.get("additionalProperties") is False:
+        elif extra is False:
             found.append(((*path, key), "is not a field of this object"))
+        elif isinstance(extra, dict):
+            found += problems(entry, extra, (*path, key), root)
     return found

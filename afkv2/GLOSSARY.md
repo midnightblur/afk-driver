@@ -119,6 +119,21 @@ The list in the grill log of every load-bearing statement about how something wo
 The check that ends a grill: every claim verified or acknowledged, every term verified, the policy, staples, examples and devil's-advocate rows present, and no point left open in the current round.
 `Related:` Claim ledger
 
+**Page**:
+The HTML a human reads and answers. The page engine builds it from a page document.
+
+**Note**:
+A comment a human writes on a page element, as a lavish annotation, and sends with Send to Agent.
+
+**Answer**:
+The agent's reply to one note, shown in that note's row. The page document calls it a reply.
+
+**Ad-hoc page**:
+A page an agent writes outside an afk step, to talk with a human about any topic.
+
+**use-lavish**:
+The afkv2 skill that tells an agent how to organize a page, write its content and answer the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
+
 **Merged**:
 The forge reports the feature's change as merged, into any target branch, and no change on the branch is still open. Only the forge decides; a git history check does not count, because a squash merge leaves the feature tip outside the target.
 

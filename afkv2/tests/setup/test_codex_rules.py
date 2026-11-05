@@ -6,7 +6,7 @@ import setup
 
 def _install(places, version="2.0.0"):
     root = places.codex_dir / "plugins" / "cache" / "market" / "afkv2" / version
-    for relative in ("engine/engine.py", "skills/grill/scripts/page_round.py", "skills/grill/SKILL.md"):
+    for relative in ("engine/engine.py", "skills/use-lavish/scripts/page_round.py", "skills/grill/SKILL.md"):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"")
@@ -31,7 +31,7 @@ def test_rules_allow_only_the_plugin_scripts_for_each_launcher(places):
     root = _install(places)
     answer = setup.write_codex_rules(places)
     assert answer["ok"] and answer["action"] == "written" and answer["scripts"] == 2
-    engine, page = str(root / "engine" / "engine.py"), str(root / "skills" / "grill" / "scripts" / "page_round.py")
+    engine, page = str(root / "engine" / "engine.py"), str(root / "skills" / "use-lavish" / "scripts" / "page_round.py")
     assert _patterns(places) == [["python", engine], ["py", "-3", engine], ["python", page], ["py", "-3", page]]
 
 

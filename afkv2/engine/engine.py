@@ -1,7 +1,7 @@
 """The page engine: one command, one JSON answer per verb.
 
     engine.py check DOC
-    engine.py render DOC
+    engine.py render DOC [--notices [--scan FILE]...]
     engine.py show DOC [--no-open|--reopen]
     engine.py poll DOC [--reply-file FILE]
     engine.py reply DOC --reply-file FILE
@@ -18,6 +18,11 @@ Poll keeps a round send in `<DOC stem>.delivery.json` before it reads it; a late
 file, and a successful ingest deletes it. An ingest that refuses the response moves the file to
 `<DOC stem>.refused.<stamp>.json`.
 
+Render answers `diagrams`: the count of the page's diagrams rendered, cached and shown as text (`diagrams.py`).
+Render with `--notices` reads the page's git state and scans the page and each `--scan` file for secrets
+(`notices.py`); it answers `git_state`, `git_reason` and `secrets`, and keeps them in `page-notices/` of the data
+folder, so a later render (show renders too) keeps them in the page header. Neither refuses anything.
+
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -25,6 +30,7 @@ item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -40,8 +46,10 @@ for folder in (ENGINE_DIR.parent / "scripts", ENGINE_DIR):
 from afkv2_config import Refusal, data_folder, exit_code, read_config  # noqa: E402
 
 import btw_listener  # noqa: E402
+import diagrams  # noqa: E402
 import ingest  # noqa: E402
 import launcher  # noqa: E402
+import notices  # noqa: E402
 import prompt_lines  # noqa: E402
 import registry  # noqa: E402
 import side_question  # noqa: E402
@@ -57,23 +65,75 @@ MAX_REASONS = 20
 THREAD_VARIABLE = "CODEX_THREAD_ID"
 COPIES_FOLDER = "page-copies"
 TABS_FOLDER = "page-tabs"
+NOTICES_FOLDER = "page-notices"
 TAB_GONE = {"ended", "browser_disconnected", "no-session"}
 DELIVERY_SUFFIX = ".delivery.json"
 
 
-def read_v0(raw: dict) -> dict:
+# The step of an upgraded format 0 page, by its skill; any other skill takes its feature name.
+V0_STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design"}
+STEP_LIMIT = 40
+
+
+def _v0_step(session: dict) -> str:
+    return V0_STEPS.get(session.get("skill")) or str(session.get("feature") or session.get("skill"))[:STEP_LIMIT]
+
+
+class FromFormat0(dict):
+    """A format 1 document that was read from a format 0 file. The mark is the type, so it lives in memory
+    only: a JSON write of the document holds no trace of it, and the file stays valid format 1."""
+
+    from_format_0 = True
+
+
+def from_format_0(doc: dict) -> bool:
+    """True when the document was read from a format 0 file: only such a page pairs an answer by `about`."""
+    return getattr(doc, "from_format_0", False)
+
+
+def read_v0_as_v1(raw: dict) -> dict:
+    """The format 1 form of a format 0 document, in memory; `raw` is not changed (ADR-0002 design).
+
+    Card notes and steers move into the session list with their ids as they are, oldest round first; a card
+    note names its card in `item`, a steer names none. The noted text stays inside the words. An answer
+    keeps `about`. The short title is none. The answer is marked `FromFormat0`."""
+    doc = FromFormat0(copy.deepcopy(raw))
+    doc["schema"] = SCHEMA_V1
+    notes = []
+    for round_ in doc["rounds"]:
+        for item in round_["items"]:
+            notes += [_session_note(note, item["id"]) for note in item.pop("notes", None) or []]
+        notes += [_session_note(note, None) for note in round_.pop("notes", None) or []]
+    doc["notes"] = sorted(notes, key=lambda note: note["round"])
+    session = doc["session"]
+    session.update(short_title=None, step=_v0_step(session), private=False, takeovers=[])
+    return doc
+
+
+def _session_note(note: dict, item: str | None) -> dict:
+    return {"id": note["id"], "round": note["round"], "target": note["target"], "item": item,
+            "text": note["text"], "deleted": note["deleted"]}
+
+
+def read_v1(raw: dict) -> dict:
     return raw
 
 
-def _read_page_v1(raw: dict) -> dict:
-    return raw
+READERS = {SCHEMA_V0: read_v0_as_v1, SCHEMA_V1: read_v1}
 
 
-READERS = {SCHEMA_V0: read_v0, SCHEMA_V1: _read_page_v1}
+def _schema_checked(value: dict) -> str:
+    """The schema value of the value's format, after the value passed its schema; a problem is refused as
+    `schema`."""
+    found = problems(value, registry.component_schema_for(value["schema"]))
+    if found:
+        raise _refuse(value, found, "schema")
+    return value["schema"]
 
 
 def load_document(path: str) -> tuple[dict, dict]:
-    """The raw document and its reader's in-memory form. Unknown schema values are refused."""
+    """The raw document and its reader's in-memory form, format 1. An unknown schema value and a document
+    that does not fit the schema of its format are refused before the reader runs."""
     try:
         raw = json.loads(Path(path).read_bytes().decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -84,6 +144,7 @@ def load_document(path: str) -> tuple[dict, dict]:
     if not isinstance(version, str) or version not in READERS:
         known = ", ".join(READERS)
         raise Refusal("unknown-schema", f"item document, field schema: version {version!r} is unknown; known: {known}")
+    _schema_checked(raw)
     return raw, READERS[version](raw)
 
 
@@ -250,6 +311,19 @@ def tab_record(html_path: Path) -> Path:
     return _keyed_path(TABS_FOLDER, html_path)
 
 
+def notices_record(document: Path) -> Path:
+    """The last notices of a page: derived, overwritten by each render with notices (SDD §4)."""
+    return _keyed_path(NOTICES_FOLDER, document)
+
+
+def _last_notices(document: Path) -> dict | None:
+    try:
+        kept = json.loads(notices_record(document).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return kept if isinstance(kept, dict) and isinstance(kept.get("git_state"), str) else None
+
+
 def _forget_tab(html_path: Path) -> None:
     try:
         tab_record(html_path).unlink(missing_ok=True)
@@ -279,21 +353,25 @@ def save_settled_copy(document: Path, doc: dict) -> None:
 
 
 def _content_problems(raw: dict, doc: dict) -> list[tuple]:
-    """The invariant problems of a document. A problem of schema or component shape is refused here."""
-    schema = json.loads(SCHEMA_FILES[raw["schema"]].read_text(encoding="utf-8"))
-    found = problems(raw, schema)
-    if found:
-        raise _refuse(raw, found, "schema")
+    """The invariant problems of the in-memory form `doc` of `raw`. A problem of schema or component shape is
+    refused here: `raw` against the schema of its own format."""
+    schema_name = _schema_checked(raw)
     found = []
     for m, map_ in enumerate(doc.get("maps") or []):
-        found += registry.validate(map_, ("maps", m), schema_name=doc["schema"])
+        found += registry.validate(map_, ("maps", m), schema_name=schema_name)
     for r, round_ in enumerate(doc["rounds"]):
         for i, item in enumerate(round_["items"]):
-            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"), schema_name=doc["schema"])
+            found += registry.validate(item["body"], ("rounds", r, "items", i, "body"),
+                                       schema_name=schema_name)
     if found:
         raise _refuse(raw, found, "schema")
     found, ids, nodes = _element_ids(doc)
-    return found + _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
+    found += _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
+    if not found:
+        links = invariants.check_links(doc, ids)
+        if links:
+            raise _refuse(raw, links, "bad-link")
+    return found
 
 
 def check_document(path: str) -> tuple[dict, str]:
@@ -329,13 +407,37 @@ def _save_settled_copy_if_possible(document: Path, doc: dict) -> None:
             raise
 
 
+def _data_pages() -> Path | None:
+    try:
+        return (data_folder() / PAGES_FOLDER).resolve()
+    except Refusal as refusal:
+        if refusal.code != "no-data-folder":
+            raise
+        return None
+
+
 def _require_home(path: str, doc: dict) -> Path:
-    """The document lives in the spec folder as `pages/<skill>-<session id>.json`, alone with its id."""
+    """The document is `<skill>-<session id>.json`, alone with its id in its folder. A ticket page lives in the
+    spec folder, in a `pages` folder. A page with no ticket, or a private one, may live in the data folder's
+    `pages/<repository name>/` (requirement ADR-0002)."""
     document = Path(path).resolve()
     session = doc["session"]
     expected = f"{session['skill']}-{session['id']}.json"
     if document.name != expected:
         raise Refusal("bad-location", f"item session, field id: the file must be named {expected}, found {document.name}")
+    data_pages = _data_pages()
+    if data_pages is not None and document.parent.parent == data_pages:
+        if session.get("ticket") and not session.get("private"):
+            raise Refusal("bad-location", f"item session, field ticket: a page of ticket {session['ticket']} lives in "
+                                          f"its spec folder, not in {document.parent}; only a page with no ticket, "
+                                          "or a private one, lives in the data folder")
+        return _alone_with_its_id(document, session)
+    if session.get("private"):
+        raise Refusal("bad-location", f"item session, field private: a private page lives in the data folder's "
+                                      f"{PAGES_FOLDER}/<repository name>/, not in {document.parent}")
+    if data_pages is not None and document.parent == data_pages:
+        raise Refusal("bad-location", f"item session, field id: {document} must sit in a repository folder of "
+                                      f"{data_pages}")
     if document.parent.name != PAGES_FOLDER:
         raise Refusal("bad-location", f"item session, field id: {document} must sit in a {PAGES_FOLDER} folder")
     config = read_config(document.parent)
@@ -343,22 +445,34 @@ def _require_home(path: str, doc: dict) -> Path:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     if not document.is_relative_to(Path(config["spec_folder"]).resolve()):
         raise Refusal("bad-location", f"item session, field id: {document} is outside the spec folder {config['spec_folder']}")
+    return _alone_with_its_id(document, session)
+
+
+def _alone_with_its_id(document: Path, session: dict) -> Path:
     for other in document.parent.glob(f"*-{session['id']}.json"):
         if other.name != document.name:
             raise Refusal("duplicate-session", f"item session, field id: {session['id']!r} is also used by {other.name}")
     return document
 
 
-def _render(path: str) -> tuple[dict, Path, Path]:
+def _render(path: str, scan: list[str] | None = None) -> tuple[dict, Path, Path, dict | None, dict]:
+    """With `scan` (a list, maybe empty), the notices are read anew and kept; else the last kept notices show.
+    The last value counts the page's diagrams: rendered, cached and shown as text."""
     doc, _ = check_document(path)
     document = _require_home(path, doc)
     data_folder()
+    if scan is None:
+        found = _last_notices(document)
+    else:
+        found = notices.page_notices(document, [Path(file) for file in scan])
+        inject.write_if_changed(notices_record(document), json.dumps({"page": str(document), **found}).encode("utf-8"))
     html_path = document.with_suffix(".html")
-    html = page.build(doc, btw_listener.address(document))
-    html = inject.inject(html, inject.load_dictionary(html_path, html))
+    with diagrams.page_run() as counts:
+        built = page.build(doc, btw_listener.address(document), found)
+    html = inject.inject(built, inject.load_dictionary(html_path, built))
     inject.write_if_changed(html_path, html.encode("utf-8"))
     save_settled_copy(document, doc)
-    return doc, document, html_path
+    return doc, document, html_path, found, dict(counts)
 
 
 def cmd_check(args) -> dict:
@@ -367,12 +481,15 @@ def cmd_check(args) -> dict:
 
 
 def cmd_render(args) -> dict:
-    _, _, html_path = _render(args.document)
-    return {"ok": True, "verb": "render", "page": str(html_path)}
+    if args.scan and not args.notices:
+        raise Refusal("usage", "--scan needs --notices")
+    _, _, html_path, found, counts = _render(args.document, (args.scan or []) if args.notices else None)
+    answer = {"ok": True, "verb": "render", "page": str(html_path), "diagrams": counts}
+    return {**answer, **found} if args.notices else answer
 
 
 def cmd_show(args) -> dict:
-    _, document, html_path = _render(args.document)
+    _, document, html_path, _, _ = _render(args.document)
     argv = ["open", str(html_path)]
     tab = tab_record(html_path)
     reused = not (args.no_open or args.reopen) and tab.is_file()
@@ -513,9 +630,9 @@ def cmd_poll(args) -> dict:
 
 def poll_raw(document: str, prompts: list[dict]) -> str:
     """The raw response that a poll's prompts make, read against the page document."""
-    _, doc = load_document(document)
+    raw, doc = load_document(document)
     _, ids, _ = _element_ids(doc)
-    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc))
+    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc), raw["schema"])
 
 
 def set_aside_file(document: str, stamp: str) -> Path:
@@ -542,10 +659,12 @@ def _ingest(args) -> dict:
 
     A refusal of the response sets the kept send aside, with the human's answer in it: a refused send must
     not answer every later poll. A refusal of the document or of an unreadable raw file keeps it."""
+    raw, _ = load_document(args.document)
     check_document(args.document)
     try:
         answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed,
-                                   elements=_element_ids, save_copy=_save_settled_copy_if_possible)
+                                   elements=_element_ids, save_copy=_save_settled_copy_if_possible,
+                                   page_format=raw["schema"])
     except Refusal as refusal:
         aside = None if refusal.code == "unreadable" else _set_aside(args.document, refusal)
         if aside is not None:
@@ -572,6 +691,9 @@ def _parser() -> argparse.ArgumentParser:
             mode = sub.add_mutually_exclusive_group()
             mode.add_argument("--no-open", action="store_true")
             mode.add_argument("--reopen", action="store_true")
+        if verb == "render":
+            sub.add_argument("--notices", action="store_true")
+            sub.add_argument("--scan", action="append")
         if verb == "ingest":
             sub.add_argument("--raw-file", required=True)
         if verb in ("poll", "reply"):

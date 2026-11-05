@@ -104,6 +104,13 @@ def journal_of(built):
 # --- fresh subagent ---------------------------------------------------------------------------------------------------
 
 
+def test_the_brief_says_that_no_human_reads_a_page(run):
+    """SDD §14 row "Hands-off brief": a hands-off executor opens no page and parks a question for the human."""
+    brief = call("start", plan=str(run.plan), subtask="0001-a")["brief"].splitlines()
+    lines = [line for line in brief if "No human reads a page" in line]
+    assert lines == ["No human reads a page in this run: open no page, and park a question for the human."]
+
+
 def test_each_subtask_gets_a_brief_of_its_own_with_nothing_of_an_earlier_subtask(run):
     first = call("start", plan=str(run.plan), subtask="0001-a")
     assert first["ok"] and first["base"] == git(run.work, "rev-parse", "HEAD")

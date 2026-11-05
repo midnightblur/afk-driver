@@ -55,7 +55,7 @@ def render_case(tmp_path, monkeypatch):
     doc = {
         "schema": "afkv2.page/1",
         "session": {"id": "tips", "skill": "grill", "feature": "sample", "ticket": "sample",
-                    "started": "2026-01-05T09:00:00Z"},
+                    "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
         "tips": {"terms": [{"term": "queue", "definition": "Waiting work"}],
                  "ids": [{"id": "card", "title": "Decision"}]},
         "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
@@ -110,6 +110,7 @@ def test_page_zero_has_no_source_block(render_case, capsys):
     path, doc = render_case
     doc["schema"] = "afkv2.page/0"
     doc.pop("tips")
+    doc["session"].pop("step")
     assert render(path, doc, capsys)[0] == 0
     assert not SourceParser(path.with_suffix(".html").read_text("utf-8")).sources
 

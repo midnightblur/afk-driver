@@ -34,6 +34,20 @@ import registry  # noqa: E402
 from schema import invariants  # noqa: E402
 from shell import inject, page  # noqa: E402
 
+
+def in_memory(doc):
+    """The format 1 form that the engine's reader gives the page."""
+    return engine.READERS[doc["schema"]](doc)
+
+
+def build(doc, *args):
+    return page.build(in_memory(doc), *args)
+
+
+def targets(doc):
+    return page.targets(in_memory(doc))
+
+
 SCHEMA = "afkv2.page/0"
 
 
@@ -251,7 +265,7 @@ def test_every_element_id_is_also_its_html_id():
     doc = two_rounds()
     doc["rounds"][1]["items"][0]["body"] = text("x", id="c-body")
     doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
-    html = page.build(doc)
+    html = build(doc)
     assert holds(html, 'id="i-new" data-afkv2-item="i-new" data-afkv2-element="i-new"',
                  'id="c-body" data-afkv2-element="c-body"', 'id="m-1" data-afkv2-element="m-1"',
                  'id="n-1" data-afkv2-element="n-1"')
@@ -440,7 +454,7 @@ def scratch_type():
 
 def test_a_type_name_maps_to_a_schema_and_a_renderer():
     kind = registry.lookup("chip")
-    assert kind.name == "chip" and kind.schema["required"] == ["text", "tone"] and callable(kind.render)
+    assert kind.name == "chip" and kind.schema["required"] == ["text"] and callable(kind.render)
     assert registry.lookup("no-such") is None
 
 
@@ -457,7 +471,7 @@ def test_a_new_component_is_one_registry_entry(capsys, tmp_path, scratch_type):
     doc = document()
     doc["rounds"][0]["items"][0]["body"] = {"type": "badge", "props": {"label": "new"}}
     assert call(capsys, "check", save(tmp_path / "doc.json", doc))[0] == 0
-    assert "<b>new</b>" in page.build(doc)
+    assert "<b>new</b>" in build(doc)
     doc["rounds"][0]["items"][0]["body"] = {"type": "badge", "props": {}}
     assert "field body.props.label" in refused(capsys, tmp_path, doc)["reason"]
 
@@ -656,7 +670,7 @@ def test_a_fold_puts_any_component_in_a_closed_details_inside_its_id():
 def test_the_page_keeps_a_component_fold_open_through_a_reload():
     doc = two_rounds()
     doc["rounds"][1]["items"][0]["body"] = text("Long words", id="c-long", fold="More")
-    html = page.build(doc)
+    html = build(doc)
     assert holds(html, 'data-afkv2-fold="fold-c-long"', "querySelectorAll('details[' + ATTR + ']')")
 
 
@@ -725,7 +739,7 @@ def test_page_order_is_banner_slot_maps_cards():
     doc = two_rounds()
     doc["maps"] = [{"type": "map", "id": "m-1", "props": {
         "nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
-    html = page.build(doc)
+    html = build(doc)
     body = html[position(html, "<body>"):]
     order = ["afkv2-banner", 'id="afkv2-notes-replies"', 'id="afkv2-maps"', 'id="afkv2-r-2"', SETTLED_SECTION,
              'id="afkv2-earlier-banners"']
@@ -735,11 +749,11 @@ def test_page_order_is_banner_slot_maps_cards():
 
 def test_the_slot_holds_what_its_registered_component_renders():
     doc = two_rounds()
-    assert holds(page.build(doc), '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>')
+    assert holds(build(doc), '<section class="afkv2-notes-replies" id="afkv2-notes-replies"></section>')
     doc["rounds"][1]["replies"] = [{"text": "A reply of the agent."}]
     drawn = registry.lookup("notes-and-replies").render({"document": doc}, [])
     assert holds(drawn, "A reply of the agent.")
-    assert holds(page.build(doc), f'id="afkv2-notes-replies">{drawn}</section>')
+    assert holds(build(doc), f'id="afkv2-notes-replies">{drawn}</section>')
 
 
 def test_each_round_has_its_own_colour():
@@ -748,7 +762,7 @@ def test_each_round_has_its_own_colour():
     colours = [page.round_colour(r) for r in doc["rounds"]]
     assert len(set(colours)) == 12
     assert page.round_colour({"n": 1, "colour": "tomato"}) == "tomato"
-    assert holds(page.build(doc), *round_colour_rules(colours))
+    assert holds(build(doc), *round_colour_rules(colours))
 
 
 def card_in(html, item_id):
@@ -760,7 +774,7 @@ def test_every_card_has_its_round_chip_solid_only_when_it_needs_the_human():
     doc = two_rounds()
     doc["rounds"][1]["items"] += [item("i-info", "info"), item("i-done", state="settled_by_mark",
                                                               settled={"by": "mark", "round": 2, "signal": "accept"})]
-    html = page.build(doc)
+    html = build(doc)
     assert "R-2</span>" in card_in(html, "i-new") and PAST_CHIP not in card_in(html, "i-new")
     assert "R-1</span>" in card_in(html, "i-old")
     for other in ("i-old", "i-info", "i-done"):
@@ -769,7 +783,7 @@ def test_every_card_has_its_round_chip_solid_only_when_it_needs_the_human():
 
 def test_no_item_is_removed_when_a_round_settles():
     doc = two_rounds()
-    html = page.build(doc)
+    html = build(doc)
     assert holds(html, 'data-afkv2-item="i-old"', 'data-afkv2-item="i-new"')
     past = html[position(html, SETTLED_SECTION):position(html, "<script>")]
     assert lacks(past, "<textarea", 'type="radio"')
@@ -786,7 +800,7 @@ def test_settled_points_and_earlier_banners_come_newest_first():
     doc = three_rounds()
     doc["rounds"][1]["items"][0].update(state="settled_by_mark", settled={"by": "mark", "round": 2, "signal": "accept"})
     doc["rounds"][0]["banner"], doc["rounds"][1]["banner"] = banner("R1 banner"), banner("R2 banner")
-    html = page.build(doc)
+    html = build(doc)
     assert html.count(ROUND_ID) == 1 and holds(html, ROUND_THREE)
     settled = html[position(html, SETTLED_SECTION):]
     assert position(settled, 'data-afkv2-item="i-new"') < position(settled, 'data-afkv2-item="i-old"')
@@ -797,9 +811,12 @@ def test_settled_points_and_earlier_banners_come_newest_first():
 
 
 def test_an_open_asking_card_of_an_earlier_round_stays_with_the_live_points():
-    html = page.build(three_rounds())
+    html = build(three_rounds())
     live = html[position(html, ROUND_THREE):position(html, SETTLED_SECTION)]
     assert holds(live, 'data-afkv2-item="i-new"', 'data-afkv2-item="i-3"')
+
+
+SESSION_COPY_OF_NEW = 'id="afkv2-ns-N-2-i-new"'
 
 
 def history_doc(legacy=False):
@@ -817,24 +834,24 @@ def history_doc(legacy=False):
 
 @pytest.mark.parametrize("legacy", [False, True])
 def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
-    html = page.build(history_doc(legacy))
+    html = build(history_doc(legacy))
     assert html.count(ITEM_MARKER.format("i-new")) == 1
     head = html[position(html, 'id="i-3"'):]
     assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
     assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
     assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
-    assert lacks(html[:position(html, MAPS_SECTION)], "Say who runs it.")
+    assert holds(html[:position(html, MAPS_SECTION)], SESSION_COPY_OF_NEW, "Say who runs it.")
 
 
 def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_wins():
     doc = history_doc()
     doc["rounds"][1]["items"][0]["carries"] = ["i-old"]
-    html = page.build(doc)
+    html = build(doc)
     head = html[position(html, 'id="i-3"'):]
     assert holds(head, "History (R-2 i-new, R-1 i-old)")
     assert position(head, 'data-afkv2-item="i-new"') < position(head, 'data-afkv2-item="i-old"')
     doc["rounds"][2]["items"].append(item("i-3b", carries=["i-old"]))
-    html = page.build(doc)
+    html = build(doc)
     assert holds(html, "History (R-2 i-new)</summary>", "History (R-1 i-old)</summary>")
     assert html.count(ITEM_MARKER.format("i-old")) == 1
 
@@ -843,9 +860,10 @@ def test_an_annotation_on_a_history_row_resolves_to_the_old_card(tmp_path):
     doc = history_doc()
     doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [{"id": "n-1", "state": "open", "round": 1, "label": "x"}]}}]
     dom = _Dom()
-    dom.feed(page.build(doc))
-    selector = lavish_selector(find_cell(dom.root, "The card"))
+    dom.feed(build(doc))
+    selector = lavish_selector(find_cell(find_id(dom.root, "i-new"), "The card"))
     assert selector == "tr#afkv2-nr-N-2-i-new > td:nth-of-type(2)"
+    assert lavish_selector(find_cell(dom.root, "The card")) == "tr#afkv2-ns-N-2-i-new > td:nth-of-type(2)"
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [prompt("Still unclear.", selector, "td", "The card")])
     assert raw == '[round R-3]\ni-new — | Still unclear.'
 
@@ -866,7 +884,7 @@ def test_the_page_remembers_open_folds_and_the_rail_skips_history_cards():
 
 def test_a_round_with_nothing_to_answer_has_no_copy_bar():
     doc = document({"n": 1, "state": "current", "banner": banner(), "items": []})
-    html = page.build(doc)
+    html = build(doc)
     assert lacks(html, 'id="afkv2-copy"', "<form")
 
 
@@ -884,12 +902,18 @@ RUNTIME = (ENGINE_DIR / "shell" / "runtime.js").read_text("utf-8")
 
 
 def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
-    html = page.build(two_rounds())
+    html = build(two_rounds())
     assert holds(html, COPY_BUTTON, "Copy the response", "Send to Agent in the lavish panel",
                  'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
     assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
     assert lacks(RUNTIME, "sendQueuedPrompts")
     assert not (ENGINE_DIR / "shell" / "notes.js").exists()
+
+
+def test_the_copy_hint_gives_the_format_1_note_entry():
+    """The builder writes format 1, and the format 1 parser refuses the format 0 note line `<id> — | <note>`."""
+    assert holds(RUNTIME, f"<id> {prompt_lines.NOTE_WORD} 1", "indented 2 spaces")
+    assert lacks(RUNTIME, "— |", "<id> — ")
 
 
 def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
@@ -937,7 +961,8 @@ def test_a_closing_script_tag_in_a_tip_does_not_end_the_block():
 def test_render_writes_the_page_beside_the_document(repo, capsys):
     path = in_home(repo, two_rounds())
     code, answer = call(capsys, "render", path)
-    assert code == 0 and answer == {"ok": True, "verb": "render", "page": str(path.with_suffix(".html").resolve())}
+    assert code == 0 and answer == {"ok": True, "verb": "render", "page": str(path.with_suffix(".html").resolve()),
+                                    "diagrams": {"rendered": 0, "cached": 0, "as_text": 0}}
     assert path.with_suffix(".html").is_file()
     assert sorted(p.name for p in path.parent.iterdir()) == ["grill-s1.html", "grill-s1.json"]
 
@@ -1202,16 +1227,16 @@ def test_end_forgets_the_tab_and_reopen_opens_one(repo, capsys, host):
     assert [argv[2:] for argv in calls if argv[0] == "open"] == [[], [], ["--reopen"]]
 
 
-def test_the_tab_title_names_ticket_feature_skill_and_round():
+def test_the_tab_title_of_a_format_0_page_names_ticket_feature_and_step():
     doc = two_rounds()
-    assert page.tab_title(doc) == "PROJ-1 · export · grill R-2"
-    assert "<title>PROJ-1 · export · grill R-2</title>" in page.build(doc)
+    assert page.stable_title(in_memory(doc)) == "PROJ-1 · export · Requirements grill"
+    assert "<title>PROJ-1 · export · Requirements grill</title>" in build(doc)
     doc["session"].update(ticket="158", feature="158", skill="propose-solution")
-    assert page.tab_title(doc) == "#158 · propose-solution R-2"
+    assert page.stable_title(in_memory(doc)) == "#158 · Solution design"
 
 
 def test_each_round_banner_is_an_element_with_its_round_id():
-    html = page.build(two_rounds())
+    html = build(two_rounds())
     assert holds(html, 'id="R-2" data-afkv2-element="R-2"', 'id="R-1" data-afkv2-element="R-1"')
     _, ids, _ = engine._element_ids(two_rounds())
     assert ids["R-1"] == ("rounds", 0, "banner") and ids["R-2"] == ("rounds", 1, "banner")
@@ -1315,13 +1340,14 @@ def test_an_annotation_on_a_row_of_the_notes_table_resolves_through_the_page(tmp
     doc["rounds"][1]["items"][2]["notes"] = [
         {"id": "N-2-i-third", "round": 2, "target": "n-1", "text": "Steer.", "deleted": False}]
     doc["rounds"][1]["replies"] = [{"text": "A reply alone."}]
-    html = page.build(doc)
+    html = build(doc)
     assert holds(html, 'id="afkv2-nr-N-2-i-new"', 'id="afkv2-nr-reply-2-1"')
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
-        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(3) > q", "q", "Old note."),
+        prompt("Still wrong.", "tr#afkv2-nr-N-2-i-new > td:nth-of-type(4) > q", "q", "Old note."),
+        prompt("Also wrong.", "tr#afkv2-ns-N-2-i-new > td:nth-of-type(4) > q", "q", "Old note."),
         prompt("Keep it.", "tr#afkv2-nr-N-2-i-third > td", "td", "Steer."),
-        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(4) > p", "p", "A reply alone.")])
-    assert raw == '[round R-2]\ni-new — | Still wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
+        prompt("Why?", "tr#afkv2-nr-reply-2-1 > td:nth-of-type(5) > p", "p", "A reply alone.")])
+    assert raw == '[round R-2]\ni-new — | Still wrong.\ni-new — | Also wrong.\nn-1 — | Keep it.\nm-1 — | Why? (on: "A reply alone.")'
 
 
 VOID_TAGS = {"input", "br", "meta", "img", "hr", "link"}
@@ -1366,6 +1392,12 @@ def lavish_selector(node):
     return " > ".join(parts)
 
 
+def find_id(node, identifier):
+    if node[1] == identifier:
+        return node
+    return next((found for child in node[3] if (found := find_id(child, identifier))), None)
+
+
 def find_cell(node, words):
     if node[0] == "td" and node[4] == words:
         return node
@@ -1379,14 +1411,14 @@ def test_an_annotation_on_a_table_cell_resolves_to_its_table(tmp_path):
         "children": [text("Under the table."), text("And more.")]}
     doc["rounds"][1]["items"][0]["body"] = text("Body of i-new", children=[grid])
     dom = _Dom()
-    dom.feed(page.build(doc))
+    dom.feed(build(doc))
     selector = lavish_selector(find_cell(dom.root, "the cell"))
     assert selector == "tr#afkv2-tr-i-new-table-3 > td:nth-of-type(3)"
     old_shape = "div:nth-of-type(1) > table > tbody > tr:nth-of-type(3) > td:nth-of-type(3)"
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
         prompt("Wrong owner.", selector, "td", "the cell"), prompt("Lost.", old_shape, "td", "lost cell")])
     assert raw == '[round R-2]\ni-new-table — | Wrong owner.\nm-1 — | Lost. (on: "lost cell")'
-    assert page.targets(doc)["afkv2-tr-i-new-table-1"] == "i-new-table"
+    assert targets(doc)["afkv2-tr-i-new-table-1"] == "i-new-table"
 
 
 def test_a_table_without_an_id_draws_no_row_id():
@@ -1575,7 +1607,7 @@ def test_without_a_pane_the_stop_hook_says_so_on_the_page():
 
 
 def test_the_page_has_a_side_question_control_with_one_ask():
-    html = page.build(two_rounds(), (43001, "abc"))
+    html = build(two_rounds(), (43001, "abc"))
     script = (ENGINE_DIR / "shell" / "btw.js").read_text("utf-8")
     assert holds(html, "afkv2-btw-open", "afkv2-btw-ask", "#afkv2-btw {", 'data-afkv2-btw-port="43001"')
     assert holds(script, "data-lavish-ui", "fetch(url, { method: 'POST'") and lacks(script, "queuePrompt")

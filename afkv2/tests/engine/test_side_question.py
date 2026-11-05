@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
-for folder in (PLUGIN / "engine", PLUGIN / "skills" / "grill" / "scripts"):
+for folder in (PLUGIN / "engine", PLUGIN / "skills" / "use-lavish" / "scripts"):
     sys.path.insert(0, str(folder))
 
 import page_round  # noqa: E402

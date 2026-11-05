@@ -1,0 +1,3122 @@
+{
+  "schema": "afkv2.page/0",
+  "session": {
+    "id": "s-20261104-064550",
+    "skill": "propose-solution",
+    "feature": "163",
+    "ticket": "163",
+    "started": "2026-11-04T06:47:36Z"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "focus",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 2
+          }
+        ]
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "The 11 critical aspects, again: 5 change after the merge of the base branch, 6 stay as signed"
+        ],
+        "parked": [
+          "The draft and the 6 sign-offs wait until the aspects settle"
+        ]
+      },
+      "items": [
+        {
+          "id": "b-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-entities-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Each annotation is its own note",
+                  "new in format 1",
+                  "already true in format 0 since the merge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "done on the base",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Note id",
+                  "N-<round>-<element>-<k>",
+                  "N-<round>-<card>-<k>; a steer N-<round>-<target>-<k>",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Noted text in its own field",
+                  "new",
+                  "still inside your words as (on: \"…\")",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still to build",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Notes in one list for the session",
+                  "your pick",
+                  "still on cards and rounds",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still to build",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Session, answer, round, component, value sets",
+                  "as signed",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**What the merge changed.** The base branch already gives each annotation its own note, inside format 0. Format 1 is still needed: the new session fields, the answer links, the round's changed list, the value sets and the new component types do not fit the frozen format 0 schema.\n\n**Proposed.** Format 1 uses the base's note id form, not the element form I proposed. Format 0 pages already hold those ids, so both formats share one rule. The element stays in the note's `target` field. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-entities-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/schema/note_rules.py:1-33; afkv2/engine/prompt_lines.py:115; frozen schema: afkv2/engine/schema/page-v0.schema.json:5.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Format 1 stays; 2 rows change: the note id form and the noted text",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-relations-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Answer → notes",
+                  "a list of note ids",
+                  "about is a list; it may hold a note id",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "partly on the base",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Answer → changed elements",
+                  "a list of element ids",
+                  "none",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still to build",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Note → element, note → card",
+                  "as signed",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep the explicit `notes` and `changed` lists of format 1. `about` mixes targets, cards and note ids, so it cannot say which notes an answer answers. Format 0 pages keep their `about` pairing. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-relations-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/components/notes_replies.py:99-109.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Answers still name their notes and changes by id; the base now pairs by note id too",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-keys-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Card note id",
+                  "N-<round>-<element>-<k>",
+                  "N-<round>-<card>-<k>",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Steer id",
+                  "N-<round>-<target>-<k>",
+                  "the same",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Older merged ids N-<round>-<card>",
+                  "kept",
+                  "still valid",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Answer id A-<round>-<k>",
+                  "new",
+                  "none",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "still to build",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Format 1 takes the base's id rule as it is, so the one rule module serves both formats. The check keeps every id unique. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-keys-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/schema/note_rules.py:1-33.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "One note id rule for both formats; answers get ids",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-constraints-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Unique ids, one current round, answer links name real elements, a fixed short title, a warning for a note with no answer, no check on page or answer rules",
+                  "as signed",
+                  "the merge does not touch it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep this aspect as you signed it. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-constraints-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Signed design SDD §6; the merge changes only id forms: afkv2/engine/schema/invariants.py.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "The 2 new checks, 1 warning and no page-rule check stay as signed",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-cascade-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Soft delete of notes, replace of an unshown round, the track move, kept ad-hoc pages, the diagram cache",
+                  "as signed",
+                  "the merge does not touch it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep this aspect as you signed it. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-cascade-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Signed design SDD §4 and §7.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "No deletes; a tracked page still moves with its side files",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-api-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Show: reuse the open tab",
+                  "to build",
+                  "built: a tab record, --no-open while it stands",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "done on the base",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "present answer",
+                  "git_state, secrets, diagrams",
+                  "already answers tab: reused",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "adds to it",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "present --open, for a closed tab",
+                  "new",
+                  "not needed: the record is forgotten when the host says the browser left",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "dropped",
+                      "tone": "removed"
+                    }
+                  }
+                ],
+                [
+                  "Round commands move, builder fields, take-over, start, track, raw text",
+                  "as signed",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Not checked.** When you close the tab, the host should report that the browser left, and then the next round opens a new tab. That report comes from the host, outside this repository. If it does not come, the next round loads into no tab, and you open the page again from the host. Accept to acknowledge that, and to drop the flag.",
+                  "markdown": true
+                },
+                "id": "b-api-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/engine.py:11-12,58-59,180-187,308-327,425-426.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Tab reuse is done on the base; present loses its --open flag and keeps tab: reused",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-migration-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Format 0 pages open and render, never rewritten",
+                  "as signed",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Next round writes format 1",
+                  "your pick",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Ids in a format 0 page",
+                  "old merged form",
+                  "old merged form or the new counted form",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "both kept",
+                      "tone": "proposed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** The reader moves both id forms into the session list as they are, with their quote still inside the words. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-migration-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/schema/note_rules.py:1-6; ADR-0002 design.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "A live format 0 page still moves to format 1 at its next round; it may hold 2 id forms",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-auth",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-auth-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "The 5 actions with their permitted and denied roles and guards",
+                  "as signed",
+                  "the merge does not touch it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep this aspect as you signed it. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-auth-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Signed design SDD §5.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Every access rule stays an instruction; the engine only records takeovers",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-lifecycle-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Round, card, note, session",
+                  "as signed",
+                  "unchanged",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Tab record",
+                  "none",
+                  "kept while a tab shows the page; forgotten on end or when the browser left",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "on the base",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** The tab record joins the state table of the design as it is. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-lifecycle-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/engine.py:58-59,180-187.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "The life cycles stay; a page's tab record is a new piece of state from the base",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-other",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-other-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Page host, diagram renderer 12.0.0 pinned, highlight.js 11.12.0, git; the v1 secret shapes copied",
+                  "as signed",
+                  "the merge does not touch it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep this aspect as you signed it. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-other-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Signed design SDD §9b.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "No code outside afkv2 changes; 4 outside tools; setup pins the renderer",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "b-large",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "b-large-now",
+            "props": {
+              "columns": [
+                "Point",
+                "Signed design (first session)",
+                "Code after the merge",
+                ""
+              ],
+              "rows": [
+                [
+                  "Sizes and bounds; render time 2 s at most for 1 MB; scan 60 ms at most for 2 MB",
+                  "as signed",
+                  "the merge does not touch it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "unchanged",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Proposed.** Keep this aspect as you signed it. Accept, or write what you would change.",
+                  "markdown": true
+                },
+                "id": "b-large-ask"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Signed design SDD §10.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "No list needs paging; the diagram render still runs once per text",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T06:48:22Z",
+          "raw": "[round R-1]\nb-entities accept\nb-relations accept\nb-keys accept\nb-constraints accept\nb-cascade accept\nb-api accept\nb-migration accept\nb-auth accept\nb-lifecycle accept\nb-other accept\nb-large accept",
+          "signals": [
+            {
+              "target": "b-entities",
+              "item": "b-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f6ca4c945b32fa9b"
+            },
+            {
+              "target": "b-relations",
+              "item": "b-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2e46e7199ae03e4c"
+            },
+            {
+              "target": "b-keys",
+              "item": "b-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0bb908faa38b443f"
+            },
+            {
+              "target": "b-constraints",
+              "item": "b-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "054ef5378234e437"
+            },
+            {
+              "target": "b-cascade",
+              "item": "b-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c1916b56753695dd"
+            },
+            {
+              "target": "b-api",
+              "item": "b-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4739b6cb4ae756bb"
+            },
+            {
+              "target": "b-migration",
+              "item": "b-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f90225daa0c12198"
+            },
+            {
+              "target": "b-auth",
+              "item": "b-auth",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6fd891748793ac31"
+            },
+            {
+              "target": "b-lifecycle",
+              "item": "b-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "28a7e67c6a1b551f"
+            },
+            {
+              "target": "b-other",
+              "item": "b-other",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "879e56cd4cba06a4"
+            },
+            {
+              "target": "b-large",
+              "item": "b-large",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a8bf269d07352e67"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "The 11 critical aspects again: the base's note id form, the base's tab reuse (no --open flag), both id forms kept on old pages; 6 as signed"
+        ],
+        "unlocks": [
+          "The draft again, layers 1 to 9: 4 layers change",
+          "The 6 sign-offs again: 4 change, 2 as signed"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l1-topology",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. Everything runs on your machine, started by the agent, as today. 2 local programs join: the diagram renderer and git."
+            },
+            "id": "l1-topology-text",
+            "children": [
+              {
+                "type": "text",
+                "id": "l1-topology-decision",
+                "props": {
+                  "text": "The feature keeps today's topology: the agent runs the plugin's Python scripts, the scripts call the page host lavish-axi, and the host serves the page to your browser. The engine also starts the diagram renderer mermaid-cli and git as local programs; nothing reaches a network.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-why",
+                "props": {
+                  "text": "The runner-up, drawing diagrams in the browser with the Mermaid script, adds about 3 MB of script to every page and drops the renderer that setup installs, which the PRD settled.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-alternatives",
+                "props": {
+                  "text": "- Draw diagrams in the browser with the Mermaid library: a different runtime model; heavy pages; against the PRD's renderer decision.\n- A long-running afkv2 page server beside the host: one more process to start, watch and stop, for no ability the host lacks.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-evidence",
+                "props": {
+                  "text": "Inlined page, no network: afkv2/engine/shell/page.py:164-168; renderer decision: PRD Implementation Decisions (\"with the renderer setup installs\").",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-reverse",
+                "props": {
+                  "text": "Remove the 2 program calls; the diagram kinds then show as text.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Topology inherited: local scripts, the page host, plus 2 local programs",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l2-bounds",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. Every call is a program run that answers one JSON object, as today. use-lavish's scripts are the only callers of the engine; the page skills and ad-hoc agents call use-lavish. Each surface and its contract stand on the API sign-off card below. Accept the split, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l2-bounds-text",
+            "children": [
+              {
+                "type": "graph",
+                "id": "l2-graph",
+                "props": {
+                  "direction": "right",
+                  "groups": [
+                    {
+                      "id": "l2g-skills",
+                      "label": "Page skills"
+                    },
+                    {
+                      "id": "l2g-lavish",
+                      "label": "use-lavish skill"
+                    },
+                    {
+                      "id": "l2g-engine",
+                      "label": "Page engine"
+                    },
+                    {
+                      "id": "l2g-out",
+                      "label": "Local programs"
+                    }
+                  ],
+                  "nodes": [
+                    {
+                      "id": "l2-grill",
+                      "label": "grill, propose-solution, to-subtasks",
+                      "group": "l2g-skills"
+                    },
+                    {
+                      "id": "l2-adhoc",
+                      "label": "any agent, ad hoc",
+                      "group": "l2g-skills"
+                    },
+                    {
+                      "id": "l2-cmd",
+                      "label": "round commands and builder (moved)",
+                      "group": "l2g-lavish"
+                    },
+                    {
+                      "id": "l2-home",
+                      "label": "page home: start, track (new)",
+                      "group": "l2g-lavish"
+                    },
+                    {
+                      "id": "l2-eng",
+                      "label": "check, render, show, end",
+                      "group": "l2g-engine"
+                    },
+                    {
+                      "id": "l2-host",
+                      "label": "lavish-axi",
+                      "group": "l2g-out"
+                    },
+                    {
+                      "id": "l2-mmdc",
+                      "label": "mermaid-cli",
+                      "group": "l2g-out"
+                    },
+                    {
+                      "id": "l2-git",
+                      "label": "git",
+                      "group": "l2g-out"
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "from": "l2-grill",
+                      "to": "l2-cmd",
+                      "label": "runs, JSON answer"
+                    },
+                    {
+                      "from": "l2-adhoc",
+                      "to": "l2-home",
+                      "label": "runs, JSON answer"
+                    },
+                    {
+                      "from": "l2-adhoc",
+                      "to": "l2-cmd",
+                      "label": "runs"
+                    },
+                    {
+                      "from": "l2-cmd",
+                      "to": "l2-eng",
+                      "label": "runs, JSON answer"
+                    },
+                    {
+                      "from": "l2-eng",
+                      "to": "l2-host",
+                      "label": "show, wait, end"
+                    },
+                    {
+                      "from": "l2-eng",
+                      "to": "l2-mmdc",
+                      "label": "1 call per new diagram"
+                    },
+                    {
+                      "from": "l2-eng",
+                      "to": "l2-git",
+                      "label": "1 status call per show"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Today's call chain: afkv2/skills/grill/scripts/page_round.py:29 (engine path); JSON answers: every script's serve().",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "use-lavish owns the round commands and the page home; the engine owns drawing and the host",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l3-data",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the tab record row, which the merged base added. One row per piece of state. The data folder is the afkv2 folder under your local application data, where the settled-round copies already live. The fields of each part of the page document stand on the persistence sign-off card below. Accept, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l3-data-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l3-state",
+                "props": {
+                  "columns": [
+                    "State",
+                    "Store",
+                    "Retention",
+                    "Evolution",
+                    "Committed?"
+                  ],
+                  "rows": [
+                    [
+                      "Page document of a ticket",
+                      "JSON file in the ticket's spec folder, pages/",
+                      "with the repository",
+                      "format value; a reader per format",
+                      "yes"
+                    ],
+                    [
+                      "Ad-hoc page with no ticket, or private",
+                      "JSON file in the afkv2 data folder: pages/<repository name>/",
+                      "until you delete it",
+                      "the same",
+                      "no"
+                    ],
+                    [
+                      "Rendered page",
+                      "HTML file beside its document",
+                      "rewritten each render",
+                      "derived",
+                      "as its document"
+                    ],
+                    [
+                      "Rendered diagram",
+                      "SVG file in the data folder: diagram-cache/, named by a hash of the text, the theme and the renderer version",
+                      "until you delete it",
+                      "a new renderer version makes new names",
+                      "no"
+                    ],
+                    [
+                      "Last notices of a page (git state, secrets)",
+                      "JSON file in the data folder: page-notices/",
+                      "overwritten each show",
+                      "derived",
+                      "no"
+                    ],
+                    [
+                      "Copies of settled rounds",
+                      "data folder: page-copies/ (today)",
+                      "as today",
+                      "as today",
+                      "no"
+                    ],
+                    [
+                      "Tab record of a page (on the base)",
+                      "data folder: page-tabs/",
+                      "while a tab shows the page; forgotten on end or when the browser left",
+                      "as on the base",
+                      "no"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Data folder today: afkv2/engine/engine.py:52 (page-copies); spec folder rule: afkv2/scripts/afkv2_config.py:87-93.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Pages stay JSON files; 2 new caches live in the afkv2 data folder, never in the repo",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l4-cross",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the observability row adds the base's tab answer. Your ruling sets the posture: a warning for what cannot be undone, never a block. Accept, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l4-cross-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l4-numbers",
+                "props": {
+                  "columns": [
+                    "Concern",
+                    "Posture or number"
+                  ],
+                  "rows": [
+                    [
+                      "Access",
+                      "instructions only (sign-off card for access below); the engine records takeovers"
+                    ],
+                    [
+                      "Secret scan",
+                      "about 10 shapes, run on each show over the page document and the files the skill names; warns, never blocks; prints file, line and shape, never the value; no model, no network"
+                    ],
+                    [
+                      "Git state",
+                      "1 git status call per show, 10 s timeout; a failure shows \"git state unknown\" and the round still shows"
+                    ],
+                    [
+                      "Diagram render",
+                      "60 s timeout per diagram, no retry; a failure shows the text with 1 line saying why"
+                    ],
+                    [
+                      "Render time",
+                      "2 s at most for a 1 MB page with no new diagram (today: 0.4 to 1.2 s for 622 KB)"
+                    ],
+                    [
+                      "Page size",
+                      "the highlighter (129 KB) only on a page with code; rendered diagrams cached, so a page grows by their size only"
+                    ],
+                    [
+                      "Repeat safety",
+                      "present, take-over, start and track give the same result when run twice"
+                    ],
+                    [
+                      "Observability",
+                      "present answers the git state, each secret hit, the count of diagrams rendered, cached and shown as text, and, as on the base, whether the tab was reused"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Scan cost 5.3 ms per 182 KB: PRD Further Notes; render time: measured on a scratch copy of the grill page; ruling: requirement ADR-0001.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Every quality concern has a number; nothing blocks a round",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l5-domain",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. Domain events: none. Accept, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l5-domain-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l5-invariants",
+                "props": {
+                  "columns": [
+                    "Rule",
+                    "Guardian",
+                    "On a break"
+                  ],
+                  "rows": [
+                    [
+                      "Every id is unique",
+                      "engine check",
+                      "the build is refused, before you see it"
+                    ],
+                    [
+                      "One current round; a settled round never changes",
+                      "engine check and the settled-round copies",
+                      "refused"
+                    ],
+                    [
+                      "An answer's note ids, changed ids and card links name real elements",
+                      "engine check",
+                      "refused"
+                    ],
+                    [
+                      "The short title stays the same",
+                      "the builder writes it once",
+                      "a later title is ignored, with a warning"
+                    ],
+                    [
+                      "Every note has an answer before the next round",
+                      "the builder",
+                      "a warning; the round still builds"
+                    ],
+                    [
+                      "One live writer per page",
+                      "use-lavish instructions; takeovers recorded",
+                      "none in code"
+                    ],
+                    [
+                      "A hands-off agent opens no page",
+                      "use-lavish instructions and 1 line in its brief",
+                      "none in code"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Today's checks: afkv2/engine/schema/invariants.py:28-157; the copies: afkv2/engine/engine.py:161-175.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "7 rules, each with one guardian; the states stand on the life-cycle sign-off",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l6-process",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the closed-tab row; the --open flag is dropped. The first diagram below is a show. The table is every failure point. The outward effects stand on the side-effect sign-off card. Accept, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l6-process-text",
+            "children": [
+              {
+                "type": "sequence",
+                "id": "l6-present",
+                "props": {
+                  "actors": [
+                    {
+                      "id": "q-agent",
+                      "label": "Agent"
+                    },
+                    {
+                      "id": "q-cmd",
+                      "label": "present"
+                    },
+                    {
+                      "id": "q-eng",
+                      "label": "Engine"
+                    },
+                    {
+                      "id": "q-git",
+                      "label": "git"
+                    },
+                    {
+                      "id": "q-host",
+                      "label": "Page host"
+                    }
+                  ],
+                  "messages": [
+                    {
+                      "from": "q-agent",
+                      "to": "q-cmd",
+                      "text": "present, with the log to scan"
+                    },
+                    {
+                      "from": "q-cmd",
+                      "to": "q-eng",
+                      "text": "check"
+                    },
+                    {
+                      "from": "q-eng",
+                      "to": "q-git",
+                      "text": "status of the page and the log (new)"
+                    },
+                    {
+                      "from": "q-eng",
+                      "to": "q-eng",
+                      "text": "scan for secrets; render new diagrams (new)"
+                    },
+                    {
+                      "from": "q-eng",
+                      "to": "q-eng",
+                      "text": "render, notices in the header"
+                    },
+                    {
+                      "from": "q-cmd",
+                      "to": "q-host",
+                      "text": "show: reuse the open tab (built on the base)"
+                    },
+                    {
+                      "from": "q-cmd",
+                      "to": "q-agent",
+                      "text": "git state, secret hits, diagram counts"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "l6-failures",
+                "props": {
+                  "columns": [
+                    "Failure",
+                    "Signal",
+                    "Automatic",
+                    "By hand",
+                    "Owner"
+                  ],
+                  "rows": [
+                    [
+                      "Diagram renderer missing, fails or times out",
+                      "renderer exit, 60 s",
+                      "the diagram shows as text, with why",
+                      "run /afkv2:setup",
+                      "engine"
+                    ],
+                    [
+                      "git missing or fails",
+                      "exit, 10 s",
+                      "\"git state unknown\" line; no scan",
+                      "none needed",
+                      "engine"
+                    ],
+                    [
+                      "You closed the tab",
+                      "the host reports the browser left (not checked)",
+                      "the tab record is forgotten; the next show opens a tab",
+                      "when no report comes: you open the page again from the host",
+                      "engine"
+                    ],
+                    [
+                      "A track move stops halfway",
+                      "track answers what moved",
+                      "a re-run moves the rest",
+                      "the agent commits",
+                      "use-lavish"
+                    ],
+                    [
+                      "A session dies mid-round",
+                      "a new session finds the page open",
+                      "none",
+                      "the new session takes over and answers the open notes",
+                      "agent"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "Today's present: afkv2/skills/grill/scripts/page_round.py:40-45; show flags: afkv2/engine/engine.py:278-285; host tab rules: lavish-axi 0.1.80 README.md:160,195,285.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "One show runs 5 steps; each of 5 failures has a recovery and none blocks",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l7-modules",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. One direction, no cycle: page skills, then use-lavish, then the engine, then the local programs."
+            },
+            "id": "l7-modules-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l7-module-table",
+                "props": {
+                  "columns": [
+                    "Module",
+                    "Purpose",
+                    "Public interface",
+                    "Depends on"
+                  ],
+                  "rows": [
+                    [
+                      "use-lavish skill: instructions",
+                      "page rules, answer rules, forms by kind, page or chat",
+                      "the skill text other skills point to",
+                      "visualize"
+                    ],
+                    [
+                      "use-lavish scripts",
+                      "round commands, round builder, shared helpers, page home",
+                      "the commands on the API card",
+                      "engine"
+                    ],
+                    [
+                      "engine core",
+                      "check, render, show, end; format 0 reader that upgrades to 1; ingest",
+                      "the engine verbs; the page format",
+                      "local programs"
+                    ],
+                    [
+                      "engine notices (new)",
+                      "git state and secret scan",
+                      "1 function: notices of a page",
+                      "git"
+                    ],
+                    [
+                      "engine diagrams (new)",
+                      "render diagram text through the cache",
+                      "1 function: picture or text of a diagram",
+                      "mermaid-cli"
+                    ],
+                    [
+                      "engine components",
+                      "1 module per component, 13 new",
+                      "the component types of the format",
+                      "engine core"
+                    ],
+                    [
+                      "page shell",
+                      "title, navigation, back, map clicks, round marks, tones, highlighter",
+                      "the rendered page",
+                      "engine core"
+                    ],
+                    [
+                      "grill, propose-solution, to-subtasks, to-prd",
+                      "their own steps",
+                      "unchanged",
+                      "use-lavish scripts"
+                    ],
+                    [
+                      "visualize",
+                      "how each component holds, looks and is used",
+                      "the component pages",
+                      "none"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-decision",
+                "props": {
+                  "text": "The code splits into the 9 modules in the table, and each depends only on the modules to its right; the grill no longer hosts code that other skills import.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-why",
+                "props": {
+                  "text": "The runner-up keeps the shared code in the grill's folder, so every other page writer depends on the grill; one fact, one home beat it.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-alternatives",
+                "props": {
+                  "text": "- Keep the shared code in the grill skill: every page writer depends on the grill.\n- A separate shared folder outside the skills: Codex lets the plugin run only skill scripts and the engine.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-evidence",
+                "props": {
+                  "text": "Settled requirement card i-r7-d-commands; Codex rule afkv2/skills/setup/scripts/setup.py:470-477; importers of the grill's helpers: 13 scripts (grill, propose-solution, to-subtasks, to-prd).",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-reverse",
+                "props": {
+                  "text": "Move the shared scripts back to the grill skill and point the imports there.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "9 modules; the page skills depend on use-lavish, use-lavish on the engine, never back",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-patterns",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. One pattern per concern. The code highlighter has 2 live options: see the next card."
+            },
+            "id": "l8-patterns-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l8-pattern-table",
+                "props": {
+                  "columns": [
+                    "Concern",
+                    "Pattern",
+                    "Beat"
+                  ],
+                  "rows": [
+                    [
+                      "New charts (10 forms)",
+                      "the engine draws each as inline SVG in Python, from theme tokens",
+                      "a chart library in the page: 200 KB or more, and no test in Python"
+                    ],
+                    [
+                      "Diagram text",
+                      "render with the installed renderer, once per text and theme, cache by hash; 2 themes, the page shows the one it uses",
+                      "render in the browser: about 3 MB of script"
+                    ],
+                    [
+                      "Format 0 pages",
+                      "one reader turns format 0 into format 1 in memory; one write path",
+                      "2 write paths (your round 1 pick)"
+                    ],
+                    [
+                      "What changed this round",
+                      "the agent lists the changed elements; banner list and round marks are drawn from that list",
+                      "the engine compares rounds: new cards have new ids, so it cannot match parts"
+                    ],
+                    [
+                      "Back after a jump",
+                      "the page keeps its own list of the last 20 places, kept across reloads",
+                      "browser history: the host's sandboxed frame does not own it (inferred)"
+                    ],
+                    [
+                      "Value colours",
+                      "one list per named set in the document; colour by position; ordered sets strong to faint",
+                      "a colour per chip: the same value could differ between cards"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-decision",
+                "props": {
+                  "text": "The 6 concerns in the table use the pattern in the middle column.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-why",
+                "props": {
+                  "text": "Each beat its runner-up in the right column on page weight, on testability in Python, or by your round 1 pick.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-alternatives",
+                "props": {
+                  "text": "- The runner-up of each row, in the right column.",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-evidence",
+                "props": {
+                  "text": "Page with no network and no library: afkv2/engine/shell/page.py:164-168; state kept across reloads: afkv2/engine/shell/runtime.js:12-46; renderer 12.0.0 takes a theme and an SVG id: mmdc --help.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-reverse",
+                "props": {
+                  "text": "Swap the pattern of one row; the page format stays.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "6 patterns, each beat a named runner-up; the highlighter is the one open pick",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-highlight",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design: your pick in the first session (ADR-0003). Accept to keep it.",
+              "markdown": true
+            },
+            "id": "l8-highlight-text",
+            "children": [
+              {
+                "type": "text",
+                "props": {
+                  "text": "docs/afk/163/adr/design/0003-highlight-js-colours-code-in-the-page.md.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "Code highlighting: highlight.js 11.12.0 in the page, as you picked",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l9-seams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the show row is gone (built on the base), the notes, title and pairing rows describe the merged code, and the takeover log row is new. Each row was checked against the code. What existing users see differently stands on the change sign-off card. Landmines: the tests pin the guide text that moves (it moves with its tests); the grill's test allows only 4 skill names in its pointers (use-lavish must be added); every Python file name must be unique (no copy is left behind); the jump button and the btw? button share one corner today. Accept, or write what you would change.",
+              "markdown": true
+            },
+            "id": "l9-seams-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "l9-seam-table",
+                "props": {
+                  "columns": [
+                    "Seam",
+                    "Today",
+                    "Change",
+                    "Verdict"
+                  ],
+                  "rows": [
+                    [
+                      "Page format",
+                      "afkv2.page/0, frozen",
+                      "new value afkv2.page/1 with its own schema file and reader",
+                      "extends"
+                    ],
+                    [
+                      "Where a page may live",
+                      "only <spec folder>/<ticket>/pages/",
+                      "also the data folder, for ad-hoc pages",
+                      "extends"
+                    ],
+                    [
+                      "Notes from the host",
+                      "1 note per annotation since the merge; the noted text inside your words; notes on cards and rounds",
+                      "one session list; the noted text in its own field",
+                      "reworked"
+                    ],
+                    [
+                      "Session notes table",
+                      "only notes on no card",
+                      "every note, older rounds folded",
+                      "reworked"
+                    ],
+                    [
+                      "Answer pairing",
+                      "about: a list of targets, cards or note ids",
+                      "explicit note ids and changed ids; about read for format 0 only",
+                      "reworked"
+                    ],
+                    [
+                      "Page title",
+                      "<ticket> · <feature> · <skill> R-<n>, new each round",
+                      "<ticket> · <short title> · <step>, the same every round",
+                      "reworked"
+                    ],
+                    [
+                      "Navigation",
+                      "fixed at top right, over the content",
+                      "left margin; a button on a narrow window",
+                      "reworked"
+                    ],
+                    [
+                      "Round commands",
+                      "grill skill folder",
+                      "use-lavish skill folder; 13 importers and 3 skills repointed",
+                      "reworked"
+                    ],
+                    [
+                      "visualize guide",
+                      "holds the round pass and answer rules",
+                      "they move to use-lavish",
+                      "reworked"
+                    ],
+                    [
+                      "Diagram renderer install",
+                      "no version pin",
+                      "pinned at 12.0.0",
+                      "extends"
+                    ],
+                    [
+                      "Hands-off brief",
+                      "says it is all the executor gets",
+                      "adds 1 line: no human reads a page",
+                      "extends"
+                    ],
+                    [
+                      "Log rows of a takeover",
+                      "fixed row kinds per skill log",
+                      "a Takeover row kind in each skill log",
+                      "extends"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "afkv2/engine/schema/page-v0.schema.json:5; afkv2/engine/engine.py:237-254,278-285; afkv2/engine/prompt_lines.py:121-132; afkv2/engine/components/notes_replies.py:93-113,218-224; afkv2/engine/shell/page.py:163; afkv2/engine/shell/tips.css:9-14,26-27; afkv2/tests/skills/test_visualize.py:648-695; afkv2/tests/skills/test_grill.py:173; afkv2/tests/test_module_names.py:9-23.",
+                  "markdown": true,
+                  "label": "Source"
+                }
+              }
+            ]
+          },
+          "title": "12 seams into the merged code: 5 extend it, 7 rework it",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "s-hl1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the note id row takes the base's form. Persistence. These tables become the schema file of format 1, word for word. Options weighed: notes on their cards, or one list (you picked one list in round 1). Records it changes: every new page, and a live format 0 page at its next round.",
+              "markdown": true
+            },
+            "id": "s-hl1-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl1-session",
+                "props": {
+                  "columns": [
+                    "Session field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Rule",
+                    "Note"
+                  ],
+                  "rows": [
+                    [
+                      "id, feature, started, links",
+                      "as today",
+                      "as today",
+                      "as today",
+                      "as today",
+                      "kept"
+                    ],
+                    [
+                      "skill",
+                      "text",
+                      "no",
+                      "—",
+                      "a page writer's name: grill, propose-solution, to-subtasks, use-lavish",
+                      "was 1 of 3 names"
+                    ],
+                    [
+                      "ticket",
+                      "text",
+                      "yes (new)",
+                      "none",
+                      "the ticket key; none on an ad-hoc page with no ticket",
+                      "was required"
+                    ],
+                    [
+                      "short_title",
+                      "text, 40 characters at most",
+                      "yes, on an upgraded format 0 page",
+                      "none",
+                      "written in round 1, never changed",
+                      "new"
+                    ],
+                    [
+                      "step",
+                      "text, 40 characters at most",
+                      "no",
+                      "—",
+                      "grill: Requirements grill; propose-solution: Solution design; to-subtasks: Plan approval; ad hoc: the topic",
+                      "new"
+                    ],
+                    [
+                      "private",
+                      "true or false",
+                      "no",
+                      "false",
+                      "true: the content is not for the repository's readers",
+                      "new"
+                    ],
+                    [
+                      "takeovers",
+                      "list of {round, at}",
+                      "no",
+                      "empty",
+                      "1 entry per new session that took the page over",
+                      "new"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "s-hl1-note",
+                "props": {
+                  "columns": [
+                    "Note field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Rule",
+                    "Note"
+                  ],
+                  "rows": [
+                    [
+                      "id",
+                      "text",
+                      "no",
+                      "—",
+                      "N-<round>-<card>-<k>; a steer N-<round>-<target>-<k>; an older merged id N-<round>-<card> stays valid; unique in the document",
+                      "the base's form"
+                    ],
+                    [
+                      "round",
+                      "number",
+                      "no",
+                      "—",
+                      "the round it was sent in",
+                      "kept"
+                    ],
+                    [
+                      "target",
+                      "element id",
+                      "no",
+                      "—",
+                      "the element it sits on",
+                      "kept"
+                    ],
+                    [
+                      "item",
+                      "card id",
+                      "yes",
+                      "none",
+                      "the card that holds the element; none for a steer",
+                      "new"
+                    ],
+                    [
+                      "quote",
+                      "text, 300 characters at most",
+                      "yes",
+                      "none",
+                      "the text you selected, apart from your words",
+                      "new"
+                    ],
+                    [
+                      "text",
+                      "text",
+                      "no",
+                      "—",
+                      "your words only",
+                      "changed: no quote inside"
+                    ],
+                    [
+                      "deleted",
+                      "true or false",
+                      "no",
+                      "false",
+                      "you deleted it",
+                      "kept"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "s-hl1-answer",
+                "props": {
+                  "columns": [
+                    "Answer field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Rule",
+                    "Note"
+                  ],
+                  "rows": [
+                    [
+                      "id",
+                      "text",
+                      "no",
+                      "—",
+                      "A-<round>-<k>, unique",
+                      "new"
+                    ],
+                    [
+                      "text",
+                      "text",
+                      "no",
+                      "—",
+                      "the answer",
+                      "kept"
+                    ],
+                    [
+                      "notes",
+                      "list of note ids",
+                      "no",
+                      "—",
+                      "1 or more; the answer shows in each note's row",
+                      "new"
+                    ],
+                    [
+                      "changed",
+                      "list of element ids",
+                      "no",
+                      "empty",
+                      "each element the answer changed; each gets a link",
+                      "new"
+                    ],
+                    [
+                      "about",
+                      "text",
+                      "yes",
+                      "none",
+                      "read on format 0 pages only",
+                      "kept for format 0"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "s-hl1-other",
+                "props": {
+                  "columns": [
+                    "Other part",
+                    "Change"
+                  ],
+                  "rows": [
+                    [
+                      "Document",
+                      "schema afkv2.page/1; adds notes (1 list for the session, your round 1 pick) and value_sets: {name: {values, ordered}}"
+                    ],
+                    [
+                      "Round",
+                      "adds changed: list of element ids the agent changed this round; loses notes (they move to the session list)"
+                    ],
+                    [
+                      "Card",
+                      "loses notes (they move to the session list)"
+                    ],
+                    [
+                      "Component",
+                      "adds tip: text, 300 characters at most; 13 new types: tile, bars, line, bullet, range, signed-bars, box-plot, flame, sparkline, waterfall, diagram, code, diff"
+                    ],
+                    [
+                      "Graph node, map node, run-strip step, sequence message",
+                      "add tip and you (true or false); a sequence message adds tone: removed, kept or new"
+                    ],
+                    [
+                      "Chip",
+                      "adds set and the tones open, blocked, settled, measured, inferred, estimated, unverified, you"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Relations.** A note sits on 1 element and names its card; an answer names 1 or more notes and 0 or more elements; the answer owns both links. Nothing is deleted: a note is only marked deleted. **Indexes:** none; a page is read whole. **Retention:** a ticket's page lives with the repository; an ad-hoc page and the 2 caches stay in the data folder until you delete them. **Existing pages:** every format 0 page opens and renders and is never rewritten by opening; a live format 0 session writes format 1 at its next round, with its old note ids, and cannot go back to an older plugin (your round 1 pick).",
+                  "markdown": true
+                },
+                "id": "s-hl1-rules"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** an older plugin cannot read a page written in format 1; the 2 caches grow until you delete them (one rendered diagram: 6 to 196 KB).",
+                  "markdown": true
+                },
+                "id": "s-hl1-risks"
+              }
+            ]
+          },
+          "title": "Sign the page format 1: 4 tables of fields, one list of notes, no deletes",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-hl2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: present loses --open and keeps the base's tab answer. API surface. These rows become the contract of the commands, word for word. No paging: a page is read whole. Verdict on existing callers: all are in this plugin and change in the same commit; the old paths are removed.",
+              "markdown": true
+            },
+            "id": "s-hl2-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl2-surfaces",
+                "props": {
+                  "columns": [
+                    "Surface",
+                    "Input",
+                    "Success answer",
+                    "Refusals",
+                    "Repeat",
+                    "Existing callers"
+                  ],
+                  "rows": [
+                    [
+                      "present (use-lavish)",
+                      "--doc; --scan <file>, repeatable",
+                      "page, tab (reused, as on the base), git_state (committed, untracked, ignored, outside, unknown), secrets [{file, line, shape}], diagrams {rendered, cached, as_text}",
+                      "as today: check, render, show, round-shown",
+                      "safe: a second run shows the same page",
+                      "grill, propose-solution, to-subtasks: path changes"
+                    ],
+                    [
+                      "wait, reply, end (use-lavish)",
+                      "as today",
+                      "as today",
+                      "as today",
+                      "as today",
+                      "path changes only"
+                    ],
+                    [
+                      "ingest (use-lavish)",
+                      "as today",
+                      "as today, plus notes: the new note ids",
+                      "as today",
+                      "as today: a kept send answers once",
+                      "path changes only"
+                    ],
+                    [
+                      "take-over (use-lavish, new)",
+                      "--doc",
+                      "session, round, takeovers",
+                      "unreadable",
+                      "safe: a second run in the same round adds nothing",
+                      "a resuming skill"
+                    ],
+                    [
+                      "build (use-lavish)",
+                      "as today; ticket optional; round input adds short_title (round 1), step, changed",
+                      "as today, plus warnings: unanswered notes, an ignored title",
+                      "as today, plus bad-link: an id that names nothing",
+                      "as today",
+                      "path changes"
+                    ],
+                    [
+                      "apply-readings (use-lavish)",
+                      "readings: a reply is {text, notes, changed}; a settle may add changed",
+                      "as today",
+                      "as today, plus bad-link",
+                      "as today",
+                      "path changes"
+                    ],
+                    [
+                      "start (page home, new)",
+                      "--topic; --ticket; --private",
+                      "doc, session, raw_file, home (spec or data)",
+                      "no-topic",
+                      "a new session each run",
+                      "/afkv2:use-lavish"
+                    ],
+                    [
+                      "track (page home, new)",
+                      "--doc; --ticket",
+                      "doc (the new path), moved: the files",
+                      "needs-ticket; private: the page is marked private, so it says what must come out first",
+                      "safe: a second run moves what is left",
+                      "/afkv2:use-lavish"
+                    ],
+                    [
+                      "engine render",
+                      "document; --notices with --scan files (new)",
+                      "as today",
+                      "as today",
+                      "as today",
+                      "present"
+                    ],
+                    [
+                      "Page format",
+                      "afkv2.page/1 (new); afkv2.page/0 still read",
+                      "—",
+                      "unknown-schema for any other value",
+                      "—",
+                      "every page writer"
+                    ],
+                    [
+                      "Raw answer text",
+                      "format 1: 1 entry per note: id line, optional quote line, the note's words",
+                      "—",
+                      "—",
+                      "—",
+                      "ingest; the Codex Stop hook passes it through"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** a script or note outside this plugin that calls the grill's old command path breaks (none found).",
+                  "markdown": true
+                },
+                "id": "s-hl2-risks"
+              }
+            ]
+          },
+          "title": "Sign the command surfaces: 11 rows; every caller is in this plugin and moves with it",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-hl3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. Authorization and data scoping. By your ruling, no code refuses a writer. The page runs on your machine only, so there is no guard above or below the page beyond the host. Data scoping: a page in the repository holds only what its readers may see; a private page lives in the data folder.",
+              "markdown": true
+            },
+            "id": "s-hl3-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl3-roles",
+                "props": {
+                  "columns": [
+                    "Action",
+                    "Permitted",
+                    "Denied",
+                    "Guard"
+                  ],
+                  "rows": [
+                    [
+                      "Write a page",
+                      "an agent session with a human at the page",
+                      "a hands-off subagent: it parks the question",
+                      "use-lavish instructions; 1 line in the hands-off brief"
+                    ],
+                    [
+                      "Answer the notes",
+                      "the session that owns the page, or a new session that took over a page whose session ended",
+                      "a second live session on the same page",
+                      "use-lavish instructions; the take-over record"
+                    ],
+                    [
+                      "Read and answer a page",
+                      "you, at the page host on your machine",
+                      "a person who opens the file with no host session: they read, their notes reach no agent",
+                      "the page host"
+                    ],
+                    [
+                      "Start an ad-hoc page by command",
+                      "you, with /afkv2:use-lavish and a topic",
+                      "an agent with no topic: it asks in chat",
+                      "the start command refuses no-topic"
+                    ],
+                    [
+                      "Put content on a page in the repository",
+                      "content the repository's readers may see",
+                      "secrets; private content",
+                      "a secret warning at each show; the home rule; use-lavish instructions for content with no shape"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** a second live session can still answer a page, and a hands-off agent that ignores its instructions can still open one: nothing in code stops either.",
+                  "markdown": true
+                },
+                "id": "s-hl3-risks"
+              }
+            ]
+          },
+          "title": "Sign access: 5 actions, guarded by instructions, one record and one warning",
+          "node": "locked-hl-3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-hl4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Unchanged from the signed design. Life cycle and invariants. 'Answered' is read from the answers, never stored. A takeover is an event in the session's list.",
+              "markdown": true
+            },
+            "id": "s-hl4-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl4-states",
+                "props": {
+                  "columns": [
+                    "Thing",
+                    "States",
+                    "Moves and who triggers them"
+                  ],
+                  "rows": [
+                    [
+                      "Round",
+                      "built, shown, answered, read, settled",
+                      "present (agent); Send (you); ingest (agent); the next build settles it (agent); replace drops a built round never shown (agent)"
+                    ],
+                    [
+                      "Card",
+                      "open, blocked, needs reading, settled",
+                      "as today"
+                    ],
+                    [
+                      "Note",
+                      "sent, answered, deleted",
+                      "Send (you); an answer that names it (agent, read, not stored); delete (you)"
+                    ],
+                    [
+                      "Session",
+                      "live, taken over, ended at the host",
+                      "take-over (a new agent session); end (agent)"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Invariants.** The 7 rules on the domain card (layer 5 above), each with its guardian and its answer to a break: 3 refused by the engine check, 2 handled by the builder with a warning, 2 held by instructions only.",
+                  "markdown": true
+                },
+                "id": "s-hl4-inv"
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** a note can stay unanswered if the agent ignores the warning; the page then shows it with no answer.",
+                  "markdown": true
+                },
+                "id": "s-hl4-risks"
+              }
+            ]
+          },
+          "title": "Sign the life cycles and the 7 rules: no new stored state",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-hl5",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the recovery of the browser row. Irreversible and outward side effects. Only the commit reaches the repository's history, and only when you ask to track a page. Nothing is pushed.",
+              "markdown": true
+            },
+            "id": "s-hl5-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl5-effects",
+                "props": {
+                  "columns": [
+                    "Effect",
+                    "Trigger",
+                    "Order",
+                    "Repeat key",
+                    "Partial failure leaves",
+                    "Recovery"
+                  ],
+                  "rows": [
+                    [
+                      "Commit a tracked page",
+                      "you ask to track a page",
+                      "end the old host session; move the page and its side files; the agent commits them on the feature branch",
+                      "the page's session id: a moved page is skipped",
+                      "files moved but not committed: the notice says 'not committed yet'",
+                      "the agent commits"
+                    ],
+                    [
+                      "Open the page in your browser",
+                      "present",
+                      "after check and render",
+                      "the page path and its tab record (on the base)",
+                      "no tab open",
+                      "the host reports the browser left and the next show opens a tab; without that report, you open the page from the host"
+                    ],
+                    [
+                      "Write a rendered diagram",
+                      "a render meets a new diagram text",
+                      "before the page renders",
+                      "hash of text, theme and renderer version",
+                      "no file: the diagram shows as text",
+                      "the next render tries again"
+                    ],
+                    [
+                      "Write the page notices",
+                      "present",
+                      "after the git call and the scan",
+                      "the page path",
+                      "the last notices stay",
+                      "the next show"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** a tracked page's content enters the branch history; once pushed, removing it needs a history rewrite.",
+                  "markdown": true
+                },
+                "id": "s-hl5-risks"
+              }
+            ]
+          },
+          "title": "Sign the 4 effects outside the page: 1 commit you ask for, 3 local files",
+          "node": "locked-hl-5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "s-hl6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Changed from the signed design: the first row; tab reuse is no longer a change. Change to existing behaviour. The seams are on the layer 9 card above.",
+              "markdown": true
+            },
+            "id": "s-hl6-text",
+            "children": [
+              {
+                "type": "table",
+                "id": "s-hl6-change",
+                "props": {
+                  "columns": [
+                    "Who sees it",
+                    "What changes",
+                    "Compatible?",
+                    "Rollback"
+                  ],
+                  "rows": [
+                    [
+                      "You, on every afk page",
+                      "a stable title; navigation in the left margin; every note in the session table, each in its own row; links to what an answer changed (one note per annotation and tab reuse are already on the base)",
+                      "yes: same marks, same Send",
+                      "revert the change; format 1 pages then no longer open"
+                    ],
+                    [
+                      "The grill, design and plan skills",
+                      "call the round commands at the use-lavish path; point to use-lavish for page order and answers; the grill stops repeating a steer in its answer",
+                      "yes, in the same commit",
+                      "revert the commit"
+                    ],
+                    [
+                      "to-subtasks pages",
+                      "their skill name becomes to-subtasks, step Plan approval (today they say propose-solution)",
+                      "yes",
+                      "revert"
+                    ],
+                    [
+                      "Live format 0 pages",
+                      "move to format 1 at their next round",
+                      "one way",
+                      "none for a page already moved"
+                    ],
+                    [
+                      "Setup",
+                      "pins mermaid-cli at 12.0.0",
+                      "yes: 12.0.0 is the installed version",
+                      "remove the pin"
+                    ],
+                    [
+                      "The hands-off executor",
+                      "its brief gains 1 line",
+                      "yes",
+                      "remove the line"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "props": {
+                  "text": "**Risks you accept by signing.** a rollback after a session wrote format 1 leaves that page unreadable to the older plugin.",
+                  "markdown": true
+                },
+                "id": "s-hl6-risks"
+              }
+            ]
+          },
+          "title": "Sign the change to existing behaviour: 6 groups see a difference",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-04T06:50:49Z",
+          "raw": "[round R-2]\nl2-bounds accept\nl3-data accept\nl4-cross accept\nl5-domain accept\nl6-process accept\nl8-highlight accept\nl9-seams accept\nl1-topology accept\nl7-modules accept\nl8-patterns accept\ns-hl1 sign\ns-hl2 sign\ns-hl3 sign\ns-hl4 sign\ns-hl5 sign\ns-hl6 sign",
+          "signals": [
+            {
+              "target": "l2-bounds",
+              "item": "l2-bounds",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "11afa9354ce64ae2"
+            },
+            {
+              "target": "l3-data",
+              "item": "l3-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9df391553506c0c2"
+            },
+            {
+              "target": "l4-cross",
+              "item": "l4-cross",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ecc1cbbd73e9dd55"
+            },
+            {
+              "target": "l5-domain",
+              "item": "l5-domain",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "378e5cf4725683b3"
+            },
+            {
+              "target": "l6-process",
+              "item": "l6-process",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "834e832df2ee06d3"
+            },
+            {
+              "target": "l8-highlight",
+              "item": "l8-highlight",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "fc64ae7461199009"
+            },
+            {
+              "target": "l9-seams",
+              "item": "l9-seams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a53d3bc8b77efc3e"
+            },
+            {
+              "target": "l1-topology",
+              "item": "l1-topology",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "42f4fab9fd8d75fe"
+            },
+            {
+              "target": "l7-modules",
+              "item": "l7-modules",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "fbd405222e842292"
+            },
+            {
+              "target": "l8-patterns",
+              "item": "l8-patterns",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5a6dda5c4c8cc874"
+            },
+            {
+              "target": "s-hl1",
+              "item": "s-hl1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e8104b71adb83e40"
+            },
+            {
+              "target": "s-hl2",
+              "item": "s-hl2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ddbc2b3381ba4ef9"
+            },
+            {
+              "target": "s-hl3",
+              "item": "s-hl3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2d995448488d7b41"
+            },
+            {
+              "target": "s-hl4",
+              "item": "s-hl4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "67483bc035503896"
+            },
+            {
+              "target": "s-hl5",
+              "item": "s-hl5",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "453ee9be7169f454"
+            },
+            {
+              "target": "s-hl6",
+              "item": "s-hl6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6e67949f114b8078"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

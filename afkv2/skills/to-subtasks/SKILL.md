@@ -30,7 +30,7 @@ Run each command from the worktree of the feature branch, at the repository root
    <python> "<this skill's folder>/scripts/plan_files.py" start --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. `sdd-not-ready`: stop and show `problems` and `writer`. `not-feature-branch`: run from the worktree of the feature branch. The answer holds `spec_dir`, `prd`, `sdd`, `parent_prd`, `parent_sdd`, `requirement_adrs`, `design_adrs`, `run_branch`, `worktree`, `plan`, `plan_exists`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. It creates the run branch and its worktree when they do not exist. `raw_pending` true: an answer waits in `raw_file`, so go to step 9. `resume` true: read `doc`, honour every steer in it, and continue at the first unfinished step.
+   `missing-input`: stop and show `missing` and `writer`. `sdd-not-ready`: stop and show `problems` and `writer`. `not-feature-branch`: run from the worktree of the feature branch. The answer holds `spec_dir`, `prd`, `sdd`, `parent_prd`, `parent_sdd`, `requirement_adrs`, `design_adrs`, `run_branch`, `worktree`, `plan`, `plan_exists`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. It creates the run branch and its worktree when they do not exist. `raw_pending` true: an answer waits in `raw_file`, so go to step 9. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)); this skill keeps no log, so it writes no row. Read `doc`, honour every steer in it, and continue at the first unfinished step.
 
 2. **Read the sources.** Read `prd`, `sdd` and each file in `requirement_adrs` and `design_adrs`, in a background subagent that returns the ids and the sections you can cite. Done when you hold the list of PRD ids, SDD sections and ADRs.
 
@@ -65,17 +65,17 @@ Run each command from the worktree of the feature branch, at the repository root
 7. **Show the round.** Done when `present` answers ok.
 
    ```sh step=present
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" present --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>" --scan "<spec dir>/INDEX.md"
    ```
 
-   A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field, then run `division` again with `--replace`. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the card as Markdown in chat, with its id, take the human's reply as the raw response, write it to `raw_file`, and go to step 9 (the raw response form of this path is not verified until the page engine merges).
+   `present` also scans the page and `INDEX.md` for secrets. Report its notices by `/afkv2:use-lavish` "After each show". A refusal holds the failed `verb`. On `check` or `render`, the human has not seen this round: fix the named field, then run `division` again with `--replace`. A shown round with no answer refuses `round-shown`, because the human may be answering it in the browser: wait for the answer. On `show`, the page host is not available: print the card as Markdown in chat, with its id, take the human's reply as the raw response, write it to `raw_file`, and go to step 9 (the raw response form of this path is not verified until the page engine merges).
 
 8. **Wait for the answer.** The answer reaches you with no chat message from the human.
 
    **On Claude**, run this command as a background command the harness tracks. Its exit tells you the answer is in `raw_file`. Do other work or end your response until then.
 
    ```sh step=wait
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
    ```
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
@@ -83,13 +83,13 @@ Run each command from the worktree of the feature branch, at the repository root
 9. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
    ```sh step=ingest
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   A lone `Sign` mark settles the card. Read each other signal by the round pass in [../visualize/components/card.md](../visualize/components/card.md), and each note by [../visualize/components/notes-and-replies.md](../visualize/components/notes-and-replies.md). Write the result to a JSON file and apply it. The keys of that file: [../grill/SKILL.md](../grill/SKILL.md), step 7.
+   A lone `Sign` mark settles the card. Read each other signal and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and answer each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it. The keys of that file: [../grill/SKILL.md](../grill/SKILL.md), step 7.
 
    ```sh step=apply-readings
-   <python> "<this skill's folder>/../grill/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
    The card returned to open: change the plan, then go to step 4. A note that asks for no change gets a reply, and the same plan goes to step 6 again.
@@ -105,7 +105,7 @@ Run each command from the worktree of the feature branch, at the repository root
 11. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 
    ```sh step=end
-   <python> "<this skill's folder>/../grill/scripts/page_round.py" end --doc "<doc>"
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" end --doc "<doc>"
    ```
 
    Commit `doc` and `INDEX.md` on the feature branch. Tell the human the next skill is `/afkv2:autopilot`. Done when the worktree of the feature branch is clean.

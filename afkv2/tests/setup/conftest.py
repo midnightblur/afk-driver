@@ -125,7 +125,9 @@ class FakeRunner(tools.Runner):
             return tools.Result(0, json.dumps({"dependencies": {tools.MERMAID_PACKAGE: {"version": self.mermaid}}}))
         if self.npm_fails:
             return tools.Result(1, "", "npm failed")
-        self.mermaid, self.mermaid_install_env = "11.4.2", self.last_env
+        package = argv[3]
+        self.mermaid = package.rsplit("@", 1)[1] if package.count("@") > 1 else "11.4.2"
+        self.mermaid_install_env = self.last_env
         self.paths["mmdc"] = "/npm/mmdc"
         return tools.Result(0)
 

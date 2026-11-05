@@ -550,7 +550,7 @@ class World:
     def __init__(self, root, prd=True, sdd=True, config=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
-        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd"):
+        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
@@ -630,9 +630,13 @@ class World:
         current = next(rnd for rnd in self.doc(started)["rounds"] if rnd["state"] == "current")
         return next(item for item in current["items"] if item["kind"] == "signoff")
 
+    def notes_of(self, started, card_id):
+        """The notes that name the card, from the session list of page format 1."""
+        return [note for note in self.doc(started).get("notes") or [] if note.get("item") == card_id]
+
     def answer(self, started, raw):
         self.raw.write_bytes(raw.encode("utf-8"))
-        self.run("present", doc=started["doc"])
+        self.run("present", doc=started["doc"], spec_dir=self.spec)
         self.run("wait", doc=started["doc"], raw_file=started["raw_file"])
         return self.run("ingest", doc=started["doc"], raw_file=started["raw_file"])
 
@@ -684,7 +688,7 @@ def test_start_answers_the_input_paths_and_the_paths_a_contract_cites(world):
     started = world.start()
     assert (Path(started["prd"]), Path(started["sdd"])) == (world.spec / "PRD.md", world.spec / "SDD.md")
     assert (started["parent_prd"], started["parent_sdd"]) == ("specs/PROJ-1/PRD.md", "specs/PROJ-1/SDD.md")
-    assert Path(started["doc"]).parent == world.spec / "pages" and Path(started["doc"]).name.startswith("propose-solution-division-")
+    assert Path(started["doc"]).parent == world.spec / "pages" and Path(started["doc"]).name.startswith("to-subtasks-division-")
     assert started["resume"] is False
 
 
@@ -905,21 +909,18 @@ def test_every_citation_failure_is_listed(world):
 
 # The division.
 
-@pytest.mark.parametrize("schema", ["afkv2.page/0", "afkv2.page/1"])
-def test_division_uses_page_one_and_preserves_the_schema_on_resume(world, schema):
+def test_division_uses_page_one_and_keeps_its_tips_on_resume(world):
     started = world.committed_plan()
     world.division(started)
     doc = world.doc(started)
     assert doc["schema"] == "afkv2.page/1"
-    doc["schema"] = schema
-    if schema.endswith("/1"):
-        doc["tips"] = {"terms": [{"term": "division", "definition": "The cut into subtasks."}]}
+    doc["tips"] = {"terms": [{"term": "division", "definition": "The cut into subtasks."}]}
     path = world.repo / started["doc"]
     path.write_text(json.dumps(doc), "utf-8")
     world.division(started, replace=True)
     resumed = world.doc(started)
-    assert resumed["schema"] == schema
-    assert resumed.get("tips") == doc.get("tips")
+    assert resumed["schema"] == "afkv2.page/1"
+    assert resumed["tips"] == doc["tips"]
     result = subprocess.run([sys.executable, str(PLUGIN / "engine/engine.py"), "check", str(path)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -931,7 +932,8 @@ def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
     doc = world.doc(started)
     card = world.card(started)
     assert answer["card"] == card["id"] == answer["items"][0]
-    assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "propose-solution")
+    assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "to-subtasks")
+    assert doc["session"]["step"] == "Plan approval"
     rows = card["body"]["props"]["rows"]
     assert [row[0] for row in rows] == ["0001-export-rows", "0002-export-endpoint"]
     assert rows[1][3] == "0001-export-rows" and rows[1][4] == "static, unit, api (not applicable)"
@@ -1059,7 +1061,7 @@ def test_a_clear_note_does_not_settle_the_card(world):
     world.division(started)
     card_id = world.card(started)["id"]
     world.answer(started, f"{card_id}: note: Fine, go ahead.")
-    note = world.card(started)["notes"][0]["id"]
+    note = world.notes_of(started, card_id)[0]["id"]
     path = world.scratch / "readings.json"
     path.write_text(json.dumps({"settle": [{"item": card_id, "note": note, "reading": "Approves the division as shown."}]}), "utf-8")
     assert error_of(world.run("apply-readings", expect=1, doc=started["doc"], readings=path))["code"] == "signoff-needs-mark"
@@ -1074,7 +1076,8 @@ def test_a_card_marked_settled_by_a_note_does_not_approve(world):
     path = world.repo / started["doc"]
     doc = json.loads(path.read_text("utf-8"))
     card = next(item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == card_id)
-    card.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": card["notes"][0]["id"], "reading": "Approves."})
+    card.update(state="settled_by_note", settled={"by": "note", "round": 1, "signal": next(n["id"] for n in doc["notes"] if n["item"] == card_id),
+                "reading": "Approves."})
     path.write_text(json.dumps(doc), "utf-8")
     assert error_of(world.approve(started, expect=1))["code"] == "not-approved"
 
@@ -1134,7 +1137,7 @@ def test_a_corrected_round_replaces_an_unanswered_one(world):
 def test_a_shown_round_is_not_replaced(world):
     started = world.committed_plan()
     world.division(started)
-    world.run("present", doc=started["doc"])
+    world.run("present", doc=started["doc"], spec_dir=world.spec)
     assert error_of(world.division(started, expect=1, replace=True))["code"] == "round-shown"
 
 
@@ -1165,13 +1168,14 @@ def test_an_approved_plan_starts_a_new_session(world):
 
 
 def test_a_design_session_after_the_division_session_stays_the_newest(world):
-    """The engine names the file by the session skill, so propose-solution sees the division document too."""
+    """The engine names the file by the session skill, so propose-solution never reads the division document."""
     started = world.committed_plan()
     world.division(started)
     pages = Path(started["doc"]).parent
-    (pages / f"{design_files.DOC_PREFIX}s-20200101-000000.json").write_text("{}", "utf-8")
     log = world.scratch / "log.md"
     log.write_text("", "utf-8")
+    assert design_files._open_session(pages, log) is None
+    (pages / f"{design_files.DOC_PREFIX}s-20200101-000000.json").write_text("{}", "utf-8")
     assert design_files._open_session(pages, log) == "s-20200101-000000"
 
 

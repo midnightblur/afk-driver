@@ -1,7 +1,12 @@
 """Drive one page round through the engine verbs (SDD §3), from the repository root.
 
-  present --doc D                 check, render, show, in that order; stops at the first refusal.
+  present --doc D [--scan F]...   check, render with the notices, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
+                                  Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
+                                  scan file (a file the skill writes beside the page, such as its log),
+                                  `secrets_more` (the hits past the cap) and `scan_cut` (each file scanned only to
+                                  its first 2 MB); none refuses the round. Answers `diagrams` {rendered, cached,
+                                  as_text}: the page's diagrams drawn anew, taken from the cache and shown as text.
   wait    --doc D --raw-file F    poll; writes the raw response to F, byte for byte, and the host's prompts
                                   to F.prompts.json, for audit. Answers side questions on the page and polls
                                   again; `btw` lists the side questions left to the agent, and `raw_file`
@@ -10,6 +15,8 @@
   ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
                                   round pass must read
   end     --doc D                 ends the page session: the page says the session ended, not 'Working...'
+  take-over --doc D               records that a new agent session took the page over in the current round;
+                                  answers `session`, `round` and `takeovers`. A second run in that round adds nothing
 
 The raw text waits in a file because the document holds it only after ingest. Poll has no time
 limit here: it returns when the human sends the round. The engine keeps each round send beside the
@@ -21,10 +28,11 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_text
-from round_document import pending, record_shown, shown_record
+from grill_common import EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_json, write_text
+from round_document import FORMAT_0, SCHEMA, current_round, format_1, pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
@@ -37,12 +45,15 @@ def _engine(verb, doc, *args, timeout=TIMEOUT_S):
         raise Refusal(refusal.code, refusal.reason, refusal.exit_code, verb=verb) from refusal
 
 
-def present(doc):
+def present(doc, scan=()):
     _engine("check", doc)
-    page = _engine("render", doc).get("page")
+    rendered = _engine("render", doc, "--notices", *(arg for file in scan for arg in ("--scan", str(file))))
     record_shown(doc)
     shown = _engine("show", doc)
-    return {"ok": True, "page": page, "url": shown.get("url"), "tab": shown.get("tab")}
+    return {"ok": True, "page": rendered.get("page"), "url": shown.get("url"), "tab": shown.get("tab"),
+            "git_state": rendered.get("git_state"), "secrets": rendered.get("secrets") or [],
+            "secrets_more": rendered.get("secrets_more") or 0, "scan_cut": rendered.get("scan_cut") or [],
+            "diagrams": rendered.get("diagrams") or {"rendered": 0, "cached": 0, "as_text": 0}}
 
 
 def _side_question():
@@ -142,15 +153,35 @@ def ingest(doc, raw_file):
     return {"ok": True, **pending(read_json(doc))}
 
 
+def take_over(doc):
+    """Add 1 entry to `session.takeovers` for the current round, once (SDD §3 row "take-over"). A format 0 page
+    is written as format 1."""
+    raw = read_json(doc)
+    if not isinstance(raw, dict) or raw.get("schema") not in (SCHEMA, FORMAT_0):
+        raise Refusal("unreadable", f"{doc} is no page document of format 0 or 1", EXIT_UNREADABLE, verb="take-over")
+    page = format_1(raw)
+    current = current_round(page)
+    if current is None:
+        raise Refusal("bad-document", "no round is current", verb="take-over")
+    takeovers = page["session"].setdefault("takeovers", [])
+    if not any(entry.get("round") == current["n"] for entry in takeovers):
+        takeovers.append({"round": current["n"], "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
+        write_json(doc, page)
+    return {"ok": True, "session": page["session"]["id"], "round": current["n"], "takeovers": takeovers}
+
+
 def main(argv):
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply", "end"])
+    parser.add_argument("verb", choices=["present", "wait", "ingest", "reply", "end", "take-over"])
     parser.add_argument("--doc", required=True)
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
+    parser.add_argument("--scan", action="append", default=[])
     args = parser.parse_args(argv)
     if args.verb == "present":
-        return present(args.doc)
+        return present(args.doc, args.scan)
+    if args.verb == "take-over":
+        return take_over(args.doc)
     if args.verb == "end":
         _engine("end", args.doc)
         return {"ok": True}

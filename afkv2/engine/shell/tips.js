@@ -64,6 +64,7 @@
     return tip === null ? termFor(dict, matched) : tip;
   }
 
+  // An empty dictionary wraps nothing; authored tips (data-afkv2-tip) still show on hover.
   function wrap(root) {
     if (!re) return;
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -71,7 +72,7 @@
         re.lastIndex = 0;
         if (!n.nodeValue || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
         var p = n.parentElement;
-        if (!p || p.closest('script,style,noscript,textarea,.afkv2-tip,#afkv2-tip-box,#afkv2-nav,#afkv2-jump')) return NodeFilter.FILTER_REJECT;
+        if (!p || p.closest('script,style,noscript,textarea,svg,pre,.afkv2-diff,.afkv2-tip,#afkv2-tip-box,#afkv2-nav,#afkv2-jump')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
@@ -155,17 +156,33 @@
     if (mo) mo.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Sticky section rail, collapsed settled cards, jump-to-current control, built from data-afkv2-item,
-  // data-afkv2-state and data-afkv2-fresh. A page without that markup gets no chrome.
-  var COLLAPSED = 'afkv2-collapsed', MINIMIZED = 'afkv2-min';
+  // Section rail, collapsed settled cards, jump-to-current and back controls, built from data-afkv2-item,
+  // data-afkv2-state and data-afkv2-fresh. A page without that markup gets no chrome. On a WIDE window
+  // the rail sits in the left margin and the page moves right of it; on a narrower one it is one button
+  // at the top left whose list opens on a click and closes after a jump. The btw? control keeps the
+  // bottom-left corner. The rail state is kept per session in window.name and in localStorage: a
+  // sandboxed frame with an opaque origin throws on localStorage.
+  var COLLAPSED = 'afkv2-collapsed', MINIMIZED = 'afkv2-min', WITH_NAV = 'afkv2-with-nav';
+  var WIDE = '(min-width: 1100px)';
   var navRefresh = null;
   function navChrome() {
     if (document.getElementById('afkv2-nav')) return;
     if (!document.querySelector('[data-afkv2-item]')) return;
-    var LS = 'afkv2-nav:' + location.pathname;
+    var holder = document.querySelector('[data-afkv2-session]');
+    var session = holder ? holder.getAttribute('data-afkv2-session') : '';
+    var LS = 'afkv2-nav:' + session;
+    var wide = window.matchMedia ? window.matchMedia(WIDE) : { matches: true };
     var store = {};
-    try { store = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) {}
-    function save() { try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {} }
+    try { store = (JSON.parse(window.name || '{}') || {})[LS] || null; } catch (e) { store = null; }
+    if (!store) { try { store = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { store = {}; } }
+    function save() {
+      try {
+        var held = JSON.parse(window.name || '{}') || {};
+        held[LS] = store;
+        window.name = JSON.stringify(held);
+      } catch (e) {}
+      try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {}
+    }
     // A card in a point's history belongs to that point, so the rail does not list it.
     function items() {
       return [].slice.call(document.querySelectorAll('[data-afkv2-item]')).filter(function (el) {
@@ -209,9 +226,12 @@
         }
       });
     }
+    // A jump goes through the page's back list when the runtime holds one.
     function goTo(el) {
       setCollapsed(el, false);
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!wide.matches) nav.classList.add(MINIMIZED);
+      if (window.afkv2Jump) { window.afkv2Jump(el); return; }
+      el.scrollIntoView({ block: 'start' });
       el.classList.add('afkv2-flash');
       setTimeout(function () { el.classList.remove('afkv2-flash'); }, 1600);
     }
@@ -219,14 +239,16 @@
     nav.id = 'afkv2-nav';
     nav.setAttribute('data-lavish-ui', 'afkv2-nav');
     nav.setAttribute('data-lavish-action', 'afkv2-nav');
-    nav.innerHTML = '<div id="afkv2-nav-head" role="button" tabindex="0"><b>On this page</b><span>–</span></div><div id="afkv2-nav-list"></div>';
+    nav.innerHTML = '<div id="afkv2-nav-head" role="button" tabindex="0"><b>On this page</b><span>–</span></div><div id="afkv2-nav-tools"></div><div id="afkv2-nav-list"></div>';
     document.body.appendChild(nav);
+    document.body.classList.add(WITH_NAV);
     nav.addEventListener('keydown', function (e) {
       if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.click) { e.preventDefault(); e.target.click(); }
     });
-    if (store['__min']) nav.classList.add('afkv2-min');
+    if (store['__min'] || !wide.matches) nav.classList.add(MINIMIZED);
     nav.querySelector('#afkv2-nav-head').addEventListener('click', function () {
-      nav.classList.toggle('afkv2-min');
+      nav.classList.toggle(MINIMIZED);
+      if (!wide.matches) return;
       store['__min'] = nav.classList.contains(MINIMIZED) ? 1 : 0; save();
     });
     var GROUPS = [['current', 'Now'], ['open', 'Open'], ['blocked', 'Blocked'], ['settled', 'Settled']];
@@ -289,7 +311,9 @@
       var cur = currentAnswerSurface();
       if (cur) goTo(cur);
     });
-    document.body.appendChild(jump);
+    nav.querySelector('#afkv2-nav-tools').appendChild(jump);
+    var back = document.getElementById('afkv2-back');
+    if (back) nav.querySelector('#afkv2-nav-tools').appendChild(back);
     var cur = currentAnswerSurface();
     if (cur && 'IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) {
@@ -305,7 +329,7 @@
     mo = new MutationObserver(function (recs) {
       var ours = recs.every(function (r) {
         return (box && (r.target === box || box.contains(r.target))) ||
-               (r.target && r.target.closest && r.target.closest('#afkv2-nav,#afkv2-jump'));
+               (r.target && r.target.closest && r.target.closest('#afkv2-nav,#afkv2-jump,#afkv2-back'));
       });
       if (ours) return;
       clearTimeout(pending); pending = setTimeout(scan, 300);

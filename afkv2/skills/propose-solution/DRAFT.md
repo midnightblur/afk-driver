@@ -20,7 +20,7 @@ Every layer gets at least one card, in this order. A layer with nothing to decid
 
 ## Cards
 
-The kinds, the decide rule, a note that contradicts its mark, steers and the escape: [../grill/ROUNDS.md](../grill/ROUNDS.md), the sections with these names. The same rules hold here. How a signal settles: the round pass in `../visualize/components/card.md`.
+The kinds, the decide rule, a note that contradicts its mark, steers and the escape: [../grill/ROUNDS.md](../grill/ROUNDS.md), the sections with these names. The same rules hold here. How a signal settles: the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md).
 
 A card on a lower layer that depends on an open fork says "holds if <id> = <option>", or is `blocked`.
 
@@ -70,6 +70,7 @@ This skill writes the section `## Solution design` of `GRILL-LOG.md`, through `d
 | Premise | `- Premise: <claim> → pending \| verified (<citation>) \| refuted (<citation>) \| unverified-external (human acknowledged)` |
 | Spinoff | `- Spinoff: <summary> → <pain>; <why it is out>` |
 | Escape | `- Escape: taken R<n>` |
+| Takeover | `- Takeover: R<n> · <at>`, after `take-over`: `<n>` and `<at>` are the entry it added |
 | Design gate | `- Settled: design gate passed <date> · session <id>`, written by `gate` |
 
 ## Judgment checks before the gate

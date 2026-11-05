@@ -1,6 +1,6 @@
 # Page live test
 
-An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.80`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host.
+An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.80`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host. The shell steps prove the page shell (AC-015, AC-020, AC-021, AC-026, AC-027, AC-035, AC-039, AC-040) and the seam row "Page host" (AC-036) on a page of their own.
 
 ## Rules
 
@@ -32,14 +32,21 @@ The test passes when the driver exits 0 and no screenshot shows content that is 
 | Step | Pass rule |
 |---|---|
 | layout | At 1280 and at 390 wide, all cards expanded: the page does not scroll sideways; no text is clipped; nothing outside a scroll area is past the edge; no 2 map boxes overlap |
+| title | The browser tab and the heading read `<ticket> · <short title> · <step>`, and the next round keeps it |
+| navigation | At 1280 the navigation ends left of the page; at 390 it is one button whose list opens on a click and closes after a jump; a collapsed navigation stays collapsed on the next round |
+| back | With the host's Annotate switch off, a card link and a map box each scroll to their card; one click on Back returns to the place before the jump |
+| map box | The box's hover tip names the card's state and the round of its last change |
+| what changed | After round 1 the banner lists the changed card with a link, and only that card has a round mark |
+| tab reuse | A second show of an open page answers `tab: reused` with the same URL; the open tab shows the new round and the browser has no new tab |
+| closed tab | After the tab closes, `poll` reports that the browser left, and the next show answers `tab: null`: the engine asks the host for a new tab. The host runs with `LAVISH_AXI_NO_OPEN`, so the driver opens that one tab itself |
 | host audit | The severe findings of the host's layout audit, on the full page and on a page of only diagrams, are in the result. A finding fails the test |
-| mark | A real click on a radio selects it |
-| note | A real click and typed text make a note on a card, a map node, a settled item, a diagram and a freestyle fragment |
-| edit and delete | An unsent note changes and goes away; a sent note gets an edit entry and a delete entry; a click on the other action replaces the entry |
-| collapse | A round of notes and a settled card fold and unfold |
-| re-render | A reply added and rendered while notes are unsent: the page reloads and every unsent note and mark is still there |
-| send | The page sends; the draft store is empty after |
-| seam | The text the page gave the host, what `poll` reads and what `ingest` stored are the same bytes |
+| mark | A real click on a radio selects it, and the host queue holds its mark |
+| note | In annotation mode, a real click opens the host's note card; typed text and Queue queue one note on a card, a map node, a settled item, a diagram and a freestyle fragment |
+| cancel | A note card closed with Cancel queues nothing, and its text is not sent |
+| collapse | A closed older round of notes and a settled card fold and unfold |
+| re-render | A reply added and rendered while notes are unsent: the page reloads, the host queue is the same and the mark is still there |
+| send | The host's Send to Agent takes the batch; the host queue is empty after |
+| seam | The prompts the host queue held are the prompts `poll` reads; the raw response `poll` builds and what `ingest` stored are the same bytes |
 | ingest | Each state and note in the document is what the mark table says |
 | continue | A new round on the same tab works to `ingest` again |
 | reopen | After `end`, `show` opens the saved session and its notes are there |
@@ -146,7 +153,7 @@ class Cdp {
   }
 }
 
-let cdp, top, frameContext, edge, frameKey = '/artifact/';
+let cdp, top, topTarget, frameContext, edge, frameKey = '/artifact/';
 process.on('exit', () => { if (edge) edge.kill(); });
 
 async function findFrame() {
@@ -202,38 +209,101 @@ async function frameOnTop() {
   throw new Error('the host overlay stayed on the page');
 }
 
-async function click(selector) {
+async function press(at) {
+  const point = { x: at.x, y: at.y, button: 'left', clickCount: 1 };
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y }, top);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point }, top);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point }, top);
+  await pause(60);
+}
+
+/* lavish draws its annotation card in an open shadow root; `inCard` finds the selector there. */
+const CARD_ROOT = `document.querySelector('.lavish-annotation-root')`;
+const scope = (inCard) => (inCard ? `(${CARD_ROOT} ? ${CARD_ROOT}.shadowRoot : null)` : 'document');
+
+async function click(selector, inCard = false) {
   await frameOnTop();
   const expression = `(() => {
-    const el = document.querySelector(${JSON.stringify(selector)});
+    const root = ${scope(inCard)};
+    const el = root && root.querySelector(${JSON.stringify(selector)});
     if (!el) return { missing: true };
-    el.scrollIntoView({ block: 'center', inline: 'center' });
+    if (!${inCard}) el.scrollIntoView({ block: 'center', inline: 'center' });
     const r = el.getBoundingClientRect();
     const x = r.left + Math.min(r.width / 2, 40), y = r.top + r.height / 2;
-    const hit = document.elementFromPoint(x, y);
+    const hit = root.elementFromPoint(x, y);
     return { x, y, covered: !hit || !(hit === el || el.contains(hit) || hit.contains(el)), hit: hit && hit.tagName };
   })()`;
   const point = await ev(expression);
   if (point.missing) throw new Error(`no element: ${selector}`);
   if (point.covered) throw new Error(`covered: ${selector}, by ${point.hit}`);
   const offset = await frameOffset();
-  const at = { x: point.x + offset.x, y: point.y + offset.y, button: 'left', clickCount: 1 };
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x, y: at.y }, top);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...at }, top);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at }, top);
-  await pause(60);
+  await press({ x: point.x + offset.x, y: point.y + offset.y });
 }
 
-async function type(selector, text) {
-  await click(selector);
-  await ev(`(() => { const f = document.querySelector(${JSON.stringify(selector)}); f.setSelectionRange(f.value.length, f.value.length); return 1; })()`);
+async function type(selector, text, inCard = false) {
+  const field = `${scope(inCard)}.querySelector(${JSON.stringify(selector)})`;
+  await click(selector, inCard);
+  await ev(`(() => { const f = ${field}; f.setSelectionRange(f.value.length, f.value.length); return 1; })()`);
   await cdp.send('Input.insertText', { text }, top);
   await pause(60);
-  const value = await ev(`document.querySelector(${JSON.stringify(selector)}).value`);
+  const value = await ev(`${field}.value`);
   if (!value.endsWith(text)) throw new Error(`typed text did not arrive in ${selector}: ${JSON.stringify(value).slice(0, 200)}`);
 }
 
-const nodeField = (id) => `textarea[name="note:${id}"]`;
+/* A control of the host page around the frame, by its id. */
+async function hostClick(id) {
+  const point = await topValue(`(() => {
+    const el = document.getElementById(${JSON.stringify(id)});
+    if (!el) return { missing: true };
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const hit = r.width && r.height ? document.elementFromPoint(x, y) : null;
+    return { x, y, covered: !hit || !(hit === el || el.contains(hit)), hit: hit && hit.tagName };
+  })()`);
+  if (point.missing) throw new Error(`no host control: #${id}`);
+  if (point.covered) throw new Error(`covered: host #${id}, by ${point.hit}`);
+  await press(point);
+}
+
+async function waitTop(expression, what) {
+  for (let tries = 0; tries < 300; tries += 1) {
+    if (await topValue(expression)) return;
+    await pause(100);
+  }
+  throw new Error(`timed out: ${what}`);
+}
+
+/* The host keeps the queue of unsent prompts in the session storage of its own page. */
+const QUEUE = `(() => { const key = Object.keys(sessionStorage).find((k) => k.startsWith('lavish-axi:queued:')); return key ? JSON.parse(sessionStorage.getItem(key)) : []; })()`;
+const hostQueue = () => topValue(QUEUE);
+
+/* The host's Annotate switch; lavish starts with it on. */
+async function annotation(on) {
+  if ((await topValue(`document.getElementById('annotation').getAttribute('aria-pressed')`)) !== String(on)) await hostClick('annotation');
+  await waitTop(`document.getElementById('annotation').getAttribute('aria-pressed') === '${on}'`, `annotation ${on ? 'on' : 'off'}`);
+  await pause(150);
+}
+
+/* A real click on `selector` in annotation mode opens lavish's card; typed text and Queue queue one note. */
+async function annotate(selector, text) {
+  const before = (await hostQueue()).length;
+  await click(selector);
+  await until(`!!(${scope(true)} && ${scope(true)}.querySelector('.lavish-annotation-card textarea'))`, `the annotation card on ${selector}`);
+  await type('.lavish-annotation-card textarea', text, true);
+  await click('.lavish-annotation-card .lavish-send', true);
+  await waitTop(`${QUEUE}.length === ${before + 1}`, `the queued note on ${selector}`);
+}
+
+/* The host's Send to Agent; the queue is empty once the host took the batch. */
+async function sendRound() {
+  const queued = await hostQueue();
+  const covered = await topValue(`(() => { const el = document.getElementById('send'); const r = el.getBoundingClientRect(); const hit = r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null; return !hit || !el.contains(hit); })()`);
+  if (covered) await hostClick('panelToggle');
+  await hostClick('send');
+  await waitTop(`${QUEUE}.length === 0`, 'the host took the batch');
+  await pause(800);
+  return queued.map((prompt) => prompt.prompt);
+}
 
 async function shot(name) {
   mkdirSync(SHOTS, { recursive: true });
@@ -331,106 +401,188 @@ async function openPage(url) {
   await pause(300);
 }
 
-async function sendRound(n) {
-  await click('#afkv2-send-go');
-  await until(`/no mark|sent\\./i.test(document.querySelector('.afkv2-send-status').textContent)`, 'the send status');
-  if (/no mark/i.test(await ev(`document.querySelector('.afkv2-send-status').textContent`))) await click('#afkv2-send-go');
-  await until(`document.querySelector('.afkv2-send-status').textContent === 'Round R-${n} sent.'`, 'sent');
-  await pause(800);
-}
-
-const wrapBridge = `(() => { const b = window.lavish, q = b.queuePrompt; window.__sent = []; b.queuePrompt = function (text, options) { window.__sent.push(text); return q.call(b, text, options); }; return 1; })()`;
-
 async function interact(json) {
   await until(`!!window.lavish && typeof window.lavish.queuePrompt === 'function'`, 'the host bridge');
+  await annotation(true);
   await click('input[name="choice:c-decided"][value="accept"]');
-  step('mark', await ev(`document.querySelector('input[name="choice:c-decided"][value="accept"]').checked`));
+  step('mark', await ev(`document.querySelector('input[name="choice:c-decided"][value="accept"]').checked`)
+    && (await hostQueue()).some((p) => p.prompt.startsWith('c-decided accept')));
 
-  await type(nodeField('c-note-only'), TRICKY);
+  await annotate('#c-note-only .afkv2-text p', TRICKY);
   step('note on a card', true);
-
-  await click('[data-afkv2-element="n-3"]');
-  await type(nodeField('n-3'), 'Look at this node first.');
+  await annotate('#n-3 .afkv2-box-label', 'Look at this node first.');
   step('note on a map node', true);
-
-  await click('[data-afkv2-element="i-8-0"] .afkv2-note-add');
-  await type(nodeField('i-8-0'), 'This settled point is wrong now.');
-  await click('[data-afkv2-element="i-8-1"] .afkv2-note-add');
-  await click('input[name="note-mark:i-8-1"][value="reopen"]');
-  step('note and reopen on settled items', true);
-
-  await click('[data-afkv2-element="d-graph"] > .afkv2-note-add');
-  await type(nodeField('d-graph'), 'The graph misses a service.');
-  await click('[data-afkv2-element="d-free"] > .afkv2-note-add');
-  await type(nodeField('d-free'), 'The drawing is wrong.');
+  await annotate('#i-8-0 > .afkv2-settled', 'This settled point is wrong now.');
+  step('note on a settled item', true);
+  await annotate('#d-graph figcaption', 'The graph misses a service.');
+  await annotate('#d-free figcaption', 'The drawing is wrong.');
   step('note on a diagram and a freestyle fragment', true);
 
-  await click('[data-afkv2-element="n-5"]');
-  await type(nodeField('n-5'), 'First text.');
-  await type(nodeField('n-5'), ' More text.');
-  step('edit an unsent note', (await ev(`document.querySelector('${nodeField('n-5')}').value`)) === 'First text. More text.');
-  await click('[data-afkv2-item="n-5"] .afkv2-note-draft-actions button:last-of-type');
-  step('delete an unsent note', !(await ev(`!!document.querySelector('[data-afkv2-item="n-5"]')`)));
+  const queued = (await hostQueue()).length;
+  await click('#n-5 .afkv2-box-label');
+  await until(`!!(${scope(true)} && ${scope(true)}.querySelector('.lavish-annotation-card textarea'))`, 'the annotation card on n-5');
+  await type('.lavish-annotation-card textarea', 'First text.', true);
+  await click('.lavish-annotation-card .lavish-cancel', true);
+  await pause(150);
+  step('cancel an unsent note', !(await ev(`!!${scope(true)}.querySelector('.lavish-annotation-card')`)) && (await hostQueue()).length === queued);
 
-  await click('[data-afkv2-note-edit="N-8-i-8-3"]');
-  await click('[data-afkv2-note-delete="N-8-i-8-3"]');
-  step('a delete after an edit replaces the entry', await ev(`document.querySelector('[data-afkv2-item="N-8-i-8-3"]').getAttribute('data-afkv2-note-action') === 'delete' && !document.querySelector('${nodeField('N-8-i-8-3')}')`));
-  await click('[data-afkv2-note-delete="N-8-i-8-2"]');
-  await click('[data-afkv2-note-edit="N-8-i-8-2"]');
-  step('an edit after a delete replaces the entry', await ev(`document.querySelector('[data-afkv2-item="N-8-i-8-2"]').getAttribute('data-afkv2-note-action') === 'edit' && !!document.querySelector('${nodeField('N-8-i-8-2')}').value`));
-  await click('[data-afkv2-note-edit="N-8-i-8-2"]');
-  await ev(`document.querySelector('${nodeField('N-8-i-8-2')}').select()`);
-  await cdp.send('Input.insertText', { text: 'An edited sent note.' }, top);
-  await pause(60);
-  await click('[data-afkv2-note-delete="N-8-i-8-3"]');
-  step('edit and delete a sent note', await ev(`document.querySelector('${nodeField('N-8-i-8-2')}').value === 'An edited sent note.' && !!document.querySelector('[data-afkv2-item="N-8-i-8-3"]')`));
-
-  const roundFold = '[data-afkv2-nr-round="8"]';
+  /* The current round and the one before stand open in the session table; round 7 is a closed fold.
+   * An earlier step can leave it open, so each click must flip the state it finds. */
+  const roundFold = 'details[data-afkv2-nr-round="7"]';
+  const foldOpen = () => ev(`document.querySelector('${roundFold}').open`);
+  const start = await foldOpen();
   await click(`${roundFold} > summary`);
-  const closed = !(await ev(`document.querySelector('${roundFold}').open`));
+  const flipped = (await foldOpen()) === !start;
   await click(`${roundFold} > summary`);
-  step('collapse a round of notes', closed && (await ev(`document.querySelector('${roundFold}').open`)));
+  step('fold and unfold a closed older round of notes', flipped && (await foldOpen()) === start, { start });
 
   const card = '[data-afkv2-element="i-7-0"]';
   const before = await ev(`document.querySelector('${card}').matches('.afkv2-collapsed')`);
   await click(`${card} > .afkv2-h`);
   const after = await ev(`document.querySelector('${card}').matches('.afkv2-collapsed')`);
   step('collapse a settled card', before !== after, { before, after });
-  await checkLayout('with-drafts-1280', [['drafts', '#afkv2-note-drafts']]);
+  await checkLayout('with-queue-1280', [['notes', '#afkv2-notes-replies']]);
 
-  const values = `JSON.stringify([...document.querySelectorAll('#afkv2-note-drafts textarea, [data-afkv2-input="note"]')].map((f) => [f.name, f.value]).filter((x) => x[1]))`;
-  const typed = await ev(values);
+  const typed = JSON.stringify((await hostQueue()).map((p) => p.prompt));
   const doc = readDoc(json);
   doc.rounds[8].replies.push({ text: 'A reply written while you type.' });
   writeFileSync(json, JSON.stringify(doc));
   const rendered = engine('render', json);
   step('render while typing', rendered.ok, rendered);
   await until(`document.body.textContent.includes('A reply written while you type.')`, 'the live reload');
-  await until(`!!document.querySelector('#afkv2-note-drafts')`, 'the notes script');
-  await pause(500);
-  const typedAfter = await ev(values);
-  const marked = await ev(`document.querySelector('input[name="choice:c-decided"][value="accept"]').checked && document.querySelector('input[name="note-mark:i-8-1"][value="reopen"]').checked`);
-  step('every unsent note and mark survives a re-render', typedAfter === typed && marked, { typed: JSON.parse(typedAfter).length });
   await until(`!!window.lavish && typeof window.lavish.queuePrompt === 'function'`, 'the host bridge');
-  await ev(wrapBridge);
-  await sendRound(9);
-  const sentText = (await ev('window.__sent'))[0];
-  const stores = await ev(`(() => { let local = null; try { local = localStorage.getItem('afkv2-draft:s1:9:notes'); } catch (e) {} return [local, (JSON.parse(window.name || '{}').afkv2Answers || {})['afkv2-draft:s1:9:notes'] || null]; })()`);
-  step('send clears the drafts', !stores[0] && !stores[1], stores);
-  return sentText;
+  await pause(500);
+  const typedAfter = JSON.stringify((await hostQueue()).map((p) => p.prompt));
+  const marked = await ev(`document.querySelector('input[name="choice:c-decided"][value="accept"]').checked`);
+  step('every unsent note and mark survives a re-render', typedAfter === typed && marked, { queued: JSON.parse(typedAfter).length });
+  const sent = await sendRound();
+  step('send empties the host queue', (await hostQueue()).length === 0, { sent: sent.length });
+  return sent;
 }
 
-function checkIngest(json, raw, sentText) {
+/* `sent` is the text of each prompt the host queue held at Send, in order. */
+function checkIngest(json, sent) {
   const polled = engine('poll', json);
-  step('poll', polled.ok, { status: polled.status });
-  step('seam: poll reads the bytes the page sent', polled.raw === sentText && Buffer.compare(Buffer.from(polled.raw), Buffer.from(sentText)) === 0);
+  step('poll', polled.ok && !polled.raw_warning, { status: polled.status, raw_warning: polled.raw_warning });
+  const prompts = JSON.stringify((polled.prompts || []).map((p) => p.prompt));
+  step('seam: poll reads the prompts the page queued', prompts === JSON.stringify(sent), { polled: prompts.slice(0, 300) });
   const rawFile = path.join(SCRATCH, 'raw.txt');
   writeFileSync(rawFile, polled.raw);
   const answer = engine('ingest', json, '--raw-file', rawFile);
   step('ingest', answer.ok, { round: answer.round, needs_reading: answer.needs_reading, reopened: answer.reopened, steers: answer.steers, settled_by_mark: answer.settled_by_mark });
   const doc = readDoc(json);
-  step('seam: ingest stored those bytes', doc.rounds.find((r) => r.state === 'current').responses.at(-1).raw === sentText);
+  const stored = doc.rounds.find((r) => r.state === 'current').responses.at(-1).raw;
+  step('seam: ingest stored the bytes poll read', Buffer.compare(Buffer.from(stored), Buffer.from(polled.raw)) === 0);
   return doc;
+}
+
+async function newTab() {
+  ({ targetId: topTarget } = await cdp.send('Target.createTarget', { url: 'about:blank' }));
+  ({ sessionId: top } = await cdp.send('Target.attachToTarget', { targetId: topTarget, flatten: true }));
+  cdp.attach(top);
+  await cdp.send('Page.bringToFront', {}, top);
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }, top);
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `addEventListener('message', (e) => { if (window === window.top && e.data && e.data.type === 'lavish:layoutDiagnostics') (window.__afkv2Layout = window.__afkv2Layout || []).push(e.data); });`,
+  }, top);
+  await width(1280);
+}
+
+const pageTabs = async () => (await cdp.send('Target.getTargets')).targetInfos.filter((t) => t.type === 'page').length;
+const LONG = 'Words of a long card. '.repeat(300);
+const BANNER = { settled: [], unlocks: [], parked: [] };
+
+function shellDocument() {
+  return {
+    schema: 'afkv2.page/1',
+    session: { id: 's3', skill: 'grill', feature: 'Shell feature', ticket: 'T-3', started: '2026-01-05T10:00:00Z',
+      short_title: 'Page shell', step: 'Requirements grill' },
+    maps: [{ type: 'map', id: 'm-shell', props: { nodes: [{ id: 'n-tab', label: 'The tab', state: 'open', round: 1 }] } }],
+    notes: [],
+    rounds: [{ n: 1, state: 'current', banner: BANNER, items: [
+      { id: 'c-tab', kind: 'decided', node: 'n-tab', body: { type: 'text', props: { text: 'The first card. ' + LONG } } },
+      { id: 'c-far', kind: 'confirm', body: { type: 'text', props: { text: LONG + ' This follows c-tab.' } } }] }],
+  };
+}
+
+const scrolled = () => ev('Math.round(window.scrollY)');
+const nearTop = (selector) => ev(`Math.abs(document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect().top) < 80`);
+const navClosed = () => ev(`getComputedStyle(document.getElementById('afkv2-nav-list')).display === 'none'`);
+const navMin = () => ev(`document.getElementById('afkv2-nav').classList.contains('afkv2-min')`);
+
+/* The page shell and the "Page host" seam, on a page of its own. */
+async function shellSteps() {
+  const json = newHome('repo-shell', shellDocument());
+  const shown = engine('show', json);
+  step('show without --no-open', shown.ok && shown.tab === null && !!shown.url, shown);
+  await width(1280);
+  await openPage(shown.url);
+  const title = 'T-3 \u00b7 Page shell \u00b7 Requirements grill';
+  const titles = async () => JSON.stringify(await ev(`[document.title, document.querySelector('.afkv2-title').textContent]`));
+  step('title', (await titles()) === JSON.stringify([title, title]), await titles());
+  const margin = await ev(`(() => { const n = document.getElementById('afkv2-nav').getBoundingClientRect(); return { nav: n.right, page: document.querySelector('.afkv2-page').getBoundingClientRect().left }; })()`);
+  step('navigation in the left margin at 1280', margin.nav <= margin.page, margin);
+  /* In annotation mode a click on a link or a map box opens lavish's note card; the jumps need it off. */
+  await annotation(false);
+
+  /* The click helper centres its target first, so each place before a jump is read after that centring. */
+  const centre = (selector) => ev(`(document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: 'center', inline: 'center' }), 1)`);
+  const jumpAndBack = async (selector, what) => {
+    await centre(selector);
+    await pause(150);
+    const before = await scrolled();
+    await click(selector);
+    await pause(300);
+    step(`${what} scrolls to its card`, await nearTop('#c-tab'));
+    await click('#afkv2-back');
+    const after = await scrolled();
+    step(`back after ${what}`, Math.abs(after - before) <= 4, { before, after });
+  };
+  await jumpAndBack('.afkv2-card-link[href="#c-tab"]', 'a card link');
+  const tip = await ev(`document.getElementById('n-tab').getAttribute('data-afkv2-tip') || ''`);
+  step('the map box tip', /open/.test(tip) && tip.includes('last changed in round 1'), tip);
+  await jumpAndBack('#n-tab', 'a map box');
+
+  await click('#afkv2-nav-head');
+  step('collapse the navigation', await navMin());
+  const tabs = await pageTabs();
+  const doc = readDoc(json);
+  doc.rounds[0].state = 'settled';
+  doc.rounds.push({ n: 2, state: 'current', banner: BANNER, changed: ['c-two'], items: [
+    { id: 'c-two', kind: 'decided', title: 'The second round', body: { type: 'text', props: { text: 'The second round.' } } },
+    { id: 'c-same', kind: 'decided', body: { type: 'text', props: { text: 'An unchanged card.' } } }] });
+  writeFileSync(json, JSON.stringify(doc));
+  const again = engine('show', json);
+  step('tab reuse: the second show reuses the tab', again.ok && again.tab === 'reused' && again.url === shown.url, again);
+  await until(`document.body.textContent.includes('An unchanged card.')`, 'the new round in the open tab');
+  step('tab reuse: no new tab', (await pageTabs()) === tabs, { before: tabs, after: await pageTabs() });
+  step('the title stays the same', (await titles()) === JSON.stringify([title, title]));
+  step('the collapsed navigation stays collapsed', await navMin());
+  step('what changed', await ev(`!!document.querySelector('.afkv2-banner-changed a[href="#c-two"]') && document.getElementById('c-two').getAttribute('data-afkv2-fresh') === '2' && !document.getElementById('c-same').hasAttribute('data-afkv2-fresh')`));
+  await checkLayout('shell-1280', [['top', '.afkv2-page']]);
+
+  await width(390);
+  await frameOnTop();
+  step('a narrow window: the navigation is one button', await navClosed());
+  await click('#afkv2-nav-head');
+  step('the button opens the list', !(await navClosed()));
+  await click('.afkv2-nav-row');
+  step('a jump closes the list', await navClosed());
+  await checkLayout('shell-390', [['top', '.afkv2-page']]);
+  await width(1280);
+
+  await cdp.send('Target.closeTarget', { targetId: topTarget });
+  frameContext = null;
+  const left = engine('poll', json);
+  step('closed tab: poll reports that the browser left', !left.ok, left);
+  const third = engine('show', json);
+  step('closed tab: the next show asks for a new tab', third.ok && third.tab === null, third);
+  await newTab();
+  await openPage(third.url);
+  step('closed tab: one new tab', (await pageTabs()) === tabs, { before: tabs, after: await pageTabs() });
+  await cdp.send('Page.navigate', { url: 'about:blank' }, top);
+  frameContext = null;
+  endSession(json);
 }
 
 async function main() {
@@ -451,15 +603,7 @@ async function main() {
     const ws = new WebSocket(`ws://127.0.0.1:${debugPort}${wsPath.trim()}`);
     await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject); });
     cdp = new Cdp(ws);
-    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
-    ({ sessionId: top } = await cdp.send('Target.attachToTarget', { targetId, flatten: true }));
-    cdp.attach(top);
-    await cdp.send('Page.bringToFront', {}, top);
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true }, top);
-    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `addEventListener('message', (e) => { if (window === window.top && e.data && e.data.type === 'lavish:layoutDiagnostics') (window.__afkv2Layout = window.__afkv2Layout || []).push(e.data); });`,
-    }, top);
-    await width(1280);
+    await newTab();
 
     await openPage(shown.url);
     result.frame.oopif = cdp.sessions.size > 1;
@@ -468,7 +612,7 @@ async function main() {
     await hostAudit('stress-1280');
     await width(390);
     result.frame.width_390 = await ev('window.innerWidth');
-    await checkLayout('stress-390', [['top', '.afkv2-page'], ['map', '#afkv2-maps'], ['table', '[data-afkv2-element="d-table"]'], ['long', '[data-afkv2-element="c-confirm"]'], ['send', '#afkv2-send']]);
+    await checkLayout('stress-390', [['top', '.afkv2-page'], ['map', '#afkv2-maps'], ['table', '[data-afkv2-element="d-table"]'], ['long', '[data-afkv2-element="c-confirm"]'], ['copy', '#afkv2-copy']]);
     await hostAudit('stress-390');
 
     const shownDiagrams = engine('show', diagrams, '--no-open');
@@ -481,29 +625,26 @@ async function main() {
     await hostAudit('diagrams-390');
     endSession(diagrams);
 
+    await shellSteps();
+
     await width(1280);
     await openPage(shown.url);
-    const sentText = await interact(json);
-    step('the sent text holds the typed text', sentText.includes(TRICKY) && sentText.startsWith('[round R-9]\n') && sentText.includes(`N-8-i-8-3 delete`), sentText.slice(0, 200));
-    let doc = checkIngest(json, null, sentText);
+    const sent = await interact(json);
+    step('the queue holds the typed text', sent.includes(TRICKY) && sent.some((p) => p.startsWith('c-decided accept')), sent.map((p) => p.slice(0, 60)));
+    let doc = checkIngest(json, sent);
 
     const state = (id) => itemOf(doc, id).state || 'open';
+    const notes = doc.notes || [];
     step('a lone accept settles by mark', state('c-decided') === 'settled_by_mark');
-    step('a note goes to needs-reading, with its text', state('c-note-only') === 'needs_reading' && itemOf(doc, 'c-note-only').notes[0].text === TRICKY);
+    step('a note goes to needs-reading, with its text', state('c-note-only') === 'needs_reading' && notes.some((n) => n.item === 'c-note-only' && n.text === TRICKY));
     step('a note on a settled item reopens it', state('i-8-0') === 'open' && !itemOf(doc, 'i-8-0').settled);
-    step('a reopen mark reopens it', state('i-8-1') === 'open');
-    const allNotes = doc.rounds.flatMap((r) => [...r.items.flatMap((i) => i.notes || []), ...(r.notes || [])]);
-    step('a note on a map node is a steer', allNotes.some((n) => n.target === 'n-3' && n.text === 'Look at this node first.') && (itemOf(doc, 'c-spare').state || 'open') === 'open');
-    step('notes on a diagram and a freestyle fragment', allNotes.some((n) => n.target === 'd-graph') && allNotes.some((n) => n.target === 'd-free'));
-    const note = (id) => allNotes.find((n) => n.id === id);
-    step('the sent note is edited and keeps its id', note('N-8-i-8-2').text === 'An edited sent note.');
-    step('the deleted note keeps its id with deleted', note('N-8-i-8-3').deleted === true);
+    step('a note on a map node is a steer', notes.some((n) => n.target === 'n-3' && !n.item && n.text === 'Look at this node first.') && state('c-spare') === 'open');
+    step('notes on a diagram and a freestyle fragment', notes.some((n) => n.target === 'd-graph') && notes.some((n) => n.target === 'd-free'));
+    step('the cancelled note is not sent', !notes.some((n) => n.text === 'First text.'));
 
     const rendered = engine('render', json);
     step('render after ingest', rendered.ok, rendered);
-    await until(`document.body.textContent.includes('This settled point is wrong now.') && !!document.querySelector('[data-afkv2-note-target="n-3"]')`, 'the notes on the page');
-    await until(`!!document.querySelector('#afkv2-note-drafts')`, 'the notes script');
-    step('the sent notes are no longer drafts', await ev(`document.querySelectorAll('.afkv2-note-draft').length === 0`));
+    await until(`document.body.textContent.includes('This settled point is wrong now.') && document.body.textContent.includes('Look at this node first.')`, 'the notes on the page');
     await checkLayout('after-ingest-1280', [['notes', '#afkv2-notes-replies']]);
 
     doc = readDoc(json);
@@ -518,10 +659,7 @@ async function main() {
     step('settled by note shows differently', await ev(`document.querySelector('[data-afkv2-element="c-note-only"]').getAttribute('data-afkv2-point') === 'settled_by_note' && document.body.textContent.includes('The reading of the agent.')`));
     await until(`!!window.lavish && typeof window.lavish.queuePrompt === 'function'`, 'the host bridge');
     await click('input[name="choice:c-next"][value="accept"]');
-    await ev(wrapBridge);
-    await sendRound(10);
-    const nextText = (await ev('window.__sent'))[0];
-    doc = checkIngest(json, null, nextText);
+    doc = checkIngest(json, await sendRound());
     step('a later round ingests', itemOf(doc, 'c-next').state === 'settled_by_mark');
     engine('render', json);
     await width(390);

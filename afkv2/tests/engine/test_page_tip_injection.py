@@ -61,7 +61,7 @@ def case(tmp_path, monkeypatch):
     doc = {
         "schema": "afkv2.page/1",
         "session": {"id": "tips", "skill": "grill", "feature": "sample", "ticket": "sample",
-                    "started": "2026-01-05T09:00:00Z"},
+                    "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
         "tips": {"terms": [{"term": "queue", "definition": "Page queue."}],
                  "ids": [{"id": "card", "title": "Page card."}]},
         "rounds": [{"n": 1, "state": "current", "banner": {"settled": [], "unlocks": [], "parked": []},
@@ -82,6 +82,7 @@ def test_page_tip_reopen_contract(case, capsys, kind):
         doc["schema"] = "afkv2." + kind
         if kind == "page/0":
             doc.pop("tips")
+            doc["session"].pop("step")
         path.write_text(json.dumps(doc), "utf-8")
         assert engine.main(["render", str(path)]) == 0, capsys.readouterr().out
     first = html_path.read_bytes()
