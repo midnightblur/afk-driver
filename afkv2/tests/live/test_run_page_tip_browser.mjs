@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { withDeadline } from "./run_page_tip_browser.mjs";
+import { parseCdpMessage, run, withDeadline } from "./run_page_tip_browser.mjs";
 
 test("a stalled Chrome DevTools operation is canceled", async () => {
   let canceled = false;
@@ -10,4 +10,17 @@ test("a stalled Chrome DevTools operation is canceled", async () => {
     /Timed out waiting for stalled operation/,
   );
   assert.equal(canceled, true);
+});
+
+test("a stalled fixture builder is terminated", async () => {
+  await assert.rejects(
+    run(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { timeout: 20 }),
+    /Timed out waiting for subprocess/,
+  );
+});
+
+test("subprocess and protocol diagnostics have size bounds", async () => {
+  const result = await run(process.execPath, ["-e", "process.stdout.write('x'.repeat(2_000_000))"]);
+  assert.match(result.stdout, /^\[truncated\]/);
+  assert.throws(() => parseCdpMessage("x".repeat(2_000_000)), /exceeded/);
 });

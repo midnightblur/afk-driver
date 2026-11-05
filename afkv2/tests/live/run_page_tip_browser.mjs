@@ -12,6 +12,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WAIT_MS = 20_000;
 const OPERATION_MS = 5_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
 
 export function withDeadline(promise, timeout, label, cancel = () => {}) {
   let timer;
@@ -48,19 +49,45 @@ async function findChrome() {
   throw new Error(`Installed Chrome not found. Checked: ${chromeCandidates().join(", ")}`);
 }
 
-function run(command, args, options = {}) {
+function boundedDiagnostic(text) {
+  return text.length <= MAX_DIAGNOSTIC_BYTES ? text : `[truncated]\n${text.slice(-MAX_DIAGNOSTIC_BYTES)}`;
+}
+
+export function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { windowsHide: true, ...options });
+    const { timeout = WAIT_MS, ...spawnOptions } = options;
+    const child = spawn(command, args, { windowsHide: true, ...spawnOptions });
     let stdout = "";
     let stderr = "";
-    child.stdout?.on("data", chunk => { stdout += chunk; });
-    child.stderr?.on("data", chunk => { stderr += chunk; });
-    child.on("error", reject);
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill();
+      reject(new Error(`Timed out waiting for subprocess: ${command} ${args.join(" ")}\n${stdout}${stderr}`));
+    }, timeout);
+    child.stdout?.on("data", chunk => { stdout = boundedDiagnostic(stdout + chunk); });
+    child.stderr?.on("data", chunk => { stderr = boundedDiagnostic(stderr + chunk); });
+    child.on("error", error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
     child.on("exit", code => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (code === 0) resolve({ stdout, stderr });
       else reject(new Error(`${command} ${args.join(" ")} exited ${code}\n${stdout}${stderr}`));
     });
   });
+}
+
+export function parseCdpMessage(data) {
+  const text = String(data);
+  if (text.length > MAX_RESPONSE_BYTES) throw new Error(`CDP message exceeded ${MAX_RESPONSE_BYTES} bytes`);
+  return JSON.parse(text);
 }
 
 function getJson(port, route) {
@@ -113,7 +140,14 @@ class Cdp {
   async open() {
     this.socket = new WebSocket(this.url);
     this.socket.addEventListener("message", event => {
-      const message = JSON.parse(event.data);
+      let message;
+      try {
+        message = parseCdpMessage(event.data);
+      } catch (error) {
+        this.diagnostics.push(`CDP message: ${error.message}`);
+        this.socket.close();
+        return;
+      }
       if (!message.id) return;
       const pending = this.pending.get(message.id);
       if (!pending) return;
