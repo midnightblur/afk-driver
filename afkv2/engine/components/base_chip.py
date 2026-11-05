@@ -11,6 +11,9 @@ TONES = ["removed", "kept", "new", "proposed"]
 MARKS = {"open": "○", "blocked": "✕", "settled": "✓", "measured": "●",
          "inferred": "◐", "estimated": "≈", "unverified": "?", "you": "★"}
 CHIP_TONES = TONES + list(MARKS)
+SET_COLOURS = 8
+FAINTEST = 35
+YOU_VALUE = "you"
 LIST_ITEM = re.compile(r"\s*[-*] (.*)")
 HEADING = re.compile(r"#{1,6}\s+(.*)")
 CODE = re.compile(r"`([^`]+)`")
@@ -70,6 +73,20 @@ def markdown(text):
             para.append(stripped)
     flush()
     return "".join(out)
+
+
+def value_colour(values, value, ordered):
+    """The CSS colour of `value` by its position in its named set `values`, or None outside the set.
+    YOU, in any case, has one fixed strong colour; an ordered set runs strong to faint in one hue."""
+    if value not in values:
+        return None
+    if value.lower() == YOU_VALUE:
+        return "var(--afkv2-you)"
+    position = values.index(value)
+    if not ordered:
+        return f"var(--afkv2-set-{position % SET_COLOURS + 1})"
+    strength = 100 - round((100 - FAINTEST) * position / max(len(values) - 1, 1))
+    return f"color-mix(in srgb, var(--afkv2-scale) {strength}%, var(--surface))"
 
 
 def render_chip(props, children):
