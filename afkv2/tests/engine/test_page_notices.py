@@ -322,3 +322,24 @@ def test_the_hits_are_capped_and_the_rest_counted(repo):
     page = page_in(repo, "new.json", (SAMPLES["slack-token"] + "\n") * 50)
     answer = notices.page_notices(page, start=repo)
     assert len(answer["secrets"]) == notices.MAX_HITS and answer["secrets_more"] == 50 - notices.MAX_HITS
+
+
+def test_a_scan_file_is_named_when_the_page_fills_the_cap(repo):
+    """Review f24 (PRD AC-049): a page with more hits than the cap leaves room for the first hit of each scan file."""
+    page = page_in(repo, "new.json", (SAMPLES["slack-token"] + "\n") * (notices.MAX_HITS + 1))
+    log = page_in(repo, "LOG.md", SAMPLES["github-token"] + "\n")
+    answer = notices.page_notices(page, [log], start=repo)
+    assert len(answer["secrets"]) == notices.MAX_HITS and answer["secrets_more"] == 2
+    assert answer["secrets"][-1] == {"file": "LOG.md", "line": 1, "shape": "github-token"}
+    assert answer["secrets"][0] == {"file": "new.json", "line": 1, "shape": "slack-token"}
+
+
+def test_every_file_with_a_secret_is_named_past_the_cap(repo):
+    """Review f24 (PRD AC-049): with more files than the cap holds, each file still shows its first hit."""
+    page = page_in(repo, "new.json")
+    logs = [page_in(repo, f"logs/LOG-{k:02}.md", f"{SAMPLES['api-key']}\n{SAMPLES['api-key']}\n")
+            for k in range(notices.MAX_HITS + 2)]
+    answer = notices.page_notices(page, logs, start=repo)
+    assert [hit["file"] for hit in answer["secrets"]] == [f"logs/LOG-{k:02}.md" for k in range(notices.MAX_HITS + 2)]
+    assert {hit["line"] for hit in answer["secrets"]} == {1}
+    assert answer["secrets_more"] == notices.MAX_HITS + 2

@@ -99,7 +99,8 @@ def _state(code: str | None) -> str:
 
 def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
     """`{"git_state", "git_reason", "secrets", "secrets_more"}` of a page. `git_reason` says why a state is unknown,
-    else None; `secrets` holds the first MAX_HITS hits and `secrets_more` counts the rest."""
+    else None; `secrets` holds the first hit of each file, then the next hits up to MAX_HITS, and `secrets_more`
+    counts the rest."""
     root = repository_root(Path.cwd() if start is None else start)
     files = [Path(page), *(Path(path) for path in scan if Path(path).is_file())]
     rels = [_relative(path, root) for path in files]
@@ -115,8 +116,23 @@ def page_notices(page: Path, scan=(), start: Path | None = None) -> dict:
     states = ["outside" if rel is None else _state(codes.get(os.path.normcase(rel))) for rel in rels]
     chosen = list(dict.fromkeys((path, rel) for path, rel, state in zip(files, rels, states) if state in SCANNED))
     hits = scan_files(chosen)
-    return {"git_state": states[0], "git_reason": None, "secrets": hits[:MAX_HITS],
-            "secrets_more": max(0, len(hits) - MAX_HITS)}
+    shown = _capped(hits)
+    return {"git_state": states[0], "git_reason": None, "secrets": shown, "secrets_more": len(hits) - len(shown)}
+
+
+def _capped(hits: list[dict]) -> list[dict]:
+    """The first hit of each file, then the next hits in order until MAX_HITS: every file with a hit is named, also
+    past the cap (PRD AC-049). File order, then line order, as in `hits`."""
+    keep, files = set(), set()
+    for index, hit in enumerate(hits):
+        if hit["file"] not in files:
+            files.add(hit["file"])
+            keep.add(index)
+    for index in range(len(hits)):
+        if len(keep) >= MAX_HITS:
+            break
+        keep.add(index)
+    return [hit for index, hit in enumerate(hits) if index in keep]
 
 
 def _unknown(why: str) -> dict:
