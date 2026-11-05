@@ -21,6 +21,8 @@ LAVISH_PACKAGE = "lavish-axi"
 LAVISH_PIN = "0.1.80"
 RG_WINGET_ID = "BurntSushi.ripgrep.MSVC"
 MERMAID_PACKAGE = "@mermaid-js/mermaid-cli"
+# The renderer pin: the engine keys its diagram cache by this version (`engine/diagrams.py`).
+MERMAID_VERSION = "12.0.0"
 # https://pptr.dev/api/puppeteer.configuration: this variable overrides `skipDownload`.
 NO_BROWSER_DOWNLOAD = {"PUPPETEER_SKIP_DOWNLOAD": "true"}
 EDGE_ROOTS = ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")
@@ -280,25 +282,26 @@ def find_edge(env: Mapping[str, str]) -> Path | None:
 
 
 def ensure_diagram_renderer(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
-    """The diagram command with the browser download off, and a config that points it at Edge."""
+    """The diagram command at the pin, with the browser download off, and a config that points it at Edge.
+    Another installed version is replaced by the pin. With no Edge, nothing is installed."""
     edge = find_edge(env)
     if edge is None:
         return {"ok": False, "error": {"code": "no-edge", "reason": "no Microsoft Edge at its known install paths. "
                                        "Install Edge, then run this step again; setup downloads no browser"}}
     try:
         prior = global_version(run, env, MERMAID_PACKAGE)
-        if not prior:
-            got = run(["npm", "install", "-g", MERMAID_PACKAGE], env={**env, **NO_BROWSER_DOWNLOAD}, timeout=600)
+        version = prior
+        if prior != MERMAID_VERSION:
+            got = run(["npm", "install", "-g", f"{MERMAID_PACKAGE}@{MERMAID_VERSION}"], env={**env, **NO_BROWSER_DOWNLOAD},
+                      timeout=600)
             version = global_version(run, env, MERMAID_PACKAGE)
-            if got.code != 0 or not version:
+            if got.code != 0 or version != MERMAID_VERSION:
                 return {"ok": False, "error": {"code": "renderer-install-failed", "reason": (got.err or got.out).strip()[:300]}}
-        else:
-            version = prior
     except ValueError as exc:
         return _npm_unavailable(exc)
     if run(["mmdc", "--version"], env=env, timeout=120).code != 0:
         return {"ok": False, "error": {"code": "mmdc-not-found", "reason": "the package is installed, but `mmdc` does not run: "
                                        "put the npm global folder on the path, then run this step again"}}
     write_atomic(places.puppeteer_config, json.dumps({"executablePath": str(edge)}, indent=2).encode("utf-8") + b"\n")
-    return {"ok": True, "action": "present" if prior else "installed", "version": version, "edge": str(edge),
+    return {"ok": True, "action": "present" if prior == MERMAID_VERSION else "installed", "version": version, "edge": str(edge),
             "config": str(places.puppeteer_config)}
