@@ -13,8 +13,8 @@ are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
 | Tone | Means | Looks |
 |------|-------|-------|
 | `removed` | goes away | strike-through, red |
-| `kept` | stays as it is | grey chip |
-| `new` | new or changed | blue chip |
+| `kept` | stays as it is | grey chip; on a chip, = |
+| `new` | new or changed | blue chip; on a chip, + |
 | `proposed` | suggested, not yet agreed | dashed outline |
 
 State and certainty tones, for a chip only:

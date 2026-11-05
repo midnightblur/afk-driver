@@ -345,3 +345,20 @@ def test_check_refuses_a_value_chip_that_does_not_resolve(capsys, tmp_path, cell
     assert code == 1
     reason = answer["error"]["reason"]
     assert why in reason and "body.children[0].props.rows[0][0].props" in reason, reason
+
+
+# --- every chip tone has a cue beside its colour (PR-07) ---
+
+SHAPE_CUES = {"removed": ("text-decoration", "line-through"), "proposed": ("border-style", "dashed")}
+
+
+@pytest.mark.parametrize("tone", ["removed", "kept", "new", "proposed", *STATE_TONES])
+def test_every_chip_tone_has_a_cue_beside_its_colour(tone):
+    drawn = registry.render_component(chip(tone, "export"))
+    mark = re.search(r'<span class="afkv2-chip-mark" aria-hidden="true">([^<]+)</span>export', drawn)
+    if tone in SHAPE_CUES:
+        prop, value = SHAPE_CUES[tone]
+        body = " ".join(re.findall(r"\.afkv2-tone--" + tone + r"(?![\w-])[^{]*\{([^}]*)\}", KIT))
+        assert re.search(re.escape(prop) + r"\s*:[^;]*" + value, body) or mark, tone
+    else:
+        assert mark, f"a {tone} chip shows its meaning by colour alone"

@@ -12,6 +12,8 @@ TONES = ["removed", "kept", "new", "proposed"]
 MARKS = {"open": "○", "blocked": "✕", "settled": "✓", "measured": "●",
          "inferred": "◐", "estimated": "≈", "unverified": "?", "you": "★"}
 CHIP_TONES = TONES + list(MARKS)
+# Removed and proposed chips carry a shape cue in kit.css (strike-through, dashed); kept and new a symbol.
+SYMBOLS = {"kept": "=", "new": "+", **MARKS}
 SET_COLOURS = 8
 FAINTEST = 35
 YOU_VALUE = "you"
@@ -107,7 +109,7 @@ def render_chip(props, children):
     if "set" in props:
         return _value_chip(props) + "".join(children)
     tone = props["tone"]
-    mark = f'<span class="afkv2-chip-mark" aria-hidden="true">{MARKS[tone]}</span>' if tone in MARKS else ""
+    mark = f'<span class="afkv2-chip-mark" aria-hidden="true">{SYMBOLS[tone]}</span>' if tone in SYMBOLS else ""
     return (f'<span class="afkv2-chip afkv2-tone--{tone}">{mark}{escape(props["text"])}</span>'
             + "".join(children))
 
