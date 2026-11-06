@@ -3,7 +3,8 @@
   row  --log L --kind K (--text T | --text-file F)     one agent row, overwritten in place
   sync --doc D --log L                                 rows that come from the page document
   term --log L --term T (--glossary G --definition D | --pending)
-  gate --doc D --log L                                 the mechanical part of the exit gate
+  gate --doc D --log L                                 the mechanical part of the exit gate; on a version 2 page
+                                                       also its questions for others, stories and worked examples
 
 Row grammar: GRILL-LOG-FORMAT.md. Other sections of the file stay byte for byte.
 """
@@ -20,8 +21,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
-from round_document import (ASKING, _carried, _components, card_notes, current_round, format_1, returning,  # noqa: E402
-                            signature_missing, steer_targets, steers)
+from round_document import (ASKING, _carried, _components, card_notes, current_round,  # noqa: E402
+                            format_1, is_version_2, returning, signature_missing, steer_targets, steers)
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff", "Takeover"}
@@ -31,6 +32,7 @@ STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-
 # A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
 TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 GATE_PASSED = "- Settled: exit gate passed"
+EXAMPLE_KINDS = ("frequent", "edge", "risky")
 GENERATED = re.compile(r"^- (Session|Steer): |^- (Settled|Open|Carried|Info): .* · card \S+$")
 
 
@@ -228,6 +230,25 @@ def _doc_failures(doc):
     return failures
 
 
+def _v2_failures(doc):
+    """The end check of a version 2 page's lists (SDD §3 row "grill end check"). A page with no story and no worked
+    example keeps today's check: the log's Examples row (decision D-24)."""
+    failures = []
+    for question in doc.get("questions") or []:
+        if question.get("state") == "open":
+            failures.append(f"question-open: {question['id']}: {question['question']} (who: {', '.join(question['who'])})")
+        if question.get("state") == "dropped" and not ((question.get("dropped") or {}).get("reason") or "").strip():
+            failures.append(f"drop-no-reason: {question['id']}: {question['question']}")
+    stories, examples = doc.get("stories") or [], doc.get("examples") or []
+    covered = {story_id for example in examples for story_id in example.get("stories") or []}
+    failures += [f"story-without-example: {story['id']}: {story['text']}" for story in stories
+                 if story["id"] not in covered]
+    if stories or examples:
+        kinds = {example.get("kind") for example in examples}
+        failures += [f"kind-missing: no worked example of kind {kind}" for kind in EXAMPLE_KINDS if kind not in kinds]
+    return failures
+
+
 def _log_failures(blocks):
     rows = [block[0] for block in blocks]
     failures = []
@@ -246,7 +267,7 @@ def _log_failures(blocks):
 def gate(doc_path, log):
     doc = format_1(read_json(doc_path))
     head, blocks, tail = _split(log)
-    failures = _doc_failures(doc) + _log_failures(blocks)
+    failures = _doc_failures(doc) + (_v2_failures(doc) if is_version_2(doc) else []) + _log_failures(blocks)
     if failures:
         raise Refusal("exit-gate", f"{len(failures)} exit-gate checks failed", failures=failures)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
