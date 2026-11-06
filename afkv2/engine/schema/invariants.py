@@ -333,7 +333,11 @@ def _section(where: tuple, section: dict, sections: dict) -> list[tuple]:
 def _question(where: tuple, question: dict, earlier: set, cards: dict, notes: dict, rounds: list) -> list[tuple]:
     """A question closes only by answer, drop with a reason, or an accepted assumption (SDD §6)."""
     state = question["state"]
-    found = []
+    # The tick line `<question id> tick <option id> ...` splits on whitespace.
+    found = [((*where, "id"), "a question id holds no whitespace")] if _spaced(question["id"]) else []
+    options = (question.get("choices") or {}).get("options") or []
+    found += [((*where, "choices", "options", o, "id"), "an option id holds no whitespace")
+              for o, option in enumerate(options) if _spaced(option["id"])]
     for closed, field in CLOSED_BY.items():
         kept = state == closed or (field == "assumption" and state == "answered")
         if state == closed and not question.get(field):
@@ -353,6 +357,10 @@ def _question(where: tuple, question: dict, earlier: set, cards: dict, notes: di
             found.append(((*where, "assumption", "card"), _named(
                 ASSUME_NO_CARD, f"{question['assumption']['card']!r} is no card settled by the developer's accept mark")))
     return found
+
+
+def _spaced(value: str) -> bool:
+    return any(char.isspace() for char in value)
 
 
 def _answer(where: tuple, question: dict, notes: dict, rounds: list) -> list[tuple]:
