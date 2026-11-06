@@ -148,13 +148,15 @@ def render_changes(doc: dict, changes: list) -> str:
     return f'<ol class="afkv2-v2-changes">{lines}</ol>'
 
 
-def _open_counts(doc: dict) -> dict:
-    """Each section id with the count of its asking points that are not settled (decision D-11)."""
+def _open_counts(doc: dict, sections: dict) -> dict:
+    """Each section id with the count of its asking points that are not settled (decision D-11). A point on a
+    merged section counts on the section it merged into."""
     counts: dict[str, int] = {}
     for point in lineages(doc):
         head = point.head
         if head.get("section") and head["kind"] in ASKING and head.get("state", "open") not in SETTLED:
-            counts[head["section"]] = counts.get(head["section"], 0) + 1
+            target = _current_target(sections, head["section"])
+            counts[target] = counts.get(target, 0) + 1
     return counts
 
 
@@ -206,7 +208,8 @@ def render_sections(doc: dict) -> str:
     entries = doc.get("sections") or []
     if not entries:
         return ""
-    sections, counts = {entry["id"]: entry for entry in entries}, _open_counts(doc)
+    sections = {entry["id"]: entry for entry in entries}
+    counts = _open_counts(doc, sections)
     body = "".join(_section(doc, section, sections, counts) for section in entries)
     return (f'<section class="afkv2-v2-sections" id="afkv2-sections"><h2 class="afkv2-section-h">Sections</h2>'
             f'{body}</section>')

@@ -149,6 +149,13 @@ def part_of(html, element_id):
     return html[start:html.index("</article>", start)]
 
 
+def chip_text(html, css="afkv2-v2-open-count"):
+    """The visible text of the one chip of class `css` in `html`, or None."""
+    found = re.findall(rf'<span class="afkv2-chip {css}">(.*?)</span>', html)
+    assert len(found) <= 1, found
+    return visible(found[0]) if found else None
+
+
 def element_ids(doc):
     found = {entry["id"] for kind in ("sections", "stories", "examples", "questions") for entry in doc[kind]}
     found |= {option["id"] for q in doc["questions"] for option in (q.get("choices") or {}).get("options", [])}
@@ -246,6 +253,14 @@ def test_a_section_with_open_questions_shows_a_chip_with_their_count():
     doc["rounds"][2]["items"][1]["state"] = "settled_by_mark"
     doc["rounds"][2]["items"][1]["settled"] = {"by": "mark", "round": 3, "signal": "accept"}
     assert "1 open question" in visible(part_of(parts_v2.render_sections(doc), "sec-scope"))
+
+
+def test_an_open_card_on_a_merged_section_counts_on_the_section_it_merged_into():
+    doc = document()
+    doc["rounds"][1]["items"][1]["section"] = "sec-old"
+    html = parts_v2.render_sections(doc)
+    assert chip_text(part_of(html, "sec-format")) == "1 open question"
+    assert chip_text(part_of(html, "sec-scope")) == "1 open question"
 
 
 def test_a_merged_or_removed_section_shows_1_line_with_a_link_or_its_reason():
