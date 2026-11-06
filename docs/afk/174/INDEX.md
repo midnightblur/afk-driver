@@ -9,8 +9,8 @@ A grill page today shows one round of questions at a time, so the developer lose
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 5 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 5 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | — |

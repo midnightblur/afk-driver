@@ -87,3 +87,25 @@
 - Steer: m-scope (N-2-m-scope-1): "as you mentioned worked example, ideally the page should always show them as well. part of the whole picture, you know"
 - Steer: m-scope (N-2-m-scope-2): "if there're clear choices (single or multiple choices), then list them so it's easier to response. it should work the same way as questions to the user"
 - Settled: exit gate passed 2026-11-06 · session s-20261105-214925
+
+## Solution design
+
+- Premise: The engine opens a page by its schema value and keeps one reader per format; a new format is a new page-vN schema file, a READERS entry and an in-memory upgrade → verified (afkv2/engine/engine.py:122; afkv2/engine/registry.py:23; afkv2/AGENTS.md)
+- Premise: The round builder writes format 1 for every document it touches, and upgrades a format 0 document on its next write → verified (afkv2/skills/use-lavish/scripts/round_document.py:27; afkv2/skills/use-lavish/scripts/round_document.py:442)
+- Premise: A settled round is checked byte for byte against a saved copy; only maps and root-level lists are rewritten in place → verified (afkv2/engine/schema/invariants.py:48; afkv2/engine/engine.py:346)
+- Premise: A note on an element that no card holds is a steer for the whole session → verified (afkv2/engine/ingest.py:100)
+- Premise: A lone settling mark settles an open card at ingest, and any other signal on a settled card returns it to open → verified (afkv2/engine/ingest.py:61)
+- Premise: A card takes one radio mark; no multi-select field, input or ingest path exists → verified (afkv2/engine/components/base_card.py:53; afkv2/engine/shell/runtime.js:109)
+- Premise: lavish 0.1.80 treats checkboxes inside a data-lavish-question wrapper as choice inputs, and a queueKey replaces the unsent answer of the same question → verified (lavish-axi 0.1.80 dist/cli.mjs:231; dist/cli.mjs:263; afkv2/engine/launcher.py:32)
+- Premise: Visible text shows raw ids and round codes in card headings, round chips, settled lines, history summaries, note row numbers and linked card ids → verified (afkv2/engine/components/base_card.py:79; afkv2/engine/components/base_card.py:95; afkv2/engine/shell/page.py:154; afkv2/engine/components/notes_replies.py:200; afkv2/engine/shell/references.py:87)
+- Premise: The whole page is rebuilt from the document on every render, and the tips dictionary is embedded twice: 132 KB of the 301 KB grill page of this ticket → verified (afkv2/engine/engine.py:458; afkv2/engine/shell/inject.py:196; measured docs/afk/174/pages/grill-s-20261105-214925.html)
+- Premise: apply-readings open writes one answer that names every note of the card in the round → verified (afkv2/skills/use-lavish/scripts/round_document.py:554)
+- Premise: The grill starts a new session when the newest page document has a passed exit gate → verified (afkv2/skills/grill/scripts/grill_start.py:53)
+- Premise: The exit gate checks only that an Examples row exists, and the log has no row kind for a question for others → verified (afkv2/skills/grill/scripts/grill_log.py:240; afkv2/skills/grill/scripts/grill_log.py:27)
+- Premise: propose-solution and to-subtasks write their pages through round_document.build_round_document → verified (afkv2/skills/propose-solution/scripts/design_round.py:183; afkv2/skills/to-subtasks/scripts/plan_files.py:409)
+- Premise: The grill picks the newest session by file time; to-prd and propose-solution pick by session name → verified (afkv2/skills/grill/scripts/grill_start.py:55; afkv2/skills/to-prd/scripts/prd_files.py:41; afkv2/skills/propose-solution/scripts/design_files.py:63)
+- Premise: grill_log sync drops a passed exit gate row, so a grill that comes back voids its pass until the gate runs again → verified (afkv2/skills/grill/scripts/grill_log.py:185)
+- Premise: to-prd reads grill rows only as source hints, and its code parses only Ledger and Term rows → verified (afkv2/skills/to-prd/PRD-FORMAT.md:11; afkv2/skills/to-prd/scripts/prd_files.py:32)
+- Premise: No runtime cap on page size exists; a test holds a 1 MB page to a 2 s render → verified (afkv2/tests/engine/test_chart_components.py:431)
+- Premise: The round builder writes the page document whole and atomically, through a temp file and a rename → verified (afkv2/skills/use-lavish/scripts/grill_common.py:60)
+- Settled: design gate passed 2026-11-06 · session s-20261106-061938

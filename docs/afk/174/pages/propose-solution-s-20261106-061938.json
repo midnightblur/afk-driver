@@ -1,0 +1,3568 @@
+{
+  "schema": "afkv2.page/1",
+  "session": {
+    "step": "Solution design",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261106-061938",
+    "skill": "propose-solution",
+    "feature": "174",
+    "ticket": "174",
+    "started": "2026-11-06T06:28:54Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Living sections, others' questions"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "focus",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 2
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "The top-down draft of the design, once these 11 questions settle"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-entities",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-entities",
+            "props": {
+              "columns": [
+                "Thing",
+                "Today",
+                "After this change"
+              ],
+              "rows": [
+                [
+                  "Page document: the JSON file a page is drawn from, one per session",
+                  "session, maps, notes, rounds",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept, as version 2",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Round",
+                  "banner, cards, your sends, my replies",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Card",
+                  "one point; each time a point returns, a new card carries the old one",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Note",
+                  "one list for the session; a note on an element that no card holds is a rule for the whole session",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed: a note on a section or a question is a plain note",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Reply",
+                  "one reply can stand for several notes",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed: one reply per note",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Section",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: title, current text, links, change lines",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "User story",
+                  "text on a card",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: one entry each, so the end check sees which have an example",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Worked example",
+                  "one free-text line in the grill log",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: one entry each, frequent, edge or risky",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Question for others",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: the 9 parts of the requirements, a state, an answer",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Change line",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: round, cause, what changed; never rewritten",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-entities-question",
+                "props": {
+                  "text": "Where do sections, user stories, worked examples and questions for others live? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-entities-options",
+                "props": {
+                  "columns": [
+                    "A — Lists in the page document",
+                    "B — Cards, as today",
+                    "C — Markdown files beside the log"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-entities-opt-a",
+                        "props": {
+                          "text": "New lists at the top of the page document, beside the maps, rewritten in place each round. Each entry keeps its own change lines. Gives: one file holds the whole picture, shown or not, and a session without a page reads the same file. Costs: a new file version (version 2), and new checks that an old change line never changes."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-entities-opt-b",
+                        "props": {
+                          "text": "Each round writes every section again as a new card that carries the old one. Gives: no new kind of record. Costs: every section is re-sent every round, its change list is the card history (folded today), and the end check must dig stories and examples out of card text."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-entities-opt-c",
+                        "props": {
+                          "text": "One Markdown file per section, plus one file of questions for others; the page document points to them. Gives: files a person can edit by hand. Costs: 2 places to keep in step, a parser per file, and notes still land on page elements, not on the files."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-entities-why-open",
+                "props": {
+                  "text": "This is the stored shape of every future page. A wrong call outlives the feature, so you sign it later in the draft. Every later card rests on this pick."
+                }
+              }
+            ]
+          },
+          "title": "Store the whole picture as new lists in the page document",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "g-relations",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "rel-new",
+                  "label": "new"
+                },
+                {
+                  "id": "rel-today",
+                  "label": "today"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "rel-section",
+                  "label": "Section",
+                  "group": "rel-new"
+                },
+                {
+                  "id": "rel-question",
+                  "label": "Question for others",
+                  "group": "rel-new"
+                },
+                {
+                  "id": "rel-example",
+                  "label": "Worked example",
+                  "group": "rel-new"
+                },
+                {
+                  "id": "rel-story",
+                  "label": "User story",
+                  "group": "rel-new"
+                },
+                {
+                  "id": "rel-change",
+                  "label": "Change line",
+                  "group": "rel-new"
+                },
+                {
+                  "id": "rel-note",
+                  "label": "Note",
+                  "group": "rel-today"
+                },
+                {
+                  "id": "rel-reply",
+                  "label": "Reply",
+                  "group": "rel-today"
+                },
+                {
+                  "id": "rel-card",
+                  "label": "Card",
+                  "group": "rel-today"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "rel-section",
+                  "to": "rel-section",
+                  "label": "links to, many to many"
+                },
+                {
+                  "from": "rel-question",
+                  "to": "rel-section",
+                  "label": "links to, many to many"
+                },
+                {
+                  "from": "rel-question",
+                  "to": "rel-question",
+                  "label": "waits on, 0 or 1"
+                },
+                {
+                  "from": "rel-example",
+                  "to": "rel-story",
+                  "label": "covers, many to many"
+                },
+                {
+                  "from": "rel-change",
+                  "to": "rel-note",
+                  "label": "caused by, 0 or more"
+                },
+                {
+                  "from": "rel-change",
+                  "to": "rel-question",
+                  "label": "an answer from, 0 or 1"
+                },
+                {
+                  "from": "rel-note",
+                  "to": "rel-section",
+                  "label": "written on, 1"
+                },
+                {
+                  "from": "rel-reply",
+                  "to": "rel-note",
+                  "label": "answers exactly 1"
+                },
+                {
+                  "from": "rel-card",
+                  "to": "rel-question",
+                  "label": "proposes or assumes, 0 or 1"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-relations-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading, which holds if the first card picks A:\n\n- Each link is stored on the side that points: a section holds the sections it links to, a question holds its sections and the one question it waits on, an example holds the stories it covers.\n- Each section, question and example holds its own change lines. A change line names its cause: your note, an answer to a question, an answer from someone else (with the role), or a finding of mine.\n- A note lands on a section, a question, a card, a map or the banner, as today; the note table already holds every note of the session.\n- A reply answers exactly 1 note on a new page. Today 1 reply may name several notes.\n- A card can propose a question for others, or hold the assumption for one.\n\nAccept, or note a link that is wrong."
+                }
+              }
+            ]
+          },
+          "title": "Each link is held by the side that points, and a reply answers 1 note",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-keys",
+            "props": {
+              "columns": [
+                "Thing",
+                "Today",
+                "After this change"
+              ],
+              "rows": [
+                [
+                  "Card",
+                  "a new id each time a point returns; the new card carries the old ids",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Section, story, example, question for others",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: 1 id for life, never reused, also after a merge",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Note",
+                  "round, owner and count; the owner is the card, or the element for a session rule",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed: the owner may also be a section or a question",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Reply",
+                  "round and count; names 1 or more notes",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed: names exactly 1 note on a version 2 page",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Every id",
+                  "1 shared space, unique in the document; never starts with the engine's or lavish's prefix",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Who answered a question",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: a role name; 'everyone' is only a who-to-ask value",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-keys-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading:\n\n- A section, story, example or question keeps its id through every round, because it is rewritten in place, not re-asked. A note written on it in round 2 still finds it in round 9.\n- Roles are free words, compared without case, plus the reserved word 'everyone'. A fixed role list would refuse 'the billing team' on the day you need it.\n- Ids stay in the file. The page shows a title, and an id shows only as hover text where you need it.\n\nAccept, or note a key that is wrong."
+                }
+              }
+            ]
+          },
+          "title": "New entries keep 1 id for life; the page shows titles, never ids",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-constraints",
+            "props": {
+              "columns": [
+                "Rule",
+                "Refused by",
+                "A sample that is refused"
+              ],
+              "rows": [
+                [
+                  "A question for others names at least 1 who to ask",
+                  "the file schema",
+                  "who to ask: none"
+                ],
+                [
+                  "'Everyone' is never who answered",
+                  "the document checks",
+                  "answered by: everyone"
+                ],
+                [
+                  "A dropped question holds a reason and the note that dropped it",
+                  "the document checks",
+                  "dropped, reason empty"
+                ],
+                [
+                  "An assumed question points to its assumption card, settled by your accept",
+                  "the document checks",
+                  "assumed, card still open"
+                ],
+                [
+                  "An answer exists only with your tick or note of that round",
+                  "the document checks",
+                  "answered, no tick or note"
+                ],
+                [
+                  "A change line of an earlier round never changes",
+                  "the document checks, against the saved copy",
+                  "a line of round 3 edited in round 5"
+                ],
+                [
+                  "A section I do not send keeps its text exactly and gains no change line",
+                  "the round builder",
+                  "a section sent again with the same text"
+                ],
+                [
+                  "A section I change gains exactly 1 change line for the round, with its cause",
+                  "the round builder",
+                  "new text, no change line"
+                ],
+                [
+                  "Each note gets its own reply",
+                  "the round builder",
+                  "1 reply names 3 notes"
+                ],
+                [
+                  "No raw id or round code in visible text",
+                  "the page builder, and a test over every visible text",
+                  "a heading that reads 'i-format'"
+                ],
+                [
+                  "Each example is frequent, edge or risky",
+                  "the file schema",
+                  "kind: typical"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-constraints-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading, which holds if the first card picks A:\n\n- The document checks are the engine's checks that run on every check, render and ingest; the saved copy is the engine's copy of each settled round, which it already compares byte for byte.\n- A change line belongs to a round, so a line of a settled round gets the same guard as the round.\n- Each rule has 1 place that refuses it, so a skill script cannot slip past the engine.\n\nAccept, or note a rule that is missing or guarded in the wrong place."
+                }
+              }
+            ]
+          },
+          "title": "11 rules, each with 1 place that refuses the break",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-cascade",
+            "props": {
+              "columns": [
+                "When",
+                "Today",
+                "After this change"
+              ],
+              "rows": [
+                [
+                  "A section merges into another",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: stays in the file marked merged; 1 line where it was, with a link; its notes stay on it",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "A section is removed",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: stays marked removed, 1 line with the reason; its notes stay",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "A link points at a merged section",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: the page sends it on to the section it merged into",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "A question for others is dropped",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new: stays in its place in the list, shown dropped with its reason",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "A point returns",
+                  "the old card stays; the new card carries it",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "A note is deleted",
+                  "it keeps its id, marked deleted",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-cascade-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Why nothing goes: every note must find the element it was written on, a document check today. A merged section also keeps the trail that the requirements asked for.\n\nAccept, or note a case where you want an entry really gone."
+                }
+              }
+            ]
+          },
+          "title": "Nothing is deleted: a merged or removed entry stays as 1 line",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-api",
+            "props": {
+              "columns": [
+                "Surface",
+                "Called by",
+                "Today",
+                "After this change",
+                "Callers of today"
+              ],
+              "rows": [
+                [
+                  "Round input of the round builder",
+                  "grill, propose-solution, to-subtasks, ad-hoc pages",
+                  "banner, cards, maps, replies",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "+ sections, stories, examples, questions; only what changed",
+                      "tone": "new"
+                    }
+                  },
+                  "keep working: the new fields are optional"
+                ],
+                [
+                  "Readings of the reading tool",
+                  "every skill with a page",
+                  "settle, open, unblock, replies",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "+ keep, answer, drop, assume; each reply names 1 note",
+                      "tone": "new"
+                    }
+                  },
+                  "a reply for several notes is refused on a version 2 page only"
+                ],
+                [
+                  "What the page sends",
+                  "the engine, through lavish",
+                  "card and mark, notes",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "+ question and the ticked choices",
+                      "tone": "new"
+                    }
+                  },
+                  "an old send reads as today"
+                ],
+                [
+                  "Ingest",
+                  "every skill with a page",
+                  "a note on a settled card opens it; a note off every card is a session rule",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "a note on a settled card waits for my reading; a note on a section or question is a plain note; a tick settles nothing",
+                      "tone": "new"
+                    }
+                  },
+                  "version 0 and 1 pages read as today"
+                ],
+                [
+                  "Grill start",
+                  "grill",
+                  "a finished grill starts a new, empty page",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "a finished grill takes over its newest finished session",
+                      "tone": "new"
+                    }
+                  },
+                  "to-prd and propose-solution refuse until the grill ends again, as the log rule does today"
+                ],
+                [
+                  "Grill end check",
+                  "grill; the design gate shares its document checks",
+                  "rows present, nothing open",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "+ open question, a drop with no reason, a story with no example, a missing kind",
+                      "tone": "new"
+                    }
+                  },
+                  "a log with no questions passes as before"
+                ],
+                [
+                  "Requirements writer",
+                  "to-prd",
+                  "reads grill rows",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "+ each assumed answer as a risk, with who must confirm it",
+                      "tone": "new"
+                    }
+                  },
+                  "a log with no questions: as today"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-api-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading, with 1 call inside it: a tick only records your signal, and I write the answer in my reading. So who answered and when follow your note, and no answer exists without your tick or note. The other way, ingest writes the answer itself, needs a second path for the role and date rules.\n\nAccept, or note a row."
+                }
+              }
+            ]
+          },
+          "title": "7 surfaces change; every caller of today keeps working",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-migration",
+            "props": {
+              "columns": [
+                "Page found",
+                "On disk now",
+                "What happens"
+              ],
+              "rows": [
+                [
+                  "A new session",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "written as version 2",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Version 0 or 1, resumed inside its own session",
+                  "any session cut off mid-way",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "keeps its layout; version 0 still becomes 1 at its next write, as today",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Version 0 or 1, finished, and the grill is called again",
+                  "this ticket's grill page: version 1, 4 rounds, 41 cards, end check passed",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "taken over; I build its sections from its settled points; it becomes version 2; the banner says so",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Any version, opened to read",
+                  "every page in git",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "opens as today",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "The plugin goes back to beta 8",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "a version 2 page is refused by name as an unknown version; 0 and 1 open",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-migration-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading:\n\n- Today the round builder writes version 1 on every page it touches. After this change it writes the version the page already has, and version 2 only for a new session or a taken-over finished grill.\n- Nothing to repair: no stored page becomes invalid.\n- Going back is forward only for version 2 pages: there is no down-conversion, and a beta 8 engine names the version it cannot read.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "No stored page is converted, except a finished grill you call again",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-authorization",
+            "props": {
+              "columns": [
+                "Action",
+                "You, running the grill",
+                "Someone watching your screen",
+                "Me, the agent",
+                "Guard"
+              ],
+              "rows": [
+                [
+                  "Mark, note, tick, filter",
+                  "yes",
+                  "no: only through you",
+                  "no",
+                  "1 sender per page, your lavish session; only ingest writes signals, each stamped"
+                ],
+                [
+                  "Accept an assumption",
+                  "yes",
+                  "no",
+                  "no",
+                  "document check: assumed needs your accept mark on its card"
+                ],
+                [
+                  "Drop a question for others",
+                  "yes, with a reason",
+                  "no",
+                  "no",
+                  "document check: needs your note and a reason"
+                ],
+                [
+                  "Write sections, questions, examples, replies",
+                  "through your notes",
+                  "no",
+                  "yes",
+                  "the round builder"
+                ],
+                [
+                  "Settle a point from a relayed answer",
+                  "by confirming its card",
+                  "no",
+                  "no",
+                  "the reading tool: an answer settles no card; each touched point returns as a card"
+                ],
+                [
+                  "Read the page",
+                  "yes",
+                  "yes, what you show",
+                  "yes",
+                  "none: the page holds nothing secret; the secret scan runs at each show"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-authorization-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "A page has no login. The guard below the page is that only a stamped send from your session changes a state, and the document checks refuse an answer, a drop or an assumption without your signal.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "Only your send reaches me; an answer you relay settles nothing alone",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "g-lifecycle",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "lc-q",
+                  "label": "Question for others"
+                },
+                {
+                  "id": "lc-s",
+                  "label": "Section"
+                },
+                {
+                  "id": "lc-p",
+                  "label": "A note on a settled point"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "lc-q-open",
+                  "label": "open",
+                  "group": "lc-q",
+                  "tip": "A partial answer keeps it open, with what is known added to its context"
+                },
+                {
+                  "id": "lc-q-answered",
+                  "label": "answered",
+                  "group": "lc-q"
+                },
+                {
+                  "id": "lc-q-dropped",
+                  "label": "dropped, with a reason",
+                  "group": "lc-q"
+                },
+                {
+                  "id": "lc-q-assumed",
+                  "label": "assumed",
+                  "group": "lc-q"
+                },
+                {
+                  "id": "lc-s-notyet",
+                  "label": "not reached yet",
+                  "group": "lc-s"
+                },
+                {
+                  "id": "lc-s-current",
+                  "label": "current",
+                  "group": "lc-s"
+                },
+                {
+                  "id": "lc-s-merged",
+                  "label": "merged into another",
+                  "group": "lc-s"
+                },
+                {
+                  "id": "lc-s-removed",
+                  "label": "removed",
+                  "group": "lc-s"
+                },
+                {
+                  "id": "lc-p-settled",
+                  "label": "settled point",
+                  "group": "lc-p"
+                },
+                {
+                  "id": "lc-p-waits",
+                  "label": "your note waits for my reading",
+                  "group": "lc-p"
+                },
+                {
+                  "id": "lc-p-returns",
+                  "label": "returns as a new card",
+                  "group": "lc-p"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "lc-q-open",
+                  "to": "lc-q-answered",
+                  "label": "your tick or note, then my reading"
+                },
+                {
+                  "from": "lc-q-open",
+                  "to": "lc-q-dropped",
+                  "label": "your note with a reason"
+                },
+                {
+                  "from": "lc-q-open",
+                  "to": "lc-q-assumed",
+                  "label": "you accept my assumption card"
+                },
+                {
+                  "from": "lc-q-assumed",
+                  "to": "lc-q-answered",
+                  "label": "the person answers later"
+                },
+                {
+                  "from": "lc-s-notyet",
+                  "to": "lc-s-current",
+                  "label": "its questions start, or your note lands"
+                },
+                {
+                  "from": "lc-s-current",
+                  "to": "lc-s-merged",
+                  "label": "a note or answer joins 2 parts"
+                },
+                {
+                  "from": "lc-s-current",
+                  "to": "lc-s-removed",
+                  "label": "a note or answer ends a part"
+                },
+                {
+                  "from": "lc-p-settled",
+                  "to": "lc-p-waits",
+                  "label": "your note"
+                },
+                {
+                  "from": "lc-p-waits",
+                  "to": "lc-p-settled",
+                  "label": "agree, typo, other part: kept"
+                },
+                {
+                  "from": "lc-p-waits",
+                  "to": "lc-p-returns",
+                  "label": "change, doubt, addition"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-lifecycle-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "My reading:\n\n- A question for others moves only on your signal, read by me. Only the 4 states of the requirements exist.\n- A section moves on a note, an answer or a finding of mine. A merged or removed section never comes back; a new one starts instead.\n- A note on a settled point: today ingest opens the point at once. After this change the point stays settled until I read the note, and a lone settling mark on an open card still settles it at once, as today.\n\nAccept, or note a move."
+                }
+              }
+            ]
+          },
+          "title": "3 life cycles: a question, a section, and a note on a settled point",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "g-owners",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "own-ours",
+                  "label": "ours: the afkv2 plugin"
+                },
+                {
+                  "id": "own-not",
+                  "label": "not ours"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "own-engine",
+                  "label": "page engine",
+                  "group": "own-ours"
+                },
+                {
+                  "id": "own-lavish-skill",
+                  "label": "use-lavish and visualize",
+                  "group": "own-ours"
+                },
+                {
+                  "id": "own-grill",
+                  "label": "grill",
+                  "group": "own-ours"
+                },
+                {
+                  "id": "own-prd",
+                  "label": "to-prd",
+                  "group": "own-ours"
+                },
+                {
+                  "id": "own-host",
+                  "label": "lavish host 0.1.80",
+                  "group": "own-not",
+                  "tip": "The pinned page host. Its own guide says checkboxes inside a question are answers."
+                },
+                {
+                  "id": "own-v1",
+                  "label": "v1 plugin (frozen)",
+                  "group": "own-not"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "own-grill",
+                  "to": "own-lavish-skill",
+                  "label": "content"
+                },
+                {
+                  "from": "own-lavish-skill",
+                  "to": "own-engine",
+                  "label": "page document"
+                },
+                {
+                  "from": "own-engine",
+                  "to": "own-host",
+                  "label": "checkboxes it supports now"
+                },
+                {
+                  "from": "own-grill",
+                  "to": "own-prd",
+                  "label": "log and page"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-other-teams-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Everything I change is under the plugin folder that the repository config lists as yours. The lavish host stays at its pin: it already treats checkboxes inside a question wrapper as answers, and replaces an unsent answer of the same question (its guide, `dist/cli.mjs:231`). The v1 plugin stays frozen.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "Nothing outside the afkv2 plugin changes",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-large-data",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-size",
+            "props": {
+              "columns": [
+                "Measure",
+                "Today",
+                "20 sections, 12 rounds",
+                "How known"
+              ],
+              "rows": [
+                [
+                  "Page HTML",
+                  "301 KB at 4 rounds",
+                  "about 700 KB",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "measured today; estimated after",
+                      "tone": "estimated"
+                    }
+                  }
+                ],
+                [
+                  "Of it, the term dictionary",
+                  "132 KB: the same 57 KB written twice",
+                  "about 70 KB, written once",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "measured",
+                      "tone": "measured"
+                    }
+                  }
+                ],
+                [
+                  "Page document",
+                  "117 KB",
+                  "about 450 KB",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "estimated",
+                      "tone": "estimated"
+                    }
+                  }
+                ],
+                [
+                  "Change lines",
+                  "0",
+                  "240",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "estimated",
+                      "tone": "estimated"
+                    }
+                  }
+                ],
+                [
+                  "Size cap today",
+                  "none at run time; a test holds a 1 MB page to a 2 s render",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "measured",
+                      "tone": "measured"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-large-data-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Proposed budget: a test page of 20 sections, 12 rounds, 240 change lines, 100 notes with their replies, 30 questions for others and 15 examples renders to at most 1 MB of HTML in at most 2 seconds, the bar the chart test holds today. The test fails above either number. I also write the term dictionary once, not twice, which saves about 60 KB on every page.\n\nThe measures are of this ticket's grill page; the after column is my estimate from it. Accept, or note a number."
+                }
+              }
+            ]
+          },
+          "title": "A 1 MB, 2 second budget for a page of 20 sections over 12 rounds",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-06T06:32:04Z",
+          "raw": "[round R-1]\ni-entities a\ni-relations accept\ni-keys accept\ni-constraints accept\ni-cascade accept\ni-api accept\ni-migration accept\ni-authorization accept\ni-lifecycle accept\ni-other-teams accept\ni-large-data accept",
+          "signals": [
+            {
+              "target": "i-entities",
+              "item": "i-entities",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "576deec5309b55c9"
+            },
+            {
+              "target": "i-relations",
+              "item": "i-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bbf61ea3e4a6ae6a"
+            },
+            {
+              "target": "i-keys",
+              "item": "i-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e6979417eb80a6af"
+            },
+            {
+              "target": "i-constraints",
+              "item": "i-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e935010e0fa576e0"
+            },
+            {
+              "target": "i-cascade",
+              "item": "i-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "97172a253e14c3bb"
+            },
+            {
+              "target": "i-api",
+              "item": "i-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "16755596c1186081"
+            },
+            {
+              "target": "i-migration",
+              "item": "i-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "db3ed83d1c2eb8a9"
+            },
+            {
+              "target": "i-authorization",
+              "item": "i-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1416dfa6a2b08dd0"
+            },
+            {
+              "target": "i-lifecycle",
+              "item": "i-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "19738700d112f053"
+            },
+            {
+              "target": "i-other-teams",
+              "item": "i-other-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "27831e75ecb0dc0f"
+            },
+            {
+              "target": "i-large-data",
+              "item": "i-large-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "90e9bbbb2f40c526"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "All 11 critical aspects, by your marks; stored as lists in the page document"
+        ],
+        "unlocks": [
+          "The whole draft, layer 1 to layer 9",
+          "5 sign-offs: stored data, callable surfaces, who may do what, life cycles, changes to existing behaviour"
+        ],
+        "parked": [
+          "Outward side effects: not live, the feature writes nothing outside its own files"
+        ]
+      },
+      "items": [
+        {
+          "id": "i-l1",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l1-text",
+            "props": {
+              "markdown": true,
+              "text": "The scripts, the page document in the spec folder, the pinned lavish host and the browser stay as they are."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l1-decision",
+                "props": {
+                  "text": "The topology is inherited: local Python scripts, the page document in the spec folder, the pinned lavish host and the browser; nothing new runs.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-l1-why",
+                "props": {
+                  "text": "The runner-up, a small local server that holds the living sections between rounds, loses because the engine already rebuilds the whole page from one file on each render.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-alternatives",
+                "props": {
+                  "text": "- A local server that holds the sections: a new process to start, watch and stop\n- Inherited topology: nothing new to run",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-evidence",
+                "props": {
+                  "text": "afkv2/engine/engine.py:458 rebuilds the page from the document on each render; afkv2/engine/launcher.py:32 pins the host at 0.1.80",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-reverse",
+                "props": {
+                  "text": "Nothing to revert: the topology does not change.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-scope",
+                "props": {
+                  "text": "i-entities",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Topology inherited: no new process, port or service",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l2-owners",
+            "props": {
+              "columns": [
+                "Part",
+                "Owns",
+                "Does not own"
+              ],
+              "rows": [
+                [
+                  "Page engine",
+                  "the version 2 file shape, the document checks, drawing sections, questions and examples, the tick input, the ingest rules",
+                  "what a section says; layout rules in prose"
+                ],
+                [
+                  "use-lavish: the round builder and the reading tool",
+                  "the one writer of the page document; the merge of changed entries; every layout rule in prose (what goes first, sections, the questions block, change lists)",
+                  "what the topic holds"
+                ],
+                [
+                  "visualize",
+                  "which picture fits each part",
+                  "page layout (moves to use-lavish)"
+                ],
+                [
+                  "grill",
+                  "the content: sections, stories, examples, questions for others; the end check; coming back",
+                  "any layout rule (its page-order column goes)"
+                ],
+                [
+                  "to-prd",
+                  "assumed answers in the requirements, as risks",
+                  "—"
+                ],
+                [
+                  "propose-solution, to-subtasks",
+                  "their own content, as today",
+                  "—: they get the version 2 layout through the builder"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-l2-options",
+                "props": {
+                  "columns": [
+                    "",
+                    "A — One writer (recommended)",
+                    "B — The grill writes its own lists",
+                    "C — An engine writer"
+                  ],
+                  "rows": [
+                    [
+                      "How",
+                      "the shared round builder takes sections, stories, examples and questions in its round input; the engine checks them",
+                      "a grill script writes its lists into the page document; the builder writes only rounds",
+                      "skills call new engine verbs to add or change an entry"
+                    ],
+                    [
+                      "Gives",
+                      "1 writer per file, as today for 3 skills; any skill can have sections",
+                      "the grill owns its own data end to end",
+                      "1 interface for any future writer"
+                    ],
+                    [
+                      "Costs",
+                      "the builder learns 4 new lists",
+                      "2 writers of 1 file: a race and 2 merge rules",
+                      "a new paradigm: the engine stops being read-only towards skills"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l2-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "I recommend A: the shared builder is already the one writer for the grill, propose-solution and to-subtasks (`design_round.py:183`, `plan_files.py:409`). Integration stays files plus script commands with 1 JSON answer each. Every surface, field by field, is in the API sign-off below.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "One writer for the page document; the rules live in the engine; the content in the skills",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l3-state",
+            "props": {
+              "columns": [
+                "State",
+                "Where",
+                "Kept for",
+                "How it evolves"
+              ],
+              "rows": [
+                [
+                  "Page document, version 2",
+                  "JSON in the spec folder, 1 file per session",
+                  "with git, as today",
+                  "a new version value; the engine keeps a reader for 0, 1 and 2; the builder writes the version the page has"
+                ],
+                [
+                  "Rendered page",
+                  "HTML beside the document",
+                  "not kept; rebuilt every render",
+                  "follows the document"
+                ],
+                [
+                  "Unsent ticks",
+                  "lavish's store for the browser tab, 1 queued answer per question",
+                  "until Send",
+                  "as marks today"
+                ],
+                [
+                  "Filter by who to ask",
+                  "browser storage, per session",
+                  "per browser; harmless if lost",
+                  "a key change only"
+                ],
+                [
+                  "Saved copy of settled rounds",
+                  "engine data folder",
+                  "as today",
+                  "now also holds each change line of a settled round"
+                ],
+                [
+                  "Grill log",
+                  "GRILL-LOG.md",
+                  "with git",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept: no new row kind; the end check reads the page document's lists",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l3-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "The paradigm choice was your pick of lists in the page document, on the first card of round 1. A session without a page still writes this file; it is simply never shown. Every entity, field by field, is in the stored-data sign-off below.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "The page document stores the whole picture; nothing new in the grill log",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l4",
+            "props": {
+              "columns": [
+                "Concern",
+                "Posture",
+                "Number"
+              ],
+              "rows": [
+                [
+                  "Authorization",
+                  "only a stamped send of your session changes a state; the document checks refuse an answer, drop or assumption without your signal",
+                  "0 states changed without a signal"
+                ],
+                [
+                  "Idempotency",
+                  "an ingested send cannot be ingested again (stale round); a repeated note is merged (today); a re-ticked question replaces its unsent answer; readings apply all or nothing",
+                  "1 signal per question per send"
+                ],
+                [
+                  "Retry",
+                  "none needed: all local; a refused send is kept aside, as today",
+                  "—"
+                ],
+                [
+                  "Secrets",
+                  "the scan at each show, as today",
+                  "first 2 MB of each file"
+                ],
+                [
+                  "Page size",
+                  "a test page of 20 sections, 12 rounds, 240 change lines, 100 notes, 30 questions, 15 examples",
+                  "at most 1 MB of HTML, at most 2 s"
+                ],
+                [
+                  "Term dictionary",
+                  "written once per page, not twice",
+                  "about 60 KB saved per page"
+                ],
+                [
+                  "Plain text",
+                  "a test reads every visible text of every version 2 fixture",
+                  "0 raw ids, 0 round codes"
+                ],
+                [
+                  "Old pages",
+                  "a test renders each stored version 0 and 1 fixture",
+                  "the same visible text as before the change"
+                ],
+                [
+                  "Readable states",
+                  "every state and cause shows as a word; the filter is a native select",
+                  "0 states by colour alone"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l4-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "The size numbers come from round 1. Accept, or note a number."
+                }
+              }
+            ]
+          },
+          "title": "Every quality has a number or a stated posture",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l5",
+            "props": {
+              "columns": [
+                "Invariant",
+                "Guardian",
+                "Answer to a break"
+              ],
+              "rows": [
+                [
+                  "A relayed answer settles no point",
+                  "ingest: a tick never changes a card; the reading tool: an answer settles no card",
+                  "nothing settles; the touched points come back as cards I write"
+                ],
+                [
+                  "A question closes only by answer, drop with reason, or accepted assumption",
+                  "the document checks",
+                  "refused by name"
+                ],
+                [
+                  "A change line of a settled round never changes",
+                  "the document checks against the saved copy",
+                  "refused by name"
+                ],
+                [
+                  "An unchanged section keeps its text exactly",
+                  "the round builder: an entry not in the round input is not touched",
+                  "a resent unchanged entry is refused"
+                ],
+                [
+                  "Each note gets its own reply",
+                  "the round builder, before it writes the next round",
+                  "refused, naming the note"
+                ],
+                [
+                  "The grill ends only with no open question for others, every story covered, every kind present",
+                  "the grill end check",
+                  "fails, naming each gap"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l5-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "One part stays a judgment, not a check: which settled points an answer touches. I read it, and each one returns as a card. States and moves are in the life-cycle sign-off below.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "6 invariants, each with 1 guardian",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l6",
+            "props": {
+              "columns": [
+                "Flow",
+                "Steps in order",
+                "What can fail",
+                "Recovery"
+              ],
+              "rows": [
+                [
+                  "A round",
+                  "build, then present, wait, ingest, readings, build",
+                  "a note left without its own reply",
+                  "the builder refuses the next round and names the note"
+                ],
+                [
+                  "A meeting",
+                  "you filter by role (no send), tick or note, open linked sections, Send once",
+                  "a browser reload before Send",
+                  "lavish keeps the unsent ticks, as it keeps marks"
+                ],
+                [
+                  "Coming back",
+                  "grill start finds the newest finished session, the skill takes it over, a version 0 or 1 page becomes version 2 with sections I build from its settled points, rounds run, the end check passes again and names every later document as possibly out of date, with the changed points",
+                  "the requirements or design are now stale",
+                  "the end check lists each one; you call the next skill again"
+                ],
+                [
+                  "No page",
+                  "the builder writes the same document; I ask round by round in chat, each question with only its context; I write your reply as the send; ingest as usual",
+                  "no lavish host",
+                  "the same files, so the end check gives the same verdict"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l6-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Each write is 1 file, whole and atomic: a temp file then a rename (`grill_common.py:60`). A refused build writes nothing.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "4 flows: a round, a meeting, coming back, and no page",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l7",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l7",
+            "props": {
+              "columns": [
+                "Module",
+                "Public interface",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "engine: schema",
+                  "the version 2 schema file; the document checks",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new version 2 file and checks",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "engine: reader and check",
+                  "the format readers; check",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: reader for version 2",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "engine: ingest and send lines",
+                  "ingest; the send grammar",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: ticks, notes on sections, notes on settled points",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "engine: page shell",
+                  "render",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: a version 2 layout beside today's, untouched",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "engine: page parts for sections, questions, examples",
+                  "drawn by the shell",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "engine: page script",
+                  "ticks, the filter",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "use-lavish scripts",
+                  "build, apply-readings",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: 4 lists, keep, answer, drop, assume, 1 reply per note",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "use-lavish and visualize guides",
+                  "the layout and answer rules",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked: layout moves into use-lavish",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "grill",
+                  "start, the log, the end check, the guides",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: coming back, questions, examples coverage",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "to-prd",
+                  "start, the format guide",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: assumed answers as risks",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "plugin glossary",
+                  "terms",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed: Answer becomes Reply",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l7-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Dependency direction stays 1 way: skills call use-lavish scripts, those call the engine, and the engine imports no skill. Today's drawing code for version 0 and 1 pages is not edited; a version 2 page takes its own path.\n\nAccept, or note."
+                }
+              }
+            ]
+          },
+          "title": "11 modules change; skills depend on use-lavish, use-lavish on the engine",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l8",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l8",
+            "props": {
+              "columns": [
+                "Concern",
+                "Pattern",
+                "What it beat"
+              ],
+              "rows": [
+                [
+                  "Page versions",
+                  "1 schema, 1 reader and 1 layout per version",
+                  "1 layout with version checks inside it: an old page could change by accident"
+                ],
+                [
+                  "Change lines",
+                  "an append-only list on each entry, guarded by the saved copy",
+                  "a diff of old and new text at render: it cannot name the cause"
+                ],
+                [
+                  "Unchanged sections",
+                  "merge by id; an entry left out of the round input is untouched",
+                  "send every section every round and compare"
+                ],
+                [
+                  "Ticks",
+                  "1 queued answer per question, replaced on change",
+                  "1 queued line per checkbox, which lavish's own guide forbids"
+                ],
+                [
+                  "Filter",
+                  "in the page only; it sends nothing",
+                  "a page drawn per role"
+                ],
+                [
+                  "Plain text",
+                  "1 label helper for every element, used by every drawing part, plus the visible-text test",
+                  "a fix at each place that prints an id"
+                ],
+                [
+                  "Coming back",
+                  "the take-over of today, on the finished session",
+                  "a new session that imports the old one"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l8-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "Accept, or note."
+                }
+              }
+            ]
+          },
+          "title": "7 patterns, each weighed against 1 rival",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l9",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "t-l9",
+            "props": {
+              "columns": [
+                "Seam",
+                "Today, checked",
+                "Verdict"
+              ],
+              "rows": [
+                [
+                  "Format readers",
+                  "2 readers, 0 and 1 (`engine.py:122`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Builder's version",
+                  "always writes version 1 (`round_document.py:27`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked: writes the page's own version",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Note on a settled card",
+                  "opens it (`ingest.py:61`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked on version 2: waits for reading",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Note off every card",
+                  "a session rule (`ingest.py:100`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked on version 2: on a section or question, a plain note",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Mark input",
+                  "1 radio per card (`base_card.py:53`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: checkboxes for a question",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Reply for a card's notes",
+                  "1 reply names every note (`round_document.py:554`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked on version 2: 1 per note",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Ids in headings",
+                  "the card id shows (`base_card.py:95`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: version 2 shows none",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Round codes",
+                  "chips, history and note numbers (`base_card.py:79`, `page.py:154`, `notes_replies.py:200`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: version 2 says 'round 3'",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Term dictionary",
+                  "embedded twice (`inject.py:196`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked: once, every version",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Glossary 'Answer'",
+                  "tips every 'answer' (`GLOSSARY.md:128`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked: 'Reply'",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Grill start",
+                  "finished means a new page (`grill_start.py:53`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "reworked: take over",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "End check",
+                  "an Examples row is enough (`grill_log.py:240`)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends: version 2 lists",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l9-ask",
+                "props": {
+                  "markdown": true,
+                  "text": "What existing callers see differently is in the last sign-off below. Accept, or note a seam."
+                }
+              }
+            ]
+          },
+          "title": "12 seams into today's code, each checked against its line",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-hl1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl1-lead",
+            "props": {
+              "markdown": true,
+              "text": "Sign this to lock the stored shape of version 2. All lists sit at the top of the page document, beside the maps. Each field: type, null rule, default, constraint.",
+              "label": "Stored data"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-hl1-root",
+                "props": {
+                  "columns": [
+                    "New field on the document",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Constraint"
+                  ],
+                  "rows": [
+                    [
+                      "sections",
+                      "list of section",
+                      "yes",
+                      "empty",
+                      "in page order"
+                    ],
+                    [
+                      "stories",
+                      "list of story",
+                      "yes",
+                      "empty",
+                      "—"
+                    ],
+                    [
+                      "examples",
+                      "list of example",
+                      "yes",
+                      "empty",
+                      "—"
+                    ],
+                    [
+                      "questions",
+                      "list of question for others",
+                      "yes",
+                      "empty",
+                      "in asking order"
+                    ],
+                    [
+                      "schema",
+                      "string",
+                      "no",
+                      "—",
+                      "afkv2.page/2 for a new page"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl1-section",
+                "props": {
+                  "columns": [
+                    "Section field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Constraint"
+                  ],
+                  "rows": [
+                    [
+                      "id",
+                      "string",
+                      "no",
+                      "—",
+                      "unique in the document; never reused"
+                    ],
+                    [
+                      "title",
+                      "string, at most 90 characters",
+                      "no",
+                      "—",
+                      "—"
+                    ],
+                    [
+                      "state",
+                      "not reached, current, merged, removed",
+                      "no",
+                      "not reached",
+                      "—"
+                    ],
+                    [
+                      "body",
+                      "1 component",
+                      "no",
+                      "—",
+                      "the current text"
+                    ],
+                    [
+                      "links",
+                      "list of section ids",
+                      "yes",
+                      "empty",
+                      "each names a section; never itself"
+                    ],
+                    [
+                      "merged_into",
+                      "section id",
+                      "when merged",
+                      "—",
+                      "names a current section"
+                    ],
+                    [
+                      "reason",
+                      "string, at most 300",
+                      "when removed",
+                      "—",
+                      "—"
+                    ],
+                    [
+                      "changes",
+                      "list of change line",
+                      "no",
+                      "empty",
+                      "rounds never go down; at most 1 line per round"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl1-change",
+                "props": {
+                  "columns": [
+                    "Change line field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Constraint"
+                  ],
+                  "rows": [
+                    [
+                      "round",
+                      "integer",
+                      "no",
+                      "—",
+                      "1 to the current round"
+                    ],
+                    [
+                      "cause",
+                      "note, answer, answer from, finding",
+                      "no",
+                      "—",
+                      "—"
+                    ],
+                    [
+                      "text",
+                      "string, at most 300",
+                      "no",
+                      "—",
+                      "what changed"
+                    ],
+                    [
+                      "notes",
+                      "list of note ids",
+                      "when cause is note",
+                      "—",
+                      "each names a note"
+                    ],
+                    [
+                      "card",
+                      "card id",
+                      "when cause is answer",
+                      "—",
+                      "names the card you answered"
+                    ],
+                    [
+                      "question",
+                      "question id",
+                      "when cause is answer from",
+                      "—",
+                      "names an answered question"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl1-story",
+                "props": {
+                  "columns": [
+                    "Story and example field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Constraint"
+                  ],
+                  "rows": [
+                    [
+                      "story: id, text, changes",
+                      "string; string at most 300; list of change line",
+                      "no",
+                      "—",
+                      "id unique"
+                    ],
+                    [
+                      "example: id, title, changes",
+                      "string; string at most 90; list of change line",
+                      "no",
+                      "—",
+                      "id unique"
+                    ],
+                    [
+                      "example: kind",
+                      "frequent, edge, risky",
+                      "no",
+                      "—",
+                      "—"
+                    ],
+                    [
+                      "example: stories",
+                      "list of story ids",
+                      "no",
+                      "—",
+                      "at least 1; each names a story"
+                    ],
+                    [
+                      "example: body",
+                      "1 component",
+                      "no",
+                      "—",
+                      "from starting data to the result"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl1-question",
+                "props": {
+                  "columns": [
+                    "Question field",
+                    "Type",
+                    "Null?",
+                    "Default",
+                    "Constraint"
+                  ],
+                  "rows": [
+                    [
+                      "id",
+                      "string",
+                      "no",
+                      "—",
+                      "unique; never reused"
+                    ],
+                    [
+                      "who",
+                      "list of role words",
+                      "no",
+                      "—",
+                      "at least 1; 'everyone' is a role word here"
+                    ],
+                    [
+                      "question",
+                      "string, at most 300",
+                      "no",
+                      "—",
+                      "1 sentence"
+                    ],
+                    [
+                      "context, why",
+                      "string, Markdown",
+                      "no",
+                      "—",
+                      "no ids, no plan terms"
+                    ],
+                    [
+                      "ways",
+                      "list of string",
+                      "yes",
+                      "empty",
+                      "—"
+                    ],
+                    [
+                      "choices",
+                      "{options: list of {id, text}, several: yes or no}",
+                      "yes",
+                      "none",
+                      "2 to 12 options"
+                    ],
+                    [
+                      "example",
+                      "1 component",
+                      "yes",
+                      "none",
+                      "—"
+                    ],
+                    [
+                      "links",
+                      "list of section ids",
+                      "yes",
+                      "empty",
+                      "each names a section"
+                    ],
+                    [
+                      "waits_on",
+                      "question id",
+                      "yes",
+                      "none",
+                      "names a question earlier in the list"
+                    ],
+                    [
+                      "origin",
+                      "{note} or {card}",
+                      "no",
+                      "—",
+                      "the note that said you cannot answer, or the proposal card you accepted"
+                    ],
+                    [
+                      "state",
+                      "open, answered, dropped, assumed",
+                      "no",
+                      "open",
+                      "—"
+                    ],
+                    [
+                      "answer",
+                      "{text, choices, role, date, signal, round}",
+                      "when answered",
+                      "—",
+                      "role is not 'everyone'; signal is your tick or note of that round"
+                    ],
+                    [
+                      "dropped",
+                      "{reason, note, round}",
+                      "when dropped",
+                      "—",
+                      "reason not empty"
+                    ],
+                    [
+                      "assumption",
+                      "{text, card, round}",
+                      "when assumed; kept after an answer",
+                      "—",
+                      "the card is settled by your accept"
+                    ],
+                    [
+                      "changes",
+                      "list of change line",
+                      "no",
+                      "empty",
+                      "as on a section"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl1-changed",
+                "props": {
+                  "columns": [
+                    "Changed today's entity",
+                    "Before",
+                    "After, on version 2 only"
+                  ],
+                  "rows": [
+                    [
+                      "Card",
+                      "no section field",
+                      "+ section: the section it asks about, optional"
+                    ],
+                    [
+                      "Note",
+                      "owner is a card, or the element of a session rule",
+                      "owner may be a section, story, example or question"
+                    ],
+                    [
+                      "Reply",
+                      "names 1 or more notes",
+                      "names exactly 1 note"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl1-rest",
+                "props": {
+                  "markdown": true,
+                  "text": "- **Relations:** as accepted in round 1. Each link sits on the pointing side. Nothing is ever deleted, so no delete cascades.\n- **Indexes:** none: 1 file, read whole.\n- **Retention:** with the page document, in git.\n- **Migration of existing pages:** none, except a finished grill page called again, which becomes version 2 with sections I build from its settled points.\n- **Options weighed:** cards as today, Markdown files beside the log (round 1, first card).\n- **Records it changes:** new pages only, plus a taken-over finished grill page.\n- **Risk you accept:** a version 2 page does not open on beta 8 or older.",
+                  "label": "Rest of the contract"
+                }
+              }
+            ]
+          },
+          "title": "Sign the stored shape of version 2 pages",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl2-lead",
+            "props": {
+              "markdown": true,
+              "text": "Sign this to lock every callable surface that changes. Each surface is a script command or the send grammar, with 1 JSON answer, exit 0 ok, 1 refused, 2 unreadable. No paging anywhere.",
+              "label": "Callable surfaces"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-hl2",
+                "props": {
+                  "columns": [
+                    "Surface",
+                    "Called by",
+                    "Request, and its checks",
+                    "Success answer",
+                    "Errors, by code",
+                    "Idempotency",
+                    "Callers of today"
+                  ],
+                  "rows": [
+                    [
+                      "round builder: build",
+                      "every skill with a page",
+                      "+ sections, stories, examples, questions: only the entries that changed, each whole; + after on a question, to place a follow-up; + section on a card; each changed entry carries 1 change line for this round",
+                      "as today, + the ids of each changed entry",
+                      "unchanged-entry, no-change-line, everyone-answered, answer-no-signal, drop-no-reason, assume-no-card, reply-many-notes, unanswered-note",
+                      "a refused build writes nothing",
+                      "keep working: every new field is optional; version 0 and 1 pages refuse the new fields by name"
+                    ],
+                    [
+                      "reading tool: apply-readings",
+                      "every skill with a page",
+                      "+ keep {note, reply}: the point stays settled; + answer {question, text, choices, role, date, signal}; + drop {question, reason, note}; + assume {question, text, card}; a reply names 1 note on version 2",
+                      "as today",
+                      "as today, + not-a-question, answer-no-signal, everyone-answered, drop-no-reason, assume-no-card",
+                      "all or nothing, as today",
+                      "version 0 and 1 pages: as today"
+                    ],
+                    [
+                      "the page's send",
+                      "the page, through lavish",
+                      "+ 1 line per ticked question: its id, the word tick, the ticked option ids",
+                      "—",
+                      "an unknown question or option is refused at ingest",
+                      "1 queued answer per question, replaced on change",
+                      "old sends read as today"
+                    ],
+                    [
+                      "ingest",
+                      "every skill with a page",
+                      "the raw send",
+                      "as today, + questions_to_read and settled_notes_to_read",
+                      "as today, + bad-tick",
+                      "a send is ingested once, as today",
+                      "version 0 and 1 pages: as today"
+                    ],
+                    [
+                      "grill start",
+                      "grill",
+                      "--ticket",
+                      "as today, + takeover: the finished session it takes over, or none",
+                      "as today",
+                      "a second call finds the same session",
+                      "propose-solution and to-prd: unchanged answers"
+                    ],
+                    [
+                      "grill end check: gate",
+                      "grill",
+                      "--doc, --log",
+                      "as today, + stale: each later document that exists, + changed: each settled point that changed since the take-over",
+                      "as today, + question-open, drop-no-reason, story-without-example, kind-missing",
+                      "a check; writes only the gate row",
+                      "a log with no questions passes as before"
+                    ],
+                    [
+                      "requirements writer: start",
+                      "to-prd",
+                      "as today",
+                      "as today, + assumed: each assumed answer with who must confirm it",
+                      "as today",
+                      "a read",
+                      "unchanged when there are none"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl2-rest",
+                "props": {
+                  "markdown": true,
+                  "text": "- **Options weighed:** ingest writes the answer itself (round 1: refused, it needs a second path for the role and date rules).\n- **Callers it changes:** none breaks; each new field is optional.\n- **Risk you accept:** a skill that writes a version 2 page must reply note by note.",
+                  "label": "Rest of the contract"
+                }
+              }
+            ]
+          },
+          "title": "Sign the 7 callable surfaces that change",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl3-lead",
+            "props": {
+              "markdown": true,
+              "text": "Sign this to lock who may do what on a page, with a guard above the page and a guard below it.",
+              "label": "Authorization"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-hl3",
+                "props": {
+                  "columns": [
+                    "Action",
+                    "Permitted",
+                    "Denied",
+                    "Guard on the page",
+                    "Guard below the page"
+                  ],
+                  "rows": [
+                    [
+                      "Mark, note, tick, filter",
+                      "you",
+                      "a watcher of your screen; me",
+                      "the controls exist only in your lavish session",
+                      "only ingest writes signals, each stamped"
+                    ],
+                    [
+                      "Accept an assumption",
+                      "you",
+                      "a watcher; me",
+                      "the accept mark on its card",
+                      "document check: assumed needs that settled card"
+                    ],
+                    [
+                      "Drop a question",
+                      "you, with a reason",
+                      "a watcher; me",
+                      "your note",
+                      "document check: a reason and the note"
+                    ],
+                    [
+                      "Record an answer",
+                      "me, from your tick or note",
+                      "me, alone",
+                      "your tick or note",
+                      "document check: the answer names your signal of that round"
+                    ],
+                    [
+                      "Settle a point from a relayed answer",
+                      "you, by confirming its card",
+                      "me; a watcher",
+                      "the card's mark",
+                      "the reading tool: an answer settles no card"
+                    ],
+                    [
+                      "Read the page",
+                      "you; a watcher sees what you show",
+                      "—",
+                      "—",
+                      "the secret scan at each show"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl3-rest",
+                "props": {
+                  "markdown": true,
+                  "text": "- **Data scope:** unscoped: a page shows its whole session to whoever sees the screen.\n- **Options weighed:** a hidden outsider view, refused in the requirements.\n- **Risk you accept:** a person at your keyboard counts as you.",
+                  "label": "Rest of the contract"
+                }
+              }
+            ]
+          },
+          "title": "Sign who may do what on a page",
+          "node": "locked-hl-3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl4-lead",
+            "props": {
+              "markdown": true,
+              "text": "Sign this to lock the states, the legal moves, who triggers each, and the invariants.",
+              "label": "Life cycles and invariants"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-hl4-moves",
+                "props": {
+                  "columns": [
+                    "Entity",
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Who"
+                  ],
+                  "rows": [
+                    [
+                      "Question",
+                      "new",
+                      "open",
+                      "your note says you cannot answer, or you accept my proposal card",
+                      "you"
+                    ],
+                    [
+                      "Question",
+                      "open",
+                      "open",
+                      "a partial answer: the context grows; a follow-up joins right after",
+                      "you, read by me"
+                    ],
+                    [
+                      "Question",
+                      "open",
+                      "answered",
+                      "your tick or note",
+                      "you, read by me"
+                    ],
+                    [
+                      "Question",
+                      "open",
+                      "dropped",
+                      "your note with a reason",
+                      "you"
+                    ],
+                    [
+                      "Question",
+                      "open",
+                      "assumed",
+                      "your accept on my assumption card",
+                      "you"
+                    ],
+                    [
+                      "Question",
+                      "assumed",
+                      "answered",
+                      "the person answers later",
+                      "you, read by me"
+                    ],
+                    [
+                      "Section",
+                      "not reached",
+                      "current",
+                      "its questions start, or a note lands on it",
+                      "me"
+                    ],
+                    [
+                      "Section",
+                      "current",
+                      "merged or removed",
+                      "a note, an answer or my finding",
+                      "me, from your input"
+                    ],
+                    [
+                      "Settled point",
+                      "settled",
+                      "settled",
+                      "your note reads as agreement, a typo fix or a thought about another part",
+                      "me"
+                    ],
+                    [
+                      "Settled point",
+                      "settled",
+                      "returns as a new card",
+                      "your note changes, doubts or adds",
+                      "me"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "table",
+                "id": "t-hl4-inv",
+                "props": {
+                  "columns": [
+                    "Invariant",
+                    "Guardian",
+                    "Answer to a break"
+                  ],
+                  "rows": [
+                    [
+                      "No other move exists",
+                      "the document checks",
+                      "refused by name"
+                    ],
+                    [
+                      "A merged or removed section never returns",
+                      "the document checks",
+                      "refused; a new section starts instead"
+                    ],
+                    [
+                      "A relayed answer settles no point",
+                      "ingest and the reading tool",
+                      "nothing settles"
+                    ],
+                    [
+                      "A settled round and its change lines never change",
+                      "the saved copy",
+                      "refused by name"
+                    ],
+                    [
+                      "The grill ends with no open question, every story covered, every kind present",
+                      "the end check",
+                      "fails, naming each gap"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl4-rest",
+                "props": {
+                  "markdown": true,
+                  "text": "- **Options weighed:** a note on a settled point opens it at once, as today (refused in the requirements).\n- **Risk you accept:** which points an answer touches is my reading, not a check.",
+                  "label": "Rest of the contract"
+                }
+              }
+            ]
+          },
+          "title": "Sign the life cycles and invariants",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl6-lead",
+            "props": {
+              "markdown": true,
+              "text": "Sign this to lock what existing callers, records and flows see differently.",
+              "label": "Change to existing behaviour"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-hl6",
+                "props": {
+                  "columns": [
+                    "Who sees it",
+                    "Today",
+                    "After",
+                    "On which pages"
+                  ],
+                  "rows": [
+                    [
+                      "A note on a settled card",
+                      "opens the point",
+                      "waits for my reading",
+                      "version 2 only"
+                    ],
+                    [
+                      "A note on an element that no card holds",
+                      "a rule for the whole session",
+                      "on a section or a question: a plain note; elsewhere a rule, as today",
+                      "version 2 only"
+                    ],
+                    [
+                      "Replies",
+                      "1 reply may stand for several notes",
+                      "1 per note",
+                      "version 2 only"
+                    ],
+                    [
+                      "Ids and round codes",
+                      "visible",
+                      "titles and 'round 3'",
+                      "version 2 only: an old page shows as today"
+                    ],
+                    [
+                      "The round builder",
+                      "writes version 1 on any page",
+                      "writes the page's version; version 0 still becomes 1",
+                      "all"
+                    ],
+                    [
+                      "The term dictionary",
+                      "embedded twice",
+                      "once",
+                      "all: the same visible text"
+                    ],
+                    [
+                      "The tip on 'answer'",
+                      "the agent's reply",
+                      "no tip; 'Reply' carries it",
+                      "all"
+                    ],
+                    [
+                      "A grill called after its end",
+                      "a new, empty page",
+                      "takes over the finished page",
+                      "all"
+                    ],
+                    [
+                      "propose-solution and to-subtasks",
+                      "version 1 pages",
+                      "version 2 pages for a new session, with no sections unless they send some",
+                      "new sessions"
+                    ],
+                    [
+                      "to-prd and the design gate after a grill came back",
+                      "—",
+                      "refuse until the grill ends again, as the log rule does today",
+                      "all"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl6-rest",
+                "props": {
+                  "markdown": true,
+                  "text": "- **Compatibility:** every caller of today keeps working; every stored page opens.\n- **Rollback:** revert the release. Version 0 and 1 pages open as before; a version 2 page is refused by name until the release returns.\n- **Options weighed:** convert every old page to version 2 (refused in the requirements: an old page shows as today).\n- **Risk you accept:** old pages keep raw ids and round codes.",
+                  "label": "Rest of the contract"
+                }
+              }
+            ]
+          },
+          "title": "Sign what existing callers and pages see differently",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-06T06:37:18Z",
+          "raw": "[round R-2]\ni-hl1 sign\ni-hl2 sign\ni-hl3 sign\ni-hl4 sign\ni-hl6 sign\ni-l2 accept\ni-l3 accept\ni-l4 accept\ni-l5 accept\ni-l6 accept\ni-l7 accept\ni-l8 accept\ni-l9 accept\ni-l1 accept",
+          "signals": [
+            {
+              "target": "i-hl1",
+              "item": "i-hl1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "84ea5b6212c24c43"
+            },
+            {
+              "target": "i-hl2",
+              "item": "i-hl2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2a09d893d71c9a3e"
+            },
+            {
+              "target": "i-hl3",
+              "item": "i-hl3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d2f053657ce4cf08"
+            },
+            {
+              "target": "i-hl4",
+              "item": "i-hl4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2835a89d4b66ff73"
+            },
+            {
+              "target": "i-hl6",
+              "item": "i-hl6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1960a31b3cc55b57"
+            },
+            {
+              "target": "i-l2",
+              "item": "i-l2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1acde9495a435735"
+            },
+            {
+              "target": "i-l3",
+              "item": "i-l3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "8731b828991249ec"
+            },
+            {
+              "target": "i-l4",
+              "item": "i-l4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c3ea560b9b022026"
+            },
+            {
+              "target": "i-l5",
+              "item": "i-l5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "66ddd21fc7624873"
+            },
+            {
+              "target": "i-l6",
+              "item": "i-l6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d119bf25fdcc080a"
+            },
+            {
+              "target": "i-l7",
+              "item": "i-l7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e997c4258ea02524"
+            },
+            {
+              "target": "i-l8",
+              "item": "i-l8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "df842de8224cc0c9"
+            },
+            {
+              "target": "i-l9",
+              "item": "i-l9",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e4a3ad661cd554bc"
+            },
+            {
+              "target": "i-l1",
+              "item": "i-l1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "37762612e02bf5f2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
