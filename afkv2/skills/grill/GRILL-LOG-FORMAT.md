@@ -38,6 +38,7 @@ A `sync` overwrites the rows it writes, and removes an exit gate row, because th
 - every `Ledger` row is `verified` or `unverified-external`; no `Term` row is `pending`;
 - `Policy`, `Staples`, `Examples` and `Devil` rows exist;
 - the current round has an answer; no asking card of it is `open`, `blocked` or `needs_reading`; no returned card waits for a new card.
+- on a version 2 page: no question for others is open (`question-open`), and each dropped question has a reason (`drop-no-reason`); with a story or a worked example on the page, every story has a worked example (`story-without-example`), and frequent, edge and risky each have one (`kind-missing`).
 
 Before you run it, confirm each judgment check. A miss is one more round.
 
@@ -47,3 +48,4 @@ Before you run it, confirm each judgment check. A miss is one more round.
 - Every requirement carries its pain, and every restriction survived its counter-question.
 - Every validity change was walked over older records, and each record it can reject has a repair path.
 - Every `Devil` finding is resolved or accepted by the human.
+- Every question for others is answered, dropped with a reason or assumed.
