@@ -28,7 +28,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/prd_files.py" start --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `log`, `prd`, `adr_dir`, `index`, `run_dir`, `tracker_kind`, `resume` and `unverified_external`.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `log`, `prd`, `adr_dir`, `index`, `run_dir`, `tracker_kind`, `resume`, `unverified_external` and `assumed`.
 
 2. **Write the PRD.** Read `log` and the page documents in `<spec_dir>/pages/`. They are your whole source. Write `prd` by [PRD-FORMAT.md](PRD-FORMAT.md). Done when each settled point stands in the PRD, and each owner note and `Steer` row is honoured.
 
