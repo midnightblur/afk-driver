@@ -2,7 +2,7 @@
 the worked examples and their change lists. The page shell calls them; versions 0 and 1 never reach this file.
 
 Every visible text of an element comes from `visible_label` (ADR-0003 design): a title or words, never a raw id,
-and a round reads "round 3". An id stays in attributes only: the HTML id, `data-afkv2-element` and link targets.
+and a round reads "round 3". An id stays only as an attribute: the HTML id, `data-afkv2-element` and a link target.
 A link carries its meaning as hover text (`data-afkv2-tip`). A change list shows open, newest first.
 """
 
@@ -27,6 +27,8 @@ TIPS = {"sections": "Opens this section", "examples": "Opens this worked example
         "cards": "Opens this card of {}", "options": "A choice of a question for others"}
 MERGE_LIMIT = 64
 EVERYONE = "everyone"
+LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
+OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
 
 
 def _elements(doc: dict) -> dict:
@@ -80,6 +82,10 @@ def _tip(doc: dict, element: str) -> str:
 def _link(doc: dict, element: str) -> str:
     return (f'<a class="afkv2-v2-link" href="#{escape(element)}" data-afkv2-tip="{escape(_tip(doc, element))}">'
             f'{escape(visible_label(doc, "element", element))}</a>')
+
+
+def _links(doc: dict, elements: list) -> str:
+    return ", ".join(_link(doc, element) for element in elements)
 
 
 def _change_cause(doc: dict, line: dict) -> str:
@@ -148,8 +154,7 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     targets = [_current_target(sections, other) for other in section.get("links") or []]
     targets = [other for other in dict.fromkeys(targets) if other != section["id"]]
-    links = (f'<div class="afkv2-v2-links">Depends on: {", ".join(_link(doc, other) for other in targets)}</div>'
-             if targets else "")
+    links = LINKS.format("Depends on", _links(doc, targets)) if targets else ""
     reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(STATES[state])}</span>'
                if state == "not_reached" else "")
     head = f'<h3 class="afkv2-v2-h">{title}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
@@ -215,7 +220,7 @@ def _outcome(doc: dict, question: dict) -> str:
         lines.append(f"{STATES['dropped']}: {question['dropped']['reason']}")
     if question.get("assumption"):
         lines.append(f"{STATES['assumed']}: {question['assumption']['text']}")
-    return "".join(f'<p class="afkv2-v2-outcome">{escape(line)}</p>' for line in lines)
+    return "".join(OUTCOME.format(escape(line)) for line in lines)
 
 
 def _question(doc: dict, question: dict, sections: dict) -> str:
@@ -230,9 +235,9 @@ def _question(doc: dict, question: dict, sections: dict) -> str:
         parts.append(_part("Example", render_component(question["example"])))
     targets = list(dict.fromkeys(_current_target(sections, section) for section in question.get("links") or []))
     if targets:
-        parts.append(f'<div class="afkv2-v2-links">Linked sections: {", ".join(_link(doc, t) for t in targets)}</div>')
+        parts.append(LINKS.format("Linked sections", _links(doc, targets)))
     if question.get("waits_on"):
-        parts.append(f'<div class="afkv2-v2-links">Waits on: {_link(doc, question["waits_on"])}</div>')
+        parts.append(LINKS.format("Waits on", _link(doc, question["waits_on"])))
     parts += [_outcome(doc, question), _ticks(question), render_changes(doc, question["changes"])]
     return _article(question, "afkv2-v2-question", "".join(parts), raw=_who_attr(question),
                     question=question["id"], state=question["state"])

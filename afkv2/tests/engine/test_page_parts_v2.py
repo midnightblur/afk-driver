@@ -17,6 +17,15 @@ import engine  # noqa: E402
 from shell import parts_v2  # noqa: E402
 
 ROUND_CODE = re.compile(r"(?<![\w-])R-?\d+(?![\w-])")
+QUESTION_ATTR = 'data-afkv2-question="{}"'
+WHO = re.compile(r"data-afkv2-who='([^']*)'")
+FILTER = re.compile(r'<select id="afkv2-who-filter"[^>]*>(.*?)</select>', re.S)
+TICK_GROUP = re.compile(r'<fieldset [^>]*data-afkv2-input="tick"[^>]*>')
+TICK_ATTR = 'data-afkv2-input="tick"'
+SEVERAL = 'data-afkv2-several="{}"'
+EXAMPLES_HEADING = '<h2 class="afkv2-section-h">Worked examples</h2>'
+TIP_ATTR = "data-afkv2-tip="
+CARD_TIP = 'data-afkv2-tip="Opens this card of round 3"'
 
 
 def text(value, **extra):
@@ -247,9 +256,9 @@ def test_the_questions_show_every_question_in_list_order_with_its_roles():
     places = [words.index(q["question"]) for q in doc["questions"]]
     assert places == sorted(places)
     size = part_of(html, "q-size")
-    assert 'data-afkv2-question="q-size"' in size
-    assert json.loads(re.search(r"data-afkv2-who='([^']*)'", size).group(1)) == ["tester", "everyone"]
-    assert json.loads(re.search(r"data-afkv2-who='([^']*)'", part_of(html, "q-format")).group(1)) == ["product owner"]
+    assert QUESTION_ATTR.format("q-size") in size
+    assert json.loads(WHO.search(size).group(1)) == ["tester", "everyone"]
+    assert json.loads(WHO.search(part_of(html, "q-format")).group(1)) == ["product owner"]
 
 
 def test_a_question_shows_each_of_its_parts():
@@ -278,7 +287,7 @@ def test_a_question_links_each_linked_section_and_the_question_it_waits_on():
 
 def test_the_questions_have_a_native_role_filter_of_every_role_once():
     html = parts_v2.render_questions(document())
-    select = re.search(r'<select id="afkv2-who-filter"[^>]*>(.*?)</select>', html, re.S).group(1)
+    select = FILTER.search(html).group(1)
     values = re.findall(r'<option value="([^"]*)"', select)
     assert values == ["", "product owner", "tester", "developer lead"]
     assert "Product owner" in visible(select) and "everyone" not in values
@@ -287,17 +296,17 @@ def test_the_questions_have_a_native_role_filter_of_every_role_once():
 def test_a_question_with_choices_shows_radios_or_checkboxes_when_it_allows_several():
     html = parts_v2.render_questions(document())
     size, cols = part_of(html, "q-size"), part_of(html, "q-cols")
-    group = re.search(r'<fieldset [^>]*data-afkv2-input="tick"[^>]*>', size).group(0)
-    assert 'data-afkv2-question="q-size"' in group and 'data-afkv2-several="false"' in group
+    group = TICK_GROUP.search(size).group(0)
+    assert QUESTION_ATTR.format("q-size") in group and SEVERAL.format("false") in group
     assert re.findall(r'<input type="radio"[^>]*value="([^"]+)"', size) == ["opt-k", "opt-m"]
     assert re.findall(r'<input type="checkbox"[^>]*value="([^"]+)"', cols) == ["opt-name", "opt-date", "opt-sum"]
-    assert 'data-afkv2-several="true"' in cols and "A million" in visible(size)
+    assert SEVERAL.format("true") in cols and "A million" in visible(size)
 
 
 def test_a_closed_question_or_one_with_no_choices_has_no_tick_inputs():
     html = parts_v2.render_questions(document())
     for closed in ("q-format", "q-drop", "q-assume"):
-        assert 'data-afkv2-input="tick"' not in part_of(html, closed), closed
+        assert TICK_ATTR not in part_of(html, closed), closed
 
 
 def test_no_question_gives_no_block():
@@ -311,7 +320,7 @@ def test_no_question_gives_no_block():
 
 def test_the_worked_examples_show_as_a_section_each_marked_frequent_edge_or_risky():
     html = parts_v2.render_examples(document())
-    assert '<h2 class="afkv2-section-h">Worked examples</h2>' in html
+    assert EXAMPLES_HEADING in html
     for example_id, kind, words in (("ex-plain", "frequent", "From 3 open rows to 1 file of 3 lines."),
                                     ("ex-big", "edge", "From 1 million rows to 1 file."),
                                     ("ex-bad", "risky", "A comma in a name stays in its cell.")):
@@ -356,5 +365,5 @@ def test_no_visible_text_of_any_part_holds_a_raw_element_id_or_a_round_code():
 def test_each_link_to_an_element_shows_its_meaning_on_hover():
     html = _every_part(_untitled(document()))
     links = re.findall(r"<a [^>]*>", html)
-    assert links and all("data-afkv2-tip=" in link for link in links)
-    assert 'data-afkv2-tip="Opens this card of round 3"' in html
+    assert links and all(TIP_ATTR in link for link in links)
+    assert CARD_TIP in html
