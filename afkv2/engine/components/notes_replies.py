@@ -8,8 +8,8 @@ An answer stands in the row of each note it names (`notes`); on a format 0 page,
 Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
 as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
-On a version 2 page (`_plain`) no visible text and no link hover text holds a raw element id or a round code: each
-element reads as its `visible_label`, a round as "Round 3", and a row number as `3.1`. Versions 0 and 1 show as before.
+On a version 2 page (`_plain`) no visible text and no hover text holds a raw element id or a round code: each
+element reads as its label, a round as "Round 3", a row number as `3.1` and its hover text as `note 1 of round 3`. Versions 0 and 1 show as before.
 A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
 the same rows, so a build indexes the elements of the document once.
 """
@@ -162,10 +162,13 @@ def _raw(element: str) -> str:
     return element
 
 
-def _namer(doc: dict):
+def _namer(doc: dict, elements: dict):
     """The words for an element with no label of its own, and the hover text of a link to an element: the raw id
-    on versions 0 and 1, its `visible_label` on version 2."""
-    return (lambda element: parts_v2.visible_label(doc, "element", element)) if _plain(doc) else _raw
+    on versions 0 and 1; on version 2 its label in `elements`, else its `visible_label`."""
+    if not _plain(doc):
+        return _raw
+    return lambda element: ((elements.get(element) or {}).get("label")
+                            or parts_v2.visible_label(doc, "element", element))
 
 
 def _where(item: dict | None, note: dict, elements: dict, name=_raw) -> str:
@@ -225,14 +228,22 @@ def _reply_home(reply: dict, elements: dict, notes: list[tuple[dict, dict]]) -> 
 
 def _rows(doc: dict) -> list[Row]:
     """Every row of the page, in document order: the notes, then the answers that stand in no note's row."""
-    elements, name = _elements(doc), _namer(doc)
+    elements = _elements(doc)
+    name = _namer(doc, elements)
     notes = _notes(doc)
     by_note, alone = _pairs(doc, notes)
     counts: dict[int, int] = {}
+    note_counts: dict[int, int] = {}
 
     def number(n: int) -> str:
         counts[n] = counts.get(n, 0) + 1
         return f"{n}.{counts[n]}" if _plain(doc) else f"R{n}.{counts[n]}"
+
+    def note_title(note: dict) -> str:
+        """The raw note id on versions 0 and 1; on version 2 `note <k> of round <n>`."""
+        n = note["round"]
+        note_counts[n] = note_counts.get(n, 0) + 1
+        return f"note {note_counts[n]} of round {n}" if _plain(doc) else note["id"]
 
     rows = []
     for item, note in notes:
@@ -244,7 +255,7 @@ def _rows(doc: dict) -> list[Row]:
         place = elements.get(note["target"]) or {}
         words = "Open round" if place.get("round") else "Open" if place.get("part") else "Open map"
         link = _link(note["target"], words, name) if steer else _link(item["id"], "Open card", name)
-        rows.append(Row(n, note["id"], number(n), note["id"], cells, link, None if steer else item["id"],
+        rows.append(Row(n, note["id"], number(n), note_title(note), cells, link, None if steer else item["id"],
                         note["target"] if steer else item["id"], True, tuple((r, i) for r, i, _ in answers)))
     for n, index, reply in alone:
         about = reply.get("about") or []

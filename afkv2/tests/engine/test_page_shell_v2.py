@@ -242,6 +242,24 @@ def test_no_link_and_no_cell_of_the_version_2_notes_table_falls_back_to_a_raw_id
     assert "x-gone" not in visible(notes)
 
 
+def test_a_link_to_a_round_banner_takes_the_round_label_as_its_hover_text():
+    doc = raw_id_document()
+    steer = {"id": "N-3-R-2-1", "round": 3, "target": "R-2", "text": "Go back to round 2.", "deleted": False}
+    doc["notes"].append(steer)
+    notes = block(build(doc), 'id="afkv2-notes-replies"')
+    assert '<a href="#R-2" title="Round 2">Open round</a>' in notes
+
+
+def test_no_hover_text_of_the_version_2_notes_table_shows_a_raw_id_or_a_round_code():
+    doc = raw_id_document()
+    notes = block(build(doc), 'id="afkv2-notes-replies"')
+    titles = re.findall(r'title="([^"]*)"', notes)
+    assert titles and all(title for title in titles)
+    for title in titles:
+        assert not raw_words(title, doc), title
+    assert 'title="note 1 of round 3"' in notes
+
+
 def test_a_version_2_card_keeps_its_id_in_its_attributes():
     html = build(raw_id_document())
     start = html.index(CONFIRM_CARD.format("i-closed"))
