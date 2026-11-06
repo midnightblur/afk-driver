@@ -45,17 +45,18 @@ stays in its round. The old card stays as it is.
 
 Every round that follows input from the human: the notes of the last round, or
 the human's input in Round 0. Treat Round 0 input as unverified. Read every note,
-then answer each note by the answer rules ([SKILL.md](SKILL.md) "Answer rules"):
-each note gets its own reply, and a reply on a version 2 page names exactly 1 note
-in `notes`. A note with several meanings gets 1 reply that states each reading.
-State your reading in the reply for every point a note settled. Leave `notes` of the document to the
+then reply to each note by the answer rules ([SKILL.md](SKILL.md) "Answer rules").
+Each note gets its own reply. A reply names the id of its note in `notes`. On a
+version 2 page, a reply that names 2 or more notes is refused. A note with
+several meanings gets 1 reply that states each reading. State your reading in the
+reply for every point a note settled. Leave `notes` of the document to the
 engine: every note in the document comes from the human. A note with `deleted`
 set is not input.
 
 A steer is a note on the round, or a note whose `target` is a map or a map node.
 It is a steer for that element. Hold to it for that element until the session
 ends. When 2 steers on one node conflict, do not choose: state the conflict in
-your answer and ask the human.
+your reply and ask the human.
 
 ## Read the questions and the settled notes
 
@@ -72,17 +73,21 @@ takes 4 readings on a version 2 page only:
   the point returns as a new card in the next round, and the note gets its reply
   in `replies`.
 - `answer` {`question`, `text`, `choices`, `role`, `date`, `signal`}: the
-  developer relays an answer. `signal` is `tick` for the developer's tick on the
-  question, else the id of a live note of this round (`answer-no-signal`).
-  `choices` holds the ticked option ids. `role` is the role the note names, else
-  the question's only role. It is never `everyone` (`everyone-answered`): for a
-  question for everyone or for several roles with no role named, ask the
-  developer, and write no answer yet. `date` is the day the note names, else the
-  day the note was sent. An answer settles no card: each point it touches returns
-  as a card for the developer to confirm, and each section it changes gets a
-  change line with cause `answer_from`. A partial answer is no `answer`: the
-  question stays open, and the next round sends it with what is known added to
-  its context. A follow-up is a new question with `after`.
+  developer relays an answer.
+  - `signal` is `tick` for the developer's tick on the question. Else it is the
+    id of a live note of this round (`answer-no-signal`).
+  - `choices` holds the ticked option ids.
+  - `role` is the role the note names, else the question's only role. It is
+    never `everyone` (`everyone-answered`).
+  - A note names no role, and the question is for everyone or for several
+    roles: ask the developer, and write no answer yet.
+  - `date` is the day the note names, else the day the note was sent.
+  - An answer settles no card. Each point it touches returns as a card for the
+    developer to confirm. Each section it changes gets a change line with cause
+    `answer_from`.
+  - A partial answer is no `answer`. The question stays open, and the next
+    round adds what is known to its context.
+  - A follow-up is a new question with `after`.
 - `drop` {`question`, `reason`, `note`}: the question is no longer needed.
   `reason` says why (`drop-no-reason`); `note` is the note that dropped it.
 - `assume` {`question`, `text`, `card`}: the developer accepted an assumed answer.

@@ -422,7 +422,7 @@ def test_table_k_holds_no_retired_kind():
 def test_an_answer_holds_no_copy_of_the_note():
     """PRD AC-017, AR-09; ADR-0004 requirements: one note, one row."""
     rules = _section(SKILL_MD.read_text("utf-8"), "### Answer rules")
-    assert "| AR-09 | Never repeat the human's note in the answer, steers included" in rules
+    assert "| AR-09 | Never repeat the human's note in the reply, steers included" in rules
     assert "| AR-10 | Each note gets its own row." in rules
 
 
@@ -478,7 +478,7 @@ def test_a_resuming_session_takes_the_page_over():
     steps = _section(SKILL_MD.read_text("utf-8"), "## Take over a page")
     assert "page_round.py take-over" in steps
     assert "- Takeover: R<n> · <at>" in steps
-    assert "every note that has no answer" in steps
+    assert "every note that has no reply" in steps
 
 
 # The round pass moved here from the visualize guide (SDD §14 row "visualize guide"): a changed sentence must fail.

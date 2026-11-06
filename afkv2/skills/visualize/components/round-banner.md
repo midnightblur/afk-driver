@@ -16,7 +16,7 @@ correct for round 1.
 
 ## How it looks
 
-A band across the top of the page in the round colour, with the round number
+A band in the round colour, with the round number
 and the three lists, side by side on a wide window. After round 1, a full-width
 "What changed" list above them names each element that the round or its answers
 changed, a card by its title with a link to it; the engine builds it from the

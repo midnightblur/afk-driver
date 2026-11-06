@@ -28,7 +28,15 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/grill_start.py" --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `doc`, `log`, `session`, `raw_file`, `resume` and `takeover`. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 3. Run step 2 again, read the section `## Requirements grill` of `log` and the `doc`, honour every `Steer` row and an `Escape` row, and continue at the first unfinished step of the current round, or at step 3 when `doc` does not exist yet. `takeover` holds a session: the grill of this ticket ended, and this call comes back to it with new input. Take the page over by `/afkv2:use-lavish` "Take over a page", with the `Takeover` row, read `log` and `doc`, and run steps 2 and 3, so round 0 takes the new input. A page whose `schema` is `afkv2.page/0` or `afkv2.page/1` was made before the session's lists: the first round input builds `sections` from its settled points, each with a change line of cause `finding` that says it was built from the settled points, and holds `upgrade: true`. The rounds that follow: [ROUNDS.md](ROUNDS.md) "Coming back". `raw_pending` true: an answer waits in `raw_file`, so go to step 7.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `doc`, `log`, `session`, `raw_file`, `resume` and `takeover`.
+
+   `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 3. Run step 2 again, read the section `## Requirements grill` of `log` and the `doc`, honour every `Steer` row and an `Escape` row, and continue at the first unfinished step of the current round, or at step 3 when `doc` does not exist yet.
+
+   `takeover` holds a session: the grill of this ticket ended, and this call comes back to it with new input. Take the page over by `/afkv2:use-lavish` "Take over a page", with the `Takeover` row, read `log` and `doc`, and run steps 2 and 3, so round 0 takes the new input. The rounds that follow: [ROUNDS.md](ROUNDS.md) "Coming back".
+
+   On a resume and on a take-over, a page whose `schema` is `afkv2.page/0` or `afkv2.page/1` was made before the session's lists. The first round input builds `sections` from its settled points, each with a change line of cause `finding` that says it was built from the settled points, and holds `upgrade: true`.
+
+   `raw_pending` true: an answer waits in `raw_file`, so go to step 7.
 
 2. **Read the ticket.** Done when the file holds the ticket, every comment and every link you can read.
 
@@ -44,7 +52,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/grill_log.py" row --log "<log>" --kind "<kind>" --text "<text>"
    ```
 
-   Use `--text-file <file>` in place of `--text` for text with quotes or line breaks. Row kinds and grammar: [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). Skipped: write no row. Done when the human answered and the claims are in the ledger.
+   Use `--text-file <file>` in place of `--text` for text with quotes or line breaks. Row kinds and grammar: [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). A `Round 0` row holds 1 text, and `row` replaces it. After a take-over, write its old words first, then a blank line and the new input. Skipped: write no row. Done when the human answered and the claims are in the ledger.
 
 4. **Work one round.** Load [ROUNDS.md](ROUNDS.md), the page and answer rules of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify claims, weigh the options, take every decision the rules allow, and write the `Ledger` rows as they change. Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change, and the entries of the session's lists that changed ([ROUNDS.md](ROUNDS.md) "The session's content"). You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
@@ -92,7 +100,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and answer each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it:
+   The engine settles a lone mark, and sends every other signal to `needs_reading`. The answer lists `needs_reading`, `returned`, `steers`, `blocked` and the raw `signals`. Read each card and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and reply to each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it:
 
    ```sh step=apply-readings
    <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"

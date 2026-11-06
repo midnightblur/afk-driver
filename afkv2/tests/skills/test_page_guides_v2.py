@@ -39,6 +39,7 @@ def _row(text, rule):
 def test_glossary_names_reply():
     terms = inject.parse_glossary(GLOSSARY)
     assert "reply" in terms and "note" in terms["reply"].casefold()
+    assert "its own reply" in terms["reply"]
     shared = {**inject._seed(inject.SEED), **terms}
     tipped = [key for key in shared if re.search(r"\banswers?\b", key, re.I)]
     assert not tipped, tipped
@@ -57,15 +58,44 @@ def test_each_note_gets_its_own_reply_that_states_each_reading():
 
 
 def test_the_note_reading_writes_1_reply_per_note():
+    """Review finding f4: `notes` names the note of the reply on every version; version 2 refuses 2 or more."""
     notes = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the notes")
     assert "each note id it answers" not in notes
-    assert "names exactly 1 note" in notes and "states each reading" in notes
+    for fact in ("A reply names the id of its note in `notes`", "On a version 2 page, a reply that names 2 or more "
+                 "notes is refused", "states each reading"):
+        assert fact in notes, fact
 
 
 def test_the_guide_names_the_refusal_the_builder_writes():
-    """Consumes 0006: the refusal the guide states is the one the builder raises."""
+    """Consumes 0006; review finding f8: the code of AR-10 is the one the builder raises."""
+    codes = re.findall(r"\(`([a-z]+(?:-[a-z]+)+)`\)", _row(SKILL_MD.read_text("utf-8"), "AR-10"))
+    assert codes == ["reply-many-notes"], codes
     builder = (HOME / "scripts" / "round_document.py").read_text("utf-8")
-    assert 'Refusal("reply-many-notes"' in builder
+    assert f'Refusal("{codes[0]}"' in builder
+
+
+# The words of a reply to a note: "answer" stays for an answer to a card or a question (review finding f1).
+ANSWER_KEPT = ("Answer rules", "answer rules", "an answer, a new idea, a question")
+
+
+def _answer_words(text):
+    for kept in ANSWER_KEPT:
+        text = text.replace(kept, "")
+    return re.findall(r"answer\w*", text, re.I)
+
+
+def test_the_agent_writes_a_reply_to_each_note():
+    """Review finding f1: Reply is the glossary term for the write-back to a note (PRD AC-022)."""
+    text = SKILL_MD.read_text("utf-8")
+    notes = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the notes")
+    assert not _answer_words(notes), _answer_words(notes)
+    for rule in [f"AR-{k:02}" for k in range(1, 11)]:
+        row = _row(text, rule)
+        assert not _answer_words(row), (rule, _answer_words(row))
+    for part in (_section(text, "## Take over a page"), _row(text, "`scripts/round_document.py build --doc D --session "
+                 "S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]`")):
+        assert not _answer_words(part), _answer_words(part)
+    assert "every note of the session, card notes included, with its reply" in text
 
 
 # --- the round pass: keep, answer, drop and assume (SDD §3 row "reading tool")
@@ -74,13 +104,24 @@ def test_the_round_pass_describes_the_readings_of_a_version_2_page():
     found = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the questions and the settled notes")
     for word in ("`questions_to_read`", "`settled_notes_to_read`", "version 2"):
         assert word in found, word
+    raw = ROUND_PASS_MD.read_text("utf-8")
+    raw = raw[raw.index("## Read the questions and the settled notes"):]
+    assert set(re.findall(r"^- `(\w+)`", raw, re.M)) == set(round_document.READINGS_V2)
     for reading, fields in round_document.READINGS_V2.items():
         line = next((part for part in found.split("- ") if part.startswith(f"`{reading}`")), "")
         assert line, reading
         for field in fields:
             assert f"`{field}`" in line, (reading, field)
-    for code in ("not-a-question", "answer-no-signal", "everyone-answered", "drop-no-reason", "assume-no-card"):
-        assert f"`{code}`" in found, code
+    builder = (HOME / "scripts" / "round_document.py").read_text("utf-8")
+    rules = (PLUGIN / "engine" / "schema" / "invariants.py").read_text("utf-8")
+    named = {value: name for name, value in re.findall(r'^([A-Z_]+) = "([a-z-]+)"$', rules, re.M)}
+    codes = set(re.findall(r"\(`([a-z]+(?:-[a-z]+)+)`\)", found))
+    assert codes >= {"not-a-question", "answer-no-signal", "everyone-answered", "drop-no-reason", "assume-no-card"}
+    for code in sorted(codes):
+        raised = f'Refusal("{code}"' in builder
+        checked = (code in round_document.NAMED_RULES and code in named
+                   and re.search(rf"_named\(\s*{named[code]},", rules) is not None)
+        assert raised or checked, code
 
 
 # --- the layout rules live in use-lavish (PRD AC-027)
@@ -115,7 +156,11 @@ def test_use_lavish_holds_the_layout_of_version_0_and_1():
 
 VISUALIZE = PLUGIN / "skills" / "visualize"
 LAYOUT_WORDS = ("## Page layout", "## Controls the engine adds", "lays out the page", "Settled by earlier rounds",
-                "Earlier banners", "below the maps", "below the round banner", "copy bar", "tab title")
+                "Earlier banners", "below the maps", "below the round banner", "copy bar", "tab title",
+                # where a part sits on the page (review finding f5); a component's own looks may say "at the end"
+                "the engine puts", "goes first", "page order", "top of the page", "bottom of the page",
+                "on the page, above", "above the maps", "above the sections", "above the cards", "below the cards",
+                "below the sections", "after the notes", "before the maps", "first on the page", "last on the page")
 
 
 def _flat(path):

@@ -133,7 +133,7 @@ What the agent writes back to one note, shown in that note's row. Each note gets
 A page an agent writes outside an afk step, to talk with a human about any topic.
 
 **use-lavish**:
-The afkv2 skill that tells an agent how to organize a page, write its content and answer the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
+The afkv2 skill that tells an agent how to organize a page, write its content and reply to the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
 
 **Merged**:
 The forge reports the feature's change as merged, into any target branch, and no change on the branch is still open. Only the forge decides; a git history check does not count, because a squash merge leaves the feature tip outside the target.

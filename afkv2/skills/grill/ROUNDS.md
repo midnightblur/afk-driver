@@ -31,14 +31,16 @@ The page document holds the whole topic, with or without a page shown. Each roun
 
 | List | Holds |
 |------|-------|
-| `sections` | 1 entry per part of the topic: its `title`, its `state` (`not_reached` until a question or a note reaches it, then `current`), its current text in `body`, and the sections it depends on in `links` |
+| `sections` | 1 entry per part of the topic: its `title`, its `state` (`not_reached` until a question or a note reaches it, then `current`), its current text in `body`, and the sections it depends on in `links`. A merge or a removal: "Sections and change lines" of `/afkv2:use-lavish` |
 | `stories` | 1 entry per user story, its `text` in 1 sentence |
 | `examples` | each worked example: its `title`, its `kind` (frequent, edge or risky), the `stories` it covers, and its starting data and result in `body` |
 | `questions` | the questions for others, in the order to ask them, each with its parts, its `origin` and its `state` (below) |
 
+Each entry you send carries an `id`. Give a new entry a new `id`, unique in its list, and never reuse one.
+
 A card names the section it asks about in `section`.
 
-###  Questions for others
+### Questions for others
 
 A question for others is a point that neither the developer nor the code can settle. It is an entry of `questions`, written for a person outside the session. It joins the list in 2 ways:
 
@@ -61,9 +63,9 @@ Write each required part, and each other part that applies:
 
 The text names no internal decision, no plan term and no id: a person who never saw the session reads it. Explain a term this session made up where it first appears.
 
-A new question goes to the end. A follow-up goes right after the question it follows, with `after`. A note that moves a question: send it again with `after`, and the new order holds from the next round on.
+The order of the questions: "The questions block" of `/afkv2:use-lavish`. To place a follow-up, send it with `after`. A note that moves a question: send the question again with `after`. The new order holds from the next round on.
 
-An answer, a drop and an assumption are readings of the round pass: `answer`, `drop` and `assume` in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md). In the round after an answer, each settled or open point the answer touches returns as a `confirm` card for the developer, with `carries` naming its old card, and each section the answer changes gets a change line with cause `answer_from` and the `question`, so the section names an answer from the role. A question that waits on a person past the end: propose an assumed answer on a `confirm` card; the developer's accept is the `assume`. A question drops only on the developer's note with a reason.
+An answer, a drop and an assumption are readings of the round pass: `answer`, `drop` and `assume` in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md). In the round after an answer, answer rule AR-08 of `/afkv2:use-lavish` and the `answer` reading apply: give each point it touches a `confirm` card. A question that waits on a person past the end: propose an assumed answer on a `confirm` card. The developer's accept is the `assume`. A section that the assumed answer changes takes a change line with cause `answer` and the accepted `card`. A question drops only on the developer's note with a reason.
 
 **As text.** When the developer asks for the questions as text, print the open questions for others as Markdown in chat: in list order; with a role named, only the questions whose `who` holds that role or `everyone`; each with every part it holds, 1 labelled line or block per part. No ids: a link names its section by title, and a wait names its question by its sentence.
 
@@ -146,11 +148,11 @@ The human writes `take over` on its own line: write an `Escape` row, `taken R<n>
 
 ## Without a page
 
-When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` still writes each round into the page document, `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
+When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` and `present` still run each round: `build` writes the round into the page document, and `present` checks and renders it and scans the page and the log for secrets before it shows. When the developer asked for chat, the page still opens: say so in 1 line. `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
 
 - Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
 - Ask each open question for others in the same message, with its parts and its choices numbered, by "As text".
-- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. A choice of a question for others is a line `<question id> tick <option id>`, with each picked option id; any other answer is a note on the question. Then go to step 7 of [SKILL.md](SKILL.md).
+- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root). The first line is `[round R-<n>]`. Each number becomes its card id. A mark is a line `<card id> <mark>`, with a mark word of the card's kind from `MARKS` in `engine/ingest.py`; an option of a `debate` card is its letter. Each note is its own entry. A choice of a question for others is a line `<question id> tick <option id>`, with each picked option id; any other answer is a note on the question. Then go to step 7 of [SKILL.md](SKILL.md).
 
 ## Coming back
 

@@ -6,6 +6,7 @@ of the rules is proved by a dogfood run; these tests pin where each rule lives, 
 that the grill holds no page-layout rule.
 """
 
+import ast
 import json
 import re
 import sys
@@ -32,13 +33,26 @@ def _flat(text):
     return " ".join(text.split())
 
 
+def _raw(text, heading):
+    """The text under `heading` up to the next heading of the same or a higher level, line by line."""
+    level, title = heading.split(" ", 1)
+    found = re.search(rf"^{level} +{re.escape(title.strip())}\n", text, re.M)
+    assert found, f"no heading {heading!r}"
+    rest = text[found.end():]
+    stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
+    return rest[:stop.start()] if stop else rest
+
+
 def _section(text, heading):
     """The text under `heading` up to the next heading of the same or a higher level, on 1 line."""
-    level = heading.split(" ", 1)[0]
-    start = text.index(heading + "\n")
-    rest = text[start + len(heading) + 1:]
-    stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
-    return _flat(rest[:stop.start()] if stop else rest)
+    return _flat(_raw(text, heading))
+
+
+def _row(text, first_cell):
+    """The 1 table row of `text` whose first cell is `first_cell`."""
+    rows = [line for line in text.splitlines() if line.startswith(f"| {first_cell} |")]
+    assert len(rows) == 1, (first_cell, rows)
+    return rows[0]
 
 
 def _step(n):
@@ -49,8 +63,16 @@ def _step(n):
     return _flat(text[start:start + stop.start()] if stop else text[start:])
 
 
+def _questions_raw():
+    return _raw(ROUNDS_MD.read_text("utf-8"), "### Questions for others")
+
+
 def _questions():
-    return _section(ROUNDS_MD.read_text("utf-8"), "###  Questions for others")
+    return _flat(_questions_raw())
+
+
+def _content_raw():
+    return _raw(ROUNDS_MD.read_text("utf-8"), "## The session's content")
 
 
 # --- the content of a session lives in the page document (PRD AC-025; SDD §3 row "grill")
@@ -59,28 +81,56 @@ def test_the_session_content_names_each_list_of_the_page_document():
     content = _section(ROUNDS_MD.read_text("utf-8"), "## The session's content")
     for name in round_document.ENTRY_LISTS:
         assert f"`{name}`" in content, name
-    for kind in ("frequent", "edge", "risky"):
-        assert kind in content, kind
+    kinds = SCHEMA["example"]["properties"]["kind"]["enum"]
+    assert kinds == ["frequent", "edge", "risky"] and "its `kind` (frequent, edge or risky)" in content
     assert "with or without a page" in content
     assert "\"The session's content\"" in _step(4)
 
 
 def test_the_guides_name_each_field_the_builder_requires_of_a_new_entry():
-    """A new entry without a required field is refused by the document check (review finding f1)."""
-    content = _section(ROUNDS_MD.read_text("utf-8"), "## The session's content")
+    """A new entry without a required field is refused by the document check (review findings f1, f17, f28): each
+    list's row names its own fields; a part of a question is a row of the questions table."""
+    content, parts = _content_raw(), _questions_raw()
     for name, kind in round_document.ENTRY_LISTS.items():
+        row = _row(content, f"`{name}`")
         for field in sorted(set(SCHEMA[kind]["required"]) - {"id", "changes"}):
-            assert f"`{field}`" in content, (name, field)
+            if kind == "question" and field not in ENGINE_FIELDS:
+                assert "always required" in _row(parts, f"`{field}`"), field
+            else:
+                assert f"`{field}`" in row, (name, field)
     assert "`state: open`" in _questions()
     for state in ("`not_reached`", "`current`"):
-        assert state in content, state
+        assert state in _row(content, "`sections`"), state
+
+
+def test_each_sent_entry_carries_its_own_id():
+    """Review finding f15: `_merge_entries` refuses an entry with no `id` as `bad-entry`."""
+    content = _flat(_content_raw())
+    assert "Each entry you send carries an `id`" in content and "never reuse" in content
+    builder = (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
+    assert 'raise Refusal("bad-entry", f"{kind}: an entry without an id' in builder
+
+
+def test_a_merge_or_a_removal_of_a_section_points_to_the_page_skill():
+    """Review finding f16: the schema takes `merged` and `removed`; the page skill holds their fields."""
+    row = _row(_content_raw(), "`sections`")
+    assert '"Sections and change lines" of `/afkv2:use-lavish`' in row
+    states = SCHEMA["section"]["properties"]["state"]["enum"]
+    assert {"merged", "removed"} <= set(states)
+    for state in ("merge", "removal"):
+        assert state in row, state
+    page = (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
+    assert "#### Sections and change lines\n" in page and "`merged_into`" in page
 
 
 # --- each note read for every meaning (PRD AC-013, AC-014, AC-028)
 
 def test_each_note_is_read_for_every_meaning():
     reading = _section(ROUNDS_MD.read_text("utf-8"), "## Read each note")
-    for fact in ("every meaning", "another part", "cannot answer", "steer", "lean", "AR-05"):
+    for fact in ("Read each note for every meaning it holds", "| a thought about another part, or a new idea |",
+                 "| the developer cannot answer, or names who would |", "| guidance for the whole session | a steer",
+                 "is the developer's lean", "the section records it as a lean, not as settled",
+                 "answer rule AR-05 of `/afkv2:use-lavish`"):
         assert fact in reading, fact
     assert "| AR-05 |" in (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
 
@@ -89,48 +139,83 @@ def test_each_note_is_read_for_every_meaning():
 
 def test_a_question_joins_by_a_cannot_answer_note_or_an_accepted_proposal_card():
     found = _questions()
-    for fact in ("cannot answer", "names who would", "origin: {note:", "propose it on a `confirm` card",
-                 "only after the developer accepts that card", "origin: {card:", "adds nothing"):
+    for fact in ("A note says the developer cannot answer, or names who would", "origin: {note:",
+                 "propose it on a `confirm` card", "only after the developer accepts that card", "origin: {card:",
+                 "A proposal card that stays open or gets another mark adds nothing"):
         assert fact in found, fact
     origins = {key for option in SCHEMA["origin"]["anyOf"] for key in option["required"]}
     assert origins == {"note", "card"}
 
 
+def test_the_questions_heading_has_1_space():
+    """Review finding f6."""
+    assert "\n### Questions for others\n" in ROUNDS_MD.read_text("utf-8")
+
+
 def test_each_part_of_a_question_for_others_is_named():
-    found = _questions()
+    """Review findings f7, f18, f27: each part is a row of the questions table, not of another table."""
+    found, table = _questions(), _questions_raw()
     parts = set(SCHEMA["question"]["properties"]) - ENGINE_FIELDS
     assert parts, "the schema names the parts of a question"
     for part in sorted(parts):
-        assert f"| `{part}` |" in ROUNDS_MD.read_text("utf-8"), part
+        _row(table, f"`{part}`")
     assert "`several` is `true`" in found and "`everyone`" in found
 
 
+RULE = "The text names no internal decision, no plan term and no id"
+# An id of the page or the plan: R-2, N-2-i-x, AR-05, D-26, AC-028, i-format, s-intro, q-1.
+PAGE_ID = re.compile(r"\b(?:[A-Z]{1,3}-\d+|[a-z]{1,2}-[a-z0-9][\w-]*)\b")
+
+
 def test_the_visible_text_of_a_question_names_no_internal_term():
+    """Review finding f11: the rule stands, and the section's own text holds no id."""
     found = _questions()
-    assert "no internal decision, no plan term and no id" in found
-    assert "made up" in found
+    assert RULE in found
+    assert "Explain a term this session made up where it first appears" in found
+    rest = re.sub(r"answer rule AR-\d\d of `/afkv2:use-lavish`", "", found.replace(RULE, ""))
+    assert not PAGE_ID.search(rest), PAGE_ID.search(rest).group(0)
+    assert PAGE_ID.search("a follow-up of N-2-i-format") and not PAGE_ID.search("a sign-off of a follow-up")
 
 
 # --- order, and the round after an answer (PRD AC-035, AC-038, AC-042)
 
 def test_order_and_the_round_after_an_answer():
+    """Review findings f4, f5: the page skill holds the order and AR-08, the round pass holds `answer_from`; the
+    grill keeps only its own actions."""
     found = _questions()
-    for fact in ("goes to the end", "`after`", "from the next round on", "`answer`", "`drop`", "`assume`",
-                 "../use-lavish/ROUND-PASS.md"):
+    page = (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
+    assert "A new question goes to the end; a follow-up goes right after the question it follows, by `after`" in page
+    assert "| AR-08 | Update every point the change touches" in page
+    assert '"The questions block" of `/afkv2:use-lavish`' in found
+    for fact in ("To place a follow-up, send it with `after`", "send the question again with `after`",
+                 "from the next round on", "`answer`, `drop` and `assume`", "../use-lavish/ROUND-PASS.md",
+                 "answer rule AR-08 of `/afkv2:use-lavish`", "the `answer` reading",
+                 "give each point it touches a `confirm` card"):
         assert fact in found, fact
-    for fact in ("each settled or open point the answer touches returns as a `confirm` card", "`carries`",
-                 "cause `answer_from`", "an answer from"):
-        assert fact in found, fact
+    for gone in ("goes to the end", "goes right after", "each section the answer changes",
+                 "with `carries` naming its old card"):
+        assert gone not in found, gone
+    round_pass = _flat((SKILLS / "use-lavish" / "ROUND-PASS.md").read_text("utf-8"))
+    assert "change line with cause `answer_from`" in round_pass
     assert parts_v2.CAUSES["answer_from"] == "an answer from"
     assert "answer_from" in SCHEMA["change_line"]["properties"]["cause"]["enum"]
+
+
+def test_a_section_changed_by_an_assumed_answer_takes_cause_answer():
+    """Review finding f26: `answer_from` needs an answered question; an assumed one is `assumed`."""
+    assert "takes a change line with cause `answer` and the accepted `card`" in _questions()
+    rules = (PLUGIN / "engine" / "schema" / "invariants.py").read_text("utf-8")
+    assert '"answer": "card"' in rules
+    assert 'line["cause"] == "answer_from" and asked is not None and asked["state"] != "answered"' in rules
 
 
 # --- the open questions as Markdown (PRD AC-043)
 
 def test_the_open_questions_print_as_markdown_in_order_filtered_by_role():
     found = _questions()
-    for fact in ("as text", "Markdown", "open questions for others", "in list order", "`who`", "`everyone`",
-                 "every part it holds", "No ids"):
+    for fact in ("**As text.**", "print the open questions for others as Markdown in chat", "in list order",
+                 "only the questions whose `who` holds that role or `everyone`", "with every part it holds",
+                 "No ids: a link names its section by title"):
         assert fact in found, fact
 
 
@@ -157,6 +242,24 @@ def test_coming_back_takes_the_finished_page_over_and_upgrades_an_old_page():
     assert 'round_input.get("upgrade")' in (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
 
 
+def test_the_upgrade_rule_covers_a_resume_and_a_take_over():
+    """Review finding f3: a resumed old-schema page needs `upgrade: true` as well."""
+    assert "On a resume and on a take-over, a page whose `schema` is `afkv2.page/0` or `afkv2.page/1`" in _step(1)
+
+
+def test_a_take_over_keeps_the_round_0_words_of_the_first_run(tmp_path):
+    """Review finding f23: `Round 0` is a single row, so a second `row` replaces it."""
+    assert "After a take-over, write its old words first, then a blank line and the new input" in _step(3)
+    import grill_log
+    assert "Round 0" in grill_log.SINGLE_KINDS
+    log = tmp_path / "GRILL-LOG.md"
+    grill_log.ensure_section(log, "T-1")
+    grill_log.write_row(log, "Round 0", "first")
+    grill_log.write_row(log, "Round 0", "second")
+    rows = [line for line in log.read_text("utf-8").splitlines() if line.startswith("- Round 0: ")]
+    assert rows == ['- Round 0: "second"']
+
+
 def test_a_pass_after_a_take_over_names_stale_and_changed():
     """Consumes 0008: the 2 lists the end check answers after a take-over (decision D-26)."""
     back = _section(ROUNDS_MD.read_text("utf-8"), "## Coming back")
@@ -175,30 +278,58 @@ def test_a_pass_after_a_take_over_names_stale_and_changed():
 
 # --- the end check on a version 2 page (PRD AC-019, AC-044, AC-045)
 
+END_CHECK = {  # each code of the version 2 end check, with a page part that fails it and one that passes
+    "question-open": ({"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "open"}]},
+                      {"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "answered"}]}),
+    "drop-no-reason": ({"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "dropped",
+                                       "dropped": {"reason": " "}}]},
+                       {"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "dropped",
+                                       "dropped": {"reason": "out of scope"}}]}),
+    "story-without-example": ({"stories": [{"id": "st-1", "text": "Import a file."}], "examples": []},
+                              {"stories": [{"id": "st-1", "text": "Import a file."}],
+                               "examples": [{"id": f"ex-{k}", "title": k, "kind": k, "stories": ["st-1"]}
+                                            for k in ("frequent", "edge", "risky")]}),
+    "kind-missing": ({"examples": [{"id": "ex-1", "title": "a", "kind": "frequent", "stories": []}]},
+                     {"examples": [{"id": f"ex-{k}", "title": k, "kind": k, "stories": []}
+                                   for k in ("frequent", "edge", "risky")]}),
+}
+
+
 def test_the_log_format_states_the_end_check_of_a_version_2_page():
+    """Review findings f15, f20: the check raises each code the format states, under the condition it names."""
+    import grill_log
     gate = _section(LOG_FORMAT_MD.read_text("utf-8"), "## Exit gate")
-    for code in ("question-open", "drop-no-reason", "story-without-example", "kind-missing"):
+    for code, (failing, passing) in END_CHECK.items():
         assert f"`{code}`" in gate, code
-        assert f'"{code}"' in (HOME / "scripts" / "grill_log.py").read_text("utf-8"), code
+        assert any(line.startswith(f"{code}: ") for line in grill_log._v2_failures(failing)), code
+        assert not grill_log._v2_failures(passing), (code, grill_log._v2_failures(passing))
     assert "answered, dropped with a reason or assumed" in gate
 
 
 # --- the grill holds no page-layout rule (PRD AC-027)
 
-LAYOUT = re.compile(r"section order|page order|goes first|\babove the\b|\bbelow the\b|folded|top of the page", re.I)
+LAYOUT = re.compile(r"section order|page order|goes first|first on the page|\babove the\b|\bbelow the\b|folded|"
+                    r"collapsed|\bsidebar\b|\bat the (?:top|bottom)\b|(?:top|bottom|side) of the page|"
+                    r"the engine puts|\b(?:left|right) column\b", re.I)
 
 
 def test_the_grill_holds_no_page_layout_rule():
-    for path in HOME.glob("*.md"):
-        text = path.read_text("utf-8")
-        assert not LAYOUT.search(text), (path.name, LAYOUT.search(text).group(0))
+    """Review findings f10, f21: every .md under the grill folder, subfolders included."""
+    found = [(path.relative_to(HOME).as_posix(), LAYOUT.search(path.read_text("utf-8")).group(0))
+             for path in sorted(HOME.rglob("*.md")) if LAYOUT.search(path.read_text("utf-8"))]
+    assert not found, found
+    for phrase in ("at the top", "collapsed", "in the sidebar", "the engine puts the maps"):
+        assert LAYOUT.search(phrase), phrase
+
+
+def test_the_grill_holds_the_card_kind_table():
     assert re.search(r"^\| Kind \| Use it when \|$", ROUNDS_MD.read_text("utf-8"), re.M)
 
 
 # --- the shapes the builder refuses (review findings f12, f13, f14)
 
 def _part_row(part):
-    return next(line for line in ROUNDS_MD.read_text("utf-8").splitlines() if line.startswith(f"| `{part}` |"))
+    return _row(_questions_raw(), f"`{part}`")
 
 
 def test_each_required_part_of_a_question_is_marked_required():
@@ -216,6 +347,30 @@ def test_the_choices_row_states_the_shape_the_schema_takes():
     options = shape["properties"]["options"]
     for fact in ("`options`", "`id`", "`text`", "`several`", f"{options['minItems']} to {options['maxItems']}"):
         assert fact in row, fact
+
+
+def test_without_a_page_present_still_checks_and_scans_the_round():
+    """Review finding f24: `present` is the only caller of check, render and the secrets scan."""
+    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    for fact in ("`build` and `present` still run each round", "scans the page and the log for secrets",
+                 "the page still opens: say so in 1 line"):
+        assert fact in chat, fact
+    present = (SKILLS / "use-lavish" / "scripts" / "page_round.py").read_text("utf-8")
+    assert '_engine("check", doc)' in present and '"--scan"' in present
+
+
+def test_without_a_page_the_reply_file_names_its_round_and_the_mark_words():
+    """Review finding f25: format 1 opens with `[round R-n]`; a mark is `<element id> <mark>`."""
+    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    for fact in ("The first line is `[round R-<n>]`", "A mark is a line `<card id> <mark>`",
+                 "`MARKS` in `engine/ingest.py`", "an option of a `debate` card is its letter"):
+        assert fact in chat, fact
+    tree = ast.parse((PLUGIN / "engine" / "ingest.py").read_text("utf-8"))
+    marks = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                 and any(getattr(target, "id", None) == "MARKS" for target in node.targets))
+    assert {key.value for key in marks.keys} == set(SCHEMA["item"]["properties"]["kind"]["enum"])
+    grammar = (PLUGIN / "engine" / "prompt_lines.py").read_text("utf-8")
+    assert "first line `[round R-n]`. A mark is `<element id> <mark>`" in _flat(grammar)
 
 
 def test_without_a_page_the_open_questions_for_others_are_asked_and_answered_in_chat():
