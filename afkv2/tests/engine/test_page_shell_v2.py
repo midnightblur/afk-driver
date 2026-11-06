@@ -28,6 +28,13 @@ from test_page_parts_v2 import card, document, line, question, round_of, text, v
 PAGE_BUDGET_BYTES = 1_000_000
 RENDER_BUDGET_SECONDS = 2.0
 BANNER = 'data-afkv2-banner="{}"'
+BANNER_LIST = re.compile(r'<div class="afkv2-banner-list[^"]*"><h3>(.*?)</h3>(.*?)</div>')
+QUESTION_HEAD = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*?(data-afkv2-required="1")?\s*style')
+PAST_CHIP = "afkv2-round-chip--past"
+NOTE_NUMBER = re.compile(r'<td class="afkv2-nr-num"><span[^>]*>([^<]+)</span>')
+ROUND_3_COUNT = re.compile(r'id="afkv2-nr-round-3"[^>]*><td[^>]*>(.*?)</td>')
+SCOPE_NOTE_ROW = re.compile(r'id="afkv2-nr-N-2-sec-scope-1".*?</tr>')
+TIP_SOURCE = '<script id="afkv2-page-tip-source"'
 SETTLED_PART = 'id="afkv2-settled"'
 SECTIONS_PART = 'id="afkv2-sections"'
 LINK = 'href="#{}"'
@@ -51,7 +58,7 @@ def banner_lists(html, n):
     """Each list of the banner of round n: its heading, with the link target of each entry, or its text."""
     own = banner(html, n)
     found = {}
-    for heading, values in re.findall(r'<div class="afkv2-banner-list[^"]*"><h3>(.*?)</h3>(.*?)</div>', own):
+    for heading, values in BANNER_LIST.findall(own):
         found[heading] = re.findall(r'href="#([^"]+)"', values) or re.findall(r"<li>(.*?)</li>", values)
     return found
 
@@ -86,12 +93,12 @@ def test_the_round_questions_show_in_one_block_and_each_links_to_its_section():
 
 def test_the_round_questions_mark_only_the_cards_of_the_current_round_as_current():
     questions = block(build(document()), 'id="afkv2-r-3"')
-    heads = dict(re.findall(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*?(data-afkv2-required="1")?\s*style', questions))
+    heads = dict(QUESTION_HEAD.findall(questions))
     assert heads == {"i-format": "", "i-closed": 'data-afkv2-required="1"', "i-rows": ""}
     past = questions[questions.index(CONFIRM_CARD.format("i-rows")):]
-    assert past.index("afkv2-round-chip--past") < past.index("</h4>")
+    assert past.index(PAST_CHIP) < past.index("</h4>")
     now = questions[questions.index(CONFIRM_CARD.format("i-closed")):]
-    assert "afkv2-round-chip--past" not in now[:now.index("</h4>")]
+    assert PAST_CHIP not in now[:now.index("</h4>")]
 
 
 def test_a_card_on_a_merged_section_links_to_the_section_it_merged_into():
@@ -219,11 +226,11 @@ def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled)
 
 def test_the_version_2_notes_table_shows_row_numbers_one_round_chip_the_where_label_and_the_open_link():
     notes = block(build(raw_id_document()), 'id="afkv2-notes-replies"')
-    numbers = re.findall(r'<td class="afkv2-nr-num"><span[^>]*>([^<]+)</span>', notes)
+    numbers = NOTE_NUMBER.findall(notes)
     assert numbers == ["3.1", "3.2", "2.1", "2.2"]
-    count = re.search(r'id="afkv2-nr-round-3"[^>]*><td[^>]*>(.*?)</td>', notes).group(1)
+    count = ROUND_3_COUNT.search(notes).group(1)
     assert visible(count) == "Round 3 — 2 notes from you, 1 answer from me"
-    scope = re.search(r'id="afkv2-nr-N-2-sec-scope-1".*?</tr>', notes).group(0)
+    scope = SCOPE_NOTE_ROW.search(notes).group(0)
     cells = [visible(cell) for cell in re.findall(r"<td>(.*?)</td>", scope)]
     assert cells[0] == "What the export covers" and cells[-1] == "Open"
     assert re.search(r'<a href="#sec-scope"[^>]*>Open</a>', scope)
@@ -399,7 +406,7 @@ def test_a_version_2_page_carries_its_tooltip_catalog():
     doc["tips"] = {"terms": [{"term": "export", "definition": "The file the clerk takes away"}],
                    "ids": [{"id": "sec-scope", "title": "What the export covers"}]}
     html = build(doc)
-    start = html.index('<script id="afkv2-page-tip-source"')
+    start = html.index(TIP_SOURCE)
     source = json.loads(html[html.index(">", start) + 1:html.index("</script>", start)])
     assert source == {"terms": doc["tips"]["terms"], "ids": doc["tips"]["ids"]}
 

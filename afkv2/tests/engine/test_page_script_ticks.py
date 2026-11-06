@@ -136,7 +136,8 @@ function fire(el, type) {
   (docListeners[type] || []).forEach(function (fn) { fn(event); });
 }
 // A control value the page holds before the script runs, as a browser keeps a form value.
-if (input.preset && 'filter' in input.preset) root.querySelector('#afkv2-who-filter').value = input.preset.filter;
+const WHO_FILTER = '#afkv2-who-filter';
+if (input.preset && 'filter' in input.preset) root.querySelector(WHO_FILTER).value = input.preset.filter;
 // The controls under [data-lavish-question], as lavish-axi keeps them for its tab store (lavishQuestionControls).
 function lavishFields() {
   const out = [];

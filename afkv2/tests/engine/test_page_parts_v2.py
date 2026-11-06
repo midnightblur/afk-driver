@@ -28,6 +28,9 @@ TICK_ATTR = 'data-afkv2-input="tick"'
 SEVERAL = 'data-afkv2-several="{}"'
 EXAMPLES_HEADING = '<h2 class="afkv2-section-h">Worked examples</h2>'
 TIP_ATTR = "data-afkv2-tip="
+CHIP = "afkv2-chip"
+CAUSE = re.compile(r'data-afkv2-cause="([^"]+)"')
+V2_HEADING = "afkv2-v2-h"
 CARD_TIP = 'data-afkv2-tip="Opens this card of round 3"'
 
 
@@ -152,7 +155,7 @@ def part_of(html, element_id):
 
 def chip_text(html, css="afkv2-v2-open-count"):
     """The visible text of the one chip of class `css` in `html`, or None."""
-    found = re.findall(rf'<span class="afkv2-chip {css}">(.*?)</span>', html)
+    found = re.findall(rf'<span class="{CHIP} {css}">(.*?)</span>', html)
     assert len(found) <= 1, found
     return visible(found[0]) if found else None
 
@@ -248,7 +251,7 @@ def test_a_section_change_list_shows_open_newest_first_one_line_per_round_naming
 
 def test_each_change_line_names_its_cause_in_an_attribute():
     scope = part_of(parts_v2.render_sections(document()), "sec-scope")
-    assert re.findall(r'data-afkv2-cause="([^"]+)"', scope) == ["answer_from", "note", "finding"]
+    assert CAUSE.findall(scope) == ["answer_from", "note", "finding"]
 
 
 def test_an_answer_from_a_question_with_no_answer_names_someone_else():
@@ -431,7 +434,7 @@ def test_titles_questions_and_texts_are_escaped():
     rendered = _every_part(doc)
     assert "<i>" not in rendered
     for heading in (f"Scope {ESCAPED}", f"How many {ESCAPED}?", f"Rows {ESCAPED}"):
-        assert f'<h3 class="afkv2-v2-h">{heading}</h3>' in rendered, heading
+        assert f'<h3 class="{V2_HEADING}">{heading}</h3>' in rendered, heading
     assert f"Wrote {ESCAPED}" in part_of(rendered, "sec-scope")
     assert f"<li>Ask {ESCAPED}</li>" in part_of(rendered, "q-size")
     assert f"How many {MARKUP}?" in visible(rendered)
@@ -496,7 +499,7 @@ def test_each_link_to_an_element_shows_its_meaning_on_hover():
     links = re.findall(r"<a [^>]*>", html)
     assert links and all(TIP_ATTR in link for link in links)
     assert CARD_TIP in html
-    tips = re.findall(r'data-afkv2-tip="([^"]*)"', html)
+    tips = re.findall(TIP_ATTR + r'"([^"]*)"', html)
     for element in element_ids(doc):
         assert not any(re.search(rf"(?<![\w-]){re.escape(element)}(?![\w-])", tip) for tip in tips), element
 
@@ -507,4 +510,4 @@ def test_the_hover_text_of_a_link_names_the_kind_of_element():
                          ("q-size", "Opens this question for others"), ("st-big", "A story of this topic"),
                          ("opt-m", "A choice of a question for others"), ("i-format", "Opens this card of round 3"),
                          ("x-unknown", "Opens this part of the page")):
-        assert f'data-afkv2-tip="{tip}"' in parts_v2.link(doc, element), element
+        assert f'{TIP_ATTR}"{tip}"' in parts_v2.link(doc, element), element
