@@ -193,6 +193,7 @@ The whole picture is stored as new lists in the page document, beside the maps, 
 | Card | no section field | + `section`: the section it asks about, optional |
 | Note | owner is a card, or the element of a session rule | owner may be a section, story, example or question |
 | Reply | names 1 or more notes | names exactly 1 note |
+| Session | no upgrade field | + `upgraded`: the first version 2 round, written by the builder on `upgrade: true`, optional; the 1-note rule for a reply checks only that round and later (amended 2026-11-06 in the build, the developer's call: replies of settled version 1 rounds name several notes and can never be rewritten) |
 
 | Relation | Target | Cardinality | Owning side | On delete / orphan | Fetch posture |
 |----------|--------|-------------|-------------|--------------------|---------------|
