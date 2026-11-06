@@ -151,6 +151,15 @@ When `present` refuses at `show`, or the developer asks to work without a page, 
 - Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
 - Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. Then go to step 7 of [SKILL.md](SKILL.md).
 
+## Coming back
+
+A grill that came back continues its finished page with the new input. A settled point stays settled unless the new input touches it; a touched point returns as a new card with `carries`. The grill ends only after its end check passes again.
+
+On that pass, the answer of `gate` adds 2 lists. Tell the developer both:
+
+- `stale`: each later document of the ticket that exists. Name each one as possibly out of date, with the skill that writes it again: `PRD.md` and `adr/requirements/` by `/afkv2:to-prd`, `SDD.md` and `adr/design/` by `/afkv2:propose-solution`, the plan (`plan/PLAN.md` on the run branch) by `/afkv2:to-subtasks`.
+- `changed`: each settled point that changed since the take-over, by its `text`.
+
 ## Devil's-advocate pass
 
 When the tree looks exhausted, start one fresh subagent. Give it the settled requirements, pains, restrictions and ledger from `GRILL-LOG.md`, not this conversation. Its brief: attack. Which requirement treats a symptom, which restriction blocks a legitimate scenario, which 2 requirements conflict, what nearby pain stays open. Show its findings as the last round. Write a `Devil` row when each one is resolved or accepted.

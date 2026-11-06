@@ -28,7 +28,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/grill_start.py" --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `doc`, `log`, `session`, `raw_file` and `resume`. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 3. Run step 2 again, read the section `## Requirements grill` of `log` and the `doc`, honour every `Steer` row and an `Escape` row, and continue at the first unfinished step of the current round, or at step 3 when `doc` does not exist yet. `raw_pending` true: an answer waits in `raw_file`, so go to step 7.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `doc`, `log`, `session`, `raw_file`, `resume` and `takeover`. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 3. Run step 2 again, read the section `## Requirements grill` of `log` and the `doc`, honour every `Steer` row and an `Escape` row, and continue at the first unfinished step of the current round, or at step 3 when `doc` does not exist yet. `takeover` holds a session: the grill of this ticket ended, and this call comes back to it with new input. Take the page over by `/afkv2:use-lavish` "Take over a page", with the `Takeover` row, read `log` and `doc`, and run steps 2 and 3, so round 0 takes the new input. A page whose `schema` is `afkv2.page/0` or `afkv2.page/1` was made before the session's lists: the first round input builds `sections` from its settled points, each with a change line of cause `finding` that says it was built from the settled points, and holds `upgrade: true`. The rounds that follow: [ROUNDS.md](ROUNDS.md) "Coming back". `raw_pending` true: an answer waits in `raw_file`, so go to step 7.
 
 2. **Read the ticket.** Done when the file holds the ticket, every comment and every link you can read.
 
@@ -127,7 +127,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/grill_log.py" gate --doc "<doc>" --log "<log>"
    ```
 
-   It lists every failure in `error.failures`. Each failure is one more round or one more row.
+   It lists every failure in `error.failures`. Each failure is one more round or one more row. On a pass after a take-over, the answer adds `stale` and `changed`: tell the developer both by [ROUNDS.md](ROUNDS.md) "Coming back".
 
 10. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 
