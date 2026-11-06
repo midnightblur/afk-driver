@@ -188,7 +188,7 @@ def _entries(rows: list[str], page: _Page) -> list[Line]:
         if open_ is not None:
             open_[0].text = "\n".join(open_[1]).rstrip("\n")
             open_ = None
-        words = row.split(" ")
+        words = row.split()
         if page.v2 and len(words) > 1 and words[1] == TICK_WORD:
             lines.append(_tick(words, number, page, lines))
             continue

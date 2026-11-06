@@ -317,6 +317,15 @@ def test_a_later_tick_with_no_option_unticks_the_question():
     assert raw == "[round R-2]"
 
 
+@pytest.mark.parametrize("row", ["q-one tick csv ", "q-one  tick csv", "q-one tick  csv"])
+def test_a_tick_line_with_extra_spaces_reads_as_the_send_line_does(path, row):
+    doc = v2_document()
+    assert prompt_lines.raw_from_prompts(doc, [tick(row)], ids_of(doc)) == "[round R-2]\nq-one tick csv"
+    answer, _ = ingested(path, doc, f"[round R-2]\n{row}")
+    [signal] = answer["questions_to_read"]
+    assert signal["target"] == "q-one" and signal["choices"] == ["csv"]
+
+
 def test_the_send_line_of_a_tick_ingests(path):
     doc = v2_document()
     raw = prompt_lines.raw_from_prompts(copy.deepcopy(doc), [tick("q-many tick xls pdf")], ids_of(doc))
