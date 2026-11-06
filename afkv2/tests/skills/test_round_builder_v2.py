@@ -458,3 +458,64 @@ def test_a_version_1_page_refuses_the_new_readings_by_name(path):
     ingest(path, "[round R-2]\ni-a note 1\n  Agreed.")
     for key in ("keep", "answer", "drop", "assume"):
         assert key in refused_reading(path, {key: []}, "bad-payload")
+
+
+# ---- upgrade: a version 0 or 1 page taken over in the current session becomes version 2 (SDD §4; PLAN.md D-1)
+
+
+def an_upgrade(*items, **lists):
+    return {**entries_round(*items, **lists), "upgrade": True}
+
+
+def test_upgrade_writes_a_taken_over_version_1_page_as_version_2(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    page_round.take_over(path)
+    answer = rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro")]))
+    doc = read(path)
+    assert doc["schema"] == V2 and answer["entries"] == ["s-intro"]
+    assert doc["sections"][0]["changes"] == [{"round": 3, **FINDING}]
+    assert "upgrade" not in json.dumps(doc["rounds"])
+    assert check(path)[0] == 0
+
+
+def test_upgrade_writes_a_taken_over_version_0_page_as_version_2(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    doc = read(path)
+    session = {key: doc["session"][key] for key in ("id", "skill", "feature", "ticket", "started")}
+    write(path, {"schema": "afkv2.page/0", "session": session, "maps": [], "rounds": doc["rounds"]})
+    assert check(path)[0] == 0
+    page_round.take_over(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c"))
+    assert read(path)["schema"] == V2
+    assert check(path)[0] == 0
+
+
+def test_upgrade_of_a_page_not_taken_over_in_the_current_round_is_refused(path):
+    settled_round_1(path, "i-b")
+    page_round.take_over(path)
+    ingest(path, "[round R-2]\ni-b accept")
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    ingest(path, "[round R-3]\ni-c accept")
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-d"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert path.read_bytes() == before
+
+
+def test_upgrade_of_a_new_page_is_refused_and_writes_nothing(path):
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-a"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert not path.exists()
+
+
+def test_upgrade_of_a_version_2_page_is_refused(page):
+    page_round.take_over(page)
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, an_upgrade("i-c"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert page.read_bytes() == before

@@ -516,6 +516,20 @@ def check_version_2(doc):
         raise Refusal("invariant", engine._refuse(doc, found, "invariant").reason)
 
 
+def _upgrade(doc, doc_path, upgrade):
+    """Write a version 0 or 1 page as version 2, only when a new session took it over in its current round (SDD §4
+    Migration and backfill). The document is in memory, read as version 1."""
+    if upgrade is not True:
+        raise Refusal("bad-round", f"upgrade is true or left out: {upgrade!r}")
+    current = current_round(doc) if Path(doc_path).exists() else None
+    taken_over = current is not None and any(entry.get("round") == current["n"]
+                                             for entry in doc["session"].get("takeovers") or [])
+    if is_version_2(doc) or not taken_over:
+        raise Refusal("upgrade-not-taken-over", "upgrade writes a version 0 or 1 page as version 2 only after a new "
+                                                "session took it over in its current round (page_round.py take-over)")
+    doc["schema"] = page_engine().SCHEMA_V2
+
+
 def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
@@ -529,7 +543,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
 
     On a version 2 page the round input may add `sections`, `stories`, `examples` and `questions`: only the
     entries that changed (`_merge_entries`), and a card may name its `section`. A version 0 or 1 page refuses
-    these fields by name. A version 2 document passes the engine's document check before it is written.
+    these fields by name, unless the round input holds `upgrade: true` (`_upgrade`). A version 2 document passes
+    the engine's document check before it is written.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -561,6 +576,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
                   "private": False, "takeovers": []}
         doc = {"schema": SCHEMA, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
+    if round_input.get("upgrade") not in (None, False):
+        _upgrade(doc, doc_path, round_input["upgrade"])
     version_2 = is_version_2(doc)
     sent_lists = [kind for kind in ENTRY_LISTS if kind in round_input]
     if sent_lists and not version_2:
