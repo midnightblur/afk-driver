@@ -237,22 +237,22 @@ def _doc_failures(doc):
 
 
 def _v2_failures(doc):
-    """The end check of a version 2 page's lists (SDD §3 row "grill end check"). A page with no story and no worked
-    example keeps today's check: the log's Examples row (decision D-24)."""
+    """The end check of a version 2 page's lists (SDD §3 row "grill end check"); each failure starts with its code. A
+    page with no story and no worked example keeps today's check: the log's Examples row (decision D-24)."""
     failures = []
     for question in doc.get("questions") or []:
         if question.get("state") == "open":
-            failures.append(f"question-open: {question['id']}: {question['question']} (who: {', '.join(question['who'])})")
+            failures.append(("question-open", f"{question['id']}: {question['question']} (who: {', '.join(question['who'])})"))
         if question.get("state") == "dropped" and not ((question.get("dropped") or {}).get("reason") or "").strip():
-            failures.append(f"drop-no-reason: {question['id']}: {question['question']}")
+            failures.append(("drop-no-reason", f"{question['id']}: {question['question']}"))
     stories, examples = doc.get("stories") or [], doc.get("examples") or []
     covered = {story_id for example in examples for story_id in example.get("stories") or []}
-    failures += [f"story-without-example: {story['id']}: {story['text']}" for story in stories
+    failures += [("story-without-example", f"{story['id']}: {story['text']}") for story in stories
                  if story["id"] not in covered]
     if stories or examples:
         kinds = {example.get("kind") for example in examples}
-        failures += [f"kind-missing: no worked example of kind {kind}" for kind in EXAMPLE_KINDS if kind not in kinds]
-    return failures
+        failures += [("kind-missing", f"no worked example of kind {kind}") for kind in EXAMPLE_KINDS if kind not in kinds]
+    return [f"{code}: {text}" for code, text in failures]
 
 
 def _log_failures(blocks):
