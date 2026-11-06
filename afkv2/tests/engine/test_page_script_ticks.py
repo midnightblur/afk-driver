@@ -125,7 +125,8 @@ global.localStorage = {
 };
 global.window = { name: input.name, innerWidth: 800, scrollY: 0, scrollTo: function () {} };
 if (input.lavish) window.lavish = { queuePrompt: function (prompt, options) {
-  queued.push({ prompt: prompt, tag: options.tag, queueKey: options.queueKey, element: options.element && options.element.id });
+  queued.push({ prompt: prompt, tag: options.tag, queueKey: options.queueKey, element: options.element && options.element.id,
+    data: options.data });
 } };
 // Node has its own read-only navigator.
 Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: function (text) { copied.push(text); return { then: function (ok) { ok(); } }; } } } });
@@ -133,6 +134,19 @@ function fire(el, type) {
   const event = { target: el, type: type, preventDefault: function () {} };
   for (let at = el; at && at.attrs; at = at.parentElement) (at.listeners[type] || []).forEach(function (fn) { fn(event); });
   (docListeners[type] || []).forEach(function (fn) { fn(event); });
+}
+// A control value the page holds before the script runs, as a browser keeps a form value.
+if (input.preset && 'filter' in input.preset) root.querySelector('#afkv2-who-filter').value = input.preset.filter;
+// The controls under [data-lavish-question], as lavish-axi keeps them for its tab store (lavishQuestionControls).
+function lavishFields() {
+  const out = [];
+  root.querySelectorAll('[data-lavish-question]').forEach(function (scope) {
+    scope.querySelectorAll('input').forEach(function (el, index) {
+      out.push({ question: scope.getAttribute('data-lavish-question'), index: index, type: el.type || 'text',
+        value: String(el.value), checked: el.type === 'checkbox' || el.type === 'radio' ? !!el.checked : null });
+    });
+  });
+  return out;
 }
 eval(input.script);
 input.actions.forEach(function (a) {
@@ -151,6 +165,15 @@ input.actions.forEach(function (a) {
     fire(select, 'change');
   } else if (a.do === 'copy') {
     fire(root.querySelector('#afkv2-copy-go'), 'click');
+  } else if (a.do === 'restore') {
+    // lavish-axi restoreReviewState: each kept field by question and index, with no change event.
+    a.fields.forEach(function (field) {
+      const scope = root.querySelectorAll('[data-lavish-question]').filter(function (el) {
+        return el.getAttribute('data-lavish-question') === field.question; })[0];
+      const el = scope && scope.querySelectorAll('input')[field.index];
+      if (!el) return;
+      if (field.checked === null) el.value = field.value; else el.checked = field.checked;
+    });
   }
 });
 const questions = root.querySelectorAll('article[data-afkv2-question]');
@@ -162,6 +185,7 @@ root.querySelectorAll('[data-afkv2-input="tick"]').forEach(function (group) {
 });
 console.log(JSON.stringify({
   queued: queued, copied: copied, ticked: ticked, hostKeys: hostKeys, name: window.name, storage: store,
+  fields: lavishFields(), status: (root.querySelector('.afkv2-copy-status') || { textContent: null }).textContent,
   shown: questions.filter(function (q) { return !q.hidden; }).map(function (q) { return q.id; })
 }));
 """
@@ -204,11 +228,13 @@ def tree(doc):
     return parser.root
 
 
-def run(actions, lavish=True, held=None, doc=None):
+def run(actions, lavish=True, held=None, doc=None, preset=None):
     """Run runtime.js on the rendered page, apply `actions`, and answer what it queued, copied and shows.
-    `held` is the `name` and `storage` of an earlier run: a reload of the same tab."""
+    `held` is the `name` and `storage` of an earlier run: a reload of the same tab. `preset` holds the control
+    values the page has before the script runs."""
     held = held or {"name": "", "storage": {}}
-    payload = {"tree": tree(doc or document()), "script": RUNTIME, "actions": actions, "lavish": lavish, **held}
+    payload = {"tree": tree(doc or document()), "script": RUNTIME, "actions": actions, "lavish": lavish,
+               "preset": preset or {}, **held}
     result = subprocess.run(["node", "-e", DRIVER], input=json.dumps(payload), capture_output=True, text=True,
                             encoding="utf-8", check=True)
     return json.loads(result.stdout)
@@ -296,6 +322,13 @@ def test_a_reload_of_the_tab_shows_the_ticks_again_and_keeps_their_order():
     assert answers(later["queued"])[-1]["prompt"] == "q-cols tick opt-sum opt-name opt-date"
 
 
+def test_a_reload_where_only_lavish_sets_the_ticks_again_keeps_their_order():
+    """The host frame keeps no storage over a reload: lavish sets the controls again, with no change event."""
+    first = run([tick("q-cols", "opt-sum"), tick("q-cols", "opt-name")])
+    later = run([{"do": "restore", "fields": first["fields"]}, tick("q-cols", "opt-date")])
+    assert answers(later["queued"])[-1]["prompt"] == "q-cols tick opt-sum opt-name opt-date"
+
+
 def test_each_tick_group_is_a_lavish_question_so_the_host_sets_its_ticks_again_after_a_reload():
     """lavish-axi 0.1.80 keeps and sets again only the controls under `[data-lavish-question]`
     (`lavishQuestionControls`); a reload of the host tab gives the page frame no storage of its own."""
@@ -306,6 +339,19 @@ def test_each_tick_group_is_a_lavish_question_so_the_host_sets_its_ticks_again_a
 def test_a_reload_without_local_storage_keeps_the_ticks_in_the_tab_name():
     first = run([tick("q-cols", "opt-sum")])
     assert run([], held={"name": first["name"], "storage": {}})["ticked"]["q-cols"] == ["opt-sum"]
+
+
+def test_a_queued_answer_carries_its_data_and_the_status_line_says_what_happened():
+    out = run([{"do": "mark", "card": "i-closed", "token": "accept"}, tick("q-cols", "opt-sum")])
+    assert [a["data"] for a in out["queued"]] == [{"item": "i-closed", "mark": "accept"},
+                                                   {"question": "q-cols", "ticks": ["opt-sum"]}]
+    assert out["status"] == "Queued your ticks on this question. Send them with the rest in the lavish panel."
+    out = run([tick("q-cols", "opt-sum"), tick("q-cols", "opt-sum", on=False)])
+    assert out["queued"][-1]["data"] == {"question": "q-cols", "ticks": []}
+    assert out["status"] == "No tick on this question: it sends nothing."
+    assert run([tick("q-cols", "opt-sum")], lavish=False)["status"] == "No lavish session: use Copy the response."
+    assert run([{"do": "mark", "card": "i-closed", "token": "accept"}], lavish=False)["status"] == (
+        "No lavish session: use Copy the response.")
 
 
 def test_copy_the_response_holds_the_tick_line_beside_the_marks():
@@ -331,6 +377,10 @@ def test_a_role_shows_that_role_s_questions_and_the_questions_for_everyone_in_th
     assert run([{"do": "filter", "value": "tester"}])["shown"] == ["q-size", "q-drop"]
     assert run([{"do": "filter", "value": "product owner"}])["shown"] == ["q-format", "q-size", "q-cols"]
     assert run([{"do": "filter", "value": "developer lead"}])["shown"] == ["q-size", "q-assume"]
+
+
+def test_a_role_set_before_the_script_runs_filters_at_once():
+    assert run([], preset={"filter": "tester"})["shown"] == ["q-size", "q-drop"]
 
 
 def test_every_role_again_shows_every_question():
