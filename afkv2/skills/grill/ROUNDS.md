@@ -19,11 +19,24 @@ A simple ticket folds several groups into one round. An item waits for a later r
 - **Restrictions.** On every "only", "never" or "must not", ask: what legitimate scenario does this block, and how does the user recover?
 - **Validity walks.** When a rule changes what is valid, walk the records made before the change. Every record the rule can reject needs a named repair path that its role can reach.
 - **Access and validation policy.** For every actor and story: the permitted roles and at least one denied role; which data this actor sees only a slice of, or "unscoped"; the rules on inputs and on workflow moves. Write one `Policy` row each.
-- **Worked examples.** One frequent, one edge and one risky use case, from starting data to result, with sample data when the feature makes data. Write one `Examples` row.
+- **Worked examples.** One frequent, one edge and one risky use case, from starting data to result, with sample data when the feature makes data, and at least 1 for every story. Write each as an entry of `examples`, and one `Examples` row.
 - **Terms.** Scan every statement for words 2 people could read differently. Draft your own definition, and put it on a `confirm` card. An item that rests on an unverified term waits.
 - **Staples.** With a `STAPLES.md`: each active staple whose trigger matches gets an in or out call with a reason, on a `confirm` card. With none: write `Staples: none`.
 - **Spinoffs.** Real work outside this ticket gets a `Spinoff` row, not a requirement.
 - **Decisions.** A requirement that is hard to reverse, surprising without context and a real trade-off: state it on its card. The next skill records it.
+
+## The session's content
+
+The page document holds the whole topic, with or without a page shown. Each round sends only the entries that changed, by "Sections and change lines" of `/afkv2:use-lavish`.
+
+| List | Holds |
+|------|-------|
+| `sections` | 1 entry per part of the topic: its current text, and the sections it depends on in `links` |
+| `stories` | 1 entry per user story, in 1 sentence |
+| `examples` | each worked example: its `kind` (frequent, edge or risky), the `stories` it covers, and its starting data and result in `body` |
+| `questions` | the questions for others, in the order to ask them |
+
+A card names the section it asks about in `section`.
 
 ## Claim ledger
 
@@ -78,6 +91,19 @@ The 6 fields of `decided` in the round input:
 | `pattern` | a house rule cited by path | agreed that it applies |
 
 A recommendation with no citation is a judgment. It goes on a `confirm` or `debate` card, labelled as a judgment.
+
+## Read each note
+
+Read each note for every meaning it holds. One note can hold several: an answer to its card, a thought about another part, a new idea, a point the developer cannot answer, guidance for the whole session. Act on each meaning in the next round:
+
+| Meaning | Next round |
+|---------|-----------|
+| an answer to its card | the reading of the round pass |
+| a thought about another part, or a new idea | a change to that part's section, or a new section, with a change line of cause `note` |
+| the developer cannot answer, or names who would | a question for others ("Questions for others") |
+| guidance for the whole session | a steer ("Steers and the escape") |
+
+A thought on a section that no question reached yet is the developer's lean: the section records it as a lean, not as settled, and the card of that part starts from it. The reply to the note states each reading (answer rule AR-05 of `/afkv2:use-lavish`).
 
 ## A note that contradicts its mark
 
