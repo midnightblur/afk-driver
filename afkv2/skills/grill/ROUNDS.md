@@ -148,11 +148,11 @@ The human writes `take over` on its own line: write an `Escape` row, `taken R<n>
 
 ## Without a page
 
-When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` still writes each round into the page document, `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
+When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` and `present` still run each round: `build` writes the round into the page document, and `present` checks and renders it and scans the page and the log for secrets before it shows. When the developer asked for chat, the page still opens: say so in 1 line. `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
 
 - Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
 - Ask each open question for others in the same message, with its parts and its choices numbered, by "As text".
-- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. A choice of a question for others is a line `<question id> tick <option id>`, with each picked option id; any other answer is a note on the question. Then go to step 7 of [SKILL.md](SKILL.md).
+- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root). The first line is `[round R-<n>]`. Each number becomes its card id. A mark is a line `<card id> <mark>`, with a mark word of the card's kind from `MARKS` in `engine/ingest.py`; an option of a `debate` card is its letter. Each note is its own entry. A choice of a question for others is a line `<question id> tick <option id>`, with each picked option id; any other answer is a note on the question. Then go to step 7 of [SKILL.md](SKILL.md).
 
 ## Coming back
 

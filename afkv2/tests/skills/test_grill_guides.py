@@ -6,6 +6,7 @@ of the rules is proved by a dogfood run; these tests pin where each rule lives, 
 that the grill holds no page-layout rule.
 """
 
+import ast
 import json
 import re
 import sys
@@ -300,6 +301,30 @@ def test_the_choices_row_states_the_shape_the_schema_takes():
     options = shape["properties"]["options"]
     for fact in ("`options`", "`id`", "`text`", "`several`", f"{options['minItems']} to {options['maxItems']}"):
         assert fact in row, fact
+
+
+def test_without_a_page_present_still_checks_and_scans_the_round():
+    """Review finding f24: `present` is the only caller of check, render and the secrets scan."""
+    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    for fact in ("`build` and `present` still run each round", "scans the page and the log for secrets",
+                 "the page still opens: say so in 1 line"):
+        assert fact in chat, fact
+    present = (SKILLS / "use-lavish" / "scripts" / "page_round.py").read_text("utf-8")
+    assert '_engine("check", doc)' in present and '"--scan"' in present
+
+
+def test_without_a_page_the_reply_file_names_its_round_and_the_mark_words():
+    """Review finding f25: format 1 opens with `[round R-n]`; a mark is `<element id> <mark>`."""
+    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    for fact in ("The first line is `[round R-<n>]`", "A mark is a line `<card id> <mark>`",
+                 "`MARKS` in `engine/ingest.py`", "an option of a `debate` card is its letter"):
+        assert fact in chat, fact
+    tree = ast.parse((PLUGIN / "engine" / "ingest.py").read_text("utf-8"))
+    marks = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                 and any(getattr(target, "id", None) == "MARKS" for target in node.targets))
+    assert {key.value for key in marks.keys} == set(SCHEMA["item"]["properties"]["kind"]["enum"])
+    grammar = (PLUGIN / "engine" / "prompt_lines.py").read_text("utf-8")
+    assert "first line `[round R-n]`. A mark is `<element id> <mark>`" in _flat(grammar)
 
 
 def test_without_a_page_the_open_questions_for_others_are_asked_and_answered_in_chat():
