@@ -644,3 +644,16 @@ def test_the_upgrade_round_rebuilt_by_replace_with_upgrade_stays_the_upgrade_rou
     assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
     assert doc["sections"][0]["body"]["props"]["text"] == "Corrected."
     assert check(path)[0] == 0
+
+
+def test_replace_with_upgrade_of_a_round_after_the_upgrade_round_is_refused_and_writes_nothing(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c"))
+    ingest(path, "[round R-3]\ni-c accept")
+    rd.build_round_document(path, SESSION, round_input("i-d"))
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-d"), replace=True)
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert read(path)["session"]["upgraded"] == 3
+    assert path.read_bytes() == before
