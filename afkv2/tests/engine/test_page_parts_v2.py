@@ -1,0 +1,237 @@
+"""The page parts of a version 2 page (SDD §8 row "engine: page parts", ADR-0003 design): the sections, the
+questions for others, the worked examples, and the one label helper that gives every element its visible text."""
+
+import copy
+import json
+import re
+import sys
+from html.parser import HTMLParser
+from pathlib import Path
+
+PLUGIN = Path(__file__).resolve().parents[2]
+ENGINE_DIR = PLUGIN / "engine"
+for folder in (PLUGIN / "scripts", ENGINE_DIR):
+    sys.path.insert(0, str(folder))
+
+import engine  # noqa: E402
+from shell import parts_v2  # noqa: E402
+
+ROUND_CODE = re.compile(r"(?<![\w-])R-?\d+(?![\w-])")
+
+
+def text(value, **extra):
+    return {"type": "text", "props": {"text": value}, **extra}
+
+
+def line(n, cause="finding", words="Wrote this part.", **extra):
+    return {"round": n, "cause": cause, "text": words, **extra}
+
+
+def card(card_id, section=None, settled_in=None, **extra):
+    found = {"id": card_id, "kind": "confirm", "title": f"Is the {card_id[2:]} part right?",
+             "body": text("Confirm the part."), **extra}
+    if section:
+        found["section"] = section
+    if settled_in:
+        found.update(state="settled_by_mark", settled={"by": "mark", "round": settled_in, "signal": "accept"})
+    return found
+
+
+def round_of(n, *items, state="settled"):
+    return {"n": n, "state": state, "banner": {"settled": [], "unlocks": [], "parked": []}, "items": list(items)}
+
+
+def note(note_id, n, owner):
+    return {"id": note_id, "round": n, "target": owner, "item": owner, "text": "I cannot answer this.",
+            "deleted": False}
+
+
+def question(question_id, who, words, state="open", **extra):
+    return {"id": question_id, "who": who, "question": words, "context": "The export writes **one** file.",
+            "why": "It sets what the team builds first.", "origin": {"card": "i-scope"}, "state": state,
+            "changes": [line(2, "finding", "Asked this question.")], **extra}
+
+
+def document():
+    """A valid version 2 page of 3 rounds: every section state, every question state, every example kind."""
+    sections = [
+        {"id": "sec-scope", "title": "What the export covers", "state": "current", "links": ["sec-format", "sec-old"],
+         "body": text("The export writes the open rows to one file."),
+         "changes": [line(1, "finding", "Wrote the first text."),
+                     line(2, "note", "Added the closed rows.", notes=["N-2-sec-scope-1"]),
+                     line(3, "answer_from", "Kept the file to 1 sheet.", question="q-format")]},
+        {"id": "sec-format", "title": "File format", "state": "current", "body": text("A CSV file."),
+         "changes": [line(1), line(3, "answer", "Chose CSV.", card="i-format")]},
+        {"id": "sec-old", "title": "Old format notes", "state": "merged", "merged_into": "sec-format",
+         "body": text("Notes."), "changes": [line(1), line(2, "finding", "Merged into the format part.")]},
+        {"id": "sec-gone", "title": "Printing", "state": "removed", "reason": "The team dropped printing.",
+         "body": text("Print the rows."), "changes": [line(1), line(2, "note", "Removed.", notes=["N-2-sec-gone-1"])]},
+        {"id": "sec-later", "title": "Delivery by mail", "state": "not_reached", "body": text("Not reached yet."),
+         "changes": []},
+    ]
+    stories = [{"id": "st-plain", "text": "As a clerk, I export the open rows.", "changes": [line(1)]},
+               {"id": "st-big", "text": "As a clerk, I export a large list.", "changes": [line(1)]}]
+    examples = [
+        {"id": "ex-plain", "title": "Three open rows", "kind": "frequent", "stories": ["st-plain"],
+         "body": text("From 3 open rows to 1 file of 3 lines."), "changes": [line(2)]},
+        {"id": "ex-big", "title": "A list of 1 million rows", "kind": "edge", "stories": ["st-big", "st-plain"],
+         "body": text("From 1 million rows to 1 file."), "changes": [line(2)]},
+        {"id": "ex-bad", "title": "A row with a comma", "kind": "risky", "stories": ["st-plain"],
+         "body": text("A comma in a name stays in its cell."), "changes": [line(2), line(3, "finding", "Quoted cells.")]},
+    ]
+    questions = [
+        question("q-format", ["Product owner"], "Which file format do the clerks need?", state="answered",
+                 answer={"text": "CSV.", "choices": [], "role": "product owner", "date": "2026-11-05",
+                         "signal": "N-3-q-format-1", "round": 3}),
+        question("q-size", ["tester", "everyone"], "How many rows does a large list hold?",
+                 ways=["Ask the support team", "Read the usage report"], links=["sec-scope"], waits_on="q-format",
+                 example=text("A list of 1 million rows."),
+                 choices={"options": [{"id": "opt-k", "text": "A thousand"}, {"id": "opt-m", "text": "A million"}],
+                          "several": False}),
+        question("q-cols", ["product owner"], "Which columns go in the file?", links=["sec-format", "sec-scope"],
+                 choices={"options": [{"id": "opt-name", "text": "Name"}, {"id": "opt-date", "text": "Date"},
+                                      {"id": "opt-sum", "text": "Sum"}], "several": True}),
+        question("q-drop", ["tester"], "Does the export need a print view?", state="dropped",
+                 dropped={"reason": "Printing is out of scope.", "note": "N-3-q-drop-1", "round": 3}),
+        question("q-assume", ["Developer lead"], "May the file be zipped?", state="assumed",
+                 assumption={"text": "The file is never zipped.", "card": "i-assume", "round": 2}),
+    ]
+    notes = [note("N-2-sec-scope-1", 2, "sec-scope"), note("N-2-sec-gone-1", 2, "sec-gone"),
+             note("N-3-q-format-1", 3, "q-format"), note("N-3-q-drop-1", 3, "q-drop")]
+    rounds = [round_of(1, card("i-scope", "sec-scope", 1)),
+              round_of(2, card("i-assume", None, 2), card("i-rows", "sec-scope")),
+              round_of(3, card("i-format", "sec-format", 3), card("i-closed", "sec-scope"), state="current")]
+    return {"schema": "afkv2.page/2",
+            "session": {"id": "s1", "skill": "grill", "feature": "export", "ticket": "PROJ-1",
+                        "started": "2026-01-05T09:00:00Z", "step": "Requirements grill"},
+            "maps": [], "notes": notes, "sections": sections, "stories": stories, "examples": examples,
+            "questions": questions, "rounds": rounds}
+
+
+class _Visible(HTMLParser):
+    """The text a person sees: text outside scripts and styles. Attributes and hover text are not read."""
+
+    def __init__(self):
+        super().__init__()
+        self.words, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        self.hidden += tag in ("script", "style")
+
+    def handle_endtag(self, tag):
+        self.hidden -= tag in ("script", "style")
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.words.append(data)
+
+
+def visible(html):
+    reader = _Visible()
+    reader.feed(html)
+    return " ".join(" ".join(reader.words).split())
+
+
+def part_of(html, element_id):
+    """The article of one element."""
+    start = html.index(f'<article id="{element_id}"')
+    return html[start:html.index("</article>", start)]
+
+
+def element_ids(doc):
+    found = {entry["id"] for kind in ("sections", "stories", "examples", "questions") for entry in doc[kind]}
+    found |= {option["id"] for q in doc["questions"] for option in (q.get("choices") or {}).get("options", [])}
+    found |= {item["id"] for r in doc["rounds"] for item in r["items"]}
+    return found | {n["id"] for n in doc["notes"]}
+
+
+def test_the_fixture_passes_the_document_check(tmp_path, capsys):
+    path = tmp_path / "doc.json"
+    path.write_text(json.dumps(document()), "utf-8")
+    assert engine.main(["check", str(path)]) == 0, capsys.readouterr().out
+
+
+# --- the label helper
+
+
+def test_the_label_of_a_round_reads_round_and_its_number():
+    assert parts_v2.visible_label(document(), "round", 3) == "round 3"
+
+
+def test_the_label_of_an_element_is_its_title_or_words_never_its_id():
+    doc = document()
+    assert parts_v2.visible_label(doc, "element", "sec-format") == "File format"
+    assert parts_v2.visible_label(doc, "element", "ex-big") == "A list of 1 million rows"
+    assert parts_v2.visible_label(doc, "element", "q-size") == "How many rows does a large list hold?"
+    assert parts_v2.visible_label(doc, "element", "st-big") == "As a clerk, I export a large list."
+    assert parts_v2.visible_label(doc, "element", "i-format") == "Is the format part right?"
+    assert parts_v2.visible_label(doc, "element", "opt-m") == "A million"
+
+
+def test_an_element_with_no_title_or_no_entry_gets_words_not_its_id():
+    doc = document()
+    del doc["rounds"][2]["items"][0]["title"]
+    for element in ("i-format", "x-unknown"):
+        label = parts_v2.visible_label(doc, "element", element)
+        assert label and element not in label
+
+
+def test_the_label_of_a_cause_state_and_kind_is_a_word():
+    doc = document()
+    assert parts_v2.visible_label(doc, "cause", "note") == "a note"
+    assert parts_v2.visible_label(doc, "cause", "finding") == "a finding of the agent"
+    assert parts_v2.visible_label(doc, "state", "not_reached") == "not reached yet"
+    assert parts_v2.visible_label(doc, "kind", "edge") == "edge"
+
+
+# --- sections
+
+
+def test_a_section_shows_its_current_text_and_a_link_per_section_it_depends_on():
+    scope = part_of(parts_v2.render_sections(document()), "sec-scope")
+    assert "The export writes the open rows to one file." in visible(scope)
+    assert scope.count('href="#sec-format"') == 1 and 'href="#sec-old"' not in scope
+    assert re.search(r'<a [^>]*href="#sec-format"[^>]*>File format</a>', scope)
+
+
+def test_a_section_change_list_shows_open_newest_first_one_line_per_round_naming_the_cause():
+    html = parts_v2.render_sections(document())
+    scope, format_ = part_of(html, "sec-scope"), part_of(html, "sec-format")
+    assert "<details" not in html
+    words = visible(scope)
+    assert words.index("round 3") < words.index("round 2") < words.index("round 1")
+    assert "an answer from product owner" in words and "a note" in words and "a finding of the agent" in words
+    assert re.search(r'<a [^>]*href="#q-format"', scope)
+    assert "your answer" in visible(format_)
+    assert re.search(r'<a [^>]*href="#i-format"[^>]*>Is the format part right\?</a>', format_)
+
+
+def test_a_section_with_open_questions_shows_a_chip_with_their_count():
+    html = parts_v2.render_sections(document())
+    assert "2 open questions" in visible(part_of(html, "sec-scope"))
+    assert "open question" not in visible(part_of(html, "sec-format"))
+    doc = document()
+    doc["rounds"][2]["items"][1]["state"] = "settled_by_mark"
+    doc["rounds"][2]["items"][1]["settled"] = {"by": "mark", "round": 3, "signal": "accept"}
+    assert "1 open question" in visible(part_of(parts_v2.render_sections(doc), "sec-scope"))
+
+
+def test_a_merged_or_removed_section_shows_1_line_with_a_link_or_its_reason():
+    html = parts_v2.render_sections(document())
+    merged, removed = part_of(html, "sec-old"), part_of(html, "sec-gone")
+    assert "Old format notes" in visible(merged) and 'href="#sec-format"' in merged
+    assert "The team dropped printing." in visible(removed)
+    for gone in (merged, removed):
+        assert "<ol" not in gone and gone.count("<p") == 1
+    assert "Notes." not in visible(merged) and "Print the rows." not in visible(removed)
+
+
+def test_a_section_not_reached_says_so():
+    later = part_of(parts_v2.render_sections(document()), "sec-later")
+    assert "not reached yet" in visible(later).lower()
+
+
+def test_no_section_gives_no_block():
+    doc = document()
+    doc["sections"] = []
+    assert parts_v2.render_sections(doc) == ""
