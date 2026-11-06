@@ -6,7 +6,7 @@ Deterministic quality gates shipped with the afk-toolkit plugin. All gates run a
 
 - **Stop** — no plugin gate. One hooks.json entry, `run-hook.py repo-list Stop`, runs the Stop handlers the repository declares in `.afk/hooks.json`.
 - **Commit** — `precommit-gates.sh`, from the `pre-commit` git hook that `install-git-hooks.sh` installs, for **agent-driven commits only**: the comment gate, the plugin-source gates (the plugin's own repository only), the code gates, then the repository's `PreCommit` handlers. WHICH code gates run is the repository's `build-gates:` list: each selected build-gate adapter reports the gates its change set needs (`ADAPTERS.md`).
-- **Pull request** — `.github/workflows/tests.yml` runs the target branch tip's `plugin-source-gates.sh` and then the branch's own, both with `--range` on the change's merge-base path set; a push to `main` runs only its own.
+- **Pull request** — `.github/workflows/tests.yml` runs the target branch tip's `plugin-source-gates.sh` and then the branch's own, both with `--range` on the change's merge-base path set; a push to `main` runs only its own. The afkv2 line (`feat/afkv2` and the branches that merge into it) carries no v1 change, so its `tests.yml` runs neither these gates nor the v1 tests.
 - **PreToolUse / on demand** — `protected-branch-guard.py` (with its lavish rule), the adopted guards, `wiring-gate.sh` (`/afk:execute` Step 11, advisory; `/afk:verify-seams final`, blocking), `adapters/build-gate/maven/app-start-gate.sh`, `adapters/build-gate/maven/mutation-probe.sh`.
 
 **A Stop block is a decision, not an exit code.** `run-hook.py` gathers every
