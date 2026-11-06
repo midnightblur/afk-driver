@@ -291,3 +291,34 @@ def test_the_run_suffix_is_the_one_of_the_plan_check():
     sys.path.insert(0, str(PLUGIN / "skills" / "to-subtasks" / "scripts"))
     import check_plan
     assert grill_log.RUN_SUFFIX == check_plan.RUN_SUFFIX
+
+
+def passed_after_came_back(monkeypatch=None, run=None):
+    taken = came_back()
+    build(taken, card("i-b"))
+    answer(taken, "[round R-2]\ni-b accept")
+    if run is not None:
+        monkeypatch.setattr(grill_log.subprocess, "run", run)
+    return grill_log.gate(taken["doc"], taken["log"])
+
+
+def test_stale_names_the_plan_as_not_checked_when_git_does_not_answer(repo, monkeypatch):
+    def no_git(*args, **kwargs):
+        raise FileNotFoundError("git")
+    stale = passed_after_came_back(monkeypatch, no_git)["stale"]
+    assert stale[-1].startswith("<feature branch>-run:plan/PLAN.md (not checked: ") and len(stale) == 5
+
+
+def test_the_git_calls_of_the_plan_check_share_one_time_limit(repo, monkeypatch):
+    clock, limits = [0.0], []
+    monkeypatch.setattr(grill_log.time, "monotonic", lambda: clock[0])
+
+    def slow_git(command, **kwargs):
+        limits.append(kwargs["timeout"])
+        clock[0] += grill_log.GIT_LIMIT_S * 0.6
+        if command[3] == "rev-parse":
+            return subprocess.CompletedProcess(command, 0, b"feat-x\n", b"")
+        return subprocess.CompletedProcess(command, 1, b"", b"")
+    stale = passed_after_came_back(monkeypatch, slow_git)["stale"]
+    assert limits == [grill_log.GIT_LIMIT_S, pytest.approx(grill_log.GIT_LIMIT_S * 0.4)]
+    assert stale[-1].startswith("feat-x-run:plan/PLAN.md (not checked: ")

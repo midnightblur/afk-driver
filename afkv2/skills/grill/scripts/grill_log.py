@@ -16,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -298,27 +299,45 @@ def _changed(doc, took_over):
     return changed
 
 
+class _NoAnswer(Exception):
+    """Git did not answer: no git program, or the shared time limit ran out."""
+
+
 def _run_plan(spec_dir):
-    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None."""
+    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None. When git does not
+    answer within GIT_LIMIT_S for all its calls, that spec with ` (not checked: <reason>)`: the plan can be stale."""
+    deadline = time.monotonic() + GIT_LIMIT_S
+
     def git(*args):
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s")
         try:
             done = subprocess.run(["git", "-C", str(spec_dir), *args], capture_output=True, stdin=subprocess.DEVNULL,
-                                  timeout=GIT_LIMIT_S)
-        except (OSError, subprocess.TimeoutExpired):
-            return None
+                                  timeout=left)
+        except subprocess.TimeoutExpired as error:
+            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s") from error
+        except OSError as error:
+            raise _NoAnswer(f"git did not run: {error}") from error
         return done.stdout.decode("utf-8", "replace").strip() if done.returncode == 0 else None
-    branch = git("rev-parse", "--abbrev-ref", "HEAD")
-    if not branch or branch == "HEAD":
-        return None
-    run = branch + RUN_SUFFIX
-    for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
-        if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
-            return f"{run}:plan/PLAN.md"
+    run = f"<feature branch>{RUN_SUFFIX}"
+    try:
+        branch = git("rev-parse", "--abbrev-ref", "HEAD")
+        if not branch or branch == "HEAD":
+            return None
+        run = branch + RUN_SUFFIX
+        for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
+            if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
+                return f"{run}:plan/PLAN.md"
+    except _NoAnswer as error:
+        return f"{run}:plan/PLAN.md (not checked: {error})"
     return None
 
 
 def _later_documents(spec_dir):
-    """Each document of the ticket that a later skill wrote and that exists (decision D-25)."""
+    """Each document of the ticket that a later skill wrote and that exists (decision D-25). An entry is a file path,
+    or the git spec `<run branch>:plan/PLAN.md` (read it with `git show`), with ` (not checked: <reason>)` when git
+    did not answer."""
     spec_dir = Path(spec_dir)
     found = []
     for name, folder in (("PRD.md", "adr/requirements"), ("SDD.md", "adr/design")):
