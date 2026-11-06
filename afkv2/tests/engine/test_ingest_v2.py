@@ -218,6 +218,15 @@ def test_an_edit_of_a_note_on_an_entry_keeps_its_owner(path):
     assert checks(path) == 0
 
 
+def test_a_delete_of_a_note_on_a_question_keeps_its_owner_and_lands_in_questions_to_read(path):
+    _, after = ingested(path, v2_document(), "[round R-2]\nq-free note 1\n  First words.")
+    answer, after = ingested(path, after, "[round R-2]\nN-2-q-free-1 delete")
+    assert note_of(after, "N-2-q-free-1")["deleted"] is True
+    [signal] = answer["questions_to_read"]
+    assert signal["item"] == "q-free" and signal["action"] == "delete" and signal["note"] == "N-2-q-free-1"
+    assert checks(path) == 0
+
+
 def test_a_note_on_the_banner_stays_a_steer(path):
     answer, after = ingested(path, v2_document(), "[round R-2]\nR-2 note 1\n  Go faster.")
     assert answer["steers"] == ["R-2"] and note_of(after, "N-2-R-2-1")["item"] is None
@@ -239,9 +248,16 @@ def test_a_note_on_a_settled_card_keeps_it_settled_and_lists_the_note(path):
 def test_two_notes_and_an_edit_on_a_settled_card_all_wait(path):
     answer, after = ingested(path, v2_document(), "[round R-2]\ni-old note 1\n  One.\ni-old note 2\n  Two.")
     assert answer["settled_notes_to_read"] == ["N-2-i-old-1", "N-2-i-old-2"]
+    assert answer["conflicts"] == [] and not any(signal["conflict"] for signal in answer["signals"])
     answer, after = ingested(path, after, "[round R-2]\nN-2-i-old-1 edit\n  One, fixed.")
     assert item_of(after, "i-old")["state"] == "settled_by_mark"
     assert answer["settled_notes_to_read"] == ["N-2-i-old-1"]
+
+
+def test_a_note_on_an_open_card_needs_reading_and_does_not_wait(path):
+    answer, after = ingested(path, v2_document(), "[round R-2]\ni-new note 1\n  Why this?")
+    assert item_of(after, "i-new")["state"] == "needs_reading"
+    assert answer["needs_reading"] == ["i-new"] and answer["settled_notes_to_read"] == []
 
 
 def test_a_reopen_mark_on_a_settled_card_still_opens_it(path):
@@ -284,6 +300,12 @@ def test_a_queued_tick_becomes_1_send_line_and_the_last_one_per_question_wins():
 def test_a_queued_tick_with_no_option_sends_nothing():
     doc = v2_document()
     raw = prompt_lines.raw_from_prompts(doc, [tick("q-many tick")], ids_of(doc))
+    assert raw == "[round R-2]"
+
+
+def test_a_later_tick_with_no_option_unticks_the_question():
+    doc = v2_document()
+    raw = prompt_lines.raw_from_prompts(doc, [tick("q-many tick csv", "t1"), tick("q-many tick", "t2")], ids_of(doc))
     assert raw == "[round R-2]"
 
 
