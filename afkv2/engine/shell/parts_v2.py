@@ -115,23 +115,24 @@ def _tip(doc: dict, element: str) -> str:
     return tip.format(visible_label(doc, "round", n)) if n else tip
 
 
-def _link(doc: dict, element: str) -> str:
+def link(doc: dict, element: str) -> str:
+    """A link to an element: its label as the text, its meaning as the hover text, its id only as the target."""
     return (f'<a class="afkv2-v2-link" href="#{escape(element)}" data-afkv2-tip="{escape(_tip(doc, element))}">'
             f'{escape(visible_label(doc, "element", element))}</a>')
 
 
 def _links(doc: dict, elements: list) -> str:
-    return ", ".join(_link(doc, element) for element in elements)
+    return ", ".join(link(doc, element) for element in elements)
 
 
 def _change_cause(doc: dict, line: dict) -> str:
     words = escape(visible_label(doc, "cause", line["cause"]))
     if line["cause"] == "answer" and line.get("card"):
-        return f"{words} to {_link(doc, line['card'])}"
+        return f"{words} to {link(doc, line['card'])}"
     if line["cause"] == "answer_from" and line.get("question"):
         question = _elements(doc).get(line["question"], (None, {}, None))[1]
         role = (question.get("answer") or {}).get("role") or "someone else"
-        return f"{words} {escape(role)} to {_link(doc, line['question'])}"
+        return f"{words} {escape(role)} to {link(doc, line['question'])}"
     return words
 
 
@@ -155,12 +156,12 @@ def _open_counts(doc: dict, sections: dict) -> dict:
     for point in lineages(doc):
         head = point.head
         if head.get("section") and head["kind"] in ASKING and head.get("state", "open") not in SETTLED:
-            target = _current_target(sections, head["section"])
+            target = current_target(sections, head["section"])
             counts[target] = counts.get(target, 0) + 1
     return counts
 
 
-def _current_target(sections: dict, element: str) -> str:
+def current_target(sections: dict, element: str) -> str:
     """A link to a merged section goes on to the section it merged into (SDD §4 relation section → section)."""
     for _ in range(MERGE_LIMIT):
         section = sections.get(element)
@@ -186,13 +187,13 @@ def _article(entry: dict, css: str, inner: str, raw: str = "", **attrs) -> str:
 def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
     title, state = escape(section["title"]), section["state"]
     if state == "merged":
-        into = _link(doc, _current_target(sections, section["merged_into"]))
+        into = link(doc, current_target(sections, section["merged_into"]))
         line = f"{title}: {escape(visible_label(doc, 'state', state))} into {into}."
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     if state == "removed":
         line = f"{title}: {escape(visible_label(doc, 'state', state))}. {escape(section.get('reason') or '')}"
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
-    targets = [_current_target(sections, other) for other in section.get("links") or []]
+    targets = [current_target(sections, other) for other in section.get("links") or []]
     targets = [other for other in dict.fromkeys(targets) if other != section["id"]]
     links = LINKS.format("Depends on", _links(doc, targets)) if targets else ""
     reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
@@ -275,11 +276,11 @@ def _question(doc: dict, question: dict, sections: dict) -> str:
                            "<ul>" + "".join(f"<li>{escape(way)}</li>" for way in question["ways"]) + "</ul>"))
     if question.get("example"):
         parts.append(_part("Example", render_component(question["example"])))
-    targets = list(dict.fromkeys(_current_target(sections, section) for section in question.get("links") or []))
+    targets = list(dict.fromkeys(current_target(sections, section) for section in question.get("links") or []))
     if targets:
         parts.append(LINKS.format("Linked sections", _links(doc, targets)))
     if question.get("waits_on"):
-        parts.append(LINKS.format("Waits on", _link(doc, question["waits_on"])))
+        parts.append(LINKS.format("Waits on", link(doc, question["waits_on"])))
     parts += [_outcome(doc, question), _ticks(question), render_changes(doc, question["changes"])]
     return _article(question, "afkv2-v2-question", "".join(parts), raw=_who_attr(question),
                     question=question["id"], state=question["state"])
