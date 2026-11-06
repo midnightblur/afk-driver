@@ -102,7 +102,7 @@ def test_each_part_of_a_question_for_others_is_named():
     assert parts, "the schema names the parts of a question"
     for part in sorted(parts):
         assert f"| `{part}` |" in ROUNDS_MD.read_text("utf-8"), part
-    assert "`several: true`" in found and "`everyone`" in found
+    assert "`several` is `true`" in found and "`everyone`" in found
 
 
 def test_the_visible_text_of_a_question_names_no_internal_term():
@@ -193,3 +193,34 @@ def test_the_grill_holds_no_page_layout_rule():
         text = path.read_text("utf-8")
         assert not LAYOUT.search(text), (path.name, LAYOUT.search(text).group(0))
     assert re.search(r"^\| Kind \| Use it when \|$", ROUNDS_MD.read_text("utf-8"), re.M)
+
+
+# --- the shapes the builder refuses (review findings f12, f13, f14)
+
+def _part_row(part):
+    return next(line for line in ROUNDS_MD.read_text("utf-8").splitlines() if line.startswith(f"| `{part}` |"))
+
+
+def test_each_required_part_of_a_question_is_marked_required():
+    required = set(SCHEMA["question"]["required"]) - ENGINE_FIELDS
+    assert required >= {"who", "question", "context", "why"}
+    for part in sorted(set(SCHEMA["question"]["properties"]) - ENGINE_FIELDS):
+        assert ("always required" in _part_row(part)) == (part in required), part
+
+
+def test_the_choices_row_states_the_shape_the_schema_takes():
+    row = _part_row("choices")
+    shape = SCHEMA["choices"]
+    assert set(shape["required"]) == {"options", "several"}
+    assert set(SCHEMA["option"]["required"]) == {"id", "text"}
+    options = shape["properties"]["options"]
+    for fact in ("`options`", "`id`", "`text`", "`several`", f"{options['minItems']} to {options['maxItems']}"):
+        assert fact in row, fact
+
+
+def test_without_a_page_the_open_questions_for_others_are_asked_and_answered_in_chat():
+    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    for fact in ("each open question for others", "`<question id> tick <option id>`", "a note on the question"):
+        assert fact in chat, fact
+    grammar = (PLUGIN / "engine" / "prompt_lines.py").read_text("utf-8")
+    assert "`<question id> tick <option id> <option id> ...`" in grammar

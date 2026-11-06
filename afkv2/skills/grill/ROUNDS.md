@@ -45,16 +45,16 @@ A question for others is a point that neither the developer nor the code can set
 - A note says the developer cannot answer, or names who would: add the question in the next round, with `state: open` and `origin: {note: <note id>}`.
 - You find a point only someone else can answer: propose it on a `confirm` card that shows the question with its parts. Add it to `questions` only after the developer accepts that card, with `state: open` and `origin: {card: <card id>}`. A proposal card that stays open or gets another mark adds nothing.
 
-Write each part that applies:
+Write each required part, and each other part that applies:
 
 | Field | Part |
 |-------|------|
 | `who` | who to ask: 1 or more roles (product owner, tester, director, another team), or `everyone`; always required |
-| `question` | 1 sentence the person can answer |
-| `context` | what the feature is about, only as much as the question needs |
-| `why` | what waits on the answer, and what goes wrong on a guess |
+| `question` | 1 sentence the person can answer; always required |
+| `context` | what the feature is about, only as much as the question needs; always required |
+| `why` | what waits on the answer, and what goes wrong on a guess; always required |
 | `ways` | the options, when there are any, in plain words; a recommendation only when the developer wants one shown |
-| `choices` | the known answers to tick, when the answer is 1 or several of a few; `several: true` when more than 1 may be ticked |
+| `choices` | the known answers to tick, when the answer is 1 or several of a few: `{options, several}`; `options` holds 2 to 12 options, each with an `id` and the `text` shown; `several` is `true` when more than 1 may be ticked, else `false` |
 | `example` | a small case with sample data, when the point is complex |
 | `links` | the sections that help the discussion |
 | `waits_on` | the question it waits on |
@@ -149,7 +149,8 @@ The human writes `take over` on its own line: write an `Escape` row, `taken R<n>
 When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` still writes each round into the page document, `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
 
 - Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
-- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. Then go to step 7 of [SKILL.md](SKILL.md).
+- Ask each open question for others in the same message, with its parts and its choices numbered, by "As text".
+- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. A choice of a question for others is a line `<question id> tick <option id>`, with each picked option id; any other answer is a note on the question. Then go to step 7 of [SKILL.md](SKILL.md).
 
 ## Coming back
 
