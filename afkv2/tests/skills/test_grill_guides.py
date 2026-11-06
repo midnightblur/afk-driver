@@ -278,23 +278,51 @@ def test_a_pass_after_a_take_over_names_stale_and_changed():
 
 # --- the end check on a version 2 page (PRD AC-019, AC-044, AC-045)
 
+END_CHECK = {  # each code of the version 2 end check, with a page part that fails it and one that passes
+    "question-open": ({"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "open"}]},
+                      {"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "answered"}]}),
+    "drop-no-reason": ({"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "dropped",
+                                       "dropped": {"reason": " "}}]},
+                       {"questions": [{"id": "q-1", "question": "Which?", "who": ["tester"], "state": "dropped",
+                                       "dropped": {"reason": "out of scope"}}]}),
+    "story-without-example": ({"stories": [{"id": "st-1", "text": "Import a file."}], "examples": []},
+                              {"stories": [{"id": "st-1", "text": "Import a file."}],
+                               "examples": [{"id": f"ex-{k}", "title": k, "kind": k, "stories": ["st-1"]}
+                                            for k in ("frequent", "edge", "risky")]}),
+    "kind-missing": ({"examples": [{"id": "ex-1", "title": "a", "kind": "frequent", "stories": []}]},
+                     {"examples": [{"id": f"ex-{k}", "title": k, "kind": k, "stories": []}
+                                   for k in ("frequent", "edge", "risky")]}),
+}
+
+
 def test_the_log_format_states_the_end_check_of_a_version_2_page():
+    """Review findings f15, f20: the check raises each code the format states, under the condition it names."""
+    import grill_log
     gate = _section(LOG_FORMAT_MD.read_text("utf-8"), "## Exit gate")
-    for code in ("question-open", "drop-no-reason", "story-without-example", "kind-missing"):
+    for code, (failing, passing) in END_CHECK.items():
         assert f"`{code}`" in gate, code
-        assert f'"{code}"' in (HOME / "scripts" / "grill_log.py").read_text("utf-8"), code
+        assert any(line.startswith(f"{code}: ") for line in grill_log._v2_failures(failing)), code
+        assert not grill_log._v2_failures(passing), (code, grill_log._v2_failures(passing))
     assert "answered, dropped with a reason or assumed" in gate
 
 
 # --- the grill holds no page-layout rule (PRD AC-027)
 
-LAYOUT = re.compile(r"section order|page order|goes first|\babove the\b|\bbelow the\b|folded|top of the page", re.I)
+LAYOUT = re.compile(r"section order|page order|goes first|first on the page|\babove the\b|\bbelow the\b|folded|"
+                    r"collapsed|\bsidebar\b|\bat the (?:top|bottom)\b|(?:top|bottom|side) of the page|"
+                    r"the engine puts|\b(?:left|right) column\b", re.I)
 
 
 def test_the_grill_holds_no_page_layout_rule():
-    for path in HOME.glob("*.md"):
-        text = path.read_text("utf-8")
-        assert not LAYOUT.search(text), (path.name, LAYOUT.search(text).group(0))
+    """Review findings f10, f21: every .md under the grill folder, subfolders included."""
+    found = [(path.relative_to(HOME).as_posix(), LAYOUT.search(path.read_text("utf-8")).group(0))
+             for path in sorted(HOME.rglob("*.md")) if LAYOUT.search(path.read_text("utf-8"))]
+    assert not found, found
+    for phrase in ("at the top", "collapsed", "in the sidebar", "the engine puts the maps"):
+        assert LAYOUT.search(phrase), phrase
+
+
+def test_the_grill_holds_the_card_kind_table():
     assert re.search(r"^\| Kind \| Use it when \|$", ROUNDS_MD.read_text("utf-8"), re.M)
 
 
