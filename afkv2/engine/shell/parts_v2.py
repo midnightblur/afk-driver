@@ -150,15 +150,16 @@ def _article(entry: dict, css: str, inner: str, raw: str = "", **attrs) -> str:
 def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
     title, state = escape(section["title"]), section["state"]
     if state == "merged":
-        line = f"{title}: {STATES['merged']} into {_link(doc, _current_target(sections, section['merged_into']))}."
+        into = _link(doc, _current_target(sections, section["merged_into"]))
+        line = f"{title}: {escape(visible_label(doc, 'state', state))} into {into}."
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     if state == "removed":
-        line = f"{title}: {STATES['removed']}. {escape(section.get('reason') or '')}"
+        line = f"{title}: {escape(visible_label(doc, 'state', state))}. {escape(section.get('reason') or '')}"
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     targets = [_current_target(sections, other) for other in section.get("links") or []]
     targets = [other for other in dict.fromkeys(targets) if other != section["id"]]
     links = LINKS.format("Depends on", _links(doc, targets)) if targets else ""
-    reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(STATES[state])}</span>'
+    reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
                if state == "not_reached" else "")
     head = f'<h3 class="afkv2-v2-h">{title}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
     inner = f'{head}{render_component(section["body"])}{links}{render_changes(doc, section["changes"])}'
@@ -217,12 +218,12 @@ def _outcome(doc: dict, question: dict) -> str:
     answer = question.get("answer")
     if answer:
         ticked = ", ".join(visible_label(doc, "element", choice) for choice in answer.get("choices") or [])
-        words = f"{STATES['answered']} by {answer['role']} on {answer['date']}: {answer['text']}"
+        words = f"{visible_label(doc, 'state', 'answered')} by {answer['role']} on {answer['date']}: {answer['text']}"
         lines.append(words + (f" Ticked: {ticked}." if ticked else ""))
     if question.get("dropped"):
-        lines.append(f"{STATES['dropped']}: {question['dropped']['reason']}")
+        lines.append(f"{visible_label(doc, 'state', 'dropped')}: {question['dropped']['reason']}")
     if question.get("assumption"):
-        lines.append(f"{STATES['assumed']}: {question['assumption']['text']}")
+        lines.append(f"{visible_label(doc, 'state', 'assumed')}: {question['assumption']['text']}")
     return "".join(OUTCOME.format(escape(line)) for line in lines)
 
 
