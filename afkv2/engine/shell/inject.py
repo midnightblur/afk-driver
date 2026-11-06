@@ -13,6 +13,7 @@ import json
 import os
 import re
 import tempfile
+import time
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -215,6 +216,22 @@ def inject(html: str, tips: dict[str, str]) -> str:
     return html + ("" if html.endswith("\n") else "\n") + block
 
 
+# Windows refuses a replace while another process holds the target open, as a scanner does a new file briefly.
+REPLACE_TRIES = 10
+REPLACE_WAIT_S = 0.05
+
+
+def _replace(source, target) -> None:
+    for attempt in range(1, REPLACE_TRIES + 1):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_TRIES:
+                raise
+            time.sleep(REPLACE_WAIT_S * attempt)
+
+
 def write_if_changed(path: Path, data: bytes) -> bool:
     """Atomically replace `path` with `data` only when its bytes differ; True when written."""
     try:
@@ -227,7 +244,7 @@ def write_if_changed(path: Path, data: bytes) -> bool:
     try:
         with os.fdopen(handle, "wb") as out:
             out.write(data)
-        os.replace(temp, path)
+        _replace(temp, path)
     except BaseException:
         try:
             os.unlink(temp)
