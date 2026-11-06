@@ -68,12 +68,12 @@ def refused(capsys, tmp_path, doc):
 
 def test_the_engine_reads_format_1_and_format_0(capsys, tmp_path):
     assert check(capsys, tmp_path, v1_document())[0] == 0
-    assert set(engine.READERS) == set(engine.SCHEMA_FILES) == {V0, V1}
+    assert set(engine.READERS) == set(engine.SCHEMA_FILES) == {V0, V1, "afkv2.page/2"}
     schema = json.loads(engine.SCHEMA_FILES[V1].read_text("utf-8"))
     assert schema["properties"]["schema"] == {"const": V1}
 
 
-@pytest.mark.parametrize("value", ["afkv2.page/2", "afkv2.page/10", 1, None])
+@pytest.mark.parametrize("value", ["afkv2.page/3", "afkv2.page/10", 1, None])
 def test_any_other_schema_value_is_refused(capsys, tmp_path, value):
     doc = v1_document()
     doc["schema"] = value

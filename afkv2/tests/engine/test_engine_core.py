@@ -422,7 +422,7 @@ def test_a_v1_document_is_refused_with_version_1(name):
 
 
 def test_the_engine_keeps_a_reader_and_a_schema_file_for_every_value():
-    assert set(engine.READERS) == set(engine.SCHEMA_FILES) == {SCHEMA, "afkv2.page/1"}
+    assert set(engine.READERS) == set(engine.SCHEMA_FILES) == {SCHEMA, "afkv2.page/1", "afkv2.page/2"}
     assert all(path.is_file() for path in engine.SCHEMA_FILES.values())
 
 
