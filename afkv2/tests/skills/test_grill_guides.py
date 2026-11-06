@@ -239,7 +239,7 @@ def test_coming_back_takes_the_finished_page_over_and_upgrades_an_old_page():
                  "`upgrade: true`", "cause `finding`", '"Coming back"'):
         assert fact in start, fact
     assert "def finished_session(" in (HOME / "scripts" / "grill_start.py").read_text("utf-8")
-    assert 'round_input.get("upgrade")' in (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
+    assert "def _upgrade(" in (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
 
 
 def test_the_upgrade_rule_covers_a_resume_and_a_take_over():
