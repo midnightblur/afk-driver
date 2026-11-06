@@ -53,11 +53,21 @@ def _grill_rows(log):
 def assumed_answers(pages, session):
     """Each question for others of the grill page `grill-<session>.json` that is still assumed: the developer accepted
     the agent's assumption, and no one has answered it. A version 0 or 1 page holds no questions."""
-    doc = read_json(Path(pages) / f"grill-{session}.json")
+    path = Path(pages) / f"grill-{session}.json"
+    doc = read_json(path)
     if not isinstance(doc, dict) or not doc.get("questions") or not is_version_2(doc):
         return []
-    return [{"question": item["id"], "text": item["question"], "who": item["who"], "assumption": item["assumption"]["text"]}
-            for item in doc["questions"] if item.get("state") == "assumed"]
+    found = []
+    for item in doc["questions"]:
+        if item.get("state") != "assumed":
+            continue
+        try:
+            found.append({"question": item["id"], "text": item["question"], "who": item["who"],
+                          "assumption": item["assumption"]["text"]})
+        except (KeyError, TypeError) as error:
+            raise Refusal("unreadable", f"{path}: question {item.get('id')!r} lacks a field of its format: {error!r}",
+                          2) from error
+    return found
 
 
 def start(argv):

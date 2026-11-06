@@ -13,6 +13,8 @@ sys.path.insert(0, str(PLUGIN / "tests" / "engine"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import prd_files  # noqa: E402
+import pytest  # noqa: E402
+from grill_common import Refusal  # noqa: E402
 from test_page_parts_v2 import document, question  # noqa: E402
 from test_to_prd import KEY, World  # noqa: E402
 
@@ -55,6 +57,16 @@ def test_assumed_answers_lists_none_on_a_version_1_page_that_holds_an_assumed_qu
     doc = {**document(), "schema": "afkv2.page/1"}
     assert any(item.get("state") == "assumed" for item in doc["questions"])
     assert prd_files.assumed_answers(_pages(tmp_path, doc), "s1") == []
+
+
+def test_a_question_that_lacks_a_field_refuses_naming_the_page(tmp_path):
+    doc = document()
+    del next(item for item in doc["questions"] if item["id"] == "q-assume")["who"]
+    pages = _pages(tmp_path, doc)
+    with pytest.raises(Refusal) as refused:
+        prd_files.assumed_answers(pages, "s1")
+    assert refused.value.code == "unreadable" and "grill-s1.json" in refused.value.reason
+    assert "q-assume" in refused.value.reason and "who" in refused.value.reason
 
 
 def _world_with_engine(tmp_path):
