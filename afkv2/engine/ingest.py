@@ -6,12 +6,20 @@ choice. `<id>` is an element id, or a note id with the token `edit` or `delete`.
 note unless it reads as a line of a known id with a token that id takes. Format 1: a mark line, a note entry
 or an edit with its words indented 2 spaces, and a delete line. A format 1 mark takes the first note entry
 of its element, as a format 0 mark shares the line of its first note: the mark table reads both the same.
+Format 2: the format 1 lines and a tick line, `<question id> tick <option id> ...`. A tick is a signal in
+`questions_to_read` and changes no state (ADR-0004 design); one that names no question, no option, an option
+twice, more options than its question takes, or a question ticked twice in one send is refused `bad-tick`.
 
 Each note line or entry is one note: the page sends one per lavish annotation. Every note goes into
 the session list (ADR-0001 design). A note on a card element names that card: `N-<round>-<item>-<k>`. A
 steer, a note on a map, a map node, a round banner or another element that no card holds, names no card:
 `N-<round>-<target>-<k>`. k counts 1, 2, 3 per card or target in the round (`schema/note_rules.py`).
 The answer's `notes` lists the ids of the new notes.
+
+On a format 2 page a note on a section, story, example or question, or on a part of one, is a plain note
+of that entry: `N-<round>-<entry>-<k>`, never a steer. A signal on a question, a tick or a note, also goes into
+`questions_to_read`. A note or an edit on a settled card with no mark leaves the card settled, and its note id
+goes into `settled_notes_to_read` for the agent's reading (ADR-0005 design); a mark on it follows the table.
 """
 
 from __future__ import annotations
@@ -28,7 +36,7 @@ from registry import walk
 from schema import invariants, note_rules
 from shell import inject
 
-from prompt_lines import FORMAT_0, INDENT, NO_CHOICE, NOTE_SEPARATOR, NOTE_WORD, QUOTE_LINE
+from prompt_lines import FORMAT_0, FORMAT_2, INDENT, NO_CHOICE, NOTE_SEPARATOR, NOTE_WORD, QUOTE_LINE, TICK_WORD
 
 HEADER = re.compile(r"\[round R-(\d+)\]")
 LETTER = re.compile(r"[a-z]")
@@ -47,6 +55,7 @@ class Line:
     text: str | None
     number: int
     quote: str | None = None
+    choices: list[str] | None = None
 
     @property
     def noted(self) -> bool:
@@ -89,6 +98,8 @@ class _Page:
         self.current = next(r for r in doc["rounds"] if r["state"] == "current")
         self.items = {item["id"]: item for r in doc["rounds"] for item in r["items"]}
         self.notes = {note["id"]: (self.items.get(note.get("item")), note) for note in doc.get("notes") or []}
+        self.v2 = doc["schema"] == FORMAT_2
+        self.questions = {question["id"]: question for question in doc.get("questions") or []}
 
     def owner(self, target: str) -> dict | None:
         """The item that holds an element; None for an element of the `maps` list and for a round banner."""
@@ -97,8 +108,16 @@ class _Page:
             return None
         return self.doc["rounds"][path[1]]["items"][path[3]]
 
+    def entry(self, target: str) -> dict | None:
+        """The format 2 entry that holds an element: a section, story, example or question; None elsewhere."""
+        path = self.ids.get(target, ())
+        return self.doc[path[0]][path[1]] if path[:1] and path[0] in invariants.ENTRY_LISTS else None
+
     def is_steer(self, target: str) -> bool:
-        return target in self.nodes or self.owner(target) is None
+        return self.entry(target) is None and (target in self.nodes or self.owner(target) is None)
+
+    def on_card(self, target: str) -> bool:
+        return self.entry(target) is None and not self.is_steer(target)
 
     def accepts(self, target: str, token: str) -> bool:
         if target in self.notes:
@@ -169,6 +188,10 @@ def _entries(rows: list[str], page: _Page) -> list[Line]:
         if open_ is not None:
             open_[0].text = "\n".join(open_[1]).rstrip("\n")
             open_ = None
+        words = row.split(" ")
+        if page.v2 and len(words) > 1 and words[1] == TICK_WORD:
+            lines.append(_tick(words, number, page, lines))
+            continue
         target, _, token = row.rpartition(" ")
         head, _, word = target.rpartition(" ")
         if word == NOTE_WORD and token.isdigit() and head in page.ids and head not in page.notes:
@@ -186,9 +209,33 @@ def _entries(rows: list[str], page: _Page) -> list[Line]:
     return _marks_take_first_notes(lines)
 
 
+def _tick(words: list[str], number: int, page: _Page, lines: list[Line]) -> Line:
+    """A format 2 tick line: a question for others and the option ids ticked on it."""
+    at = f"item response, field raw: line {number}"
+    question, chosen = page.questions.get(words[0]), words[2:]
+    if question is None:
+        raise Refusal("bad-tick", f"{at} ticks {words[0]!r}, which is no question for others")
+    choices = question.get("choices") or {}
+    known = {option["id"] for option in choices.get("options") or []}
+    unknown = [choice for choice in chosen if choice not in known]
+    twice = sorted({choice for choice in chosen if chosen.count(choice) > 1})
+    if not chosen:
+        raise Refusal("bad-tick", f"{at}: a tick names at least 1 option id of {words[0]!r}")
+    if unknown:
+        raise Refusal("bad-tick", f"{at}: {', '.join(map(repr, unknown))} is no option of {words[0]!r}")
+    if twice:
+        raise Refusal("bad-tick", f"{at} names {', '.join(map(repr, twice))} twice")
+    if len(chosen) > 1 and not choices.get("several"):
+        raise Refusal("bad-tick", f"{at}: {words[0]!r} takes 1 option; the tick names {len(chosen)}")
+    if any(line.token == TICK_WORD and line.target == words[0] for line in lines):
+        raise Refusal("bad-tick", f"{at} ticks {words[0]!r} a second time; a send holds 1 tick per question")
+    return Line(words[0], TICK_WORD, None, number, choices=chosen)
+
+
 def _marks_take_first_notes(lines: list[Line]) -> list[Line]:
     """A mark line takes the words and noted text of the first note entry on its element, as in format 0."""
-    marks = {line.target: line for line in lines if line.token not in (NO_CHOICE, EDIT, DELETE) and line.text is None}
+    marks = {line.target: line for line in lines
+             if line.token not in (NO_CHOICE, EDIT, DELETE, TICK_WORD) and line.text is None}
     kept = []
     for line in lines:
         mark = marks.get(line.target)
@@ -236,9 +283,9 @@ def _table_lines(lines: list[Line], page: _Page) -> dict[str, list[Line]]:
     for line in lines:
         if line.token == EDIT:
             item, note = page.notes[line.target]
-            if not page.is_steer(note["target"]):
+            if item is not None and page.on_card(note["target"]):
                 by_item.setdefault(item["id"], []).append(line)
-        elif line.token != DELETE and not page.is_steer(line.target):
+        elif line.token not in (DELETE, TICK_WORD) and page.on_card(line.target):
             if line.token != NO_CHOICE or line.noted or seen.count(line.target) > 1:
                 by_item.setdefault(page.owner(line.target)["id"], []).append(line)
     return by_item
@@ -261,6 +308,8 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
     lines = parse_response(raw, page, page_format or doc["schema"])
     signals: dict[int, dict] = {}
     result = {"settled_by_mark": [], "needs_reading": [], "reopened": [], "conflicts": [], "steers": [], "notes": []}
+    if page.v2:
+        result.update(questions_to_read=[], settled_notes_to_read=[])
 
     def write(target: str, item: str | None, line: Line) -> str:
         note_id, new = write_session_note(doc, n, target, item, line.text or "", page.notes, line.quote)
@@ -271,15 +320,18 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
     for item_id, group in _table_lines(lines, page).items():
         item = page.items[item_id]
         before = item.get("state", "open")
-        after = apply_mark_table(before, group, (item.get("settled") or {}).get("signal"))
+        waits = page.v2 and before in SETTLED and all(line.token in (NO_CHOICE, EDIT) for line in group)
+        after = before if waits else apply_mark_table(before, group, (item.get("settled") or {}).get("signal"))
         for line in group:
             signal = {"target": line.target, "item": item_id, "mark": None if line.token in (NO_CHOICE, EDIT) else line.token,
-                      "note": None, "text": line.text, "conflict": len(group) > 1, **_quote(line)}
+                      "note": None, "text": line.text, "conflict": len(group) > 1 and not waits, **_quote(line)}
             if line.token == EDIT:
                 _edit(page.notes[line.target][1], line)
                 signal.update(note=line.target, action=EDIT)
             elif line.noted:
                 signal["note"] = write(line.target, item_id, line)
+            if waits and (line.token == EDIT or signal["note"] in result["notes"]):
+                result["settled_notes_to_read"].append(signal["note"])
             signals[line.number] = signal
         _set_state(item, after, n, group)
         for line in group:
@@ -289,16 +341,23 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
                 result[after].append(item_id)
             if before in SETTLED and after == "open":
                 result["reopened"].append(item_id)
-        if len(group) > 1:
+        if len(group) > 1 and not waits:
             result["conflicts"].append(item_id)
 
     for line in lines:
         if line.number in signals:
             continue
-        if line.token == EDIT:
+        entry = page.entry(page.notes[line.target][1]["target"] if line.token in (EDIT, DELETE) else line.target)
+        owner = {} if entry is None else {"item": entry["id"]}
+        if line.token == TICK_WORD:
+            signals[line.number] = {"target": line.target, "item": line.target, "mark": invariants.TICK,
+                                    "choices": line.choices, "note": None, "text": None}
+        elif line.token == EDIT:
             item, note = page.notes[line.target]
             signals[line.number] = {"target": line.target, "item": item and item["id"], "mark": None,
                                     "note": line.target, "text": _edit(note, line), "steer": True, "action": EDIT}
+            if entry is not None:
+                del signals[line.number]["steer"]
         elif line.token == DELETE:
             item, note = page.notes[line.target]
             note["deleted"] = True
@@ -310,10 +369,18 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
             signals[line.number] = {"target": line.target, "item": item and item["id"], "mark": None, "note": line.target,
                                     "text": None, "action": DELETE, "state": item.get("state", "open") if item else None,
                                     "reopened": rests_on_it}
+        elif line.noted and entry is not None:
+            signals[line.number] = {"target": line.target, "item": entry["id"], "mark": None, "text": line.text,
+                                    "note": write(line.target, entry["id"], line), **_quote(line)}
         elif line.noted:
             signals[line.number] = {"target": line.target, "item": None, "mark": None, "text": line.text,
                                     "note": write(line.target, None, line), "steer": True, **_quote(line)}
             result["steers"].append(line.target)
+        else:
+            continue
+        signals[line.number].update(owner)
+        if entry is not None and entry["id"] in page.questions:
+            result["questions_to_read"].append(signals[line.number])
 
     if not signals:
         raise Refusal("no-signal", "item response, field raw: the response holds no signal: no mark and no note")
@@ -338,7 +405,7 @@ def _read_raw(path: str) -> str:
 
 def cmd_ingest(args, *, check, check_changed, elements, save_copy, page_format=None) -> dict:
     """The verb. `check`, `check_changed`, `elements` and `save_copy` are the engine's own checks and copy;
-    `page_format` is the schema value of the page file. The document is written in format 1."""
+    `page_format` is the schema value of the page file. The document is written in format 1, or 2 as it was."""
     raw = _read_raw(args.raw_file)
     doc, _ = check(args.document)
     _, ids, nodes = elements(doc)

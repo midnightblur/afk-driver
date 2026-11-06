@@ -10,9 +10,14 @@ a line `<element id> note <k>`, k = 1, 2, 3 per element in the send, then an opt
 `  on: "<noted text>"`, then the note's words on the following lines, each indented 2 spaces. An edit is
 `<note id> edit` with the new words indented the same way; a delete is `<note id> delete`.
 
+Format 2 (SDD §3): the format 1 lines, + 1 tick line per ticked question for others:
+`<question id> tick <option id> <option id> ...`, the ticked option ids in tick order (ADR-0004 design).
+
 A prompt is `{uid, prompt, selector, tag, text}`. The page queues a mark as a prompt with the tag
 `afkv2-mark`. A prompt with the tag `afkv2-btw` is a side question: the btw? panel posts its questions
 to the side-question listener (`btw_listener.py`), and only a page rendered before that queues one.
+The page queues 1 answer per question for others as a prompt with the tag `afkv2-tick`, its first line the
+tick line; the last one of a question wins, and one with no option id sends nothing.
 Every other prompt is a native lavish annotation or message. An annotation names its
 element by the nearest ancestor HTML id in `selector`, and every page element id is an HTML id.
 """
@@ -24,6 +29,7 @@ import re
 from schema.note_rules import round_target
 
 FORMAT_0 = "afkv2.page/0"
+FORMAT_2 = "afkv2.page/2"
 NO_CHOICE = "—"
 NOTE_SEPARATOR = " | "
 NOTE_WORD = "note"
@@ -31,6 +37,8 @@ QUOTE_LINE = '  on: "'
 INDENT = "  "
 QUOTE_LIMIT = 300
 MARK_TAG = "afkv2-mark"
+TICK_TAG = "afkv2-tick"
+TICK_WORD = "tick"
 BTW_TAG = "afkv2-btw"
 CONTEXT_DATA = "\n\nContext data:\n"
 OLD_FORM = "[round R-"
@@ -103,6 +111,7 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
     n = next(r for r in doc["rounds"] if r["state"] == "current")["n"]
     order: list[tuple[str, str]] = []
     marks: dict[str, str] = {}
+    ticks: dict[str, list[str]] = {}
     notes: dict[str, list[str]] = {}
 
     def entry(target: str) -> None:
@@ -126,6 +135,17 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
                 marks[target] = token
             else:
                 order.append(("line", line))
+            continue
+        if tag == TICK_TAG and not old_grammar:
+            line = text.split("\n", 1)[0].strip()
+            words = line.split()
+            if len(words) < 2 or words[1] != TICK_WORD:
+                order.append(("line", line))
+            elif words[2:]:
+                entry(words[0])
+                ticks[words[0]] = words[2:]
+            else:
+                ticks.pop(words[0], None)
             continue
         selector = str(prompt.get("selector") or "")
         seen = str(prompt.get("text") or "")
@@ -155,6 +175,7 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
             lines += [f"{value} {NO_CHOICE}{NOTE_SEPARATOR}{note}" for note in more]
         else:
             lines += [f"{value} {marks[value]}"] if value in marks else []
+            lines += [" ".join([value, TICK_WORD, *ticks[value]])] if value in ticks else []
             lines += note_entry(value, notes[value])
     return "\n".join(lines)
 
