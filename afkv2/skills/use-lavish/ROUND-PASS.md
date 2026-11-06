@@ -67,8 +67,8 @@ tick or a note changes no state: write a reading for each entry. `apply-readings
 takes 4 readings on a version 2 page only:
 
 - `keep` {`note`, `reply`, `changed`}: the note on a settled card agrees, fixes a
-  typo or is about another part, so the point stays settled. `reply` answers the
-  note. A thought about another part goes into that part in the next round, with
+  typo or is about another part, so the point stays settled. `reply` is the reply
+  to the note. A thought about another part goes into that part in the next round, with
   a change line. A note that changes, doubts or adds to the point gets no `keep`:
   the point returns as a new card in the next round, and the note gets its reply
   in `replies`.

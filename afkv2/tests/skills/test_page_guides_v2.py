@@ -81,7 +81,7 @@ ANSWER_KEPT = ("Answer rules", "answer rules", "an answer, a new idea, a questio
 def _answer_words(text):
     for kept in ANSWER_KEPT:
         text = text.replace(kept, "")
-    return re.findall(r"answer\w*", text, re.I)
+    return re.findall(r"\banswer\w*", text, re.I)
 
 
 def test_the_agent_writes_a_reply_to_each_note():
@@ -95,6 +95,9 @@ def test_the_agent_writes_a_reply_to_each_note():
     for part in (_section(text, "## Take over a page"), _row(text, "`scripts/round_document.py build --doc D --session "
                  "S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]`")):
         assert not _answer_words(part), _answer_words(part)
+    readings = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the questions and the settled notes")
+    keep = next(part for part in readings.split("- ") if part.startswith("`keep`"))
+    assert not _answer_words(keep), _answer_words(keep)
     assert "every note of the session, card notes included, with its reply" in text
 
 
