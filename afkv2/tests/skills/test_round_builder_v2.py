@@ -333,3 +333,128 @@ def test_a_note_with_no_reply_refuses_the_next_round_on_version_2_by_its_id(note
                                                         replies=[{"text": "Asked in the next card.",
                                                                   "notes": ["N-3-i-c-2"]}]))
     assert check(noted)[0] == 0
+
+
+# ---- the readings keep, answer, drop and assume (SDD §3 row "reading tool"; PRD AC-014, AC-037, AC-045)
+
+READ_RAW = ("[round R-3]\nq-1 tick csv\ni-a note 1\n  Agreed, it stays.\nq-2 note 1\n  Nobody owns this; drop it."
+            "\nq-3 note 1\n  The tester team says yes.")
+
+
+@pytest.fixture
+def asked(page):
+    """Round 3 current: q-1 ticked csv, a note on the settled card i-a, a note on q-2 and on q-3."""
+    answer = next_round(page, "i-c", questions=[question("q-1", choices=options("csv", "xls")), question("q-2"),
+                                                question("q-3")])
+    assert answer["entries"] == ["q-1", "q-2", "q-3"]
+    to_read = ingest(page, READ_RAW)
+    assert to_read["settled_notes_to_read"] == ["N-3-i-a-1"]
+    return page
+
+
+def question_of(path, question_id):
+    return next(q for q in read(path)["questions"] if q["id"] == question_id)
+
+
+def item_of(path, item_id):
+    return next(i for r in read(path)["rounds"] for i in r["items"] if i["id"] == item_id)
+
+
+def an_answer(question_id="q-1", **extra):
+    return {"question": question_id, "text": "Only csv.", "choices": ["csv"], "role": "product owner",
+            "date": "2026-11-06", "signal": "tick", **extra}
+
+
+def refused_reading(path, readings, code):
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(path, readings)
+    assert refused.value.code == code, refused.value.reason
+    assert path.read_bytes() == before
+    return refused.value.reason
+
+
+def test_keep_leaves_a_settled_point_settled_and_writes_its_reply(asked):
+    before = item_of(asked, "i-a")
+    rd.apply_readings(asked, {"keep": [{"note": "N-3-i-a-1", "reply": "Kept: the point stays as it is."}]})
+    assert item_of(asked, "i-a") == before
+    assert replies_of(asked, 3) == [{"id": "A-3-1", "text": "Kept: the point stays as it is.", "notes": ["N-3-i-a-1"]}]
+    assert check(asked)[0] == 0
+
+
+def test_a_kept_point_does_not_return_in_the_next_round(asked):
+    rd.apply_readings(asked, {"keep": [{"note": "N-3-i-a-1", "reply": "Kept."}],
+                              "answer": [an_answer()],
+                              "replies": [{"text": "Dropped as you asked.", "notes": ["N-3-q-2-1"]},
+                                          {"text": "Recorded as the answer.", "notes": ["N-3-q-3-1"]}]})
+    rd.build_round_document(asked, SESSION, round_input(items=[card("i-d", carries=["i-c"])]))
+    assert item_of(asked, "i-a")["state"] == "settled_by_mark"
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("note, code", [("N-3-q-2-1", "not-settled"), ("N-9-i-a-1", "no-note")])
+def test_keep_of_a_note_on_no_settled_point_is_refused(asked, note, code):
+    refused_reading(asked, {"keep": [{"note": note, "reply": "Kept."}]}, code)
+
+
+def test_answer_records_the_answer_and_settles_no_card(asked):
+    cards = [i for r in read(asked)["rounds"] for i in r["items"]]
+    rd.apply_readings(asked, {"answer": [an_answer()]})
+    answered = question_of(asked, "q-1")
+    assert answered["state"] == "answered"
+    assert answered["answer"] == {"text": "Only csv.", "choices": ["csv"], "role": "product owner",
+                                  "date": "2026-11-06", "signal": "tick", "round": 3}
+    assert [i for r in read(asked)["rounds"] for i in r["items"]] == cards
+    assert check(asked)[0] == 0
+
+
+def test_answer_from_a_note_of_the_round_is_recorded(asked):
+    rd.apply_readings(asked, {"answer": [an_answer("q-3", choices=[], signal="N-3-q-3-1", role="tester")]})
+    assert question_of(asked, "q-3")["answer"]["signal"] == "N-3-q-3-1"
+
+
+@pytest.mark.parametrize("answer", [an_answer("q-2"), an_answer("q-3", choices=[], signal="N-2-q-3-1")])
+def test_answer_without_the_developers_tick_or_note_of_the_round_is_refused(asked, answer):
+    refused_reading(asked, {"answer": [answer]}, "answer-no-signal")
+
+
+def test_answer_by_everyone_is_refused(asked):
+    refused_reading(asked, {"answer": [an_answer(role="Everyone")]}, "everyone-answered")
+
+
+def test_answer_of_no_question_is_refused(asked):
+    refused_reading(asked, {"answer": [an_answer("q-none")]}, "not-a-question")
+
+
+def test_drop_with_a_reason_drops_the_question(asked):
+    rd.apply_readings(asked, {"drop": [{"question": "q-2", "reason": "Nobody owns it.", "note": "N-3-q-2-1"}]})
+    assert question_of(asked, "q-2")["state"] == "dropped"
+    assert question_of(asked, "q-2")["dropped"] == {"reason": "Nobody owns it.", "note": "N-3-q-2-1", "round": 3}
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("reason", ["", "  ", None])
+def test_drop_without_a_reason_is_refused_and_the_question_stays_open(asked, reason):
+    entry = {"question": "q-2", "note": "N-3-q-2-1", **({} if reason is None else {"reason": reason})}
+    refused_reading(asked, {"drop": [entry]}, "drop-no-reason")
+    assert question_of(asked, "q-2")["state"] == "open"
+
+
+def test_assume_with_an_accepted_card_assumes_the_answer(asked):
+    rd.apply_readings(asked, {"assume": [{"question": "q-3", "text": "We assume yes.", "card": "i-a"}]})
+    assert question_of(asked, "q-3")["state"] == "assumed"
+    assert question_of(asked, "q-3")["assumption"] == {"text": "We assume yes.", "card": "i-a", "round": 3}
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("card_id", ["i-c", "i-none"])
+def test_assume_without_an_accepted_card_is_refused(asked, card_id):
+    refused_reading(asked, {"assume": [{"question": "q-3", "text": "We assume yes.", "card": card_id}]},
+                    "assume-no-card")
+
+
+def test_a_version_1_page_refuses_the_new_readings_by_name(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-a note 1\n  Agreed.")
+    for key in ("keep", "answer", "drop", "assume"):
+        assert key in refused_reading(path, {key: []}, "bad-payload")

@@ -43,6 +43,10 @@ ENTRY_INPUT_FIELDS = ("change", "after")
 # The document rules that refuse a version 2 write by their own name (engine/schema/invariants.py).
 NAMED_RULES = ("everyone-answered", "answer-no-signal", "drop-no-reason", "assume-no-card", "reply-many-notes")
 REPLY_FIELDS = {"text", "notes", "changed"}
+READINGS = ("settle", "open", "unblock", "replies")
+# The readings of a version 2 page, each with its fields (SDD §3 row "reading tool").
+READINGS_V2 = {"keep": ("note", "reply", "changed"), "answer": ("question", "text", "choices", "role", "date", "signal"),
+               "drop": ("question", "reason", "note"), "assume": ("question", "text", "card")}
 TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
@@ -93,12 +97,14 @@ def page_engine():
 
 
 def is_version_2(doc):
-    return doc.get("schema") == page_engine().SCHEMA_V2
+    """A version 0 or 1 page asks the engine nothing."""
+    schema = doc.get("schema")
+    return schema not in (SCHEMA, FORMAT_0) and schema == page_engine().SCHEMA_V2
 
 
 def is_page(raw):
     """True for a page document of a version this builder writes: 0 (read as 1), 1 or 2."""
-    return isinstance(raw, dict) and raw.get("schema") in (SCHEMA, FORMAT_0, page_engine().SCHEMA_V2)
+    return isinstance(raw, dict) and (raw.get("schema") in (SCHEMA, FORMAT_0) or is_version_2(raw))
 
 
 def format_1(doc):
@@ -309,7 +315,8 @@ def _carries_card(item, card_id):
 
 
 def returning(doc):
-    """Asking cards of the rounds before the current one that the human noted or reopened in this send."""
+    """Asking cards of the rounds before the current one that the human noted or reopened in this send. On a
+    version 2 page a note leaves a settled card settled: the agent reads it with `keep`, or asks again on a card."""
     doc = format_1(doc)
     current = current_round(doc)
     if not current:
@@ -318,11 +325,13 @@ def returning(doc):
     reopened = {signal.get("item") for response in current.get("responses") or []
                 for signal in response.get("signals") or [] if signal.get("reopened")}
     found = []
+    stays = SETTLED_STATES if is_version_2(doc) else set()
     for rnd in doc["rounds"]:
         if rnd is current:
             continue
         for item in rnd["items"]:
-            noted = any(note.get("round") == current["n"] for note in card_notes(doc, item, targets))
+            noted = item["state"] not in stays and any(note.get("round") == current["n"]
+                                                        for note in card_notes(doc, item, targets))
             unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
             if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
@@ -702,15 +711,73 @@ def _unblock(current, item_id):
     item["state"] = "open"
 
 
+def _keep(doc, current, entry):
+    """The point stays settled: the reply answers the note of this round on the settled card."""
+    note = next((note for note in session_notes(doc) if note["id"] == entry.get("note")), None)
+    if note is None or note.get("round") != current["n"]:
+        raise Refusal("no-note", f"{entry.get('note')!r} is no live note of round {current['n']}")
+    item = next((item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == note.get("item")), None)
+    if item is None or item["state"] not in SETTLED_STATES:
+        raise Refusal("not-settled", f"note {note['id']} sits on no settled point; `keep` reads a note on a settled card")
+    _reply(current, {"text": entry.get("reply"), "notes": [note["id"]], "changed": entry.get("changed") or []}, True)
+
+
+def _open_question(doc, entry, states=("open",)):
+    question = next((q for q in doc.get("questions") or [] if q["id"] == entry.get("question")), None)
+    if question is None:
+        raise Refusal("not-a-question", f"{entry.get('question')!r} is no question for others of this page")
+    if question["state"] not in states:
+        raise Refusal("question-closed", f"question {question['id']} is {question['state']}, not {' or '.join(states)}")
+    return question
+
+
+def _answer_question(doc, current, entry):
+    """The agent writes the answer from the developer's tick or note of this round; it settles no card."""
+    question = _open_question(doc, entry, ("open", "assumed"))
+    question["state"] = "answered"
+    question["answer"] = {"text": entry.get("text"), "choices": entry.get("choices") or [], "role": entry.get("role"),
+                          "date": entry.get("date"), "signal": entry.get("signal"), "round": current["n"]}
+
+
+def _drop_question(doc, current, entry):
+    question = _open_question(doc, entry)
+    reason = entry.get("reason") or ""
+    if not reason.strip():
+        raise Refusal("drop-no-reason", f"question {question['id']}: a dropped question needs a reason")
+    question["state"] = "dropped"
+    question["dropped"] = {"reason": reason, "note": entry.get("note"), "round": current["n"]}
+
+
+def _assume_question(doc, current, entry):
+    question = _open_question(doc, entry)
+    question["state"] = "assumed"
+    question["assumption"] = {"text": entry.get("text"), "card": entry.get("card"), "round": current["n"]}
+
+
+def _new_readings(doc, current, readings):
+    """keep, answer, drop and assume, each entry with only its own fields; the document check guards the rest."""
+    apply = {"keep": _keep, "answer": _answer_question, "drop": _drop_question, "assume": _assume_question}
+    for key, fields in READINGS_V2.items():
+        for entry in readings.get(key) or []:
+            if not isinstance(entry, dict) or set(entry) - set(fields):
+                raise Refusal("bad-payload", f"a {key} reading holds only {', '.join(fields)}: {entry!r}")
+            apply[key](doc, current, entry)
+
+
 def apply_readings(doc_path, readings):
-    """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies."""
+    """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies, and on a version 2 page
+    keep {note, reply}, answer {question, text, choices, role, date, signal}, drop {question, reason, note} and
+    assume {question, text, card}. Answer, drop and assume write round = the current round."""
     doc = format_1(read_json(doc_path))
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
-    if not isinstance(readings, dict) or not readings or set(readings) - {"settle", "open", "unblock", "replies"}:
-        raise Refusal("bad-payload", "readings: one object with settle, open, unblock, replies")
     version_2 = is_version_2(doc)
+    keys = READINGS + (tuple(READINGS_V2) if version_2 else ())
+    if not isinstance(readings, dict) or not readings or set(readings) - set(keys):
+        new = sorted(set(readings) & set(READINGS_V2)) if isinstance(readings, dict) and not version_2 else []
+        why = f"; {', '.join(new)} only on a version 2 page" if new else ""
+        raise Refusal("bad-payload", f"readings: one object with {', '.join(keys)}{why}")
     answered = len(current.get("replies") or [])
     for entry in readings.get("settle") or []:
         _settle(doc, current, entry)
@@ -720,6 +787,8 @@ def apply_readings(doc_path, readings):
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
         _reply(current, reply, version_2)
+    if version_2:
+        _new_readings(doc, current, readings)
     refuse_bad_links(doc, (current.get("replies") or [])[answered:])
     if version_2:
         check_version_2(doc)
