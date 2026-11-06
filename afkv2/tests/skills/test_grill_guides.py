@@ -242,6 +242,24 @@ def test_coming_back_takes_the_finished_page_over_and_upgrades_an_old_page():
     assert 'round_input.get("upgrade")' in (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
 
 
+def test_the_upgrade_rule_covers_a_resume_and_a_take_over():
+    """Review finding f3: a resumed old-schema page needs `upgrade: true` as well."""
+    assert "On a resume and on a take-over, a page whose `schema` is `afkv2.page/0` or `afkv2.page/1`" in _step(1)
+
+
+def test_a_take_over_keeps_the_round_0_words_of_the_first_run(tmp_path):
+    """Review finding f23: `Round 0` is a single row, so a second `row` replaces it."""
+    assert "After a take-over, write its old words first, then a blank line and the new input" in _step(3)
+    import grill_log
+    assert "Round 0" in grill_log.SINGLE_KINDS
+    log = tmp_path / "GRILL-LOG.md"
+    grill_log.ensure_section(log, "T-1")
+    grill_log.write_row(log, "Round 0", "first")
+    grill_log.write_row(log, "Round 0", "second")
+    rows = [line for line in log.read_text("utf-8").splitlines() if line.startswith("- Round 0: ")]
+    assert rows == ['- Round 0: "second"']
+
+
 def test_a_pass_after_a_take_over_names_stale_and_changed():
     """Consumes 0008: the 2 lists the end check answers after a take-over (decision D-26)."""
     back = _section(ROUNDS_MD.read_text("utf-8"), "## Coming back")
