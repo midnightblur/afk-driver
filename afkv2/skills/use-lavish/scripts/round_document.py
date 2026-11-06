@@ -521,13 +521,16 @@ def check_version_2(doc):
         raise Refusal("invariant", engine._refuse(doc, found, "invariant").reason)
 
 
-def _upgrade(doc, doc_path, upgrade):
+def _upgrade(doc, doc_path, upgrade, replace=False):
     """Write a version 0 or 1 page as version 2, only when a new session took it over in its current round (SDD §4
     Migration and backfill). The document is in memory, read as version 1. The caller records the first version 2
-    round in `session.upgraded`: the replies of older rounds keep the notes they name."""
+    round in `session.upgraded`: the replies of older rounds keep the notes they name. `replace` of the round that
+    upgraded the page sends `upgrade` again: the page is version 2 already, and the rebuilt round stays that round."""
     if upgrade is not True:
-        raise Refusal("bad-round", f"upgrade is true or left out: {upgrade!r}")
+        raise Refusal("bad-round", f"upgrade is true, false or left out: {upgrade!r}")
     current = current_round(doc) if Path(doc_path).exists() else None
+    if replace and current is not None and is_version_2(doc) and doc["session"].get("upgraded") == current["n"]:
+        return
     taken_over = current is not None and any(entry.get("round") == current["n"]
                                              for entry in doc["session"].get("takeovers") or [])
     if is_version_2(doc) or not taken_over:
@@ -582,9 +585,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
                   "private": False, "takeovers": []}
         doc = {"schema": page_engine().SCHEMA_V2, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
-    upgrading = round_input.get("upgrade") not in (None, False)
+    upgrading = "upgrade" in round_input and round_input["upgrade"] is not False
     if upgrading:
-        _upgrade(doc, doc_path, round_input["upgrade"])
+        _upgrade(doc, doc_path, round_input["upgrade"], replace)
     version_2 = is_version_2(doc)
     sent_lists = [kind for kind in ENTRY_LISTS if kind in round_input]
     if sent_lists and not version_2:

@@ -608,3 +608,39 @@ def test_upgrade_of_a_version_2_page_is_refused(page):
         rd.build_round_document(page, SESSION, an_upgrade("i-c"))
     assert refused.value.code == "upgrade-not-taken-over"
     assert page.read_bytes() == before
+
+
+def taken_over_version_1(path):
+    """A version 1 page whose round 2 is answered and taken over by a new session."""
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    page_round.take_over(path)
+
+
+@pytest.mark.parametrize("value", ["yes", 0, 1, None])
+def test_upgrade_that_is_not_true_is_refused_and_writes_nothing(path, value):
+    taken_over_version_1(path)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": value})
+    assert refused.value.code == "bad-round" and repr(value) in refused.value.reason
+    assert path.read_bytes() == before
+
+
+def test_upgrade_false_leaves_a_version_1_page_version_1(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": False})
+    doc = read(path)
+    assert doc["schema"] == V1 and "upgraded" not in doc["session"]
+
+
+def test_the_upgrade_round_rebuilt_by_replace_with_upgrade_stays_the_upgrade_round(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro")]))
+    answer = rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro", "Corrected.")]),
+                                     replace=True)
+    doc = read(path)
+    assert answer["round"] == 3 and [rnd["n"] for rnd in doc["rounds"]] == [1, 2, 3]
+    assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
+    assert doc["sections"][0]["body"]["props"]["text"] == "Corrected."
+    assert check(path)[0] == 0
