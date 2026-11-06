@@ -408,3 +408,37 @@ def check_format_2_links(doc: dict, ids: dict) -> list[tuple]:
                 names((*where, "dropped"), [entry["dropped"]["note"]], notes, "note")
     return found
 
+
+def format_2_copy(doc: dict) -> dict:
+    """What the saved copy keeps of the format 2 lists: each change line of a settled round, by round and entry
+    id, and each merged or removed section."""
+    settled = {round_["n"] for round_ in doc["rounds"] if round_["state"] == "settled"}
+    changes: dict[str, dict] = {}
+    for _, _, entry in entries(doc):
+        for line in entry["changes"]:
+            if line["round"] in settled:
+                changes.setdefault(str(line["round"]), {})[entry["id"]] = canonical(line)
+    closed = sorted(section["id"] for section in doc.get("sections") or [] if section["state"] in CLOSED_SECTION)
+    return {"changes": changes, "closed": closed}
+
+
+def check_format_2_rewrite(doc: dict, saved: dict) -> list[tuple]:
+    """A change line of a settled round and a merged or removed section come back as the saved copy holds them."""
+    now = format_2_copy(doc)
+    where = {entry["id"]: path for path, _, entry in entries(doc)}
+    found = []
+    for n, lines in (saved.get("changes") or {}).items():
+        current = now["changes"].get(n, {})
+        for entry_id in sorted(set(lines) | set(current)):
+            if lines.get(entry_id) != current.get(entry_id):
+                found.append(((*where.get(entry_id, ()), "changes"), _named(
+                    CHANGE_REWRITTEN, f"the change line of settled round {n} on {entry_id!r} differs from the last "
+                                      "saved copy; a settled round and its change lines never change")))
+    sections = {section["id"]: section for section in doc.get("sections") or []}
+    for section_id in saved.get("closed") or []:
+        state = sections.get(section_id, {}).get("state")
+        if state not in CLOSED_SECTION:
+            found.append(((*where.get(section_id, ("sections",)), "state"), _named(
+                SECTION_RETURNED, f"section {section_id!r} was merged or removed; it never returns, found {state!r}; "
+                                  "a new section starts instead")))
+    return found

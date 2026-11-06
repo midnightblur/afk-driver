@@ -363,7 +363,7 @@ def save_settled_copy(document: Path, doc: dict) -> None:
     """Save the settled rounds, and on a format 2 page what `invariants.format_2_copy` keeps. Ingest calls this
     too: a late note changes a settled round."""
     rounds = invariants.settled_rounds(doc)
-    kept = {}
+    kept = invariants.format_2_copy(doc) if doc["schema"] == SCHEMA_V2 else {}
     if rounds or any(kept.values()):
         record = {"document": str(document), "rounds": {str(n): text for n, text in rounds.items()}, **kept}
         inject.write_if_changed(_copy_path(document), json.dumps(record).encode("utf-8"))
@@ -411,6 +411,8 @@ def check_document(path: str) -> tuple[dict, str]:
     else:
         copy_state = "none" if saved is None else "compared"
         found += invariants.check_rewrite(doc, (saved or {}).get("rounds", {}))
+        if saved and doc["schema"] == SCHEMA_V2:
+            found += invariants.check_format_2_rewrite(doc, saved)
     if found:
         raise _refuse(raw, found, "invariant")
     return doc, copy_state
