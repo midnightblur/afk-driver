@@ -2,8 +2,9 @@
 
 The page passes the card's notes and replies (`exchange`) and its earlier cards (`history`) as HTML.
 `rail` sets the state that the page rail reads: `settled` folds the card to its heading and settled line.
-`label`, given on a version 2 page, is the visible name of the card: the heading then shows no raw card id and
-reads its round as "Round 3"; the id stays in the attributes.
+`label`, given on a version 2 page, is the visible name of the card. Its presence switches the heading: with a
+label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
+card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
 """
 
 import re
@@ -115,5 +116,7 @@ register_component("card", {
     "properties": {"item": {"type": "object", "required": ["id", "kind", "body"]},
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
                    "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
-                   "rail": {"enum": ["open", "blocked", "settled"]}, "label": {"type": "string"}},
+                   "rail": {"enum": ["open", "blocked", "settled"]},
+                   "label": {"description": "Present: the version 2 heading (module docstring).", "type": "string",
+                             "minLength": 1}},
 }, render_card)

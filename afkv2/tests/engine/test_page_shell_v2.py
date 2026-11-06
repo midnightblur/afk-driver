@@ -19,6 +19,7 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR, Path(__file__).resolve().parent):
     sys.path.insert(0, str(folder))
 
 import engine  # noqa: E402
+import registry  # noqa: E402
 import test_page_parts_v2 as parts_case  # noqa: E402
 import test_page_shell as shell_case  # noqa: E402
 from shell import page  # noqa: E402
@@ -247,6 +248,14 @@ def test_a_version_2_card_keeps_its_id_in_its_attributes():
     own = html[start:html.index(">", start)]
     assert all(attr in own for attr in CARD_ID_ATTRS)
     assert "Round 3" in visible(html[start:html.index("</h4>", start)])
+
+
+def test_a_card_label_must_hold_words():
+    """A card label switches the heading to the version 2 form, so an empty one would leave a blank heading."""
+    item = card("i-plain")
+    props = {"item": item, "round": 1, "colour": "red", "current": True}
+    assert not registry.validate({"type": "card", "props": {**props, "label": "A plain card"}})
+    assert registry.validate({"type": "card", "props": {**props, "label": ""}})
 
 
 # --- a section never folds into the settled part
