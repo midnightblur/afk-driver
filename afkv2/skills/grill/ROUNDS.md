@@ -144,6 +144,13 @@ A note on a map node, or a note that gives guidance for the whole session, is a 
 
 The human writes `take over` on its own line: write an `Escape` row, `taken R<n>`. For the rest of the session, stop deciding and stop recommending: one question per round, with no `decided` card. You still do the work: claims, options, evidence. Settled points stay settled. The escape ends with the session.
 
+## Without a page
+
+When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` still writes each round into the page document, `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
+
+- Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
+- Write the developer's reply to `raw_file` as the send the page would make, in the grammar of `engine/prompt_lines.py` (plugin root): each number becomes its card id, and each note its own entry. Then go to step 7 of [SKILL.md](SKILL.md).
+
 ## Devil's-advocate pass
 
 When the tree looks exhausted, start one fresh subagent. Give it the settled requirements, pains, restrictions and ledger from `GRILL-LOG.md`, not this conversation. Its brief: attack. Which requirement treats a symptom, which restriction blocks a legitimate scenario, which 2 requirements conflict, what nearby pain stays open. Show its findings as the last round. Write a `Devil` row when each one is resolved or accepted.
