@@ -155,11 +155,13 @@ input.actions.forEach(function (a) {
 });
 const questions = root.querySelectorAll('article[data-afkv2-question]');
 const ticked = {};
+const hostKeys = {};
 root.querySelectorAll('[data-afkv2-input="tick"]').forEach(function (group) {
+  hostKeys[group.getAttribute('data-afkv2-question')] = group.getAttribute('data-lavish-question');
   ticked[group.getAttribute('data-afkv2-question')] = group.querySelectorAll('input').filter(function (i) { return i.checked; }).map(function (i) { return i.value; });
 });
 console.log(JSON.stringify({
-  queued: queued, copied: copied, ticked: ticked, name: window.name, storage: store,
+  queued: queued, copied: copied, ticked: ticked, hostKeys: hostKeys, name: window.name, storage: store,
   shown: questions.filter(function (q) { return !q.hidden; }).map(function (q) { return q.id; })
 }));
 """
@@ -292,6 +294,13 @@ def test_a_reload_of_the_tab_shows_the_ticks_again_and_keeps_their_order():
     assert again["queued"] == []
     later = run([tick("q-cols", "opt-date")], held=held)
     assert answers(later["queued"])[-1]["prompt"] == "q-cols tick opt-sum opt-name opt-date"
+
+
+def test_each_tick_group_is_a_lavish_question_so_the_host_sets_its_ticks_again_after_a_reload():
+    """lavish-axi 0.1.80 keeps and sets again only the controls under `[data-lavish-question]`
+    (`lavishQuestionControls`); a reload of the host tab gives the page frame no storage of its own."""
+    keys = run([])["hostKeys"]
+    assert set(keys) == {"q-size", "q-cols"} and all(keys.values()) and len(set(keys.values())) == 2
 
 
 def test_a_reload_without_local_storage_keeps_the_ticks_in_the_tab_name():

@@ -234,6 +234,8 @@
   });
 
   tickGroups().forEach(function (group) {
+    /* The host frame keeps no storage over a reload; lavish sets the controls of a lavish question again. */
+    group.setAttribute('data-lavish-question', TICK_KEY + group.getAttribute('data-afkv2-question'));
     restoreTicks(group);
     group.addEventListener('change', function (event) {
       if (!event.target.matches('input')) return;
