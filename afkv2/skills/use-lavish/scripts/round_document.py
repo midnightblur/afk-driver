@@ -518,7 +518,8 @@ def check_version_2(doc):
 
 def _upgrade(doc, doc_path, upgrade):
     """Write a version 0 or 1 page as version 2, only when a new session took it over in its current round (SDD §4
-    Migration and backfill). The document is in memory, read as version 1."""
+    Migration and backfill). The document is in memory, read as version 1. The caller records the first version 2
+    round in `session.upgraded`: the replies of older rounds keep the notes they name."""
     if upgrade is not True:
         raise Refusal("bad-round", f"upgrade is true or left out: {upgrade!r}")
     current = current_round(doc) if Path(doc_path).exists() else None
@@ -576,7 +577,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
                   "private": False, "takeovers": []}
         doc = {"schema": SCHEMA, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
-    if round_input.get("upgrade") not in (None, False):
+    upgrading = round_input.get("upgrade") not in (None, False)
+    if upgrading:
         _upgrade(doc, doc_path, round_input["upgrade"])
     version_2 = is_version_2(doc)
     sent_lists = [kind for kind in ENTRY_LISTS if kind in round_input]
@@ -590,6 +592,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if "tips" in round_input:
         doc["tips"] = round_input["tips"]
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
+    if upgrading:
+        doc["session"]["upgraded"] = n
     warnings = _session_text(doc["session"], round_input, n)
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)

@@ -479,6 +479,22 @@ def test_upgrade_writes_a_taken_over_version_1_page_as_version_2(path):
     assert check(path)[0] == 0
 
 
+def test_upgrade_records_its_round_and_keeps_an_older_reply_that_names_2_notes(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b note 1\n  Why this one?\ni-b note 2\n  And how?")
+    rd.apply_readings(path, {"open": [{"item": "i-b", "reply": "Asked again."}]})
+    assert replies_of(path, 2)[0]["notes"] == ["N-2-i-b-1", "N-2-i-b-2"]
+    page_round.take_over(path)
+    rd.build_round_document(path, SESSION, {**round_input(items=[card("i-c", carries=["i-b"])]), "upgrade": True})
+    doc = read(path)
+    assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
+    assert check(path)[0] == 0
+
+
+def test_a_page_never_upgraded_holds_no_upgraded_field(page):
+    assert "upgraded" not in read(page)["session"]
+
+
 def test_upgrade_writes_a_taken_over_version_0_page_as_version_2(path):
     settled_round_1(path, "i-b")
     ingest(path, "[round R-2]\ni-b accept")
