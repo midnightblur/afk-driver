@@ -751,6 +751,13 @@ def _open_question(doc, entry, states=("open",)):
 def _answer_question(doc, current, entry):
     """The agent writes the answer from the developer's tick or note of this round; it settles no card."""
     question = _open_question(doc, entry, ("open", "assumed"))
+    signal = entry.get("signal")
+    ticked = any(tick.get("target") == question["id"] and tick.get("mark") == "tick"
+                 for response in current.get("responses") or [] for tick in response.get("signals") or [])
+    noted = any(note["id"] == signal and note.get("round") == current["n"] for note in session_notes(doc))
+    if not (ticked if signal == "tick" else noted):
+        raise Refusal("answer-no-signal", f"question {question['id']}: the answer rests on the developer's tick on it "
+                                          f"or a live note of round {current['n']}; {signal!r} is neither")
     question["state"] = "answered"
     question["answer"] = {"text": entry.get("text"), "choices": entry.get("choices") or [], "role": entry.get("role"),
                           "date": entry.get("date"), "signal": entry.get("signal"), "round": current["n"]}
