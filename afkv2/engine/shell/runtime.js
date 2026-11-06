@@ -59,7 +59,6 @@
   var KEY_PREFIX = 'afkv2-draft:' + session + ':';
   var KEY = KEY_PREFIX + round;
   var MARK_TAG = 'afkv2-mark';
-  var TICK_TAG = 'afkv2-tick';
   /* A question id names its ticks in the draft; a card id names its mark. */
   var TICK_KEY = 'tick:';
 
@@ -159,20 +158,28 @@
     if (status) status.textContent = text;
   }
 
-  function queuePrompt(el, text, tag, key, data) {
+  function queue(el, id, token) {
     var bridge = window.lavish;
     if (!bridge || typeof bridge.queuePrompt !== 'function') return false;
-    bridge.queuePrompt(text, { tag: tag, queueKey: 'afkv2:' + session + ':' + round + ':' + key, element: el, data: data });
+    bridge.queuePrompt(id + ' ' + token, {
+      tag: MARK_TAG,
+      queueKey: 'afkv2:' + session + ':' + round + ':' + id,
+      element: el,
+      data: { item: id, mark: token }
+    });
     return true;
   }
 
-  function queue(el, id, token) {
-    return queuePrompt(el, id + ' ' + token, MARK_TAG, id, { item: id, mark: token });
-  }
-
   function queueTicks(group, id, ticks) {
-    return queuePrompt(group.closest('article') || group, tickLine(id, ticks), TICK_TAG, TICK_KEY + id,
-      { question: id, ticks: ticks });
+    var bridge = window.lavish;
+    if (!bridge || typeof bridge.queuePrompt !== 'function') return false;
+    bridge.queuePrompt(tickLine(id, ticks), {
+      tag: 'afkv2-tick',
+      queueKey: 'afkv2:' + session + ':' + round + ':' + TICK_KEY + id,
+      element: group.closest('article') || group,
+      data: { question: id, ticks: ticks }
+    });
+    return true;
   }
 
   function compose() {
