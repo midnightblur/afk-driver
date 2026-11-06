@@ -225,6 +225,39 @@ def test_a_section_sent_with_the_same_text_is_refused_and_nothing_is_written(pag
     assert page.read_bytes() == before
 
 
+STORY = {"id": "st-1", "text": "As a user, I export."}
+EXAMPLE = {"id": "ex-1", "title": "A plain export", "kind": "frequent", "stories": ["st-1"],
+           "body": {"type": "text", "id": "ex-1-text", "props": {"text": "From 3 rows to 1 file."}}}
+
+
+@pytest.mark.parametrize("kind, resent", [("stories", STORY), ("examples", EXAMPLE),
+                                          ("questions", {**question("q-2"), "after": "q-1"})])
+def test_an_entry_sent_unchanged_in_its_own_place_is_refused_and_nothing_is_written(page, kind, resent):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", stories=[STORY], examples=[EXAMPLE],
+               questions=[question("q-1"), question("q-2")])
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-d", **{kind: [resent]}))
+    assert refused.value.code == "unchanged-entry" and resent["id"] in refused.value.reason
+    assert page.read_bytes() == before
+
+
+@pytest.mark.parametrize("lists, words", [
+    ({"sections": [{"change": FINDING, **section("s-intro")}, {"change": FINDING, **section("s-intro", "Other.")}]},
+     "sent twice"),
+    ({"sections": [{"change": FINDING, **section("s-intro"), "after": "s-scope"}]}, "only a question takes `after`"),
+    ({"stories": [{"change": FINDING, **STORY, "after": "st-0"}]}, "only a question takes `after`"),
+    ({"sections": {"change": FINDING, **section("s-intro")}}, "is a list"),
+    ({"stories": [{"change": FINDING, "text": "As a user, I export."}]}, "without an id"),
+])
+def test_a_bad_entry_is_refused_and_nothing_is_written(page, lists, words):
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, round_input("i-c", **lists))
+    assert refused.value.code == "bad-entry" and words in refused.value.reason, refused.value.reason
+    assert page.read_bytes() == before
+
+
 @pytest.mark.parametrize("text", ["Text.", "Corrected text."])
 def test_a_replaced_round_resends_its_own_entries_with_1_change_line(page, text):
     next_round(page, "i-c", sections=[section("s-intro"), section("s-scope")])
@@ -426,6 +459,7 @@ def test_a_kept_point_does_not_return_in_the_next_round(asked):
                               "answer": [an_answer()],
                               "replies": [{"text": "Dropped as you asked.", "notes": ["N-3-q-2-1"]},
                                           {"text": "Recorded as the answer.", "notes": ["N-3-q-3-1"]}]})
+    assert "i-a" not in [item["id"] for item in rd.returning(read(asked))]
     rd.build_round_document(asked, SESSION, round_input(items=[card("i-d", carries=["i-c"])]))
     assert item_of(asked, "i-a")["state"] == "settled_by_mark"
     assert check(asked)[0] == 0
@@ -472,7 +506,7 @@ def test_drop_with_a_reason_drops_the_question(asked):
     assert check(asked)[0] == 0
 
 
-@pytest.mark.parametrize("reason", ["", "  ", None])
+@pytest.mark.parametrize("reason", ["", "  ", None, 5])
 def test_drop_without_a_reason_is_refused_and_the_question_stays_open(asked, reason):
     entry = {"question": "q-2", "note": "N-3-q-2-1", **({} if reason is None else {"reason": reason})}
     refused_reading(asked, {"drop": [entry]}, "drop-no-reason")
@@ -574,3 +608,39 @@ def test_upgrade_of_a_version_2_page_is_refused(page):
         rd.build_round_document(page, SESSION, an_upgrade("i-c"))
     assert refused.value.code == "upgrade-not-taken-over"
     assert page.read_bytes() == before
+
+
+def taken_over_version_1(path):
+    """A version 1 page whose round 2 is answered and taken over by a new session."""
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    page_round.take_over(path)
+
+
+@pytest.mark.parametrize("value", ["yes", 0, 1, None])
+def test_upgrade_that_is_not_true_is_refused_and_writes_nothing(path, value):
+    taken_over_version_1(path)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": value})
+    assert refused.value.code == "bad-round" and repr(value) in refused.value.reason
+    assert path.read_bytes() == before
+
+
+def test_upgrade_false_leaves_a_version_1_page_version_1(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": False})
+    doc = read(path)
+    assert doc["schema"] == V1 and "upgraded" not in doc["session"]
+
+
+def test_the_upgrade_round_rebuilt_by_replace_with_upgrade_stays_the_upgrade_round(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro")]))
+    answer = rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro", "Corrected.")]),
+                                     replace=True)
+    doc = read(path)
+    assert answer["round"] == 3 and [rnd["n"] for rnd in doc["rounds"]] == [1, 2, 3]
+    assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
+    assert doc["sections"][0]["body"]["props"]["text"] == "Corrected."
+    assert check(path)[0] == 0

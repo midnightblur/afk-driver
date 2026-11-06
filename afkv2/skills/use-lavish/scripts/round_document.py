@@ -521,13 +521,16 @@ def check_version_2(doc):
         raise Refusal("invariant", engine._refuse(doc, found, "invariant").reason)
 
 
-def _upgrade(doc, doc_path, upgrade):
+def _upgrade(doc, doc_path, upgrade, replace=False):
     """Write a version 0 or 1 page as version 2, only when a new session took it over in its current round (SDD §4
     Migration and backfill). The document is in memory, read as version 1. The caller records the first version 2
-    round in `session.upgraded`: the replies of older rounds keep the notes they name."""
+    round in `session.upgraded`: the replies of older rounds keep the notes they name. `replace` of the round that
+    upgraded the page sends `upgrade` again: the page is version 2 already, and the rebuilt round stays that round."""
     if upgrade is not True:
-        raise Refusal("bad-round", f"upgrade is true or left out: {upgrade!r}")
+        raise Refusal("bad-round", f"upgrade is true, false or left out: {upgrade!r}")
     current = current_round(doc) if Path(doc_path).exists() else None
+    if replace and current is not None and is_version_2(doc) and doc["session"].get("upgraded") == current["n"]:
+        return
     taken_over = current is not None and any(entry.get("round") == current["n"]
                                              for entry in doc["session"].get("takeovers") or [])
     if is_version_2(doc) or not taken_over:
@@ -550,7 +553,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     On a version 2 page the round input may add `sections`, `stories`, `examples` and `questions`: only the
     entries that changed (`_merge_entries`), and a card may name its `section`. A version 0 or 1 page refuses
     these fields by name, unless the round input holds `upgrade: true` (`_upgrade`). A version 2 document passes
-    the engine's document check before it is written.
+    the engine's document check before it is written. Only the answer of a version 2 page holds `entries`.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -582,9 +585,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
                   "private": False, "takeovers": []}
         doc = {"schema": page_engine().SCHEMA_V2, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
-    upgrading = round_input.get("upgrade") not in (None, False)
+    upgrading = "upgrade" in round_input and round_input["upgrade"] is not False
     if upgrading:
-        _upgrade(doc, doc_path, round_input["upgrade"])
+        _upgrade(doc, doc_path, round_input["upgrade"], replace)
     version_2 = is_version_2(doc)
     sent_lists = [kind for kind in ENTRY_LISTS if kind in round_input]
     if sent_lists and not version_2:
@@ -775,7 +778,7 @@ def _answer_question(doc, current, entry):
 def _drop_question(doc, current, entry):
     question = _open_question(doc, entry)
     reason = entry.get("reason") or ""
-    if not reason.strip():
+    if not isinstance(reason, str) or not reason.strip():
         raise Refusal("drop-no-reason", f"question {question['id']}: a dropped question needs a reason")
     question["state"] = "dropped"
     question["dropped"] = {"reason": reason, "note": entry.get("note"), "round": current["n"]}
@@ -800,7 +803,9 @@ def _new_readings(doc, current, readings):
 def apply_readings(doc_path, readings):
     """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies, and on a version 2 page
     keep {note, reply}, answer {question, text, choices, role, date, signal}, drop {question, reason, note} and
-    assume {question, text, card}. Answer, drop and assume write round = the current round."""
+    assume {question, text, card}. Answer, drop and assume write round = the current round. An `open` entry is
+    {item, reply, changed, note}; only a version 2 page reads `note`, and a version 1 page answers every note of the
+    round on the card."""
     doc = format_1(read_json(doc_path))
     current = current_round(doc)
     if current is None:

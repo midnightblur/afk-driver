@@ -29,6 +29,7 @@ ENGINE = PLUGIN / "engine" / "engine.py"
 FAKES = Path(__file__).resolve().parent / "fakes"
 sys.path.insert(0, str(LAVISH_DIR / "scripts"))
 
+import page_round  # noqa: E402
 import round_document as rd  # noqa: E402
 
 V2_FIELDS = ("sections", "stories", "examples", "questions")
@@ -320,17 +321,16 @@ def test_decided_card_with_a_bad_grade_or_dependency_degrades(tmp_path, change):
     assert result["degraded"] == ["i-scope"]
 
 
-def test_map_node_round_moves_only_when_its_state_moves(tmp_path):
-    path = tmp_path / "doc.json"
+def test_map_node_round_moves_only_when_its_state_moves(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    path = tmp_path / "pages" / "grill-s-1.json"
     rd.build_round_document(path, session(), round_one())
-    doc = json.loads(path.read_text("utf-8"))
-    doc["schema"] = "afkv2.page/1"  # the hand-written answer below has no signal, which only version 1 keeps
-    doc["rounds"][0]["responses"] = [{"received": "2026-01-05T10:00:00Z", "raw": "x", "signals": []}]
-    for item in doc["rounds"][0]["items"]:
-        item.update(state="settled_by_mark", settled={"by": "mark", "round": 1, "signal": "accept"})
-    path.write_text(json.dumps(doc), "utf-8")
+    raw = tmp_path / "raw.txt"
+    raw.write_text("[round R-1]\ni-scope accept", "utf-8")
+    page_round.ingest(path, raw)
+    assert json.loads(path.read_text("utf-8"))["schema"] == "afkv2.page/2"
     next_round = {"banner": {"settled": [], "unlocks": [], "parked": []}, "maps": [scope_map("settled")],
-                  "items": [{"id": "i-next", "kind": "confirm", "body": text("Next point.")}]}
+                  "items": [{"id": "i-next", "kind": "confirm", "body": text("Next point."), "carries": ["i-format"]}]}
     rd.build_round_document(path, session(), next_round)
     nodes = {n["id"]: n for n in json.loads(path.read_text("utf-8"))["maps"][0]["props"]["nodes"]}
     assert nodes["n-scope"]["round"] == 2
