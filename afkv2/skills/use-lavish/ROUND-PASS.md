@@ -46,8 +46,9 @@ stays in its round. The old card stays as it is.
 Every round that follows input from the human: the notes of the last round, or
 the human's input in Round 0. Treat Round 0 input as unverified. Read every note,
 then answer each note by the answer rules ([SKILL.md](SKILL.md) "Answer rules"):
-an answer lists in `notes` each note id it answers. State your reading in the
-answer for every point a note settled. Leave `notes` of the document to the
+each note gets its own reply, and a reply on a version 2 page names exactly 1 note
+in `notes`. A note with several meanings gets 1 reply that states each reading.
+State your reading in the reply for every point a note settled. Leave `notes` of the document to the
 engine: every note in the document comes from the human. A note with `deleted`
 set is not input.
 

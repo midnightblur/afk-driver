@@ -36,7 +36,7 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 2. **Start.** Run `scripts/page_home.py start --topic "<topic>"`. Add `--ticket` when the work has a ticket. Add `--private` when the content is not for the repository's readers: customer data, personal notes, work context. Done when the result holds `doc`.
 3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen the round: fix the named field in the round input, and run `build` again with `--replace`. `round-shown`: the human may be answering the round in the browser, so wait for it. On `show`, the page host is not available: show the round as Markdown in chat, with every card id, write the human's reply to `raw_file`, and go to step 5. Done when `present` succeeds and you reported its notices ("After each show").
 4. **Wait.** Run `wait` as a background command the harness tracks; its exit tells you the round send is in `raw_file`. On a harness whose Stop hook waits for the page, end your turn after `present` instead, and write the raw response it hands back to `raw_file`, word for word. When the result lists side questions in `btw`, write one short Markdown answer for each to a reply file and run `scripts/page_round.py reply`. Then go to step 5, or run `wait` again when `raw_file` is null.
-5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with an answer for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
+5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with a reply for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
 
 ## After each show
 
@@ -95,12 +95,12 @@ A session that resumes a page whose session ended takes it over before it writes
 | AR-02 | Say what changed and where, 1 sentence per change. |
 | AR-03 | Push back plainly on disagreement: name the cost and the timing, and give a counter-proposal. |
 | AR-04 | A pushback that needs the human's call becomes a new question card, with a recommendation. |
-| AR-05 | A note with several points gets one answer per point, in the same row. |
+| AR-05 | A note with several meanings (an answer, a new idea, a question) gets 1 reply that states each reading, in that note's row. |
 | AR-06 | An answer that changes nothing says why: kept, deferred, already done. |
 | AR-07 | Mark a guess as "(inferred)". Say so when the note could not be read in full. |
 | AR-08 | Update every point the change touches, not only the noted card: each gets a new card that carries the old one. |
 | AR-09 | Never repeat the human's note in the answer, steers included: the row already shows the note, and the skill's log keeps the exact words. |
-| AR-10 | Each note gets its own row. When one answer covers several notes, the answer repeats in each of their rows; no row groups notes. |
+| AR-10 | Each note gets its own row. It also gets its own reply, written for that note. No reply copies another note's reply, and no row groups notes. On a version 2 page, `build` and `apply-readings` refuse a reply that names 2 or more notes (`reply-many-notes`). |
 
 ### Forms by kind
 
