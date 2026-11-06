@@ -37,7 +37,7 @@ words. A deleted note has no row.
 A note on a card, or on a part of a card, is a row under the heading of that
 card, newest round first. A history card shows its own rows.
 
-"Notes on the whole session", below the round banner, holds every note and every
+"Notes on the whole session" holds every note and every
 answer of the session, card notes included, newest round first. It adds an
 `Open` column, a link to the card, map or round the row is on. A group row with
 the round colour and a count line opens each round. The current round and the

@@ -59,6 +59,7 @@ from shell import inject, page  # noqa: E402
 
 SCHEMA_V0 = "afkv2.page/0"
 SCHEMA_V1 = "afkv2.page/1"
+SCHEMA_V2 = "afkv2.page/2"
 SCHEMA_FILES = registry.SCHEMA_FILES
 PAGES_FOLDER = "pages"
 MAX_REASONS = 20
@@ -119,7 +120,12 @@ def read_v1(raw: dict) -> dict:
     return raw
 
 
-READERS = {SCHEMA_V0: read_v0_as_v1, SCHEMA_V1: read_v1}
+def read_v2(raw: dict) -> dict:
+    """A format 2 document as it is: the format 1 rules hold on it, and its own lists add theirs."""
+    return raw
+
+
+READERS = {SCHEMA_V0: read_v0_as_v1, SCHEMA_V1: read_v1, SCHEMA_V2: read_v2}
 
 
 def _schema_checked(value: dict) -> str:
@@ -132,7 +138,7 @@ def _schema_checked(value: dict) -> str:
 
 
 def load_document(path: str) -> tuple[dict, dict]:
-    """The raw document and its reader's in-memory form, format 1. An unknown schema value and a document
+    """The raw document and its reader's in-memory form, format 1 or 2. An unknown schema value and a document
     that does not fit the schema of its format are refused before the reader runs."""
     try:
         raw = json.loads(Path(path).read_bytes().decode("utf-8"))
@@ -153,6 +159,10 @@ def describe(doc: dict, path: tuple) -> tuple[str, str]:
     name, rest = "document", path
     if path[:1] == ("session",):
         name, rest = "session", path[1:]
+    elif path[:1] and path[0] in invariants.ENTRY_LISTS and len(path) > 1:
+        entry = doc[path[0]][path[1]]
+        name = f"{invariants.ENTRY_LISTS[path[0]]} {(entry.get('id') if isinstance(entry, dict) else None) or path[1]}"
+        rest = path[2:]
     elif path[:1] == ("maps",) and len(path) > 1:
         entry = doc["maps"][path[1]]
         name = f"map {(entry.get('id') if isinstance(entry, dict) else None) or path[1]}"
@@ -217,6 +227,10 @@ def _element_ids(doc: dict) -> tuple[list[tuple], dict, dict]:
             base = ("rounds", r, "items", i)
             add(item["id"], base)
             add_tree(item["body"], (*base, "body"))
+    for where, _, entry in invariants.entries(doc):
+        add(entry["id"], where)
+    for where, tree in invariants.entry_trees(doc):
+        add_tree(tree, where)
     return found, ids, nodes
 
 
@@ -237,7 +251,7 @@ def _page_tip_problems(doc: dict, ids: dict) -> list[tuple]:
     Term identity follows shell/tips.js: lowercase keys ignore case; other keys
     keep their case. IDs match only the complete, same-case element ID.
     """
-    if doc["schema"] != SCHEMA_V1:
+    if doc["schema"] not in (SCHEMA_V1, SCHEMA_V2):
         return []
     found = []
     tips = doc.get("tips", {})
@@ -332,8 +346,9 @@ def _forget_tab(html_path: Path) -> None:
             raise
 
 
-def read_saved_copy(document: Path) -> dict[int, str] | None:
-    """The last saved settled rounds, or None when no copy was saved."""
+def read_saved_copy(document: Path) -> dict | None:
+    """The last saved copy, or None when no copy was saved: `rounds`, the settled rounds by number; on a format 2
+    page also `changes`, the change lines of the settled rounds, and `closed`, the merged or removed sections."""
     path = _copy_path(document)
     try:
         saved = json.loads(path.read_text(encoding="utf-8"))
@@ -341,14 +356,16 @@ def read_saved_copy(document: Path) -> dict[int, str] | None:
         return None
     except (OSError, ValueError) as error:
         raise Refusal("unreadable", f"last saved copy {path}: {error}") from error
-    return {int(n): text for n, text in saved["rounds"].items()}
+    return {**saved, "rounds": {int(n): text for n, text in saved["rounds"].items()}}
 
 
 def save_settled_copy(document: Path, doc: dict) -> None:
-    """Save the settled rounds. Ingest calls this too: a late note changes a settled round."""
+    """Save the settled rounds, and on a format 2 page what `invariants.format_2_copy` keeps. Ingest calls this
+    too: a late note changes a settled round."""
     rounds = invariants.settled_rounds(doc)
-    if rounds:
-        record = {"document": str(document), "rounds": {str(n): text for n, text in rounds.items()}}
+    kept = invariants.format_2_copy(doc) if doc["schema"] == SCHEMA_V2 else {}
+    if rounds or any(kept.values()):
+        record = {"document": str(document), "rounds": {str(n): text for n, text in rounds.items()}, **kept}
         inject.write_if_changed(_copy_path(document), json.dumps(record).encode("utf-8"))
 
 
@@ -363,12 +380,19 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
         for i, item in enumerate(round_["items"]):
             found += registry.validate(item["body"], ("rounds", r, "items", i, "body"),
                                        schema_name=schema_name)
+    for where, tree in invariants.entry_trees(doc):
+        found += registry.validate(tree, where, schema_name=schema_name)
     if found:
         raise _refuse(raw, found, "schema")
+    format_2 = doc["schema"] == SCHEMA_V2
     found, ids, nodes = _element_ids(doc)
     found += _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
+    if format_2:
+        found += invariants.check_format_2(doc)
     if not found:
         links = invariants.check_links(doc, ids)
+        if format_2:
+            links += invariants.check_format_2_links(doc, ids)
         if links:
             raise _refuse(raw, links, "bad-link")
     return found
@@ -386,15 +410,23 @@ def check_document(path: str) -> tuple[dict, str]:
             raise
     else:
         copy_state = "none" if saved is None else "compared"
-        found += invariants.check_rewrite(doc, saved or {})
+        found += invariants.check_rewrite(doc, (saved or {}).get("rounds", {}))
+        if saved and doc["schema"] == SCHEMA_V2:
+            found += invariants.check_format_2_rewrite(doc, saved)
     if found:
         raise _refuse(raw, found, "invariant")
     return doc, copy_state
 
 
-def _check_changed(doc: dict) -> None:
-    """Every check but the settled-round compare: ingest may change a settled round, and saves the copy."""
+def check_in_memory(doc: dict, named: tuple = ()) -> None:
+    """Every check but the settled-round compare, on a document in memory: ingest may change a settled round, and
+    saves the copy. The first problem of a rule in `named` is refused alone by that rule's name; other problems are
+    refused as `invariant`."""
     found = _content_problems(doc, doc)
+    for path, why in found:
+        code = why.split(":", 1)[0]
+        if code in named:
+            raise _refuse(doc, [(path, why)], code)
     if found:
         raise _refuse(doc, found, "invariant")
 
@@ -662,7 +694,7 @@ def _ingest(args) -> dict:
     raw, _ = load_document(args.document)
     check_document(args.document)
     try:
-        answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed,
+        answer = ingest.cmd_ingest(args, check=check_document, check_changed=check_in_memory,
                                    elements=_element_ids, save_copy=_save_settled_copy_if_possible,
                                    page_format=raw["schema"])
     except Refusal as refusal:

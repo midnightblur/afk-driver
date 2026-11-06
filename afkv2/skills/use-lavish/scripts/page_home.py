@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json
-from round_document import FORMAT_0, SCHEMA, format_1
+from round_document import format_1, is_page
 
 sys.path.insert(0, str(PLUGIN_ROOT / "scripts"))
 
@@ -104,8 +104,8 @@ def track_page(doc, ticket):
     target = _spec_pages(ticket) / doc.name
     if doc.is_file():
         raw = read_json(doc)
-        if not isinstance(raw, dict) or raw.get("schema") not in (SCHEMA, FORMAT_0):
-            raise Refusal("unreadable", f"{doc} is no page document of format 0 or 1", EXIT_UNREADABLE)
+        if not is_page(raw):
+            raise Refusal("unreadable", f"{doc} is no page document of format 0, 1 or 2", EXIT_UNREADABLE)
         page = format_1(raw)
         if page["session"].get("private"):
             raise Refusal("private", "the page is marked private: say what must come out of it before it can live in "

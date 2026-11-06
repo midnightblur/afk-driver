@@ -1,7 +1,9 @@
 """Drive one page round through the engine verbs (SDD §3), from the repository root.
 
-  present --doc D [--scan F]...   check, render with the notices, show, in that order; stops at the first refusal.
+  present --doc D [--scan F]... [--no-show]
+                                  check, render with the notices, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
+                                  --no-show: no show, for a round asked in chat; `url` and `tab` are null.
                                   Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
                                   scan file (a file the skill writes beside the page, such as its log),
                                   `secrets_more` (the hits past the cap) and `scan_cut` (each file scanned only to
@@ -13,7 +15,8 @@
                                   is null when the send held no round answer
   reply   --doc D --reply-file F  shows the Markdown in F on the page
   ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
-                                  round pass must read
+                                  round pass must read, on a version 2 page with the engine's
+                                  `questions_to_read` and `settled_notes_to_read`
   end     --doc D                 ends the page session: the page says the session ended, not 'Working...'
   take-over --doc D               records that a new agent session took the page over in the current round;
                                   answers `session`, `round` and `takeovers`. A second run in that round adds nothing
@@ -32,10 +35,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_json, write_text
-from round_document import FORMAT_0, SCHEMA, current_round, format_1, pending, record_shown, shown_record
+from round_document import current_round, format_1, is_page, pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
+# What the engine's ingest answers on a version 2 page for the agent's reading (SDD §3 row "ingest").
+TO_READ = ("questions_to_read", "settled_notes_to_read")
 
 
 def _engine(verb, doc, *args, timeout=TIMEOUT_S):
@@ -45,11 +50,11 @@ def _engine(verb, doc, *args, timeout=TIMEOUT_S):
         raise Refusal(refusal.code, refusal.reason, refusal.exit_code, verb=verb) from refusal
 
 
-def present(doc, scan=()):
+def present(doc, scan=(), no_show=False):
     _engine("check", doc)
     rendered = _engine("render", doc, "--notices", *(arg for file in scan for arg in ("--scan", str(file))))
     record_shown(doc)
-    shown = _engine("show", doc)
+    shown = {} if no_show else _engine("show", doc)
     return {"ok": True, "page": rendered.get("page"), "url": shown.get("url"), "tab": shown.get("tab"),
             "git_state": rendered.get("git_state"), "secrets": rendered.get("secrets") or [],
             "secrets_more": rendered.get("secrets_more") or 0, "scan_cut": rendered.get("scan_cut") or [],
@@ -146,19 +151,20 @@ def prompts_file(raw_file):
 def ingest(doc, raw_file):
     if not Path(raw_file).is_file():
         raise Refusal("unreadable", f"no raw response at {raw_file}", 2, verb="ingest")
-    _engine("ingest", doc, "--raw-file", raw_file)
+    answer = _engine("ingest", doc, "--raw-file", raw_file)
     Path(raw_file).unlink()
     prompts_file(raw_file).unlink(missing_ok=True)
     shown_record(doc).unlink(missing_ok=True)
-    return {"ok": True, **pending(read_json(doc))}
+    to_read = {key: answer[key] for key in TO_READ if key in answer}
+    return {"ok": True, **pending(read_json(doc)), **to_read}
 
 
 def take_over(doc):
     """Add 1 entry to `session.takeovers` for the current round, once (SDD §3 row "take-over"). A format 0 page
     is written as format 1."""
     raw = read_json(doc)
-    if not isinstance(raw, dict) or raw.get("schema") not in (SCHEMA, FORMAT_0):
-        raise Refusal("unreadable", f"{doc} is no page document of format 0 or 1", EXIT_UNREADABLE, verb="take-over")
+    if not is_page(raw):
+        raise Refusal("unreadable", f"{doc} is no page document of format 0, 1 or 2", EXIT_UNREADABLE, verb="take-over")
     page = format_1(raw)
     current = current_round(page)
     if current is None:
@@ -177,9 +183,10 @@ def main(argv):
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
     parser.add_argument("--scan", action="append", default=[])
+    parser.add_argument("--no-show", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "present":
-        return present(args.doc, args.scan)
+        return present(args.doc, args.scan, args.no_show)
     if args.verb == "take-over":
         return take_over(args.doc)
     if args.verb == "end":

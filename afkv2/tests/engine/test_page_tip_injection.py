@@ -37,7 +37,9 @@ class Scripts(HTMLParser):
 
 
 def payload(html):
-    return json.loads(Scripts(html).blocks["afkv2-tips-payload"])
+    """The page maps of the payload, with the shared terms of the dictionary block: the page holds them once."""
+    blocks = Scripts(html).blocks
+    return {**json.loads(blocks["afkv2-tips-payload"]), "shared_terms": json.loads(blocks["afkv2-tips-dict"])}
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ import re
 
 ANNOTATIONS = {"$schema", "$id", "title", "description", "$defs"}
 KEYWORDS = {"$ref", "type", "const", "enum", "required", "properties", "additionalProperties",
-            "items", "pattern", "minimum", "minItems", "minLength", "maxLength", "anyOf"}
+            "items", "pattern", "minimum", "minItems", "maxItems", "minLength", "maxLength", "anyOf"}
 TYPES = {
     "object": lambda v: isinstance(v, dict),
     "array": lambda v: isinstance(v, list),
@@ -57,6 +57,8 @@ def problems(value, schema: dict, path: tuple = (), root: dict | None = None) ->
     elif isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             found.append((path, f"needs at least {schema['minItems']} entries"))
+        if len(value) > schema.get("maxItems", len(value)):
+            found.append((path, f"holds at most {schema['maxItems']} entries, found {len(value)}"))
         if "items" in schema:
             for index, entry in enumerate(value):
                 found += problems(entry, schema["items"], (*path, index), root)

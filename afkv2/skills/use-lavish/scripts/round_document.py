@@ -1,4 +1,4 @@
-"""Write the page document of one page session (schema afkv2.page/1, SDD §4).
+"""Write the page document of one page session (schema afkv2.page/1 or afkv2.page/2, SDD §4).
 
 Verbs, run from the repository root:
   build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
@@ -9,8 +9,9 @@ The engine stays the check of the whole document; this script holds the grill's 
 the decided-card contract, the picture before a critical-aspect question, the settle-by-note
 fields, and that no asking card is lost when a round closes.
 
-Every note is in the session list (ADR-0001 design). A format 0 document is read through the engine's
-format 0 reader, and its next write is format 1 (ADR-0002 design).
+Every note is in the session list (ADR-0001 design). A new session's page is format 2. A format 0 document is
+read through the engine's format 0 reader, and its next write is format 1 (ADR-0002 design). A format 1 or 2
+document keeps its format.
 """
 
 from __future__ import annotations
@@ -36,7 +37,17 @@ PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
 ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+# The lists of a version 2 page, by the name of 1 entry (SDD §4). The round input sends only the entries that changed.
+ENTRY_LISTS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question"}
+# The input fields of a sent entry that the builder does not store: its 1 change line and a question's place.
+ENTRY_INPUT_FIELDS = ("change", "after")
+# The document rules that refuse a version 2 write by their own name (engine/schema/invariants.py).
+NAMED_RULES = ("everyone-answered", "answer-no-signal", "drop-no-reason", "assume-no-card", "reply-many-notes")
 REPLY_FIELDS = {"text", "notes", "changed"}
+READINGS = ("settle", "open", "unblock", "replies")
+# The readings of a version 2 page, each with its fields (SDD §3 row "reading tool").
+READINGS_V2 = {"keep": ("note", "reply", "changed"), "answer": ("question", "text", "choices", "role", "date", "signal"),
+               "drop": ("question", "reason", "note"), "assume": ("question", "text", "card")}
 TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
@@ -77,16 +88,32 @@ def current_round(doc):
     return next((rnd for rnd in doc.get("rounds") or [] if rnd.get("state") == "current"), None)
 
 
-def format_1(doc):
-    """The document in format 1: a format 0 document goes through the engine's one format 0 reader, which
-    changes nothing on disk."""
-    if doc.get("schema") != FORMAT_0:
-        return doc
+def page_engine():
+    """The engine module: its format readers, its version values and its checks."""
     folder = str(PLUGIN_ROOT / "engine")
     if folder not in sys.path:
         sys.path.insert(0, folder)
     import engine
-    return engine.read_v0_as_v1(doc)
+    return engine
+
+
+def is_version_2(doc):
+    """A version 0 or 1 page asks the engine nothing."""
+    schema = doc.get("schema")
+    return schema not in (SCHEMA, FORMAT_0) and schema == page_engine().SCHEMA_V2
+
+
+def is_page(raw):
+    """True for a page document of a version this builder writes: 0 (read as 1), 1 or 2."""
+    return isinstance(raw, dict) and (raw.get("schema") in (SCHEMA, FORMAT_0) or is_version_2(raw))
+
+
+def format_1(doc):
+    """The document in format 1, or 2 as it is: a format 0 document goes through the engine's one format 0
+    reader, which changes nothing on disk."""
+    if doc.get("schema") != FORMAT_0:
+        return doc
+    return page_engine().read_v0_as_v1(doc)
 
 
 def session_notes(doc):
@@ -196,7 +223,7 @@ def _decided_fields(item_id, decided, known_ids):
     return fields, whole
 
 
-def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
+def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
     if not isinstance(raw, dict) or not raw.get("id"):
         raise Refusal("bad-item", f"item without an id: {raw!r}")
     item_id = raw["id"]
@@ -204,7 +231,7 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
     engine_written = ENGINE_ITEM_FIELDS & set(raw)
     if engine_written:
         raise Refusal("engine-field", f"{where}: the engine writes {sorted(engine_written)}")
-    unknown = set(raw) - ITEM_INPUT_FIELDS
+    unknown = set(raw) - ITEM_INPUT_FIELDS - ({"section"} if version_2 else set())
     if unknown:
         raise Refusal("bad-item", f"{where}: unknown fields {sorted(unknown)}")
     if raw.get("kind") not in KINDS:
@@ -235,7 +262,7 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset()):
     if not set(carries) <= earlier_cards:
         raise Refusal("bad-item", f"{where}: carries no card of an earlier round: {sorted(set(carries) - earlier_cards)}")
     item = {"id": item_id, "kind": kind, "state": state, "body": body}
-    for optional in ("title", "node", "carries"):
+    for optional in ("title", "node", "carries", "section"):
         if raw.get(optional):
             item[optional] = raw[optional]
     return item
@@ -289,7 +316,8 @@ def _carries_card(item, card_id):
 
 
 def returning(doc):
-    """Asking cards of the rounds before the current one that the human noted or reopened in this send."""
+    """Asking cards of the rounds before the current one that the human noted or reopened in this send. On a
+    version 2 page a note leaves a settled card settled: the agent reads it with `keep`, or asks again on a card."""
     doc = format_1(doc)
     current = current_round(doc)
     if not current:
@@ -298,11 +326,13 @@ def returning(doc):
     reopened = {signal.get("item") for response in current.get("responses") or []
                 for signal in response.get("signals") or [] if signal.get("reopened")}
     found = []
+    stays = SETTLED_STATES if is_version_2(doc) else set()
     for rnd in doc["rounds"]:
         if rnd is current:
             continue
         for item in rnd["items"]:
-            noted = any(note.get("round") == current["n"] for note in card_notes(doc, item, targets))
+            noted = item["state"] not in stays and any(note.get("round") == current["n"]
+                                                        for note in card_notes(doc, item, targets))
             unread = item["state"] == "needs_reading" and not _carried(doc, item, rnd["n"])
             if item["kind"] in ASKING and (noted or item["id"] in reopened or unread):
                 found.append(item)
@@ -333,7 +363,7 @@ def _close_current(doc, new_items):
 
 
 def shown_record(doc_path):
-    """The file that names the round `present` tried to show; schema afkv2.page/0 has no field for it."""
+    """The file that names the round `present` showed or recorded with `--no-show`; schema afkv2.page/0 has no field for it."""
     return Path(doc_path).with_suffix(".shown.txt")
 
 
@@ -406,6 +436,102 @@ def _session_text(session, round_input, n):
                                                 f"{session.get('short_title')!r}, not {title!r}"}]
 
 
+def _stored(entry):
+    return {key: value for key, value in entry.items() if key != "changes"}
+
+
+def _change_line(where, line, n):
+    """The 1 change line of a sent entry, for round `n`; the builder writes its round."""
+    if not isinstance(line, dict) or line.get("round", n) != n:
+        raise Refusal("no-change-line", f"{where} changed, so it carries exactly 1 change line for round {n} in "
+                                        f"`change`, an object {{cause, text, notes | card | question}}: {line!r}")
+    return {"round": n, **{key: value for key, value in line.items() if key != "round"}}
+
+
+def _place_question(stored, entry, after, where):
+    """The list with the question right after the question that `after` names."""
+    if after == entry["id"] or not any(old["id"] == after for old in stored):
+        raise Refusal("bad-entry", f"{where}: after {after!r} names no other question of the list")
+    rest = [old for old in stored if old["id"] != entry["id"]]
+    at = next(k for k, old in enumerate(rest) if old["id"] == after) + 1
+    return [*rest[:at], entry, *rest[at:]]
+
+
+def _merge_entries(doc, round_input, n):
+    """Merge the sent entries of the 4 lists into the document by id; answer their ids in the order sent.
+
+    An entry left out keeps its text and its change list exactly. A sent entry holds every field but `changes`,
+    + `change`: its 1 change line for round `n`; a question may add `after`, the question it follows. A new entry
+    goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one; an entry
+    of the replaced round that the new round leaves out keeps that round's text and line (decision D-20)."""
+    changed = []
+    for kind, name in ENTRY_LISTS.items():
+        sent = round_input.get(kind)
+        if sent is None:
+            continue
+        if not isinstance(sent, list):
+            raise Refusal("bad-entry", f"{kind} is a list of the entries that changed")
+        stored = list(doc.get(kind) or [])
+        for raw in sent:
+            if not isinstance(raw, dict) or not isinstance(raw.get("id"), str) or not raw["id"]:
+                raise Refusal("bad-entry", f"{kind}: an entry without an id: {raw!r}")
+            where = f"{name} {raw['id']}"
+            if "changes" in raw:
+                raise Refusal("bad-entry", f"{where}: the builder writes changes; send 1 change line in `change`")
+            if "after" in raw and kind != "questions":
+                raise Refusal("bad-entry", f"{where}: only a question takes `after`")
+            if raw["id"] in changed:
+                raise Refusal("bad-entry", f"{where} is sent twice")
+            entry = {key: copy.deepcopy(value) for key, value in raw.items() if key not in ENTRY_INPUT_FIELDS}
+            old = next((old for old in stored if old["id"] == raw["id"]), None)
+            order = [old["id"] for old in stored] + ([] if old else [raw["id"]])
+            placed = _place_question(stored, entry, raw["after"], where) if "after" in raw else None
+            # A round rebuilt by `replace` resends its own entries: an entry with a line of round `n` is no repeat.
+            replaced = old is not None and any(line["round"] == n for line in old.get("changes") or [])
+            if (old is not None and not replaced and _stored(old) == entry
+                    and (placed is None or [e["id"] for e in placed] == order)):
+                raise Refusal("unchanged-entry", f"{where} is sent unchanged; send only the entries that changed")
+            entry["changes"] = [*(line for line in (old or {}).get("changes") or [] if line["round"] != n),
+                                _change_line(where, raw.get("change"), n)]
+            if placed is not None:
+                stored = placed
+            elif old is not None:
+                stored = [entry if other["id"] == entry["id"] else other for other in stored]
+            else:
+                stored.append(entry)
+            changed.append(raw["id"])
+        doc[kind] = stored
+    return changed
+
+
+def check_version_2(doc):
+    """Run the engine's document check on a version 2 document in memory; a broken rule refuses by its name."""
+    try:
+        page_engine().check_in_memory(doc, NAMED_RULES)
+    except Exception as error:
+        if not hasattr(error, "code"):
+            raise
+        raise Refusal(error.code, error.reason) from error
+
+
+def _upgrade(doc, doc_path, upgrade, replace=False):
+    """Write a version 0 or 1 page as version 2, only when a new session took it over in its current round (SDD §4
+    Migration and backfill). The document is in memory, read as version 1. The caller records the first version 2
+    round in `session.upgraded`: the replies of older rounds keep the notes they name. `replace` of the round that
+    upgraded the page sends `upgrade` again: the page is version 2 already, and the rebuilt round stays that round."""
+    if upgrade is not True:
+        raise Refusal("bad-round", f"upgrade is true, false or left out: {upgrade!r}")
+    current = current_round(doc) if Path(doc_path).exists() else None
+    if replace and current is not None and is_version_2(doc) and doc["session"].get("upgraded") == current["n"]:
+        return
+    taken_over = current is not None and any(entry.get("round") == current["n"]
+                                             for entry in doc["session"].get("takeovers") or [])
+    if is_version_2(doc) or not taken_over:
+        raise Refusal("upgrade-not-taken-over", "upgrade writes a version 0 or 1 page as version 2 only after a new "
+                                                "session took it over in its current round (page_round.py take-over)")
+    doc["schema"] = page_engine().SCHEMA_V2
+
+
 def build_round_document(doc_path, session, round_input, ticket=None, replace=False, links=None):
     """Create the document or append the next round; write nothing on a refusal.
 
@@ -416,6 +542,11 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
     `links` replaces `session.links`, the URL templates the page links references with.
+
+    On a version 2 page the round input may add `sections`, `stories`, `examples` and `questions`: only the
+    entries that changed (`_merge_entries`), and a card may name its `section`. A version 0 or 1 page refuses
+    these fields by name, unless the round input holds `upgrade: true` (`_upgrade`). A version 2 document passes
+    the engine's document check before it is written. Only the answer of a version 2 page holds `entries`.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -435,8 +566,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("bad-round", "changed is a list of element ids")
     if doc_path.exists():
         doc = read_json(doc_path)
-        if doc.get("schema") not in (SCHEMA, FORMAT_0):
-            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes {SCHEMA}")
+        if not is_page(doc):
+            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes "
+                                        f"{SCHEMA} and {page_engine().SCHEMA_V2}")
         if (doc.get("session") or {}).get("id") != session["id"]:
             raise Refusal("bad-session", f"{doc_path} belongs to session {(doc.get('session') or {}).get('id')!r}")
         doc = format_1(doc)
@@ -444,8 +576,16 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         fields = {"step": STEPS.get(session.get("skill")) or str(session.get("feature"))[:40],
                   "private": False, "takeovers": []}
-        doc = {"schema": SCHEMA, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
+        doc = {"schema": page_engine().SCHEMA_V2, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
+    upgrading = "upgrade" in round_input and round_input["upgrade"] is not False
+    if upgrading:
+        _upgrade(doc, doc_path, round_input["upgrade"], replace)
+    version_2 = is_version_2(doc)
+    sent_lists = [kind for kind in ENTRY_LISTS if kind in round_input]
+    if sent_lists and not version_2:
+        raise Refusal("bad-round", f"{', '.join(sent_lists)}: only a version 2 page holds these lists; this page is "
+                                   f"{doc['schema']}")
     if replace:
         _drop_unanswered_round(doc, doc_path)
     if links:
@@ -453,6 +593,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if "tips" in round_input:
         doc["tips"] = round_input["tips"]
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
+    if upgrading:
+        doc["session"]["upgraded"] = n
     warnings = _session_text(doc["session"], round_input, n)
     _apply_maps(doc, round_input.get("maps"), n)
     used = _used_ids(doc)
@@ -460,7 +602,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     known = used | {raw.get("id") for raw in raw_items if isinstance(raw, dict)}
     degraded = []
     earlier = frozenset(item["id"] for rnd in doc["rounds"] for item in rnd["items"])
-    items = [_item(raw, known, degraded, earlier) for raw in raw_items]
+    items = [_item(raw, known, degraded, earlier, version_2) for raw in raw_items]
     if doc["rounds"]:
         _close_current(doc, items)
     elif ticket and ticket.get("key"):
@@ -479,13 +621,22 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         if optional in round_input:
             built[optional] = round_input[optional]
     for reply in round_input.get("replies") or []:
-        _reply(built, reply)
+        _reply(built, reply, version_2)
     doc["rounds"].append(built)
+    entries = _merge_entries(doc, round_input, n) if version_2 else []
     refuse_bad_links(doc, built.get("replies") or [], built.get("changed") or [])
-    warnings += unanswered_note_warnings(doc, n - 1)
+    unanswered = unanswered_note_warnings(doc, n - 1)
+    if version_2 and unanswered:
+        raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
+                                         f"{', '.join(warning['note'] for warning in unanswered)}")
+    warnings += unanswered
+    if version_2:
+        check_version_2(doc)
     write_json(doc_path, doc)
-    return {"ok": True, "doc": str(doc_path), "round": n, "items": [item["id"] for item in items if item["id"] != TICKET_CARD],
-            "degraded": degraded, "warnings": warnings}
+    answer = {"ok": True, "doc": str(doc_path), "round": n,
+              "items": [item["id"] for item in items if item["id"] != TICKET_CARD], "degraded": degraded,
+              "warnings": warnings}
+    return {**answer, "entries": entries} if version_2 else answer
 
 
 def _id_list(value):
@@ -510,8 +661,9 @@ def _add_answer(rnd, text, notes, changed=()):
     return answer
 
 
-def _reply(rnd, raw):
-    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes."""
+def _reply(rnd, raw, version_2=False):
+    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes, and
+    exactly 1 on a version 2 page."""
     if not isinstance(raw, dict) or set(raw) - REPLY_FIELDS:
         raise Refusal("bad-reply", f"a reply holds only text, notes and changed: {raw!r}")
     if not isinstance(raw.get("text"), str) or not raw["text"].strip():
@@ -520,6 +672,9 @@ def _reply(rnd, raw):
         raise Refusal("bad-reply", f"a reply names 1 or more note ids in notes: {raw!r}")
     if not _id_list(raw.get("changed", [])):
         raise Refusal("bad-reply", f"changed is a list of element ids: {raw!r}")
+    if version_2 and len(raw["notes"]) > 1:
+        raise Refusal("reply-many-notes", f"a reply names exactly 1 note on a version 2 page; write 1 reply for each "
+                                          f"of {', '.join(raw['notes'])}")
     return _add_answer(rnd, raw["text"], raw["notes"], raw.get("changed") or [])
 
 
@@ -551,8 +706,9 @@ def _settle(doc, current, entry):
     _add_answer(current, f"Settled by your note: {reading}", [entry["note"]], entry.get("changed") or [])
 
 
-def _return_to_open(doc, current, entry):
-    """The answer names the card's live notes of this round; a card that returns on marks alone has none."""
+def _return_to_open(doc, current, entry, version_2=False):
+    """The answer names the card's live notes of this round; a card that returns on marks alone has none. On a
+    version 2 page it names only `note`, the 1 note of this round on the card that it answers, or none."""
     item = _current_item(current, entry.get("item"))
     if item["state"] != "needs_reading":
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
@@ -561,9 +717,13 @@ def _return_to_open(doc, current, entry):
         raise Refusal("no-reply", f"{item['id']}: say why the point returns")
     if not _id_list(entry.get("changed", [])):
         raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
+    of_round = [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]]
+    if version_2:
+        if entry.get("note") is not None and entry["note"] not in of_round:
+            raise Refusal("no-note", f"{item['id']} has no live note {entry['note']!r} of round {current['n']}")
+        of_round = [entry["note"]] if entry.get("note") is not None else []
     item["state"] = "open"
-    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]],
-                entry.get("changed") or [])
+    _add_answer(current, reply, of_round, entry.get("changed") or [])
 
 
 def _unblock(current, item_id):
@@ -573,24 +733,96 @@ def _unblock(current, item_id):
     item["state"] = "open"
 
 
+def _keep(doc, current, entry):
+    """The point stays settled: the reply answers the note of this round on the settled card."""
+    note = next((note for note in session_notes(doc) if note["id"] == entry.get("note")), None)
+    if note is None or note.get("round") != current["n"]:
+        raise Refusal("no-note", f"{entry.get('note')!r} is no live note of round {current['n']}")
+    item = next((item for rnd in doc["rounds"] for item in rnd["items"] if item["id"] == note.get("item")), None)
+    if item is None or item["state"] not in SETTLED_STATES:
+        raise Refusal("not-settled", f"note {note['id']} sits on no settled point; `keep` reads a note on a settled card")
+    _reply(current, {"text": entry.get("reply"), "notes": [note["id"]], "changed": entry.get("changed") or []}, True)
+
+
+def _open_question(doc, entry, states=("open",)):
+    question = next((q for q in doc.get("questions") or [] if q["id"] == entry.get("question")), None)
+    if question is None:
+        raise Refusal("not-a-question", f"{entry.get('question')!r} is no question for others of this page")
+    if question["state"] not in states:
+        raise Refusal("question-closed", f"question {question['id']} is {question['state']}, not {' or '.join(states)}")
+    return question
+
+
+def _answer_question(doc, current, entry):
+    """The agent writes the answer from the developer's tick or note of this round; it settles no card."""
+    question = _open_question(doc, entry, ("open", "assumed"))
+    signal = entry.get("signal")
+    ticked = any(tick.get("target") == question["id"] and tick.get("mark") == "tick"
+                 for response in current.get("responses") or [] for tick in response.get("signals") or [])
+    noted = any(note["id"] == signal and note.get("round") == current["n"] for note in session_notes(doc))
+    if not (ticked if signal == "tick" else noted):
+        raise Refusal("answer-no-signal", f"question {question['id']}: the answer rests on the developer's tick on it "
+                                          f"or a live note of round {current['n']}; {signal!r} is neither")
+    question["state"] = "answered"
+    question["answer"] = {"text": entry.get("text"), "choices": entry.get("choices") or [], "role": entry.get("role"),
+                          "date": entry.get("date"), "signal": entry.get("signal"), "round": current["n"]}
+
+
+def _drop_question(doc, current, entry):
+    question = _open_question(doc, entry)
+    reason = entry.get("reason") or ""
+    if not isinstance(reason, str) or not reason.strip():
+        raise Refusal("drop-no-reason", f"question {question['id']}: a dropped question needs a reason")
+    question["state"] = "dropped"
+    question["dropped"] = {"reason": reason, "note": entry.get("note"), "round": current["n"]}
+
+
+def _assume_question(doc, current, entry):
+    question = _open_question(doc, entry)
+    question["state"] = "assumed"
+    question["assumption"] = {"text": entry.get("text"), "card": entry.get("card"), "round": current["n"]}
+
+
+def _new_readings(doc, current, readings):
+    """keep, answer, drop and assume, each entry with only its own fields; the document check guards the rest."""
+    apply = {"keep": _keep, "answer": _answer_question, "drop": _drop_question, "assume": _assume_question}
+    for key, fields in READINGS_V2.items():
+        for entry in readings.get(key) or []:
+            if not isinstance(entry, dict) or set(entry) - set(fields):
+                raise Refusal("bad-payload", f"a {key} reading holds only {', '.join(fields)}: {entry!r}")
+            apply[key](doc, current, entry)
+
+
 def apply_readings(doc_path, readings):
-    """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies."""
+    """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies, and on a version 2 page
+    keep {note, reply}, answer {question, text, choices, role, date, signal}, drop {question, reason, note} and
+    assume {question, text, card}. Answer, drop and assume write round = the current round. An `open` entry is
+    {item, reply, changed, note}; only a version 2 page reads `note`, and a version 1 page answers every note of the
+    round on the card."""
     doc = format_1(read_json(doc_path))
     current = current_round(doc)
     if current is None:
         raise Refusal("bad-document", "no round is current")
-    if not isinstance(readings, dict) or not readings or set(readings) - {"settle", "open", "unblock", "replies"}:
-        raise Refusal("bad-payload", "readings: one object with settle, open, unblock, replies")
+    version_2 = is_version_2(doc)
+    keys = READINGS + (tuple(READINGS_V2) if version_2 else ())
+    if not isinstance(readings, dict) or not readings or set(readings) - set(keys):
+        new = sorted(set(readings) & set(READINGS_V2)) if isinstance(readings, dict) and not version_2 else []
+        why = f"; {', '.join(new)} only on a version 2 page" if new else ""
+        raise Refusal("bad-payload", f"readings: one object with {', '.join(keys)}{why}")
     answered = len(current.get("replies") or [])
     for entry in readings.get("settle") or []:
         _settle(doc, current, entry)
     for entry in readings.get("open") or []:
-        _return_to_open(doc, current, entry)
+        _return_to_open(doc, current, entry, version_2)
     for item_id in readings.get("unblock") or []:
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
-        _reply(current, reply)
+        _reply(current, reply, version_2)
+    if version_2:
+        _new_readings(doc, current, readings)
     refuse_bad_links(doc, (current.get("replies") or [])[answered:])
+    if version_2:
+        check_version_2(doc)
     write_json(doc_path, doc)
     return {"ok": True, **pending(doc)}
 

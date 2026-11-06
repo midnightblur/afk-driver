@@ -18,7 +18,7 @@ A PRD states what success and failure look like for the feature. Say each fact o
 | Implementation Decisions | modules and their duties at product level, one line per decision; where an ADR exists, the decision and a link | `Settled` rows |
 | Testing Decisions | test strategy: what a good test proves here, which modules get tests, prior art | `Settled` rows |
 | Out of Scope | one line each, and where it is handled when it is handled | `Spinoff`, `Settled` rows |
-| Further Notes | facts a later reader must know; the block "Assumptions this PRD rests on" | `Ledger` |
+| Further Notes | facts a later reader must know; the block "Assumptions this PRD rests on"; the block "Risks" | `Ledger`; `assumed` of `start` |
 
 Every `Steer` row and owner note binds the text. Quote a human's words exactly where the wording matters.
 
@@ -33,6 +33,14 @@ One bullet per criterion: `- [ ] AC-NNN <condition → observable outcome>`.
 - Cover the happy path of each capability, each boundary, each denied role of the policy table, each validation refusal.
 - Many rows with one shape: write one criterion over the catalog, and name the table, while the table holds the columns a tester needs.
 - A claim marked `unverified-external` in the grill log: each requirement that rests on it carries `(unverified premise: <claim>)`, and "Assumptions this PRD rests on" lists every such claim.
+
+## Assumed answers
+
+`start` answers `assumed`: each question for others that the developer settled by accepting the agent's assumption, and that no one has answered yet. Write each entry as one line of the block "Risks" in Further Notes:
+
+`- Risk: <assumption> (<text>) — assumed, <who> must confirm.`
+
+`<who>` is the role words of `who`, joined by `and`. `assumed` is empty: write no "Risks" block.
 
 ## Worked examples
 

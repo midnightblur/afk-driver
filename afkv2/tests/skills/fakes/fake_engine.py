@@ -13,8 +13,9 @@ The raw response grammar here is the fake's own: one line per signal.
   <item id>: note: <text>
   <item id>: write-in: <text>
   <map node id>: note: <text>     a steer: a note that names no card
-The grill passes raw text through and never parses it. The fake writes page format 1: every note goes into
-the session list, as the engine writes it.
+The grill passes raw text through and never parses it. The fake reads and writes page format 1 and 2: every
+note goes into the session list, as the engine writes it. The round builder imports the fake as the engine
+module and calls `check_in_memory` on a format 2 page.
 """
 
 import json
@@ -23,6 +24,7 @@ import sys
 from pathlib import Path
 
 SCHEMA = "afkv2.page/1"
+SCHEMA_V2 = "afkv2.page/2"
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 LONE_MARKS = ("accept", "sign", "option:")
@@ -42,8 +44,24 @@ def saved_copy(doc_path):
     return Path(str(doc_path) + ".saved")
 
 
+class Refused(Exception):
+    def __init__(self, code, reason):
+        super().__init__(reason)
+        self.code, self.reason = code, reason
+
+
+def check_in_memory(doc, named=()):
+    """The fake's check of a page in memory, as the engine refuses it: a problem of a rule in `named` by that
+    rule's name, any other as `invariant`."""
+    problem = check(doc, None)
+    if problem:
+        code = problem.split(":", 1)[0]
+        raise Refused(code if code in named else "invariant", problem)
+
+
 def check(doc, doc_path):
-    if doc.get("schema") != SCHEMA:
+    """The first problem of the document, or None; a doc_path of None checks no saved copy."""
+    if doc.get("schema") not in (SCHEMA, SCHEMA_V2):
         return f"document: schema {doc.get('schema')}"
     session = doc.get("session") or {}
     for field in ("id", "skill", "feature", "ticket", "started", "step"):
@@ -76,8 +94,8 @@ def check(doc, doc_path):
                     return f"{where}: settled.reading"
                 if settled.get("signal") not in notes:
                     return f"{where}: settled.signal"
-    saved = saved_copy(doc_path)
-    if saved.exists():
+    saved = saved_copy(doc_path) if doc_path is not None else None
+    if saved is not None and saved.exists():
         before = json.loads(saved.read_text("utf-8"))
         old = {r["n"]: r for r in before["rounds"] if r["state"] == "settled"}
         for rnd in rounds:

@@ -33,12 +33,6 @@ notes and replies of that card. At the end, a closed "History (R-1 i-x, …)"
 holds the earlier cards of the point, newest first, each with its chip, state
 and body. An annotation on an earlier card stays on that card.
 
-The cards section, below the maps, holds the points of the current round in kind
-order: `debate`, `confirm`, `decided`, `signoff`, `info`. An asking card of an
-earlier round that is still open stays there too. Below it, "Settled by earlier
-rounds" holds the other points, newest round first, each folded to its heading
-and settled line until the human opens it.
-
 A mark goes to the lavish queue at once. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
 lavish's Send to Agent. Until the send, lavish keeps the picked marks, the

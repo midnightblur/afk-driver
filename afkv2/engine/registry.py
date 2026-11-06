@@ -22,9 +22,10 @@ COMPONENTS = Path(__file__).resolve().parent / "components"
 SCHEMA_FILES = {
     "afkv2.page/0": COMPONENTS.parent / "schema" / "page-v0.schema.json",
     "afkv2.page/1": COMPONENTS.parent / "schema" / "page-v1.schema.json",
+    "afkv2.page/2": COMPONENTS.parent / "schema" / "page-v2.schema.json",
 }
 PAGE_SCHEMAS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in SCHEMA_FILES.items()}
-NEWEST_SCHEMA = "afkv2.page/1"
+NEWEST_SCHEMA = "afkv2.page/2"
 COMPONENT_SHAPE = {"$ref": "#/$defs/component"}
 
 _types: dict[str, "ComponentType"] = {}

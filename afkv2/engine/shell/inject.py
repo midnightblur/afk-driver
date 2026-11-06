@@ -1,8 +1,8 @@
 """Add the tooltip layer to a rendered page.
 
 Shared terms merge the seed, plugin glossary and repository glossaries, own service last.
-Pages without a durable source also load legacy `PAGE-TIPS.md`. Page-owned terms and IDs
-stay in separate maps for the browser resolver.
+Pages without a durable source also load legacy `PAGE-TIPS.md`. The shared terms appear once, in the
+dictionary block; page-owned terms and IDs stay in separate maps of the payload for the browser resolver.
 The block sits between start and end markers and is replaced whole, so the same inputs
 give the same bytes, and a file is rewritten only when its bytes differ.
 """
@@ -13,6 +13,7 @@ import json
 import os
 import re
 import tempfile
+import time
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -192,9 +193,9 @@ def _asset(name: str) -> str:
 
 def tips_block(tips: dict[str, str], page_ids: dict[str, str] | None = None,
                page_terms: dict[str, str] | None = None) -> str:
-    # Keep the shared dictionary available to legacy readers and parse-failure fallback.
+    # The shared terms sit once, in the dictionary block; the payload holds only the page-owned maps.
     dictionary = json.dumps(tips, ensure_ascii=True).replace("</", "<\\/").replace("<", "\\u003c").replace("\\u003c\\/", "<\\/")
-    payload = json.dumps({"page_ids": page_ids or {}, "page_terms": page_terms or {}, "shared_terms": tips},
+    payload = json.dumps({"page_ids": page_ids or {}, "page_terms": page_terms or {}},
                          ensure_ascii=True, sort_keys=True).replace("<", "\\u003c")
     return (f'{MARK_START}\n<style>\n{_asset("tips.css")}</style>\n'
             f'<script id="afkv2-tips-dict" type="application/json">{dictionary}</script>\n'
@@ -215,6 +216,22 @@ def inject(html: str, tips: dict[str, str]) -> str:
     return html + ("" if html.endswith("\n") else "\n") + block
 
 
+# Windows refuses a replace while another process holds the target open, as a scanner does a new file briefly.
+REPLACE_TRIES = 10
+REPLACE_WAIT_S = 0.05
+
+
+def _replace(source, target) -> None:
+    for attempt in range(1, REPLACE_TRIES + 1):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_TRIES:
+                raise
+            time.sleep(REPLACE_WAIT_S * attempt)
+
+
 def write_if_changed(path: Path, data: bytes) -> bool:
     """Atomically replace `path` with `data` only when its bytes differ; True when written."""
     try:
@@ -227,7 +244,7 @@ def write_if_changed(path: Path, data: bytes) -> bool:
     try:
         with os.fdopen(handle, "wb") as out:
             out.write(data)
-        os.replace(temp, path)
+        _replace(temp, path)
     except BaseException:
         try:
             os.unlink(temp)

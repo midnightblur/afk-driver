@@ -84,3 +84,14 @@ docs/afk/158/PRD.md	harness-name	Claude and Codex both fire a session-end hook	R
 # Live surfaces naming an interpreter that is not one (check J).
 skills/afk/setup/scripts/bootstrap.sh	interpreter	^"\$uv" python install "\$cpython"	uv's own `python install` subcommand, not an interpreter.
 skills/afk/setup/scripts/bootstrap.ps1	interpreter	^Invoke-Step 'uv python install' \{ & \$uv python install \$python 	uv's own `python install` subcommand, not an interpreter.
+# Ticket spec folders (docs/afk/<ticket>/) record verified premises about one
+# harness. They are run records, removed after the change merges.
+docs/afk/163/GRILL-LOG.md	harness-name	^- Premise: The Codex sandbox rules allow only afkv2/engine/engine\.py	Ticket spec record states a verified fact about one harness.
+docs/afk/163/GRILL-LOG.md	harness-name	^- Premise: The Codex Stop hook does not call the round commands	Ticket spec record states a verified fact about one harness.
+docs/afk/163/SDD.md	harness-name	^\| Raw answer text \| format 1: .*the Codex Stop hook passes it through	Ticket spec record states a verified fact about one harness.
+docs/afk/163/SDD.md	harness-name	^\*\*Verdict on existing callers\.\*\* Only this plugin calls these surfaces	Ticket spec record states a verified fact about one harness.
+docs/afk/163/SDD.md	harness-name	^\| Round commands and shared helpers \| in the grill skill's scripts	Ticket spec record states a verified fact about one harness.
+docs/afk/163/adr/design/0004-shared-page-code-lives-in-use-lavish.md	harness-name	^The round commands, the round builder and the shared helpers live in the grill skill's scripts	Ticket spec record states a verified fact about one harness.
+docs/afk/163/adr/design/0004-shared-page-code-lives-in-use-lavish.md	harness-name	^\| A shared folder outside the skills \| neutral name \| Codex does not run scripts	Ticket spec record states a verified fact about one harness.
+docs/afk/163/adr/design/0004-shared-page-code-lives-in-use-lavish.md	harness-name	^- \*\*Negative\*\* — 13 imports, 3 skills, their Codex live checks	Ticket spec record states a verified fact about one harness.
+docs/afk/174/GRILL-LOG.md	harness-name	^- Ledger: The Codex Stop hook waits only on the page shown last	Ticket spec record states a verified fact about one harness.

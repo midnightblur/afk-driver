@@ -8,6 +8,8 @@ An answer stands in the row of each note it names (`notes`); on a format 0 page,
 Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
 as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
+On a version 2 page (`_plain`) no visible text and no hover text holds a raw element id or a round code: each
+element reads as its label, a round as "Round 3", a row number as `3.1` and its hover text as `note 1 of round 3`. Versions 0 and 1 show as before.
 A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
 the same rows, so a build indexes the elements of the document once.
 """
@@ -17,7 +19,8 @@ from typing import NamedTuple
 
 from registry import register_component, walk
 from schema.note_rules import round_target
-from shell.page import round_colour
+from shell import parts_v2
+from shell.page import V2, round_colour
 
 ROW_PREFIX = "afkv2-nr-"
 SESSION_PREFIX = "afkv2-ns-"
@@ -83,7 +86,28 @@ def _elements(doc: dict) -> dict:
         for item in round_["items"]:
             found[item["id"]] = {"item": item, "label": None, "map": None}
             add_tree(item["body"], item)
+    if _plain(doc):
+        _add_parts(doc, found)
     return found
+
+
+def _plain(doc: dict) -> bool:
+    return doc["schema"] == V2
+
+
+def _add_parts(doc: dict, found: dict) -> None:
+    """Version 2: each card and each entry of the page parts (a section, a question for others...) reads as its
+    `visible_label`; a part of a card with no label of its own reads as its card. An entry is a part of no
+    card."""
+    parts = {entry["id"] for kind in parts_v2.ENTRY_LISTS for entry in doc.get(kind) or []}
+    parts |= {option["id"] for question in doc.get("questions") or []
+              for option in (question.get("choices") or {}).get("options") or []}
+    for element in parts:
+        found.setdefault(element, {"item": None, "label": parts_v2.visible_label(doc, "element", element),
+                                   "map": None, "part": True})
+    for entry in found.values():
+        if entry["item"] is not None and entry["label"] is None:
+            entry["label"] = parts_v2.visible_label(doc, "element", entry["item"]["id"])
 
 
 def _is_steer(item: dict | None, note: dict, elements: dict) -> bool:
@@ -134,38 +158,52 @@ def _pairs(doc: dict, notes: list[tuple[dict | None, dict]]) -> tuple[dict, list
     return by_note, alone
 
 
-def _where(item: dict | None, note: dict, elements: dict) -> str:
+def _raw(element: str) -> str:
+    return element
+
+
+def _namer(doc: dict, elements: dict):
+    """The words for an element with no label of its own, and the hover text of a link to an element: the raw id
+    on versions 0 and 1; on version 2 its label in `elements`, else its `visible_label`."""
+    if not _plain(doc):
+        return _raw
+    return lambda element: ((elements.get(element) or {}).get("label")
+                            or parts_v2.visible_label(doc, "element", element))
+
+
+def _where(item: dict | None, note: dict, elements: dict, name=_raw) -> str:
     target = elements.get(note["target"]) or {"item": item, "label": None, "map": None}
-    if target.get("round"):
+    if target.get("round") or target.get("part"):
         return escape(target["label"])
     if _is_steer(item, note, elements):
-        place = f'Map: {escape(target["map"] or target["label"] or note["target"])}'
+        place = f'Map: {escape(target["map"] or target["label"] or name(note["target"]))}'
         if target["map"] is not None:
-            place += f' <span class="{DIM_CLASS}">· {escape(target["label"] or note["target"])}</span>'
+            place += f' <span class="{DIM_CLASS}">· {escape(target["label"] or name(note["target"]))}</span>'
         return place
     if note["target"] == item["id"]:
         return "The card"
-    return escape(target["label"] or note["target"])
+    return escape(target["label"] or name(note["target"]))
 
 
-def _link(element: str, words: str) -> str:
-    return f'<a href="#{escape(element)}" title="{escape(element)}">{words}</a>'
+def _link(element: str, words: str, name=_raw) -> str:
+    return f'<a href="#{escape(element)}" title="{escape(name(element))}">{words}</a>'
 
 
-def change_links(reply: dict, elements: dict) -> str:
-    """One link to each element in the answer's `changed` list, in its order; nothing for an empty list."""
+def change_links(reply: dict, elements: dict, name=_raw) -> str:
+    """One link to each element in the answer's `changed` list, in its order; nothing for an empty list. `name`
+    gives the words of an element with no label and the hover text (`_namer`)."""
     changed = list(dict.fromkeys(reply.get("changed") or []))
     if not changed:
         return ""
-    links = ", ".join(_link(element, escape((elements.get(element) or {}).get("label") or element))
+    links = ", ".join(_link(element, escape((elements.get(element) or {}).get("label") or name(element)), name)
                       for element in changed)
     return f'<p class="{CHANGED_CLASS}">Changed: {links}</p>'
 
 
-def _answer(replies: list[dict], elements: dict) -> str:
+def _answer(replies: list[dict], elements: dict, name=_raw) -> str:
     if not replies:
         return f'<span class="{DIM_CLASS}">No answer yet</span>'
-    return "".join(f'<p class="{TEXT_CLASS}">{escape(reply["text"])}</p>{change_links(reply, elements)}'
+    return "".join(f'<p class="{TEXT_CLASS}">{escape(reply["text"])}</p>{change_links(reply, elements, name)}'
                    for reply in replies)
 
 
@@ -191,29 +229,39 @@ def _reply_home(reply: dict, elements: dict, notes: list[tuple[dict, dict]]) -> 
 def _rows(doc: dict) -> list[Row]:
     """Every row of the page, in document order: the notes, then the answers that stand in no note's row."""
     elements = _elements(doc)
+    name = _namer(doc, elements)
     notes = _notes(doc)
     by_note, alone = _pairs(doc, notes)
     counts: dict[int, int] = {}
+    note_counts: dict[int, int] = {}
 
     def number(n: int) -> str:
         counts[n] = counts.get(n, 0) + 1
-        return f"R{n}.{counts[n]}"
+        return f"{n}.{counts[n]}" if _plain(doc) else f"R{n}.{counts[n]}"
+
+    def note_title(note: dict) -> str:
+        """The raw note id on versions 0 and 1; on version 2 `note <k> of round <n>`."""
+        n = note["round"]
+        note_counts[n] = note_counts.get(n, 0) + 1
+        return f"note {note_counts[n]} of round {n}" if _plain(doc) else note["id"]
 
     rows = []
     for item, note in notes:
         n, steer = note["round"], _is_steer(item, note, elements)
         answers = by_note.get(note["id"], [])
-        cells = [_where(item, note, elements), _noted(note), f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
-                 _answer([reply for _, _, reply in answers], elements)]
-        words = "Open round" if (elements.get(note["target"]) or {}).get("round") else "Open map"
-        link = _link(note["target"], words) if steer else _link(item["id"], "Open card")
-        rows.append(Row(n, note["id"], number(n), note["id"], cells, link, None if steer else item["id"],
+        cells = [_where(item, note, elements, name), _noted(note),
+                 f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
+                 _answer([reply for _, _, reply in answers], elements, name)]
+        place = elements.get(note["target"]) or {}
+        words = "Open round" if place.get("round") else "Open" if place.get("part") else "Open map"
+        link = _link(note["target"], words, name) if steer else _link(item["id"], "Open card", name)
+        rows.append(Row(n, note["id"], number(n), note_title(note), cells, link, None if steer else item["id"],
                         note["target"] if steer else item["id"], True, tuple((r, i) for r, i, _ in answers)))
     for n, index, reply in alone:
         about = reply.get("about") or []
         home = _reply_home(reply, elements, notes)
-        cells = [f'<span class="{DIM_CLASS}">From me</span>', "", "", _answer([reply], elements)]
-        link = _link(about[0], "Open") if about else _link(home, "Open card") if home else ""
+        cells = [f'<span class="{DIM_CLASS}">From me</span>', "", "", _answer([reply], elements, name)]
+        link = _link(about[0], "Open", name) if about else _link(home, "Open card", name) if home else ""
         rows.append(Row(n, f"reply-{n}-{index + 1}", number(n), f"reply {index + 1} of round {n}", cells, link,
                         home, home, False, ((n, index),)))
     return rows
@@ -253,14 +301,17 @@ def _table(columns: tuple, body: str, modifier: str = "") -> str:
     return f'<table class="afkv2-nr-table{modifier}"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
 
 
-def _count_line(round_: dict, rows: list[Row]) -> str:
-    """`R-<n> Round <n> — <k> notes from you, <m> answers from me`: the notes and the answers the rows show."""
+def _count_line(round_: dict, rows: list[Row], plain: bool) -> str:
+    """`R-<n> Round <n> — <k> notes from you, <m> answers from me`: the notes and the answers the rows show.
+    `plain` (version 2): the chip reads `Round <n>`, once."""
     n = round_["n"]
     notes = sum(row.is_note for row in rows)
     answers = len({key for row in rows for key in row.answers})
     words = [_count(notes, "note") + " from you"] if notes else []
     if answers:
         words.append(_count(answers, "answer") + " from me")
+    if plain:
+        return f'<span class="afkv2-round-chip">Round {n}</span> — {", ".join(words)}'
     return f'<span class="afkv2-round-chip">R-{n}</span> Round {n} — {", ".join(words)}'
 
 
@@ -268,21 +319,21 @@ def _session_rows(round_: dict, rows: list[Row]) -> str:
     return "".join(_tr(row, _session_id(row), round_colour(round_), True) for row in rows)
 
 
-def _group(round_: dict, rows: list[Row]) -> str:
+def _group(round_: dict, rows: list[Row], plain: bool) -> str:
     """The group row of an open round, then its rows."""
     n = round_["n"]
     head = (f'<tr class="afkv2-nr-group" id="{ROW_PREFIX}round-{n}" data-afkv2-nr-round="{n}" '
             f'style="--afkv2-round: {escape(round_colour(round_))}"><td colspan="{len(SESSION_COLUMNS)}">'
-            f'{_count_line(round_, rows)}</td></tr>')
+            f'{_count_line(round_, rows, plain)}</td></tr>')
     return head + _session_rows(round_, rows)
 
 
-def _closed_group(round_: dict, rows: list[Row]) -> str:
+def _closed_group(round_: dict, rows: list[Row], plain: bool) -> str:
     """An older round: a closed fold whose summary is its count line; one click opens it."""
     n = round_["n"]
     return (f'<details class="afkv2-nr-earlier" id="{ROW_PREFIX}round-{n}" data-afkv2-nr-round="{n}" '
             f'data-afkv2-fold="notes-round-{n}" style="--afkv2-round: {escape(round_colour(round_))}">'
-            f'<summary>{_count_line(round_, rows)}</summary>'
+            f'<summary>{_count_line(round_, rows, plain)}</summary>'
             f'{_table(SESSION_COLUMNS, _session_rows(round_, rows))}</details>')
 
 
@@ -308,8 +359,9 @@ def render_notes_replies(props, children):
         return "".join(children)
     current = next(r["n"] for r in doc["rounds"] if r["state"] == "current")
     rounds = sorted((r for r in doc["rounds"] if r["n"] in by_round), key=lambda r: -r["n"])
-    recent = [_group(r, by_round[r["n"]]) for r in rounds if r["n"] > current - OPEN_ROUNDS]
-    older = [_closed_group(r, by_round[r["n"]]) for r in rounds if r["n"] <= current - OPEN_ROUNDS]
+    plain = _plain(doc)
+    recent = [_group(r, by_round[r["n"]], plain) for r in rounds if r["n"] > current - OPEN_ROUNDS]
+    older = [_closed_group(r, by_round[r["n"]], plain) for r in rounds if r["n"] <= current - OPEN_ROUNDS]
     html = ('<h2 class="afkv2-section-h">Notes on the whole session</h2>'
             '<p class="afkv2-nr-intro">Every note and every answer of the session, newest round first. A note '
             'on a card also stands under that card.</p>')

@@ -2,6 +2,9 @@
 
 The page passes the card's notes and replies (`exchange`) and its earlier cards (`history`) as HTML.
 `rail` sets the state that the page rail reads: `settled` folds the card to its heading and settled line.
+`label`, given on a version 2 page, is the visible name of the card. Its presence switches the heading: with a
+label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
+card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
 """
 
 import re
@@ -76,7 +79,8 @@ def _settled_line(item):
 def _chip(props, needs_human):
     """The round chip of the card's round: solid when the card needs the human now, muted otherwise."""
     muted = "" if needs_human else " afkv2-round-chip--past"
-    return f'<span class="afkv2-round-chip{muted}" title="Round {props["round"]}">R-{props["round"]}</span> '
+    words = f'Round {props["round"]}' if "label" in props else f'R-{props["round"]}'
+    return f'<span class="afkv2-round-chip{muted}" title="Round {props["round"]}">{words}</span> '
 
 
 def render_card(props, children):
@@ -89,7 +93,10 @@ def render_card(props, children):
     item_id = escape(item["id"])
     quiet = item["kind"] == "info" and state == "open"
     state_word = "" if quiet else f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
-    if item.get("title"):
+    if "label" in props:
+        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(props["label"])}</span> '
+                   f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word}</h4>')
+    elif item.get("title"):
         heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(item["title"])}</span> '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word} '
                    f'<span class="afkv2-card-id">{item_id}</span></h4>')
@@ -109,5 +116,7 @@ register_component("card", {
     "properties": {"item": {"type": "object", "required": ["id", "kind", "body"]},
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
                    "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
-                   "rail": {"enum": ["open", "blocked", "settled"]}},
+                   "rail": {"enum": ["open", "blocked", "settled"]},
+                   "label": {"description": "Present: the version 2 heading (module docstring).", "type": "string",
+                             "minLength": 1}},
 }, render_card)

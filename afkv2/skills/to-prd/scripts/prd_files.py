@@ -1,6 +1,7 @@
 """The disk side of to-prd, from the repository root.
 
-`prd_files.py start --ticket KEY`: the paths of the spec folder; refuses a grill that is not settled.
+`prd_files.py start --ticket KEY`: the paths of the spec folder and the assumed answers of the grill page; refuses a
+grill that is not settled.
 `prd_files.py check --prd FILE`: the sections and the ids of a PRD, and against its last commit.
 `prd_files.py index --index FILE --ticket KEY --summary-file FILE --adr-dir DIR`: create or update INDEX.md.
 """
@@ -15,9 +16,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
-from grill_common import Parser, Refusal, page_documents, serve, write_text  # noqa: E402
+from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
 from grill_log import exit_gate_passed  # noqa: E402
 from grill_start import read_config, ticket_slug  # noqa: E402
+from round_document import is_version_2  # noqa: E402
 
 GRILL = "/afkv2:grill"
 SECTIONS = ("Problem Statement", "Solution", "User Stories", "Acceptance Criteria", "Worked examples",
@@ -48,6 +50,26 @@ def _grill_rows(log):
             [claim for claim, state in rows if state == "unverified-external"])
 
 
+def assumed_answers(pages, session):
+    """Each question for others of the grill page `grill-<session>.json` that is still assumed: the developer accepted
+    the agent's assumption, and no one has answered it. A version 0 or 1 page holds no questions."""
+    path = Path(pages) / f"grill-{session}.json"
+    doc = read_json(path)
+    if not isinstance(doc, dict) or not doc.get("questions") or not is_version_2(doc):
+        return []
+    found = []
+    for item in doc["questions"]:
+        if item.get("state") != "assumed":
+            continue
+        try:
+            found.append({"question": item["id"], "text": item["question"], "who": item["who"],
+                          "assumption": item["assumption"]["text"]})
+        except (KeyError, TypeError) as error:
+            raise Refusal("unreadable", f"{path}: question {item.get('id')!r} lacks a field of its format: {error!r}",
+                          2) from error
+    return found
+
+
 def start(argv):
     parser = Parser(add_help=False)
     parser.add_argument("--ticket", required=True)
@@ -67,7 +89,8 @@ def start(argv):
     return {"ok": True, "ticket": args.ticket, "spec_dir": str(spec_dir), "log": str(log), "session": session,
             "prd": str(spec_dir / "PRD.md"), "adr_dir": str(adr_dir), "index": str(spec_dir / "INDEX.md"),
             "run_dir": str(spec_dir / "run"), "tracker_kind": config["tracker"]["kind"],
-            "resume": (spec_dir / "PRD.md").exists(), "unverified_external": unverified}
+            "resume": (spec_dir / "PRD.md").exists(), "unverified_external": unverified,
+            "assumed": assumed_answers(spec_dir / "pages", session)}
 
 
 def definitions(markdown):

@@ -1,0 +1,659 @@
+"""The round builder and the reading tool on a version 2 page (SDD §3 rows "round builder `build`" and "reading
+tool `apply-readings`", §4 Migration and backfill, §14 rows "Builder's version" and "Reply for a card's notes")."""
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+PLUGIN = Path(__file__).resolve().parents[2]
+for _folder in (PLUGIN / "skills" / "use-lavish" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
+    sys.path.insert(0, str(_folder))
+
+import engine  # noqa: E402
+import page_round  # noqa: E402
+import round_document as rd  # noqa: E402
+from grill_common import Refusal  # noqa: E402
+
+V1, V2 = "afkv2.page/1", "afkv2.page/2"
+SESSION = {"id": "s-1", "skill": "grill", "feature": "PROJ-1", "ticket": "PROJ-1"}
+
+
+def card(item_id, **extra):
+    return {"id": item_id, "kind": "confirm", "body": {"type": "text", "id": f"{item_id}-body", "props": {"text": "x"}},
+            **extra}
+
+
+def round_input(*item_ids, **extra):
+    return {"banner": {"settled": [], "unlocks": [], "parked": []}, "items": [card(i) for i in item_ids], **extra}
+
+
+def options(*ids, several=False):
+    return {"options": [{"id": option, "text": f"Option {option}"} for option in ids], "several": several}
+
+
+def question(question_id, **extra):
+    return {"id": question_id, "who": ["product owner"], "question": "Which formats?", "context": "The export.",
+            "why": "It sets the scope.", "origin": {"card": "i-a"}, "state": "open", **extra}
+
+
+def read(path):
+    return json.loads(Path(path).read_text("utf-8"))
+
+
+def write(path, doc):
+    Path(path).write_text(json.dumps(doc), "utf-8")
+
+
+def check(path):
+    out = []
+    original = print
+    try:
+        engine.print = out.append
+        code = engine.main(["check", str(path)])
+    finally:
+        engine.print = original
+    return code, json.loads(out[0])
+
+
+def ingest(path, raw):
+    raw_file = Path(path).with_name("raw.txt")
+    raw_file.write_text(raw, "utf-8")
+    return page_round.ingest(path, raw_file)
+
+
+def as_version_2(path, **lists):
+    """Rewrite a built version 1 page as the version 2 page of the same session, with the given lists."""
+    doc = read(path)
+    doc["schema"] = V2
+    doc.update(lists)
+    write(path, doc)
+    assert check(path)[0] == 0, check(path)
+
+
+@pytest.fixture
+def path(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    return tmp_path / "pages" / "grill-s-1.json"
+
+
+def as_version_1(path):
+    """Relabel a page that holds no version 2 field as the version 1 page that an older session wrote."""
+    doc = read(path)
+    doc["schema"] = V1
+    write(path, doc)
+    assert check(path)[0] == 0, check(path)
+
+
+def settled_round_1(path, *more):
+    """A version 1 page: round 1 settles card i-a by an accept mark; round 2 is current with the cards `more`."""
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    as_version_1(path)
+    ingest(path, "[round R-1]\ni-a accept")
+    rd.build_round_document(path, SESSION, round_input(*more))
+
+
+# ---- ingest passes on what the agent must read (decision D-9)
+
+
+def test_ingest_passes_on_the_questions_and_the_settled_notes_to_read_on_a_version_2_page(path):
+    settled_round_1(path, "i-b")
+    line = {"round": 1, "cause": "finding", "text": "Asked."}
+    as_version_2(path, questions=[{**question("q-one", choices=options("csv", "xls")), "changes": [line]}])
+    answer = ingest(path, "[round R-2]\ni-a note 1\n  Fine as it is.\nq-one tick csv")
+    assert [signal["target"] for signal in answer["questions_to_read"]] == ["q-one"]
+    assert answer["questions_to_read"][0]["choices"] == ["csv"]
+    assert answer["settled_notes_to_read"] == ["N-2-i-a-1"]
+
+
+def test_ingest_on_a_version_1_page_answers_as_before(path):
+    settled_round_1(path, "i-b")
+    answer = ingest(path, "[round R-2]\ni-b accept")
+    assert "questions_to_read" not in answer and "settled_notes_to_read" not in answer
+
+
+# ---- the builder writes the page's own version (SDD §14 row "Builder's version")
+
+import page_home  # noqa: E402
+
+
+def test_a_version_2_page_stays_version_2_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    as_version_2(path)
+    ingest(path, "[round R-2]\ni-b accept")
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    assert read(path)["schema"] == V2
+    assert check(path)[0] == 0
+
+
+def test_a_new_sessions_page_is_written_as_version_2(path):
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    assert read(path)["schema"] == V2
+    assert "upgraded" not in read(path)["session"]
+    assert check(path)[0] == 0
+
+
+def test_a_version_1_page_stays_version_1_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    assert read(path)["schema"] == V1
+
+
+def test_a_version_0_page_becomes_version_1_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    doc = read(path)
+    session = {key: doc["session"][key] for key in ("id", "skill", "feature", "ticket", "started")}
+    write(path, {"schema": "afkv2.page/0", "session": session, "maps": [], "rounds": doc["rounds"]})
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    assert read(path)["schema"] == V1
+    assert check(path)[0] == 0
+
+
+def test_take_over_and_track_keep_a_version_2_page(path, tmp_path, monkeypatch):
+    settled_round_1(path, "i-b")
+    as_version_2(path)
+    assert page_round.take_over(path)["round"] == 2
+    assert read(path)["schema"] == V2
+    monkeypatch.setattr(page_home, "_spec_pages", lambda ticket: tmp_path / "spec" / "pages")
+    tracked = page_home.track_page(str(path), "PROJ-1")
+    assert read(tracked["doc"])["schema"] == V2
+
+
+# ---- the 4 lists merge by id: only the entries that changed, each with 1 change line (SDD §3 row "build")
+
+FINDING = {"cause": "finding", "text": "Wrote the part."}
+
+
+def section(section_id, text="Text.", **extra):
+    return {"id": section_id, "title": f"Title of {section_id}", "state": "current",
+            "body": {"type": "text", "id": f"{section_id}-text", "props": {"text": text}}, **extra}
+
+
+def entries_round(*items, **lists):
+    """A round input with the given lists; each entry carries `change` unless it holds one already."""
+    sent = {kind: [{"change": FINDING, **entry} for entry in value] for kind, value in lists.items()}
+    return round_input(*items, **sent)
+
+
+@pytest.fixture
+def page(path):
+    """A version 2 page: round 1 settled card i-a by an accept mark, round 2 current with i-b, sent."""
+    settled_round_1(path, "i-b")
+    as_version_2(path)
+    ingest(path, "[round R-2]\ni-b accept")
+    return path
+
+
+def next_round(path, item, raw=None, **lists):
+    answer = rd.build_round_document(path, SESSION, entries_round(item, **lists))
+    assert check(path)[0] == 0, check(path)
+    if raw is not None:
+        ingest(path, raw)
+    return answer
+
+
+def test_a_new_entry_of_each_list_is_stored_with_1_change_line_of_the_round(page):
+    story = {"id": "st-1", "text": "As a user, I export."}
+    example = {"id": "ex-1", "title": "A plain export", "kind": "frequent", "stories": ["st-1"],
+               "body": {"type": "text", "props": {"text": "From 3 rows to 1 file."}}}
+    answer = next_round(page, "i-c", sections=[section("s-intro")], stories=[story], examples=[example],
+                        questions=[question("q-one")])
+    doc = read(page)
+    assert answer["entries"] == ["s-intro", "st-1", "ex-1", "q-one"]
+    for kind, sent in (("sections", section("s-intro")), ("stories", story), ("examples", example),
+                       ("questions", question("q-one"))):
+        assert doc[kind] == [{**sent, "changes": [{"round": 3, **FINDING}]}], kind
+
+
+def test_a_section_left_out_keeps_its_text_exactly_and_gains_no_change_line(page):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", sections=[section("s-intro"), section("s-scope")])
+    before = read(page)["sections"]
+    next_round(page, "i-d", sections=[section("s-scope", "New text.")])
+    after = read(page)["sections"]
+    assert after[0] == before[0]
+    assert after[1]["body"]["props"]["text"] == "New text."
+    assert after[1]["changes"] == [{"round": 3, **FINDING}, {"round": 4, **FINDING}]
+
+
+def test_a_section_sent_with_the_same_text_is_refused_and_nothing_is_written(page):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", sections=[section("s-intro")])
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-d", sections=[section("s-intro")]))
+    assert refused.value.code == "unchanged-entry" and "s-intro" in refused.value.reason
+    assert page.read_bytes() == before
+
+
+STORY = {"id": "st-1", "text": "As a user, I export."}
+EXAMPLE = {"id": "ex-1", "title": "A plain export", "kind": "frequent", "stories": ["st-1"],
+           "body": {"type": "text", "id": "ex-1-text", "props": {"text": "From 3 rows to 1 file."}}}
+
+
+@pytest.mark.parametrize("kind, resent", [("stories", STORY), ("examples", EXAMPLE),
+                                          ("questions", {**question("q-2"), "after": "q-1"})])
+def test_an_entry_sent_unchanged_in_its_own_place_is_refused_and_nothing_is_written(page, kind, resent):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", stories=[STORY], examples=[EXAMPLE],
+               questions=[question("q-1"), question("q-2")])
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-d", **{kind: [resent]}))
+    assert refused.value.code == "unchanged-entry" and resent["id"] in refused.value.reason
+    assert page.read_bytes() == before
+
+
+@pytest.mark.parametrize("lists, words", [
+    ({"sections": [{"change": FINDING, **section("s-intro")}, {"change": FINDING, **section("s-intro", "Other.")}]},
+     "sent twice"),
+    ({"sections": [{"change": FINDING, **section("s-intro"), "after": "s-scope"}]}, "only a question takes `after`"),
+    ({"stories": [{"change": FINDING, **STORY, "after": "st-0"}]}, "only a question takes `after`"),
+    ({"sections": {"change": FINDING, **section("s-intro")}}, "is a list"),
+    ({"stories": [{"change": FINDING, "text": "As a user, I export."}]}, "without an id"),
+])
+def test_a_bad_entry_is_refused_and_nothing_is_written(page, lists, words):
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, round_input("i-c", **lists))
+    assert refused.value.code == "bad-entry" and words in refused.value.reason, refused.value.reason
+    assert page.read_bytes() == before
+
+
+@pytest.mark.parametrize("text", ["Text.", "Corrected text."])
+def test_a_replaced_round_resends_its_own_entries_with_1_change_line(page, text):
+    next_round(page, "i-c", sections=[section("s-intro"), section("s-scope")])
+    rd.build_round_document(page, SESSION, entries_round("i-c", sections=[section("s-intro", text)]), replace=True)
+    doc = read(page)
+    assert [rnd["n"] for rnd in doc["rounds"]] == [1, 2, 3]
+    assert doc["sections"][0]["body"]["props"]["text"] == text
+    assert doc["sections"][0]["changes"] == [{"round": 3, **FINDING}]
+    assert doc["sections"][1]["changes"] == [{"round": 3, **FINDING}], "an entry left out keeps the replaced draft"
+    assert check(page)[0] == 0
+
+
+@pytest.mark.parametrize("change", [None, [FINDING, FINDING], {**FINDING, "round": 2}])
+def test_a_changed_entry_without_exactly_1_change_line_for_the_round_is_refused(page, change):
+    entry = section("s-intro") if change is None else {**section("s-intro"), "change": change}
+    sent = round_input("i-c", sections=[entry])
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, sent)
+    assert refused.value.code == "no-change-line" and "s-intro" in refused.value.reason
+    assert page.read_bytes() == before
+
+
+def test_an_entry_that_sends_its_own_change_list_is_refused(page):
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-c", sections=[{**section("s-intro"), "changes": []}]))
+    assert refused.value.code == "bad-entry"
+
+
+def test_a_question_sent_with_after_lands_right_after_the_named_question(page):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", questions=[question("q-1"), question("q-2")])
+    next_round(page, "i-d", questions=[{**question("q-3"), "after": "q-1"}])
+    assert [q["id"] for q in read(page)["questions"]] == ["q-1", "q-3", "q-2"]
+    assert all("after" not in q for q in read(page)["questions"])
+
+
+def test_a_question_moved_by_after_holds_its_new_place(page):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", questions=[question("q-1"), question("q-2"), question("q-3")])
+    next_round(page, "i-d", questions=[{**question("q-3"), "after": "q-1"}])
+    doc = read(page)
+    assert [q["id"] for q in doc["questions"]] == ["q-1", "q-3", "q-2"]
+    assert doc["questions"][1]["changes"] == [{"round": 3, **FINDING}, {"round": 4, **FINDING}]
+
+
+@pytest.mark.parametrize("after", ["q-none", "q-1"])
+def test_after_that_names_no_other_question_is_refused(page, after):
+    next_round(page, "i-c", "[round R-3]\ni-c accept", questions=[question("q-1")])
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-d", questions=[{**question("q-1", why="New."),
+                                                                                 "after": after}]))
+    assert refused.value.code == "bad-entry" and after in refused.value.reason
+
+
+def test_a_card_names_its_section_on_a_version_2_page(page):
+    rd.build_round_document(page, SESSION, round_input(sections=[{**section("s-intro"), "change": FINDING}],
+                                                       items=[card("i-c", section="s-intro")]))
+    assert read(page)["rounds"][-1]["items"][0]["section"] == "s-intro"
+    assert check(page)[0] == 0
+
+
+def test_a_version_1_page_refuses_the_version_2_fields_by_name(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    before = path.read_bytes()
+    for sent, field in ((entries_round("i-c", sections=[section("s-intro")]), "sections"),
+                        (entries_round("i-c", questions=[question("q-1")]), "questions"),
+                        (round_input(items=[card("i-c", section="s-intro")]), "section")):
+        with pytest.raises(Refusal) as refused:
+            rd.build_round_document(path, SESSION, sent)
+        assert field in refused.value.reason
+        assert path.read_bytes() == before
+
+
+def test_a_build_the_document_check_refuses_is_refused_by_its_rule_and_writes_nothing(page):
+    answered = question("q-1", state="answered", answer={"text": "Yes.", "choices": [], "role": "Everyone",
+                                                          "date": "2026-11-06", "signal": "tick", "round": 2})
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, entries_round("i-c", questions=[answered]))
+    assert refused.value.code == "everyone-answered"
+    assert page.read_bytes() == before
+
+
+# ---- 1 reply per note on version 2 (SDD §14 row "Reply for a card's notes"; §6 "Each note gets its own reply")
+
+TWO_NOTES = "[round R-3]\ni-c note 1\n  Why this one?\ni-c note 2\n  And how?"
+
+
+@pytest.fixture
+def noted(page):
+    """Round 3 current with card i-c, which holds 2 notes of round 3 and needs reading."""
+    next_round(page, "i-c", TWO_NOTES)
+    return page
+
+
+def replies_of(path, n):
+    return read(path)["rounds"][n - 1].get("replies") or []
+
+
+@pytest.mark.parametrize("where", ["readings", "round input"])
+def test_a_reply_that_names_2_notes_on_a_version_2_page_is_refused(noted, where):
+    reply = {"text": "Both at once.", "notes": ["N-3-i-c-1", "N-3-i-c-2"]}
+    before = noted.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        if where == "readings":
+            rd.apply_readings(noted, {"replies": [reply]})
+        else:
+            rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "Asked again."}]})
+            before = noted.read_bytes()
+            rd.build_round_document(noted, SESSION, round_input(items=[card("i-d", carries=["i-c"])],
+                                                                replies=[reply]))
+    assert refused.value.code == "reply-many-notes"
+    assert "N-3-i-c-1" in refused.value.reason and "N-3-i-c-2" in refused.value.reason
+    assert noted.read_bytes() == before
+
+
+def test_open_on_a_version_2_page_names_only_the_note_its_reply_answers(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns: the why needs a picture.",
+                                        "note": "N-3-i-c-1"}],
+                              "replies": [{"text": "The how comes in the next card.", "notes": ["N-3-i-c-2"]}]})
+    assert [reply.get("notes") for reply in replies_of(noted, 3)] == [["N-3-i-c-1"], ["N-3-i-c-2"]]
+    assert check(noted)[0] == 0
+
+
+def test_open_on_a_version_2_page_with_no_note_names_none(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns."}]})
+    assert replies_of(noted, 3) == [{"id": "A-3-1", "text": "It returns."}]
+
+
+def test_open_with_a_note_of_another_card_is_refused(noted):
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns.", "note": "N-1-i-a-1"}]})
+    assert refused.value.code == "no-note"
+
+
+def test_a_note_with_no_reply_refuses_the_next_round_on_version_2_by_its_id(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns.", "note": "N-3-i-c-1"}]})
+    before = noted.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(noted, SESSION, round_input("i-d", items=[card("i-d", carries=["i-c"])]))
+    assert refused.value.code == "unanswered-note" and "N-3-i-c-2" in refused.value.reason
+    assert "N-3-i-c-1" not in refused.value.reason
+    assert noted.read_bytes() == before
+    rd.build_round_document(noted, SESSION, round_input(items=[card("i-d", carries=["i-c"])],
+                                                        replies=[{"text": "Asked in the next card.",
+                                                                  "notes": ["N-3-i-c-2"]}]))
+    assert check(noted)[0] == 0
+
+
+# ---- the readings keep, answer, drop and assume (SDD §3 row "reading tool"; PRD AC-014, AC-037, AC-045)
+
+READ_RAW = ("[round R-3]\nq-1 tick csv\ni-a note 1\n  Agreed, it stays.\nq-2 note 1\n  Nobody owns this; drop it."
+            "\nq-3 note 1\n  The tester team says yes.")
+
+
+@pytest.fixture
+def asked(page):
+    """Round 3 current: q-1 ticked csv, a note on the settled card i-a, a note on q-2 and on q-3."""
+    answer = next_round(page, "i-c", questions=[question("q-1", choices=options("csv", "xls")), question("q-2"),
+                                                question("q-3")])
+    assert answer["entries"] == ["q-1", "q-2", "q-3"]
+    to_read = ingest(page, READ_RAW)
+    assert to_read["settled_notes_to_read"] == ["N-3-i-a-1"]
+    return page
+
+
+def question_of(path, question_id):
+    return next(q for q in read(path)["questions"] if q["id"] == question_id)
+
+
+def item_of(path, item_id):
+    return next(i for r in read(path)["rounds"] for i in r["items"] if i["id"] == item_id)
+
+
+def an_answer(question_id="q-1", **extra):
+    return {"question": question_id, "text": "Only csv.", "choices": ["csv"], "role": "product owner",
+            "date": "2026-11-06", "signal": "tick", **extra}
+
+
+def refused_reading(path, readings, code):
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(path, readings)
+    assert refused.value.code == code, refused.value.reason
+    assert path.read_bytes() == before
+    return refused.value.reason
+
+
+def test_keep_leaves_a_settled_point_settled_and_writes_its_reply(asked):
+    before = item_of(asked, "i-a")
+    rd.apply_readings(asked, {"keep": [{"note": "N-3-i-a-1", "reply": "Kept: the point stays as it is."}]})
+    assert item_of(asked, "i-a") == before
+    assert replies_of(asked, 3) == [{"id": "A-3-1", "text": "Kept: the point stays as it is.", "notes": ["N-3-i-a-1"]}]
+    assert check(asked)[0] == 0
+
+
+def test_a_kept_point_does_not_return_in_the_next_round(asked):
+    rd.apply_readings(asked, {"keep": [{"note": "N-3-i-a-1", "reply": "Kept."}],
+                              "answer": [an_answer()],
+                              "replies": [{"text": "Dropped as you asked.", "notes": ["N-3-q-2-1"]},
+                                          {"text": "Recorded as the answer.", "notes": ["N-3-q-3-1"]}]})
+    assert "i-a" not in [item["id"] for item in rd.returning(read(asked))]
+    rd.build_round_document(asked, SESSION, round_input(items=[card("i-d", carries=["i-c"])]))
+    assert item_of(asked, "i-a")["state"] == "settled_by_mark"
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("note, code", [("N-3-q-2-1", "not-settled"), ("N-9-i-a-1", "no-note")])
+def test_keep_of_a_note_on_no_settled_point_is_refused(asked, note, code):
+    refused_reading(asked, {"keep": [{"note": note, "reply": "Kept."}]}, code)
+
+
+def test_answer_records_the_answer_and_settles_no_card(asked):
+    cards = [i for r in read(asked)["rounds"] for i in r["items"]]
+    rd.apply_readings(asked, {"answer": [an_answer()]})
+    answered = question_of(asked, "q-1")
+    assert answered["state"] == "answered"
+    assert answered["answer"] == {"text": "Only csv.", "choices": ["csv"], "role": "product owner",
+                                  "date": "2026-11-06", "signal": "tick", "round": 3}
+    assert [i for r in read(asked)["rounds"] for i in r["items"]] == cards
+    assert check(asked)[0] == 0
+
+
+def test_answer_from_a_note_of_the_round_is_recorded(asked):
+    rd.apply_readings(asked, {"answer": [an_answer("q-3", choices=[], signal="N-3-q-3-1", role="tester")]})
+    assert question_of(asked, "q-3")["answer"]["signal"] == "N-3-q-3-1"
+
+
+@pytest.mark.parametrize("answer", [an_answer("q-2"), an_answer("q-3", choices=[], signal="N-2-q-3-1")])
+def test_answer_without_the_developers_tick_or_note_of_the_round_is_refused(asked, answer):
+    refused_reading(asked, {"answer": [answer]}, "answer-no-signal")
+
+
+def test_answer_by_everyone_is_refused(asked):
+    refused_reading(asked, {"answer": [an_answer(role="Everyone")]}, "everyone-answered")
+
+
+def test_answer_of_no_question_is_refused(asked):
+    refused_reading(asked, {"answer": [an_answer("q-none")]}, "not-a-question")
+
+
+def test_drop_with_a_reason_drops_the_question(asked):
+    rd.apply_readings(asked, {"drop": [{"question": "q-2", "reason": "Nobody owns it.", "note": "N-3-q-2-1"}]})
+    assert question_of(asked, "q-2")["state"] == "dropped"
+    assert question_of(asked, "q-2")["dropped"] == {"reason": "Nobody owns it.", "note": "N-3-q-2-1", "round": 3}
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("reason", ["", "  ", None, 5])
+def test_drop_without_a_reason_is_refused_and_the_question_stays_open(asked, reason):
+    entry = {"question": "q-2", "note": "N-3-q-2-1", **({} if reason is None else {"reason": reason})}
+    refused_reading(asked, {"drop": [entry]}, "drop-no-reason")
+    assert question_of(asked, "q-2")["state"] == "open"
+
+
+def test_assume_with_an_accepted_card_assumes_the_answer(asked):
+    rd.apply_readings(asked, {"assume": [{"question": "q-3", "text": "We assume yes.", "card": "i-a"}]})
+    assert question_of(asked, "q-3")["state"] == "assumed"
+    assert question_of(asked, "q-3")["assumption"] == {"text": "We assume yes.", "card": "i-a", "round": 3}
+    assert check(asked)[0] == 0
+
+
+@pytest.mark.parametrize("card_id", ["i-c", "i-none"])
+def test_assume_without_an_accepted_card_is_refused(asked, card_id):
+    refused_reading(asked, {"assume": [{"question": "q-3", "text": "We assume yes.", "card": card_id}]},
+                    "assume-no-card")
+
+
+def test_a_version_1_page_refuses_the_new_readings_by_name(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-a note 1\n  Agreed.")
+    for key in ("keep", "answer", "drop", "assume"):
+        assert key in refused_reading(path, {key: []}, "bad-payload")
+
+
+# ---- upgrade: a version 0 or 1 page taken over in the current session becomes version 2 (SDD §4; PLAN.md D-1)
+
+
+def an_upgrade(*items, **lists):
+    return {**entries_round(*items, **lists), "upgrade": True}
+
+
+def test_upgrade_writes_a_taken_over_version_1_page_as_version_2(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    page_round.take_over(path)
+    answer = rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro")]))
+    doc = read(path)
+    assert doc["schema"] == V2 and answer["entries"] == ["s-intro"]
+    assert doc["sections"][0]["changes"] == [{"round": 3, **FINDING}]
+    assert "upgrade" not in json.dumps(doc["rounds"])
+    assert check(path)[0] == 0
+
+
+def test_upgrade_records_its_round_and_keeps_an_older_reply_that_names_2_notes(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b note 1\n  Why this one?\ni-b note 2\n  And how?")
+    rd.apply_readings(path, {"open": [{"item": "i-b", "reply": "Asked again."}]})
+    assert replies_of(path, 2)[0]["notes"] == ["N-2-i-b-1", "N-2-i-b-2"]
+    page_round.take_over(path)
+    rd.build_round_document(path, SESSION, {**round_input(items=[card("i-c", carries=["i-b"])]), "upgrade": True})
+    doc = read(path)
+    assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
+    assert check(path)[0] == 0
+
+
+def test_a_page_never_upgraded_holds_no_upgraded_field(page):
+    assert "upgraded" not in read(page)["session"]
+
+
+def test_upgrade_writes_a_taken_over_version_0_page_as_version_2(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    doc = read(path)
+    session = {key: doc["session"][key] for key in ("id", "skill", "feature", "ticket", "started")}
+    write(path, {"schema": "afkv2.page/0", "session": session, "maps": [], "rounds": doc["rounds"]})
+    assert check(path)[0] == 0
+    page_round.take_over(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c"))
+    assert read(path)["schema"] == V2
+    assert check(path)[0] == 0
+
+
+def test_upgrade_of_a_page_not_taken_over_in_the_current_round_is_refused(path):
+    settled_round_1(path, "i-b")
+    page_round.take_over(path)
+    ingest(path, "[round R-2]\ni-b accept")
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    ingest(path, "[round R-3]\ni-c accept")
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-d"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert path.read_bytes() == before
+
+
+def test_upgrade_of_a_new_page_is_refused_and_writes_nothing(path):
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-a"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert not path.exists()
+
+
+def test_upgrade_of_a_version_2_page_is_refused(page):
+    page_round.take_over(page)
+    before = page.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(page, SESSION, an_upgrade("i-c"))
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert page.read_bytes() == before
+
+
+def taken_over_version_1(path):
+    """A version 1 page whose round 2 is answered and taken over by a new session."""
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    page_round.take_over(path)
+
+
+@pytest.mark.parametrize("value", ["yes", 0, 1, None])
+def test_upgrade_that_is_not_true_is_refused_and_writes_nothing(path, value):
+    taken_over_version_1(path)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": value})
+    assert refused.value.code == "bad-round" and repr(value) in refused.value.reason
+    assert path.read_bytes() == before
+
+
+def test_upgrade_false_leaves_a_version_1_page_version_1(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, {**round_input("i-c"), "upgrade": False})
+    doc = read(path)
+    assert doc["schema"] == V1 and "upgraded" not in doc["session"]
+
+
+def test_the_upgrade_round_rebuilt_by_replace_with_upgrade_stays_the_upgrade_round(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro")]))
+    answer = rd.build_round_document(path, SESSION, an_upgrade("i-c", sections=[section("s-intro", "Corrected.")]),
+                                     replace=True)
+    doc = read(path)
+    assert answer["round"] == 3 and [rnd["n"] for rnd in doc["rounds"]] == [1, 2, 3]
+    assert doc["schema"] == V2 and doc["session"]["upgraded"] == 3
+    assert doc["sections"][0]["body"]["props"]["text"] == "Corrected."
+    assert check(path)[0] == 0
+
+
+def test_replace_with_upgrade_of_a_round_after_the_upgrade_round_is_refused_and_writes_nothing(path):
+    taken_over_version_1(path)
+    rd.build_round_document(path, SESSION, an_upgrade("i-c"))
+    ingest(path, "[round R-3]\ni-c accept")
+    rd.build_round_document(path, SESSION, round_input("i-d"))
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(path, SESSION, an_upgrade("i-d"), replace=True)
+    assert refused.value.code == "upgrade-not-taken-over"
+    assert read(path)["session"]["upgraded"] == 3
+    assert path.read_bytes() == before

@@ -7,11 +7,15 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 EXIT_REFUSED = 1
 EXIT_UNREADABLE = 2
+# Windows refuses a replace while another process holds the target open, as a scanner does a new file briefly.
+REPLACE_TRIES = 10
+REPLACE_WAIT_S = 0.05
 
 
 class Refusal(Exception):
@@ -61,7 +65,14 @@ def write_text(path, text):
     scratch = path.with_name(path.name + ".tmp")
     with open(scratch, "w", encoding="utf-8", newline="\n") as out:
         out.write(text)
-    os.replace(scratch, path)
+    for attempt in range(1, REPLACE_TRIES + 1):
+        try:
+            os.replace(scratch, path)
+            return
+        except PermissionError:
+            if attempt == REPLACE_TRIES:
+                raise
+            time.sleep(REPLACE_WAIT_S * attempt)
 
 
 def write_json(path, value):

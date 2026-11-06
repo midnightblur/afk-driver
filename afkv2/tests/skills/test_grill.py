@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from test_visualize import V1_WORD, _example_v0, _find, _next_round, check_document
+from test_visualize import V1_WORD, _example_v0, _find, _next_round
+from test_visualize import check_document as check_format_1
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILL_DIR = PLUGIN / "skills" / "grill"
@@ -28,7 +29,19 @@ ENGINE = PLUGIN / "engine" / "engine.py"
 FAKES = Path(__file__).resolve().parent / "fakes"
 sys.path.insert(0, str(LAVISH_DIR / "scripts"))
 
+import page_round  # noqa: E402
 import round_document as rd  # noqa: E402
+
+V2_FIELDS = ("sections", "stories", "examples", "questions")
+
+
+def check_document(doc):
+    """The recorded fake of the guide checks formats 0 and 1. A version 2 page with no version 2 field has the
+    format 1 shape, so the fake checks it as format 1."""
+    if isinstance(doc, dict) and doc.get("schema") == "afkv2.page/2":
+        assert not any(doc.get(kind) for kind in V2_FIELDS) and "upgraded" not in doc["session"], doc
+        doc = {**doc, "schema": "afkv2.page/1"}
+    return check_format_1(doc)
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
 STEP_ORDER = ["start", "read-ticket", "row", "build", "present", "wait", "reply", "ingest",
@@ -211,8 +224,9 @@ def test_builder_output_has_the_schema_fields(tmp_path):
     result = rd.build_round_document(path, session(), round_one())
     doc = json.loads(path.read_text("utf-8"))
     check_document(doc)
-    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": [], "warnings": []}
-    assert doc["schema"] == "afkv2.page/1"
+    assert result == {"ok": True, "doc": str(path), "round": 1, "items": ["i-scope", "i-format"], "degraded": [], "warnings": [],
+                      "entries": []}
+    assert doc["schema"] == "afkv2.page/2"
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", doc["session"]["started"])
     assert doc["rounds"][0]["state"] == "current"
     assert [i["state"] for i in doc["rounds"][0]["items"]] == ["open", "open"]
@@ -307,16 +321,16 @@ def test_decided_card_with_a_bad_grade_or_dependency_degrades(tmp_path, change):
     assert result["degraded"] == ["i-scope"]
 
 
-def test_map_node_round_moves_only_when_its_state_moves(tmp_path):
-    path = tmp_path / "doc.json"
+def test_map_node_round_moves_only_when_its_state_moves(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    path = tmp_path / "pages" / "grill-s-1.json"
     rd.build_round_document(path, session(), round_one())
-    doc = json.loads(path.read_text("utf-8"))
-    doc["rounds"][0]["responses"] = [{"received": "2026-01-05T10:00:00Z", "raw": "x", "signals": []}]
-    for item in doc["rounds"][0]["items"]:
-        item.update(state="settled_by_mark", settled={"by": "mark", "round": 1, "signal": "accept"})
-    path.write_text(json.dumps(doc), "utf-8")
+    raw = tmp_path / "raw.txt"
+    raw.write_text("[round R-1]\ni-scope accept", "utf-8")
+    page_round.ingest(path, raw)
+    assert json.loads(path.read_text("utf-8"))["schema"] == "afkv2.page/2"
     next_round = {"banner": {"settled": [], "unlocks": [], "parked": []}, "maps": [scope_map("settled")],
-                  "items": [{"id": "i-next", "kind": "confirm", "body": text("Next point.")}]}
+                  "items": [{"id": "i-next", "kind": "confirm", "body": text("Next point."), "carries": ["i-format"]}]}
     rd.build_round_document(path, session(), next_round)
     nodes = {n["id"]: n for n in json.loads(path.read_text("utf-8"))["maps"][0]["props"]["nodes"]}
     assert nodes["n-scope"]["round"] == 2
@@ -607,7 +621,7 @@ def test_unclear_note_returns_to_open_and_must_be_carried(world):
     started = first_round(world)
     answered(world, started, "i-scope: accept\ni-format: note: maybe\n")
     world.run("apply-readings", doc=started["doc"], readings=world.file(
-        "r.json", {"open": [{"item": "i-format", "reply": "Your note leaves the format open."}]}))
+        "r.json", {"open": [{"item": "i-format", "note": "N-1-i-format", "reply": "Your note leaves the format open."}]}))
     with pytest.raises(AssertionError, match="missing-carry"):
         world.build_round(started, next_round([{"id": "i-x", "kind": "confirm", "body": text("x")}]), ticket=False)
     carried = {"id": "i-format-2", "kind": "debate", "node": "n-format", "carries": ["i-format"],
@@ -629,8 +643,10 @@ def test_a_note_on_an_older_card_returns_and_must_be_carried(world):
     assert [p["id"] for p in pending["returned"]] == ["i-scope"]
     with pytest.raises(AssertionError, match="missing-carry"):
         world.build_round(started, next_round([{"id": "i-three", "kind": "confirm", "body": text("x")}]), ticket=False)
-    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
-                                            "body": text("Only for open orders?")}]), ticket=False)
+    carrying = next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
+                            "body": text("Only for open orders?")}])
+    world.build_round(started, {**carrying, "replies": [{"text": "Asked again.", "notes": ["N-2-i-scope"]}]},
+                      ticket=False)
     world.run("sync", doc=started["doc"], log=started["log"])
     log = Path(started["log"]).read_text("utf-8")
     assert 'owner note on i-scope (N-2-i-scope): "only for open orders"' in log
@@ -930,6 +946,23 @@ def test_replace_refuses_a_round_whose_show_failed_because_chat_shows_it(world):
     assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
 
 
+NO_SHOW = ("present --doc", "present --no-show --doc")
+
+
+def test_present_no_show_checks_renders_and_records_a_chat_round_without_opening_the_page(world):
+    """Review finding r2-g5-1: a chat round the developer asked for opens no page, and `build --replace` still
+    refuses it, because the developer saw it in chat."""
+    started = world.start_and_read()
+    world.build_round(started, round_one())
+    before = len(world.verbs())
+    answer = world.run("present", swap=NO_SHOW, doc=started["doc"], log=started["log"])
+    assert answer["ok"] is True and answer["url"] is None and answer["tab"] is None
+    assert answer["page"] and answer["secrets"] == []
+    assert world.verbs()[before:] == ["check", "render"]
+    assert rd.shown_record(started["doc"]).read_text("utf-8").strip() == "1"
+    assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
+
+
 def test_replace_works_on_a_later_round_the_engine_refused(world):
     started = first_round(world)
     answered(world, started, "i-scope: accept\ni-format: accept\n")
@@ -1028,12 +1061,13 @@ def test_exit_gate_refuses_an_open_point_and_an_unanswered_round(world):
     assert "i-format" in joined and "i-scope" not in joined
 
 
-def test_passed_gate_starts_a_new_session_and_first_sync_voids_the_old_pass(world):
+def test_passed_gate_start_takes_over_the_session_and_first_sync_voids_the_old_pass(world):
     started = settled_session(world)
     full_rows(world, started["log"])
     world.run("gate", doc=started["doc"], log=started["log"])
     again = world.run("start", ticket_key="PROJ-1")
-    assert again["resume"] is False and again["session"] != started["session"]
+    assert again["resume"] is False and again["takeover"] == started["session"]
+    assert again["session"] == started["session"] and again["doc"] == started["doc"]
     world.run("sync", doc=started["doc"], log=started["log"])
     assert "exit gate passed" not in Path(started["log"]).read_text("utf-8")
 
@@ -1055,8 +1089,10 @@ def test_a_carried_point_does_not_return_again(world):
     answered(world, started, "i-scope: accept\ni-format: accept\n")
     world.build_round(started, next_round([{"id": "i-two", "kind": "confirm", "body": text("Two.")}]), ticket=False)
     answered(world, started, "i-two: accept\ni-scope: note: only for open orders\n")
-    world.build_round(started, next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
-                                            "body": text("Only for open orders?")}]), ticket=False)
+    carrying = next_round([{"id": "i-scope-2", "kind": "confirm", "carries": ["i-scope"],
+                            "body": text("Only for open orders?")}])
+    world.build_round(started, {**carrying, "replies": [{"text": "Asked again.", "notes": ["N-2-i-scope"]}]},
+                      ticket=False)
     pending = answered(world, started, "i-scope-2: accept\n")
     assert pending["returned"] == []
     world.build_round(started, next_round([{"id": "i-four", "kind": "confirm", "body": text("Four.")}]), ticket=False)
@@ -1071,7 +1107,10 @@ def test_a_second_session_keeps_the_rows_of_the_first(world):
     first = settled_session(world)
     full_rows(world, first["log"])
     world.run("gate", doc=first["doc"], log=first["log"])
-    second = world.run("start", ticket_key="PROJ-1")
+    session = f"{first['session']}-b"
+    pages = Path(first["doc"]).parent
+    second = {**first, "session": session, "doc": (pages / f"grill-{session}.json").as_posix(),
+              "raw_file": (pages / f"grill-{session}.raw.txt").as_posix()}
     content = round_one()
     for item in content["items"]:
         item["id"] += "-b"

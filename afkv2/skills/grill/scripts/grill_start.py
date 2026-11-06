@@ -1,8 +1,9 @@
 """Start or resume a grill session: `grill_start.py --ticket KEY`, from the repository root.
 
-Answers ticket, spec_dir, log, doc, session, resume, raw_file and raw_pending. A refusal for a
-missing input names the file and the skill that writes it. Creates the grill log section; the
-document itself appears at the first build.
+Answers ticket, spec_dir, log, doc, session, resume, takeover, raw_file and raw_pending. The newest session
+open: `resume` true. The newest session passed its exit gate: `takeover` names it, and `session` and `doc` are its
+own, so the grill adds a round to that page, and a log with no `Last pass` row for it gets one. A refusal for a
+missing input names the file and the skill that writes it. Creates the grill log section; the document itself appears at the first build.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import PLUGIN_ROOT, Parser, Refusal, page_documents, read_json, run_command, serve  # noqa: E402
-from grill_log import exit_gate_passed, ensure_section  # noqa: E402
+from grill_log import exit_gate_passed, ensure_section, keep_last_pass  # noqa: E402
 
 CONFIG = ".afkv2/config.json"
 SETUP = "/afkv2:setup"
@@ -50,13 +51,21 @@ def _new_session(pages):
     return session
 
 
+def _newest_session(pages):
+    documents = sorted(page_documents(pages, "grill-"), key=lambda path: path.stat().st_mtime)
+    return documents[-1].stem[len("grill-"):] if documents else None
+
+
 def _open_session(pages, log):
     """The newest document whose session has no passed exit gate; a grill resumes it."""
-    documents = sorted(page_documents(pages, "grill-"), key=lambda path: path.stat().st_mtime)
-    if not documents:
-        return None
-    session = documents[-1].stem[len("grill-"):]
-    return None if exit_gate_passed(log, session) else session
+    session = _newest_session(pages)
+    return None if session is None or exit_gate_passed(log, session) else session
+
+
+def finished_session(pages, log):
+    """The newest document whose session passed its exit gate; a grill that comes back takes it over."""
+    session = _newest_session(pages)
+    return session if session is not None and exit_gate_passed(log, session) else None
 
 
 def _raw_pending(raw_file, doc):
@@ -81,11 +90,14 @@ def start(argv):
     pages, log = spec_dir / "pages", spec_dir / "GRILL-LOG.md"
     ensure_section(log, args.ticket)
     resumed = _open_session(pages, log)
-    session = resumed or _new_session(pages)
+    takeover = None if resumed else finished_session(pages, log)
+    session = resumed or takeover or _new_session(pages)
     doc, raw_file = pages / f"grill-{session}.json", pages / f"grill-{session}.raw.txt"
+    if takeover:
+        keep_last_pass(doc, log)
     return {"ok": True, "ticket": args.ticket, "tracker": config["tracker"]["kind"], "spec_dir": spec_dir.as_posix(),
             "log": log.as_posix(), "doc": doc.as_posix(), "session": session, "resume": bool(resumed),
-            "raw_file": raw_file.as_posix(), "raw_pending": _raw_pending(raw_file, doc)}
+            "takeover": takeover, "raw_file": raw_file.as_posix(), "raw_pending": _raw_pending(raw_file, doc)}
 
 
 if __name__ == "__main__":

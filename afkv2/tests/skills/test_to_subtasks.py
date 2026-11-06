@@ -909,17 +909,17 @@ def test_every_citation_failure_is_listed(world):
 
 # The division.
 
-def test_division_uses_page_one_and_keeps_its_tips_on_resume(world):
+def test_division_uses_page_two_and_keeps_its_tips_on_resume(world):
     started = world.committed_plan()
     world.division(started)
     doc = world.doc(started)
-    assert doc["schema"] == "afkv2.page/1"
+    assert doc["schema"] == "afkv2.page/2"
     doc["tips"] = {"terms": [{"term": "division", "definition": "The cut into subtasks."}]}
     path = world.repo / started["doc"]
     path.write_text(json.dumps(doc), "utf-8")
     world.division(started, replace=True)
     resumed = world.doc(started)
-    assert resumed["schema"] == "afkv2.page/1"
+    assert resumed["schema"] == "afkv2.page/2"
     assert resumed["tips"] == doc["tips"]
     result = subprocess.run([sys.executable, str(PLUGIN / "engine/engine.py"), "check", str(path)],
                             capture_output=True, text=True)
@@ -1095,7 +1095,7 @@ def test_a_note_that_changes_the_card_returns_it_for_a_sign_mark(world):
     world.division(started)
     old = world.card(started)["id"]
     world.answer(started, f"{old}: note: Merge the 2 subtasks.")
-    world.readings(started, {"open": [{"item": old, "reply": "I cut it again with your change."}]})
+    world.readings(started, {"open": [{"item": old, "note": f"N-1-{old}", "reply": "I cut it again with your change."}]})
     world.change_plan(started)
     world.division(started)
     new = world.card(started)

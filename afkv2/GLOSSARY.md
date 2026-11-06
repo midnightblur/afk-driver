@@ -125,17 +125,24 @@ The HTML a human reads and answers. The page engine builds it from a page docume
 **Note**:
 A comment a human writes on a page element, as a lavish annotation, and sends with Send to Agent.
 
-**Answer**:
-The agent's reply to one note, shown in that note's row. The page document calls it a reply.
+**Reply**:
+What the agent writes back to one note, shown in that note's row. Each note gets its own reply, written for that note. The page document keeps it in the round's `replies`.
+`Related:` Note
 
 **Ad-hoc page**:
 A page an agent writes outside an afk step, to talk with a human about any topic.
 
 **use-lavish**:
-The afkv2 skill that tells an agent how to organize a page, write its content and answer the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
+The afkv2 skill that tells an agent how to organize a page, write its content and reply to the human's notes. It loads visualize for the components. Any agent may load it, in an afk step or ad hoc; a human starts an ad-hoc page with /afkv2:use-lavish and a topic.
 
 **Merged**:
 The forge reports the feature's change as merged, into any target branch, and no change on the branch is still open. Only the forge decides; a git history check does not count, because a squash merge leaves the feature tip outside the target.
 
 **Feature**:
 Any piece of work on its own branch and worktree: a new feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. Not the size of the work; that is the lane.
+
+**Section**:
+A part of a page that holds the current state of one part of the topic, kept up to date every round and open to a note at any time. Sections are not fixed: they appear, merge or go away as notes and answers change the topic, and a section that depends on another links to it.
+
+**Question for others**:
+A point of a grill that neither the human nor the code can settle, so someone outside the session must answer it: a product owner, a tester, a director or another team. It is kept with who to ask, its context, why the answer is needed, the ways we see and an example, written so that person can read it.

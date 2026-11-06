@@ -902,13 +902,6 @@ def test_fake_refuses_a_value_chip_that_does_not_resolve(mutate, field):
         check_document(doc)
 
 
-def test_the_page_layout_states_the_session_table_of_every_note():
-    """Ruling D-39: the session notes table holds every note, card notes included, with per-round folds."""
-    layout = " ".join(SKILL_MD.read_text("utf-8").split("## Page layout\n", 1)[1].split("\n## ", 1)[0].split())
-    assert "every note of the session, card notes included" in layout and "one fold per round" in layout
-    assert "stand on no card" not in layout
-
-
 def _frontmatter(path):
     text = path.read_text("utf-8")
     assert text.startswith("---\n"), f"{path} has no frontmatter"
@@ -964,7 +957,7 @@ def test_the_components_table_has_a_row_for_each_chart_page_and_the_fields_name_
     for name in CHART_PAGES.values():
         kind = name.removesuffix(".md")
         assert any(f"`components/{name}`" in line and f"type `{kind}`" in line for line in rows), name
-    fields = index[index.index("takes an open `style` field"):index.index("## Page layout")]
+    fields = index[index.index("takes an open `style` field"):index.index("## Picture before a critical-aspect question")]
     assert "`tip`" in fields and "300" in fields, "SKILL.md states no component tip beside style and fold (f4)"
 
 

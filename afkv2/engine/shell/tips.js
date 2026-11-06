@@ -9,10 +9,10 @@
   var payload = read('afkv2-tips-payload');
   var pageIds = {}, pageTerms = {}, dict = read('afkv2-tips-dict');
   if (!validMap(dict)) dict = {};
-  if (payload && validMap(payload.page_ids) && validMap(payload.page_terms) && validMap(payload.shared_terms)) {
+  // The shared terms come from the dictionary block only; a broken payload loses only the page maps.
+  if (payload && validMap(payload.page_ids) && validMap(payload.page_terms)) {
     pageIds = payload.page_ids;
     pageTerms = payload.page_terms;
-    dict = payload.shared_terms;
   }
   var legacy = !document.getElementById('afkv2-page-tip-source');
   var keys, re;

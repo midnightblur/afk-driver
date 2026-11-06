@@ -1,11 +1,11 @@
 ---
 name: use-lavish
-description: /afkv2:use-lavish — how to write a page and answer the human's notes: the page rules, the answer rules, the forms by kind, page or chat. Opens an ad-hoc page on a topic, and holds the page commands. Use to show a human a page, to write or answer a page round, or with a topic to start an ad-hoc page.
+description: /afkv2:use-lavish — how to write a page and reply to the human's notes: the page rules, the answer rules, the forms by kind, page or chat. Opens an ad-hoc page on a topic, and holds the page commands. Use to show a human a page, to write or answer a page round, or with a topic to start an ad-hoc page.
 ---
 
 # /afkv2:use-lavish
 
-This skill says how to order and word a page and how to answer the human's notes. Write the page document by `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)): it says how each component holds, looks and is used.
+This skill says how to order and word a page and how to reply to the human's notes. Write the page document by `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)): it says how each component holds, looks and is used.
 
 ## Page or chat
 
@@ -21,8 +21,8 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 |---------|------|
 | `scripts/page_home.py start --topic T [--ticket K] [--private]` | gives a new ad-hoc page its `doc`, `session`, `raw_file` and `home` by the home rule; writes nothing |
 | `scripts/page_home.py track --doc D --ticket K` | moves a page and its side files into the ticket's spec folder; its result holds `doc` and `moved` |
-| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document; each entry of `warnings` in its result names a note of the last round with no answer, or a short title it ignored: answer that note in this round, and run `build` again with `--replace` |
-| `scripts/page_round.py present --doc D [--scan F]...` | checks, renders and shows the round; scans the page and each F (a file the skill writes beside the page, such as its log) for secrets |
+| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document; each entry of `warnings` in its result names a note of the last round with no reply, or a short title it ignored: reply to that note in this round, and run `build` again with `--replace` |
+| `scripts/page_round.py present --doc D [--scan F]... [--no-show]` | checks, renders and shows the round; scans the page and each F (a file the skill writes beside the page, such as its log) for secrets; `--no-show` does not show it, for a round asked in chat |
 | `scripts/page_round.py wait --doc D --raw-file F` | waits for the human's round send and writes it to F |
 | `scripts/page_round.py reply --doc D --reply-file F` | shows the Markdown in F on the page |
 | `scripts/page_round.py ingest --doc D --raw-file F` | reads the round send into the page document |
@@ -36,7 +36,7 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 2. **Start.** Run `scripts/page_home.py start --topic "<topic>"`. Add `--ticket` when the work has a ticket. Add `--private` when the content is not for the repository's readers: customer data, personal notes, work context. Done when the result holds `doc`.
 3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen the round: fix the named field in the round input, and run `build` again with `--replace`. `round-shown`: the human may be answering the round in the browser, so wait for it. On `show`, the page host is not available: show the round as Markdown in chat, with every card id, write the human's reply to `raw_file`, and go to step 5. Done when `present` succeeds and you reported its notices ("After each show").
 4. **Wait.** Run `wait` as a background command the harness tracks; its exit tells you the round send is in `raw_file`. On a harness whose Stop hook waits for the page, end your turn after `present` instead, and write the raw response it hands back to `raw_file`, word for word. When the result lists side questions in `btw`, write one short Markdown answer for each to a reply file and run `scripts/page_round.py reply`. Then go to step 5, or run `wait` again when `raw_file` is null.
-5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with an answer for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
+5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with a reply for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
 
 ## After each show
 
@@ -64,7 +64,7 @@ A session that resumes a page whose session ended takes it over before it writes
 
 1. Run `scripts/page_round.py take-over --doc D`.
 2. Write the Takeover row `- Takeover: R<n> · <at>` in the skill's log by its row command: `<n>` and `<at>` are the last entry of `takeovers`. A page with no log has no row.
-3. Answer every note that has no answer, by the answer rules. Done when each note has an answer.
+3. Reply to every note that has no reply, by the answer rules. Done when each note has a reply.
 
 ## The rules
 
@@ -87,6 +87,66 @@ A session that resumes a page whose session ended takes it over before it writes
 | PR-13 | Every diagram has a 1-line caption that says what to see. |
 | PR-14 | A scope map groups its parts by module or area and draws no flow arrows; an arrow only where one part must settle before another. |
 
+### Page layout
+
+The engine lays out the page by its version: you write the content, and the engine puts each part in its place.
+
+#### What goes first on a version 2 page
+
+1. the title and the banner of the current round: each section that the round added, changed, merged or removed, each other element that it changed, each as a link; then what settled, what it unlocks and what is parked;
+2. the notes and replies of the session;
+3. the questions of the round: its cards in 1 block;
+4. the maps;
+5. the sections, in the order of `sections`;
+6. the worked examples, each marked frequent, edge or risky, with the stories it covers;
+7. the questions for others;
+8. the settled points, each folded to its heading and settled line;
+9. the earlier banners, closed.
+
+The visible text holds no element id and no round code: a round reads "round 3".
+
+#### Sections and change lines
+
+- Round 1 gives a section to each part of the topic: each part named in the ticket, in round 0 or reached by the code reading. A part that no question has reached yet has the state `not_reached`.
+- A section shows its current text in every round. It never moves to the settled points.
+- A merge sets `merged` and `merged_into`, a current section. A removal sets `removed` and `reason`. The section stays as 1 line, and it never returns. Nothing is deleted, so every note finds its element.
+- A section that depends on another names it in `links`. A card names the section it asks about in `section`: the card shows a link to its section, and the section shows a chip with the count of its open questions.
+- The round input holds only the entries that changed, in `sections`, `stories`, `examples` and `questions`.
+- Send each entry whole, without `changes`, and with `change`: its 1 change line for this round, `{cause, text}`.
+- The causes: `note` with `notes`; `answer` with `card`, the developer's answer on that card; `answer_from` with `question`, an answer from someone else; `finding`, an agent finding.
+- The builder appends the change line. It refuses an entry without one (`no-change-line`).
+- An entry left out keeps its text and its change list exactly.
+- The builder refuses an entry sent unchanged (`unchanged-entry`).
+- A change list shows newest first, 1 line per round with its cause. It shows open and never folds.
+- The banner lists each added, changed, merged or removed section from the change lines. Write no banner field for them.
+
+#### The questions block
+
+- The asking cards of the round show in 1 block, after the notes and replies and above the sections. Each card with `section` shows a link to its section.
+- The questions for others show as their own part, in the order of `questions`, with a filter by who to ask (`who`). A new question goes to the end; a follow-up goes right after the question it follows, by `after`. A question that waits on another names it in `waits_on`, and the page links to it. A question with `choices` shows a tick for 1 option, or for several when `several` is true.
+
+#### What goes first on a version 0 or 1 page
+
+1. the title and the banner of the current round;
+2. "Notes on the whole session": every note of the session, card notes included, with its reply, in one fold per round;
+3. the maps;
+4. the points of the current round, one card per point, in kind order (`debate`, `confirm`, `decided`, `signoff`, `info`), then the copy bar; an asking card of an earlier round that is still open stays here too;
+5. "Settled by earlier rounds": the other points, newest round first, each folded to its heading and settled line;
+6. "Earlier banners", closed.
+
+A point is the newest card and the cards it `carries`. A part drops out when it is empty or repeats an earlier part.
+
+#### Title and tab
+
+The browser tab title and the page heading are `<ticket> · <short title> · <step>`. They hold no round number, so they stay the same every round. A page with no `short_title` (an upgraded format 0 page) shows its feature. A later round shows in the tab that the first show opened: `present` answers `tab: reused`. Give the human the `url` in one line then, so a closed tab costs nothing.
+
+#### Controls the engine adds
+
+You do not write these; the engine puts them on every page.
+
+- Copy bar, below the current round's cards: copies the marks when the page has no lavish session.
+- btw? button, bottom left: a one-line side question and one Ask button. Ask posts only the question to the side-question listener of the wait; the marks and notes the human queued stay queued for Send. The wait asks it in the agent's terminal pane (`/btw` on Claude, `/side` on Codex, through herdr), and the panel shows the answer; the round stays open. With no wait running, the panel says so. Engine modules: `engine/btw_listener.py` and `engine/side_question.py` (plugin root).
+
 ### Answer rules
 
 | Id | Rule |
@@ -95,12 +155,12 @@ A session that resumes a page whose session ended takes it over before it writes
 | AR-02 | Say what changed and where, 1 sentence per change. |
 | AR-03 | Push back plainly on disagreement: name the cost and the timing, and give a counter-proposal. |
 | AR-04 | A pushback that needs the human's call becomes a new question card, with a recommendation. |
-| AR-05 | A note with several points gets one answer per point, in the same row. |
-| AR-06 | An answer that changes nothing says why: kept, deferred, already done. |
+| AR-05 | A note with several meanings (an answer, a new idea, a question) gets 1 reply that states each reading, in that note's row. |
+| AR-06 | A reply that changes nothing says why: kept, deferred, already done. |
 | AR-07 | Mark a guess as "(inferred)". Say so when the note could not be read in full. |
 | AR-08 | Update every point the change touches, not only the noted card: each gets a new card that carries the old one. |
-| AR-09 | Never repeat the human's note in the answer, steers included: the row already shows the note, and the skill's log keeps the exact words. |
-| AR-10 | Each note gets its own row. When one answer covers several notes, the answer repeats in each of their rows; no row groups notes. |
+| AR-09 | Never repeat the human's note in the reply, steers included: the row already shows the note, and the skill's log keeps the exact words. |
+| AR-10 | Each note gets its own row. It also gets its own reply, written for that note. No reply copies another note's reply, and no row groups notes. On a version 2 page, `build` and `apply-readings` refuse a reply that names 2 or more notes (`reply-many-notes`). |
 
 ### Forms by kind
 
@@ -146,7 +206,7 @@ A suggestion: pick another form when it fits the content better, and state on th
 | K-39 | A rule with several conditions and outcomes | A decision table: condition columns, outcome columns, one row per case | A missing case shows | existing |
 | K-40 | Codes, states or enum values | A value, meaning table | One look answers what a value means | existing |
 | K-41 | An earlier statement turned out false | A claimed, true, source table | The correction is visible | existing |
-| K-42 | A record cites a human's call | A quote block: the words, who, when; on a page that answers notes, the notes row shows the words, so the answer does not repeat them | A ruling in its own words cannot be misread | existing |
+| K-42 | A record cites a human's call | A quote block: the words, who, when; on a page that replies to notes, the notes row shows the words, so the reply does not repeat them | A ruling in its own words cannot be misread | existing |
 | K-44 | Acceptance, readiness or a ship gate | One line per check with a state chip | What blocks, at a glance | existing |
 | K-45 | Questions a reader will likely ask | One folded line per question; the answer opens on a click | The reader opens only what they wonder about | existing |
 | K-46 | Words a reader may not know | A term, definition table; each term shows its definition on hover | The word is learned where it is met | existing |

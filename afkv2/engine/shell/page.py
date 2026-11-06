@@ -11,6 +11,7 @@ ticket, or a step that repeats the start of an earlier part, shows once.
 Under the heading, the notices of the page (engine notices): 1 git-state line and 1 line per secret hit.
 A page with a code block or a diff inlines the copy of highlight.js and its 2 themes once, after the page script;
 a page with neither holds none of them (ADR-0003 design).
+A version 2 page takes its own layout (ADR-0003 design, `_build_v2`); versions 0 and 1 keep the layout above.
 """
 
 from __future__ import annotations
@@ -23,10 +24,12 @@ from pathlib import Path
 import diagrams
 from registry import aliases, lookup, page_context, render_component, walk
 from schema.note_rules import round_target
+from shell import parts_v2
 from shell.points import grouped
 from shell.references import link_cards, linkify
 
 HERE = Path(__file__).resolve().parent
+V1, V2 = "afkv2.page/1", "afkv2.page/2"
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
 TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
@@ -138,20 +141,31 @@ def _exchange(doc: dict, item: dict) -> str:
     return f'<div class="afkv2-nr-scroll">{rows}</div>' if rows else ""
 
 
+def _label(doc: dict, item: dict) -> dict:
+    """On a version 2 page, the visible name of a card, so its heading shows no raw id (`visible_label`)."""
+    return {"label": parts_v2.visible_label(doc, "element", item["id"])} if doc["schema"] == V2 else {}
+
+
 def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current,
-                  "exchange": _exchange(doc, item), **extra},
+                  "exchange": _exchange(doc, item), **_label(doc, item), **extra},
         "children": [item["body"]],
     })
+
+
+def _history_name(doc: dict, item: dict, round_: dict) -> str:
+    if doc["schema"] == V2:
+        return f'{parts_v2.visible_label(doc, "round", round_["n"])}: {_label(doc, item)["label"]}'
+    return f'R-{round_["n"]} {item["id"]}'
 
 
 def _history(doc: dict, point) -> str:
     """The earlier cards of a point, newest first, in a closed details element."""
     if not point.history:
         return ""
-    names = ", ".join(f'R-{round_["n"]} {item["id"]}' for item, round_ in point.history)
+    names = ", ".join(_history_name(doc, item, round_) for item, round_ in point.history)
     cards = "".join(_card(doc, item, round_, False) for item, round_ in point.history)
     return (f'<details class="afkv2-history" data-afkv2-fold="history-{escape(point.head["id"])}">'
             f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
@@ -293,7 +307,7 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
 def _tip_source(doc: dict) -> str:
     """Page-owned catalogs survive replacement of the derived tooltip runtime. A page read from a format 0
     file has none: it keeps its legacy sidecar tips, which the injector reads only without this block."""
-    if doc["schema"] != "afkv2.page/1" or _from_format_0(doc):
+    if doc["schema"] not in (V1, V2) or _from_format_0(doc):
         return ""
     tips = doc.get("tips", {})
     source = {kind: tips.get(kind, []) for kind in ("terms", "ids")}
@@ -308,11 +322,10 @@ def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = 
     Each component renders in the context of the document's named value sets, in one diagram run: the SVG ids of
     the page's diagrams start afresh, so the same document builds the same bytes."""
     with page_context(doc.get("value_sets")), diagrams.page_run():
-        return _build(_answers_read(doc), btw, notices)
+        return (_build_v2 if doc["schema"] == V2 else _build)(_answers_read(doc), btw, notices)
 
 
 def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
-    session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
@@ -324,7 +337,12 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'{_current_section(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}{_node_cards(doc)}')
-    body = link_cards(linkify(_round_marks(body, current), session.get("links")), _cards(doc))
+    return _document(doc, title, body, current, btw)
+
+
+def _document(doc: dict, title: str, body: str, current: dict, btw: tuple[int, str] | None) -> str:
+    """The HTML document around the body of either layout: the round marks, the reference links, the assets."""
+    body = link_cards(linkify(_round_marks(body, current), doc["session"].get("links")), _cards(doc))
     themes, highlighter = _highlighter(doc)
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -332,3 +350,121 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'<body>\n<div class="afkv2-page"{_btw_attrs(btw)}>{body}</div>\n'
             f'{_tip_source(doc)}'
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')
+
+
+# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, the round's questions, maps,
+# sections, worked examples, questions for others; then the settled points and the earlier banners.
+
+
+SECTION_LISTS = (("added", "Sections added"), ("changed", "Sections changed"), ("merged", "Sections merged"),
+                 ("removed", "Sections removed"))
+BANNER_LISTS = (("settled", "What settled"), ("unlocks", "What it unlocks"), ("parked", "Parked"))
+NOTHING = '<p class="afkv2-none">Nothing.</p>'
+CHANGED_LIST = " afkv2-banner-changed"
+
+
+def _section_changes(doc: dict, n: int) -> dict:
+    """The sections that round n touched, by how: a merged or removed section whose last change line is round n
+    counts as merged or removed; a section whose first change line is round n counts as added; any other section
+    with a change line of round n counts as changed."""
+    found = {key: [] for key, _ in SECTION_LISTS}
+    for section in doc.get("sections") or []:
+        rounds = [line["round"] for line in section["changes"]]
+        if n not in rounds:
+            continue
+        if section["state"] in ("merged", "removed") and n == max(rounds):
+            found[section["state"]].append(section["id"])
+        else:
+            found["added" if n == min(rounds) else "changed"].append(section["id"])
+    return found
+
+
+def _banner_list(heading: str, entries: list, css: str = "") -> str:
+    values = f'<ul>{"".join(f"<li>{entry}</li>" for entry in entries)}</ul>' if entries else NOTHING
+    return f'<div class="afkv2-banner-list{css}"><h3>{heading}</h3>{values}</div>'
+
+
+def _banner_v2(doc: dict, round_: dict, current: bool) -> str:
+    """The banner of a round: each section it added, changed, merged or removed, then each other element that its
+    changed lists name, each a link; then what settled, what it unlocks and what is parked. No round code shows."""
+    n = round_["n"]
+    touched = _section_changes(doc, n)
+    lists = [_banner_list(heading, [parts_v2.link(doc, section) for section in touched[key]], CHANGED_LIST)
+             for key, heading in SECTION_LISTS if touched[key]]
+    sections = {section["id"] for section in doc.get("sections") or []}
+    others = [element for element in _changed_ids(round_) if element not in sections]
+    if others:
+        lists.append(_banner_list("Other changes", [parts_v2.link(doc, element) for element in others],
+                                  CHANGED_LIST))
+    lists += [_banner_list(heading, [escape(value) for value in round_["banner"][key]]) for key, heading in BANNER_LISTS]
+    label = parts_v2.visible_label(doc, "round", n)
+    state = "current round" if current else "settled round"
+    target = round_target(n)
+    return (f'<div id="{target}" data-afkv2-element="{target}"><header class="afkv2-banner" data-afkv2-banner="{n}" '
+            f'style="--afkv2-round: {escape(round_colour(round_))}"><h2>{escape(label.capitalize())}: {state}</h2>'
+            f'<div class="afkv2-banner-lists">{"".join(lists)}</div></header></div>')
+
+
+def _earlier_banners_v2(doc: dict) -> str:
+    past = sorted((r for r in doc["rounds"] if r["state"] != "current"), key=lambda r: -r["n"])
+    if not past:
+        return ""
+    return (f'<details class="afkv2-earlier-banners" id="afkv2-earlier-banners" data-afkv2-fold="banners">'
+            f'<summary>Earlier banners ({len(past)})</summary>{"".join(_banner_v2(doc, r, False) for r in past)}'
+            '</details>')
+
+
+def _section_link(doc: dict, item: dict) -> str:
+    """The link from a card to the section it asks about; a link to a merged section goes on to its current
+    section."""
+    if not item.get("section"):
+        return ""
+    sections = {entry["id"]: entry for entry in doc.get("sections") or []}
+    target = parts_v2.current_target(sections, item["section"])
+    return f'<p class="afkv2-v2-card-section">Section: {parts_v2.link(doc, target)}</p>'
+
+
+def _card_v2(doc: dict, point, current_n: int) -> str:
+    item, round_ = point.head, point.round
+    return render_component({
+        "type": "card",
+        "props": {"item": item, "round": round_["n"], "colour": round_colour(round_),
+                  "current": round_["n"] == current_n, "exchange": _section_link(doc, item) + _exchange(doc, item),
+                  "history": _history(doc, point), **_label(doc, item)},
+        "children": [item["body"]],
+    })
+
+
+def _round_questions(doc: dict, round_: dict, points: list) -> str:
+    """The round's questions in 1 block, each card with a link to its section. The mark runtime reads the
+    session and the round here, as on the earlier layout."""
+    n = round_["n"]
+    cards = "".join(_card_v2(doc, point, n) for point in points)
+    live = any(_answerable(item) for item in round_["items"])
+    return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
+            f'data-afkv2-round="{n}" data-afkv2-session="{escape(doc["session"]["id"])}" '
+            f'style="--afkv2-round: {escape(round_colour(round_))}">'
+            f'<h2 class="afkv2-h">The questions of {escape(parts_v2.visible_label(doc, "round", n))}</h2>'
+            f'<div class="afkv2-cards">{cards}</div>{COPY_BAR if live else ""}</section>')
+
+
+def _build_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
+    """Every label and link of the page reads 1 element index (`parts_v2.indexed`)."""
+    with parts_v2.indexed(doc):
+        return _layout_v2(doc, btw, notices)
+
+
+def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
+    current = next(r for r in doc["rounds"] if r["state"] == "current")
+    live, settled = grouped(doc)
+    maps = "".join(render_component(m) for m in doc.get("maps") or [])
+    title = escape(stable_title(doc))
+    body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
+            f'{_banner_v2(doc, current, True)}'
+            f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
+            f'{_round_questions(doc, current, live)}'
+            f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
+            f'{parts_v2.render_sections(doc)}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{_settled_section(doc, settled, current["n"])}'
+            f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')
+    return _document(doc, title, body, current, btw)
