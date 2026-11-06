@@ -1,5 +1,6 @@
-"""Page document rules a schema cannot state (SDD §4, §6), on the format 1 form that a reader gives.
-The document already fits the schema of its format.
+"""Page document rules a schema cannot state (SDD §4, §6), on the format 1 or 2 form that a reader gives.
+The document already fits the schema of its format. The rules of the format 2 lists are refused by name: each
+reason starts with its rule code.
 
 A problem is `(path, why)`, with `path` from the document root.
 """
@@ -16,6 +17,19 @@ STAMP_SALT = "afkv2 ingest stamp v0"
 SETTLED_BY = {"settled_by_mark": "mark", "settled_by_note": "note"}
 # Every element id is also an HTML id. The page shell and the lavish host name their own elements so.
 RESERVED_PREFIXES = ("afkv2-", "lavish-")
+# The format 2 lists: each entry is an element and the owner of the notes on it and on its parts.
+ENTRY_LISTS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question"}
+EVERYONE = "everyone"
+TICK = "tick"
+CLOSED_SECTION = ("merged", "removed")
+CLOSED_BY = {"answered": "answer", "dropped": "dropped", "assumed": "assumption"}
+EVERYONE_ANSWERED = "everyone-answered"
+DROP_NO_REASON = "drop-no-reason"
+ASSUME_NO_CARD = "assume-no-card"
+ANSWER_NO_SIGNAL = "answer-no-signal"
+REPLY_MANY_NOTES = "reply-many-notes"
+SECTION_RETURNED = "section-returned"
+CHANGE_REWRITTEN = "change-rewritten"
 
 
 def canonical(value) -> str:
@@ -68,9 +82,10 @@ def check_invariants(doc: dict, ids: dict[str, tuple], nodes: dict[str, tuple]) 
               for identifier, path in ids.items() if identifier.startswith(RESERVED_PREFIXES)]
     note_ids: dict[str, tuple] = {}
     card_round = {item["id"]: round_["n"] for round_ in rounds for item in round_["items"]}
+    entry_of = {target: doc[path[0]][path[1]]["id"] for target, path in ids.items() if path[0] in ENTRY_LISTS}
     notes = doc.get("notes") or []
     for k, note in enumerate(notes):
-        found += _note(("notes", k), note, ids, nodes, card_round, last, note_ids)
+        found += _note(("notes", k), note, ids, nodes, card_round, last, note_ids, entry_of)
     for r, round_ in enumerate(rounds):
         where = ("rounds", r)
         found += _responses(doc["session"]["id"], round_, where)
@@ -120,6 +135,7 @@ def _value_chips(doc: dict) -> list[tuple]:
     trees = [(("maps", m), tree) for m, tree in enumerate(doc.get("maps") or [])]
     trees += [(("rounds", r, "items", i, "body"), item["body"])
               for r, round_ in enumerate(doc["rounds"]) for i, item in enumerate(round_["items"])]
+    trees += list(entry_trees(doc))
     found = []
     for root, tree in trees:
         for path, part in registry.walk(tree):
@@ -177,10 +193,12 @@ def _note_id(where: tuple, note_id: str, n: int, owner: str, note_ids: dict) -> 
     return found
 
 
-def _note(where: tuple, note: dict, ids: dict, nodes: dict, card_round: dict, last: int, note_ids: dict) -> list[tuple]:
+def _note(where: tuple, note: dict, ids: dict, nodes: dict, card_round: dict, last: int, note_ids: dict,
+          entry_of: dict) -> list[tuple]:
     """A note of the session list. A card note names its card in `item`: its id is `N-<round>-<card>-<k>`.
-    A steer names no card, and sits on a map node, a round banner, or another element that no card holds:
-    its id is `N-<round>-<target>-<k>`."""
+    On a format 2 page a note on a section, story, example or question, or on a part of one, names that entry
+    in `item` the same way. A steer names no owner, and sits on a map node, a round banner, or another element
+    that no card and no entry holds: its id is `N-<round>-<target>-<k>`."""
     target, item = note["target"], note.get("item")
     found = _note_id(where, note["id"], note["round"], item or target, note_ids)
     if note["round"] > last:
@@ -189,8 +207,10 @@ def _note(where: tuple, note: dict, ids: dict, nodes: dict, card_round: dict, la
         found.append(((*where, "target"), f"{target!r} resolves to no element"))
     elif item is None and target not in nodes and ids[target][2:3] == ("items",):
         found.append(((*where, "item"), f"{target!r} is part of a card; a note on it names that card"))
-    if item is not None and item not in card_round:
-        found.append(((*where, "item"), f"{item!r} is no card"))
+    elif item is None and target in entry_of:
+        found.append(((*where, "item"), f"{target!r} is part of {entry_of[target]!r}; a note on it names that entry"))
+    if item is not None and item not in card_round and item not in entry_of.values():
+        found.append(((*where, "item"), f"{item!r} is no card" + (" and no entry" if entry_of else "")))
     return found
 
 
@@ -215,3 +235,23 @@ def _settled(where: tuple, item: dict, notes: list[dict], nodes: dict, last: int
             found.append(((*where, "settled", "signal"),
                           f"{settled['signal']!r} must be the id of a live note on this item"))
     return found
+
+
+# --- format 2: sections, stories, examples and questions for others (SDD §4, §5, §6)
+
+
+def entries(doc: dict):
+    """`(path, list name, entry)` for each entry of the format 2 lists, in list order."""
+    for kind in ENTRY_LISTS:
+        for k, entry in enumerate(doc.get(kind) or []):
+            yield (kind, k), kind, entry
+
+
+def entry_trees(doc: dict):
+    """`(path, component)` for each component tree an entry holds: a section's and an example's body, a
+    question's example."""
+    for where, _, entry in entries(doc):
+        for field in ("body", "example"):
+            if entry.get(field):
+                yield (*where, field), entry[field]
+
