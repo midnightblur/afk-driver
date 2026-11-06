@@ -102,11 +102,11 @@ def ingest(capsys, path, raw):
     return answer
 
 
-def test_the_builder_writes_format_1(tmp_path, capsys):
+def test_the_builder_writes_format_2(tmp_path, capsys):
     path = tmp_path / "pages" / "grill-s-1.json"
     rd.build_round_document(path, SESSION, round_input("i-a"))
     doc = json.loads(path.read_text("utf-8"))
-    assert doc["schema"] == "afkv2.page/1" and doc["notes"] == []
+    assert doc["schema"] == "afkv2.page/2" and doc["notes"] == []
     assert doc["session"]["step"] == "Requirements grill"
     assert doc["session"]["private"] is False and doc["session"]["takeovers"] == []
     assert engine_answer(capsys, "check", path)[0] == 0
@@ -161,9 +161,14 @@ import pytest  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
 
-def a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a note 1\n  why\ni-a note 2\n  and how\ni-b note 1\n  same"):
+def a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a note 1\n  why\ni-a note 2\n  and how\ni-b note 1\n  same",
+                  version_1=False):
+    """A new page with cards i-a and i-b, answered with `raw`. `version_1` relabels it as the version 1 page of an
+    older session, which warns about a note with no answer instead of refusing the next round."""
     path = tmp_path / "pages" / "grill-s-1.json"
     rd.build_round_document(path, SESSION, round_input("i-a", "i-b"))
+    if version_1:
+        path.write_text(json.dumps({**json.loads(path.read_text("utf-8")), "schema": "afkv2.page/1"}), "utf-8")
     ingest(capsys, path, raw)
     return path
 
@@ -176,25 +181,26 @@ def test_a_reply_is_an_answer_with_an_id_its_notes_and_what_it_changed(tmp_path,
     path = a_noted_round(tmp_path, capsys)
     rd.apply_readings(path, {
         "settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both.", "changed": ["i-b-body"]}],
-        "replies": [{"text": "One answer.", "notes": ["N-1-i-a-1", "N-1-i-b-1"]}]})
+        "replies": [{"text": "One answer.", "notes": ["N-1-i-a-1"]}]})
     rd.apply_readings(path, {"replies": [{"text": "And more.", "notes": ["N-1-i-b-1"], "changed": ["i-a"]}]})
     assert read(path)["rounds"][0]["replies"] == [
         {"id": "A-1-1", "text": "Settled by your note: Both.", "notes": ["N-1-i-a-2"], "changed": ["i-b-body"]},
-        {"id": "A-1-2", "text": "One answer.", "notes": ["N-1-i-a-1", "N-1-i-b-1"]},
+        {"id": "A-1-2", "text": "One answer.", "notes": ["N-1-i-a-1"]},
         {"id": "A-1-3", "text": "And more.", "notes": ["N-1-i-b-1"], "changed": ["i-a"]}]
     assert engine_answer(capsys, "check", path)[0] == 0
 
 
 def test_a_round_input_reply_is_an_answer_of_the_new_round(tmp_path, capsys):
     path = a_noted_round(tmp_path, capsys)
-    rd.apply_readings(path, {"open": [{"item": "i-a", "reply": "Asked again."}, {"item": "i-b", "reply": "Again."}]})
-    built = {**round_input("i-c"), "replies": [{"text": "Covered.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]}]}
+    rd.apply_readings(path, {"open": [{"item": "i-a", "note": "N-1-i-a-1", "reply": "Asked again."},
+                                      {"item": "i-b", "note": "N-1-i-b-1", "reply": "Again."}]})
+    built = {**round_input("i-c"), "replies": [{"text": "Covered.", "notes": ["N-1-i-a-2"]}]}
     built["items"][0]["carries"] = ["i-a", "i-b"]
     rd.build_round_document(path, SESSION, built)
     doc = read(path)
-    assert doc["rounds"][0]["replies"] == [{"id": "A-1-1", "text": "Asked again.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]},
+    assert doc["rounds"][0]["replies"] == [{"id": "A-1-1", "text": "Asked again.", "notes": ["N-1-i-a-1"]},
                                            {"id": "A-1-2", "text": "Again.", "notes": ["N-1-i-b-1"]}]
-    assert doc["rounds"][1]["replies"] == [{"id": "A-2-1", "text": "Covered.", "notes": ["N-1-i-a-1", "N-1-i-a-2"]}]
+    assert doc["rounds"][1]["replies"] == [{"id": "A-2-1", "text": "Covered.", "notes": ["N-1-i-a-2"]}]
     assert engine_answer(capsys, "check", path)[0] == 0
 
 
@@ -244,7 +250,7 @@ def a_round_2(path, replies=()):
 
 
 def test_a_note_of_the_last_round_with_no_answer_is_warned_and_the_round_still_builds(tmp_path, capsys):
-    path = a_noted_round(tmp_path, capsys)
+    path = a_noted_round(tmp_path, capsys, version_1=True)
     rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
                              "open": [{"item": "i-b", "reply": "Asked again."}]})
     answer = a_round_2(path)
@@ -255,7 +261,7 @@ def test_a_note_of_the_last_round_with_no_answer_is_warned_and_the_round_still_b
 def test_a_note_answered_in_the_new_round_is_not_warned(tmp_path, capsys):
     path = a_noted_round(tmp_path, capsys)
     rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
-                             "open": [{"item": "i-b", "reply": "Asked again."}]})
+                             "open": [{"item": "i-b", "note": "N-1-i-b-1", "reply": "Asked again."}]})
     assert a_round_2(path, [{"text": "Yes.", "notes": ["N-1-i-a-1"]}])["warnings"] == []
 
 
@@ -365,7 +371,7 @@ def test_an_open_entry_keeps_what_it_changed(tmp_path, capsys):
 
 
 def test_only_the_notes_of_the_last_round_are_warned(tmp_path, capsys):
-    path = a_noted_round(tmp_path, capsys)
+    path = a_noted_round(tmp_path, capsys, version_1=True)
     rd.apply_readings(path, {"settle": [{"item": "i-a", "note": "N-1-i-a-2", "reading": "Both."}],
                              "open": [{"item": "i-b", "reply": "Asked again."}]})
     assert [w["note"] for w in a_round_2(path)["warnings"]] == ["N-1-i-a-1"]

@@ -63,22 +63,22 @@ def test_authoring_examples_are_page_one_and_one_owns_tips():
 
 
 @pytest.mark.parametrize("producer", PRODUCERS)
-def test_new_producer_session_uses_page_one_and_document_tips(tmp_path, producer):
+def test_new_producer_session_uses_page_two_and_document_tips(tmp_path, producer):
     assert run_build(tmp_path, producer, {**round_input(), "tips": TIPS})[0] == 0
     path = tmp_path / "page.json"
     doc = json.loads(path.read_text("utf-8"))
-    assert doc["schema"] == "afkv2.page/1"
+    assert doc["schema"] == "afkv2.page/2"
     assert doc["tips"] == TIPS
     check(path)
 
 
 @pytest.mark.parametrize("producer", PRODUCERS)
-def test_resume_of_page_one_keeps_its_tips(tmp_path, producer):
+def test_resume_of_page_two_keeps_its_tips(tmp_path, producer):
     assert run_build(tmp_path, producer, {**round_input(), "tips": TIPS})[0] == 0
     path = tmp_path / "page.json"
     assert run_build(tmp_path, producer, round_input(), replace=True)[0] == 0
     resumed = json.loads(path.read_text("utf-8"))
-    assert resumed["schema"] == "afkv2.page/1"
+    assert resumed["schema"] == "afkv2.page/2"
     assert resumed["tips"] == TIPS
     check(path)
 
@@ -104,6 +104,9 @@ def test_tip_update_replaces_the_document_dictionary(tmp_path, schema):
     path = tmp_path / "page.json"
     if schema.endswith("/0"):
         as_format_0(path)
+    else:
+        doc = json.loads(path.read_text("utf-8"))
+        path.write_text(json.dumps({**doc, "schema": schema}), "utf-8")
     assert run_build(tmp_path, producer, {**round_input(), "tips": TIPS}, replace=True)[0] == 0
     doc = json.loads(path.read_text("utf-8"))
     assert doc["schema"] == "afkv2.page/1" and doc["tips"] == TIPS

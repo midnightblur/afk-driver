@@ -78,9 +78,18 @@ def path(tmp_path, monkeypatch):
     return tmp_path / "pages" / "grill-s-1.json"
 
 
+def as_version_1(path):
+    """Relabel a page that holds no version 2 field as the version 1 page that an older session wrote."""
+    doc = read(path)
+    doc["schema"] = V1
+    write(path, doc)
+    assert check(path)[0] == 0, check(path)
+
+
 def settled_round_1(path, *more):
-    """Round 1 settles card i-a by an accept mark; round 2 is current with the cards `more`."""
+    """A version 1 page: round 1 settles card i-a by an accept mark; round 2 is current with the cards `more`."""
     rd.build_round_document(path, SESSION, round_input("i-a"))
+    as_version_1(path)
     ingest(path, "[round R-1]\ni-a accept")
     rd.build_round_document(path, SESSION, round_input(*more))
 
@@ -118,9 +127,27 @@ def test_a_version_2_page_stays_version_2_at_its_next_write(path):
     assert check(path)[0] == 0
 
 
+def test_a_new_sessions_page_is_written_as_version_2(path):
+    rd.build_round_document(path, SESSION, round_input("i-a"))
+    assert read(path)["schema"] == V2
+    assert "upgraded" not in read(path)["session"]
+    assert check(path)[0] == 0
+
+
 def test_a_version_1_page_stays_version_1_at_its_next_write(path):
     settled_round_1(path, "i-b")
     assert read(path)["schema"] == V1
+
+
+def test_a_version_0_page_becomes_version_1_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    ingest(path, "[round R-2]\ni-b accept")
+    doc = read(path)
+    session = {key: doc["session"][key] for key in ("id", "skill", "feature", "ticket", "started")}
+    write(path, {"schema": "afkv2.page/0", "session": session, "maps": [], "rounds": doc["rounds"]})
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    assert read(path)["schema"] == V1
+    assert check(path)[0] == 0
 
 
 def test_take_over_and_track_keep_a_version_2_page(path, tmp_path, monkeypatch):

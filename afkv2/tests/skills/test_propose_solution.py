@@ -719,7 +719,7 @@ def test_dry_run_first_round_has_the_picture_before_the_question_and_a_fork(worl
     assert world.run("present", doc=started["doc"], log=started["log"])["ok"] is True
     assert [line.split()[1] for line in world.calls.read_text("utf-8").splitlines()] == ["check", "render", "show"]
     doc = world.doc(started)
-    assert doc["schema"] == "afkv2.page/1" and doc["session"]["skill"] == "propose-solution"
+    assert doc["schema"] == "afkv2.page/2" and doc["session"]["skill"] == "propose-solution"
     assert Path(started["doc"]).name == f"propose-solution-{doc['session']['id']}.json"
     assert len(list((world.spec / "pages").glob("propose-solution-*.json"))) == 1
     first, fork = doc["rounds"][0]["items"]

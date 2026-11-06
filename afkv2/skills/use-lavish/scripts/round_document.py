@@ -9,8 +9,9 @@ The engine stays the check of the whole document; this script holds the grill's 
 the decided-card contract, the picture before a critical-aspect question, the settle-by-note
 fields, and that no asking card is lost when a round closes.
 
-Every note is in the session list (ADR-0001 design). A format 0 document is read through the engine's
-format 0 reader, and its next write is format 1 (ADR-0002 design). A format 1 or 2 document keeps its format.
+Every note is in the session list (ADR-0001 design). A new session's page is format 2. A format 0 document is
+read through the engine's format 0 reader, and its next write is format 1 (ADR-0002 design). A format 1 or 2
+document keeps its format.
 """
 
 from __future__ import annotations
@@ -575,7 +576,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         fields = {"step": STEPS.get(session.get("skill")) or str(session.get("feature"))[:40],
                   "private": False, "takeovers": []}
-        doc = {"schema": SCHEMA, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
+        doc = {"schema": page_engine().SCHEMA_V2, "session": {**fields, **session, "started": started}, "maps": [], "notes": [],
                "rounds": []}
     upgrading = round_input.get("upgrade") not in (None, False)
     if upgrading:
