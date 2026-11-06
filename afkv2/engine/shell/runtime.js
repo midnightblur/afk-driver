@@ -4,9 +4,11 @@
  * Its queue key names the session, the round and the card, so a new mark
  * replaces the unsent mark of the same card. A note is a native lavish
  * annotation. The human sends marks and annotations with lavish's own Send.
+ * A question for others queues 1 tick line `<question id> tick <option id> ...` in tick order, replaced on
+ * each change (ADR-0004 design); with no tick left, the line names no option and sends nothing.
  *
  * Without lavish, "Copy the response" composes the response grammar from the
- * marks: first line [round R-n], then one line <id> <token> per marked card.
+ * marks: first line [round R-n], then one line <id> <token> per marked card, then each tick line.
  */
 
 /* Open folds survive a re-render. lavish restores the scroll offset after a live
@@ -57,6 +59,9 @@
   var KEY_PREFIX = 'afkv2-draft:' + session + ':';
   var KEY = KEY_PREFIX + round;
   var MARK_TAG = 'afkv2-mark';
+  var TICK_TAG = 'afkv2-tick';
+  /* A question id names its ticks in the draft; a card id names its mark. */
+  var TICK_KEY = 'tick:';
 
   /* Two stores, because the first one is not always there. A host may load this
    * page in a sandboxed frame with an opaque origin, where every `localStorage`
@@ -119,22 +124,55 @@
     }
   }
 
+  /* The questions for others sit outside the round's block, so the page holds their tick groups. */
+  function tickGroups() {
+    return [].slice.call(document.querySelectorAll('[data-afkv2-input="tick"][data-afkv2-question]'));
+  }
+
+  function boxes(group) {
+    return [].slice.call(group.querySelectorAll('input'));
+  }
+
+  /* The held tick order, less each option no longer ticked, + each new tick at the end. */
+  function ticksOf(group) {
+    var on = boxes(group).filter(function (box) { return box.checked; }).map(function (box) { return box.value; });
+    var held = (store[TICK_KEY + group.getAttribute('data-afkv2-question')] || []).filter(function (value) {
+      return on.indexOf(value) >= 0;
+    });
+    on.forEach(function (value) { if (held.indexOf(value) < 0) held.push(value); });
+    return held;
+  }
+
+  function restoreTicks(group) {
+    var saved = store[TICK_KEY + group.getAttribute('data-afkv2-question')];
+    if (!Array.isArray(saved)) return;
+    boxes(group).forEach(function (box) { box.checked = saved.indexOf(box.value) >= 0; });
+  }
+
+  function tickLine(id, ticks) {
+    return [id, 'tick'].concat(ticks).join(' ');
+  }
+
   var bar = document.getElementById('afkv2-copy');
   var status = bar && bar.querySelector('.afkv2-copy-status');
   function say(text) {
     if (status) status.textContent = text;
   }
 
-  function queue(el, id, token) {
+  function queuePrompt(el, text, tag, key, data) {
     var bridge = window.lavish;
     if (!bridge || typeof bridge.queuePrompt !== 'function') return false;
-    bridge.queuePrompt(id + ' ' + token, {
-      tag: MARK_TAG,
-      queueKey: 'afkv2:' + session + ':' + round + ':' + id,
-      element: el,
-      data: { item: id, mark: token }
-    });
+    bridge.queuePrompt(text, { tag: tag, queueKey: 'afkv2:' + session + ':' + round + ':' + key, element: el, data: data });
     return true;
+  }
+
+  function queue(el, id, token) {
+    return queuePrompt(el, id + ' ' + token, MARK_TAG, id, { item: id, mark: token });
+  }
+
+  function queueTicks(group, id, ticks) {
+    return queuePrompt(group.closest('article') || group, tickLine(id, ticks), TICK_TAG, TICK_KEY + id,
+      { question: id, ticks: ticks });
   }
 
   function compose() {
@@ -142,6 +180,10 @@
     cards().forEach(function (el) {
       var token = choiceOf(el);
       if (token) lines.push(el.getAttribute('data-afkv2-item') + ' ' + token);
+    });
+    tickGroups().forEach(function (group) {
+      var ticks = ticksOf(group);
+      if (ticks.length) lines.push(tickLine(group.getAttribute('data-afkv2-question'), ticks));
     });
     return lines.join('\n');
   }
@@ -181,6 +223,20 @@
       say(queue(el, id, token)
         ? 'Queued ' + id + ' ' + token + '. Send it with the rest in the lavish panel.'
         : 'No lavish session: use Copy the response.');
+    });
+  });
+
+  tickGroups().forEach(function (group) {
+    restoreTicks(group);
+    group.addEventListener('change', function (event) {
+      if (!event.target.matches('input')) return;
+      var id = group.getAttribute('data-afkv2-question');
+      var ticks = ticksOf(group);
+      store[TICK_KEY + id] = ticks;
+      save();
+      if (!queueTicks(group, id, ticks)) say('No lavish session: use Copy the response.');
+      else say(ticks.length ? 'Queued your ticks on this question. Send them with the rest in the lavish panel.'
+        : 'No tick on this question: it sends nothing.');
     });
   });
 
