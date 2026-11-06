@@ -387,8 +387,12 @@ def _content_problems(raw: dict, doc: dict) -> list[tuple]:
     format_2 = doc["schema"] == SCHEMA_V2
     found, ids, nodes = _element_ids(doc)
     found += _page_tip_problems(doc, ids) + invariants.check_invariants(doc, ids, nodes)
+    if format_2:
+        found += invariants.check_format_2(doc)
     if not found:
         links = invariants.check_links(doc, ids)
+        if format_2:
+            links += invariants.check_format_2_links(doc, ids)
         if links:
             raise _refuse(raw, links, "bad-link")
     return found

@@ -255,3 +255,156 @@ def entry_trees(doc: dict):
             if entry.get(field):
                 yield (*where, field), entry[field]
 
+
+def _named(code: str, why: str) -> str:
+    return f"{code}: {why}"
+
+
+def check_format_2(doc: dict) -> list[tuple]:
+    """The rules of the format 2 lists and of a format 2 reply."""
+    rounds = doc["rounds"]
+    sections = {section["id"]: section for section in doc.get("sections") or []}
+    found = []
+    for where, kind, entry in entries(doc):
+        found += _change_lines((*where, "changes"), entry["changes"], len(rounds), doc)
+        if kind == "sections":
+            found += _section(where, entry, sections)
+    cards = {item["id"]: item for round_ in rounds for item in round_["items"]}
+    notes = {note["id"]: note for note in doc.get("notes") or []}
+    earlier: set[str] = set()
+    for k, question in enumerate(doc.get("questions") or []):
+        found += _question(("questions", k), question, earlier, cards, notes, rounds)
+        earlier.add(question["id"])
+    for r, round_ in enumerate(rounds):
+        for p, reply in enumerate(round_.get("replies") or []):
+            named = reply.get("notes") or []
+            if len(named) > 1:
+                found.append((("rounds", r, "replies", p, "notes"), _named(
+                    REPLY_MANY_NOTES, f"a reply names exactly 1 note; this one names {len(named)}")))
+    return found
+
+
+def _change_lines(where: tuple, lines: list[dict], last: int, doc: dict) -> list[tuple]:
+    """Rounds go up, at most 1 line per round, each a round of the page; each cause names what it needs."""
+    found, before = [], 0
+    needs = {"note": "notes", "answer": "card", "answer_from": "question"}
+    questions = {question["id"]: question for question in doc.get("questions") or []}
+    for c, line in enumerate(lines):
+        at = (*where, c)
+        if line["round"] <= before:
+            found.append(((*at, "round"), f"round {line['round']} follows round {before}; rounds go up, 1 line per round"))
+        before = max(before, line["round"])
+        if line["round"] > last:
+            found.append(((*at, "round"), f"round {line['round']} does not exist"))
+        field = needs.get(line["cause"])
+        if field and not line.get(field):
+            found.append(((*at, field), f"is required when the cause is {line['cause']}"))
+        asked = questions.get(line.get("question"))
+        if line["cause"] == "answer_from" and asked is not None and asked["state"] != "answered":
+            found.append(((*at, "question"), f"{asked['id']!r} is not answered"))
+    return found
+
+
+def _section(where: tuple, section: dict, sections: dict) -> list[tuple]:
+    found = []
+    if section["id"] in (section.get("links") or []):
+        found.append(((*where, "links"), "a section never links itself"))
+    state = section["state"]
+    into = section.get("merged_into")
+    if state == "merged":
+        target = sections.get(into)
+        if target is None or target["state"] != "current":
+            found.append(((*where, "merged_into"), f"must name a current section, found {into!r}"))
+    elif into is not None:
+        found.append(((*where, "merged_into"), f"only a merged section has this field; the state is {state}"))
+    if state == "removed" and not section.get("reason"):
+        found.append(((*where, "reason"), "is required when the state is removed"))
+    elif state != "removed" and "reason" in section:
+        found.append(((*where, "reason"), f"only a removed section has this field; the state is {state}"))
+    return found
+
+
+def _question(where: tuple, question: dict, earlier: set, cards: dict, notes: dict, rounds: list) -> list[tuple]:
+    """A question closes only by answer, drop with a reason, or an accepted assumption (SDD §6)."""
+    state = question["state"]
+    found = []
+    for closed, field in CLOSED_BY.items():
+        kept = state == closed or (field == "assumption" and state == "answered")
+        if state == closed and not question.get(field):
+            found.append(((*where, field), f"is required when the state is {state}"))
+        elif not kept and question.get(field):
+            found.append(((*where, field), f"a question in state {state} holds no {field}"))
+    waits = question.get("waits_on")
+    if waits is not None and waits not in earlier:
+        found.append(((*where, "waits_on"), f"{waits!r} is no question earlier in the list"))
+    if state == "answered" and question.get("answer"):
+        found += _answer((*where, "answer"), question, notes, rounds)
+    if state == "dropped" and question.get("dropped") and not question["dropped"]["reason"].strip():
+        found.append(((*where, "dropped", "reason"), _named(DROP_NO_REASON, "a dropped question needs a reason")))
+    if state in ("assumed", "answered") and question.get("assumption"):
+        card = cards.get(question["assumption"]["card"])
+        if card is None or card.get("state") != "settled_by_mark" or (card.get("settled") or {}).get("signal") != "accept":
+            found.append(((*where, "assumption", "card"), _named(
+                ASSUME_NO_CARD, f"{question['assumption']['card']!r} is no card settled by the developer's accept mark")))
+    return found
+
+
+def _answer(where: tuple, question: dict, notes: dict, rounds: list) -> list[tuple]:
+    """Who answered is never everyone; the answer rests on the developer's tick or note of its round (SDD §5)."""
+    given = question["answer"]
+    found = []
+    if given["role"].strip().casefold() == EVERYONE:
+        found.append(((*where, "role"), _named(EVERYONE_ANSWERED, "who answered names 1 role, never everyone")))
+    n, signal = given["round"], given["signal"]
+    if signal == TICK:
+        round_ = rounds[n - 1] if n <= len(rounds) else {}
+        rests = any(tick.get("target") == question["id"] and tick.get("mark") == TICK
+                    for response in round_.get("responses") or [] for tick in response["signals"])
+    else:
+        note = notes.get(signal)
+        rests = note is not None and note["round"] == n and not note["deleted"]
+    if not rests:
+        found.append(((*where, "signal"), _named(
+            ANSWER_NO_SIGNAL, f"{signal!r} is no tick on this question and no live note of round {n}")))
+    choices = question.get("choices") or {}
+    options = {option["id"] for option in choices.get("options") or []}
+    found += [((*where, "choices", c), f"{choice!r} is no option of this question")
+              for c, choice in enumerate(given["choices"]) if choice not in options]
+    if len(given["choices"]) > 1 and not choices.get("several"):
+        found.append(((*where, "choices"), "this question takes 1 choice"))
+    return found
+
+
+def check_format_2_links(doc: dict, ids: dict) -> list[tuple]:
+    """The links of the format 2 lists and of a card's section, refused as `bad-link`."""
+    named = {kind: {entry["id"] for entry in doc.get(kind) or []} for kind in ENTRY_LISTS}
+    notes = {note["id"] for note in doc.get("notes") or []}
+    cards = {item["id"] for round_ in doc["rounds"] for item in round_["items"]}
+    found = []
+
+    def names(where: tuple, values, known, what: str) -> None:
+        found.extend(((*where, k), f"{value!r} names no {what}") for k, value in enumerate(values or [])
+                     if value not in known)
+
+    for r, round_ in enumerate(doc["rounds"]):
+        for i, item in enumerate(round_["items"]):
+            if item.get("section") is not None and item["section"] not in named["sections"]:
+                found.append((("rounds", r, "items", i, "section"), f"{item['section']!r} names no section"))
+    for where, kind, entry in entries(doc):
+        if kind in ("sections", "questions"):
+            names((*where, "links"), entry.get("links"), named["sections"], "section")
+        if kind == "examples":
+            names((*where, "stories"), entry["stories"], named["stories"], "story")
+        for c, line in enumerate(entry["changes"]):
+            at = (*where, "changes", c)
+            names((*at, "notes"), line.get("notes"), notes, "note")
+            names(at, [line["card"]] if "card" in line else [], cards, "card")
+            names(at, [line["question"]] if "question" in line else [], named["questions"], "question")
+        if kind == "questions":
+            origin = entry["origin"]
+            names((*where, "origin"), [origin.get("note")] if "note" in origin else [], notes, "note")
+            names((*where, "origin"), [origin.get("card")] if "card" in origin else [], cards, "card")
+            if entry.get("dropped"):
+                names((*where, "dropped"), [entry["dropped"]["note"]], notes, "note")
+    return found
+
