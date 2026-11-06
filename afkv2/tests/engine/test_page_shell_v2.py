@@ -210,6 +210,34 @@ def test_the_budget_page_renders_within_the_size_and_time_budget(home, capsys):
     assert seconds <= RENDER_BUDGET_SECONDS, f"{seconds:.2f} s, budget {RENDER_BUDGET_SECONDS} s"
 
 
+# --- the term dictionary, once on every page
+
+
+SHARED_DEFINITION = "A shared word of the repository glossary for the dictionary test."
+
+
+def dictionary_pages():
+    """1 page of each version: a stored version 0 page, a version 1 page and a version 2 page."""
+    return {"afkv2.page/0": json.loads((FIXTURES / "v0-page-with-notes.json").read_text("utf-8")),
+            "afkv2.page/1": shell_case.two_rounds(), "afkv2.page/2": document()}
+
+
+@pytest.mark.parametrize("schema", sorted(dictionary_pages()))
+def test_the_term_dictionary_appears_once_on_a_page_of_every_version(home, capsys, schema):
+    (home.parents[1] / "GLOSSARY.md").write_text(f"**Dictionary word**: {SHARED_DEFINITION}\n", "utf-8")
+    doc = dictionary_pages()[schema]
+    assert doc["schema"] == schema
+    path = home / f"{doc['session']['skill']}-{doc['session']['id']}.json"
+    path.write_text(json.dumps(doc), "utf-8")
+    assert engine.main(["render", str(path)]) == 0, capsys.readouterr().out
+    html = path.with_suffix(".html").read_text("utf-8")
+    assert html.count(SHARED_DEFINITION) == 1
+    assert html.count('id="afkv2-tips-dict"') == 1
+    start = html.index('id="afkv2-tips-payload"')
+    payload = json.loads(html[html.index(">", start) + 1:html.index("</script>", start)])
+    assert sorted(payload) == ["page_ids", "page_terms"]
+
+
 # --- version 0 and 1 pages show as before
 
 
