@@ -275,7 +275,11 @@ def check_format_2(doc: dict) -> list[tuple]:
     for k, question in enumerate(doc.get("questions") or []):
         found += _question(("questions", k), question, earlier, cards, notes, rounds)
         earlier.add(question["id"])
+    # A page upgraded from format 0 or 1 keeps the replies of its older rounds, which may name several notes.
+    first = doc["session"].get("upgraded") or 1
     for r, round_ in enumerate(rounds):
+        if round_["n"] < first:
+            continue
         for p, reply in enumerate(round_.get("replies") or []):
             named = reply.get("notes") or []
             if len(named) > 1:

@@ -77,7 +77,9 @@
                  "type": "string", "minLength": 1, "maxLength": 40},
         "private": {"description": "Default false. True: the content is not for the repository's readers.", "type": "boolean"},
         "takeovers": {"description": "Default empty. 1 entry per new session that took the page over.",
-                      "type": "array", "items": {"$ref": "#/$defs/takeover"}}
+                      "type": "array", "items": {"$ref": "#/$defs/takeover"}},
+        "upgraded": {"description": "On a page upgraded from format 0 or 1 only: its first format 2 round. The 1-note rule for a reply checks that round and later.",
+                     "type": "integer", "minimum": 1}
       }
     },
     "takeover": {

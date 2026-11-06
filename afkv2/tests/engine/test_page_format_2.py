@@ -400,6 +400,40 @@ def test_a_reply_that_names_2_notes_is_refused_on_a_version_2_page(capsys, tmp_p
     assert "reply-many-notes" in error["reason"]
 
 
+def an_upgraded_page(upgraded=None):
+    """Round 1 is a settled round of the old format with a reply that names 2 notes; round 2 is current."""
+    doc = v2_document()
+    doc["notes"].append(note("N-1-i-a-1", 1, "i-a", "i-a"))
+    doc["rounds"][0]["state"] = "settled"
+    doc["rounds"][0]["replies"].append({"id": "A-1-2", "text": "Both.", "notes": ["N-1-i-a-1", "N-1-s-intro-1"]})
+    doc["rounds"].append(round_of(2, card("i-b")))
+    if upgraded is not None:
+        doc["session"]["upgraded"] = upgraded
+    return doc
+
+
+def test_an_upgraded_page_checks_the_1_note_rule_only_from_its_first_version_2_round(capsys, tmp_path):
+    code, result = check(capsys, tmp_path, an_upgraded_page(upgraded=2))
+    assert code == 0, result
+    doc = an_upgraded_page(upgraded=2)
+    doc["notes"].append(note("N-2-i-b-1", 2, "i-b", "i-b"))
+    doc["rounds"][1]["replies"] = [{"id": "A-2-1", "text": "Both.", "notes": ["N-2-i-b-1", "N-1-i-a-1"]}]
+    assert "reply-many-notes" in refused(capsys, tmp_path, doc, "invariant")["reason"]
+
+
+@pytest.mark.parametrize("upgraded", [None, 1])
+def test_a_page_not_upgraded_after_the_reply_checks_the_1_note_rule_on_every_round(capsys, tmp_path, upgraded):
+    error = refused(capsys, tmp_path, an_upgraded_page(upgraded), "invariant")
+    assert "reply-many-notes" in error["reason"]
+
+
+@pytest.mark.parametrize("value", [0, "2", None])
+def test_upgraded_is_a_round_number(capsys, tmp_path, value):
+    doc = an_upgraded_page(upgraded=2)
+    doc["session"]["upgraded"] = value
+    refused(capsys, tmp_path, doc, "schema")
+
+
 def test_entry_ids_are_unique_in_the_document(capsys, tmp_path):
     doc = v2_document()
     doc["stories"][0]["id"] = "s-intro"
