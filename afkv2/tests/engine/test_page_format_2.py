@@ -477,6 +477,11 @@ def test_upgraded_is_a_round_number(capsys, tmp_path, value):
     refused(capsys, tmp_path, doc, "schema")
 
 
+def test_upgraded_names_a_round_of_the_page(capsys, tmp_path):
+    error = refused(capsys, tmp_path, an_upgraded_page(upgraded=3), "invariant")
+    assert "item session, field upgraded: round 3 does not exist" in error["reason"]
+
+
 def test_entry_ids_are_unique_in_the_document(capsys, tmp_path):
     doc = v2_document()
     doc["stories"][0]["id"] = "s-intro"

@@ -277,6 +277,8 @@ def check_format_2(doc: dict) -> list[tuple]:
         earlier.add(question["id"])
     # A page upgraded from format 0 or 1 keeps the replies of its older rounds, which may name several notes.
     first = doc["session"].get("upgraded") or 1
+    if first > len(rounds):
+        found.append((("session", "upgraded"), f"round {first} does not exist"))
     for r, round_ in enumerate(rounds):
         if round_["n"] < first:
             continue
