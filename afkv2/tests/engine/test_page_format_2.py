@@ -327,6 +327,19 @@ def test_a_change_line_of_a_settled_round_that_differs_from_the_saved_copy_is_re
     assert "s-intro" in result["error"]["reason"] and "round 1" in result["error"]["reason"]
 
 
+def test_a_change_line_added_to_a_settled_round_with_no_lines_is_refused(capsys, tmp_path):
+    doc = v2_document()
+    doc["rounds"] = [round_of(1, *doc["rounds"][0]["items"], state="settled", replies=doc["rounds"][0]["replies"]),
+                     round_of(2, state="settled"), round_of(3)]
+    path = save(tmp_path / "doc.json", doc)
+    assert call(capsys, "check", path)[0] == 0
+    engine.save_settled_copy(path, doc)
+    entry(doc, "stories", "st-1")["changes"].append(line(2, text_="Added late."))
+    code, result = call(capsys, "check", save(path, doc))
+    assert code == 1 and result["error"]["code"] == "invariant", result
+    assert "st-1" in result["error"]["reason"] and "settled round 2" in result["error"]["reason"]
+
+
 def test_a_new_change_line_of_the_current_round_passes_against_the_saved_copy(capsys, tmp_path):
     def grow(doc):
         entry(doc, "sections", "s-intro")["changes"].append(line(2, text_="Grew."))

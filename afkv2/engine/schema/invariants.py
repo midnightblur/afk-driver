@@ -423,12 +423,14 @@ def format_2_copy(doc: dict) -> dict:
 
 
 def check_format_2_rewrite(doc: dict, saved: dict) -> list[tuple]:
-    """A change line of a settled round and a merged or removed section come back as the saved copy holds them."""
+    """A change line of a settled round and a merged or removed section come back as the saved copy holds them. A
+    round settled with no change line has no key in the saved `changes`, so the saved `rounds` name it too."""
     now = format_2_copy(doc)
     where = {entry["id"]: path for path, _, entry in entries(doc)}
     found = []
-    for n, lines in (saved.get("changes") or {}).items():
-        current = now["changes"].get(n, {})
+    saved_changes = saved.get("changes") or {}
+    for n in sorted(set(saved_changes) | {str(n) for n in saved.get("rounds") or {}}, key=int):
+        lines, current = saved_changes.get(n, {}), now["changes"].get(n, {})
         for entry_id in sorted(set(lines) | set(current)):
             if lines.get(entry_id) != current.get(entry_id):
                 found.append(((*where.get(entry_id, ()), "changes"), _named(
