@@ -361,8 +361,24 @@ def test_a_second_comeback_lists_only_the_points_changed_since_the_last_pass(rep
     assert grill_log.gate(again["doc"], again["log"])["changed"] == []
     assert Path(again["log"]).read_text("utf-8").count("- Last pass: ") == 1
     log_format = (PLUGIN / "skills" / "grill" / "GRILL-LOG-FORMAT.md").read_text("utf-8")
-    assert "| Last pass | `gate` | `- Last pass: R<n> · session <id>`" in log_format
+    assert "| Last pass | `gate`, `grill_start` | `- Last pass: R<n> · session <id>`" in log_format
     assert "keeps the `Last pass` row" in log_format
+
+
+def test_a_comeback_on_a_log_with_no_last_pass_row_measures_from_the_take_over(repo):
+    """A log from before the `Last pass` row: the take-over writes it at the passed round."""
+    done = finished()
+    log = Path(done["log"])
+    log.write_text("".join(line for line in log.read_text("utf-8").splitlines(True)
+                           if not line.startswith("- Last pass: ")), "utf-8")
+    taken = start()
+    assert taken["takeover"] == done["session"]
+    assert f"- Last pass: R1 · session {done['session']}" in log.read_text("utf-8")
+    page_round.take_over(taken["doc"])
+    build(taken, card("i-b", carries=["i-a"]))
+    answer(taken, "[round R-2]\ni-b accept")
+    assert grill_log.gate(taken["doc"], taken["log"])["changed"] == [{"id": "i-a", "kind": "card", "text": "Point i-a"}]
+    assert "- Last pass: R2 · session " in log.read_text("utf-8")
 
 
 def git(cwd, *args):

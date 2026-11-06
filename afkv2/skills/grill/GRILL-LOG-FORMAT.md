@@ -28,7 +28,7 @@ The checkpoint of a grill, in the spec folder. A row is overwritten as its state
 | Owner note | `sync` | `  owner note on <id> (<note id>): "<the human's words>"`, under the row of its card |
 | Steer | `sync` | `- Steer: <map or map node id> (<note id>): "<the human's words>"` |
 | Exit gate | `gate` | `- Settled: exit gate passed <date> · session <id>` |
-| Last pass | `gate` | `- Last pass: R<n> · session <id>`: the current round of the session's last passed end check; `changed` of the next pass lists the points changed after round `<n>` |
+| Last pass | `gate`, `grill_start` | `- Last pass: R<n> · session <id>`: the current round of the session's last passed end check; `changed` of the next pass lists the points changed after round `<n>`. `grill_start` writes it at a take-over when the log has none |
 
 A `sync` overwrites the rows it writes, and removes an exit gate row, because the document moved. It keeps the `Last pass` row.
 

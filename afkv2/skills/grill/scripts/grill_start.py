@@ -2,8 +2,8 @@
 
 Answers ticket, spec_dir, log, doc, session, resume, takeover, raw_file and raw_pending. The newest session
 open: `resume` true. The newest session passed its exit gate: `takeover` names it, and `session` and `doc` are its
-own, so the grill adds a round to that page. A refusal for a missing input names the file and the skill that
-writes it. Creates the grill log section; the document itself appears at the first build.
+own, so the grill adds a round to that page, and a log with no `Last pass` row for it gets one. A refusal for a
+missing input names the file and the skill that writes it. Creates the grill log section; the document itself appears at the first build.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import PLUGIN_ROOT, Parser, Refusal, page_documents, read_json, run_command, serve  # noqa: E402
-from grill_log import exit_gate_passed, ensure_section  # noqa: E402
+from grill_log import exit_gate_passed, ensure_section, keep_last_pass  # noqa: E402
 
 CONFIG = ".afkv2/config.json"
 SETUP = "/afkv2:setup"
@@ -93,6 +93,8 @@ def start(argv):
     takeover = None if resumed else finished_session(pages, log)
     session = resumed or takeover or _new_session(pages)
     doc, raw_file = pages / f"grill-{session}.json", pages / f"grill-{session}.raw.txt"
+    if takeover:
+        keep_last_pass(doc, log)
     return {"ok": True, "ticket": args.ticket, "tracker": config["tracker"]["kind"], "spec_dir": spec_dir.as_posix(),
             "log": log.as_posix(), "doc": doc.as_posix(), "session": session, "resume": bool(resumed),
             "takeover": takeover, "raw_file": raw_file.as_posix(), "raw_pending": _raw_pending(raw_file, doc)}

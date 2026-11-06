@@ -283,6 +283,19 @@ def _last_pass(block, session):
     return int(found.group(1)) if found and found.group(2) == session else None
 
 
+def _last_pass_row(doc):
+    return f"- Last pass: R{current_round(doc)['n']} · session {doc['session']['id']}"
+
+
+def keep_last_pass(doc_path, log):
+    """A log from before the `Last pass` row: write the row for a session whose end check passed. The current round of
+    its page is the passed round, because a sync after a new round removes the gate row."""
+    doc = format_1(read_json(doc_path))
+    head, blocks, tail = _split(log)
+    if not any(_last_pass(block, doc["session"]["id"]) is not None for block in blocks):
+        write_text(log, _join(head, blocks + [[_last_pass_row(doc)]], tail))
+
+
 def _changed(doc, passed):
     """Each point of the last passed round or earlier that changed later: a card a later card carries, and an entry
     with a change line on both sides of that round. An entry added later is new, not changed. No pass yet: nothing."""
@@ -358,8 +371,7 @@ def gate(doc_path, log):
     passed = next((n for n in (_last_pass(block, session) for block in blocks) if n is not None), None)
     blocks = [block for block in blocks
               if not block[0].startswith(GATE_PASSED) and _last_pass(block, session) is None]
-    blocks += [[f"{GATE_PASSED} {today} · session {session}"],
-               [f"- Last pass: R{current_round(doc)['n']} · session {session}"]]
+    blocks += [[f"{GATE_PASSED} {today} · session {session}"], [_last_pass_row(doc)]]
     write_text(log, _join(head, blocks, tail))
     return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
             "changed": _changed(doc, passed)}
