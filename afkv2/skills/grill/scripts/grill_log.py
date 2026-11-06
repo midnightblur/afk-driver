@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
-from round_document import (ASKING, _carried, _components, card_notes, current_round,  # noqa: E402
+from round_document import (ASKING, _carried, _carries_card, _components, card_notes, current_round,  # noqa: E402
                             format_1, is_version_2, returning, signature_missing, steer_targets, steers)
 
 SECTION = "## Requirements grill"
@@ -31,8 +32,13 @@ REQUIRED_KINDS = ("Policy", "Staples", "Examples", "Devil")
 STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-external\b.*)$")
 # A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
 TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
+RUN_SUFFIX = "-run"  # the run branch of a feature branch: check_plan.RUN_SUFFIX of to-subtasks
+GIT_LIMIT_S = 30
 GATE_PASSED = "- Settled: exit gate passed"
 EXAMPLE_KINDS = ("frequent", "edge", "risky")
+# The page lists whose entries carry change lines, with the field that names each entry (SDD §4).
+ENTRY_TEXT = {"sections": ("section", "title"), "stories": ("story", "text"), "examples": ("example", "title"),
+              "questions": ("question", "question")}
 GENERATED = re.compile(r"^- (Session|Steer): |^- (Settled|Open|Carried|Info): .* · card \S+$")
 
 
@@ -264,6 +270,62 @@ def _log_failures(blocks):
     return failures
 
 
+def _takeover_round(doc):
+    """The round of the first take-over of an answered round: the round a grill that came back took over (decision
+    D-23). A resume while a round waits finds no answer, or one received after the take-over."""
+    answered = {rnd["n"]: min(r["received"] for r in rnd["responses"]) for rnd in doc["rounds"] if rnd.get("responses")}
+    for entry in doc["session"].get("takeovers") or []:
+        received = answered.get(entry.get("round"))
+        if received is not None and received <= str(entry.get("at")):
+            return entry["round"]
+    return None
+
+
+def _changed(doc, took_over):
+    """Each point of the take-over round or earlier that changed later: a card a later card carries, and an entry
+    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed."""
+    later = [card for rnd in doc["rounds"] if rnd["n"] > took_over for card in rnd["items"]]
+    changed = [{"id": item["id"], "kind": "card", "text": _first_text(item)}
+               for rnd in doc["rounds"] if rnd["n"] <= took_over for item in rnd["items"]
+               if item["kind"] in ASKING and any(_carries_card(card, item["id"]) for card in later)]
+    for name, (kind, field) in ENTRY_TEXT.items():
+        for entry in doc.get(name) or []:
+            rounds = [line.get("round", 0) for line in entry.get("changes") or []]
+            if any(n <= took_over for n in rounds) and any(n > took_over for n in rounds):
+                changed.append({"id": entry["id"], "kind": kind, "text": entry[field]})
+    return changed
+
+
+def _run_plan(spec_dir):
+    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None."""
+    def git(*args):
+        try:
+            done = subprocess.run(["git", "-C", str(spec_dir), *args], capture_output=True, stdin=subprocess.DEVNULL,
+                                  timeout=GIT_LIMIT_S)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return done.stdout.decode("utf-8", "replace").strip() if done.returncode == 0 else None
+    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    if not branch or branch == "HEAD":
+        return None
+    run = branch + RUN_SUFFIX
+    for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
+        if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
+            return f"{run}:plan/PLAN.md"
+    return None
+
+
+def _later_documents(spec_dir):
+    """Each document of the ticket that a later skill wrote and that exists (decision D-25)."""
+    spec_dir = Path(spec_dir)
+    found = []
+    for name, folder in (("PRD.md", "adr/requirements"), ("SDD.md", "adr/design")):
+        found += [path for path in [spec_dir / name] if path.is_file()]
+        found += sorted((spec_dir / folder).glob("*.md"))
+    plan = _run_plan(spec_dir)
+    return [path.as_posix() for path in found] + ([plan] if plan else [])
+
+
 def gate(doc_path, log):
     doc = format_1(read_json(doc_path))
     head, blocks, tail = _split(log)
@@ -274,7 +336,11 @@ def gate(doc_path, log):
     blocks = [block for block in blocks if not block[0].startswith(GATE_PASSED)]
     blocks.append([f"{GATE_PASSED} {today} · session {doc['session']['id']}"])
     write_text(log, _join(head, blocks, tail))
-    return {"ok": True, "passed": today}
+    took_over = _takeover_round(doc)
+    if took_over is None:
+        return {"ok": True, "passed": today}
+    return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
+            "changed": _changed(doc, took_over)}
 
 
 def main(argv):
