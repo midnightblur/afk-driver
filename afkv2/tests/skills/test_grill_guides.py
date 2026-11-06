@@ -355,27 +355,22 @@ def test_the_choices_row_states_the_shape_the_schema_takes():
 
 
 def test_without_a_page_each_round_is_still_checked_and_scanned_but_a_chat_round_opens_no_page():
-    """Review findings f24 and r1-g5-1: each round is checked, rendered and scanned for secrets. A chat round the
-    developer asked for runs the engine's check and render without show: show opens the page, and on Codex it
-    writes the waiting record that makes the Stop hook wait for a page send."""
+    """Review findings f24, r1-g5-1 and r2-g5-1: each round is checked, rendered, scanned for secrets and recorded
+    as shown. A chat round the developer asked for runs `present --no-show`: show opens the page, and on Codex it
+    writes the waiting record that makes the Stop hook wait for a page send. The shown record, not a prose rule,
+    makes `build --replace` refuse that round (test_grill.py pins the refusal)."""
     raw = _raw(ROUNDS_MD.read_text("utf-8"), "## Without a page")
     chat = _flat(raw)
     for fact in ("`build` still runs each round", "`present` already checked and rendered the round",
-                 "scanned the page and the log for secrets", "do not run `present`", "Stop hook",
-                 "Do not run `build --replace` on a round you asked in chat"):
+                 "scanned the page and the log for secrets", "run `present` with `--no-show`", "Stop hook"):
         assert fact in chat, fact
-    assert "the page still opens" not in chat
-    present = (SKILLS / "use-lavish" / "scripts" / "page_round.py").read_text("utf-8")
-    assert '_engine("check", doc)' in present and '"--scan"' in present and '_engine("show", doc)' in present
+    assert "the page still opens" not in chat and "build --replace" not in chat and "engine.py" not in chat
     import engine
     assert "launcher.write_waiting_record" in inspect.getsource(engine.cmd_show)
     assert "write_waiting_record" not in inspect.getsource(engine.cmd_render)
-    lines = re.findall(r'^<python> "<this skill\'s folder>/\.\./\.\./engine/engine\.py" (.+)$', raw, re.M)
-    assert len(lines) == 2, lines
-    parsed = [engine._parser().parse_args([part.strip('"') for part in line.split()]) for line in lines]
-    assert [args.handler for args in parsed] == [engine.cmd_check, engine.cmd_render]
-    assert all(args.document == "<doc>" for args in parsed)
-    assert parsed[1].notices and parsed[1].scan == ["<log>"]
+    lines = re.findall(r"^<python> .*$", raw, re.M)
+    shown = dict(re.findall(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", SKILL_MD.read_text("utf-8"), re.S | re.M))
+    assert lines == [shown["present"].replace("present --doc", "present --no-show --doc")], lines
 
 
 def test_without_a_page_the_reply_file_names_its_round_and_the_mark_words():

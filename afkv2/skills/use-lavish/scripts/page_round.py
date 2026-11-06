@@ -1,7 +1,9 @@
 """Drive one page round through the engine verbs (SDD §3), from the repository root.
 
-  present --doc D [--scan F]...   check, render with the notices, show, in that order; stops at the first refusal.
+  present --doc D [--scan F]... [--no-show]
+                                  check, render with the notices, show, in that order; stops at the first refusal.
                                   It records the round before show: after a failed show, chat shows the round.
+                                  --no-show: no show, for a round asked in chat; `url` and `tab` are null.
                                   Answers `git_state` and `secrets` [{file, line, shape}] of the page and each
                                   scan file (a file the skill writes beside the page, such as its log),
                                   `secrets_more` (the hits past the cap) and `scan_cut` (each file scanned only to
@@ -48,11 +50,11 @@ def _engine(verb, doc, *args, timeout=TIMEOUT_S):
         raise Refusal(refusal.code, refusal.reason, refusal.exit_code, verb=verb) from refusal
 
 
-def present(doc, scan=()):
+def present(doc, scan=(), no_show=False):
     _engine("check", doc)
     rendered = _engine("render", doc, "--notices", *(arg for file in scan for arg in ("--scan", str(file))))
     record_shown(doc)
-    shown = _engine("show", doc)
+    shown = {} if no_show else _engine("show", doc)
     return {"ok": True, "page": rendered.get("page"), "url": shown.get("url"), "tab": shown.get("tab"),
             "git_state": rendered.get("git_state"), "secrets": rendered.get("secrets") or [],
             "secrets_more": rendered.get("secrets_more") or 0, "scan_cut": rendered.get("scan_cut") or [],
@@ -181,9 +183,10 @@ def main(argv):
     parser.add_argument("--raw-file")
     parser.add_argument("--reply-file")
     parser.add_argument("--scan", action="append", default=[])
+    parser.add_argument("--no-show", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "present":
-        return present(args.doc, args.scan)
+        return present(args.doc, args.scan, args.no_show)
     if args.verb == "take-over":
         return take_over(args.doc)
     if args.verb == "end":

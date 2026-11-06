@@ -443,7 +443,8 @@ def test_the_skill_lists_every_page_command():
     """The 0006 IOU: start, track and present --scan have their caller here; take-over too."""
     commands = _section(SKILL_MD.read_text("utf-8"), "## The commands")
     for command in ("scripts/page_home.py start --topic", "scripts/page_home.py track --doc",
-                    "scripts/page_round.py present --doc D [--scan F]", "scripts/page_round.py take-over --doc"):
+                    "scripts/page_round.py present --doc D [--scan F]... [--no-show]",
+                    "scripts/page_round.py take-over --doc"):
         assert command in commands, command
 
 
