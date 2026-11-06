@@ -553,7 +553,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     On a version 2 page the round input may add `sections`, `stories`, `examples` and `questions`: only the
     entries that changed (`_merge_entries`), and a card may name its `section`. A version 0 or 1 page refuses
     these fields by name, unless the round input holds `upgrade: true` (`_upgrade`). A version 2 document passes
-    the engine's document check before it is written.
+    the engine's document check before it is written. Only the answer of a version 2 page holds `entries`.
     """
     doc_path = Path(doc_path)
     round_input = copy.deepcopy(round_input)
@@ -803,7 +803,9 @@ def _new_readings(doc, current, readings):
 def apply_readings(doc_path, readings):
     """Apply one batch of readings, all or nothing. Keys: settle, open, unblock, replies, and on a version 2 page
     keep {note, reply}, answer {question, text, choices, role, date, signal}, drop {question, reason, note} and
-    assume {question, text, card}. Answer, drop and assume write round = the current round."""
+    assume {question, text, card}. Answer, drop and assume write round = the current round. An `open` entry is
+    {item, reply, changed, note}; only a version 2 page reads `note`, and a version 1 page answers every note of the
+    round on the card."""
     doc = format_1(read_json(doc_path))
     current = current_round(doc)
     if current is None:
