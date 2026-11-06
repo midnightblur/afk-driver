@@ -46,7 +46,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Use `--text-file <file>` in place of `--text` for text with quotes or line breaks. Row kinds and grammar: [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). Skipped: write no row. Done when the human answered and the claims are in the ledger.
 
-4. **Work one round.** Load [ROUNDS.md](ROUNDS.md), the page rules and forms of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)) for page order and wording, and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify claims, weigh the options, take every decision the rules allow, and write the `Ledger` rows as they change. Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
+4. **Work one round.** Load [ROUNDS.md](ROUNDS.md), the page and answer rules of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify claims, weigh the options, take every decision the rules allow, and write the `Ledger` rows as they change. Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
    An item has the page document fields, plus 3 fields of the input only:
 

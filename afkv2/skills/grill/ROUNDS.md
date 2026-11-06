@@ -1,6 +1,6 @@
 # Grill rounds
 
-The rules for what goes on a round. How it looks: the page guide. How a signal settles: the round pass in `../use-lavish/ROUND-PASS.md`.
+The rules for what goes on a round. How the page lays it out: `/afkv2:use-lavish`. How a signal settles: the round pass in `../use-lavish/ROUND-PASS.md`.
 
 ## What to find
 
@@ -38,12 +38,12 @@ A claim is any statement of how something works now: behaviour, a constraint, an
 
 ## Card kinds
 
-| Kind | Use it when | Page section order |
-|------|-------------|--------------------|
-| `debate` | 2 or more live options, a tie, a one-way door, or a premise you cannot verify; the body names which condition failed and what resolving it would have cost | first |
-| `confirm` | your recommendation is safe by default and independent of every open point; the human only accepts or overrides | second |
-| `decided` | you decided, and the human audits it | third |
-| `info` | context the human needs; it asks nothing | last |
+| Kind | Use it when |
+|------|-------------|
+| `debate` | 2 or more live options, a tie, a one-way door, or a premise you cannot verify; the body names which condition failed and what resolving it would have cost |
+| `confirm` | your recommendation is safe by default and independent of every open point; the human only accepts or overrides |
+| `decided` | you decided, and the human audits it |
+| `info` | context the human needs; it asks nothing |
 
 In doubt, use `debate`. Silence never accepts: an unmarked card stays open and returns next round. A card that depends on an open `debate` card says "holds if <id> = <option>" and is derived again when the answer differs.
 
