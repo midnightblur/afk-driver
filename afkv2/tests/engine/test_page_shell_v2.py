@@ -30,6 +30,11 @@ BANNER = 'data-afkv2-banner="{}"'
 SETTLED_PART = 'id="afkv2-settled"'
 SECTIONS_PART = 'id="afkv2-sections"'
 LINK = 'href="#{}"'
+CONFIRM_CARD = '<article class="afkv2-card afkv2-card--confirm" id="{}"'
+CARD_HEADING = re.compile(r'<h4 class="afkv2-h">.*?</h4>', re.S)
+CARD_ID_ATTRS = ('data-afkv2-item="i-closed"', 'data-afkv2-element="i-closed"')
+TIPS_DICT = 'id="afkv2-tips-dict"'
+TIPS_PAYLOAD = 'id="afkv2-tips-payload"'
 
 
 def build(doc):
@@ -62,7 +67,7 @@ def test_the_round_questions_show_in_one_block_and_each_links_to_its_section():
     html = build(document())
     questions = block(html, 'id="afkv2-r-3"')
     for card_id, section in (("i-closed", "sec-scope"), ("i-rows", "sec-scope")):
-        start = questions.index(f'<article class="afkv2-card afkv2-card--confirm" id="{card_id}"')
+        start = questions.index(CONFIRM_CARD.format(card_id))
         own = questions[start:questions.index("</article>", start)]
         assert LINK.format(section) in own
         assert "What the export covers" in visible(own)
@@ -146,7 +151,7 @@ def raw_words(words, doc):
 def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled):
     doc = raw_id_document(titled)
     html = build(doc)
-    headings = re.findall(r'<h4 class="afkv2-h">.*?</h4>', html, re.S)
+    headings = CARD_HEADING.findall(html)
     summaries = re.findall(r"<summary>.*?</summary>", html, re.S)
     assert headings and summaries
     notes = block(html, 'id="afkv2-notes-replies"')
@@ -157,9 +162,9 @@ def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled)
 
 def test_a_version_2_card_keeps_its_id_in_its_attributes():
     html = build(raw_id_document())
-    start = html.index('<article class="afkv2-card afkv2-card--confirm" id="i-closed"')
+    start = html.index(CONFIRM_CARD.format("i-closed"))
     own = html[start:html.index(">", start)]
-    assert 'data-afkv2-item="i-closed"' in own and 'data-afkv2-element="i-closed"' in own
+    assert all(attr in own for attr in CARD_ID_ATTRS)
     assert "Round 3" in visible(html[start:html.index("</h4>", start)])
 
 
@@ -273,8 +278,8 @@ def test_the_term_dictionary_appears_once_on_a_page_of_every_version(home, capsy
     assert engine.main(["render", str(path)]) == 0, capsys.readouterr().out
     html = path.with_suffix(".html").read_text("utf-8")
     assert html.count(SHARED_DEFINITION) == 1
-    assert html.count('id="afkv2-tips-dict"') == 1
-    start = html.index('id="afkv2-tips-payload"')
+    assert html.count(TIPS_DICT) == 1
+    start = html.index(TIPS_PAYLOAD)
     payload = json.loads(html[html.index(">", start) + 1:html.index("</script>", start)])
     assert sorted(payload) == ["page_ids", "page_terms"]
 

@@ -360,6 +360,7 @@ SECTION_LISTS = (("added", "Sections added"), ("changed", "Sections changed"), (
                  ("removed", "Sections removed"))
 BANNER_LISTS = (("settled", "What settled"), ("unlocks", "What it unlocks"), ("parked", "Parked"))
 NOTHING = '<p class="afkv2-none">Nothing.</p>'
+CHANGED_LIST = " afkv2-banner-changed"
 
 
 def _section_changes(doc: dict, n: int) -> dict:
@@ -388,13 +389,13 @@ def _banner_v2(doc: dict, round_: dict, current: bool) -> str:
     changed lists name, each a link; then what settled, what it unlocks and what is parked. No round code shows."""
     n = round_["n"]
     touched = _section_changes(doc, n)
-    lists = [_banner_list(heading, [parts_v2._link(doc, section) for section in touched[key]], " afkv2-banner-changed")
+    lists = [_banner_list(heading, [parts_v2._link(doc, section) for section in touched[key]], CHANGED_LIST)
              for key, heading in SECTION_LISTS if touched[key]]
     sections = {section["id"] for section in doc.get("sections") or []}
     others = [element for element in _changed_ids(round_) if element not in sections]
     if others:
         lists.append(_banner_list("Other changes", [parts_v2._link(doc, element) for element in others],
-                                  " afkv2-banner-changed"))
+                                  CHANGED_LIST))
     lists += [_banner_list(heading, [escape(value) for value in round_["banner"][key]]) for key, heading in BANNER_LISTS]
     label = parts_v2.visible_label(doc, "round", n)
     state = "current round" if current else "settled round"
