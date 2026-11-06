@@ -5,6 +5,7 @@ and version 0 and 1 pages that show the same visible text as before the version 
 import copy
 import hashlib
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -120,6 +121,46 @@ def test_no_banner_shows_a_round_code():
     html = build(banner_document())
     for n in (1, 2, 3):
         assert not parts_case.ROUND_CODE.search(visible(banner(html, n)))
+
+
+# --- no raw id and no round code in the card headings and the notes table
+
+
+def raw_id_document(titled=True):
+    """The fixture with an answer that changed a section, a card with a history, and, untitled, no card title."""
+    doc = document()
+    doc["rounds"][2]["replies"] = [{"id": "A-3-1", "text": "I changed the format part.", "notes": ["N-3-q-format-1"],
+                                    "changed": ["sec-format", "i-format"]}]
+    doc["rounds"][2]["items"].append(card("i-rows", "sec-scope"))
+    return doc if titled else parts_case._untitled(doc)
+
+
+def raw_words(words, doc):
+    """Each round code and each raw element id in `words`."""
+    found = parts_case.ROUND_CODE.findall(words)
+    return found + [element for element in parts_case.element_ids(doc)
+                    if re.search(rf"(?<![\w-]){re.escape(element)}(?![\w-])", words)]
+
+
+@pytest.mark.parametrize("titled", [True, False])
+def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled):
+    doc = raw_id_document(titled)
+    html = build(doc)
+    headings = re.findall(r'<h4 class="afkv2-h">.*?</h4>', html, re.S)
+    summaries = re.findall(r"<summary>.*?</summary>", html, re.S)
+    assert headings and summaries
+    notes = block(html, 'id="afkv2-notes-replies"')
+    assert "I changed the format part." in visible(notes)
+    for part in (*headings, *summaries, notes):
+        assert not raw_words(visible(part), doc), (raw_words(visible(part), doc), visible(part))
+
+
+def test_a_version_2_card_keeps_its_id_in_its_attributes():
+    html = build(raw_id_document())
+    start = html.index('<article class="afkv2-card afkv2-card--confirm" id="i-closed"')
+    own = html[start:html.index(">", start)]
+    assert 'data-afkv2-item="i-closed"' in own and 'data-afkv2-element="i-closed"' in own
+    assert "Round 3" in visible(html[start:html.index("</h4>", start)])
 
 
 # --- a section never folds into the settled part

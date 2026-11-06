@@ -141,20 +141,31 @@ def _exchange(doc: dict, item: dict) -> str:
     return f'<div class="afkv2-nr-scroll">{rows}</div>' if rows else ""
 
 
+def _label(doc: dict, item: dict) -> dict:
+    """On a version 2 page, the visible name of a card, so its heading shows no raw id (`visible_label`)."""
+    return {"label": parts_v2.visible_label(doc, "element", item["id"])} if doc["schema"] == V2 else {}
+
+
 def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current,
-                  "exchange": _exchange(doc, item), **extra},
+                  "exchange": _exchange(doc, item), **_label(doc, item), **extra},
         "children": [item["body"]],
     })
+
+
+def _history_name(doc: dict, item: dict, round_: dict) -> str:
+    if doc["schema"] == V2:
+        return f'{parts_v2.visible_label(doc, "round", round_["n"])}: {_label(doc, item)["label"]}'
+    return f'R-{round_["n"]} {item["id"]}'
 
 
 def _history(doc: dict, point) -> str:
     """The earlier cards of a point, newest first, in a closed details element."""
     if not point.history:
         return ""
-    names = ", ".join(f'R-{round_["n"]} {item["id"]}' for item, round_ in point.history)
+    names = ", ".join(_history_name(doc, item, round_) for item, round_ in point.history)
     cards = "".join(_card(doc, item, round_, False) for item, round_ in point.history)
     return (f'<details class="afkv2-history" data-afkv2-fold="history-{escape(point.head["id"])}">'
             f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
@@ -418,7 +429,7 @@ def _card_v2(doc: dict, point, current_n: int) -> str:
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_),
                   "current": round_["n"] == current_n, "exchange": _section_link(doc, item) + _exchange(doc, item),
-                  "history": _history(doc, point)},
+                  "history": _history(doc, point), **_label(doc, item)},
         "children": [item["body"]],
     })
 

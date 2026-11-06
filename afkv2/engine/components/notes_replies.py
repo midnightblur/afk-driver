@@ -8,6 +8,8 @@ An answer stands in the row of each note it names (`notes`); on a format 0 page,
 Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
 as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
+On a version 2 page (`_plain`) no visible text holds a raw element id or a round code: each element reads as its
+`visible_label`, a round as "Round 3", and a row number as `3.1`. Versions 0 and 1 show as before.
 A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
 the same rows, so a build indexes the elements of the document once.
 """
@@ -17,7 +19,8 @@ from typing import NamedTuple
 
 from registry import register_component, walk
 from schema.note_rules import round_target
-from shell.page import round_colour
+from shell import parts_v2
+from shell.page import V2, round_colour
 
 ROW_PREFIX = "afkv2-nr-"
 SESSION_PREFIX = "afkv2-ns-"
@@ -83,7 +86,28 @@ def _elements(doc: dict) -> dict:
         for item in round_["items"]:
             found[item["id"]] = {"item": item, "label": None, "map": None}
             add_tree(item["body"], item)
+    if _plain(doc):
+        _add_parts(doc, found)
     return found
+
+
+def _plain(doc: dict) -> bool:
+    return doc["schema"] == V2
+
+
+def _add_parts(doc: dict, found: dict) -> None:
+    """Version 2: each card and each entry of the page parts (a section, a question for others...) reads as its
+    `visible_label`; a part of a card with no label of its own reads as its card. An entry is a part of no
+    card."""
+    parts = {entry["id"] for kind in parts_v2.ENTRY_LISTS for entry in doc.get(kind) or []}
+    parts |= {option["id"] for question in doc.get("questions") or []
+              for option in (question.get("choices") or {}).get("options") or []}
+    for element in parts:
+        found.setdefault(element, {"item": None, "label": parts_v2.visible_label(doc, "element", element),
+                                   "map": None, "part": True})
+    for entry in found.values():
+        if entry["item"] is not None and entry["label"] is None:
+            entry["label"] = parts_v2.visible_label(doc, "element", entry["item"]["id"])
 
 
 def _is_steer(item: dict | None, note: dict, elements: dict) -> bool:
@@ -136,7 +160,7 @@ def _pairs(doc: dict, notes: list[tuple[dict | None, dict]]) -> tuple[dict, list
 
 def _where(item: dict | None, note: dict, elements: dict) -> str:
     target = elements.get(note["target"]) or {"item": item, "label": None, "map": None}
-    if target.get("round"):
+    if target.get("round") or target.get("part"):
         return escape(target["label"])
     if _is_steer(item, note, elements):
         place = f'Map: {escape(target["map"] or target["label"] or note["target"])}'
@@ -197,7 +221,7 @@ def _rows(doc: dict) -> list[Row]:
 
     def number(n: int) -> str:
         counts[n] = counts.get(n, 0) + 1
-        return f"R{n}.{counts[n]}"
+        return f"{n}.{counts[n]}" if _plain(doc) else f"R{n}.{counts[n]}"
 
     rows = []
     for item, note in notes:
@@ -205,7 +229,8 @@ def _rows(doc: dict) -> list[Row]:
         answers = by_note.get(note["id"], [])
         cells = [_where(item, note, elements), _noted(note), f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
                  _answer([reply for _, _, reply in answers], elements)]
-        words = "Open round" if (elements.get(note["target"]) or {}).get("round") else "Open map"
+        place = elements.get(note["target"]) or {}
+        words = "Open round" if place.get("round") else "Open" if place.get("part") else "Open map"
         link = _link(note["target"], words) if steer else _link(item["id"], "Open card")
         rows.append(Row(n, note["id"], number(n), note["id"], cells, link, None if steer else item["id"],
                         note["target"] if steer else item["id"], True, tuple((r, i) for r, i, _ in answers)))
@@ -253,14 +278,17 @@ def _table(columns: tuple, body: str, modifier: str = "") -> str:
     return f'<table class="afkv2-nr-table{modifier}"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
 
 
-def _count_line(round_: dict, rows: list[Row]) -> str:
-    """`R-<n> Round <n> — <k> notes from you, <m> answers from me`: the notes and the answers the rows show."""
+def _count_line(round_: dict, rows: list[Row], plain: bool) -> str:
+    """`R-<n> Round <n> — <k> notes from you, <m> answers from me`: the notes and the answers the rows show.
+    `plain` (version 2): the chip reads `Round <n>`, once."""
     n = round_["n"]
     notes = sum(row.is_note for row in rows)
     answers = len({key for row in rows for key in row.answers})
     words = [_count(notes, "note") + " from you"] if notes else []
     if answers:
         words.append(_count(answers, "answer") + " from me")
+    if plain:
+        return f'<span class="afkv2-round-chip">Round {n}</span> — {", ".join(words)}'
     return f'<span class="afkv2-round-chip">R-{n}</span> Round {n} — {", ".join(words)}'
 
 
@@ -268,21 +296,21 @@ def _session_rows(round_: dict, rows: list[Row]) -> str:
     return "".join(_tr(row, _session_id(row), round_colour(round_), True) for row in rows)
 
 
-def _group(round_: dict, rows: list[Row]) -> str:
+def _group(round_: dict, rows: list[Row], plain: bool) -> str:
     """The group row of an open round, then its rows."""
     n = round_["n"]
     head = (f'<tr class="afkv2-nr-group" id="{ROW_PREFIX}round-{n}" data-afkv2-nr-round="{n}" '
             f'style="--afkv2-round: {escape(round_colour(round_))}"><td colspan="{len(SESSION_COLUMNS)}">'
-            f'{_count_line(round_, rows)}</td></tr>')
+            f'{_count_line(round_, rows, plain)}</td></tr>')
     return head + _session_rows(round_, rows)
 
 
-def _closed_group(round_: dict, rows: list[Row]) -> str:
+def _closed_group(round_: dict, rows: list[Row], plain: bool) -> str:
     """An older round: a closed fold whose summary is its count line; one click opens it."""
     n = round_["n"]
     return (f'<details class="afkv2-nr-earlier" id="{ROW_PREFIX}round-{n}" data-afkv2-nr-round="{n}" '
             f'data-afkv2-fold="notes-round-{n}" style="--afkv2-round: {escape(round_colour(round_))}">'
-            f'<summary>{_count_line(round_, rows)}</summary>'
+            f'<summary>{_count_line(round_, rows, plain)}</summary>'
             f'{_table(SESSION_COLUMNS, _session_rows(round_, rows))}</details>')
 
 
@@ -308,8 +336,9 @@ def render_notes_replies(props, children):
         return "".join(children)
     current = next(r["n"] for r in doc["rounds"] if r["state"] == "current")
     rounds = sorted((r for r in doc["rounds"] if r["n"] in by_round), key=lambda r: -r["n"])
-    recent = [_group(r, by_round[r["n"]]) for r in rounds if r["n"] > current - OPEN_ROUNDS]
-    older = [_closed_group(r, by_round[r["n"]]) for r in rounds if r["n"] <= current - OPEN_ROUNDS]
+    plain = _plain(doc)
+    recent = [_group(r, by_round[r["n"]], plain) for r in rounds if r["n"] > current - OPEN_ROUNDS]
+    older = [_closed_group(r, by_round[r["n"]], plain) for r in rounds if r["n"] <= current - OPEN_ROUNDS]
     html = ('<h2 class="afkv2-section-h">Notes on the whole session</h2>'
             '<p class="afkv2-nr-intro">Every note and every answer of the session, newest round first. A note '
             'on a card also stands under that card.</p>')
