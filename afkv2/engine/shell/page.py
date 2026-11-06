@@ -11,6 +11,7 @@ ticket, or a step that repeats the start of an earlier part, shows once.
 Under the heading, the notices of the page (engine notices): 1 git-state line and 1 line per secret hit.
 A page with a code block or a diff inlines the copy of highlight.js and its 2 themes once, after the page script;
 a page with neither holds none of them (ADR-0003 design).
+A version 2 page takes its own layout (ADR-0003 design, `_build_v2`); versions 0 and 1 keep the layout above.
 """
 
 from __future__ import annotations
@@ -23,10 +24,12 @@ from pathlib import Path
 import diagrams
 from registry import aliases, lookup, page_context, render_component, walk
 from schema.note_rules import round_target
+from shell import parts_v2
 from shell.points import grouped
 from shell.references import link_cards, linkify
 
 HERE = Path(__file__).resolve().parent
+V1, V2 = "afkv2.page/1", "afkv2.page/2"
 BASE_CSS, BASE_JS = "kit.css", "runtime.js"
 TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
@@ -293,7 +296,7 @@ def _btw_attrs(btw: tuple[int, str] | None) -> str:
 def _tip_source(doc: dict) -> str:
     """Page-owned catalogs survive replacement of the derived tooltip runtime. A page read from a format 0
     file has none: it keeps its legacy sidecar tips, which the injector reads only without this block."""
-    if doc["schema"] != "afkv2.page/1" or _from_format_0(doc):
+    if doc["schema"] not in (V1, V2) or _from_format_0(doc):
         return ""
     tips = doc.get("tips", {})
     source = {kind: tips.get(kind, []) for kind in ("terms", "ids")}
@@ -308,11 +311,10 @@ def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = 
     Each component renders in the context of the document's named value sets, in one diagram run: the SVG ids of
     the page's diagrams start afresh, so the same document builds the same bytes."""
     with page_context(doc.get("value_sets")), diagrams.page_run():
-        return _build(_answers_read(doc), btw, notices)
+        return (_build_v2 if doc["schema"] == V2 else _build)(_answers_read(doc), btw, notices)
 
 
 def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
-    session = doc["session"]
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
@@ -324,7 +326,12 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'{_current_section(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners(doc)}{_node_cards(doc)}')
-    body = link_cards(linkify(_round_marks(body, current), session.get("links")), _cards(doc))
+    return _document(doc, title, body, current, btw)
+
+
+def _document(doc: dict, title: str, body: str, current: dict, btw: tuple[int, str] | None) -> str:
+    """The HTML document around the body of either layout: the round marks, the reference links, the assets."""
+    body = link_cards(linkify(_round_marks(body, current), doc["session"].get("links")), _cards(doc))
     themes, highlighter = _highlighter(doc)
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -332,3 +339,57 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'<body>\n<div class="afkv2-page"{_btw_attrs(btw)}>{body}</div>\n'
             f'{_tip_source(doc)}'
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')
+
+
+# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, the round's questions, maps,
+# sections, worked examples, questions for others; then the settled points and the earlier banners.
+
+
+def _section_link(doc: dict, item: dict) -> str:
+    """The link from a card to the section it asks about; a link to a merged section goes on to its current
+    section."""
+    if not item.get("section"):
+        return ""
+    sections = {entry["id"]: entry for entry in doc.get("sections") or []}
+    target = parts_v2._current_target(sections, item["section"])
+    return f'<p class="afkv2-v2-card-section">Section: {parts_v2._link(doc, target)}</p>'
+
+
+def _card_v2(doc: dict, point, current_n: int) -> str:
+    item, round_ = point.head, point.round
+    return render_component({
+        "type": "card",
+        "props": {"item": item, "round": round_["n"], "colour": round_colour(round_),
+                  "current": round_["n"] == current_n, "exchange": _section_link(doc, item) + _exchange(doc, item),
+                  "history": _history(doc, point)},
+        "children": [item["body"]],
+    })
+
+
+def _round_questions(doc: dict, round_: dict, points: list) -> str:
+    """The round's questions in 1 block, each card with a link to its section. The mark runtime reads the
+    session and the round here, as on the earlier layout."""
+    n = round_["n"]
+    cards = "".join(_card_v2(doc, point, n) for point in points)
+    live = any(_answerable(item) for item in round_["items"])
+    return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
+            f'data-afkv2-round="{n}" data-afkv2-session="{escape(doc["session"]["id"])}" '
+            f'style="--afkv2-round: {escape(round_colour(round_))}">'
+            f'<h2 class="afkv2-h">The questions of {escape(parts_v2.visible_label(doc, "round", n))}</h2>'
+            f'<div class="afkv2-cards">{cards}</div>{COPY_BAR if live else ""}</section>')
+
+
+def _build_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
+    current = next(r for r in doc["rounds"] if r["state"] == "current")
+    live, settled = grouped(doc)
+    maps = "".join(render_component(m) for m in doc.get("maps") or [])
+    title = escape(stable_title(doc))
+    body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
+            f'{_banner(doc, current, True)}'
+            f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
+            f'{_round_questions(doc, current, live)}'
+            f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
+            f'{parts_v2.render_sections(doc)}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{_settled_section(doc, settled, current["n"])}'
+            f'{_earlier_banners(doc)}{_node_cards(doc)}')
+    return _document(doc, title, body, current, btw)
