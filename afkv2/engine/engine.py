@@ -418,9 +418,15 @@ def check_document(path: str) -> tuple[dict, str]:
     return doc, copy_state
 
 
-def _check_changed(doc: dict) -> None:
-    """Every check but the settled-round compare: ingest may change a settled round, and saves the copy."""
+def check_in_memory(doc: dict, named: tuple = ()) -> None:
+    """Every check but the settled-round compare, on a document in memory: ingest may change a settled round, and
+    saves the copy. The first problem of a rule in `named` is refused alone by that rule's name; other problems are
+    refused as `invariant`."""
     found = _content_problems(doc, doc)
+    for path, why in found:
+        code = why.split(":", 1)[0]
+        if code in named:
+            raise _refuse(doc, [(path, why)], code)
     if found:
         raise _refuse(doc, found, "invariant")
 
@@ -688,7 +694,7 @@ def _ingest(args) -> dict:
     raw, _ = load_document(args.document)
     check_document(args.document)
     try:
-        answer = ingest.cmd_ingest(args, check=check_document, check_changed=_check_changed,
+        answer = ingest.cmd_ingest(args, check=check_document, check_changed=check_in_memory,
                                    elements=_element_ids, save_copy=_save_settled_copy_if_possible,
                                    page_format=raw["schema"])
     except Refusal as refusal:

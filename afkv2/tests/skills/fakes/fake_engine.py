@@ -15,7 +15,7 @@ The raw response grammar here is the fake's own: one line per signal.
   <map node id>: note: <text>     a steer: a note that names no card
 The grill passes raw text through and never parses it. The fake reads and writes page format 1 and 2: every
 note goes into the session list, as the engine writes it. The round builder imports the fake as the engine
-module and calls `_content_problems` and `_refuse` on a format 2 page.
+module and calls `check_in_memory` on a format 2 page.
 """
 
 import json
@@ -44,19 +44,19 @@ def saved_copy(doc_path):
     return Path(str(doc_path) + ".saved")
 
 
-class _Refused:
-    def __init__(self, reason):
-        self.reason = reason
+class Refused(Exception):
+    def __init__(self, code, reason):
+        super().__init__(reason)
+        self.code, self.reason = code, reason
 
 
-def _content_problems(raw, doc):
-    """The fake's check of a format 2 page in memory, as the engine answers it: a list of (path, why)."""
+def check_in_memory(doc, named=()):
+    """The fake's check of a page in memory, as the engine refuses it: a problem of a rule in `named` by that
+    rule's name, any other as `invariant`."""
     problem = check(doc, None)
-    return [(("document",), problem)] if problem else []
-
-
-def _refuse(doc, found, code):
-    return _Refused("; ".join(why for _, why in found))
+    if problem:
+        code = problem.split(":", 1)[0]
+        raise Refused(code if code in named else "invariant", problem)
 
 
 def check(doc, doc_path):

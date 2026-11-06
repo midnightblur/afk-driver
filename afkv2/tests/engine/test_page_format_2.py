@@ -503,3 +503,18 @@ def test_an_option_id_with_whitespace_is_refused(capsys, tmp_path, space):
     entry(doc, "questions", "q-open")["choices"]["options"][0]["id"] = f"c{space}sv"
     error = refused(capsys, tmp_path, doc, "invariant")
     assert "field choices.options[0].id: an option id holds no whitespace" in error["reason"], error
+
+
+# --- the public in-memory check
+
+
+def test_check_in_memory_passes_a_valid_page_and_refuses_a_named_rule_by_its_name():
+    engine.check_in_memory(v2_document())
+    doc = v2_document()
+    entry(doc, "questions", "q-ans")["answer"]["role"] = "everyone"
+    with pytest.raises(engine.Refusal) as named:
+        engine.check_in_memory(doc, ("everyone-answered",))
+    assert named.value.code == "everyone-answered" and "everyone-answered" in named.value.reason
+    with pytest.raises(engine.Refusal) as plain:
+        engine.check_in_memory(doc)
+    assert plain.value.code == "invariant" and "everyone-answered" in plain.value.reason

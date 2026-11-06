@@ -506,19 +506,12 @@ def _merge_entries(doc, round_input, n):
 
 def check_version_2(doc):
     """Run the engine's document check on a version 2 document in memory; a broken rule refuses by its name."""
-    engine = page_engine()
     try:
-        found = engine._content_problems(doc, doc)
+        page_engine().check_in_memory(doc, NAMED_RULES)
     except Exception as error:
         if not hasattr(error, "code"):
             raise
         raise Refusal(error.code, error.reason) from error
-    for path, why in found:
-        code = why.split(":", 1)[0]
-        if code in NAMED_RULES:
-            raise Refusal(code, engine._refuse(doc, [(path, why)], code).reason)
-    if found:
-        raise Refusal("invariant", engine._refuse(doc, found, "invariant").reason)
 
 
 def _upgrade(doc, doc_path, upgrade, replace=False):
