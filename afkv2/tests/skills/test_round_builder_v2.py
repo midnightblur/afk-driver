@@ -506,7 +506,7 @@ def test_drop_with_a_reason_drops_the_question(asked):
     assert check(asked)[0] == 0
 
 
-@pytest.mark.parametrize("reason", ["", "  ", None])
+@pytest.mark.parametrize("reason", ["", "  ", None, 5])
 def test_drop_without_a_reason_is_refused_and_the_question_stays_open(asked, reason):
     entry = {"question": "q-2", "note": "N-3-q-2-1", **({} if reason is None else {"reason": reason})}
     refused_reading(asked, {"drop": [entry]}, "drop-no-reason")

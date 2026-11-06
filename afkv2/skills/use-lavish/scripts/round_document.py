@@ -778,7 +778,7 @@ def _answer_question(doc, current, entry):
 def _drop_question(doc, current, entry):
     question = _open_question(doc, entry)
     reason = entry.get("reason") or ""
-    if not reason.strip():
+    if not isinstance(reason, str) or not reason.strip():
         raise Refusal("drop-no-reason", f"question {question['id']}: a dropped question needs a reason")
     question["state"] = "dropped"
     question["dropped"] = {"reason": reason, "note": entry.get("note"), "round": current["n"]}
