@@ -330,7 +330,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
                 signal.update(note=line.target, action=EDIT)
             elif line.noted:
                 signal["note"] = write(line.target, item_id, line)
-            if waits and (line.token == EDIT or signal["note"] in result["notes"]):
+            if waits and signal["note"]:
                 result["settled_notes_to_read"].append(signal["note"])
             signals[line.number] = signal
         _set_state(item, after, n, group)

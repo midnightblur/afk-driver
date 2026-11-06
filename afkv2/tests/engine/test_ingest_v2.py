@@ -260,6 +260,14 @@ def test_a_note_on_an_open_card_needs_reading_and_does_not_wait(path):
     assert answer["needs_reading"] == ["i-new"] and answer["settled_notes_to_read"] == []
 
 
+def test_a_note_on_a_settled_card_sent_again_is_listed_again(path):
+    raw = "[round R-2]\ni-old note 1\n  Agreed, nice."
+    _, after = ingested(path, v2_document(), raw)
+    answer, after = ingested(path, after, raw)
+    assert answer["settled_notes_to_read"] == ["N-2-i-old-1"] and answer["notes"] == []
+    assert [note["id"] for note in after["notes"]] == ["N-2-i-old-1"]
+
+
 def test_a_reopen_mark_on_a_settled_card_still_opens_it(path):
     answer, after = ingested(path, v2_document(), "[round R-2]\ni-old reopen\ni-old note 1\n  Changed my mind.")
     assert item_of(after, "i-old")["state"] == "open" and answer["reopened"] == ["i-old"]
