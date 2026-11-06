@@ -13,7 +13,7 @@ A grill page today shows one round of questions at a time, so the developer lose
 | Design ADRs | adr/design/ | 5 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-asks-run:plan/PLAN.md | 10 subtasks; division approved 2026-11-06 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |

@@ -1,0 +1,153 @@
+{
+  "schema": "afkv2.page/1",
+  "session": {
+    "step": "Plan approval",
+    "private": false,
+    "takeovers": [],
+    "id": "division-20261106-064235",
+    "skill": "to-subtasks",
+    "feature": "174",
+    "ticket": "174",
+    "started": "2026-11-06T06:50:14Z"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-083cd5eb-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-083cd5eb-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-page-v2-schema",
+                  "Add the version 2 page format: the schema file with the 4 new lists (sections, stories, examples, questions for others), the changed card, note and reply shapes, the document checks that guard them, and the engine reader and newest-schema value, so `check` accepts a valid version 2 page and refuses each broken rule by name, while version 0 and 1 pages check as today.",
+                  "The new format, its checks and its reader come first, because every other part reads or writes a version 2 page.",
+                  "—",
+                  "static, unit, integration"
+                ],
+                [
+                  "0002-ingest-v2",
+                  "Teach ingest and the send lines the version 2 rules: a send line per ticked question for others, recorded as a signal in `questions_to_read` with no state change; a note on a section, story, example or question is a plain note owned by that element, not a session rule; a note on a settled card leaves it settled and lists it in `settled_notes_to_read`. Version 0 and 1 pages ingest as today.",
+                  "Reading the send is its own cut: ticks and notes on settled points change what the agent reads, not what the page draws.",
+                  "0001-page-v2-schema",
+                  "static, unit, integration"
+                ],
+                [
+                  "0003-page-parts-v2",
+                  "Add the page parts that draw a version 2 page's lists: a section with its current text, links, open-question chip and open change list; the questions-for-others section with its role filter control and tick inputs; the worked-examples section; and one label helper that gives every element its visible text, so no raw id or round code shows.",
+                  "The new drawing parts stand alone so the plain-text rule has one label helper and one test.",
+                  "0001-page-v2-schema",
+                  "static, unit"
+                ],
+                [
+                  "0004-page-shell-v2",
+                  "Give `render` a version 2 layout beside today's, which stays untouched: title and banner with each added, merged or removed section and each change linking to its section, notes and replies on top, then the round's questions in one block with a link to each card's section, then the maps, then the sections, examples and questions for others. Write the term dictionary once on every page. Add the page-size budget test and the old-page test.",
+                  "The layout, the dictionary-once rule and the size budget meet in the page shell, apart from the parts it draws.",
+                  "0003-page-parts-v2",
+                  "static, unit, integration"
+                ],
+                [
+                  "0005-page-script-ticks",
+                  "Make the page script queue 1 answer per question for others, with its ticked option ids, replaced on each change, and add the role filter: set to a role, it shows that role's questions and the questions for everyone, in the same order, and sends nothing.",
+                  "The page script holds the one external seam, the lavish checkbox check, so it gets its own cut.",
+                  "0002-ingest-v2, 0004-page-shell-v2",
+                  "static, unit, integration"
+                ],
+                [
+                  "0006-round-builder-v2",
+                  "Extend `build` and `apply-readings`: the 4 lists merge by id, only changed entries, each with 1 change line; `after` places a question; `section` on a card; `upgrade: true` writes a taken-over version 0 or 1 page as version 2; the builder writes the page's own version; 1 reply per note; the readings `keep`, `answer`, `drop` and `assume`.",
+                  "The one writer of the page document takes every new field and reading in one place, including the upgrade the developer chose.",
+                  "0001-page-v2-schema, 0002-ingest-v2",
+                  "static, unit, integration"
+                ],
+                [
+                  "0007-page-guides",
+                  "Move every page layout rule into use-lavish: sections, the questions block, change lists, what goes first, and the round pass for `keep`, `answer`, `drop` and `assume`; replace the rule that repeats a reply across notes with 1 reply per note that states each reading; leave visualize with pictures only; rename the glossary term Answer to Reply.",
+                  "The page rules move into the page skill once the layout and the builder exist to describe.",
+                  "0004-page-shell-v2, 0006-round-builder-v2",
+                  "static, unit"
+                ],
+                [
+                  "0008-grill-scripts",
+                  "Make grill start take over the newest finished session of the ticket and answer `takeover`; extend the end check: on a version 2 page it fails on an open question for others, a drop without reason, a story with no example and a missing example kind, and on a pass after a take-over it lists `stale` later documents and `changed` settled points. A log with no questions passes as before.",
+                  "The grill's scripts change for take-over and the end check, apart from its guides, so tests prove them first.",
+                  "0006-round-builder-v2",
+                  "static, unit, integration"
+                ],
+                [
+                  "0009-grill-guides",
+                  "Rewrite the grill's guides for the content: keep sections, stories, examples and questions for others in the page document; read each note for every meaning; add, order and close questions for others; propose a question on a card; print open questions as Markdown on request; come back to a finished grill with `upgrade`; ask round by round in chat without a page; and drop the page-order column, so the grill holds no layout rule.",
+                  "The grill's guides come last among grill work, since they drive the scripts and point at the page rules.",
+                  "0007-page-guides, 0008-grill-scripts",
+                  "static, unit"
+                ],
+                [
+                  "0010-to-prd-assumed",
+                  "Make the requirements writer's `start` answer list each assumed answer of the grill's page with who must confirm it, and make the PRD format write each as a risk, marked assumed, naming who must confirm it.",
+                  "The requirements writer needs only the new format, so it can run early and alone.",
+                  "0001-page-v2-schema",
+                  "static, unit, integration"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-083cd5eb-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 10 subtasks, plan digest 083cd5eb, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-06T06:50:46Z",
+          "raw": "[round R-1]\ndivision-083cd5eb-1 sign",
+          "signals": [
+            {
+              "target": "division-083cd5eb-1",
+              "item": "division-083cd5eb-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "47a0e8303549efaf"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
