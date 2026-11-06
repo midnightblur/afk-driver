@@ -345,6 +345,63 @@ def _document(doc: dict, title: str, body: str, current: dict, btw: tuple[int, s
 # sections, worked examples, questions for others; then the settled points and the earlier banners.
 
 
+SECTION_LISTS = (("added", "Sections added"), ("changed", "Sections changed"), ("merged", "Sections merged"),
+                 ("removed", "Sections removed"))
+BANNER_LISTS = (("settled", "What settled"), ("unlocks", "What it unlocks"), ("parked", "Parked"))
+NOTHING = '<p class="afkv2-none">Nothing.</p>'
+
+
+def _section_changes(doc: dict, n: int) -> dict:
+    """The sections that round n touched, by how: a merged or removed section whose last change line is round n
+    counts as merged or removed; a section whose first change line is round n counts as added; any other section
+    with a change line of round n counts as changed."""
+    found = {key: [] for key, _ in SECTION_LISTS}
+    for section in doc.get("sections") or []:
+        rounds = [line["round"] for line in section["changes"]]
+        if n not in rounds:
+            continue
+        if section["state"] in ("merged", "removed") and n == max(rounds):
+            found[section["state"]].append(section["id"])
+        else:
+            found["added" if n == min(rounds) else "changed"].append(section["id"])
+    return found
+
+
+def _banner_list(heading: str, entries: list, css: str = "") -> str:
+    values = f'<ul>{"".join(f"<li>{entry}</li>" for entry in entries)}</ul>' if entries else NOTHING
+    return f'<div class="afkv2-banner-list{css}"><h3>{heading}</h3>{values}</div>'
+
+
+def _banner_v2(doc: dict, round_: dict, current: bool) -> str:
+    """The banner of a round: each section it added, changed, merged or removed, then each other element that its
+    changed lists name, each a link; then what settled, what it unlocks and what is parked. No round code shows."""
+    n = round_["n"]
+    touched = _section_changes(doc, n)
+    lists = [_banner_list(heading, [parts_v2._link(doc, section) for section in touched[key]], " afkv2-banner-changed")
+             for key, heading in SECTION_LISTS if touched[key]]
+    sections = {section["id"] for section in doc.get("sections") or []}
+    others = [element for element in _changed_ids(round_) if element not in sections]
+    if others:
+        lists.append(_banner_list("Other changes", [parts_v2._link(doc, element) for element in others],
+                                  " afkv2-banner-changed"))
+    lists += [_banner_list(heading, [escape(value) for value in round_["banner"][key]]) for key, heading in BANNER_LISTS]
+    label = parts_v2.visible_label(doc, "round", n)
+    state = "current round" if current else "settled round"
+    target = round_target(n)
+    return (f'<div id="{target}" data-afkv2-element="{target}"><header class="afkv2-banner" data-afkv2-banner="{n}" '
+            f'style="--afkv2-round: {escape(round_colour(round_))}"><h2>{escape(label.capitalize())}: {state}</h2>'
+            f'<div class="afkv2-banner-lists">{"".join(lists)}</div></header></div>')
+
+
+def _earlier_banners_v2(doc: dict) -> str:
+    past = sorted((r for r in doc["rounds"] if r["state"] != "current"), key=lambda r: -r["n"])
+    if not past:
+        return ""
+    return (f'<details class="afkv2-earlier-banners" id="afkv2-earlier-banners" data-afkv2-fold="banners">'
+            f'<summary>Earlier banners ({len(past)})</summary>{"".join(_banner_v2(doc, r, False) for r in past)}'
+            '</details>')
+
+
 def _section_link(doc: dict, item: dict) -> str:
     """The link from a card to the section it asks about; a link to a merged section goes on to its current
     section."""
@@ -385,11 +442,11 @@ def _build_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> s
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     title = escape(stable_title(doc))
     body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
-            f'{_banner(doc, current, True)}'
+            f'{_banner_v2(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'{_round_questions(doc, current, live)}'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{parts_v2.render_sections(doc)}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
             f'{_settled_section(doc, settled, current["n"])}'
-            f'{_earlier_banners(doc)}{_node_cards(doc)}')
+            f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')
     return _document(doc, title, body, current, btw)
