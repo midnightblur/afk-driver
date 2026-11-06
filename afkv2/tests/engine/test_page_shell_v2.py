@@ -228,6 +228,19 @@ def test_the_version_2_notes_table_shows_row_numbers_one_round_chip_the_where_la
     assert re.search(r'<a href="#sec-scope"[^>]*>Open</a>', scope)
 
 
+def test_no_link_and_no_cell_of_the_version_2_notes_table_falls_back_to_a_raw_id():
+    doc = raw_id_document()
+    doc["rounds"][2]["replies"][0]["changed"].append("x-gone")
+    doc["notes"].append({**parts_case.note("N-3-x-gone-1", 3, "x-gone"), "item": "i-closed"})
+    notes = block(build(doc), 'id="afkv2-notes-replies"')
+    titles = re.findall(r'<a [^>]*title="([^"]*)"', notes)
+    assert titles and all(title for title in titles)
+    for title in titles:
+        assert not raw_words(title, doc) and "x-gone" not in title, title
+    assert 'title="File format"' in notes
+    assert "x-gone" not in visible(notes)
+
+
 def test_a_version_2_card_keeps_its_id_in_its_attributes():
     html = build(raw_id_document())
     start = html.index(CONFIRM_CARD.format("i-closed"))

@@ -8,8 +8,8 @@ An answer stands in the row of each note it names (`notes`); on a format 0 page,
 Each row has an HTML id. A row of a card has `ROW_PREFIX` + key on the card and `SESSION_PREFIX` + key
 as its copy of the session table. A row of no card has `ROW_PREFIX` + key there. `row_targets` names the element
 that an annotation on a row stands for.
-On a version 2 page (`_plain`) no visible text holds a raw element id or a round code: each element reads as its
-`visible_label`, a round as "Round 3", and a row number as `3.1`. Versions 0 and 1 show as before.
+On a version 2 page (`_plain`) no visible text and no link hover text holds a raw element id or a round code: each
+element reads as its `visible_label`, a round as "Round 3", and a row number as `3.1`. Versions 0 and 1 show as before.
 A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
 the same rows, so a build indexes the elements of the document once.
 """
@@ -158,38 +158,49 @@ def _pairs(doc: dict, notes: list[tuple[dict | None, dict]]) -> tuple[dict, list
     return by_note, alone
 
 
-def _where(item: dict | None, note: dict, elements: dict) -> str:
+def _raw(element: str) -> str:
+    return element
+
+
+def _namer(doc: dict):
+    """The words for an element with no label of its own, and the hover text of a link to an element: the raw id
+    on versions 0 and 1, its `visible_label` on version 2."""
+    return (lambda element: parts_v2.visible_label(doc, "element", element)) if _plain(doc) else _raw
+
+
+def _where(item: dict | None, note: dict, elements: dict, name=_raw) -> str:
     target = elements.get(note["target"]) or {"item": item, "label": None, "map": None}
     if target.get("round") or target.get("part"):
         return escape(target["label"])
     if _is_steer(item, note, elements):
-        place = f'Map: {escape(target["map"] or target["label"] or note["target"])}'
+        place = f'Map: {escape(target["map"] or target["label"] or name(note["target"]))}'
         if target["map"] is not None:
-            place += f' <span class="{DIM_CLASS}">· {escape(target["label"] or note["target"])}</span>'
+            place += f' <span class="{DIM_CLASS}">· {escape(target["label"] or name(note["target"]))}</span>'
         return place
     if note["target"] == item["id"]:
         return "The card"
-    return escape(target["label"] or note["target"])
+    return escape(target["label"] or name(note["target"]))
 
 
-def _link(element: str, words: str) -> str:
-    return f'<a href="#{escape(element)}" title="{escape(element)}">{words}</a>'
+def _link(element: str, words: str, name=_raw) -> str:
+    return f'<a href="#{escape(element)}" title="{escape(name(element))}">{words}</a>'
 
 
-def change_links(reply: dict, elements: dict) -> str:
-    """One link to each element in the answer's `changed` list, in its order; nothing for an empty list."""
+def change_links(reply: dict, elements: dict, name=_raw) -> str:
+    """One link to each element in the answer's `changed` list, in its order; nothing for an empty list. `name`
+    gives the words of an element with no label and the hover text (`_namer`)."""
     changed = list(dict.fromkeys(reply.get("changed") or []))
     if not changed:
         return ""
-    links = ", ".join(_link(element, escape((elements.get(element) or {}).get("label") or element))
+    links = ", ".join(_link(element, escape((elements.get(element) or {}).get("label") or name(element)), name)
                       for element in changed)
     return f'<p class="{CHANGED_CLASS}">Changed: {links}</p>'
 
 
-def _answer(replies: list[dict], elements: dict) -> str:
+def _answer(replies: list[dict], elements: dict, name=_raw) -> str:
     if not replies:
         return f'<span class="{DIM_CLASS}">No answer yet</span>'
-    return "".join(f'<p class="{TEXT_CLASS}">{escape(reply["text"])}</p>{change_links(reply, elements)}'
+    return "".join(f'<p class="{TEXT_CLASS}">{escape(reply["text"])}</p>{change_links(reply, elements, name)}'
                    for reply in replies)
 
 
@@ -214,7 +225,7 @@ def _reply_home(reply: dict, elements: dict, notes: list[tuple[dict, dict]]) -> 
 
 def _rows(doc: dict) -> list[Row]:
     """Every row of the page, in document order: the notes, then the answers that stand in no note's row."""
-    elements = _elements(doc)
+    elements, name = _elements(doc), _namer(doc)
     notes = _notes(doc)
     by_note, alone = _pairs(doc, notes)
     counts: dict[int, int] = {}
@@ -227,18 +238,19 @@ def _rows(doc: dict) -> list[Row]:
     for item, note in notes:
         n, steer = note["round"], _is_steer(item, note, elements)
         answers = by_note.get(note["id"], [])
-        cells = [_where(item, note, elements), _noted(note), f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
-                 _answer([reply for _, _, reply in answers], elements)]
+        cells = [_where(item, note, elements, name), _noted(note),
+                 f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
+                 _answer([reply for _, _, reply in answers], elements, name)]
         place = elements.get(note["target"]) or {}
         words = "Open round" if place.get("round") else "Open" if place.get("part") else "Open map"
-        link = _link(note["target"], words) if steer else _link(item["id"], "Open card")
+        link = _link(note["target"], words, name) if steer else _link(item["id"], "Open card", name)
         rows.append(Row(n, note["id"], number(n), note["id"], cells, link, None if steer else item["id"],
                         note["target"] if steer else item["id"], True, tuple((r, i) for r, i, _ in answers)))
     for n, index, reply in alone:
         about = reply.get("about") or []
         home = _reply_home(reply, elements, notes)
-        cells = [f'<span class="{DIM_CLASS}">From me</span>', "", "", _answer([reply], elements)]
-        link = _link(about[0], "Open") if about else _link(home, "Open card") if home else ""
+        cells = [f'<span class="{DIM_CLASS}">From me</span>', "", "", _answer([reply], elements, name)]
+        link = _link(about[0], "Open", name) if about else _link(home, "Open card", name) if home else ""
         rows.append(Row(n, f"reply-{n}-{index + 1}", number(n), f"reply {index + 1} of round {n}", cells, link,
                         home, home, False, ((n, index),)))
     return rows
