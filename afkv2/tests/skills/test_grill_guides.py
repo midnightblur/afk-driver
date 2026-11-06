@@ -7,6 +7,7 @@ that the grill holds no page-layout rule.
 """
 
 import ast
+import inspect
 import json
 import re
 import sys
@@ -274,6 +275,10 @@ def test_a_pass_after_a_take_over_names_stale_and_changed():
     gate = (HOME / "scripts" / "grill_log.py").read_text("utf-8")
     assert '"stale": _later_documents(' in gate and '"changed": _changed(' in gate
     assert '"Coming back"' in _step(9)
+    # review finding f6: both lists come on every pass, so an empty list means nothing, not "not computed"
+    for text in (back, _step(9)):
+        assert "Every pass of `gate` answers `stale` and `changed`" in text and "each list that is not empty" in text
+        assert "after a take-over, the answer adds" not in text.casefold()
 
 
 # --- the end check on a version 2 page (PRD AC-019, AC-044, AC-045)
@@ -349,14 +354,28 @@ def test_the_choices_row_states_the_shape_the_schema_takes():
         assert fact in row, fact
 
 
-def test_without_a_page_present_still_checks_and_scans_the_round():
-    """Review finding f24: `present` is the only caller of check, render and the secrets scan."""
-    chat = _section(ROUNDS_MD.read_text("utf-8"), "## Without a page")
-    for fact in ("`build` and `present` still run each round", "scans the page and the log for secrets",
-                 "the page still opens: say so in 1 line"):
+def test_without_a_page_each_round_is_still_checked_and_scanned_but_a_chat_round_opens_no_page():
+    """Review findings f24 and r1-g5-1: each round is checked, rendered and scanned for secrets. A chat round the
+    developer asked for runs the engine's check and render without show: show opens the page, and on Codex it
+    writes the waiting record that makes the Stop hook wait for a page send."""
+    raw = _raw(ROUNDS_MD.read_text("utf-8"), "## Without a page")
+    chat = _flat(raw)
+    for fact in ("`build` still runs each round", "`present` already checked and rendered the round",
+                 "scanned the page and the log for secrets", "do not run `present`", "Stop hook",
+                 "Do not run `build --replace` on a round you asked in chat"):
         assert fact in chat, fact
+    assert "the page still opens" not in chat
     present = (SKILLS / "use-lavish" / "scripts" / "page_round.py").read_text("utf-8")
-    assert '_engine("check", doc)' in present and '"--scan"' in present
+    assert '_engine("check", doc)' in present and '"--scan"' in present and '_engine("show", doc)' in present
+    import engine
+    assert "launcher.write_waiting_record" in inspect.getsource(engine.cmd_show)
+    assert "write_waiting_record" not in inspect.getsource(engine.cmd_render)
+    lines = re.findall(r'^<python> "<this skill\'s folder>/\.\./\.\./engine/engine\.py" (.+)$', raw, re.M)
+    assert len(lines) == 2, lines
+    parsed = [engine._parser().parse_args([part.strip('"') for part in line.split()]) for line in lines]
+    assert [args.handler for args in parsed] == [engine.cmd_check, engine.cmd_render]
+    assert all(args.document == "<doc>" for args in parsed)
+    assert parsed[1].notices and parsed[1].scan == ["<log>"]
 
 
 def test_without_a_page_the_reply_file_names_its_round_and_the_mark_words():

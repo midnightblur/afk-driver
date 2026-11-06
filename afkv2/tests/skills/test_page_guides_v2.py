@@ -81,7 +81,7 @@ ANSWER_KEPT = ("Answer rules", "answer rules", "an answer, a new idea, a questio
 def _answer_words(text):
     for kept in ANSWER_KEPT:
         text = text.replace(kept, "")
-    return re.findall(r"answer\w*", text, re.I)
+    return re.findall(r"\banswer\w*", text, re.I)
 
 
 def test_the_agent_writes_a_reply_to_each_note():
@@ -95,6 +95,9 @@ def test_the_agent_writes_a_reply_to_each_note():
     for part in (_section(text, "## Take over a page"), _row(text, "`scripts/round_document.py build --doc D --session "
                  "S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]`")):
         assert not _answer_words(part), _answer_words(part)
+    readings = _section(ROUND_PASS_MD.read_text("utf-8"), "## Read the questions and the settled notes")
+    keep = next(part for part in readings.split("- ") if part.startswith("`keep`"))
+    assert not _answer_words(keep), _answer_words(keep)
     assert "every note of the session, card notes included, with its reply" in text
 
 
@@ -156,11 +159,13 @@ def test_use_lavish_holds_the_layout_of_version_0_and_1():
 
 VISUALIZE = PLUGIN / "skills" / "visualize"
 LAYOUT_WORDS = ("## Page layout", "## Controls the engine adds", "lays out the page", "Settled by earlier rounds",
-                "Earlier banners", "below the maps", "below the round banner", "copy bar", "tab title",
+                "Earlier banners", "copy bar", "tab title",
                 # where a part sits on the page (review finding f5); a component's own looks may say "at the end"
                 "the engine puts", "goes first", "page order", "top of the page", "bottom of the page",
-                "on the page, above", "above the maps", "above the sections", "above the cards", "below the cards",
-                "below the sections", "after the notes", "before the maps", "first on the page", "last on the page")
+                "on the page, above", "first on the page", "last on the page", "maps section")
+# where a page part sits relative to another page part (review finding r1-g5-2)
+PLACEMENT = re.compile(r"\b(above|below|after|before) (the )?(notes|replies|maps|banners?|round banner|sections|cards|"
+                       r"questions)\b", re.I)
 
 
 def _flat(path):
@@ -171,6 +176,8 @@ def test_visualize_holds_no_page_layout_rule():
     """Decision D-22: visualize holds the pictures; each layout rule lives in use-lavish alone."""
     found = [(path.name, word) for path in sorted(VISUALIZE.rglob("*.md"))
              for word in LAYOUT_WORDS if word.casefold() in _flat(path).casefold()]
+    found += [(path.name, match.group(0)) for path in sorted(VISUALIZE.rglob("*.md"))
+              for match in PLACEMENT.finditer(_flat(path))]
     assert not found, found
     layout = SKILL_MD.read_text("utf-8")
     for heading in ("#### Title and tab", "#### Controls the engine adds"):
