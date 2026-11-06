@@ -260,3 +260,22 @@ def render_questions(doc: dict) -> str:
     body = "".join(_question(doc, question, sections) for question in questions)
     return (f'<section class="afkv2-v2-questions" id="afkv2-questions">'
             f'<h2 class="afkv2-section-h">Questions for others</h2>{_filter(questions)}{body}</section>')
+
+
+def _example(doc: dict, example: dict) -> str:
+    stories = "".join(f"<li>{escape(visible_label(doc, 'element', story))}</li>" for story in example["stories"])
+    kind = escape(visible_label(doc, "kind", example["kind"]))
+    inner = (f'<h3 class="afkv2-v2-h">{escape(example["title"])}</h3>'
+             f'<span class="afkv2-chip afkv2-v2-kind">{kind}</span>{render_component(example["body"])}'
+             f'{_part("Stories it covers", f"<ul>{stories}</ul>")}{render_changes(doc, example["changes"])}')
+    return _article(example, "afkv2-v2-example", inner, kind=example["kind"])
+
+
+def render_examples(doc: dict) -> str:
+    """The worked-examples block, each marked frequent, edge or risky; a page with none gets no block."""
+    examples = doc.get("examples") or []
+    if not examples:
+        return ""
+    body = "".join(_example(doc, example) for example in examples)
+    return (f'<section class="afkv2-v2-examples" id="afkv2-examples">'
+            f'<h2 class="afkv2-section-h">Worked examples</h2>{body}</section>')

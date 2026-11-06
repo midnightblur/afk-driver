@@ -304,3 +304,26 @@ def test_no_question_gives_no_block():
     doc = document()
     doc["questions"] = []
     assert parts_v2.render_questions(doc) == ""
+
+
+# --- worked examples
+
+
+def test_the_worked_examples_show_as_a_section_each_marked_frequent_edge_or_risky():
+    html = parts_v2.render_examples(document())
+    assert '<h2 class="afkv2-section-h">Worked examples</h2>' in html
+    for example_id, kind, words in (("ex-plain", "frequent", "From 3 open rows to 1 file of 3 lines."),
+                                    ("ex-big", "edge", "From 1 million rows to 1 file."),
+                                    ("ex-bad", "risky", "A comma in a name stays in its cell.")):
+        example = visible(part_of(html, example_id))
+        assert kind in example and words in example, example_id
+    big = visible(part_of(html, "ex-big"))
+    assert "As a clerk, I export a large list." in big and "As a clerk, I export the open rows." in big
+    bad = visible(part_of(html, "ex-bad"))
+    assert bad.index("round 3") < bad.index("round 2")
+
+
+def test_no_example_gives_no_block():
+    doc = document()
+    doc["examples"] = []
+    assert parts_v2.render_examples(doc) == ""
