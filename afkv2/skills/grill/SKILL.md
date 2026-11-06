@@ -135,7 +135,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/grill_log.py" gate --doc "<doc>" --log "<log>"
    ```
 
-   It lists every failure in `error.failures`. Each failure is one more round or one more row. On a pass after a take-over, the answer adds `stale` and `changed`: tell the developer both by [ROUNDS.md](ROUNDS.md) "Coming back".
+   It lists every failure in `error.failures`. Each failure is one more round or one more row. Every pass of `gate` answers `stale` and `changed`. A list is empty when it has nothing. Tell the developer each list that is not empty, by [ROUNDS.md](ROUNDS.md) "Coming back".
 
 10. **Finish.** End the page session, so the page says that the session ended and stops showing 'Working...':
 

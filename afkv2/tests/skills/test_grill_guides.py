@@ -274,6 +274,10 @@ def test_a_pass_after_a_take_over_names_stale_and_changed():
     gate = (HOME / "scripts" / "grill_log.py").read_text("utf-8")
     assert '"stale": _later_documents(' in gate and '"changed": _changed(' in gate
     assert '"Coming back"' in _step(9)
+    # review finding f6: both lists come on every pass, so an empty list means nothing, not "not computed"
+    for text in (back, _step(9)):
+        assert "Every pass of `gate` answers `stale` and `changed`" in text and "each list that is not empty" in text
+        assert "after a take-over, the answer adds" not in text.casefold()
 
 
 # --- the end check on a version 2 page (PRD AC-019, AC-044, AC-045)

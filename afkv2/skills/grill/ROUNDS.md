@@ -158,7 +158,7 @@ When `present` refuses at `show`, or the developer asks to work without a page, 
 
 A grill that came back continues its finished page with the new input. A settled point stays settled unless the new input touches it; a touched point returns as a new card with `carries`. The grill ends only after its end check passes again.
 
-On that pass, the answer of `gate` adds 2 lists. Tell the developer both:
+Every pass of `gate` answers `stale` and `changed`. A list is empty when it has nothing. Tell the developer each list that is not empty:
 
 - `stale`: each later document of the ticket that exists. Name each one as possibly out of date, with the skill that writes it again: `PRD.md` and `adr/requirements/` by `/afkv2:to-prd`, `SDD.md` and `adr/design/` by `/afkv2:propose-solution`, the plan (`plan/PLAN.md` on the run branch) by `/afkv2:to-subtasks`.
 - `changed`: each settled point that changed since the take-over, by its `text`.
