@@ -125,8 +125,9 @@ The HTML a human reads and answers. The page engine builds it from a page docume
 **Note**:
 A comment a human writes on a page element, as a lavish annotation, and sends with Send to Agent.
 
-**Answer**:
-The agent's reply to one note, shown in that note's row. The page document calls it a reply.
+**Reply**:
+What the agent writes back to one note, shown in that note's row. Each note gets its own reply, written for that note. The page document keeps it in the round's `replies`.
+`Related:` Note
 
 **Ad-hoc page**:
 A page an agent writes outside an afk step, to talk with a human about any topic.
