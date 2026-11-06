@@ -4,7 +4,8 @@
   sync --doc D --log L                                 rows that come from the page document
   term --log L --term T (--glossary G --definition D | --pending)
   gate --doc D --log L                                 the mechanical part of the exit gate; on a version 2 page
-                                                       also its questions for others, stories and worked examples
+                                                       also its questions for others, stories and worked examples;
+                                                       a pass answers `stale` and `changed`, each empty when nothing
 
 Row grammar: GRILL-LOG-FORMAT.md. Other sections of the file stay byte for byte.
 """
@@ -286,7 +287,10 @@ def _takeover_round(doc):
 
 def _changed(doc, took_over):
     """Each point of the take-over round or earlier that changed later: a card a later card carries, and an entry
-    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed."""
+    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed. No
+    take-over: nothing."""
+    if took_over is None:
+        return []
     later = [card for rnd in doc["rounds"] if rnd["n"] > took_over for card in rnd["items"]]
     changed = [{"id": item["id"], "kind": "card", "text": _first_text(item)}
                for rnd in doc["rounds"] if rnd["n"] <= took_over for item in rnd["items"]
@@ -358,8 +362,6 @@ def gate(doc_path, log):
     blocks.append([f"{GATE_PASSED} {today} · session {doc['session']['id']}"])
     write_text(log, _join(head, blocks, tail))
     took_over = _takeover_round(doc)
-    if took_over is None:
-        return {"ok": True, "passed": today}
     return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
             "changed": _changed(doc, took_over)}
 

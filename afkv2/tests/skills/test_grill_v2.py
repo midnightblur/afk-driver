@@ -202,13 +202,14 @@ def test_every_story_covered_and_every_kind_present_passes(repo):
     doc = read(started["doc"])
     doc["questions"][0].update(state="assumed", assumption={"text": "Only csv.", "card": "i-a", "round": 1})
     write(started["doc"], doc)
-    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed"}
+    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed", "stale", "changed"}
 
 
 def test_a_page_with_no_questions_stories_or_examples_passes_as_before(repo):
     started = settled_once()
     answered = grill_log.gate(started["doc"], started["log"])
-    assert set(answered) == {"ok", "passed"}
+    assert set(answered) == {"ok", "passed", "stale", "changed"}
+    assert answered["stale"] == [] and answered["changed"] == []
 
 
 # ---- a pass after a take-over lists stale later documents and changed settled points (PRD AC-050, AC-051)
@@ -245,6 +246,15 @@ def test_a_grill_that_came_back_ends_only_after_its_end_check_passes_again(repo)
     assert grill_log.exit_gate_passed(taken["log"], taken["session"])
 
 
+def test_a_pass_with_no_take_over_entry_still_names_each_later_document(repo):
+    done = finished()
+    later_documents(done["spec_dir"])
+    build(done, card("i-b"))
+    answer(done, "[round R-2]\ni-b accept")
+    passed = grill_log.gate(done["doc"], done["log"])
+    assert len(passed["stale"]) == 4 and passed["changed"] == []
+
+
 def test_changed_lists_each_entry_changed_after_the_take_over_and_not_a_new_one(repo):
     taken = came_back(sections=[section("s-old"), section("s-same")])
     build(taken, card("i-b"), sections=[section("s-old", "New text."), section("s-new")])
@@ -262,7 +272,7 @@ def test_a_resume_while_a_round_waits_is_no_take_over_of_a_finished_round(repo):
     doc = read(started["doc"])
     doc["session"]["takeovers"][0]["at"] = "2000-01-01T00:00:00Z"
     write(started["doc"], doc)
-    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed"}
+    assert grill_log.gate(started["doc"], started["log"])["changed"] == []
 
 
 def git(cwd, *args):
