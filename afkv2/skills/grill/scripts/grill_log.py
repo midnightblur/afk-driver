@@ -5,7 +5,8 @@
   term --log L --term T (--glossary G --definition D | --pending)
   gate --doc D --log L                                 the mechanical part of the exit gate; on a version 2 page
                                                        also its questions for others, stories and worked examples;
-                                                       a pass answers `stale` and `changed`, each empty when nothing
+                                                       a pass answers `stale` and `changed`, each empty when nothing,
+                                                       and writes the gate row and the `Last pass` row
 
 Row grammar: GRILL-LOG-FORMAT.md. Other sections of the file stay byte for byte.
 """
@@ -39,6 +40,8 @@ TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2
 RUN_SUFFIX = "-run"
 GIT_LIMIT_S = 30
 GATE_PASSED = "- Settled: exit gate passed"
+# The round of the session's last passed end check; `changed` measures from it. A sync keeps it.
+LAST_PASS_ROW = re.compile(r"^- Last pass: R([1-9][0-9]*) · session (\S+)$")
 EXAMPLE_KINDS = ("frequent", "edge", "risky")
 # The page lists whose entries carry change lines, with the field that names each entry (SDD §4).
 ENTRY_TEXT = {"sections": ("section", "title"), "stories": ("story", "text"), "examples": ("example", "title"),
@@ -274,31 +277,25 @@ def _log_failures(blocks):
     return failures
 
 
-def _takeover_round(doc):
-    """The round of the first take-over of an answered round: the round a grill that came back took over (decision
-    D-23). A resume while a round waits finds no answer, or one received after the take-over."""
-    answered = {rnd["n"]: min(r["received"] for r in rnd["responses"]) for rnd in doc["rounds"] if rnd.get("responses")}
-    for entry in doc["session"].get("takeovers") or []:
-        received = answered.get(entry.get("round"))
-        if received is not None and received <= str(entry.get("at")):
-            return entry["round"]
-    return None
+def _last_pass(block, session):
+    """The round that the block's `Last pass` row holds for the session, else None."""
+    found = LAST_PASS_ROW.match(block[0])
+    return int(found.group(1)) if found and found.group(2) == session else None
 
 
-def _changed(doc, took_over):
-    """Each point of the take-over round or earlier that changed later: a card a later card carries, and an entry
-    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed. No
-    take-over: nothing."""
-    if took_over is None:
+def _changed(doc, passed):
+    """Each point of the last passed round or earlier that changed later: a card a later card carries, and an entry
+    with a change line on both sides of that round. An entry added later is new, not changed. No pass yet: nothing."""
+    if passed is None:
         return []
-    later = [card for rnd in doc["rounds"] if rnd["n"] > took_over for card in rnd["items"]]
+    later = [card for rnd in doc["rounds"] if rnd["n"] > passed for card in rnd["items"]]
     changed = [{"id": item["id"], "kind": "card", "text": _first_text(item)}
-               for rnd in doc["rounds"] if rnd["n"] <= took_over for item in rnd["items"]
+               for rnd in doc["rounds"] if rnd["n"] <= passed for item in rnd["items"]
                if item["kind"] in ASKING and any(_carries_card(card, item["id"]) for card in later)]
     for name, (kind, field) in ENTRY_TEXT.items():
         for entry in doc.get(name) or []:
             rounds = [line.get("round", 0) for line in entry.get("changes") or []]
-            if any(n <= took_over for n in rounds) and any(n > took_over for n in rounds):
+            if any(n <= passed for n in rounds) and any(n > passed for n in rounds):
                 changed.append({"id": entry["id"], "kind": kind, "text": entry[field]})
     return changed
 
@@ -357,13 +354,15 @@ def gate(doc_path, log):
     failures = _doc_failures(doc) + (_v2_failures(doc) if is_version_2(doc) else []) + _log_failures(blocks)
     if failures:
         raise Refusal("exit-gate", f"{len(failures)} exit-gate checks failed", failures=failures)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    blocks = [block for block in blocks if not block[0].startswith(GATE_PASSED)]
-    blocks.append([f"{GATE_PASSED} {today} · session {doc['session']['id']}"])
+    today, session = datetime.now(timezone.utc).strftime("%Y-%m-%d"), doc["session"]["id"]
+    passed = next((n for n in (_last_pass(block, session) for block in blocks) if n is not None), None)
+    blocks = [block for block in blocks
+              if not block[0].startswith(GATE_PASSED) and _last_pass(block, session) is None]
+    blocks += [[f"{GATE_PASSED} {today} · session {session}"],
+               [f"- Last pass: R{current_round(doc)['n']} · session {session}"]]
     write_text(log, _join(head, blocks, tail))
-    took_over = _takeover_round(doc)
     return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
-            "changed": _changed(doc, took_over)}
+            "changed": _changed(doc, passed)}
 
 
 def main(argv):
