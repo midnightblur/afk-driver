@@ -1044,12 +1044,13 @@ def test_exit_gate_refuses_an_open_point_and_an_unanswered_round(world):
     assert "i-format" in joined and "i-scope" not in joined
 
 
-def test_passed_gate_starts_a_new_session_and_first_sync_voids_the_old_pass(world):
+def test_passed_gate_start_takes_over_the_session_and_first_sync_voids_the_old_pass(world):
     started = settled_session(world)
     full_rows(world, started["log"])
     world.run("gate", doc=started["doc"], log=started["log"])
     again = world.run("start", ticket_key="PROJ-1")
-    assert again["resume"] is False and again["session"] != started["session"]
+    assert again["resume"] is False and again["takeover"] == started["session"]
+    assert again["session"] == started["session"] and again["doc"] == started["doc"]
     world.run("sync", doc=started["doc"], log=started["log"])
     assert "exit gate passed" not in Path(started["log"]).read_text("utf-8")
 
@@ -1089,7 +1090,10 @@ def test_a_second_session_keeps_the_rows_of_the_first(world):
     first = settled_session(world)
     full_rows(world, first["log"])
     world.run("gate", doc=first["doc"], log=first["log"])
-    second = world.run("start", ticket_key="PROJ-1")
+    session = f"{first['session']}-b"
+    pages = Path(first["doc"]).parent
+    second = {**first, "session": session, "doc": (pages / f"grill-{session}.json").as_posix(),
+              "raw_file": (pages / f"grill-{session}.raw.txt").as_posix()}
     content = round_one()
     for item in content["items"]:
         item["id"] += "-b"
