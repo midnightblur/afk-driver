@@ -327,3 +327,34 @@ def test_no_example_gives_no_block():
     doc = document()
     doc["examples"] = []
     assert parts_v2.render_examples(doc) == ""
+
+
+# --- plain text (PRD AC-016, AC-017)
+
+
+def _every_part(doc):
+    return parts_v2.render_sections(doc) + parts_v2.render_questions(doc) + parts_v2.render_examples(doc)
+
+
+def _untitled(doc):
+    """The fixture with no card title, so each card a change line names needs words of its own."""
+    doc = copy.deepcopy(doc)
+    for round_ in doc["rounds"]:
+        for item in round_["items"]:
+            item.pop("title", None)
+    return doc
+
+
+def test_no_visible_text_of_any_part_holds_a_raw_element_id_or_a_round_code():
+    for doc in (document(), _untitled(document())):
+        words = visible(_every_part(doc))
+        assert not ROUND_CODE.search(words), ROUND_CODE.search(words)
+        for element in element_ids(doc):
+            assert not re.search(rf"(?<![\w-]){re.escape(element)}(?![\w-])", words), element
+
+
+def test_each_link_to_an_element_shows_its_meaning_on_hover():
+    html = _every_part(_untitled(document()))
+    links = re.findall(r"<a [^>]*>", html)
+    assert links and all("data-afkv2-tip=" in link for link in links)
+    assert 'data-afkv2-tip="Opens this card of round 3"' in html
