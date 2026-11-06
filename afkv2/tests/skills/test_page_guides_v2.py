@@ -159,11 +159,13 @@ def test_use_lavish_holds_the_layout_of_version_0_and_1():
 
 VISUALIZE = PLUGIN / "skills" / "visualize"
 LAYOUT_WORDS = ("## Page layout", "## Controls the engine adds", "lays out the page", "Settled by earlier rounds",
-                "Earlier banners", "below the maps", "below the round banner", "copy bar", "tab title",
+                "Earlier banners", "copy bar", "tab title",
                 # where a part sits on the page (review finding f5); a component's own looks may say "at the end"
                 "the engine puts", "goes first", "page order", "top of the page", "bottom of the page",
-                "on the page, above", "above the maps", "above the sections", "above the cards", "below the cards",
-                "below the sections", "after the notes", "before the maps", "first on the page", "last on the page")
+                "on the page, above", "first on the page", "last on the page", "maps section")
+# where a page part sits relative to another page part (review finding r1-g5-2)
+PLACEMENT = re.compile(r"\b(above|below|after|before) (the )?(notes|replies|maps|banners?|round banner|sections|cards|"
+                       r"questions)\b", re.I)
 
 
 def _flat(path):
@@ -174,6 +176,8 @@ def test_visualize_holds_no_page_layout_rule():
     """Decision D-22: visualize holds the pictures; each layout rule lives in use-lavish alone."""
     found = [(path.name, word) for path in sorted(VISUALIZE.rglob("*.md"))
              for word in LAYOUT_WORDS if word.casefold() in _flat(path).casefold()]
+    found += [(path.name, match.group(0)) for path in sorted(VISUALIZE.rglob("*.md"))
+              for match in PLACEMENT.finditer(_flat(path))]
     assert not found, found
     layout = SKILL_MD.read_text("utf-8")
     for heading in ("#### Title and tab", "#### Controls the engine adds"):

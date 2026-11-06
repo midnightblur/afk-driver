@@ -21,7 +21,7 @@ a name that the short label cannot hold.
 
 ## How it looks
 
-Boxes and arrows in the maps section, below notes and replies. Settled, open and
+Boxes and arrows. Settled, open and
 current-focus nodes have different colours. The human can note a node; that
 note is a steer for the node (`notes-and-replies.md`). A node with `you` has a YOU badge at its top right and an edge in the YOU
 colour, the same strong colour on the whole page. A node with a `tip` shows the
