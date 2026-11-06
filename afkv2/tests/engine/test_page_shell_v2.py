@@ -136,7 +136,7 @@ def raw_id_document(titled=True):
     doc = document()
     doc["rounds"][2]["replies"] = [{"id": "A-3-1", "text": "I changed the format part.", "notes": ["N-3-q-format-1"],
                                     "changed": ["sec-format", "i-format"]}]
-    doc["rounds"][2]["items"].append(card("i-rows", "sec-scope"))
+    doc["rounds"][2]["items"].append(card("i-rows-again", "sec-scope", carries=["i-rows"]))
     return doc if titled else parts_case._untitled(doc)
 
 
@@ -153,7 +153,7 @@ def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled)
     html = build(doc)
     headings = CARD_HEADING.findall(html)
     summaries = re.findall(r"<summary>.*?</summary>", html, re.S)
-    assert headings and summaries
+    assert headings and any(visible(summary).startswith("History") for summary in summaries)
     notes = block(html, 'id="afkv2-notes-replies"')
     assert "I changed the format part." in visible(notes)
     for part in (*headings, *summaries, notes):
