@@ -8,6 +8,8 @@ import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
+import pytest
+
 PLUGIN = Path(__file__).resolve().parents[2]
 ENGINE_DIR = PLUGIN / "engine"
 for folder in (PLUGIN / "scripts", ENGINE_DIR):
@@ -191,6 +193,13 @@ def test_the_label_of_a_cause_state_and_kind_is_a_word():
     assert parts_v2.visible_label(doc, "cause", "finding") == "a finding of the agent"
     assert parts_v2.visible_label(doc, "state", "not_reached") == "not reached yet"
     assert parts_v2.visible_label(doc, "kind", "edge") == "edge"
+
+
+@pytest.mark.parametrize("kind, value", [("colour", "red"), ("state", "lost"), ("cause", "rumour"),
+                                         ("kind", "rare")])
+def test_an_unknown_label_kind_or_value_raises_1_error_type(kind, value):
+    with pytest.raises(ValueError):
+        parts_v2.visible_label(document(), kind, value)
 
 
 # --- sections

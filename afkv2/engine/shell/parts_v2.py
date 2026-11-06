@@ -62,7 +62,8 @@ def _element_label(doc: dict, element: str) -> str:
 def visible_label(doc: dict, kind: str, value) -> str:
     """The visible text of one thing on a version 2 page, never an id or a round code. `kind`:
     `round` (a round number: "round 3"), `element` (an element id: its title or words), `state` (a section or
-    question state), `cause` (a change-line cause) or `kind` (a worked-example kind)."""
+    question state), `cause` (a change-line cause) or `kind` (a worked-example kind). An unknown kind, or a value
+    outside the words of its kind, raises ValueError."""
     if kind == "round":
         return f"round {int(value)}"
     if kind == "element":
@@ -70,6 +71,8 @@ def visible_label(doc: dict, kind: str, value) -> str:
     words = {"state": STATES, "cause": CAUSES, "kind": KINDS}.get(kind)
     if words is None:
         raise ValueError(f"no label kind {kind!r}")
+    if value not in words:
+        raise ValueError(f"no {kind} word for {value!r}")
     return words[value]
 
 
