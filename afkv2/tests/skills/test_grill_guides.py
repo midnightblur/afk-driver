@@ -171,7 +171,7 @@ def test_the_visible_text_of_a_question_names_no_internal_term():
     found = _questions()
     assert RULE in found
     assert "Explain a term this session made up where it first appears" in found
-    rest = found.replace(RULE, "")
+    rest = re.sub(r"answer rule AR-\d\d of `/afkv2:use-lavish`", "", found.replace(RULE, ""))
     assert not PAGE_ID.search(rest), PAGE_ID.search(rest).group(0)
     assert PAGE_ID.search("a follow-up of N-2-i-format") and not PAGE_ID.search("a sign-off of a follow-up")
 
@@ -179,15 +179,33 @@ def test_the_visible_text_of_a_question_names_no_internal_term():
 # --- order, and the round after an answer (PRD AC-035, AC-038, AC-042)
 
 def test_order_and_the_round_after_an_answer():
+    """Review findings f4, f5: the page skill holds the order and AR-08, the round pass holds `answer_from`; the
+    grill keeps only its own actions."""
     found = _questions()
-    for fact in ("goes to the end", "`after`", "from the next round on", "`answer`", "`drop`", "`assume`",
-                 "../use-lavish/ROUND-PASS.md"):
+    page = (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
+    assert "A new question goes to the end; a follow-up goes right after the question it follows, by `after`" in page
+    assert "| AR-08 | Update every point the change touches" in page
+    assert '"The questions block" of `/afkv2:use-lavish`' in found
+    for fact in ("To place a follow-up, send it with `after`", "send the question again with `after`",
+                 "from the next round on", "`answer`, `drop` and `assume`", "../use-lavish/ROUND-PASS.md",
+                 "answer rule AR-08 of `/afkv2:use-lavish`", "the `answer` reading",
+                 "give each point it touches a `confirm` card"):
         assert fact in found, fact
-    for fact in ("each settled or open point the answer touches returns as a `confirm` card", "`carries`",
-                 "cause `answer_from`", "an answer from"):
-        assert fact in found, fact
+    for gone in ("goes to the end", "goes right after", "each section the answer changes",
+                 "with `carries` naming its old card"):
+        assert gone not in found, gone
+    round_pass = _flat((SKILLS / "use-lavish" / "ROUND-PASS.md").read_text("utf-8"))
+    assert "change line with cause `answer_from`" in round_pass
     assert parts_v2.CAUSES["answer_from"] == "an answer from"
     assert "answer_from" in SCHEMA["change_line"]["properties"]["cause"]["enum"]
+
+
+def test_a_section_changed_by_an_assumed_answer_takes_cause_answer():
+    """Review finding f26: `answer_from` needs an answered question; an assumed one is `assumed`."""
+    assert "takes a change line with cause `answer` and the accepted `card`" in _questions()
+    rules = (PLUGIN / "engine" / "schema" / "invariants.py").read_text("utf-8")
+    assert '"answer": "card"' in rules
+    assert 'line["cause"] == "answer_from" and asked is not None and asked["state"] != "answered"' in rules
 
 
 # --- the open questions as Markdown (PRD AC-043)

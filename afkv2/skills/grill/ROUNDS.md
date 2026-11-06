@@ -63,9 +63,9 @@ Write each required part, and each other part that applies:
 
 The text names no internal decision, no plan term and no id: a person who never saw the session reads it. Explain a term this session made up where it first appears.
 
-A new question goes to the end. A follow-up goes right after the question it follows, with `after`. A note that moves a question: send it again with `after`, and the new order holds from the next round on.
+The order of the questions: "The questions block" of `/afkv2:use-lavish`. To place a follow-up, send it with `after`. A note that moves a question: send the question again with `after`. The new order holds from the next round on.
 
-An answer, a drop and an assumption are readings of the round pass: `answer`, `drop` and `assume` in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md). In the round after an answer, each settled or open point the answer touches returns as a `confirm` card for the developer, with `carries` naming its old card, and each section the answer changes gets a change line with cause `answer_from` and the `question`, so the section names an answer from the role. A question that waits on a person past the end: propose an assumed answer on a `confirm` card; the developer's accept is the `assume`. A question drops only on the developer's note with a reason.
+An answer, a drop and an assumption are readings of the round pass: `answer`, `drop` and `assume` in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md). In the round after an answer, answer rule AR-08 of `/afkv2:use-lavish` and the `answer` reading apply: give each point it touches a `confirm` card. A question that waits on a person past the end: propose an assumed answer on a `confirm` card. The developer's accept is the `assume`. A section that the assumed answer changes takes a change line with cause `answer` and the accepted `card`. A question drops only on the developer's note with a reason.
 
 **As text.** When the developer asks for the questions as text, print the open questions for others as Markdown in chat: in list order; with a role named, only the questions whose `who` holds that role or `everyone`; each with every part it holds, 1 labelled line or block per part. No ids: a link names its section by title, and a wait names its question by its sentence.
 
