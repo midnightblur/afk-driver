@@ -363,7 +363,7 @@ def _close_current(doc, new_items):
 
 
 def shown_record(doc_path):
-    """The file that names the round `present` tried to show; schema afkv2.page/0 has no field for it."""
+    """The file that names the round `present` showed or recorded with `--no-show`; schema afkv2.page/0 has no field for it."""
     return Path(doc_path).with_suffix(".shown.txt")
 
 
