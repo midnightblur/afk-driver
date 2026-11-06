@@ -38,6 +38,35 @@ The page document holds the whole topic, with or without a page shown. Each roun
 
 A card names the section it asks about in `section`.
 
+###  Questions for others
+
+A question for others is a point that neither the developer nor the code can settle. It is an entry of `questions`, written for a person outside the session. It joins the list in 2 ways:
+
+- A note says the developer cannot answer, or names who would: add the question in the next round, with `origin: {note: <note id>}`.
+- You find a point only someone else can answer: propose it on a `confirm` card that shows the question with its parts. Add it to `questions` only after the developer accepts that card, with `origin: {card: <card id>}`. A proposal card that stays open or gets another mark adds nothing.
+
+Write each part that applies:
+
+| Field | Part |
+|-------|------|
+| `who` | who to ask: 1 or more roles (product owner, tester, director, another team), or `everyone`; always required |
+| `question` | 1 sentence the person can answer |
+| `context` | what the feature is about, only as much as the question needs |
+| `why` | what waits on the answer, and what goes wrong on a guess |
+| `ways` | the options, when there are any, in plain words; a recommendation only when the developer wants one shown |
+| `choices` | the known answers to tick, when the answer is 1 or several of a few; `several: true` when more than 1 may be ticked |
+| `example` | a small case with sample data, when the point is complex |
+| `links` | the sections that help the discussion |
+| `waits_on` | the question it waits on |
+
+The text names no internal decision, no plan term and no id: a person who never saw the session reads it. Explain a term this session made up where it first appears.
+
+A new question goes to the end. A follow-up goes right after the question it follows, with `after`. A note that moves a question: send it again with `after`, and the new order holds from the next round on.
+
+An answer, a drop and an assumption are readings of the round pass: `answer`, `drop` and `assume` in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md). In the round after an answer, each settled or open point the answer touches returns as a `confirm` card for the developer, with `carries` naming its old card, and each section the answer changes gets a change line with cause `answer_from` and the `question`, so the section names an answer from the role. A question that waits on a person past the end: propose an assumed answer on a `confirm` card; the developer's accept is the `assume`. A question drops only on the developer's note with a reason.
+
+**As text.** When the developer asks for the questions as text, print the open questions for others as Markdown in chat: in list order; with a role named, only the questions whose `who` holds that role or `everyone`; each with every part it holds, 1 labelled line or block per part. No ids: a link names its section by title, and a wait names its question by its sentence.
+
 ## Claim ledger
 
 A claim is any statement of how something works now: behaviour, a constraint, an ownership boundary. It may come from the ticket, from the human or from you. Verify it before anything settles on it: a subagent reads the code with `rg --hidden -g '!.git' PATTERN PATH` and returns `path:line`. Write one `Ledger` row per load-bearing claim.
