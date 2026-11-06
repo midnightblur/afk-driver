@@ -45,17 +45,18 @@ stays in its round. The old card stays as it is.
 
 Every round that follows input from the human: the notes of the last round, or
 the human's input in Round 0. Treat Round 0 input as unverified. Read every note,
-then answer each note by the answer rules ([SKILL.md](SKILL.md) "Answer rules"):
-each note gets its own reply, and a reply on a version 2 page names exactly 1 note
-in `notes`. A note with several meanings gets 1 reply that states each reading.
-State your reading in the reply for every point a note settled. Leave `notes` of the document to the
+then reply to each note by the answer rules ([SKILL.md](SKILL.md) "Answer rules").
+Each note gets its own reply. A reply names the id of its note in `notes`. On a
+version 2 page, a reply that names 2 or more notes is refused. A note with
+several meanings gets 1 reply that states each reading. State your reading in the
+reply for every point a note settled. Leave `notes` of the document to the
 engine: every note in the document comes from the human. A note with `deleted`
 set is not input.
 
 A steer is a note on the round, or a note whose `target` is a map or a map node.
 It is a steer for that element. Hold to it for that element until the session
 ends. When 2 steers on one node conflict, do not choose: state the conflict in
-your answer and ask the human.
+your reply and ask the human.
 
 ## Read the questions and the settled notes
 
