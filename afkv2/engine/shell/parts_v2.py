@@ -9,6 +9,8 @@ A link carries its meaning as hover text (`data-afkv2-tip`). A change list shows
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
+from functools import wraps
 from html import escape
 
 from registry import render_component
@@ -31,7 +33,7 @@ LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
 OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
 
 
-def _elements(doc: dict) -> dict:
+def _build_index(doc: dict) -> dict:
     """Each element id with (its list, the element, the round of a card)."""
     found = {}
     for kind in ENTRY_LISTS:
@@ -44,6 +46,37 @@ def _elements(doc: dict) -> dict:
         for item in round_["items"]:
             found[item["id"]] = ("cards", item, round_["n"])
     return found
+
+
+_INDEX: dict = {"doc": None, "found": None}
+
+
+@contextmanager
+def indexed(doc: dict):
+    """Inside the block, each label, tip and link of `doc` reads 1 element index, built once: a page render does
+    not change its document. Outside a block, each call builds the index anew."""
+    if _INDEX["doc"] is doc:
+        yield
+        return
+    saved = dict(_INDEX)
+    _INDEX.update(doc=doc, found=_build_index(doc))
+    try:
+        yield
+    finally:
+        _INDEX.update(saved)
+
+
+def _one_index(render):
+    """A render_* function of a document reads 1 element index for the whole block it renders."""
+    @wraps(render)
+    def run(doc, *args):
+        with indexed(doc):
+            return render(doc, *args)
+    return run
+
+
+def _elements(doc: dict) -> dict:
+    return _INDEX["found"] if _INDEX["doc"] is doc else _build_index(doc)
 
 
 def _element_label(doc: dict, element: str) -> str:
@@ -62,7 +95,8 @@ def _element_label(doc: dict, element: str) -> str:
 def visible_label(doc: dict, kind: str, value) -> str:
     """The visible text of one thing on a version 2 page, never an id or a round code. `kind`:
     `round` (a round number: "round 3"), `element` (an element id: its title or words), `state` (a section or
-    question state), `cause` (a change-line cause) or `kind` (a worked-example kind)."""
+    question state), `cause` (a change-line cause) or `kind` (a worked-example kind). An unknown kind, or a value
+    outside the words of its kind, raises ValueError."""
     if kind == "round":
         return f"round {int(value)}"
     if kind == "element":
@@ -70,6 +104,8 @@ def visible_label(doc: dict, kind: str, value) -> str:
     words = {"state": STATES, "cause": CAUSES, "kind": KINDS}.get(kind)
     if words is None:
         raise ValueError(f"no label kind {kind!r}")
+    if value not in words:
+        raise ValueError(f"no {kind} word for {value!r}")
     return words[value]
 
 
@@ -79,26 +115,28 @@ def _tip(doc: dict, element: str) -> str:
     return tip.format(visible_label(doc, "round", n)) if n else tip
 
 
-def _link(doc: dict, element: str) -> str:
+def link(doc: dict, element: str) -> str:
+    """A link to an element: its label as the text, its meaning as the hover text, its id only as the target."""
     return (f'<a class="afkv2-v2-link" href="#{escape(element)}" data-afkv2-tip="{escape(_tip(doc, element))}">'
             f'{escape(visible_label(doc, "element", element))}</a>')
 
 
 def _links(doc: dict, elements: list) -> str:
-    return ", ".join(_link(doc, element) for element in elements)
+    return ", ".join(link(doc, element) for element in elements)
 
 
 def _change_cause(doc: dict, line: dict) -> str:
     words = escape(visible_label(doc, "cause", line["cause"]))
     if line["cause"] == "answer" and line.get("card"):
-        return f"{words} to {_link(doc, line['card'])}"
+        return f"{words} to {link(doc, line['card'])}"
     if line["cause"] == "answer_from" and line.get("question"):
         question = _elements(doc).get(line["question"], (None, {}, None))[1]
         role = (question.get("answer") or {}).get("role") or "someone else"
-        return f"{words} {escape(role)} to {_link(doc, line['question'])}"
+        return f"{words} {escape(role)} to {link(doc, line['question'])}"
     return words
 
 
+@_one_index
 def render_changes(doc: dict, changes: list) -> str:
     """The change list of an entry: open, newest first, 1 line per round naming its cause."""
     if not changes:
@@ -111,17 +149,19 @@ def render_changes(doc: dict, changes: list) -> str:
     return f'<ol class="afkv2-v2-changes">{lines}</ol>'
 
 
-def _open_counts(doc: dict) -> dict:
-    """Each section id with the count of its asking points that are not settled (decision D-11)."""
+def _open_counts(doc: dict, sections: dict) -> dict:
+    """Each section id with the count of its asking points that are not settled (decision D-11). A point on a
+    merged section counts on the section it merged into."""
     counts: dict[str, int] = {}
     for point in lineages(doc):
         head = point.head
         if head.get("section") and head["kind"] in ASKING and head.get("state", "open") not in SETTLED:
-            counts[head["section"]] = counts.get(head["section"], 0) + 1
+            target = current_target(sections, head["section"])
+            counts[target] = counts.get(target, 0) + 1
     return counts
 
 
-def _current_target(sections: dict, element: str) -> str:
+def current_target(sections: dict, element: str) -> str:
     """A link to a merged section goes on to the section it merged into (SDD §4 relation section → section)."""
     for _ in range(MERGE_LIMIT):
         section = sections.get(element)
@@ -147,27 +187,30 @@ def _article(entry: dict, css: str, inner: str, raw: str = "", **attrs) -> str:
 def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
     title, state = escape(section["title"]), section["state"]
     if state == "merged":
-        line = f"{title}: {STATES['merged']} into {_link(doc, _current_target(sections, section['merged_into']))}."
+        into = link(doc, current_target(sections, section["merged_into"]))
+        line = f"{title}: {escape(visible_label(doc, 'state', state))} into {into}."
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     if state == "removed":
-        line = f"{title}: {STATES['removed']}. {escape(section.get('reason') or '')}"
+        line = f"{title}: {escape(visible_label(doc, 'state', state))}. {escape(section.get('reason') or '')}"
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
-    targets = [_current_target(sections, other) for other in section.get("links") or []]
+    targets = [current_target(sections, other) for other in section.get("links") or []]
     targets = [other for other in dict.fromkeys(targets) if other != section["id"]]
     links = LINKS.format("Depends on", _links(doc, targets)) if targets else ""
-    reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(STATES[state])}</span>'
+    reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
                if state == "not_reached" else "")
     head = f'<h3 class="afkv2-v2-h">{title}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
     inner = f'{head}{render_component(section["body"])}{links}{render_changes(doc, section["changes"])}'
     return _article(section, "afkv2-v2-section", inner, state=state)
 
 
+@_one_index
 def render_sections(doc: dict) -> str:
     """The sections block, in page order; a page with no section gets none."""
     entries = doc.get("sections") or []
     if not entries:
         return ""
-    sections, counts = {entry["id"]: entry for entry in entries}, _open_counts(doc)
+    sections = {entry["id"]: entry for entry in entries}
+    counts = _open_counts(doc, sections)
     body = "".join(_section(doc, section, sections, counts) for section in entries)
     return (f'<section class="afkv2-v2-sections" id="afkv2-sections"><h2 class="afkv2-section-h">Sections</h2>'
             f'{body}</section>')
@@ -214,12 +257,12 @@ def _outcome(doc: dict, question: dict) -> str:
     answer = question.get("answer")
     if answer:
         ticked = ", ".join(visible_label(doc, "element", choice) for choice in answer.get("choices") or [])
-        words = f"{STATES['answered']} by {answer['role']} on {answer['date']}: {answer['text']}"
+        words = f"{visible_label(doc, 'state', 'answered')} by {answer['role']} on {answer['date']}: {answer['text']}"
         lines.append(words + (f" Ticked: {ticked}." if ticked else ""))
     if question.get("dropped"):
-        lines.append(f"{STATES['dropped']}: {question['dropped']['reason']}")
+        lines.append(f"{visible_label(doc, 'state', 'dropped')}: {question['dropped']['reason']}")
     if question.get("assumption"):
-        lines.append(f"{STATES['assumed']}: {question['assumption']['text']}")
+        lines.append(f"{visible_label(doc, 'state', 'assumed')}: {question['assumption']['text']}")
     return "".join(OUTCOME.format(escape(line)) for line in lines)
 
 
@@ -233,11 +276,11 @@ def _question(doc: dict, question: dict, sections: dict) -> str:
                            "<ul>" + "".join(f"<li>{escape(way)}</li>" for way in question["ways"]) + "</ul>"))
     if question.get("example"):
         parts.append(_part("Example", render_component(question["example"])))
-    targets = list(dict.fromkeys(_current_target(sections, section) for section in question.get("links") or []))
+    targets = list(dict.fromkeys(current_target(sections, section) for section in question.get("links") or []))
     if targets:
         parts.append(LINKS.format("Linked sections", _links(doc, targets)))
     if question.get("waits_on"):
-        parts.append(LINKS.format("Waits on", _link(doc, question["waits_on"])))
+        parts.append(LINKS.format("Waits on", link(doc, question["waits_on"])))
     parts += [_outcome(doc, question), _ticks(question), render_changes(doc, question["changes"])]
     return _article(question, "afkv2-v2-question", "".join(parts), raw=_who_attr(question),
                     question=question["id"], state=question["state"])
@@ -256,6 +299,7 @@ def _filter(questions: list) -> str:
             f'class="afkv2-who-filter"><option value="">Every role</option>{options}</select></label>')
 
 
+@_one_index
 def render_questions(doc: dict) -> str:
     """The questions-for-others block, in list order, with its role filter; a page with none gets no block."""
     questions = doc.get("questions") or []
@@ -276,6 +320,7 @@ def _example(doc: dict, example: dict) -> str:
     return _article(example, "afkv2-v2-example", inner, kind=example["kind"])
 
 
+@_one_index
 def render_examples(doc: dict) -> str:
     """The worked-examples block, each marked frequent, edge or risky; a page with none gets no block."""
     examples = doc.get("examples") or []

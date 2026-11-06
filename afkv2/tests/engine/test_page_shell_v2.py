@@ -19,6 +19,7 @@ for folder in (PLUGIN / "scripts", ENGINE_DIR, Path(__file__).resolve().parent):
     sys.path.insert(0, str(folder))
 
 import engine  # noqa: E402
+import registry  # noqa: E402
 import test_page_parts_v2 as parts_case  # noqa: E402
 import test_page_shell as shell_case  # noqa: E402
 from shell import page  # noqa: E402
@@ -44,6 +45,15 @@ def build(doc):
 def banner(html, n):
     start = html.index(BANNER.format(n))
     return html[start:html.index("</header>", start)]
+
+
+def banner_lists(html, n):
+    """Each list of the banner of round n: its heading, with the link target of each entry, or its text."""
+    own = banner(html, n)
+    found = {}
+    for heading, values in re.findall(r'<div class="afkv2-banner-list[^"]*"><h3>(.*?)</h3>(.*?)</div>', own):
+        found[heading] = re.findall(r'href="#([^"]+)"', values) or re.findall(r"<li>(.*?)</li>", values)
+    return found
 
 
 def block(html, start_marker):
@@ -74,6 +84,16 @@ def test_the_round_questions_show_in_one_block_and_each_links_to_its_section():
     assert html.count('id="i-closed"') == 1
 
 
+def test_the_round_questions_mark_only_the_cards_of_the_current_round_as_current():
+    questions = block(build(document()), 'id="afkv2-r-3"')
+    heads = dict(re.findall(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*?(data-afkv2-required="1")?\s*style', questions))
+    assert heads == {"i-format": "", "i-closed": 'data-afkv2-required="1"', "i-rows": ""}
+    past = questions[questions.index(CONFIRM_CARD.format("i-rows")):]
+    assert past.index("afkv2-round-chip--past") < past.index("</h4>")
+    now = questions[questions.index(CONFIRM_CARD.format("i-closed")):]
+    assert "afkv2-round-chip--past" not in now[:now.index("</h4>")]
+
+
 def test_a_card_on_a_merged_section_links_to_the_section_it_merged_into():
     doc = document()
     doc["rounds"][2]["items"][1]["section"] = "sec-old"
@@ -81,6 +101,13 @@ def test_a_card_on_a_merged_section_links_to_the_section_it_merged_into():
     start = html.index('id="i-closed"')
     own = html[start:html.index("</article>", start)]
     assert LINK.format("sec-format") in own and LINK.format("sec-old") not in own
+
+
+def test_a_version_2_page_builds_its_element_index_once(monkeypatch):
+    built, build_index = [], page.parts_v2._build_index
+    monkeypatch.setattr(page.parts_v2, "_build_index", lambda d: built.append(1) or build_index(d))
+    build(raw_id_document())
+    assert len(built) == 1
 
 
 # --- the banner
@@ -122,6 +149,36 @@ def test_the_banner_of_an_earlier_round_lists_that_round_s_sections():
     assert "Sections added" not in words
 
 
+def test_the_banner_lists_other_changed_elements_and_what_settled_unlocks_and_parked():
+    doc = document()
+    doc["rounds"][2]["changed"] = ["sec-format", "ex-big"]
+    doc["rounds"][2]["replies"] = [{"id": "A-3-1", "text": "Asked the size.", "notes": [], "changed": ["q-size"]}]
+    doc["rounds"][2]["banner"] = {"settled": ["The format is <CSV> & final"], "unlocks": ["The export of the rows"],
+                                  "parked": ["Printing, until the team asks"]}
+    html = build(doc)
+    lists = banner_lists(html, 3)
+    assert lists["Other changes"] == ["ex-big", "q-size"]
+    assert lists["What settled"] == ["The format is &lt;CSV&gt; &amp; final"]
+    assert lists["What it unlocks"] == ["The export of the rows"]
+    assert lists["Parked"] == ["Printing, until the team asks"]
+    words = visible(banner(html, 3))
+    assert "A list of 1 million rows" in words and "How many rows does a large list hold?" in words
+    assert words.index("Other changes") < words.index("What settled") < words.index("What it unlocks") < words.index(
+        "Parked")
+    assert "Nothing." in visible(banner(html, 2)) and "Other changes" not in visible(banner(html, 2))
+
+
+def test_a_merged_section_with_a_later_change_line_shows_as_merged_only_in_its_last_round():
+    doc = document()
+    old = next(section for section in doc["sections"] if section["id"] == "sec-old")
+    old["changes"].append(line(3, "finding", "Merged into the format part."))
+    html = build(doc)
+    assert "sec-old" in banner_lists(html, 1)["Sections added"]
+    assert "sec-old" in banner_lists(html, 2)["Sections changed"]
+    assert "Sections merged" not in banner_lists(html, 2)
+    assert banner_lists(html, 3)["Sections merged"] == ["sec-old"]
+
+
 def test_no_banner_shows_a_round_code():
     html = build(banner_document())
     for n in (1, 2, 3):
@@ -160,12 +217,45 @@ def test_no_card_heading_and_no_notes_row_shows_a_raw_id_or_a_round_code(titled)
         assert not raw_words(visible(part), doc), (raw_words(visible(part), doc), visible(part))
 
 
+def test_the_version_2_notes_table_shows_row_numbers_one_round_chip_the_where_label_and_the_open_link():
+    notes = block(build(raw_id_document()), 'id="afkv2-notes-replies"')
+    numbers = re.findall(r'<td class="afkv2-nr-num"><span[^>]*>([^<]+)</span>', notes)
+    assert numbers == ["3.1", "3.2", "2.1", "2.2"]
+    count = re.search(r'id="afkv2-nr-round-3"[^>]*><td[^>]*>(.*?)</td>', notes).group(1)
+    assert visible(count) == "Round 3 — 2 notes from you, 1 answer from me"
+    scope = re.search(r'id="afkv2-nr-N-2-sec-scope-1".*?</tr>', notes).group(0)
+    cells = [visible(cell) for cell in re.findall(r"<td>(.*?)</td>", scope)]
+    assert cells[0] == "What the export covers" and cells[-1] == "Open"
+    assert re.search(r'<a href="#sec-scope"[^>]*>Open</a>', scope)
+
+
+def test_no_link_and_no_cell_of_the_version_2_notes_table_falls_back_to_a_raw_id():
+    doc = raw_id_document()
+    doc["rounds"][2]["replies"][0]["changed"].append("x-gone")
+    doc["notes"].append({**parts_case.note("N-3-x-gone-1", 3, "x-gone"), "item": "i-closed"})
+    notes = block(build(doc), 'id="afkv2-notes-replies"')
+    titles = re.findall(r'<a [^>]*title="([^"]*)"', notes)
+    assert titles and all(title for title in titles)
+    for title in titles:
+        assert not raw_words(title, doc) and "x-gone" not in title, title
+    assert 'title="File format"' in notes
+    assert "x-gone" not in visible(notes)
+
+
 def test_a_version_2_card_keeps_its_id_in_its_attributes():
     html = build(raw_id_document())
     start = html.index(CONFIRM_CARD.format("i-closed"))
     own = html[start:html.index(">", start)]
     assert all(attr in own for attr in CARD_ID_ATTRS)
     assert "Round 3" in visible(html[start:html.index("</h4>", start)])
+
+
+def test_a_card_label_must_hold_words():
+    """A card label switches the heading to the version 2 form, so an empty one would leave a blank heading."""
+    item = card("i-plain")
+    props = {"item": item, "round": 1, "colour": "red", "current": True}
+    assert not registry.validate({"type": "card", "props": {**props, "label": "A plain card"}})
+    assert registry.validate({"type": "card", "props": {**props, "label": ""}})
 
 
 # --- a section never folds into the settled part
@@ -178,7 +268,9 @@ def test_a_section_of_an_earlier_round_stays_in_the_sections_part():
     html = build(doc)
     assert 'id="sec-still"' in block(html, SECTIONS_PART)
     assert SETTLED_PART in html
-    assert 'id="sec-still"' not in block(html, SETTLED_PART)
+    settled = block(html, SETTLED_PART)
+    assert 'id="sec-still"' not in settled and "Who runs the export" not in visible(settled)
+    assert "Who runs the export" in visible(block(html, SECTIONS_PART))
 
 
 # --- the page-size budget
@@ -282,6 +374,16 @@ def test_the_term_dictionary_appears_once_on_a_page_of_every_version(home, capsy
     start = html.index(TIPS_PAYLOAD)
     payload = json.loads(html[html.index(">", start) + 1:html.index("</script>", start)])
     assert sorted(payload) == ["page_ids", "page_terms"]
+
+
+def test_a_version_2_page_carries_its_tooltip_catalog():
+    doc = document()
+    doc["tips"] = {"terms": [{"term": "export", "definition": "The file the clerk takes away"}],
+                   "ids": [{"id": "sec-scope", "title": "What the export covers"}]}
+    html = build(doc)
+    start = html.index('<script id="afkv2-page-tip-source"')
+    source = json.loads(html[html.index(">", start) + 1:html.index("</script>", start)])
+    assert source == {"terms": doc["tips"]["terms"], "ids": doc["tips"]["ids"]}
 
 
 # --- version 0 and 1 pages show as before

@@ -128,24 +128,51 @@
     return [].slice.call(document.querySelectorAll('[data-afkv2-input="tick"][data-afkv2-question]'));
   }
 
+  /* The tick order also sits in a hidden input of the group: the host frame keeps no storage over a reload,
+   * and lavish sets each control of a lavish question again, this input too, with no change event. */
+  var ORDER_ATTR = 'data-afkv2-tick-order';
+
   function boxes(group) {
-    return [].slice.call(group.querySelectorAll('input'));
+    return [].slice.call(group.querySelectorAll('input')).filter(function (box) { return box.type !== 'hidden'; });
+  }
+
+  function orderInput(group) {
+    var input = group.querySelector('input[' + ORDER_ATTR + ']');
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'hidden';
+      input.setAttribute(ORDER_ATTR, '');
+      group.appendChild(input);
+    }
+    return input;
+  }
+
+  function heldOrder(group) {
+    try {
+      var kept = JSON.parse(orderInput(group).value || 'null');
+      if (Array.isArray(kept)) return kept;
+    } catch (e) {}
+    var saved = store[TICK_KEY + group.getAttribute('data-afkv2-question')];
+    return Array.isArray(saved) ? saved : [];
   }
 
   /* The held tick order, less each option no longer ticked, + each new tick at the end. */
   function ticksOf(group) {
     var on = boxes(group).filter(function (box) { return box.checked; }).map(function (box) { return box.value; });
-    var held = (store[TICK_KEY + group.getAttribute('data-afkv2-question')] || []).filter(function (value) {
-      return on.indexOf(value) >= 0;
-    });
+    var held = heldOrder(group).filter(function (value) { return on.indexOf(value) >= 0; });
     on.forEach(function (value) { if (held.indexOf(value) < 0) held.push(value); });
     return held;
+  }
+
+  function keepOrder(group, ticks) {
+    orderInput(group).value = JSON.stringify(ticks);
   }
 
   function restoreTicks(group) {
     var saved = store[TICK_KEY + group.getAttribute('data-afkv2-question')];
     if (!Array.isArray(saved)) return;
     boxes(group).forEach(function (box) { box.checked = saved.indexOf(box.value) >= 0; });
+    keepOrder(group, saved);
   }
 
   function tickLine(id, ticks) {
@@ -236,12 +263,14 @@
   tickGroups().forEach(function (group) {
     /* The host frame keeps no storage over a reload; lavish sets the controls of a lavish question again. */
     group.setAttribute('data-lavish-question', TICK_KEY + group.getAttribute('data-afkv2-question'));
+    orderInput(group);
     restoreTicks(group);
     group.addEventListener('change', function (event) {
       if (!event.target.matches('input')) return;
       var id = group.getAttribute('data-afkv2-question');
       var ticks = ticksOf(group);
       store[TICK_KEY + id] = ticks;
+      keepOrder(group, ticks);
       save();
       if (!queueTicks(group, id, ticks)) say('No lavish session: use Copy the response.');
       else say(ticks.length ? 'Queued your ticks on this question. Send them with the rest in the lavish panel.'

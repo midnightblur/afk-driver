@@ -2,11 +2,14 @@
 questions for others, the worked examples, and the one label helper that gives every element its visible text."""
 
 import copy
+import html
 import json
 import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
+
+import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
 ENGINE_DIR = PLUGIN / "engine"
@@ -75,7 +78,7 @@ def document():
          "body": text("Notes."), "changes": [line(1), line(2, "finding", "Merged into the format part.")]},
         {"id": "sec-gone", "title": "Printing", "state": "removed", "reason": "The team dropped printing.",
          "body": text("Print the rows."), "changes": [line(1), line(2, "note", "Removed.", notes=["N-2-sec-gone-1"])]},
-        {"id": "sec-later", "title": "Delivery by mail", "state": "not_reached", "body": text("Not reached yet."),
+        {"id": "sec-later", "title": "Delivery by mail", "state": "not_reached", "body": text("The mail goes out later."),
          "changes": []},
     ]
     stories = [{"id": "st-plain", "text": "As a clerk, I export the open rows.", "changes": [line(1)]},
@@ -147,6 +150,13 @@ def part_of(html, element_id):
     return html[start:html.index("</article>", start)]
 
 
+def chip_text(html, css="afkv2-v2-open-count"):
+    """The visible text of the one chip of class `css` in `html`, or None."""
+    found = re.findall(rf'<span class="afkv2-chip {css}">(.*?)</span>', html)
+    assert len(found) <= 1, found
+    return visible(found[0]) if found else None
+
+
 def element_ids(doc):
     found = {entry["id"] for kind in ("sections", "stories", "examples", "questions") for entry in doc[kind]}
     found |= {option["id"] for q in doc["questions"] for option in (q.get("choices") or {}).get("options", [])}
@@ -193,6 +203,27 @@ def test_the_label_of_a_cause_state_and_kind_is_a_word():
     assert parts_v2.visible_label(doc, "kind", "edge") == "edge"
 
 
+@pytest.mark.parametrize("kind, value", [("colour", "red"), ("state", "lost"), ("cause", "rumour"),
+                                         ("kind", "rare")])
+def test_an_unknown_label_kind_or_value_raises_1_error_type(kind, value):
+    with pytest.raises(ValueError):
+        parts_v2.visible_label(document(), kind, value)
+
+
+def test_each_part_builds_its_element_index_once(monkeypatch):
+    doc, built = document(), []
+    build = parts_v2._build_index
+    monkeypatch.setattr(parts_v2, "_build_index", lambda d: built.append(1) or build(d))
+    for render in (parts_v2.render_sections, parts_v2.render_questions, parts_v2.render_examples):
+        built.clear()
+        assert render(doc)
+        assert len(built) == 1, render.__name__
+    with parts_v2.indexed(doc):
+        built.clear()
+        _every_part(doc)
+        assert built == []
+
+
 # --- sections
 
 
@@ -215,14 +246,57 @@ def test_a_section_change_list_shows_open_newest_first_one_line_per_round_naming
     assert re.search(r'<a [^>]*href="#i-format"[^>]*>Is the format part right\?</a>', format_)
 
 
+def test_each_change_line_names_its_cause_in_an_attribute():
+    scope = part_of(parts_v2.render_sections(document()), "sec-scope")
+    assert re.findall(r'data-afkv2-cause="([^"]+)"', scope) == ["answer_from", "note", "finding"]
+
+
+def test_an_answer_from_a_question_with_no_answer_names_someone_else():
+    doc = document()
+    del doc["questions"][0]["answer"]
+    words = visible(part_of(parts_v2.render_sections(doc), "sec-scope"))
+    assert "round 3 · an answer from someone else to Which file format do the clerks need? : Kept the file to 1 sheet." in words
+
+
+def test_a_link_to_a_section_merged_twice_goes_to_the_last_section():
+    doc = document()
+    doc["sections"].append({"id": "sec-older", "title": "Older notes", "state": "merged", "merged_into": "sec-old",
+                            "body": text("Older."), "changes": [line(1)]})
+    doc["sections"][0]["links"] = ["sec-older"]
+    html = parts_v2.render_sections(doc)
+    assert re.findall(r'href="#(sec-[\w-]+)"', part_of(html, "sec-scope")) == ["sec-format"]
+    assert 'href="#sec-format"' in part_of(html, "sec-older")
+
+
+def test_a_merge_cycle_stops_after_the_merge_limit():
+    sections = {"sec-x": {"state": "merged", "merged_into": "sec-y"},
+                "sec-y": {"state": "merged", "merged_into": "sec-x"}}
+    assert parts_v2.current_target(sections, "sec-x") == ("sec-x" if parts_v2.MERGE_LIMIT % 2 == 0 else "sec-y")
+
+
+def test_a_section_drops_a_link_to_itself_and_to_a_section_merged_into_it():
+    doc = document()
+    doc["sections"][1]["links"] = ["sec-format", "sec-old"]
+    format_ = part_of(parts_v2.render_sections(doc), "sec-format")
+    assert "Depends on" not in visible(format_) and 'href="#sec-format"' not in format_
+
+
 def test_a_section_with_open_questions_shows_a_chip_with_their_count():
     html = parts_v2.render_sections(document())
-    assert "2 open questions" in visible(part_of(html, "sec-scope"))
-    assert "open question" not in visible(part_of(html, "sec-format"))
+    assert chip_text(part_of(html, "sec-scope")) == "2 open questions"
+    assert chip_text(part_of(html, "sec-format")) is None
     doc = document()
     doc["rounds"][2]["items"][1]["state"] = "settled_by_mark"
     doc["rounds"][2]["items"][1]["settled"] = {"by": "mark", "round": 3, "signal": "accept"}
-    assert "1 open question" in visible(part_of(parts_v2.render_sections(doc), "sec-scope"))
+    assert chip_text(part_of(parts_v2.render_sections(doc), "sec-scope")) == "1 open question"
+
+
+def test_an_open_card_on_a_merged_section_counts_on_the_section_it_merged_into():
+    doc = document()
+    doc["rounds"][1]["items"][1]["section"] = "sec-old"
+    html = parts_v2.render_sections(doc)
+    assert chip_text(part_of(html, "sec-format")) == "1 open question"
+    assert chip_text(part_of(html, "sec-scope")) == "1 open question"
 
 
 def test_a_merged_or_removed_section_shows_1_line_with_a_link_or_its_reason():
@@ -236,8 +310,9 @@ def test_a_merged_or_removed_section_shows_1_line_with_a_link_or_its_reason():
 
 
 def test_a_section_not_reached_says_so():
-    later = part_of(parts_v2.render_sections(document()), "sec-later")
-    assert "not reached yet" in visible(later).lower()
+    html = parts_v2.render_sections(document())
+    assert chip_text(part_of(html, "sec-later"), "afkv2-v2-state") == "not reached yet"
+    assert chip_text(part_of(html, "sec-scope"), "afkv2-v2-state") is None
 
 
 def test_no_section_gives_no_block():
@@ -309,6 +384,59 @@ def test_a_closed_question_or_one_with_no_choices_has_no_tick_inputs():
         assert TICK_ATTR not in part_of(html, closed), closed
 
 
+def _choices(question_id, several=False):
+    return {"options": [{"id": f"opt-{question_id}-yes", "text": "Yes"}, {"id": f"opt-{question_id}-no", "text": "No"}],
+            "several": several}
+
+
+def test_only_an_open_or_assumed_question_with_choices_has_tick_inputs():
+    doc = document()
+    for entry in doc["questions"]:
+        if entry["id"] in ("q-format", "q-drop", "q-assume"):
+            entry["choices"] = _choices(entry["id"])
+    html = parts_v2.render_questions(doc)
+    assert TICK_ATTR not in part_of(html, "q-format") and TICK_ATTR not in part_of(html, "q-drop")
+    assume = part_of(html, "q-assume")
+    assert TICK_ATTR in assume
+    assert re.findall(r'<input type="radio"[^>]*value="([^"]+)"', assume) == ["opt-q-assume-yes", "opt-q-assume-no"]
+
+
+def test_an_answer_with_ticks_names_each_ticked_choice():
+    doc = document()
+    doc["questions"][0]["choices"] = _choices("q-format", several=True)
+    doc["questions"][0]["answer"]["choices"] = ["opt-q-format-no", "opt-q-format-yes"]
+    words = visible(part_of(parts_v2.render_questions(doc), "q-format"))
+    assert "answered by product owner on 2026-11-05: CSV. Ticked: No, Yes." in words
+
+
+def test_a_role_with_quotes_and_markup_signs_keeps_the_who_attribute_whole():
+    doc = document()
+    doc["questions"].append(question("q-sign", ["O'Brien & <Co>", 'The "lead"'], "Who signs the export?"))
+    raw = WHO.search(part_of(parts_v2.render_questions(doc), "q-sign")).group(1)
+    assert "<" not in raw and ">" not in raw and not re.search(r"&(?!amp;|lt;|gt;|#x27;)", raw)
+    assert json.loads(html.unescape(raw)) == ["o'brien & <co>", 'the "lead"']
+
+
+MARKUP = "<i>bold</i> & co"
+ESCAPED = "&lt;i&gt;bold&lt;/i&gt; &amp; co"
+
+
+def test_titles_questions_and_texts_are_escaped():
+    doc = document()
+    doc["sections"][0]["title"] = f"Scope {MARKUP}"
+    doc["sections"][0]["changes"][0]["text"] = f"Wrote {MARKUP}"
+    doc["questions"][1]["question"] = f"How many {MARKUP}?"
+    doc["questions"][1]["ways"] = [f"Ask {MARKUP}"]
+    doc["examples"][0]["title"] = f"Rows {MARKUP}"
+    rendered = _every_part(doc)
+    assert "<i>" not in rendered
+    for heading in (f"Scope {ESCAPED}", f"How many {ESCAPED}?", f"Rows {ESCAPED}"):
+        assert f'<h3 class="afkv2-v2-h">{heading}</h3>' in rendered, heading
+    assert f"Wrote {ESCAPED}" in part_of(rendered, "sec-scope")
+    assert f"<li>Ask {ESCAPED}</li>" in part_of(rendered, "q-size")
+    assert f"How many {MARKUP}?" in visible(rendered)
+
+
 def test_no_question_gives_no_block():
     doc = document()
     doc["questions"] = []
@@ -363,7 +491,20 @@ def test_no_visible_text_of_any_part_holds_a_raw_element_id_or_a_round_code():
 
 
 def test_each_link_to_an_element_shows_its_meaning_on_hover():
-    html = _every_part(_untitled(document()))
+    doc = _untitled(document())
+    html = _every_part(doc)
     links = re.findall(r"<a [^>]*>", html)
     assert links and all(TIP_ATTR in link for link in links)
     assert CARD_TIP in html
+    tips = re.findall(r'data-afkv2-tip="([^"]*)"', html)
+    for element in element_ids(doc):
+        assert not any(re.search(rf"(?<![\w-]){re.escape(element)}(?![\w-])", tip) for tip in tips), element
+
+
+def test_the_hover_text_of_a_link_names_the_kind_of_element():
+    doc = document()
+    for element, tip in (("sec-format", "Opens this section"), ("ex-big", "Opens this worked example"),
+                         ("q-size", "Opens this question for others"), ("st-big", "A story of this topic"),
+                         ("opt-m", "A choice of a question for others"), ("i-format", "Opens this card of round 3"),
+                         ("x-unknown", "Opens this part of the page")):
+        assert f'data-afkv2-tip="{tip}"' in parts_v2.link(doc, element), element
