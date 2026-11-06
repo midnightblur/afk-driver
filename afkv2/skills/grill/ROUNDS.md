@@ -170,7 +170,7 @@ A grill that came back continues its finished page with the new input. A settled
 Every pass of `gate` answers `stale` and `changed`. A list is empty when it has nothing. Tell the developer each list that is not empty:
 
 - `stale`: each later document of the ticket that exists. Name each one as possibly out of date, with the skill that writes it again: `PRD.md` and `adr/requirements/` by `/afkv2:to-prd`, `SDD.md` and `adr/design/` by `/afkv2:propose-solution`, the plan (`plan/PLAN.md` on the run branch) by `/afkv2:to-subtasks`.
-- `changed`: each settled point that changed since the take-over, by its `text`.
+- `changed`: each settled point that changed after the round of the last passed end check, by its `text`.
 
 ## Devil's-advocate pass
 
