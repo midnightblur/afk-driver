@@ -13,7 +13,8 @@
                                   is null when the send held no round answer
   reply   --doc D --reply-file F  shows the Markdown in F on the page
   ingest  --doc D --raw-file F    ingest; deletes F, F.prompts.json and the shown record; answers what the
-                                  round pass must read
+                                  round pass must read, on a version 2 page with the engine's
+                                  `questions_to_read` and `settled_notes_to_read`
   end     --doc D                 ends the page session: the page says the session ended, not 'Working...'
   take-over --doc D               records that a new agent session took the page over in the current round;
                                   answers `session`, `round` and `takeovers`. A second run in that round adds nothing
@@ -36,6 +37,8 @@ from round_document import FORMAT_0, SCHEMA, current_round, format_1, pending, r
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
+# What the engine's ingest answers on a version 2 page for the agent's reading (SDD §3 row "ingest").
+TO_READ = ("questions_to_read", "settled_notes_to_read")
 
 
 def _engine(verb, doc, *args, timeout=TIMEOUT_S):
@@ -146,11 +149,12 @@ def prompts_file(raw_file):
 def ingest(doc, raw_file):
     if not Path(raw_file).is_file():
         raise Refusal("unreadable", f"no raw response at {raw_file}", 2, verb="ingest")
-    _engine("ingest", doc, "--raw-file", raw_file)
+    answer = _engine("ingest", doc, "--raw-file", raw_file)
     Path(raw_file).unlink()
     prompts_file(raw_file).unlink(missing_ok=True)
     shown_record(doc).unlink(missing_ok=True)
-    return {"ok": True, **pending(read_json(doc))}
+    to_read = {key: answer[key] for key in TO_READ if key in answer}
+    return {"ok": True, **pending(read_json(doc)), **to_read}
 
 
 def take_over(doc):
