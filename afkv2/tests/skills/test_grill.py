@@ -946,6 +946,23 @@ def test_replace_refuses_a_round_whose_show_failed_because_chat_shows_it(world):
     assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
 
 
+NO_SHOW = ("present --doc", "present --no-show --doc")
+
+
+def test_present_no_show_checks_renders_and_records_a_chat_round_without_opening_the_page(world):
+    """Review finding r2-g5-1: a chat round the developer asked for opens no page, and `build --replace` still
+    refuses it, because the developer saw it in chat."""
+    started = world.start_and_read()
+    world.build_round(started, round_one())
+    before = len(world.verbs())
+    answer = world.run("present", swap=NO_SHOW, doc=started["doc"], log=started["log"])
+    assert answer["ok"] is True and answer["url"] is None and answer["tab"] is None
+    assert answer["page"] and answer["secrets"] == []
+    assert world.verbs()[before:] == ["check", "render"]
+    assert rd.shown_record(started["doc"]).read_text("utf-8").strip() == "1"
+    assert replace_round(world, started, expect=1)["error"]["code"] == "round-shown"
+
+
 def test_replace_works_on_a_later_round_the_engine_refused(world):
     started = first_round(world)
     answered(world, started, "i-scope: accept\ni-format: accept\n")

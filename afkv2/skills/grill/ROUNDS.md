@@ -150,14 +150,13 @@ The human writes `take over` on its own line: write an `Escape` row, `taken R<n>
 
 When `present` refuses at `show`, or the developer asks to work without a page, the grill asks round by round in chat from the same files. `build` still runs each round and writes the round into the page document. `ingest` and `apply-readings` read the answer, and the log and the end check give the same verdict as with a page.
 
-After a refusal at `show`, `present` already checked and rendered the round and scanned the page and the log for secrets. When the developer asked for chat, do not run `present`. Its `show` opens the page, and on Codex the Stop hook then waits up to 1 hour for a send from the page. Run the check and the render of `present` without `show`:
+After a refusal at `show`, `present` already checked and rendered the round and scanned the page and the log for secrets. When the developer asked for chat, run `present` with `--no-show`. A `show` opens the page, and on Codex the Stop hook then waits up to 1 hour for a send from the page:
 
 ```sh
-<python> "<this skill's folder>/../../engine/engine.py" check "<doc>"
-<python> "<this skill's folder>/../../engine/engine.py" render "<doc>" --notices --scan "<log>"
+<python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --no-show --doc "<doc>" --scan "<log>"
 ```
 
-Handle a refusal and report the notices as for `present` in step 5 of [SKILL.md](SKILL.md). Do not run `build --replace` on a round you asked in chat: the developer saw it.
+Handle a refusal and report the notices as for `present` in step 5 of [SKILL.md](SKILL.md).
 
 - Ask the round in 1 chat message: each asking card as a numbered question with only the context it needs: the verdict or the options, the evidence, and the section it asks about. No ids.
 - Ask each open question for others in the same message, with its parts and its choices numbered, by "As text".
