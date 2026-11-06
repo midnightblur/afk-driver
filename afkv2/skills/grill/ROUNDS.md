@@ -31,10 +31,10 @@ The page document holds the whole topic, with or without a page shown. Each roun
 
 | List | Holds |
 |------|-------|
-| `sections` | 1 entry per part of the topic: its current text, and the sections it depends on in `links` |
-| `stories` | 1 entry per user story, in 1 sentence |
-| `examples` | each worked example: its `kind` (frequent, edge or risky), the `stories` it covers, and its starting data and result in `body` |
-| `questions` | the questions for others, in the order to ask them |
+| `sections` | 1 entry per part of the topic: its `title`, its `state` (`not_reached` until a question or a note reaches it, then `current`), its current text in `body`, and the sections it depends on in `links` |
+| `stories` | 1 entry per user story, its `text` in 1 sentence |
+| `examples` | each worked example: its `title`, its `kind` (frequent, edge or risky), the `stories` it covers, and its starting data and result in `body` |
+| `questions` | the questions for others, in the order to ask them, each with its parts, its `origin` and its `state` (below) |
 
 A card names the section it asks about in `section`.
 
@@ -42,8 +42,8 @@ A card names the section it asks about in `section`.
 
 A question for others is a point that neither the developer nor the code can settle. It is an entry of `questions`, written for a person outside the session. It joins the list in 2 ways:
 
-- A note says the developer cannot answer, or names who would: add the question in the next round, with `origin: {note: <note id>}`.
-- You find a point only someone else can answer: propose it on a `confirm` card that shows the question with its parts. Add it to `questions` only after the developer accepts that card, with `origin: {card: <card id>}`. A proposal card that stays open or gets another mark adds nothing.
+- A note says the developer cannot answer, or names who would: add the question in the next round, with `state: open` and `origin: {note: <note id>}`.
+- You find a point only someone else can answer: propose it on a `confirm` card that shows the question with its parts. Add it to `questions` only after the developer accepts that card, with `state: open` and `origin: {card: <card id>}`. A proposal card that stays open or gets another mark adds nothing.
 
 Write each part that applies:
 

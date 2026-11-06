@@ -65,6 +65,17 @@ def test_the_session_content_names_each_list_of_the_page_document():
     assert "\"The session's content\"" in _step(4)
 
 
+def test_the_guides_name_each_field_the_builder_requires_of_a_new_entry():
+    """A new entry without a required field is refused by the document check (review finding f1)."""
+    content = _section(ROUNDS_MD.read_text("utf-8"), "## The session's content")
+    for name, kind in round_document.ENTRY_LISTS.items():
+        for field in sorted(set(SCHEMA[kind]["required"]) - {"id", "changes"}):
+            assert f"`{field}`" in content, (name, field)
+    assert "`state: open`" in _questions()
+    for state in ("`not_reached`", "`current`"):
+        assert state in content, state
+
+
 # --- each note read for every meaning (PRD AC-013, AC-014, AC-028)
 
 def test_each_note_is_read_for_every_meaning():
