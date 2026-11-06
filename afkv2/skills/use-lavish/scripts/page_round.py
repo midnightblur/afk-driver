@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import EXIT_UNREADABLE, PLUGIN_ROOT, Parser, Refusal, read_json, run_command, serve, write_json, write_text
-from round_document import FORMAT_0, SCHEMA, current_round, format_1, pending, record_shown, shown_record
+from round_document import current_round, format_1, is_page, pending, record_shown, shown_record
 
 ENGINE = PLUGIN_ROOT / "engine" / "engine.py"
 TIMEOUT_S = 120
@@ -161,8 +161,8 @@ def take_over(doc):
     """Add 1 entry to `session.takeovers` for the current round, once (SDD §3 row "take-over"). A format 0 page
     is written as format 1."""
     raw = read_json(doc)
-    if not isinstance(raw, dict) or raw.get("schema") not in (SCHEMA, FORMAT_0):
-        raise Refusal("unreadable", f"{doc} is no page document of format 0 or 1", EXIT_UNREADABLE, verb="take-over")
+    if not is_page(raw):
+        raise Refusal("unreadable", f"{doc} is no page document of format 0, 1 or 2", EXIT_UNREADABLE, verb="take-over")
     page = format_1(raw)
     current = current_round(page)
     if current is None:

@@ -102,3 +102,32 @@ def test_ingest_on_a_version_1_page_answers_as_before(path):
     settled_round_1(path, "i-b")
     answer = ingest(path, "[round R-2]\ni-b accept")
     assert "questions_to_read" not in answer and "settled_notes_to_read" not in answer
+
+
+# ---- the builder writes the page's own version (SDD §14 row "Builder's version")
+
+import page_home  # noqa: E402
+
+
+def test_a_version_2_page_stays_version_2_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    as_version_2(path)
+    ingest(path, "[round R-2]\ni-b accept")
+    rd.build_round_document(path, SESSION, round_input("i-c"))
+    assert read(path)["schema"] == V2
+    assert check(path)[0] == 0
+
+
+def test_a_version_1_page_stays_version_1_at_its_next_write(path):
+    settled_round_1(path, "i-b")
+    assert read(path)["schema"] == V1
+
+
+def test_take_over_and_track_keep_a_version_2_page(path, tmp_path, monkeypatch):
+    settled_round_1(path, "i-b")
+    as_version_2(path)
+    assert page_round.take_over(path)["round"] == 2
+    assert read(path)["schema"] == V2
+    monkeypatch.setattr(page_home, "_spec_pages", lambda ticket: tmp_path / "spec" / "pages")
+    tracked = page_home.track_page(str(path), "PROJ-1")
+    assert read(tracked["doc"])["schema"] == V2

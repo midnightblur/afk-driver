@@ -1,4 +1,4 @@
-"""Write the page document of one page session (schema afkv2.page/1, SDD §4).
+"""Write the page document of one page session (schema afkv2.page/1 or afkv2.page/2, SDD §4).
 
 Verbs, run from the repository root:
   build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
@@ -10,7 +10,7 @@ the decided-card contract, the picture before a critical-aspect question, the se
 fields, and that no asking card is lost when a round closes.
 
 Every note is in the session list (ADR-0001 design). A format 0 document is read through the engine's
-format 0 reader, and its next write is format 1 (ADR-0002 design).
+format 0 reader, and its next write is format 1 (ADR-0002 design). A format 1 or 2 document keeps its format.
 """
 
 from __future__ import annotations
@@ -77,16 +77,30 @@ def current_round(doc):
     return next((rnd for rnd in doc.get("rounds") or [] if rnd.get("state") == "current"), None)
 
 
-def format_1(doc):
-    """The document in format 1: a format 0 document goes through the engine's one format 0 reader, which
-    changes nothing on disk."""
-    if doc.get("schema") != FORMAT_0:
-        return doc
+def page_engine():
+    """The engine module: its format readers, its version values and its checks."""
     folder = str(PLUGIN_ROOT / "engine")
     if folder not in sys.path:
         sys.path.insert(0, folder)
     import engine
-    return engine.read_v0_as_v1(doc)
+    return engine
+
+
+def is_version_2(doc):
+    return doc.get("schema") == page_engine().SCHEMA_V2
+
+
+def is_page(raw):
+    """True for a page document of a version this builder writes: 0 (read as 1), 1 or 2."""
+    return isinstance(raw, dict) and raw.get("schema") in (SCHEMA, FORMAT_0, page_engine().SCHEMA_V2)
+
+
+def format_1(doc):
+    """The document in format 1, or 2 as it is: a format 0 document goes through the engine's one format 0
+    reader, which changes nothing on disk."""
+    if doc.get("schema") != FORMAT_0:
+        return doc
+    return page_engine().read_v0_as_v1(doc)
 
 
 def session_notes(doc):
@@ -435,8 +449,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("bad-round", "changed is a list of element ids")
     if doc_path.exists():
         doc = read_json(doc_path)
-        if doc.get("schema") not in (SCHEMA, FORMAT_0):
-            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes {SCHEMA}")
+        if not is_page(doc):
+            raise Refusal("bad-schema", f"{doc_path} has schema {doc.get('schema')!r}; this skill writes "
+                                        f"{SCHEMA} and {page_engine().SCHEMA_V2}")
         if (doc.get("session") or {}).get("id") != session["id"]:
             raise Refusal("bad-session", f"{doc_path} belongs to session {(doc.get('session') or {}).get('id')!r}")
         doc = format_1(doc)
