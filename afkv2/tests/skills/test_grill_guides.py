@@ -126,7 +126,10 @@ def test_a_merge_or_a_removal_of_a_section_points_to_the_page_skill():
 
 def test_each_note_is_read_for_every_meaning():
     reading = _section(ROUNDS_MD.read_text("utf-8"), "## Read each note")
-    for fact in ("every meaning", "another part", "cannot answer", "steer", "lean", "AR-05"):
+    for fact in ("Read each note for every meaning it holds", "| a thought about another part, or a new idea |",
+                 "| the developer cannot answer, or names who would |", "| guidance for the whole session | a steer",
+                 "is the developer's lean", "the section records it as a lean, not as settled",
+                 "answer rule AR-05 of `/afkv2:use-lavish`"):
         assert fact in reading, fact
     assert "| AR-05 |" in (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
 
@@ -135,8 +138,9 @@ def test_each_note_is_read_for_every_meaning():
 
 def test_a_question_joins_by_a_cannot_answer_note_or_an_accepted_proposal_card():
     found = _questions()
-    for fact in ("cannot answer", "names who would", "origin: {note:", "propose it on a `confirm` card",
-                 "only after the developer accepts that card", "origin: {card:", "adds nothing"):
+    for fact in ("A note says the developer cannot answer, or names who would", "origin: {note:",
+                 "propose it on a `confirm` card", "only after the developer accepts that card", "origin: {card:",
+                 "A proposal card that stays open or gets another mark adds nothing"):
         assert fact in found, fact
     origins = {key for option in SCHEMA["origin"]["anyOf"] for key in option["required"]}
     assert origins == {"note", "card"}
@@ -157,10 +161,19 @@ def test_each_part_of_a_question_for_others_is_named():
     assert "`several` is `true`" in found and "`everyone`" in found
 
 
+RULE = "The text names no internal decision, no plan term and no id"
+# An id of the page or the plan: R-2, N-2-i-x, AR-05, D-26, AC-028, i-format, s-intro, q-1.
+PAGE_ID = re.compile(r"\b(?:[A-Z]{1,3}-\d+|[a-z]{1,2}-[a-z0-9][\w-]*)\b")
+
+
 def test_the_visible_text_of_a_question_names_no_internal_term():
+    """Review finding f11: the rule stands, and the section's own text holds no id."""
     found = _questions()
-    assert "no internal decision, no plan term and no id" in found
-    assert "made up" in found
+    assert RULE in found
+    assert "Explain a term this session made up where it first appears" in found
+    rest = found.replace(RULE, "")
+    assert not PAGE_ID.search(rest), PAGE_ID.search(rest).group(0)
+    assert PAGE_ID.search("a follow-up of N-2-i-format") and not PAGE_ID.search("a sign-off of a follow-up")
 
 
 # --- order, and the round after an answer (PRD AC-035, AC-038, AC-042)
@@ -181,8 +194,9 @@ def test_order_and_the_round_after_an_answer():
 
 def test_the_open_questions_print_as_markdown_in_order_filtered_by_role():
     found = _questions()
-    for fact in ("as text", "Markdown", "open questions for others", "in list order", "`who`", "`everyone`",
-                 "every part it holds", "No ids"):
+    for fact in ("**As text.**", "print the open questions for others as Markdown in chat", "in list order",
+                 "only the questions whose `who` holds that role or `everyone`", "with every part it holds",
+                 "No ids: a link names its section by title"):
         assert fact in found, fact
 
 
