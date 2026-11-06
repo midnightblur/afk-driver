@@ -8,6 +8,7 @@ A link carries its meaning as hover text (`data-afkv2-tip`). A change list shows
 
 from __future__ import annotations
 
+import json
 from html import escape
 
 from registry import render_component
@@ -25,6 +26,7 @@ TIPS = {"sections": "Opens this section", "examples": "Opens this worked example
         "questions": "Opens this question for others", "stories": "A story of this topic",
         "cards": "Opens this card of {}", "options": "A choice of a question for others"}
 MERGE_LIMIT = 64
+EVERYONE = "everyone"
 
 
 def _elements(doc: dict) -> dict:
@@ -130,10 +132,10 @@ def _chip(count: int) -> str:
     return f'<span class="afkv2-chip afkv2-v2-open-count">{words}</span>'
 
 
-def _article(entry: dict, css: str, inner: str, **attrs) -> str:
+def _article(entry: dict, css: str, inner: str, raw: str = "", **attrs) -> str:
     extra = "".join(f' data-afkv2-{name}="{escape(str(value))}"' for name, value in attrs.items())
     return (f'<article id="{escape(entry["id"])}" class="{css}" data-afkv2-element="{escape(entry["id"])}"'
-            f'{extra}>{inner}</article>')
+            f'{extra}{raw}>{inner}</article>')
 
 
 def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
@@ -164,3 +166,97 @@ def render_sections(doc: dict) -> str:
     body = "".join(_section(doc, section, sections, counts) for section in entries)
     return (f'<section class="afkv2-v2-sections" id="afkv2-sections"><h2 class="afkv2-section-h">Sections</h2>'
             f'{body}</section>')
+
+
+def _roles(question: dict) -> list[str]:
+    """The role words of a question in lower case, once each: roles compare without case (SDD §4 who)."""
+    return list(dict.fromkeys(role.lower() for role in question["who"]))
+
+
+def _who_attr(question: dict) -> str:
+    """The roles as a JSON list in a single-quoted attribute: a free role word may hold any sign (decision D-12)."""
+    data = escape(json.dumps(_roles(question), ensure_ascii=False), quote=False).replace("'", "&#x27;")
+    return f" data-afkv2-who='{data}'"
+
+
+def _markdown(text: str) -> str:
+    return render_component({"type": "text", "props": {"text": text, "markdown": True}})
+
+
+def _part(heading: str, inner: str) -> str:
+    return f'<div class="afkv2-v2-part"><p class="afkv2-v2-part-h">{heading}</p>{inner}</div>'
+
+
+def _ticks(question: dict) -> str:
+    """The tick group of an open or assumed question with choices: radios, or checkboxes when several may be
+    ticked. Each input value is an option id, for the tick line `<question id> tick <option id> ...`."""
+    choices = question.get("choices")
+    if not choices or question["state"] not in ("open", "assumed"):
+        return ""
+    several = choices["several"]
+    kind, hint = ("checkbox", "Tick each that applies.") if several else ("radio", "Tick one.")
+    name = escape(f"afkv2-tick-{question['id']}")
+    inputs = "".join(f'<label class="afkv2-v2-tick"><input type="{kind}" name="{name}" value="{escape(option["id"])}"> '
+                     f'{escape(option["text"])}</label>' for option in choices["options"])
+    return (f'<fieldset class="afkv2-v2-ticks" data-afkv2-input="tick" data-afkv2-question="{escape(question["id"])}" '
+            f'data-afkv2-several="{"true" if several else "false"}"><legend>{hint}</legend>{inputs}'
+            '<p class="afkv2-v2-hint">Something else: write a note on this question.</p></fieldset>')
+
+
+def _outcome(doc: dict, question: dict) -> str:
+    """The answer, the drop reason and the assumption of a question, each as words."""
+    lines = []
+    answer = question.get("answer")
+    if answer:
+        ticked = ", ".join(visible_label(doc, "element", choice) for choice in answer.get("choices") or [])
+        words = f"{STATES['answered']} by {answer['role']} on {answer['date']}: {answer['text']}"
+        lines.append(words + (f" Ticked: {ticked}." if ticked else ""))
+    if question.get("dropped"):
+        lines.append(f"{STATES['dropped']}: {question['dropped']['reason']}")
+    if question.get("assumption"):
+        lines.append(f"{STATES['assumed']}: {question['assumption']['text']}")
+    return "".join(f'<p class="afkv2-v2-outcome">{escape(line)}</p>' for line in lines)
+
+
+def _question(doc: dict, question: dict, sections: dict) -> str:
+    parts = [f'<h3 class="afkv2-v2-h">{escape(question["question"])}</h3>'
+             f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", question["state"]))}</span>',
+             f'<p class="afkv2-v2-who">Who to ask: {escape(", ".join(question["who"]))}</p>',
+             _part("Context", _markdown(question["context"])), _part("Why it matters", _markdown(question["why"]))]
+    if question.get("ways"):
+        parts.append(_part("Ways to find out",
+                           "<ul>" + "".join(f"<li>{escape(way)}</li>" for way in question["ways"]) + "</ul>"))
+    if question.get("example"):
+        parts.append(_part("Example", render_component(question["example"])))
+    targets = list(dict.fromkeys(_current_target(sections, section) for section in question.get("links") or []))
+    if targets:
+        parts.append(f'<div class="afkv2-v2-links">Linked sections: {", ".join(_link(doc, t) for t in targets)}</div>')
+    if question.get("waits_on"):
+        parts.append(f'<div class="afkv2-v2-links">Waits on: {_link(doc, question["waits_on"])}</div>')
+    parts += [_outcome(doc, question), _ticks(question), render_changes(doc, question["changes"])]
+    return _article(question, "afkv2-v2-question", "".join(parts), raw=_who_attr(question),
+                    question=question["id"], state=question["state"])
+
+
+def _filter(questions: list) -> str:
+    """The native role filter: every role once, in first-asked order, by its first spelling; everyone is no
+    choice, since everyone's questions show under each role (PRD AC-033). The page script binds it."""
+    roles: dict[str, str] = {}
+    for question in questions:
+        for role in question["who"]:
+            if role.lower() != EVERYONE:
+                roles.setdefault(role.lower(), role)
+    options = "".join(f'<option value="{escape(key)}">{escape(label)}</option>' for key, label in roles.items())
+    return (f'<label class="afkv2-v2-filter">Show the questions for: <select id="afkv2-who-filter" '
+            f'class="afkv2-who-filter"><option value="">Every role</option>{options}</select></label>')
+
+
+def render_questions(doc: dict) -> str:
+    """The questions-for-others block, in list order, with its role filter; a page with none gets no block."""
+    questions = doc.get("questions") or []
+    if not questions:
+        return ""
+    sections = {entry["id"]: entry for entry in doc.get("sections") or []}
+    body = "".join(_question(doc, question, sections) for question in questions)
+    return (f'<section class="afkv2-v2-questions" id="afkv2-questions">'
+            f'<h2 class="afkv2-section-h">Questions for others</h2>{_filter(questions)}{body}</section>')

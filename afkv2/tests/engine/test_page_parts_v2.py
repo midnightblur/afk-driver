@@ -235,3 +235,72 @@ def test_no_section_gives_no_block():
     doc = document()
     doc["sections"] = []
     assert parts_v2.render_sections(doc) == ""
+
+
+# --- questions for others
+
+
+def test_the_questions_show_every_question_in_list_order_with_its_roles():
+    doc = document()
+    html = parts_v2.render_questions(doc)
+    words = visible(html)
+    places = [words.index(q["question"]) for q in doc["questions"]]
+    assert places == sorted(places)
+    size = part_of(html, "q-size")
+    assert 'data-afkv2-question="q-size"' in size
+    assert json.loads(re.search(r"data-afkv2-who='([^']*)'", size).group(1)) == ["tester", "everyone"]
+    assert json.loads(re.search(r"data-afkv2-who='([^']*)'", part_of(html, "q-format")).group(1)) == ["product owner"]
+
+
+def test_a_question_shows_each_of_its_parts():
+    html = parts_v2.render_questions(document())
+    size = part_of(html, "q-size")
+    words = visible(size)
+    for part in ("tester, everyone", "The export writes one file.", "It sets what the team builds first.",
+                 "Ask the support team", "Read the usage report", "A list of 1 million rows.", "open"):
+        assert part in words, part
+    assert "<strong>one</strong>" in size
+    assert "answered by product owner on 2026-11-05" in visible(part_of(html, "q-format")) and "CSV." in visible(
+        part_of(html, "q-format"))
+    assert "Printing is out of scope." in visible(part_of(html, "q-drop"))
+    assert "The file is never zipped." in visible(part_of(html, "q-assume"))
+
+
+def test_a_question_links_each_linked_section_and_the_question_it_waits_on():
+    html = parts_v2.render_questions(document())
+    size, cols = part_of(html, "q-size"), part_of(html, "q-cols")
+    assert re.search(r'<a [^>]*href="#sec-scope"[^>]*>What the export covers</a>', size)
+    assert re.search(r'<a [^>]*href="#q-format"[^>]*>Which file format do the clerks need\?</a>', size)
+    assert "waits on" in visible(size).lower()
+    assert 'href="#sec-format"' in cols and 'href="#sec-scope"' in cols
+    assert "waits on" not in visible(cols).lower()
+
+
+def test_the_questions_have_a_native_role_filter_of_every_role_once():
+    html = parts_v2.render_questions(document())
+    select = re.search(r'<select id="afkv2-who-filter"[^>]*>(.*?)</select>', html, re.S).group(1)
+    values = re.findall(r'<option value="([^"]*)"', select)
+    assert values == ["", "product owner", "tester", "developer lead"]
+    assert "Product owner" in visible(select) and "everyone" not in values
+
+
+def test_a_question_with_choices_shows_radios_or_checkboxes_when_it_allows_several():
+    html = parts_v2.render_questions(document())
+    size, cols = part_of(html, "q-size"), part_of(html, "q-cols")
+    group = re.search(r'<fieldset [^>]*data-afkv2-input="tick"[^>]*>', size).group(0)
+    assert 'data-afkv2-question="q-size"' in group and 'data-afkv2-several="false"' in group
+    assert re.findall(r'<input type="radio"[^>]*value="([^"]+)"', size) == ["opt-k", "opt-m"]
+    assert re.findall(r'<input type="checkbox"[^>]*value="([^"]+)"', cols) == ["opt-name", "opt-date", "opt-sum"]
+    assert 'data-afkv2-several="true"' in cols and "A million" in visible(size)
+
+
+def test_a_closed_question_or_one_with_no_choices_has_no_tick_inputs():
+    html = parts_v2.render_questions(document())
+    for closed in ("q-format", "q-drop", "q-assume"):
+        assert 'data-afkv2-input="tick"' not in part_of(html, closed), closed
+
+
+def test_no_question_gives_no_block():
+    doc = document()
+    doc["questions"] = []
+    assert parts_v2.render_questions(doc) == ""
