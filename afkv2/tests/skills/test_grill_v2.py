@@ -138,6 +138,36 @@ def test_a_second_start_finds_the_same_session(repo):
     assert resumed["session"] == done["session"] and resumed["takeover"] is None and resumed["resume"] is True
 
 
+def two_sessions(finished_one):
+    """An older and a newer page of 1 answered round each; `finished_one` ("older" or "newer") passed its end check."""
+    older = start()
+    build(older, card("i-a"))
+    answer(older, "[round R-1]\ni-a accept")
+    pages = Path(older["doc"]).parent
+    newer = {**older, "session": "s-29990101-000000", "doc": (pages / "grill-s-29990101-000000.json").as_posix(),
+             "raw_file": (pages / "grill-s-29990101-000000.raw.txt").as_posix()}
+    build(newer, card("i-b"))
+    answer(newer, "[round R-1]\ni-b accept")
+    rows(older["log"])
+    done = {"older": older, "newer": newer}[finished_one]
+    grill_log.gate(done["doc"], done["log"])
+    for when, started in ((1_000_000_000, older), (2_000_000_000, newer)):
+        os.utime(started["doc"], (when, when))
+    return older, newer
+
+
+def test_start_takes_over_the_newer_of_2_sessions_when_it_finished(repo):
+    older, newer = two_sessions("newer")
+    again = start()
+    assert again["takeover"] == again["session"] == newer["session"] and again["resume"] is False
+
+
+def test_an_older_finished_session_beside_a_newer_open_one_resumes_the_newer(repo):
+    older, newer = two_sessions("older")
+    again = start()
+    assert again["session"] == newer["session"] and again["resume"] is True and again["takeover"] is None
+
+
 def test_start_on_an_open_or_no_session_answers_no_takeover(repo):
     fresh = start()
     assert fresh["takeover"] is None and fresh["resume"] is False
@@ -153,6 +183,7 @@ def test_a_taken_over_old_page_takes_the_upgrade(repo):
     doc["schema"] = "afkv2.page/1"
     write(done["doc"], doc)
     taken = start()
+    assert taken["takeover"] == done["session"] and taken["doc"] == done["doc"]
     page_round.take_over(taken["doc"])
     built = rd.build_round_document(taken["doc"], session_of(taken),
                                     {**round_input(card("i-b"), sections=[section("s-intro")]), "upgrade": True})
@@ -175,9 +206,7 @@ def test_an_open_question_for_others_fails_the_end_check_and_is_named(repo):
     doc = read(started["doc"])
     doc["questions"][1].update(state="dropped", dropped={"reason": "Nobody owns it.", "note": "N-1", "round": 1})
     write(started["doc"], doc)
-    found = failures(started)
-    assert [line for line in found if line.startswith("question-open")] == [
-        "question-open: q-1: Which formats for q-1? (who: product owner)"]
+    assert failures(started) == ["question-open: q-1: Which formats for q-1? (who: product owner)"]
 
 
 def test_a_dropped_question_without_a_reason_fails_the_end_check(repo):
@@ -186,6 +215,22 @@ def test_a_dropped_question_without_a_reason_fails_the_end_check(repo):
     doc["questions"][0].update(state="dropped", dropped={"reason": "  ", "note": "N-1", "round": 1})
     write(started["doc"], doc)
     assert failures(started) == ["drop-no-reason: q-1: Which formats for q-1?"]
+
+
+def test_a_dropped_question_with_no_drop_record_fails_the_end_check(repo):
+    started = settled_once(questions=[question("q-1")])
+    doc = read(started["doc"])
+    doc["questions"][0].update(state="dropped", dropped=None)
+    write(started["doc"], doc)
+    assert failures(started) == ["drop-no-reason: q-1: Which formats for q-1?"]
+
+
+def test_a_version_1_page_takes_none_of_the_version_2_checks(repo):
+    started = settled_once(questions=[question("q-1")])
+    doc = read(started["doc"])
+    doc["schema"] = "afkv2.page/1"
+    write(started["doc"], doc)
+    assert grill_log.gate(started["doc"], started["log"])["ok"] is True
 
 
 def test_a_story_with_no_example_and_each_missing_kind_fail_the_end_check(repo):
@@ -202,28 +247,32 @@ def test_every_story_covered_and_every_kind_present_passes(repo):
     doc = read(started["doc"])
     doc["questions"][0].update(state="assumed", assumption={"text": "Only csv.", "card": "i-a", "round": 1})
     write(started["doc"], doc)
-    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed"}
+    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed", "stale", "changed"}
 
 
 def test_a_page_with_no_questions_stories_or_examples_passes_as_before(repo):
     started = settled_once()
     answered = grill_log.gate(started["doc"], started["log"])
-    assert set(answered) == {"ok", "passed"}
+    assert set(answered) == {"ok", "passed", "stale", "changed"}
+    assert answered["stale"] == [] and answered["changed"] == []
 
 
 # ---- a pass after a take-over lists stale later documents and changed settled points (PRD AC-050, AC-051)
 
 
-def later_documents(spec_dir):
+LATER = ("PRD.md", "SDD.md", "adr/requirements/0001-a.md", "adr/design/0001-b.md")
+
+
+def later_documents(spec_dir, names=LATER):
     spec_dir = Path(spec_dir)
-    for name in ("PRD.md", "SDD.md", "adr/requirements/0001-a.md", "adr/design/0001-b.md"):
+    for name in names:
         (spec_dir / name).parent.mkdir(parents=True, exist_ok=True)
         (spec_dir / name).write_text("# x\n", "utf-8")
 
 
-def came_back(**lists):
+def came_back(names=LATER, **lists):
     done = finished(**lists)
-    later_documents(done["spec_dir"])
+    later_documents(done["spec_dir"], names)
     taken = start()
     assert taken["takeover"] == done["session"]
     page_round.take_over(taken["doc"])
@@ -245,6 +294,24 @@ def test_a_grill_that_came_back_ends_only_after_its_end_check_passes_again(repo)
     assert grill_log.exit_gate_passed(taken["log"], taken["session"])
 
 
+
+def test_a_pass_with_no_take_over_entry_still_names_each_later_document(repo):
+    done = finished()
+    later_documents(done["spec_dir"])
+    build(done, card("i-b"))
+    answer(done, "[round R-2]\ni-b accept")
+    passed = grill_log.gate(done["doc"], done["log"])
+    assert len(passed["stale"]) == 4 and passed["changed"] == []
+
+
+@pytest.mark.parametrize("names", [("PRD.md",), ()])
+def test_stale_leaves_out_each_later_document_that_does_not_exist(repo, names):
+    taken = came_back(names)
+    build(taken, card("i-b"))
+    answer(taken, "[round R-2]\ni-b accept")
+    assert grill_log.gate(taken["doc"], taken["log"])["stale"] == [f"{taken['spec_dir']}/{name}" for name in names]
+
+
 def test_changed_lists_each_entry_changed_after_the_take_over_and_not_a_new_one(repo):
     taken = came_back(sections=[section("s-old"), section("s-same")])
     build(taken, card("i-b"), sections=[section("s-old", "New text."), section("s-new")])
@@ -262,7 +329,7 @@ def test_a_resume_while_a_round_waits_is_no_take_over_of_a_finished_round(repo):
     doc = read(started["doc"])
     doc["session"]["takeovers"][0]["at"] = "2000-01-01T00:00:00Z"
     write(started["doc"], doc)
-    assert set(grill_log.gate(started["doc"], started["log"])) == {"ok", "passed"}
+    assert grill_log.gate(started["doc"], started["log"])["changed"] == []
 
 
 def git(cwd, *args):
@@ -271,7 +338,8 @@ def git(cwd, *args):
                         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid"})
 
 
-def test_stale_names_the_plan_of_the_run_branch_when_git_holds_it(repo):
+@pytest.mark.parametrize("only_on_origin", [False, True])
+def test_stale_names_the_plan_of_the_run_branch_when_git_holds_it(repo, only_on_origin):
     git(repo, "init", "-q", "-b", "feat-x")
     git(repo, "commit", "-q", "--allow-empty", "-m", "base")
     git(repo, "checkout", "-q", "--orphan", "feat-x-run")
@@ -280,8 +348,48 @@ def test_stale_names_the_plan_of_the_run_branch_when_git_holds_it(repo):
     git(repo, "add", "plan/PLAN.md")
     git(repo, "commit", "-q", "-m", "plan")
     git(repo, "checkout", "-q", "-f", "feat-x")
+    if only_on_origin:
+        git(repo, "update-ref", "refs/remotes/origin/feat-x-run", "feat-x-run")
+        git(repo, "branch", "-q", "-D", "feat-x-run")
     assert not (repo / "plan" / "PLAN.md").exists()
     taken = came_back()
     build(taken, card("i-b"))
     answer(taken, "[round R-2]\ni-b accept")
     assert grill_log.gate(taken["doc"], taken["log"])["stale"][-1] == "feat-x-run:plan/PLAN.md"
+
+
+def test_the_run_suffix_is_the_one_of_the_plan_check():
+    sys.path.insert(0, str(PLUGIN / "skills" / "to-subtasks" / "scripts"))
+    import check_plan
+    assert grill_log.RUN_SUFFIX == check_plan.RUN_SUFFIX
+
+
+def passed_after_came_back(monkeypatch=None, run=None):
+    taken = came_back()
+    build(taken, card("i-b"))
+    answer(taken, "[round R-2]\ni-b accept")
+    if run is not None:
+        monkeypatch.setattr(grill_log.subprocess, "run", run)
+    return grill_log.gate(taken["doc"], taken["log"])
+
+
+def test_stale_names_the_plan_as_not_checked_when_git_does_not_answer(repo, monkeypatch):
+    def no_git(*args, **kwargs):
+        raise FileNotFoundError("git")
+    stale = passed_after_came_back(monkeypatch, no_git)["stale"]
+    assert stale[-1].startswith("<feature branch>-run:plan/PLAN.md (not checked: ") and len(stale) == 5
+
+
+def test_the_git_calls_of_the_plan_check_share_one_time_limit(repo, monkeypatch):
+    clock, limits = [0.0], []
+    monkeypatch.setattr(grill_log.time, "monotonic", lambda: clock[0])
+
+    def slow_git(command, **kwargs):
+        limits.append(kwargs["timeout"])
+        clock[0] += grill_log.GIT_LIMIT_S * 0.6
+        if command[3] == "rev-parse":
+            return subprocess.CompletedProcess(command, 0, b"feat-x\n", b"")
+        return subprocess.CompletedProcess(command, 1, b"", b"")
+    stale = passed_after_came_back(monkeypatch, slow_git)["stale"]
+    assert limits == [grill_log.GIT_LIMIT_S, pytest.approx(grill_log.GIT_LIMIT_S * 0.4)]
+    assert stale[-1].startswith("feat-x-run:plan/PLAN.md (not checked: ")

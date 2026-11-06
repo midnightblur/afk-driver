@@ -4,7 +4,8 @@
   sync --doc D --log L                                 rows that come from the page document
   term --log L --term T (--glossary G --definition D | --pending)
   gate --doc D --log L                                 the mechanical part of the exit gate; on a version 2 page
-                                                       also its questions for others, stories and worked examples
+                                                       also its questions for others, stories and worked examples;
+                                                       a pass answers `stale` and `changed`, each empty when nothing
 
 Row grammar: GRILL-LOG-FORMAT.md. Other sections of the file stay byte for byte.
 """
@@ -16,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +34,9 @@ REQUIRED_KINDS = ("Policy", "Staples", "Examples", "Devil")
 STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-external\b.*)$")
 # A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
 TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
-RUN_SUFFIX = "-run"  # the run branch of a feature branch: check_plan.RUN_SUFFIX of to-subtasks
+# The run branch of a feature branch. Lockstep copy of check_plan.RUN_SUFFIX of to-subtasks, not imported: a test world
+# copies only the skills it runs. test_grill_v2.py compares them.
+RUN_SUFFIX = "-run"
 GIT_LIMIT_S = 30
 GATE_PASSED = "- Settled: exit gate passed"
 EXAMPLE_KINDS = ("frequent", "edge", "risky")
@@ -283,7 +287,10 @@ def _takeover_round(doc):
 
 def _changed(doc, took_over):
     """Each point of the take-over round or earlier that changed later: a card a later card carries, and an entry
-    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed."""
+    with a change line on both sides of the take-over. An entry added after the take-over is new, not changed. No
+    take-over: nothing."""
+    if took_over is None:
+        return []
     later = [card for rnd in doc["rounds"] if rnd["n"] > took_over for card in rnd["items"]]
     changed = [{"id": item["id"], "kind": "card", "text": _first_text(item)}
                for rnd in doc["rounds"] if rnd["n"] <= took_over for item in rnd["items"]
@@ -296,27 +303,45 @@ def _changed(doc, took_over):
     return changed
 
 
+class _NoAnswer(Exception):
+    """Git did not answer: no git program, or the shared time limit ran out."""
+
+
 def _run_plan(spec_dir):
-    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None."""
+    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None. When git does not
+    answer within GIT_LIMIT_S for all its calls, that spec with ` (not checked: <reason>)`: the plan can be stale."""
+    deadline = time.monotonic() + GIT_LIMIT_S
+
     def git(*args):
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s")
         try:
             done = subprocess.run(["git", "-C", str(spec_dir), *args], capture_output=True, stdin=subprocess.DEVNULL,
-                                  timeout=GIT_LIMIT_S)
-        except (OSError, subprocess.TimeoutExpired):
-            return None
+                                  timeout=left)
+        except subprocess.TimeoutExpired as error:
+            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s") from error
+        except OSError as error:
+            raise _NoAnswer(f"git did not run: {error}") from error
         return done.stdout.decode("utf-8", "replace").strip() if done.returncode == 0 else None
-    branch = git("rev-parse", "--abbrev-ref", "HEAD")
-    if not branch or branch == "HEAD":
-        return None
-    run = branch + RUN_SUFFIX
-    for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
-        if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
-            return f"{run}:plan/PLAN.md"
+    run = f"<feature branch>{RUN_SUFFIX}"
+    try:
+        branch = git("rev-parse", "--abbrev-ref", "HEAD")
+        if not branch or branch == "HEAD":
+            return None
+        run = branch + RUN_SUFFIX
+        for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
+            if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
+                return f"{run}:plan/PLAN.md"
+    except _NoAnswer as error:
+        return f"{run}:plan/PLAN.md (not checked: {error})"
     return None
 
 
 def _later_documents(spec_dir):
-    """Each document of the ticket that a later skill wrote and that exists (decision D-25)."""
+    """Each document of the ticket that a later skill wrote and that exists (decision D-25). An entry is a file path,
+    or the git spec `<run branch>:plan/PLAN.md` (read it with `git show`), with ` (not checked: <reason>)` when git
+    did not answer."""
     spec_dir = Path(spec_dir)
     found = []
     for name, folder in (("PRD.md", "adr/requirements"), ("SDD.md", "adr/design")):
@@ -337,8 +362,6 @@ def gate(doc_path, log):
     blocks.append([f"{GATE_PASSED} {today} · session {doc['session']['id']}"])
     write_text(log, _join(head, blocks, tail))
     took_over = _takeover_round(doc)
-    if took_over is None:
-        return {"ok": True, "passed": today}
     return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
             "changed": _changed(doc, took_over)}
 
