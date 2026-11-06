@@ -368,3 +368,27 @@
     });
   });
 })();
+
+/* The role filter of the questions for others: a role shows its own questions and the questions for everyone,
+ * in page order. It only hides questions, so it queues nothing (SDD §9 row "Filter"). */
+(function () {
+  var filter = document.getElementById('afkv2-who-filter');
+  if (!filter) return;
+  var EVERYONE = 'everyone';
+  var questions = [].slice.call(document.querySelectorAll('article[data-afkv2-question]'));
+
+  function roles(el) {
+    try { return JSON.parse(el.getAttribute('data-afkv2-who') || '[]') || []; } catch (e) { return []; }
+  }
+
+  function show() {
+    var role = filter.value;
+    questions.forEach(function (el) {
+      var who = roles(el);
+      el.hidden = !!role && who.indexOf(role) < 0 && who.indexOf(EVERYONE) < 0;
+    });
+  }
+
+  filter.addEventListener('change', show);
+  show();
+})();
