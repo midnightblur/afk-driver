@@ -101,38 +101,6 @@ Give a folded component an `id`: only then does an open fold stay open through a
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 
-## Page layout
-
-The engine lays out the page in this order:
-
-1. the title and the banner of the current round;
-2. "Notes on the whole session": every note of the session, card notes included, with its answer, in one fold per round;
-3. the maps;
-4. the points of the current round, one card per point, then the copy bar;
-5. "Settled by earlier rounds": the other points, each folded to its heading and settled line;
-6. "Earlier banners", closed.
-
-A point is the newest card and the cards it `carries` (`components/card.md`).
-
-The browser tab title and the page heading are `<ticket> · <short title> · <step>`.
-They hold no round number, so they stay the same every round. A page with no
-`short_title` (an upgraded format 0 page) shows its feature. A part drops out when
-it is empty or repeats an earlier part. A later round shows in the tab that the
-first show opened: `present` answers `tab: reused`. Give the human the `url` in
-one line then, so a closed tab costs nothing.
-
-## Controls the engine adds
-
-You do not write these; the engine puts them on every page.
-
-- Copy bar, below the current round: copies the marks when the page has no lavish session.
-- btw? button, bottom left: a one-line side question and one Ask button. Ask posts only the
-  question to the side-question listener of the wait; the marks and notes the human queued stay
-  queued for Send. The wait asks it in the agent's terminal pane (`/btw` on Claude, `/side` on
-  Codex, through herdr), and the panel shows the answer; the round stays open. With no wait
-  running, the panel says so. Engine modules: `engine/btw_listener.py` and
-  `engine/side_question.py` (plugin root).
-
 ## Picture before a critical-aspect question
 
 Before a card that asks a critical-aspect question, show the current state as a

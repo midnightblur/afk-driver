@@ -111,3 +111,22 @@ def test_use_lavish_holds_the_layout_of_version_0_and_1():
     layout = _section(SKILL_MD.read_text("utf-8"), "#### What goes first on a version 0 or 1 page")
     assert "every note of the session, card notes included" in layout and "one fold per round" in layout
     assert "stand on no card" not in layout
+
+
+VISUALIZE = PLUGIN / "skills" / "visualize"
+LAYOUT_WORDS = ("## Page layout", "## Controls the engine adds", "lays out the page", "Settled by earlier rounds",
+                "Earlier banners", "below the maps", "below the round banner", "copy bar", "tab title")
+
+
+def _flat(path):
+    return " ".join(path.read_text("utf-8").split())
+
+
+def test_visualize_holds_no_page_layout_rule():
+    """Decision D-22: visualize holds the pictures; each layout rule lives in use-lavish alone."""
+    found = [(path.name, word) for path in sorted(VISUALIZE.rglob("*.md"))
+             for word in LAYOUT_WORDS if word.casefold() in _flat(path).casefold()]
+    assert not found, found
+    layout = SKILL_MD.read_text("utf-8")
+    for heading in ("#### Title and tab", "#### Controls the engine adds"):
+        assert heading + "\n" in layout, heading
