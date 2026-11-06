@@ -139,3 +139,9 @@ The forge reports the feature's change as merged, into any target branch, and no
 
 **Feature**:
 Any piece of work on its own branch and worktree: a new feature, a bug fix, a small enhancement, or a follow-up for a gap found after delivery. Not the size of the work; that is the lane.
+
+**Section**:
+A part of a page that holds the current state of one part of the topic, kept up to date every round and open to a note at any time. Sections are not fixed: they appear, merge or go away as notes and answers change the topic, and a section that depends on another links to it.
+
+**Question for others**:
+A point of a grill that neither the human nor the code can settle, so someone outside the session must answer it: a product owner, a tester, a director or another team. It is kept with who to ask, its context, why the answer is needed, the ways we see and an example, written so that person can read it.
