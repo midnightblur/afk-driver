@@ -83,6 +83,13 @@ def test_a_card_on_a_merged_section_links_to_the_section_it_merged_into():
     assert LINK.format("sec-format") in own and LINK.format("sec-old") not in own
 
 
+def test_a_version_2_page_builds_its_element_index_once(monkeypatch):
+    built, build_index = [], page.parts_v2._build_index
+    monkeypatch.setattr(page.parts_v2, "_build_index", lambda d: built.append(1) or build_index(d))
+    build(raw_id_document())
+    assert len(built) == 1
+
+
 # --- the banner
 
 

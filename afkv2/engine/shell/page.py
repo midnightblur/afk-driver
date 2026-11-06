@@ -449,6 +449,12 @@ def _round_questions(doc: dict, round_: dict, points: list) -> str:
 
 
 def _build_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
+    """Every label and link of the page reads 1 element index (`parts_v2.indexed`)."""
+    with parts_v2.indexed(doc):
+        return _layout_v2(doc, btw, notices)
+
+
+def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])

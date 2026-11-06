@@ -9,6 +9,8 @@ A link carries its meaning as hover text (`data-afkv2-tip`). A change list shows
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
+from functools import wraps
 from html import escape
 
 from registry import render_component
@@ -31,7 +33,7 @@ LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
 OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
 
 
-def _elements(doc: dict) -> dict:
+def _build_index(doc: dict) -> dict:
     """Each element id with (its list, the element, the round of a card)."""
     found = {}
     for kind in ENTRY_LISTS:
@@ -44,6 +46,37 @@ def _elements(doc: dict) -> dict:
         for item in round_["items"]:
             found[item["id"]] = ("cards", item, round_["n"])
     return found
+
+
+_INDEX: dict = {"doc": None, "found": None}
+
+
+@contextmanager
+def indexed(doc: dict):
+    """Inside the block, each label, tip and link of `doc` reads 1 element index, built once: a page render does
+    not change its document. Outside a block, each call builds the index anew."""
+    if _INDEX["doc"] is doc:
+        yield
+        return
+    saved = dict(_INDEX)
+    _INDEX.update(doc=doc, found=_build_index(doc))
+    try:
+        yield
+    finally:
+        _INDEX.update(saved)
+
+
+def _one_index(render):
+    """A render_* function of a document reads 1 element index for the whole block it renders."""
+    @wraps(render)
+    def run(doc, *args):
+        with indexed(doc):
+            return render(doc, *args)
+    return run
+
+
+def _elements(doc: dict) -> dict:
+    return _INDEX["found"] if _INDEX["doc"] is doc else _build_index(doc)
 
 
 def _element_label(doc: dict, element: str) -> str:
@@ -102,6 +135,7 @@ def _change_cause(doc: dict, line: dict) -> str:
     return words
 
 
+@_one_index
 def render_changes(doc: dict, changes: list) -> str:
     """The change list of an entry: open, newest first, 1 line per round naming its cause."""
     if not changes:
@@ -166,6 +200,7 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
     return _article(section, "afkv2-v2-section", inner, state=state)
 
 
+@_one_index
 def render_sections(doc: dict) -> str:
     """The sections block, in page order; a page with no section gets none."""
     entries = doc.get("sections") or []
@@ -260,6 +295,7 @@ def _filter(questions: list) -> str:
             f'class="afkv2-who-filter"><option value="">Every role</option>{options}</select></label>')
 
 
+@_one_index
 def render_questions(doc: dict) -> str:
     """The questions-for-others block, in list order, with its role filter; a page with none gets no block."""
     questions = doc.get("questions") or []
@@ -280,6 +316,7 @@ def _example(doc: dict, example: dict) -> str:
     return _article(example, "afkv2-v2-example", inner, kind=example["kind"])
 
 
+@_one_index
 def render_examples(doc: dict) -> str:
     """The worked-examples block, each marked frequent, edge or risky; a page with none gets no block."""
     examples = doc.get("examples") or []

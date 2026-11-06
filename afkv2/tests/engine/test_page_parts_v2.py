@@ -202,6 +202,20 @@ def test_an_unknown_label_kind_or_value_raises_1_error_type(kind, value):
         parts_v2.visible_label(document(), kind, value)
 
 
+def test_each_part_builds_its_element_index_once(monkeypatch):
+    doc, built = document(), []
+    build = parts_v2._build_index
+    monkeypatch.setattr(parts_v2, "_build_index", lambda d: built.append(1) or build(d))
+    for render in (parts_v2.render_sections, parts_v2.render_questions, parts_v2.render_examples):
+        built.clear()
+        assert render(doc)
+        assert len(built) == 1, render.__name__
+    with parts_v2.indexed(doc):
+        built.clear()
+        _every_part(doc)
+        assert built == []
+
+
 # --- sections
 
 
