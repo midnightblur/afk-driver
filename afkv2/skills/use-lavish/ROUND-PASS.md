@@ -73,17 +73,21 @@ takes 4 readings on a version 2 page only:
   the point returns as a new card in the next round, and the note gets its reply
   in `replies`.
 - `answer` {`question`, `text`, `choices`, `role`, `date`, `signal`}: the
-  developer relays an answer. `signal` is `tick` for the developer's tick on the
-  question, else the id of a live note of this round (`answer-no-signal`).
-  `choices` holds the ticked option ids. `role` is the role the note names, else
-  the question's only role. It is never `everyone` (`everyone-answered`): for a
-  question for everyone or for several roles with no role named, ask the
-  developer, and write no answer yet. `date` is the day the note names, else the
-  day the note was sent. An answer settles no card: each point it touches returns
-  as a card for the developer to confirm, and each section it changes gets a
-  change line with cause `answer_from`. A partial answer is no `answer`: the
-  question stays open, and the next round sends it with what is known added to
-  its context. A follow-up is a new question with `after`.
+  developer relays an answer.
+  - `signal` is `tick` for the developer's tick on the question. Else it is the
+    id of a live note of this round (`answer-no-signal`).
+  - `choices` holds the ticked option ids.
+  - `role` is the role the note names, else the question's only role. It is
+    never `everyone` (`everyone-answered`).
+  - A note names no role, and the question is for everyone or for several
+    roles: ask the developer, and write no answer yet.
+  - `date` is the day the note names, else the day the note was sent.
+  - An answer settles no card. Each point it touches returns as a card for the
+    developer to confirm. Each section it changes gets a change line with cause
+    `answer_from`.
+  - A partial answer is no `answer`. The question stays open, and the next
+    round adds what is known to its context.
+  - A follow-up is a new question with `after`.
 - `drop` {`question`, `reason`, `note`}: the question is no longer needed.
   `reason` says why (`drop-no-reason`); `note` is the note that dropped it.
 - `assume` {`question`, `text`, `card`}: the developer accepted an assumed answer.

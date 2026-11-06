@@ -111,7 +111,12 @@ The visible text holds no element id and no round code: a round reads "round 3".
 - A section shows its current text in every round. It never moves to the settled points.
 - A merge sets `merged` and `merged_into`, a current section. A removal sets `removed` and `reason`. The section stays as 1 line, and it never returns. Nothing is deleted, so every note finds its element.
 - A section that depends on another names it in `links`. A card names the section it asks about in `section`: the card shows a link to its section, and the section shows a chip with the count of its open questions.
-- The round input holds only the entries that changed, in `sections`, `stories`, `examples` and `questions`. Send each entry whole, without `changes`, and with `change`: its 1 change line for this round, `{cause, text}`. The cause is `note` with `notes`, `answer` with `card` (the developer's answer on that card), `answer_from` with `question` (an answer from someone else), or `finding` (an agent finding). The builder appends the line (`no-change-line` without it). An entry left out keeps its text and its change list exactly; an entry sent unchanged is refused (`unchanged-entry`).
+- The round input holds only the entries that changed, in `sections`, `stories`, `examples` and `questions`.
+- Send each entry whole, without `changes`, and with `change`: its 1 change line for this round, `{cause, text}`.
+- The causes: `note` with `notes`; `answer` with `card`, the developer's answer on that card; `answer_from` with `question`, an answer from someone else; `finding`, an agent finding.
+- The builder appends the change line. It refuses an entry without one (`no-change-line`).
+- An entry left out keeps its text and its change list exactly.
+- The builder refuses an entry sent unchanged (`unchanged-entry`).
 - A change list shows newest first, 1 line per round with its cause. It shows open and never folds.
 - The banner lists each added, changed, merged or removed section from the change lines. Write no banner field for them.
 
