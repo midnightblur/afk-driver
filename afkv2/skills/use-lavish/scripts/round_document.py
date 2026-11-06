@@ -590,11 +590,15 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         if optional in round_input:
             built[optional] = round_input[optional]
     for reply in round_input.get("replies") or []:
-        _reply(built, reply)
+        _reply(built, reply, version_2)
     doc["rounds"].append(built)
     entries = _merge_entries(doc, round_input, n) if version_2 else []
     refuse_bad_links(doc, built.get("replies") or [], built.get("changed") or [])
-    warnings += unanswered_note_warnings(doc, n - 1)
+    unanswered = unanswered_note_warnings(doc, n - 1)
+    if version_2 and unanswered:
+        raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
+                                         f"{', '.join(warning['note'] for warning in unanswered)}")
+    warnings += unanswered
     if version_2:
         check_version_2(doc)
     write_json(doc_path, doc)
@@ -626,8 +630,9 @@ def _add_answer(rnd, text, notes, changed=()):
     return answer
 
 
-def _reply(rnd, raw):
-    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes."""
+def _reply(rnd, raw, version_2=False):
+    """A reply of the agent, {text, notes, changed}, as an answer of the round: it names 1 or more notes, and
+    exactly 1 on a version 2 page."""
     if not isinstance(raw, dict) or set(raw) - REPLY_FIELDS:
         raise Refusal("bad-reply", f"a reply holds only text, notes and changed: {raw!r}")
     if not isinstance(raw.get("text"), str) or not raw["text"].strip():
@@ -636,6 +641,9 @@ def _reply(rnd, raw):
         raise Refusal("bad-reply", f"a reply names 1 or more note ids in notes: {raw!r}")
     if not _id_list(raw.get("changed", [])):
         raise Refusal("bad-reply", f"changed is a list of element ids: {raw!r}")
+    if version_2 and len(raw["notes"]) > 1:
+        raise Refusal("reply-many-notes", f"a reply names exactly 1 note on a version 2 page; write 1 reply for each "
+                                          f"of {', '.join(raw['notes'])}")
     return _add_answer(rnd, raw["text"], raw["notes"], raw.get("changed") or [])
 
 
@@ -667,8 +675,9 @@ def _settle(doc, current, entry):
     _add_answer(current, f"Settled by your note: {reading}", [entry["note"]], entry.get("changed") or [])
 
 
-def _return_to_open(doc, current, entry):
-    """The answer names the card's live notes of this round; a card that returns on marks alone has none."""
+def _return_to_open(doc, current, entry, version_2=False):
+    """The answer names the card's live notes of this round; a card that returns on marks alone has none. On a
+    version 2 page it names only `note`, the 1 note of this round on the card that it answers, or none."""
     item = _current_item(current, entry.get("item"))
     if item["state"] != "needs_reading":
         raise Refusal("not-needs-reading", f"{item['id']} is {item['state']}, not needs_reading")
@@ -677,9 +686,13 @@ def _return_to_open(doc, current, entry):
         raise Refusal("no-reply", f"{item['id']}: say why the point returns")
     if not _id_list(entry.get("changed", [])):
         raise Refusal("bad-reply", f"{item['id']}: changed is a list of element ids")
+    of_round = [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]]
+    if version_2:
+        if entry.get("note") is not None and entry["note"] not in of_round:
+            raise Refusal("no-note", f"{item['id']} has no live note {entry['note']!r} of round {current['n']}")
+        of_round = [entry["note"]] if entry.get("note") is not None else []
     item["state"] = "open"
-    _add_answer(current, reply, [note["id"] for note in _notes_of(doc, item) if note.get("round") == current["n"]],
-                entry.get("changed") or [])
+    _add_answer(current, reply, of_round, entry.get("changed") or [])
 
 
 def _unblock(current, item_id):
@@ -697,16 +710,19 @@ def apply_readings(doc_path, readings):
         raise Refusal("bad-document", "no round is current")
     if not isinstance(readings, dict) or not readings or set(readings) - {"settle", "open", "unblock", "replies"}:
         raise Refusal("bad-payload", "readings: one object with settle, open, unblock, replies")
+    version_2 = is_version_2(doc)
     answered = len(current.get("replies") or [])
     for entry in readings.get("settle") or []:
         _settle(doc, current, entry)
     for entry in readings.get("open") or []:
-        _return_to_open(doc, current, entry)
+        _return_to_open(doc, current, entry, version_2)
     for item_id in readings.get("unblock") or []:
         _unblock(current, item_id)
     for reply in readings.get("replies") or []:
-        _reply(current, reply)
+        _reply(current, reply, version_2)
     refuse_bad_links(doc, (current.get("replies") or [])[answered:])
+    if version_2:
+        check_version_2(doc)
     write_json(doc_path, doc)
     return {"ok": True, **pending(doc)}
 

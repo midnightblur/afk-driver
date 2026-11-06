@@ -267,3 +267,69 @@ def test_a_build_the_document_check_refuses_is_refused_by_its_rule_and_writes_no
         rd.build_round_document(page, SESSION, entries_round("i-c", questions=[answered]))
     assert refused.value.code == "everyone-answered"
     assert page.read_bytes() == before
+
+
+# ---- 1 reply per note on version 2 (SDD §14 row "Reply for a card's notes"; §6 "Each note gets its own reply")
+
+TWO_NOTES = "[round R-3]\ni-c note 1\n  Why this one?\ni-c note 2\n  And how?"
+
+
+@pytest.fixture
+def noted(page):
+    """Round 3 current with card i-c, which holds 2 notes of round 3 and needs reading."""
+    next_round(page, "i-c", TWO_NOTES)
+    return page
+
+
+def replies_of(path, n):
+    return read(path)["rounds"][n - 1].get("replies") or []
+
+
+@pytest.mark.parametrize("where", ["readings", "round input"])
+def test_a_reply_that_names_2_notes_on_a_version_2_page_is_refused(noted, where):
+    reply = {"text": "Both at once.", "notes": ["N-3-i-c-1", "N-3-i-c-2"]}
+    before = noted.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        if where == "readings":
+            rd.apply_readings(noted, {"replies": [reply]})
+        else:
+            rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "Asked again."}]})
+            before = noted.read_bytes()
+            rd.build_round_document(noted, SESSION, round_input(items=[card("i-d", carries=["i-c"])],
+                                                                replies=[reply]))
+    assert refused.value.code == "reply-many-notes"
+    assert "N-3-i-c-1" in refused.value.reason and "N-3-i-c-2" in refused.value.reason
+    assert noted.read_bytes() == before
+
+
+def test_open_on_a_version_2_page_names_only_the_note_its_reply_answers(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns: the why needs a picture.",
+                                        "note": "N-3-i-c-1"}],
+                              "replies": [{"text": "The how comes in the next card.", "notes": ["N-3-i-c-2"]}]})
+    assert [reply.get("notes") for reply in replies_of(noted, 3)] == [["N-3-i-c-1"], ["N-3-i-c-2"]]
+    assert check(noted)[0] == 0
+
+
+def test_open_on_a_version_2_page_with_no_note_names_none(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns."}]})
+    assert replies_of(noted, 3) == [{"id": "A-3-1", "text": "It returns."}]
+
+
+def test_open_with_a_note_of_another_card_is_refused(noted):
+    with pytest.raises(Refusal) as refused:
+        rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns.", "note": "N-1-i-a-1"}]})
+    assert refused.value.code == "no-note"
+
+
+def test_a_note_with_no_reply_refuses_the_next_round_on_version_2_by_its_id(noted):
+    rd.apply_readings(noted, {"open": [{"item": "i-c", "reply": "It returns.", "note": "N-3-i-c-1"}]})
+    before = noted.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        rd.build_round_document(noted, SESSION, round_input("i-d", items=[card("i-d", carries=["i-c"])]))
+    assert refused.value.code == "unanswered-note" and "N-3-i-c-2" in refused.value.reason
+    assert "N-3-i-c-1" not in refused.value.reason
+    assert noted.read_bytes() == before
+    rd.build_round_document(noted, SESSION, round_input(items=[card("i-d", carries=["i-c"])],
+                                                        replies=[{"text": "Asked in the next card.",
+                                                                  "notes": ["N-3-i-c-2"]}]))
+    assert check(noted)[0] == 0
