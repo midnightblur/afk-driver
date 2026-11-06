@@ -32,13 +32,26 @@ def _flat(text):
     return " ".join(text.split())
 
 
+def _raw(text, heading):
+    """The text under `heading` up to the next heading of the same or a higher level, line by line."""
+    level, title = heading.split(" ", 1)
+    found = re.search(rf"^{level} +{re.escape(title.strip())}\n", text, re.M)
+    assert found, f"no heading {heading!r}"
+    rest = text[found.end():]
+    stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
+    return rest[:stop.start()] if stop else rest
+
+
 def _section(text, heading):
     """The text under `heading` up to the next heading of the same or a higher level, on 1 line."""
-    level = heading.split(" ", 1)[0]
-    start = text.index(heading + "\n")
-    rest = text[start + len(heading) + 1:]
-    stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
-    return _flat(rest[:stop.start()] if stop else rest)
+    return _flat(_raw(text, heading))
+
+
+def _row(text, first_cell):
+    """The 1 table row of `text` whose first cell is `first_cell`."""
+    rows = [line for line in text.splitlines() if line.startswith(f"| {first_cell} |")]
+    assert len(rows) == 1, (first_cell, rows)
+    return rows[0]
 
 
 def _step(n):
@@ -49,8 +62,16 @@ def _step(n):
     return _flat(text[start:start + stop.start()] if stop else text[start:])
 
 
+def _questions_raw():
+    return _raw(ROUNDS_MD.read_text("utf-8"), "### Questions for others")
+
+
 def _questions():
-    return _section(ROUNDS_MD.read_text("utf-8"), "###  Questions for others")
+    return _flat(_questions_raw())
+
+
+def _content_raw():
+    return _raw(ROUNDS_MD.read_text("utf-8"), "## The session's content")
 
 
 # --- the content of a session lives in the page document (PRD AC-025; SDD §3 row "grill")
@@ -59,21 +80,46 @@ def test_the_session_content_names_each_list_of_the_page_document():
     content = _section(ROUNDS_MD.read_text("utf-8"), "## The session's content")
     for name in round_document.ENTRY_LISTS:
         assert f"`{name}`" in content, name
-    for kind in ("frequent", "edge", "risky"):
-        assert kind in content, kind
+    kinds = SCHEMA["example"]["properties"]["kind"]["enum"]
+    assert kinds == ["frequent", "edge", "risky"] and "its `kind` (frequent, edge or risky)" in content
     assert "with or without a page" in content
     assert "\"The session's content\"" in _step(4)
 
 
 def test_the_guides_name_each_field_the_builder_requires_of_a_new_entry():
-    """A new entry without a required field is refused by the document check (review finding f1)."""
-    content = _section(ROUNDS_MD.read_text("utf-8"), "## The session's content")
+    """A new entry without a required field is refused by the document check (review findings f1, f17, f28): each
+    list's row names its own fields; a part of a question is a row of the questions table."""
+    content, parts = _content_raw(), _questions_raw()
     for name, kind in round_document.ENTRY_LISTS.items():
+        row = _row(content, f"`{name}`")
         for field in sorted(set(SCHEMA[kind]["required"]) - {"id", "changes"}):
-            assert f"`{field}`" in content, (name, field)
+            if kind == "question" and field not in ENGINE_FIELDS:
+                assert "always required" in _row(parts, f"`{field}`"), field
+            else:
+                assert f"`{field}`" in row, (name, field)
     assert "`state: open`" in _questions()
     for state in ("`not_reached`", "`current`"):
-        assert state in content, state
+        assert state in _row(content, "`sections`"), state
+
+
+def test_each_sent_entry_carries_its_own_id():
+    """Review finding f15: `_merge_entries` refuses an entry with no `id` as `bad-entry`."""
+    content = _flat(_content_raw())
+    assert "Each entry you send carries an `id`" in content and "never reuse" in content
+    builder = (SKILLS / "use-lavish" / "scripts" / "round_document.py").read_text("utf-8")
+    assert 'raise Refusal("bad-entry", f"{kind}: an entry without an id' in builder
+
+
+def test_a_merge_or_a_removal_of_a_section_points_to_the_page_skill():
+    """Review finding f16: the schema takes `merged` and `removed`; the page skill holds their fields."""
+    row = _row(_content_raw(), "`sections`")
+    assert '"Sections and change lines" of `/afkv2:use-lavish`' in row
+    states = SCHEMA["section"]["properties"]["state"]["enum"]
+    assert {"merged", "removed"} <= set(states)
+    for state in ("merge", "removal"):
+        assert state in row, state
+    page = (SKILLS / "use-lavish" / "SKILL.md").read_text("utf-8")
+    assert "#### Sections and change lines\n" in page and "`merged_into`" in page
 
 
 # --- each note read for every meaning (PRD AC-013, AC-014, AC-028)
@@ -96,12 +142,18 @@ def test_a_question_joins_by_a_cannot_answer_note_or_an_accepted_proposal_card()
     assert origins == {"note", "card"}
 
 
+def test_the_questions_heading_has_1_space():
+    """Review finding f6."""
+    assert "\n### Questions for others\n" in ROUNDS_MD.read_text("utf-8")
+
+
 def test_each_part_of_a_question_for_others_is_named():
-    found = _questions()
+    """Review findings f7, f18, f27: each part is a row of the questions table, not of another table."""
+    found, table = _questions(), _questions_raw()
     parts = set(SCHEMA["question"]["properties"]) - ENGINE_FIELDS
     assert parts, "the schema names the parts of a question"
     for part in sorted(parts):
-        assert f"| `{part}` |" in ROUNDS_MD.read_text("utf-8"), part
+        _row(table, f"`{part}`")
     assert "`several` is `true`" in found and "`everyone`" in found
 
 
@@ -198,7 +250,7 @@ def test_the_grill_holds_no_page_layout_rule():
 # --- the shapes the builder refuses (review findings f12, f13, f14)
 
 def _part_row(part):
-    return next(line for line in ROUNDS_MD.read_text("utf-8").splitlines() if line.startswith(f"| `{part}` |"))
+    return _row(_questions_raw(), f"`{part}`")
 
 
 def test_each_required_part_of_a_question_is_marked_required():

@@ -31,14 +31,16 @@ The page document holds the whole topic, with or without a page shown. Each roun
 
 | List | Holds |
 |------|-------|
-| `sections` | 1 entry per part of the topic: its `title`, its `state` (`not_reached` until a question or a note reaches it, then `current`), its current text in `body`, and the sections it depends on in `links` |
+| `sections` | 1 entry per part of the topic: its `title`, its `state` (`not_reached` until a question or a note reaches it, then `current`), its current text in `body`, and the sections it depends on in `links`. A merge or a removal: "Sections and change lines" of `/afkv2:use-lavish` |
 | `stories` | 1 entry per user story, its `text` in 1 sentence |
 | `examples` | each worked example: its `title`, its `kind` (frequent, edge or risky), the `stories` it covers, and its starting data and result in `body` |
 | `questions` | the questions for others, in the order to ask them, each with its parts, its `origin` and its `state` (below) |
 
+Each entry you send carries an `id`. Give a new entry a new `id`, unique in its list, and never reuse one.
+
 A card names the section it asks about in `section`.
 
-###  Questions for others
+### Questions for others
 
 A question for others is a point that neither the developer nor the code can settle. It is an entry of `questions`, written for a person outside the session. It joins the list in 2 ways:
 
