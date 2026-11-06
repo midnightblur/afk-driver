@@ -1,6 +1,6 @@
 """Page document rules a schema cannot state (SDD §4, §6), on the format 1 or 2 form that a reader gives.
-The document already fits the schema of its format. The rules of the format 2 lists are refused by name: each
-reason starts with its rule code.
+The document already fits the schema of its format. A format 2 rule with a code below (`everyone-answered` to
+`change-rewritten`) is refused by name: its reason starts with that code. The other format 2 rules carry no code.
 
 A problem is `(path, why)`, with `path` from the document root.
 """
@@ -277,6 +277,8 @@ def check_format_2(doc: dict) -> list[tuple]:
         earlier.add(question["id"])
     # A page upgraded from format 0 or 1 keeps the replies of its older rounds, which may name several notes.
     first = doc["session"].get("upgraded") or 1
+    if first > len(rounds):
+        found.append((("session", "upgraded"), f"round {first} does not exist"))
     for r, round_ in enumerate(rounds):
         if round_["n"] < first:
             continue

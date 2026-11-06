@@ -248,19 +248,20 @@ def test_a_closed_question_holds_what_closed_it(capsys, tmp_path, state, field):
     doc = v2_document()
     entry(doc, "questions", "q-open")["state"] = state
     error = refused(capsys, tmp_path, doc, "invariant")
-    assert field in error["reason"]
+    assert f"field {field}: is required when the state is {state}" in error["reason"]
 
 
 def test_an_open_question_holds_no_answer(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "questions", "q-open")["answer"] = answer()
-    refused(capsys, tmp_path, doc, "invariant")
+    assert "a question in state open holds no answer" in refused(capsys, tmp_path, doc, "invariant")["reason"]
 
 
 def test_a_question_waits_only_on_an_earlier_question(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "questions", "q-open")["waits_on"] = "q-ans"
-    refused(capsys, tmp_path, doc, "invariant")
+    error = refused(capsys, tmp_path, doc, "invariant")
+    assert "field waits_on: 'q-ans' is no question earlier in the list" in error["reason"]
 
 
 def test_a_question_link_to_no_section_is_refused(capsys, tmp_path):
@@ -275,25 +276,55 @@ def test_a_question_link_to_no_section_is_refused(capsys, tmp_path):
 def test_a_section_links_only_other_sections(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "sections", "s-intro")["links"] = ["s-intro"]
-    refused(capsys, tmp_path, doc, "invariant")
+    assert "a section never links itself" in refused(capsys, tmp_path, doc, "invariant")["reason"]
 
 
 def test_a_section_merges_only_into_a_current_section(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "sections", "s-old")["merged_into"] = "s-gone"
-    refused(capsys, tmp_path, doc, "invariant")
+    error = refused(capsys, tmp_path, doc, "invariant")
+    assert "must name a current section, found 's-gone'" in error["reason"]
 
 
 def test_a_removed_section_holds_its_reason(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "sections", "s-gone").pop("reason")
-    refused(capsys, tmp_path, doc, "invariant")
+    error = refused(capsys, tmp_path, doc, "invariant")
+    assert "section s-gone, field reason: is required when the state is removed" in error["reason"]
 
 
 def test_change_lines_hold_at_most_1_line_per_round_and_never_go_down(capsys, tmp_path):
     doc = v2_document()
     entry(doc, "sections", "s-intro")["changes"] = [line(), line()]
-    refused(capsys, tmp_path, doc, "invariant")
+    error = refused(capsys, tmp_path, doc, "invariant")
+    assert "round 1 follows round 1; rounds go up" in error["reason"]
+
+
+def two_rounds():
+    doc = v2_document()
+    doc["rounds"] = [round_of(1, *doc["rounds"][0]["items"], state="settled",
+                              replies=doc["rounds"][0]["replies"]), round_of(2)]
+    return doc
+
+
+@pytest.mark.parametrize("lines, why", [
+    ([line(2), line(1)], "changes[1].round: round 1 follows round 2; rounds go up"),
+    ([line(3)], "changes[0].round: round 3 does not exist"),
+    ([line(cause="answer")], "changes[0].card: is required when the cause is answer"),
+    ([line(cause="answer_from")], "changes[0].question: is required when the cause is answer_from"),
+    ([line(cause="answer_from", question="q-open")], "changes[0].question: 'q-open' is not answered"),
+], ids=["down", "no-such-round", "answer-no-card", "answer-from-no-question", "unanswered-question"])
+def test_a_change_line_is_refused_for_each_broken_rule(capsys, tmp_path, lines, why):
+    doc = two_rounds()
+    entry(doc, "sections", "s-intro")["changes"] = lines
+    assert why in refused(capsys, tmp_path, doc, "invariant")["reason"]
+
+
+def test_a_change_line_from_an_answered_question_passes(capsys, tmp_path):
+    doc = two_rounds()
+    entry(doc, "sections", "s-intro")["changes"] = [line(), line(2, cause="answer_from", question="q-ans")]
+    code, result = check(capsys, tmp_path, doc)
+    assert code == 0, result
 
 
 def test_a_change_line_by_note_names_a_note(capsys, tmp_path):
@@ -400,6 +431,18 @@ def test_a_reply_that_names_2_notes_is_refused_on_a_version_2_page(capsys, tmp_p
     assert "reply-many-notes" in error["reason"]
 
 
+def test_a_reply_that_names_2_notes_passes_on_a_version_1_page(capsys, tmp_path):
+    doc = v2_document()
+    doc["schema"] = "afkv2.page/1"
+    for kind in ("sections", "stories", "examples", "questions"):
+        doc.pop(kind)
+    doc["rounds"][0]["items"][0].pop("section")
+    doc["notes"] = [note("N-1-i-a-1", 1, "i-a", "i-a"), note("N-1-i-assume-1", 1, "i-assume", "i-assume")]
+    doc["rounds"][0]["replies"] = [{"id": "A-1-1", "text": "Both.", "notes": ["N-1-i-a-1", "N-1-i-assume-1"]}]
+    code, result = check(capsys, tmp_path, doc)
+    assert code == 0, result
+
+
 def an_upgraded_page(upgraded=None):
     """Round 1 is a settled round of the old format with a reply that names 2 notes; round 2 is current."""
     doc = v2_document()
@@ -434,7 +477,12 @@ def test_upgraded_is_a_round_number(capsys, tmp_path, value):
     refused(capsys, tmp_path, doc, "schema")
 
 
+def test_upgraded_names_a_round_of_the_page(capsys, tmp_path):
+    error = refused(capsys, tmp_path, an_upgraded_page(upgraded=3), "invariant")
+    assert "item session, field upgraded: round 3 does not exist" in error["reason"]
+
+
 def test_entry_ids_are_unique_in_the_document(capsys, tmp_path):
     doc = v2_document()
     doc["stories"][0]["id"] = "s-intro"
-    refused(capsys, tmp_path, doc, "invariant")
+    assert "id 's-intro' is not unique" in refused(capsys, tmp_path, doc, "invariant")["reason"]

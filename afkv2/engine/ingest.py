@@ -188,7 +188,7 @@ def _entries(rows: list[str], page: _Page) -> list[Line]:
         if open_ is not None:
             open_[0].text = "\n".join(open_[1]).rstrip("\n")
             open_ = None
-        words = row.split(" ")
+        words = row.split()
         if page.v2 and len(words) > 1 and words[1] == TICK_WORD:
             lines.append(_tick(words, number, page, lines))
             continue
@@ -330,7 +330,7 @@ def apply_response(doc: dict, raw: str, received: str, ids: dict, nodes: dict, p
                 signal.update(note=line.target, action=EDIT)
             elif line.noted:
                 signal["note"] = write(line.target, item_id, line)
-            if waits and (line.token == EDIT or signal["note"] in result["notes"]):
+            if waits and signal["note"]:
                 result["settled_notes_to_read"].append(signal["note"])
             signals[line.number] = signal
         _set_state(item, after, n, group)

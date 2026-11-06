@@ -149,7 +149,7 @@
       }
     },
     "answer": {
-      "description": "A reply: it holds id and exactly 1 note id (the check refuses more as reply-many-notes).",
+      "description": "A reply: it holds id and at most 1 note id (the check refuses more as reply-many-notes; the round builder refuses a note with no reply as unanswered-note).",
       "type": "object",
       "additionalProperties": false,
       "required": ["text"],
