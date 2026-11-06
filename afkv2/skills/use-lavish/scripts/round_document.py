@@ -462,7 +462,8 @@ def _merge_entries(doc, round_input, n):
 
     An entry left out keeps its text and its change list exactly. A sent entry holds every field but `changes`,
     + `change`: its 1 change line for round `n`; a question may add `after`, the question it follows. A new entry
-    goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one."""
+    goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one; an entry
+    of the replaced round that the new round leaves out keeps that round's text and line (decision D-20)."""
     changed = []
     for kind, name in ENTRY_LISTS.items():
         sent = round_input.get(kind)
@@ -485,7 +486,10 @@ def _merge_entries(doc, round_input, n):
             old = next((old for old in stored if old["id"] == raw["id"]), None)
             order = [old["id"] for old in stored] + ([] if old else [raw["id"]])
             placed = _place_question(stored, entry, raw["after"], where) if "after" in raw else None
-            if old is not None and _stored(old) == entry and (placed is None or [e["id"] for e in placed] == order):
+            # A round rebuilt by `replace` resends its own entries: an entry with a line of round `n` is no repeat.
+            replaced = old is not None and any(line["round"] == n for line in old.get("changes") or [])
+            if (old is not None and not replaced and _stored(old) == entry
+                    and (placed is None or [e["id"] for e in placed] == order)):
                 raise Refusal("unchanged-entry", f"{where} is sent unchanged; send only the entries that changed")
             entry["changes"] = [*(line for line in (old or {}).get("changes") or [] if line["round"] != n),
                                 _change_line(where, raw.get("change"), n)]

@@ -225,6 +225,18 @@ def test_a_section_sent_with_the_same_text_is_refused_and_nothing_is_written(pag
     assert page.read_bytes() == before
 
 
+@pytest.mark.parametrize("text", ["Text.", "Corrected text."])
+def test_a_replaced_round_resends_its_own_entries_with_1_change_line(page, text):
+    next_round(page, "i-c", sections=[section("s-intro"), section("s-scope")])
+    rd.build_round_document(page, SESSION, entries_round("i-c", sections=[section("s-intro", text)]), replace=True)
+    doc = read(page)
+    assert [rnd["n"] for rnd in doc["rounds"]] == [1, 2, 3]
+    assert doc["sections"][0]["body"]["props"]["text"] == text
+    assert doc["sections"][0]["changes"] == [{"round": 3, **FINDING}]
+    assert doc["sections"][1]["changes"] == [{"round": 3, **FINDING}], "an entry left out keeps the replaced draft"
+    assert check(page)[0] == 0
+
+
 @pytest.mark.parametrize("change", [None, [FINDING, FINDING], {**FINDING, "round": 2}])
 def test_a_changed_entry_without_exactly_1_change_line_for_the_round_is_refused(page, change):
     entry = section("s-intro") if change is None else {**section("s-intro"), "change": change}
