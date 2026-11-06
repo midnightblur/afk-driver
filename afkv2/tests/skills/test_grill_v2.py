@@ -285,3 +285,9 @@ def test_stale_names_the_plan_of_the_run_branch_when_git_holds_it(repo):
     build(taken, card("i-b"))
     answer(taken, "[round R-2]\ni-b accept")
     assert grill_log.gate(taken["doc"], taken["log"])["stale"][-1] == "feat-x-run:plan/PLAN.md"
+
+
+def test_the_run_suffix_is_the_one_of_the_plan_check():
+    sys.path.insert(0, str(PLUGIN / "skills" / "to-subtasks" / "scripts"))
+    import check_plan
+    assert grill_log.RUN_SUFFIX == check_plan.RUN_SUFFIX

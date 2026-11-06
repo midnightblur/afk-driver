@@ -32,7 +32,9 @@ REQUIRED_KINDS = ("Policy", "Staples", "Examples", "Devil")
 STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-external\b.*)$")
 # A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
 TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
-RUN_SUFFIX = "-run"  # the run branch of a feature branch: check_plan.RUN_SUFFIX of to-subtasks
+# The run branch of a feature branch. Lockstep copy of check_plan.RUN_SUFFIX of to-subtasks, not imported: a test world
+# copies only the skills it runs. test_grill_v2.py compares them.
+RUN_SUFFIX = "-run"
 GIT_LIMIT_S = 30
 GATE_PASSED = "- Settled: exit gate passed"
 EXAMPLE_KINDS = ("frequent", "edge", "risky")
