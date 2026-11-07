@@ -191,3 +191,29 @@ def test_a_card_whose_ids_the_prd_does_not_hold_gets_no_tip(tmp_path):
     write_spec(tmp_path)
     build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "AC-999"])))
     assert "ids" not in (stored(tmp_path).get("tips") or {})
+
+
+# --- the ticket card (PRD AC-036)
+
+TICKET = {"key": "PROJ-1", "title": "Export runs", "description": "Export each run.",
+          "links": [{"key": "PROJ-2", "title": "Import runs", "status": "Open"}]}
+
+
+def test_ticket_file_adds_the_ticket_card_to_round_one(tmp_path):
+    path = doc_path(tmp_path)
+    ticket_file = tmp_path / "ticket.json"
+    ticket_file.write_text(json.dumps(TICKET), "utf-8")
+    round_file = tmp_path / "round.json"
+    round_file.write_text(json.dumps(round_of(confirm("c-1"))), "utf-8")
+    answer = dr.main(["build", "--doc", str(path), "--session", "s-1", "--ticket", "PROJ-1",
+                      "--round-input", str(round_file), "--ticket-file", str(ticket_file)])
+    assert answer["items"] == ["c-1"]
+    items = stored(tmp_path)["rounds"][0]["items"]
+    assert [item["id"] for item in items] == ["i-ticket", "c-1"]
+    assert "PROJ-2" in json.dumps(items[0])
+
+
+def test_a_later_round_gets_no_ticket_card(tmp_path):
+    build(tmp_path, round_of(confirm("c-1")), ticket=TICKET)
+    build(tmp_path, round_of(confirm("c-2")), ticket=TICKET)
+    assert [item["id"] for item in stored(tmp_path)["rounds"][1]["items"]] == ["c-2"]

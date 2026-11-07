@@ -1,12 +1,13 @@
-"""Write the page document of one propose-solution session (schema afkv2.page/0, SDD §4).
+"""Write the page document of one propose-solution session (page format 2; SDD §3 row S-1).
 
 Verbs, run from the repository root:
-  build --doc D --session S --ticket K --round-input F [--replace]
+  build --doc D --session S --ticket K --round-input F [--ticket-file T] [--replace]
   next  --doc D
 
 The grill's round builder writes the document. This script adds what only this skill knows: the
 critical aspects in their fixed order, the layers from the top down, the human-locked aspects, the
-fork cards, and the maps that show all three.
+fork cards, the maps that show all three, the section rules, the 5 blocks of a decision, and the
+proposers banner.
 
 An item of the round input may name one of `aspect`, `layer` or `locked`, and may hold a `fork`.
 """
@@ -263,10 +264,11 @@ def _filled_sections(doc, sent):
     return filled, [entry["id"] for entry in merged]
 
 
-def build_design_round(doc_path, session, round_input, replace=False, links=None):
+def build_design_round(doc_path, session, round_input, replace=False, links=None, ticket=None):
     """Check the round against the fixed orders, then let the grill's builder write it; write nothing on a refusal.
 
-    `links` replaces `session.links`, so the page links each ticket, change and commit reference."""
+    `links` replaces `session.links`, so the page links each ticket, change and commit reference. `ticket`, the
+    read ticket, adds the ticket card to round 1 (PRD AC-036)."""
     if not isinstance(round_input, dict) or not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "the round input is one JSON object, and items is a list")
     doc = _view(doc_path, replace)
@@ -286,7 +288,7 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     takes_sections = "schema" not in doc or rd.is_version_2(doc) or round_input.get("upgrade") is True
     if isinstance(round_input.get("sections"), list) and takes_sections:
         built["sections"], order = _filled_sections(doc, round_input["sections"])
-    answer = rd.build_round_document(doc_path, session, built, None, replace, links)
+    answer = rd.build_round_document(doc_path, session, built, ticket, replace, links)
     late = [item_id for item_id in answer["degraded"] if item_id not in degraded]
     return {**answer, "degraded": [*degraded, *late], "section_order": order}
 
@@ -334,6 +336,7 @@ def main(argv):
     parser.add_argument("--session")
     parser.add_argument("--ticket")
     parser.add_argument("--round-input")
+    parser.add_argument("--ticket-file")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "next":
@@ -343,8 +346,11 @@ def main(argv):
     feature = Path(args.doc).parent.parent.name
     session = {"id": args.session, "skill": SKILL_NAME, "feature": feature, "ticket": args.ticket}
     earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
+    ticket = read_json(args.ticket_file) if args.ticket_file else None
+    linked = [link.get("key") for link in [*((ticket or {}).get("links") or []),
+                                           *((ticket or {}).get("unread_links") or [])]]
     return build_design_round(args.doc, session, read_json(args.round_input), args.replace,
-                              links_for([args.ticket], earlier))
+                              links_for([args.ticket, *linked], earlier), ticket)
 
 
 if __name__ == "__main__":
