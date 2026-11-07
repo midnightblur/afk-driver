@@ -307,6 +307,8 @@ def test_a_second_start_refuses_same_tool(runner, doc, phase, brief):
 
     assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "same-tool"
     assert len(runner.calls) == before
+    assert state(doc)["stage"] == "drafting" and "failed" not in state(doc)
+    assert run(runner, "plan", doc)["count"] == 2
 
 
 def test_start_refuses_after_a_one_proposer_plan(runner, doc, phase, brief):
@@ -535,12 +537,17 @@ def test_wait_waits_without_a_limit_until_idle_done_or_blocked(runner, doc, phas
                for call, timeout in waits)
 
 
-def test_critique_before_wait_refuses_no_draft_and_sends_nothing(runner, doc, phase, brief):
+def test_critique_out_of_order_refuses_not_drafted_and_keeps_the_run(runner, doc, phase, brief):
     started(runner, doc, brief)
     before = len(runner.commands("agent", "prompt"))
 
-    assert refused(runner, "critique", doc).code == "no-draft"
+    assert refused(runner, "critique", doc).code == "not-drafted"
     assert len(runner.commands("agent", "prompt")) == before
+    assert state(doc)["stage"] == "drafting" and "failed" not in state(doc)
+    run(runner, "wait", doc)
+    run(runner, "critique", doc)
+    assert refused(runner, "critique", doc).code == "not-drafted"
+    assert state(doc)["stage"] == "critiquing" and "failed" not in state(doc)
 
 
 # A failure after start: the agent in charge drafts alone, and the banner says why (SDD §6, §7; decision D-10).
@@ -589,7 +596,26 @@ def test_a_failure_after_start_records_proposer_failed(runner, doc, phase, brief
     runner.on = None
     assert run(runner, "cleanup", doc)["proposers"] == solo
     assert dr._proposers_banner(solo) == [
-        f"1 solution proposer drafted the design alone (Claude): {dr.SOLO_REASONS['proposer-failed']}."]
+        "1 solution proposer drafted the design alone (Claude): a solution proposer failed before the drafts and "
+        "critiques were done."]
+
+
+def test_a_failure_in_a_codex_session_names_codex(runner, doc, phase, brief):
+    del runner.env["CLAUDECODE"]
+    runner.env["CODEX_THREAD_ID"] = "t-1"
+    _fail_draft(runner, doc, brief)
+
+    assert run(runner, "plan", doc) == {"count": 1, "tools": ["codex"], "reason": "proposer-failed"}
+
+
+def test_cleanup_of_a_two_proposer_plan_that_never_started_answers_proposer_failed(runner, doc, phase, brief):
+    run(runner, "plan", doc)
+    refused(runner, "start", doc, "--brief", str(brief.with_name("missing.md")), "--base", BASE)
+
+    answer = run(runner, "cleanup", doc)
+
+    assert answer["proposers"] == {"count": 1, "tools": ["claude"], "reason": "proposer-failed"}
+    assert state(doc)["failed"] == {"stage": "planned", "code": "not-started"} and state(doc)["cleaned"] is True
 
 
 def test_a_refusal_before_start_records_no_failure(runner, doc, phase, brief):

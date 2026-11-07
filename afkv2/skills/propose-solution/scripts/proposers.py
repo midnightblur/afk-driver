@@ -9,11 +9,12 @@ Verbs, run from the repository root; each answers one JSON object:
 
 Refusal codes: plan `aspects-open`; start `same-tool`, `not-planned`, `aspects-open`, `no-herdr`, `missing-input`,
 `worktree-failed`, `herdr-failed`, `not-submitted`; wait `not-started`, `pane-gone`, `herdr-failed`, `no-draft`;
-critique `not-started`, `no-draft`, `not-submitted`; cleanup `cleanup-failed`.
+critique `not-started`, `not-drafted`, `no-draft`, `not-submitted`; cleanup `cleanup-failed`.
 
 `plan` answers exactly the `proposers` input of the design build: {count, tools, reason}. `cleanup` answers it
-again under `proposers`. After a refusal of `start`, `wait` or `critique` once the proposers started, both answer
-count 1 with reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
+again under `proposers`, except when no plan was recorded. A proposer failure is a refusal coded in `FAILURES`
+once the proposers started, or a cleanup of a count 2 plan that never started; after it, both answer count 1 with
+reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
 
 The state file `<doc stem>.proposers.json` beside the page document is the ledger, version 1:
 {version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree}], cleaned, failed}.
@@ -206,6 +207,7 @@ def _save(doc, state):
 
 
 LIVE = ("drafting", "drafted", "critiquing", "critiqued")
+FAILURES = {"no-herdr", "worktree-failed", "herdr-failed", "not-submitted", "pane-gone", "no-draft"}
 
 
 def _recording(verb):
@@ -215,8 +217,8 @@ def _recording(verb):
             return verb(args, runner)
         except Refusal as refusal:
             state = _load(args.doc)
-            if (state and state["count"] == 2 and not state.get("cleaned") and not state.get("failed")
-                    and state.get("stage") in LIVE):
+            if (refusal.code in FAILURES and state and state["count"] == 2 and not state.get("cleaned")
+                    and not state.get("failed") and state.get("stage") in LIVE):
                 state["failed"] = {"stage": state["stage"], "code": refusal.code}
                 state["stage"] = "failed"
                 _save(args.doc, state)
@@ -317,10 +319,10 @@ def start(args, runner):
         brief = Path(args.brief).read_text("utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise Refusal("missing-input", f"brief {args.brief}: {error}") from None
-    main = _main_checkout(runner)
-    stem = Path(args.doc).stem
     state.update(brief=hashlib.sha256(brief.encode("utf-8")).hexdigest(), stage="drafting")
     _save(args.doc, state)
+    main = _main_checkout(runner)
+    stem = Path(args.doc).stem
     answer = []
     for tool in TOOLS:
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
@@ -387,9 +389,12 @@ def wait(args, runner):
 
 def critique(args, runner):
     state = _started(args.doc)
+    if state.get("stage") != "drafted":
+        raise Refusal("not-drafted", f"critique runs once, after `wait` answers both drafts; the stage is "
+                                     f"{state.get('stage')}")
     missing = _missing(state, (DRAFT,))
-    if state.get("stage") != "drafted" or missing:
-        raise Refusal("no-draft", f"critique needs both drafts after `wait`: {', '.join(missing) or 'run wait'}")
+    if missing:
+        raise Refusal("no-draft", f"critique needs both drafts: {', '.join(missing)}", missing=missing)
     entries, submitted = state["proposers"], {}
     for entry in entries:
         other = next(item for item in entries if item is not entry)
@@ -438,6 +443,8 @@ def cleanup(args, runner):
     if left:
         raise Refusal("cleanup-failed", f"still open: {', '.join(left)}; close or delete each by hand, then run "
                                         f"cleanup again", left=left, closed=closed, removed=removed)
+    if state["count"] == 2 and state.get("stage") == "planned" and not state.get("failed"):
+        state["failed"] = {"stage": "planned", "code": "not-started"}
     state["cleaned"] = True
     _save(args.doc, state)
     return {"ok": True, "closed": closed, "removed": removed, "proposers": _answer(state, runner)}
