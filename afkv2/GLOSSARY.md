@@ -85,6 +85,11 @@ A card that shows the human a design choice the agent could not settle, with the
 
 **Agent pane**:
 A second agent session, of another provider or a higher model tier, that the agent starts and talks to — for a second design draft or an adversarial review.
+`Related:` herdr
+
+**herdr**:
+The terminal workspace manager that holds agent panes: workspaces, tabs and panes, with a command line that starts an agent in a pane, prompts it, waits for it and reads its output. An agent learns its commands from the herdr playbook skill (`afkv2/skills/herdr/SKILL.md`). Setup installs it after the developer's yes. A session outside herdr has 1 solution proposer.
+`Related:` Agent pane, Solution proposer
 
 ## Pages
 
@@ -146,3 +151,9 @@ A part of a page that holds the current state of one part of the topic, kept up 
 
 **Question for others**:
 A point of a grill that neither the human nor the code can settle, so someone outside the session must answer it: a product owner, a tester, a director or another team. It is kept with who to ask, its context, why the answer is needed, the ways we see and an example, written so that person can read it.
+
+**Solution proposer**:
+An agent session, of Claude or Codex, that drafts a whole design on its own from the design inputs. A lasting disagreement between 2 solution proposers becomes a fork card.
+
+**Agent run time**:
+The days the agents would need to build a design, from the plan to a change ready for review, with no human work counted. Shown as a low, likely and high range.

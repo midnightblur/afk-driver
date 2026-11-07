@@ -39,7 +39,7 @@ ENGINE_ITEM_FIELDS = {"notes", "settled"}
 ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
 # The lists of a version 2 page, by the name of 1 entry (SDD §4). The round input sends only the entries that changed.
 ENTRY_LISTS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question"}
-# The input fields of a sent entry that the builder does not store: its 1 change line and a question's place.
+# The input fields of a sent entry that the builder does not store: its 1 change line and its place.
 ENTRY_INPUT_FIELDS = ("change", "after")
 # The document rules that refuse a version 2 write by their own name (engine/schema/invariants.py).
 NAMED_RULES = ("everyone-answered", "answer-no-signal", "drop-no-reason", "assume-no-card", "reply-many-notes")
@@ -52,6 +52,8 @@ TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
 SESSION_TEXT_LIMIT = 40
+# The label of the optional block that names what a decision serves (ADR-0004 design).
+DRIVEN_BY_LABEL = "Driven by"
 
 
 def _components(component):
@@ -198,7 +200,7 @@ def _labelled(component_id, label, value, **extra):
 def _decided_fields(item_id, decided, known_ids):
     """The six fields of a decided card as labelled text components, and whether the card holds all six.
 
-    The decision comes first, in bold. The alternatives are a list under a label that calls them rejected,
+    The decision comes first, in bold. A sent `driven_by` list adds a "Driven by" block right after it. The alternatives are a list under a label that calls them rejected,
     so they never read as parts of the decision. The grade is a badge on the evidence label."""
     decided = decided if isinstance(decided, dict) else {}
     alternatives = [str(a) for a in decided.get("alternatives") or []]
@@ -209,6 +211,9 @@ def _decided_fields(item_id, decided, known_ids):
     fields = []
     if decided.get("decision"):
         fields.append({**_labelled(f"{item_id}-decision", "Decision", decided["decision"]), "style": "font-weight: 600"})
+    driven_by = [str(value) for value in decided.get("driven_by") or []]
+    if driven_by:
+        fields.append(_labelled(f"{item_id}-driven-by", DRIVEN_BY_LABEL, ", ".join(driven_by)))
     if decided.get("why"):
         fields.append(_labelled(f"{item_id}-why", "Why this one", decided["why"]))
     if alternatives:
@@ -448,20 +453,34 @@ def _change_line(where, line, n):
     return {"round": n, **{key: value for key, value in line.items() if key != "round"}}
 
 
-def _place_question(stored, entry, after, where):
-    """The list with the question right after the question that `after` names."""
+def _place_after(stored, entry, after, where, name):
+    """The list with the entry right after the other entry of the list that `after` names."""
     if after == entry["id"] or not any(old["id"] == after for old in stored):
-        raise Refusal("bad-entry", f"{where}: after {after!r} names no other question of the list")
+        raise Refusal("bad-entry", f"{where}: after {after!r} names no other {name} of the list")
     rest = [old for old in stored if old["id"] != entry["id"]]
     at = next(k for k, old in enumerate(rest) if old["id"] == after) + 1
     return [*rest[:at], entry, *rest[at:]]
+
+
+def _place_question(stored, entry, after, where):
+    """The list with the question right after the question that `after` names."""
+    return _place_after(stored, entry, after, where, "question")
+
+
+def _place_section(stored, entry, after, where):
+    """The list with the section right after the stored or same-round section that `after` names (ADR-0001 design)."""
+    return _place_after(stored, entry, after, where, "section")
+
+
+# The lists whose entries take `after`, each with its placer.
+PLACERS = {"questions": _place_question, "sections": _place_section}
 
 
 def _merge_entries(doc, round_input, n):
     """Merge the sent entries of the 4 lists into the document by id; answer their ids in the order sent.
 
     An entry left out keeps its text and its change list exactly. A sent entry holds every field but `changes`,
-    + `change`: its 1 change line for round `n`; a question may add `after`, the question it follows. A new entry
+    + `change`: its 1 change line for round `n`; a question or a section may add `after`, the entry it follows. A new entry
     goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one; an entry
     of the replaced round that the new round leaves out keeps that round's text and line (decision D-20)."""
     changed = []
@@ -478,14 +497,14 @@ def _merge_entries(doc, round_input, n):
             where = f"{name} {raw['id']}"
             if "changes" in raw:
                 raise Refusal("bad-entry", f"{where}: the builder writes changes; send 1 change line in `change`")
-            if "after" in raw and kind != "questions":
-                raise Refusal("bad-entry", f"{where}: only a question takes `after`")
+            if "after" in raw and kind not in PLACERS:
+                raise Refusal("bad-entry", f"{where}: only a question or a section takes `after`")
             if raw["id"] in changed:
                 raise Refusal("bad-entry", f"{where} is sent twice")
             entry = {key: copy.deepcopy(value) for key, value in raw.items() if key not in ENTRY_INPUT_FIELDS}
             old = next((old for old in stored if old["id"] == raw["id"]), None)
             order = [old["id"] for old in stored] + ([] if old else [raw["id"]])
-            placed = _place_question(stored, entry, raw["after"], where) if "after" in raw else None
+            placed = PLACERS[kind](stored, entry, raw["after"], where) if "after" in raw else None
             # A round rebuilt by `replace` resends its own entries: an entry with a line of round `n` is no repeat.
             replaced = old is not None and any(line["round"] == n for line in old.get("changes") or [])
             if (old is not None and not replaced and _stored(old) == entry

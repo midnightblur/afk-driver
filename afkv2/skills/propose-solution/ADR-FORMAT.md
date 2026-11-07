@@ -28,6 +28,10 @@ To reverse an earlier design ADR, write a new one with `Superseded by` on the ol
 
 The forces at play. Cite the SDD section.
 
+## Driven by
+
+The requirement, record and page ids that drive the decision: the ids of the Driven by block of its decision on the page.
+
 ## Decision
 
 The chosen approach, in one paragraph, with one diagram of its shape.

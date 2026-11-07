@@ -1,13 +1,23 @@
 """The disk side of propose-solution, from the repository root.
 
 `design_files.py start --ticket KEY`: the paths of the spec folder; refuses a missing input and names its writer.
+  The newest session open: `resume` true. The newest session passed its design gate: `takeover` names it, and
+  `session` and `doc` are its own, so new input adds a round to that page; its `Last pass` row is kept or written.
 `design_files.py row --log FILE --kind K --text T`: one row of this skill's section of the grill log.
   A `Takeover` row reads `- Takeover: R<n> · <at>`: the entry that `take-over` added; one row per takeover.
+`design_files.py sync --doc FILE --log FILE`: copies each new note of the page document into this skill's section.
+  A `Note` row reads `- Note: <note id> · R<round> · on <element id>: <the human's words as one JSON string>`;
+  a note id already in the section is skipped, so a row keeps the words it was first copied with.
 `design_files.py gate --doc FILE --spec-dir DIR`: the mechanical part of the design gate; lists every failure.
+  A pass answers `stale`, the plan of the run branch when it exists, and `changed`, the points changed since the
+  session's last passed gate; each list is empty when nothing applies. It writes the gate row and the `Last pass` row.
+  Failures include `question-open` per open question for others, `section-missing` per absent whole-system, patterns
+  or performance section, and `pane-open` per proposer pane or worktree that the proposers state file holds open.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -21,12 +31,16 @@ sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 import design_round as dr  # noqa: E402
 import grill_log  # noqa: E402
 import grill_start  # noqa: E402
+import pass_history  # noqa: E402
 import prd_files  # noqa: E402
+import section_rules  # noqa: E402
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
+from round_document import session_notes  # noqa: E402
 
 TO_PRD = "/afkv2:to-prd"
 SECTION = "## Solution design"
 KINDS = {"Premise", "Spinoff", "Escape", "Takeover"}
+NOTE_ROW = re.compile(r"^- Note: (\S+) · ")
 PREMISE = re.compile(r"^- Premise: (.+) → (pending|refuted)\b", re.M)
 GATE_PASSED = "- Settled: design gate passed"
 DOC_PREFIX = f"{dr.SKILL_NAME}-"
@@ -40,8 +54,12 @@ BLOCKING_LAYER = re.compile(r"L[2-79]\b")
 BLOCKING_ANSWER = re.compile(r"yes\b", re.I)
 EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
-ADR_SECTIONS = ("Decision", "Alternatives Considered")
+ADR_SECTIONS = ("Driven by", "Decision", "Alternatives Considered")
 SDD_NAME = "SDD.md"
+# The section kinds of the catalog in DRAFT.md that every design page holds (PRD P-01, P-04, P-05).
+REQUIRED_KINDS = ("system", "patterns", "performance")
+# The later documents of a design are only the plan of the run branch: no later writer has a file in the spec folder.
+LATER_WRITERS = ()
 OPEN_QUESTIONS = "§13 Open Questions"
 REGISTER = "§0 Binding Contract"
 
@@ -60,10 +78,33 @@ def gate_passed(log, session):
                for line in Path(log).read_text("utf-8").splitlines())
 
 
+def _newest_session(pages):
+    sessions = sorted(path.stem[len(DOC_PREFIX):] for path in page_documents(pages, DOC_PREFIX))
+    return sessions[-1] if sessions else None
+
+
 def _open_session(pages, log):
     """The newest document whose session has no passed design gate; a run resumes it."""
-    sessions = sorted(path.stem[len(DOC_PREFIX):] for path in page_documents(pages, DOC_PREFIX))
-    return sessions[-1] if sessions and not gate_passed(log, sessions[-1]) else None
+    session = _newest_session(pages)
+    return session if session is not None and not gate_passed(log, session) else None
+
+
+def finished_session(pages, log):
+    """The newest document whose session passed its design gate; a run with new input takes it over."""
+    session = _newest_session(pages)
+    return session if session is not None and gate_passed(log, session) else None
+
+
+def _passed_round(rows, session):
+    return next((n for n in (pass_history.last_pass(line, session) for line in rows) if n is not None), None)
+
+
+def keep_last_pass(doc_path, log):
+    """A log from before the `Last pass` row: write the row of a taken-over session, at the current round of its page."""
+    doc = read_json(doc_path)
+    head, rows, tail = _section_parts(log)
+    if _passed_round(rows, doc["session"]["id"]) is None:
+        _write_section(log, head, [*rows, pass_history.last_pass_row(doc)], tail)
 
 
 def ensure_section(log):
@@ -87,13 +128,16 @@ def start(argv):
     log, pages = Path(paths["log"]), spec_dir / "pages"
     ensure_section(log)
     resumed = _open_session(pages, log)
-    session = resumed or _new_session(pages)
+    takeover = None if resumed else finished_session(pages, log)
+    session = resumed or takeover or _new_session(pages)
     doc, raw_file = pages / f"{DOC_PREFIX}{session}.json", pages / f"{DOC_PREFIX}{session}.raw.txt"
+    if takeover:
+        keep_last_pass(doc, log)
     sdd = spec_dir / SDD_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": prd.as_posix(), "log": log.as_posix(),
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(), "sdd": sdd.as_posix(),
             "sdd_exists": sdd.exists(), "adr_dir": (spec_dir / "adr" / "design").as_posix(), "doc": doc.as_posix(),
-            "session": session, "resume": bool(resumed), "raw_file": raw_file.as_posix(),
+            "session": session, "resume": bool(resumed), "takeover": takeover, "raw_file": raw_file.as_posix(),
             "raw_pending": grill_start._raw_pending(raw_file, doc), "unverified_external": paths["unverified_external"]}
 
 
@@ -143,6 +187,29 @@ def row(argv):
     else:
         _upsert(args.log, key, text)
     return {"ok": True, "row": text}
+
+
+def sync_notes(doc_path, log):
+    """Append a `Note` row for each live note of the document whose id the section does not hold yet."""
+    for path in (doc_path, log):
+        if not Path(path).is_file():
+            raise Refusal("missing-input", f"missing {path}", missing=str(path))
+    doc = read_json(doc_path)
+    head, rows, tail = _section_parts(log)
+    known = {found.group(1) for found in map(NOTE_ROW.match, rows) if found}
+    new = [f"- Note: {note['id']} · R{note['round']} · on {note['target']}: {json.dumps(note['text'], ensure_ascii=False)}"
+           for note in session_notes(doc) if note["id"] not in known]
+    if new:
+        _write_section(log, head, rows + new, tail)
+    return {"ok": True, "notes": len(new), "rows": len(known) + len(new)}
+
+
+def sync(argv):
+    parser = Parser(add_help=False)
+    for name in ("--doc", "--log"):
+        parser.add_argument(name, required=True)
+    args = parser.parse_args(argv)
+    return sync_notes(args.doc, args.log)
 
 
 def sdd_template():
@@ -243,6 +310,15 @@ def _fork_problems(doc, records):
     return problems
 
 
+def _page_problems(doc, doc_path):
+    """The open questions for others, the absent required sections and the open proposer resources (SDD §6 I-6, I-8)."""
+    present = {entry["id"] for entry in section_rules._active(doc.get("sections") or [])}
+    required = [row["id"] for row in section_rules.catalog() if row["kind"] in REQUIRED_KINDS]
+    return ([f"question-open: {pass_history.question_line(question)}" for question in pass_history.open_questions(doc)]
+            + [f"section-missing: {sid}" for sid in required if sid not in present]
+            + [f"pane-open: {name}" for name in dr._open_resources(dr.proposers_state(doc_path))])
+
+
 def _premise_problems(log):
     head, rows, tail = _section_parts(log)
     return [f"{state}: {claim}" for claim, state in PREMISE.findall("\n".join(rows))]
@@ -257,23 +333,27 @@ def gate(argv):
     log, sdd, adr_dir = spec_dir / "GRILL-LOG.md", spec_dir / SDD_NAME, spec_dir / "adr" / "design"
     adrs = sorted(adr_dir.glob("*.md"))
     records = "\n".join(path.read_text("utf-8") for path in [*adrs, sdd] if path.is_file())
-    failures = [*grill_log._doc_failures(doc), *dr.unfinished(doc), *_premise_problems(log),
+    failures = [*grill_log._doc_failures(doc), *dr.unfinished(doc), *_page_problems(doc, args.doc), *_premise_problems(log),
                 *_sdd_problems(sdd, doc), *_adr_problems(adrs), *_fork_problems(doc, records)]
     if failures:
         raise Refusal("design-gate", f"{len(failures)} design-gate checks failed", failures=failures)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     head, rows, tail = _section_parts(log)
-    session = f"· session {doc['session']['id']}"
-    rows = [line for line in rows if not (line.startswith(GATE_PASSED) and line.endswith(session))]
-    _write_section(log, head, [*rows, f"{GATE_PASSED} {today} {session}"], tail)
+    session_id = doc["session"]["id"]
+    session = f"· session {session_id}"
+    passed = _passed_round(rows, session_id)
+    rows = [line for line in rows if not (line.startswith(GATE_PASSED) and line.endswith(session))
+            and pass_history.last_pass(line, session_id) is None]
+    _write_section(log, head, [*rows, f"{GATE_PASSED} {today} {session}", pass_history.last_pass_row(doc)], tail)
     index = spec_dir / "INDEX.md"
     if index.is_file():
         prd_files.set_row(index, "SDD", SDD_NAME, "draft")
         prd_files.set_row(index, "Design ADRs", "adr/design/", f"{len(adrs)} records" if adrs else "—")
-    return {"ok": True, "passed": today, "design_adrs": len(adrs), "index_missing": not index.is_file()}
+    return {"ok": True, "passed": today, "design_adrs": len(adrs), "index_missing": not index.is_file(),
+            "stale": pass_history.stale(spec_dir, LATER_WRITERS), "changed": pass_history.changed(doc, passed)}
 
 
-VERBS = {"start": start, "row": row, "gate": gate}
+VERBS = {"start": start, "row": row, "sync": sync, "gate": gate}
 
 
 def main(argv):
