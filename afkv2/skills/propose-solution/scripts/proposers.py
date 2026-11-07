@@ -17,9 +17,11 @@ once the proposers started, or a cleanup of a count 2 plan before `wait` answere
 answer count 1 with reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
 
 The state file `<doc stem>.proposers.json` beside the page document is the ledger, version 1:
-{version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree}], cleaned, failed}.
+{version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree, created}], cleaned, failed}.
 `stage` is planned, drafting, drafted, critiquing, critiqued or failed. `failed`, present only after a failure, is
-{stage, code}: the stage the failure stopped, and the refusal code or `not-finished` from cleanup. A pane or a worktree that is not null is open.
+{stage, code}: the stage the failure stopped, and the refusal code or `not-finished` from cleanup. A pane or a worktree
+that is not null is open. `created` turns true once `git worktree add` exits 0; cleanup force-removes only such a
+worktree, and a folder that a failed add left counts as open until a plain remove or a removal by hand.
 `cleanup` keeps the file with `cleaned` true (decision D-7). Every herdr and git call, and every host fact, goes
 through `HerdrRunner`.
 
@@ -329,12 +331,14 @@ def start(args, runner):
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
         if worktree.exists():
             raise Refusal("worktree-failed", f"{tool}: {worktree} already exists; start leaves it as it is")
-        entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree)}
+        entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree), "created": False}
         state["proposers"].append(entry)
         _save(args.doc, state)
         code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), args.base)
         if code != 0:
             raise Refusal("worktree-failed", f"{tool}: git worktree add: {err.strip()}")
+        entry["created"] = True
+        _save(args.doc, state)
         try:
             (worktree / BRIEF).write_text(brief, "utf-8")
         except OSError as error:
@@ -413,11 +417,12 @@ def _close(runner, pane):
     return code == 0 or _error_code(out, err) == "pane_not_found"
 
 
-def _remove(runner, worktree):
+def _remove(runner, worktree, created):
+    """A plain remove first; `--force` only for a worktree that start created."""
     if not Path(worktree).exists():
         return _git(runner, "worktree", "prune")[0] == 0
     return (_git(runner, "worktree", "remove", worktree)[0] == 0
-            or _git(runner, "worktree", "remove", "--force", worktree)[0] == 0)
+            or (created and _git(runner, "worktree", "remove", "--force", worktree)[0] == 0))
 
 
 def cleanup(args, runner):
@@ -437,7 +442,7 @@ def cleanup(args, runner):
             if entry.get("worktree"):
                 left.append(entry["worktree"])
         elif entry.get("worktree"):
-            if _remove(runner, entry["worktree"]):
+            if _remove(runner, entry["worktree"], entry.get("created") is True):
                 removed.append(entry["worktree"])
                 entry["worktree"] = None
                 _save(args.doc, state)

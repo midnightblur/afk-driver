@@ -50,6 +50,7 @@ class FakeRunner:
         self.agents = {}
         self.lazy = set()
         self.locked = set()
+        self.worktrees = set()
         self.screen = ""
         self.timeouts = []
         self.slept = []
@@ -87,16 +88,21 @@ class FakeRunner:
             return 0, str(self.root / "repo" / ".git") + "\n", ""
         if args[:2] == ["worktree", "add"]:
             Path(args[3]).mkdir(parents=True)
+            self.worktrees.add(str(Path(args[3])))
             return 0, "", ""
         if args[:2] == ["worktree", "remove"]:
             path, force = Path(args[-1]), "--force" in args
+            if str(path) not in self.worktrees:
+                return 128, "", f"fatal: '{path}' is not a working tree"
             if str(path) in self.locked:
                 return 1, "", "error: failed to delete: Permission denied"
             if any(path.iterdir()) and not force:
                 return 128, "", f"fatal: '{path}' contains modified or untracked files, use --force to delete it"
             shutil.rmtree(path)
+            self.worktrees.discard(str(path))
             return 0, "", ""
         if args[:2] == ["worktree", "prune"]:
+            self.worktrees = {tree for tree in self.worktrees if Path(tree).exists()}
             return 0, "", ""
         raise AssertionError(f"unexpected git {args}")
 
@@ -494,7 +500,7 @@ def test_a_failed_pane_read_after_a_stall_refuses_not_submitted(runner, doc, pha
     assert runner.commands("pane", "send-keys") == []
 
 
-def test_a_partial_worktree_add_is_recorded_and_cleanup_removes_it(runner, doc, phase, brief):
+def test_a_partial_worktree_add_is_recorded_and_never_force_removed(runner, doc, phase, brief):
     def on(argv):
         if argv[1:3] == ["worktree", "add"]:
             Path(argv[4]).mkdir(parents=True)
@@ -507,8 +513,20 @@ def test_a_partial_worktree_add_is_recorded_and_cleanup_removes_it(runner, doc, 
     assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "worktree-failed"
     tree = state(doc)["proposers"][0]["worktree"]
     assert Path(tree).is_dir() and dr._open_resources(state(doc)) == [tree]
+    assert state(doc)["proposers"][0]["created"] is False
     runner.on = None
-    assert run(runner, "cleanup", doc)["removed"] == [tree] and not Path(tree).exists()
+
+    error = refused(runner, "cleanup", doc)
+    assert error.code == "cleanup-failed" and error.extra["left"] == [tree] and Path(tree).is_dir()
+    assert runner.commands("worktree", "remove") == [["worktree", "remove", tree]]
+    shutil.rmtree(tree)
+    assert run(runner, "cleanup", doc)["removed"] == [tree] and runner.commands("worktree", "prune")
+
+
+def test_start_records_created_only_after_the_worktree_add_succeeds(runner, doc, phase, brief):
+    started(runner, doc, brief)
+
+    assert all(entry["created"] is True for entry in state(doc)["proposers"])
 
 
 def test_a_brief_that_cannot_be_written_refuses_worktree_failed(runner, doc, phase, brief):
