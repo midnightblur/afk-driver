@@ -187,6 +187,23 @@ def test_each_driven_by_id_of_the_prd_or_a_record_gets_its_text_on_hover(tmp_pat
                                                              "ADR-0001: Orders stay in one table"}]
 
 
+def test_a_later_round_with_its_own_tips_keeps_the_driven_by_tips_of_earlier_cards(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(decided("d-1")))
+    build(tmp_path, round_of(confirm("c-2"), tips={"terms": [{"term": "run", "definition": "1 export."}]}))
+    tips = stored(tmp_path)["tips"]
+    assert tips["terms"] == [{"term": "run", "definition": "1 export."}]
+    assert [tip["id"] for tip in tips["ids"]] == ["d-1-driven-by"]
+
+
+def test_a_replaced_round_drops_the_driven_by_tip_of_its_card(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(decided("d-1")))
+    dr.build_design_round(doc_path(tmp_path), SESSION, round_of(confirm("c-1")), replace=True)
+    assert [item["id"] for item in stored(tmp_path)["rounds"][-1]["items"]] == ["c-1"]
+    assert "ids" not in (stored(tmp_path).get("tips") or {})
+
+
 def test_a_card_whose_ids_the_prd_does_not_hold_gets_no_tip(tmp_path):
     write_spec(tmp_path)
     build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "AC-999"])))

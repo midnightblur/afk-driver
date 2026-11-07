@@ -159,14 +159,20 @@ def _driven_by_tips(doc_path, items):
 
 
 def _merged_tips(doc, round_input, tips):
-    """The tips catalog with the driven-by tips of this round; a stored driven-by tip of a dropped card goes."""
+    """The tips catalog with the driven-by tips of this round. A round's own `tips` replace the stored catalog, but
+    the stored driven-by tips of live cards stay, because only this build writes them; a dropped card's tip goes."""
+    live = rd._used_ids(doc)
+    stored = copy.deepcopy(doc.get("tips") or {})
+    kept = [tip for tip in stored.get("ids") or []
+            if isinstance(tip, dict) and str(tip.get("id")).endswith("-driven-by") and tip.get("id") in live]
     if "tips" in round_input:
         base = copy.deepcopy(round_input["tips"])
+        sent = {tip.get("id") for tip in base.get("ids") or [] if isinstance(tip, dict)}
+        base["ids"] = [*(base.get("ids") or []), *(tip for tip in kept if tip["id"] not in sent)]
     else:
-        live = rd._used_ids(doc)
-        base = copy.deepcopy(doc.get("tips") or {})
-        base["ids"] = [tip for tip in base.get("ids") or []
-                       if not str(tip.get("id")).endswith("-driven-by") or tip.get("id") in live]
+        base = stored
+        base["ids"] = [tip for tip in stored.get("ids") or []
+                       if not str(tip.get("id")).endswith("-driven-by") or tip in kept]
     new = {tip["id"] for tip in tips}
     ids = [tip for tip in base.get("ids") or [] if tip.get("id") not in new] + tips
     return {**base, "ids": ids} if ids else {key: value for key, value in base.items() if key != "ids"}
@@ -362,7 +368,7 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     degraded = []
     built["items"] = [_design_decided(item, known, degraded) for item in items]
     tips = _driven_by_tips(doc_path, items)
-    if tips or "tips" in round_input:
+    if tips or "tips" in round_input or doc.get("tips"):
         built["tips"] = _merged_tips(doc, round_input, tips)
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
     order = [entry["id"] for entry in doc.get("sections") or []]
