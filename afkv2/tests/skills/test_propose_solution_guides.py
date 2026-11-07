@@ -53,6 +53,12 @@ def _verb(command, script):
 
 # --- step 2: the ticket read, passed to the build (PRD AC-036)
 
+def test_a_resume_reads_the_ticket_again():
+    resume = next(sentence for sentence in _step(1).split(". ") if sentence.startswith("`resume` true"))
+    assert "`read-ticket`" in resume
+
+
+
 def test_step_2_reads_the_ticket_and_the_build_passes_it():
     steps = _steps()
     read = steps["read-ticket"]
@@ -152,7 +158,7 @@ def test_step_8_copies_the_notes_into_the_log(tmp_path):
 # --- no guide names the deleted second-provider slot (SDD §14)
 
 def test_no_guide_names_the_second_provider_script():
-    guides = [*SKILL_DIR.glob("*.md"), *(SKILLS / "visualize").rglob("*.md"), *(SKILLS / "herdr-playbook").glob("*.md")]
+    guides = list(SKILLS.rglob("*.md"))
     named = [path.name for path in guides if re.search(r"second.provider", path.read_text("utf-8"), re.I)]
     assert not named, named
     assert "second-provider" not in _steps()
@@ -184,11 +190,15 @@ def _fragment(heading):
 
 
 def test_the_caption_rule_names_each_picture_type():
-    rule = " ".join(_guide_section("## Captions").split())
-    for part in ("1-line caption", '"What to see"', "`title`", "`caption`", "`section-caption`"):
+    """DRAFT.md "Sections" owns the caption rule; the visualize guide points there (one fact, one home)."""
+    draft = (SKILL_DIR / "DRAFT.md").read_text("utf-8")
+    rule = next(line for line in draft.splitlines() if line.startswith("- A picture is a component"))
+    for part in ('"What to see"', "`title`", "`caption`"):
         assert part in rule, part
     for kind in section_rules.PICTURES:
         assert f"`{kind}`" in rule, kind
+    assert "`section-caption`" in draft
+    assert "../propose-solution/DRAFT.md" in _guide_section("## Captions")
 
 
 @pytest.mark.parametrize("heading", ["### A level section", "### A critical section"])

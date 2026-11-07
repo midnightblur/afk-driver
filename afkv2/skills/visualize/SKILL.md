@@ -114,11 +114,9 @@ Mark what the question would change with chips (`kept`, `removed`, `new`, `propo
 
 ## Captions
 
-Give every picture a 1-line caption that says what to see: a child `text`
-labelled "What to see". A `map` may take its `title` and a `diagram` its
-`caption` in place of it. A picture is a `map`, `graph`, `table`, `sequence`, `run-strip`,
-`freestyle` or `diagram` component; each chart component has its own `caption`.
-The design build refuses a picture with no caption (`section-caption`).
+The caption rule and the picture types: `../propose-solution/DRAFT.md`,
+section "Sections". A caption child looks like this:
+`{"type": "text", "props": {"label": "What to see", "text": "One export request, from the button to the file link."}}`.
 
 ## Design sections
 
@@ -128,8 +126,7 @@ body of a section is 1 component. These 2 kinds open with a picture.
 
 ### A level section
 
-The picture that the level names, then its caption, then a `text` labelled
-"Summary" of at most 2 lines. Each other part is folded.
+Shape: the level-section bullet of `../propose-solution/DRAFT.md` "Sections".
 
 ```json fragment=component
 {
@@ -160,8 +157,7 @@ The picture that the level names, then its caption, then a `text` labelled
 
 ### A critical section
 
-How the part works now beside how it will work, and a chip whose text starts
-"critical". The section names its level section in `links`.
+Shape: the critical-section bullet of `../propose-solution/DRAFT.md` "Sections".
 
 ```json fragment=component
 {

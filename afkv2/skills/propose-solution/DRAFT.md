@@ -42,7 +42,7 @@ The page shows the design in sections, in the order of the section catalog. `sec
 | `sec-performance` | Performance | performance | PF-1 to PF-4, or 1 line on why there is no performance risk |
 
 - Send a section that comes late with `after`, the id of the section it follows.
-- A picture is a component of type `map`, `graph`, `table`, `sequence`, `run-strip`, `freestyle` or `diagram`. Every picture has a caption: a child `text` labelled "What to see", of 1 line, or a `title`. The `caption` of a `diagram` counts.
+- A picture is a component of type `map`, `graph`, `table`, `sequence`, `run-strip`, `freestyle` or `diagram`. Every picture has a caption: a child `text` labelled "What to see", of 1 line, or a `title` or a `caption` on the picture itself.
 - A system, critical or level section has a picture as its body root.
 - A level section: the children of its picture are the caption, then a `text` labelled "Summary" of at most 2 lines, then the rest of the detail, each child folded (`fold`).
 - A critical section holds a chip whose text starts "critical", and names its level section in `links`. The build fills the links: each level section links to the next level section on the page and to each critical section that names it.
