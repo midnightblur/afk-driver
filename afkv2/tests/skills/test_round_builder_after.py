@@ -67,3 +67,70 @@ def test_a_decided_card_without_driven_by_renders_exactly_as_before(path, tmp_pa
 def test_an_empty_driven_by_adds_no_block(path):
     build(path, decided_card(driven_by=[]))
     assert "i-a-driven-by" not in [c.get("id") for c in components(path)]
+
+
+# ---- `after` on a section (ADR-0001 design; SDD §14 row "shared section merge")
+
+import page_round  # noqa: E402
+from grill_common import Refusal  # noqa: E402
+
+CHANGE = {"cause": "finding", "text": "Wrote the part."}
+
+
+def section(section_id, **extra):
+    return {"id": section_id, "title": f"Title of {section_id}", "state": "current", "change": CHANGE,
+            "body": {"type": "text", "id": f"{section_id}-text", "props": {"text": "Text."}}, **extra}
+
+
+def answer_current_round(path):
+    """Accept the first card of the current round, unless the round holds an answer already."""
+    current = rd.current_round(rd.read_json(path))
+    if not current.get("responses"):
+        raw = path.with_name("raw.txt")
+        raw.write_text(f"[round R-{current['n']}]\n{current['items'][0]['id']} accept", "utf-8")
+        page_round.ingest(path, raw)
+
+
+def build_sections(path, item_id, *sections):
+    """Build the next round with 1 card and the given sections; answer the round before it first."""
+    if path.exists():
+        answer_current_round(path)
+    return rd.build_round_document(path, SESSION, {"banner": {"settled": [], "unlocks": [], "parked": []},
+                                                   "items": [decided_card(item_id)], "sections": list(sections)})
+
+
+def section_ids(path):
+    return [entry["id"] for entry in rd.read_json(path)["sections"]]
+
+
+def test_a_section_with_after_a_same_round_section_is_placed_right_after_it(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l3"), section("sec-l2", after="sec-l1"))
+    assert section_ids(path) == ["sec-l1", "sec-l2", "sec-l3"]
+
+
+def test_a_section_with_after_a_stored_section_is_placed_right_after_it(path):
+    build_sections(path, "i-a", section("sec-system"), section("sec-l1"))
+    build_sections(path, "i-b", section("sec-crit-auth", after="sec-system"))
+    assert section_ids(path) == ["sec-system", "sec-crit-auth", "sec-l1"]
+
+
+def test_the_stored_section_holds_no_after_field(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2", after="sec-l1"))
+    assert all("after" not in entry for entry in rd.read_json(path)["sections"])
+
+
+@pytest.mark.parametrize("after", ["sec-none", "sec-l2"])
+def test_a_section_with_after_that_names_no_other_section_is_refused_and_nothing_is_written(path, after):
+    build_sections(path, "i-a", section("sec-l1"))
+    answer_current_round(path)
+    before = path.read_bytes()
+    with pytest.raises(Refusal) as refused:
+        build_sections(path, "i-b", section("sec-l2", after=after))
+    assert refused.value.code == "bad-entry" and "names no other section" in refused.value.reason
+    assert path.read_bytes() == before
+
+
+def test_a_round_without_after_builds_the_same_section_order_as_before(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"))
+    build_sections(path, "i-b", section("sec-l0"))
+    assert section_ids(path) == ["sec-l1", "sec-l2", "sec-l0"]
