@@ -279,7 +279,10 @@ def _in_input_line(screen, text):
 
 
 def _submit(runner, entry, text):
-    """Send one prompt; on `agent_prompt_stalled`, 1 Enter only while the prompt still sits in the input line."""
+    """Send one prompt; on `agent_prompt_stalled`, 1 Enter only while the prompt still sits in the input line.
+
+    A prompt gone from the input line counts as submitted only when the agent then reaches working: a start-up
+    dialog line can open with a prompt marker and pass for the input line."""
     code, out, err = _call(runner, "agent", "prompt", entry["agent"], text, "--wait", "--until", "working",
                            "--timeout", PROMPT_MS)
     if code == 0:
@@ -291,6 +294,10 @@ def _submit(runner, entry, text):
         raise Refusal("not-submitted", f"{entry['tool']}: the prompt stalled, and herdr pane read failed: "
                                        f"{_error_code(screen, err) or (err or screen).strip()}")
     if not _in_input_line(screen, text):
+        code, _, _ = _call(runner, "agent", "wait", entry["agent"], "--until", "working", "--timeout", ENTER_MS)
+        if code != 0:
+            raise Refusal("not-submitted", f"{entry['tool']}: the prompt stalled and left the input line, but the "
+                                           f"agent did not start work; a dialog may hold the pane")
         return True
     runner.sleep(ENTER_PAUSE_S)
     _herdr_ok(runner, "pane", "send-keys", entry["pane"], "enter")

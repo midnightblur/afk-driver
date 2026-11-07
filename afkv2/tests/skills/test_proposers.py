@@ -355,11 +355,24 @@ def test_a_stalled_prompt_gets_one_enter_when_the_brief_is_still_in_the_input_li
 
 def test_a_stalled_prompt_gets_no_enter_when_the_brief_left_the_input_line(runner, doc, phase, brief):
     _stalled(runner)
-    runner.screen = "Working on the draft\n\n> \n"
+    runner.screen = f"> {proposers.DRAFT_PROMPT}\n\nWorking on the draft\n\n> \n"
 
     answer = started(runner, doc, brief)
 
     assert all(entry["submitted"] for entry in answer["proposers"])
+    assert runner.commands("pane", "send-keys") == []
+    confirms = [c for c in runner.commands("agent", "wait") if "working" in c]
+    assert [c[2] for c in confirms] == [f"propose-solution-s-1-{tool}" for tool in ("claude", "codex")]
+    assert all(c[c.index("--timeout") + 1] == proposers.ENTER_MS for c in confirms)
+
+
+def test_a_stalled_prompt_behind_a_start_up_dialog_refuses_not_submitted(runner, doc, phase, brief):
+    _stalled(runner, still_working=False)
+    runner.screen = "Do you trust the files in this folder?\n\n❯ 1. Yes, proceed\n  2. No, exit\n"
+    run(runner, "plan", doc)
+
+    error = refused(runner, "start", doc, "--brief", str(brief), "--base", BASE)
+    assert error.code == "not-submitted" and "claude" in error.reason
     assert runner.commands("pane", "send-keys") == []
 
 
