@@ -24,6 +24,7 @@ sys.path[:0] = [str(SCRIPTS), str(SKILLS / "propose-solution" / "scripts"), str(
 
 import check_plan as cp  # noqa: E402
 import design_files  # noqa: E402
+import estimate  # noqa: E402
 import grill_start  # noqa: E402
 import prd_files  # noqa: E402
 import round_document as rd  # noqa: E402
@@ -365,14 +366,27 @@ def _gates_of(subtask):
     return ", ".join(tiers)
 
 
-def _division_card(plan, subtasks, why, card_id, digest, carries):
-    rows = [[item.id, item.sections.get("Goal", ""), why[item.id], ", ".join(item.blocked_by) or "—", _gates_of(item)] for item in subtasks]
+def _estimate_line(answer):
+    """The total, the basis and the run count of the estimate, in 1 line."""
+    total = answer["total"]
+    text = f"Agent run time in days, in total: low {total['low']:.2f}, likely {total['likely']:.2f}, high {total['high']:.2f}. "
+    if answer["basis"] == "journals":
+        return text + f"Basis: past run times from {answer['runs']} earlier run{'s' if answer['runs'] != 1 else ''}."
+    return text + "Basis: estimated from the size of each subtask, because no earlier run exists."
+
+
+def _division_card(plan, subtasks, why, card_id, digest, carries, spec_root):
+    times = estimate.estimate(plan, spec_root)
+    days = {row["subtask"]: [f"{row[key]:.2f}" for key in estimate.KEYS] for row in times["rows"]}
+    rows = [[item.id, item.sections.get("Goal", ""), why[item.id], ", ".join(item.blocked_by) or "—", _gates_of(item), *days[item.id]]
+            for item in subtasks]
     app = cp._app_of(cp.read_text(Path(plan) / "PLAN.md")) or "none"
     text = (f"Sign to approve this division: {len(subtasks)} subtasks, plan digest {digest}, app: {app}. "
             "Ask for changes to get another division.")
     table = {"type": "table", "id": f"{card_id}-subtasks",
-             "props": {"columns": ["Subtask", "Goal", "Why the cut is here", "Waits on", "Gates"], "rows": rows},
-             "children": [{"type": "text", "id": f"{card_id}-ask", "props": {"text": text}}]}
+             "props": {"columns": ["Subtask", "Goal", "Why the cut is here", "Waits on", "Gates", "Low days", "Likely days", "High days"], "rows": rows},
+             "children": [{"type": "text", "id": f"{card_id}-ask", "props": {"text": text}},
+                          {"type": "text", "id": f"{card_id}-estimate", "props": {"text": _estimate_line(times)}}]}
     return {"id": card_id, "kind": "signoff", "body": table, **({"carries": carries} if carries else {})}
 
 
@@ -405,7 +419,8 @@ def build_division_round(plan, doc_path, session, ticket, why, replace=False):
     carries = _carried_cards(doc)
     session_fields = {"id": session, "skill": PAGE_SKILL, "feature": ticket, "ticket": ticket}
     banner = {"settled": [], "unlocks": ["/afkv2:autopilot can start on this plan"], "parked": []}
-    round_input = {"banner": banner, "items": [_division_card(plan, subtasks, why, card_id, digest, carries)]}
+    spec_root = doc_path.resolve().parents[2]  # the doc is <spec root>/<ticket>/pages/<file> (plan decision D-15)
+    round_input = {"banner": banner, "items": [_division_card(plan, subtasks, why, card_id, digest, carries, spec_root)]}
     answer = rd.build_round_document(doc_path, session_fields, round_input, replace=replace)
     return {**answer, "card": card_id, "digest": digest}
 
