@@ -38,6 +38,8 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/../grill-requirements/scripts/read_ticket.py" --ticket "<ticket key>" --out "<ticket file>"
    ```
 
+   On a refusal, report its `reason` to the human and leave `--ticket-file` out of each build: the first round then shows no ticket card.
+
    Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
 
    ```sh step=row
@@ -70,7 +72,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `requirement_adrs` and `log`, a digest of the code reading with its citations, each settled aspect with its reading, and each steer. A file that `HEAD` does not hold goes into the brief in full. No proposer sees the draft of the other. Run `start`. |
    | R-2 Draft alone | Run `wait`. Each proposer writes a whole design, every layer, to `DRAFT.md` in its own worktree. |
    | R-3 Critique | Run `critique`, then `wait` again. Each proposer reads the draft of the other and writes what it would change, and why, to `CRITIQUE.md`. The second `wait` answers `files`: the 4 paths. |
-   | R-4 Reconcile | Read the 4 files, never the pane output. A part that both critiques accept in writing becomes 1 design. Each other difference becomes 1 fork card, and each option names its tool in `by`. Write the round input of step 4 now: `cleanup` removes the worktrees and their files. Then run `cleanup`. |
+   | R-4 Reconcile | Read the 4 files, never the pane output. A part that both critiques accept in writing becomes 1 design. Each other difference becomes 1 fork card, and each option names its tool in `by`. Write the round input of step 4 now, outside the worktrees: `cleanup` removes the worktrees and their files. Then run `cleanup`. |
    | R-5 Show | Put the `proposers` object of the `cleanup` answer into the round input, as it is. The banner says how many solution proposers drafted, or why only 1 did. |
 
    ```sh step=proposers-start
@@ -91,7 +93,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/proposers.py" cleanup --doc "<doc>"
    ```
 
-   A refusal coded `no-herdr`, `worktree-failed`, `herdr-failed`, `not-submitted`, `pane-gone` or `no-draft` is a proposer failure: run `cleanup`. Its `proposers` then has count 1 with reason `proposer-failed`, and you draft alone. `cleanup-failed` lists each pane and worktree in `left`: close or delete each by the playbook, then run `cleanup` again; the draft round waits until then. On a resume in this phase, the state file `<doc stem>.proposers.json` beside `doc` holds `stage`: continue at the verb after it.
+   A refusal coded `no-herdr`, `worktree-failed`, `herdr-failed`, `not-submitted`, `pane-gone` or `no-draft` is a proposer failure: run `cleanup`. Its `proposers` then has count 1 with reason `proposer-failed`, and you draft alone. `cleanup-failed` lists each pane and worktree in `left`: close or delete each by the playbook, then run `cleanup` again; the draft round waits until then. On a resume in this phase, read `stage` in the state file `<doc stem>.proposers.json` beside `doc`, and run the next verb: `planned` `start`, `drafting` `wait`, `drafted` `critique`, `critiquing` `wait`, `critiqued` R-4, `failed` `cleanup`. A refusal coded `not-started`, `same-tool`, `not-planned` or `not-drafted` means the proposers cannot go on: run `cleanup`, and draft alone.
 
 4. **Work one round.** Load the page rules and forms of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)) for page order and wording, and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify premises, weigh the options, and take every decision the rules allow ([DRAFT.md](DRAFT.md) "Cards"). Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. The build draws the maps of the aspects, the layers and the human-locked set; `maps` holds only your own. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
@@ -105,7 +107,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `fork: {question, options, why_open, recommended, picture}` | the build writes a `debate` card with the options side by side. A `debate` card has no other form. |
    | `decided`, `carries` | as in [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 4. A card that carries a tagged card has the same tag. |
 
-   The first draft round input also holds `proposers`, from step 3. The build writes its banner line.
+   The first draft round input also holds `proposers`, from step 3. The build writes its banner line. On a resume in phase `draft` with no draft round yet, run `plan` again: after `cleanup` it answers the same `proposers` object from the state file. When the R-4 round input is lost, the 4 files are lost too: draft alone, with `proposers` count 1, your own tool and reason `proposer-failed`.
 
 5. **Build and show the round.** Done when `present` answers ok.
 
