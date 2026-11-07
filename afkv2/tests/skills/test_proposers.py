@@ -139,7 +139,7 @@ def runner(tmp_path):
 
 @pytest.fixture
 def doc(tmp_path):
-    pages = tmp_path / "repo" / "docs" / "afk" / "PROJ-1" / "pages"
+    pages = tmp_path / "repo" / "docs" / "specs" / "PROJ-1" / "pages"
     pages.mkdir(parents=True)
     return pages / "propose-solution-s-1.json"
 
