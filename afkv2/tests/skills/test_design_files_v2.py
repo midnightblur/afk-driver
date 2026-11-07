@@ -91,3 +91,19 @@ def test_start_names_no_takeover_for_a_new_or_open_session(world):
     assert first["takeover"] is None
     world.build(first, round_of(aspect_card("entities")))
     assert world.run("start", ticket_key="PROJ-1")["takeover"] is None
+
+
+def test_a_pass_answers_stale_and_changed_each_empty_when_nothing_applies(world):
+    started, passed = passed_design(world)
+    assert passed["stale"] == [] and passed["changed"] == []
+
+
+def test_a_pass_after_a_takeover_lists_the_points_changed_since_the_last_pass(world):
+    started, _ = passed_design(world)
+    world.run("start", ticket_key="PROJ-1")
+    world.build(started, round_of(aspect_card("entities", "a-entities-2", carries=["a-entities"])))
+    world.accept_all(started)
+    passed = gate_failures(world, started, expect=0)
+    assert passed["changed"] == [{"id": "a-entities", "kind": "card", "text": "The reading on entities."}]
+    rows = (world.spec / "GRILL-LOG.md").read_text("utf-8").split("## Solution design", 1)[1].splitlines()
+    assert [row for row in rows if row.startswith("- Last pass:")] == [f"- Last pass: R3 · session {started['session']}"]

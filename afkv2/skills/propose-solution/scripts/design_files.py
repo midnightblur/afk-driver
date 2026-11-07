@@ -9,6 +9,8 @@
   A `Note` row reads `- Note: <note id> · R<round> · on <element id>: <the human's words as one JSON string>`;
   a note id already in the section is skipped, so a row keeps the words it was first copied with.
 `design_files.py gate --doc FILE --spec-dir DIR`: the mechanical part of the design gate; lists every failure.
+  A pass answers `stale`, the plan of the run branch when it exists, and `changed`, the points changed since the
+  session's last passed gate; each list is empty when nothing applies. It writes the gate row and the `Last pass` row.
 """
 
 from __future__ import annotations
@@ -51,6 +53,8 @@ EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
 ADR_SECTIONS = ("Decision", "Alternatives Considered")
 SDD_NAME = "SDD.md"
+# The later documents of a design are only the plan of the run branch: no later writer has a file in the spec folder.
+LATER_WRITERS = ()
 OPEN_QUESTIONS = "§13 Open Questions"
 REGISTER = "§0 Binding Contract"
 
@@ -323,6 +327,7 @@ def gate(argv):
     head, rows, tail = _section_parts(log)
     session_id = doc["session"]["id"]
     session = f"· session {session_id}"
+    passed = _passed_round(rows, session_id)
     rows = [line for line in rows if not (line.startswith(GATE_PASSED) and line.endswith(session))
             and pass_history.last_pass(line, session_id) is None]
     _write_section(log, head, [*rows, f"{GATE_PASSED} {today} {session}", pass_history.last_pass_row(doc)], tail)
@@ -330,7 +335,8 @@ def gate(argv):
     if index.is_file():
         prd_files.set_row(index, "SDD", SDD_NAME, "draft")
         prd_files.set_row(index, "Design ADRs", "adr/design/", f"{len(adrs)} records" if adrs else "—")
-    return {"ok": True, "passed": today, "design_adrs": len(adrs), "index_missing": not index.is_file()}
+    return {"ok": True, "passed": today, "design_adrs": len(adrs), "index_missing": not index.is_file(),
+            "stale": pass_history.stale(spec_dir, LATER_WRITERS), "changed": pass_history.changed(doc, passed)}
 
 
 VERBS = {"start": start, "row": row, "sync": sync, "gate": gate}
