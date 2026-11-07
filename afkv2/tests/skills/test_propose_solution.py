@@ -33,7 +33,9 @@ import fork_cards  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "row", "next", "second-provider", "build", "present", "wait", "ingest", "apply-readings", "gate", "end"]
+STEP_ORDER = ["start", "read-ticket", "row", "next", "proposers-plan", "proposers-start", "proposers-wait",
+              "proposers-critique", "proposers-cleanup", "build", "present", "wait", "reply", "ingest", "apply-readings",
+              "sync", "gate", "end"]
 CAT_A = ["entities", "relations", "keys", "constraints", "cascade", "api", "migration", "authorization", "lifecycle",
          "other-teams", "large-data"]
 CAT_A_LABELS = ["Entities", "Relations", "Keys", "Constraints", "Cascade", "API contract and compatibility",
@@ -113,6 +115,8 @@ class World:
     def run(self, step, expect=0, swap=None, **values):
         """Run one stated command with its placeholders filled; return its one JSON answer."""
         command = skill_steps()[step]
+        if step == "build":
+            values.setdefault("ticket_file", self.file("no-ticket.json", {}))
         if swap:
             assert swap[0] in command
             command = command.replace(*swap)

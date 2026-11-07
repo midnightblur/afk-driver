@@ -30,9 +30,15 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/design_files.py" start --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 2, read `doc`, honour every steer in it, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 2, read `doc`, honour every steer in it, run the `read-ticket` command of step 2, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
 
-2. **Read the input and the code.** Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
+2. **Read the input and the code.** Read the ticket into a file in a scratch folder. Step 5 passes `<ticket file>` to the build, so the first round shows the ticket card.
+
+   ```sh step=read-ticket
+   <python> "<this skill's folder>/../grill-requirements/scripts/read_ticket.py" --ticket "<ticket key>" --out "<ticket file>"
+   ```
+
+   Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
 
    ```sh step=row
    <python> "<this skill's folder>/scripts/design_files.py" row --log "<log>" --kind "<kind>" --text "<text>"
@@ -47,8 +53,45 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `phase` | Do |
    |---------|----|
    | `aspects` | step 4 with [ASPECTS.md](ASPECTS.md): ask the entries of `aspects_to_ask` in their order, and return each of `aspects_open` |
+   | `proposers` | every aspect is settled: the solution proposers below, then step 4 as for `draft` |
    | `draft` | step 4 with [DRAFT.md](DRAFT.md): propose `layers_to_ask` from the top down, and return each of `layers_open` and `locked_open` |
    | `write` | step 9 |
+
+   **The solution proposers.** `proposers.py` drives herdr; for a herdr command you run yourself, use the herdr playbook ([../herdr/SKILL.md](../herdr/SKILL.md)). Run `plan`. It starts nothing.
+
+   ```sh step=proposers-plan
+   <python> "<this skill's folder>/scripts/proposers.py" plan --doc "<doc>"
+   ```
+
+   The answer is `{count, tools, reason}`. `count` 1: you draft alone, and the answer is the `proposers` field of the first draft round input, as it is. `count` 2: 1 Claude and 1 Codex proposer draft, by R-1 to R-5.
+
+   | Step | Do |
+   |------|----|
+   | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `requirement_adrs` and `log`, a digest of the code reading with its citations, each settled aspect with its reading, and each steer. A file that `HEAD` does not hold goes into the brief in full. No proposer sees the draft of the other. Run `start`. |
+   | R-2 Draft alone | Run `wait`. Each proposer writes a whole design, every layer, to `DRAFT.md` in its own worktree. |
+   | R-3 Critique | Run `critique`, then `wait` again. Each proposer reads the draft of the other and writes what it would change, and why, to `CRITIQUE.md`. The second `wait` answers `files`: the 4 paths. |
+   | R-4 Reconcile | Read the 4 files, never the pane output. A part that both critiques accept in writing becomes 1 design. Each other difference becomes 1 fork card, and each option names its tool in `by`. Write the round input of step 4 now: `cleanup` removes the worktrees and their files. Then run `cleanup`. |
+   | R-5 Show | Put the `proposers` object of the `cleanup` answer into the round input, as it is. The banner says how many solution proposers drafted, or why only 1 did. |
+
+   ```sh step=proposers-start
+   <python> "<this skill's folder>/scripts/proposers.py" start --doc "<doc>" --brief "<brief>" --base HEAD
+   ```
+
+   `wait` has no time limit. On Claude, run it as a background command the harness tracks: its exit wakes you.
+
+   ```sh step=proposers-wait
+   <python> "<this skill's folder>/scripts/proposers.py" wait --doc "<doc>"
+   ```
+
+   ```sh step=proposers-critique
+   <python> "<this skill's folder>/scripts/proposers.py" critique --doc "<doc>"
+   ```
+
+   ```sh step=proposers-cleanup
+   <python> "<this skill's folder>/scripts/proposers.py" cleanup --doc "<doc>"
+   ```
+
+   A refusal coded `no-herdr`, `worktree-failed`, `herdr-failed`, `not-submitted`, `pane-gone` or `no-draft` is a proposer failure: run `cleanup`. Its `proposers` then has count 1 with reason `proposer-failed`, and you draft alone. `cleanup-failed` lists each pane and worktree in `left`: close or delete each by the playbook, then run `cleanup` again; the draft round waits until then. On a resume in this phase, the state file `<doc stem>.proposers.json` beside `doc` holds `stage`: continue at the verb after it.
 
 4. **Work one round.** Load the page rules and forms of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)) for page order and wording, and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify premises, weigh the options, and take every decision the rules allow ([DRAFT.md](DRAFT.md) "Cards"). Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change. The build draws the maps of the aspects, the layers and the human-locked set; `maps` holds only your own. You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
@@ -62,16 +105,12 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `fork: {question, options, why_open, recommended, picture}` | the build writes a `debate` card with the options side by side. A `debate` card has no other form. |
    | `decided`, `carries` | as in [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 4. A card that carries a tagged card has the same tag. |
 
-   Before the first draft round, offer the draft to the second-provider slot. It is off in this version, and answers no forks. Add each entry of `forks` to the round as a fork card.
-
-   ```sh step=second-provider
-   <python> "<this skill's folder>/scripts/second_provider.py" review --draft "<round input>"
-   ```
+   The first draft round input also holds `proposers`, from step 3. The build writes its banner line.
 
 5. **Build and show the round.** Done when `present` answers ok.
 
    ```sh step=build
-   <python> "<this skill's folder>/scripts/design_round.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>"
+   <python> "<this skill's folder>/scripts/design_round.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
    ```
 
    ```sh step=present
@@ -90,6 +129,12 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    **On Codex**, leave that command out. End your turn after `present`. The Stop hook waits for the answer and hands the raw response back as your next prompt. Write that text to `raw_file`, word for word. When the hook cannot wait, the human sends one chat message after Send: run `wait` then. Live check, run by the owner: [CODEX-LIVE-CHECK.md](CODEX-LIVE-CHECK.md).
 
+   **Side questions** from the page's btw? button: as in [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 6 "Side questions". The round stays open. Show your answers with:
+
+   ```sh step=reply
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" reply --doc "<doc>" --reply-file "<reply file>"
+   ```
+
 7. **Read the answer.** Done when `needs_reading` is empty and every note has a reply.
 
    ```sh step=ingest
@@ -104,7 +149,11 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    The keys of the readings file: [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill-requirements/ROUNDS.md](../grill-requirements/ROUNDS.md).
 
-8. **Save the state.** Update each `Premise` row that changed. Real work outside this ticket gets a `Spinoff` row. Go to step 3. Done when the log matches this round.
+8. **Save the state.** Copy the notes of this round into the log, word for word. Update each `Premise` row that changed. Real work outside this ticket gets a `Spinoff` row. Go to step 3. Done when the log matches this round.
+
+   ```sh step=sync
+   <python> "<this skill's folder>/scripts/design_files.py" sync --doc "<doc>" --log "<log>"
+   ```
 
 9. **Write the design.** Write `sdd` by [SDD-FORMAT.md](SDD-FORMAT.md) and the records by [ADR-FORMAT.md](ADR-FORMAT.md), into `adr_dir`. The page document and the input of step 2 are your whole source; ask no new question. A point you cannot write is one more round: go to step 4. Done when each settled point stands in the SDD or a record, and each settled fork names its card id there.
 
