@@ -47,6 +47,7 @@ SOLO_REASONS = {"no-herdr": "herdr is not installed", "outside-herdr": "the sess
                 PROPOSER_FAILED: "a solution proposer failed before the drafts and critiques were done"}
 PROPOSERS_FIELDS = {"count", "tools", "reason"}
 PROPOSERS_PHASE = "proposers"
+STATE_FAULT = "bad-proposers-state"
 STATE_VERSION = 1
 DRAFT_GROUPS = ("layer", "locked")
 FENCE = ("Each solution proposer ran with full auto-approval in a throwaway worktree. "
@@ -153,6 +154,8 @@ def _driven_by_tips(doc_path, items):
     texts = _spec_texts(doc_path)
     tips = []
     for item in items:
+        if item.get("kind") != "decided":
+            continue
         fields = item.get("decided") if isinstance(item.get("decided"), dict) else {}
         lines = [f"{key}: {texts[key]}" for key in fields.get("driven_by") or [] if key in texts]
         if lines:
@@ -186,20 +189,23 @@ def proposers_state_path(doc_path):
 
 
 def proposers_state(doc_path):
-    """The proposers state of the session, or None before the proposers plan wrote it.
-
-    Shape, version 1: {version, count: 1 or 2, proposers: [{tool, pane, worktree}], cleaned}. A pane or a worktree
-    that is not null is still open; `cleaned` true records that cleanup is done."""
+    """The proposers state of the session, or None before the proposers plan wrote it. The shape is in the docstring
+    of proposers.py, its writer; this reader checks the fields it acts on: version, count, proposers and cleaned."""
     path = proposers_state_path(doc_path)
     if not path.exists():
         return None
     try:
         state = read_json(path)
     except Refusal as refusal:
-        raise Refusal("bad-proposers", f"{path}: {refusal.reason}") from None
-    if (not isinstance(state, dict) or state.get("version") != STATE_VERSION or state.get("count") not in (1, 2)
-            or not isinstance(state.get("proposers", []), list)):
-        raise Refusal("bad-proposers", f"{path} is not a version {STATE_VERSION} proposers state file")
+        raise Refusal(STATE_FAULT, f"{path}: {refusal.reason}") from None
+    entries = state.get("proposers", []) if isinstance(state, dict) else None
+    if (not isinstance(state, dict) or state.get("version") != STATE_VERSION or isinstance(state.get("count"), bool)
+            or state.get("count") not in (1, 2) or not isinstance(entries, list)
+            or not all(isinstance(entry, dict) for entry in entries)
+            or not isinstance(state.get("cleaned", False), bool)):
+        raise Refusal(STATE_FAULT, f"{path} is not a version {STATE_VERSION} proposers state file")
+    if state.get("cleaned") and _open_resources(state):
+        raise Refusal(STATE_FAULT, f"{path} records cleanup done and still names {', '.join(_open_resources(state))}")
     return state
 
 
@@ -212,15 +218,24 @@ def _proposers_done(state):
     return bool(state) and (state["count"] == 1 or state.get("cleaned") is True)
 
 
-def _check_proposers_closed(doc_path, items):
-    """A draft round waits while the state file records a pane or a worktree (SDD §6 I-6)."""
+def _drafted(doc):
+    return any(_cards(doc, node_id(group, key)) for group in DRAFT_GROUPS for key in group_keys(group))
+
+
+def _check_proposers_closed(doc_path, doc, items):
+    """A draft round waits while the state file records a pane or a worktree (SDD §6 I-6). The first draft round
+    also waits until the state records count 1 or cleanup done, as `next` does (PRD AC-018)."""
     drafting = {node_id(group, key) for group in DRAFT_GROUPS for key in group_keys(group)}
     if not any(item.get("node") in drafting for item in items):
         return
-    left = _open_resources(proposers_state(doc_path))
+    state = proposers_state(doc_path)
+    left = _open_resources(state)
     if left:
         raise Refusal("proposers-open", f"the draft waits until cleanup closes each proposer pane and worktree: "
                                         f"{', '.join(left)}")
+    if not _drafted(doc) and not _proposers_done(state):
+        raise Refusal("proposers-first", "the draft waits for the proposers phase: run the proposers plan, and "
+                                         "cleanup when 2 proposers ran")
 
 
 def _tool_name(tool):
@@ -229,7 +244,7 @@ def _tool_name(tool):
 
 def _proposers_banner(proposers):
     """The R-5 banner line: how many solution proposers drafted, or why only 1 did; then the fence statement of
-    SDD §5 when 2 proposers ran (PRD AC-021, AC-024)."""
+    SDD §5 when a proposer ran (PRD AC-021, AC-024)."""
     where = f"proposers {proposers!r}"
     if not isinstance(proposers, dict) or set(proposers) != PROPOSERS_FIELDS:
         raise Refusal("bad-proposers", f"{where}: one object with {sorted(PROPOSERS_FIELDS)}")
@@ -245,7 +260,9 @@ def _proposers_banner(proposers):
         return [f"2 solution proposers drafted the design: {' and '.join(map(_tool_name, tools))}.", FENCE]
     if reason not in SOLO_REASONS:
         raise Refusal("bad-proposers", f"{where}: reason is one of {sorted(SOLO_REASONS)}")
-    return [f"1 solution proposer drafted the design alone ({_tool_name(tools[0])}): {SOLO_REASONS[reason]}."]
+    line = f"1 solution proposer drafted the design alone ({_tool_name(tools[0])}): {SOLO_REASONS[reason]}."
+    # A failed proposer ran with full auto-approval, so the fence statement stands (SDD §5).
+    return [line, FENCE] if reason == PROPOSER_FAILED else [line]
 
 
 def _empty():
@@ -360,7 +377,9 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     items = [_tagged(raw) for raw in round_input.get("items") or []]
     _check_carriers(doc, items)
     _check_order(doc, items)
-    _check_proposers_closed(doc_path, items)
+    _check_proposers_closed(doc_path, doc, items)
+    if "tips" in round_input and not isinstance(round_input["tips"], dict):
+        raise Refusal("bad-round", f"tips is one object: {round_input['tips']!r}")
     built = copy.deepcopy(round_input)
     if "proposers" in built:
         lines = _proposers_banner(built.pop("proposers"))
@@ -399,7 +418,7 @@ def next_step(doc, proposers=None):
         unsettled[group] = [key for key in keys if _cards(doc, node_id(group, key))
                             and not is_settled(doc, node_id(group, key))]
         unasked[group] = [key for key in keys if not _cards(doc, node_id(group, key))]
-    drafted = any(_cards(doc, node_id(group, key)) for group in DRAFT_GROUPS for key in group_keys(group))
+    drafted = _drafted(doc)
     if unasked["aspect"] or unsettled["aspect"]:
         phase = "aspects"
     elif not drafted and not _proposers_done(proposers):
