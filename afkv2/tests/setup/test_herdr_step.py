@@ -8,6 +8,8 @@ import setup
 import tools
 from conftest import FakeRunner
 
+NL = chr(10)
+
 
 class HerdrRunner(FakeRunner):
     """FakeRunner plus a fake herdr installer: no test runs a real installer or a download."""
@@ -67,7 +69,8 @@ def test_windows_runs_the_official_powershell_installer(herdr_runner):
 
 
 def test_unix_runs_the_official_shell_installer(herdr_runner):
-    assert tools.install_herdr(herdr_runner, windows=False)["herdr"] == "installed"
+    answer = tools.install_herdr(herdr_runner, windows=False)
+    assert answer == {"ok": True, "herdr": "installed", "path": "/home/me/.local/bin/herdr"}
     (call,) = herdr_runner.installer_calls()
     assert call[:2] == ["sh", "-c"] and call[2] == f"curl -fsSL {tools.HERDR_INSTALL_SH} | sh"
     assert tools.HERDR_INSTALL_SH == "https://herdr.dev/install.sh"
@@ -75,8 +78,40 @@ def test_unix_runs_the_official_shell_installer(herdr_runner):
 
 def test_unix_with_brew_uses_the_package_manager(herdr_runner):
     herdr_runner.paths["brew"] = "/opt/homebrew/bin/brew"
-    assert tools.install_herdr(herdr_runner, windows=False)["ok"] is True
+    answer = tools.install_herdr(herdr_runner, windows=False)
+    assert answer == {"ok": True, "herdr": "installed", "path": "/home/me/.local/bin/herdr"}
     assert herdr_runner.installer_calls() == [["brew", "install", "herdr"]]
+
+
+def test_brew_builds_in_the_setup_folder_not_its_temporary_folder(herdr_runner, tmp_path):
+    """Homebrew takes its temporary folder from HOMEBREW_TEMP, not TMPDIR (https://docs.brew.sh/Manpage, ENVIRONMENT)."""
+    herdr_runner.paths["brew"] = "/opt/homebrew/bin/brew"
+    folder = tmp_path / "herdr-download"
+    tools.install_herdr(herdr_runner, windows=False, env={"PATH": "p"}, download_dir=folder)
+    assert herdr_runner.last_env["HOMEBREW_TEMP"] == str(folder)
+
+
+def test_a_failure_reason_with_a_blank_error_stream_is_the_last_output_line(herdr_runner):
+    long_line = "no release " + "x" * 400
+    herdr_runner.__class__ = type("BlankErr", (HerdrRunner,), {
+        "__call__": lambda self, argv, env=None, timeout=300: tools.Result(1, f"fetching{NL}{long_line}{NL}", f"{NL}  {NL}")})
+    answer = tools.install_herdr(herdr_runner, windows=True)
+    assert answer["error"]["reason"] == long_line[:300]
+
+
+def test_the_runner_closes_the_input_of_every_command(monkeypatch):
+    """A prompting installer gets end of input at once, not a wait until the timeout."""
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs)
+        return type("Done", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    runner = tools.Runner()
+    monkeypatch.setattr(runner.__class__, "which", lambda self, name, env=None: "/bin/" + name)
+    monkeypatch.setattr(tools.subprocess, "run", fake_run)
+    runner(["sh", "-c", "true"])
+    assert seen["stdin"] is tools.subprocess.DEVNULL
 
 
 def test_a_failed_installer_answers_its_last_line(herdr_runner):
@@ -87,8 +122,9 @@ def test_a_failed_installer_answers_its_last_line(herdr_runner):
 
 
 def test_no_install_path_writes_a_program_file(herdr_runner):
-    """AC-029, our side only: no command saves a file first. The vendor scripts download into a
-    temporary folder; the setup-folder test below covers that."""
+    """AC-029, our side only: no command of ours saves a file. This fake never runs a vendor script, so it
+    cannot see where a vendor script stages its file. The vendor evidence is in `install_herdr`'s docstring;
+    the setup-folder tests below cover the redirect."""
     herdr_runner.paths["brew"] = "/opt/homebrew/bin/brew"
     for windows in (True, False):
         tools.install_herdr(herdr_runner, windows=windows)
@@ -133,8 +169,8 @@ def test_answer_yes_installs_and_records(env, places, herdr_system, herdr_runner
     code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
     assert code == 0 and answer["herdr"] == "installed"
     assert len(herdr_runner.installer_calls()) == 1
-    record = setup.read_install_record(places)
-    assert record["herdr"] == "installed" and record["python"] == "/py 3.12"
+    assert setup.read_herdr_answer(places) == "installed"
+    assert setup.read_install_record(places)["python"] == "/py 3.12"
 
 
 def test_answer_no_records_declined_and_is_never_asked_again(env, places, repo, herdr_system, herdr_runner,
@@ -146,7 +182,7 @@ def test_answer_no_records_declined_and_is_never_asked_again(env, places, repo, 
     _, status = _run(["status"], env, herdr_system, capsys, repo)
     assert status["herdr"] == "declined"
     setup.write_install_record(places, {"path": "/py", "version": "3.13"}, "/rg")
-    assert setup.read_install_record(places)["herdr"] == "declined"
+    assert setup.read_herdr_answer(places) == "declined"
 
 
 def test_answer_yes_with_herdr_present_runs_nothing(env, places, herdr_system, herdr_runner, capsys):
@@ -161,7 +197,7 @@ def test_a_failed_install_records_nothing(env, places, herdr_system, herdr_runne
     herdr_runner.installer_code = 2
     code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
     assert code == 1 and answer["error"]["code"] == "install-failed"
-    assert "herdr" not in setup.read_install_record(places)
+    assert setup.read_herdr_answer(places) is None
 
 
 def test_the_verb_needs_an_answer(env, herdr_system, capsys):
@@ -181,26 +217,48 @@ def test_a_yes_that_leaves_herdr_off_the_path_is_not_asked_again(env, places, re
 
 
 def test_the_installed_path_is_read_from_a_fresh_environment(env, places, herdr_runner, capsys):
-    """The installer changes the user path; only a newly read environment shows it."""
+    """The installer changes the user path; only an environment read after it shows herdr."""
     _prepared(places)
-    reads = []
+    ran = []
 
     def fresh():
-        reads.append(1)
-        return {"PATH": f"fresh-{len(reads)}"}
+        return {"PATH": "after" if ran else "before"}
 
-    seen = []
-    base_which = herdr_runner.which
+    original = herdr_runner.__class__.__call__
+
+    def run(argv, env=None, timeout=300):
+        answer = original(herdr_runner, argv, env, timeout)
+        if argv[0] in ("powershell", "sh", "brew"):
+            ran.append(1)
+        return answer
 
     def which(name, env=None):
-        seen.append((name, (env or {}).get("PATH")))
-        return base_which(name, env)
+        """herdr is on a path only in an environment read after the installer ran."""
+        if name == "herdr":
+            return "/home/me/.local/bin/herdr" if (env or {}).get("PATH") == "after" else None
+        return herdr_runner.paths.get(name)
 
-    herdr_runner.which = which
-    system = setup.System(run=herdr_runner, windows=False, fresh_env=fresh, is_terminal=lambda: True)
+    run.which = which
+    system = setup.System(run=run, windows=False, fresh_env=fresh, is_terminal=lambda: True)
     code, answer = _run(["herdr", "--answer", "yes"], env, system, capsys)
-    assert code == 0 and answer["on_path"] is True
-    assert seen[-1] == ("herdr", f"fresh-{len(reads)}") and len(reads) >= 2
+    assert code == 0 and ran and answer["on_path"] is True and answer["path"] == "/home/me/.local/bin/herdr"
+
+
+def test_with_no_fresh_reader_the_verb_uses_the_environment_given_to_main(env, places, herdr_runner, capsys):
+    _prepared(places)
+    system = setup.System(run=herdr_runner, windows=False, is_terminal=lambda: True)
+    _run(["herdr", "--answer", "yes"], {**env, "PATH": "given-path"}, system, capsys)
+    assert herdr_runner.last_env["PATH"] == "given-path"
+
+
+def test_a_saved_no_survives_switch_back(env, places, repo, herdr_system, herdr_runner, capsys):
+    _prepared(places)
+    _run(["herdr", "--answer", "no"], env, herdr_system, capsys)
+    setup.main(["switch-back"], env=env, system=herdr_system)
+    capsys.readouterr()
+    assert not places.install_record.exists()
+    _, status = _run(["status"], env, herdr_system, capsys, repo)
+    assert status["herdr"] == "declined"
 
 
 def test_the_installer_downloads_into_the_setup_folder_not_a_temporary_folder(env, places, herdr_system,
@@ -223,6 +281,6 @@ def test_the_installer_downloads_into_the_setup_folder_not_a_temporary_folder(en
     code, _ = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
     folder = str(places.data / "herdr-download")
     assert code == 0 and seen["exists"]
-    assert seen["TMP"] == seen["TEMP"] == seen["TMPDIR"] == folder
+    assert seen["TMP"] == seen["TEMP"] == seen["TMPDIR"] == seen["HOMEBREW_TEMP"] == folder
     assert "PATH" in seen
     assert not (places.data / "herdr-download").exists()

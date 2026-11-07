@@ -102,11 +102,21 @@ def _write_record(places: Places, record: dict[str, str]) -> None:
     write_atomic(places.install_record, "".join(f"{k} {record[k]}\n" for k in keys).encode("utf-8"))
 
 
-def herdr(places: Places, system: System, answer: str) -> dict:
-    """Act on the developer's answer and record it once: `declined` stops the question for good."""
-    def fresh():
-        return system.fresh_env() if system.fresh_env else None
+def herdr_answer_file(places: Places) -> Path:
+    """The developer's herdr answer, apart from the install record, so that switch-back keeps a no."""
+    return places.data / "herdr-answer.txt"
 
+
+def read_herdr_answer(places: Places) -> str | None:
+    path = herdr_answer_file(places)
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip() or None
+    return read_install_record(places).get("herdr")
+
+
+def herdr(places: Places, system: System, answer: str, env: Mapping[str, str]) -> dict:
+    """Act on the developer's answer and record it once: `declined` stops the question for good."""
+    fresh = system.fresh_env or (lambda: env)
     if tools.herdr_status(system.run, {}, fresh()) == "present":
         return {"ok": True, "herdr": "present"}
     done = (tools.install_herdr(system.run, system.windows, fresh(), places.data / "herdr-download")
@@ -117,9 +127,7 @@ def herdr(places: Places, system: System, answer: str) -> dict:
         done["path"] = system.run.which("herdr", fresh())
         done["on_path"] = done["path"] is not None
     if done["ok"]:
-        record = read_install_record(places)
-        record["herdr"] = done["herdr"]
-        _write_record(places, record)
+        write_atomic(herdr_answer_file(places), (done["herdr"] + "\n").encode("utf-8"))
     return done
 
 
@@ -677,8 +685,8 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "ok": True,
         "repo": str(repo),
         "install_record": read_install_record(places),
-        "herdr": tools.herdr_status(system.run, read_install_record(places),
-                                    system.fresh_env() if system.fresh_env else None),
+        "herdr": tools.herdr_status(system.run, {"herdr": read_herdr_answer(places)},
+                                    system.fresh_env() if system.fresh_env else env),
         "fired": {p: places.fired_record(p).exists() for p in PROVIDERS},
         "jira": jira_values.status(places, env),
         "v1_config": repo_config.copy_plan(repo),
@@ -787,7 +795,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         elif args.verb == "prepare":
             answer = prepare(places, system, env)
         elif args.verb == "herdr":
-            answer = herdr(places, system, args.answer)
+            answer = herdr(places, system, args.answer, env)
         elif args.verb == "diagram-renderer":
             answer = tools.ensure_diagram_renderer(places, system.run, env)
         elif args.verb == "secrets":

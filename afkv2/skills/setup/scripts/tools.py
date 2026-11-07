@@ -50,7 +50,7 @@ class Runner:
         if not exe:
             return Result(127, "", f"{argv[0]} not found on PATH")
         try:
-            done = subprocess.run([exe, *argv[1:]], capture_output=True, text=True,
+            done = subprocess.run([exe, *argv[1:]], capture_output=True, text=True, stdin=subprocess.DEVNULL,
                                   env=dict(env) if env else None, timeout=timeout)
         except (OSError, subprocess.SubprocessError) as exc:
             return Result(126, "", str(exc))
@@ -297,15 +297,20 @@ def install_herdr(run: Runner, windows: bool = os.name == "nt",
                   env: Mapping[str, str] | None = None, download_dir: Path | None = None) -> dict:
     """Run the official installer. Only after the developer's yes in session.
 
-    The official scripts download into GetTempPath() or `mktemp -d`. With `download_dir`, TMP,
-    TEMP and TMPDIR name that folder for the installer process only, so no program file lands in
-    a temporary folder (AC-029, decision D-11); the folder is removed after the run."""
+    Where each one stages the program file (read 2026-11-07): install.ps1 downloads into
+    `Join-Path ([System.IO.Path]::GetTempPath()) "herdr-install-<guid>"`, which reads TMP, then TEMP;
+    install.sh runs `TMP="$(mktemp -d)"` and `curl ... -o "${TMP}/${BIN}"`, which reads TMPDIR; brew
+    builds in HOMEBREW_TEMP (https://docs.brew.sh/Manpage, ENVIRONMENT; default /private/tmp or /var/tmp).
+    With `download_dir`, TMP, TEMP, TMPDIR and HOMEBREW_TEMP name that folder for the installer process
+    only, so no program file lands in a temporary folder (AC-029, decision D-11); the folder is removed
+    after the run."""
     command = herdr_installer(run, windows, env)
     run_env = env
     if download_dir is not None:
         download_dir.mkdir(parents=True, exist_ok=True)
         folder = str(download_dir)
-        run_env = {**(env if env is not None else os.environ), "TMP": folder, "TEMP": folder, "TMPDIR": folder}
+        run_env = {**(env if env is not None else os.environ), "TMP": folder, "TEMP": folder, "TMPDIR": folder,
+                   "HOMEBREW_TEMP": folder}
     try:
         got = run(command, env=run_env, timeout=HERDR_INSTALL_TIMEOUT)
     finally:
