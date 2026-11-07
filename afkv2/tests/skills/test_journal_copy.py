@@ -61,6 +61,7 @@ def test_archive_copies_the_journal_to_the_spec_folder_and_commits_it_on_the_fea
     assert Path(answer["path"]).resolve() == copy.resolve()
     assert copy.read_bytes() == (built.plan / "JOURNAL.md").read_bytes()
     assert git(built.work, "log", "-1", "--format=%H", "--", COPY.as_posix()) == git(built.work, "rev-parse", "HEAD")
+    assert answer["commit"] == git(built.work, "rev-parse", "HEAD")
     assert git(built.work, "status", "--porcelain") == ""
     assert git(built.run, "status", "--porcelain") == ""
     assert all(name.startswith("plan/") for name in git(built.run, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
@@ -71,7 +72,7 @@ def test_archive_with_no_change_makes_no_commit(built):
     verb("archive", built)
     head = git(built.work, "rev-parse", "HEAD")
     again = verb("archive", built)
-    assert again["ok"] and again["committed"] is False
+    assert again["ok"] and again["committed"] is False and again["commit"] == head
     assert git(built.work, "rev-parse", "HEAD") == head
 
 
@@ -195,3 +196,48 @@ def test_an_old_journal_with_no_class_line_still_parses_for_end(built):
 def test_the_skill_names_archive():
     text = (AFKV2 / "skills" / "autopilot" / "SKILL.md").read_text(encoding="utf-8")
     assert "`archive`" in text
+
+
+@pytest.mark.parametrize("prd", ["../outside/T-1/PRD.md", "docs/../../outside/PRD.md", "ABSOLUTE"])
+def test_a_spec_folder_outside_the_feature_worktree_refuses_before_any_write(tmp_path, monkeypatch, prd):
+    if prd == "ABSOLUTE":
+        prd = (tmp_path / "elsewhere" / "PRD.md").as_posix()
+    found = linked(plan_fixture.build(tmp_path, {"0001-a": with_prd("0001-a", prd)}))
+    monkeypatch.chdir(found.work)
+    walk.VERBS["end"]({"plan": str(found.plan)})
+    with pytest.raises(start_gate.Refusal) as caught:
+        walk.VERBS["archive"]({"plan": str(found.plan)})
+    assert caught.value.code == "no-spec-dir"
+    assert not (tmp_path / "outside").exists() and not (tmp_path / "elsewhere").exists()
+    assert git(found.work, "status", "--porcelain") == ""
+
+
+def test_a_spec_path_with_a_space_keeps_the_whole_folder(tmp_path, monkeypatch):
+    found = linked(plan_fixture.build(tmp_path, {"0001-a": with_prd("0001-a", "`docs/Design Specs/T-1/PRD.md`")}))
+    monkeypatch.chdir(found.work)
+    walk.VERBS["end"]({"plan": str(found.plan)})
+    answer = walk.VERBS["archive"]({"plan": str(found.plan)})
+    assert Path(answer["path"]).resolve() == (found.work / "docs" / "Design Specs" / "T-1" / "runs" / "feat-x-run.md").resolve()
+
+
+def test_a_start_after_a_park_set_back_to_pending_writes_no_second_class_line(built):
+    verb("start", built, subtask="0001-a")
+    plan_contract.write_status(built.plan, "0001-a", "blocked(review_fail: test)")
+    plan_contract.write_status(built.plan, "0001-a", "pending")
+    git(built.run, "commit", "-qam", "a human sets the row back")
+    verb("start", built, subtask="0001-a")
+    text = (built.plan / "JOURNAL.md").read_text(encoding="utf-8")
+    assert text.count("| 0001-a | developing ") == 2 and text.count("| complexity ") == 1
+
+
+def test_a_prunable_worktree_block_is_no_feature_worktree():
+    porcelain = f"worktree /main\nHEAD 1\nbranch refs/heads/main\n\nworktree /gone\nHEAD 2\nbranch refs/heads/{plan_fixture.FEATURE}\nprunable gitdir file points to non-existent location\n"
+    assert walk._worktree_of(porcelain, plan_fixture.FEATURE) is None
+
+
+def test_the_class_set_of_the_journal_writer_matches_the_estimate_reader():
+    sys.path.insert(0, str(AFKV2 / "skills" / "to-subtasks" / "scripts"))
+    import estimate
+    assert set(walk.CLASSES) == set(estimate.WEIGHTS) == set(estimate.SIZE_TABLE)
+    for text in ("Complex", "`mechanical`", "standard.", "", "huge", "**complex** because"):
+        assert walk._class_of(type("C", (), {"sections": {"Complexity": text}})()) == estimate.class_of(text)

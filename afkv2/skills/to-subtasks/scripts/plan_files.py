@@ -366,13 +366,24 @@ def _gates_of(subtask):
     return ", ".join(tiers)
 
 
+def _plural(count, one, many):
+    return f"{count} {one if count == 1 else many}"
+
+
 def _estimate_line(answer):
-    """The total, the basis and the run count of the estimate, in 1 line."""
+    """The total, the basis, the run count and the skipped journal lines of the estimate, in 1 line."""
     total = answer["total"]
     text = f"Agent run time in days, in total: low {total['low']:.2f}, likely {total['likely']:.2f}, high {total['high']:.2f}. "
     if answer["basis"] == "journals":
-        return text + f"Basis: past run times from {answer['runs']} earlier run{'s' if answer['runs'] != 1 else ''}."
-    return text + "Basis: estimated from the size of each subtask, because no earlier run exists."
+        text += f"Basis: past run times from {_plural(answer['runs'], 'earlier run', 'earlier runs')}."
+    elif answer.get("copies"):
+        text += (f"Basis: estimated from the size of each subtask, because the "
+                 f"{_plural(answer['copies'], 'journal copy holds', 'journal copies hold')} no finished run.")
+    else:
+        text += "Basis: estimated from the size of each subtask, because no earlier run exists."
+    if answer.get("skipped"):
+        text += f" {_plural(answer['skipped'], 'unreadable journal line', 'unreadable journal lines')} skipped."
+    return text
 
 
 def _division_card(plan, subtasks, why, card_id, digest, carries, spec_root):
@@ -387,7 +398,7 @@ def _division_card(plan, subtasks, why, card_id, digest, carries, spec_root):
              "props": {"columns": ["Subtask", "Goal", "Why the cut is here", "Waits on", "Gates", "Low days", "Likely days", "High days"], "rows": rows},
              "children": [{"type": "text", "id": f"{card_id}-ask", "props": {"text": text}},
                           {"type": "text", "id": f"{card_id}-estimate", "props": {"text": _estimate_line(times)}}]}
-    return {"id": card_id, "kind": "signoff", "body": table, **({"carries": carries} if carries else {})}
+    return {"id": card_id, "kind": "signoff", "body": table, **({"carries": carries} if carries else {})}, times
 
 
 def _carried_cards(doc):
@@ -420,9 +431,9 @@ def build_division_round(plan, doc_path, session, ticket, why, replace=False):
     session_fields = {"id": session, "skill": PAGE_SKILL, "feature": ticket, "ticket": ticket}
     banner = {"settled": [], "unlocks": ["/afkv2:autopilot can start on this plan"], "parked": []}
     spec_root = doc_path.resolve().parents[2]  # the doc is <spec root>/<ticket>/pages/<file> (plan decision D-15)
-    round_input = {"banner": banner, "items": [_division_card(plan, subtasks, why, card_id, digest, carries, spec_root)]}
-    answer = rd.build_round_document(doc_path, session_fields, round_input, replace=replace)
-    return {**answer, "card": card_id, "digest": digest}
+    card, times = _division_card(plan, subtasks, why, card_id, digest, carries, spec_root)
+    answer = rd.build_round_document(doc_path, session_fields, {"banner": banner, "items": [card]}, replace=replace)
+    return {**answer, "card": card_id, "digest": digest, "estimate_notes": times["notes"]}
 
 
 def division(argv):

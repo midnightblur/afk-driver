@@ -30,7 +30,7 @@ you ask in this session; the Jira token never passes through you.
    ask the developer once in this session whether to install herdr through its
    official installer; without it, design sessions get 1 solution proposer. Then
    `setup.py herdr --answer yes` or `setup.py herdr --answer no`. A no is recorded
-   and never asked again. A refusal `install-failed`: report its `reason`; the
+   and never asked again, also after `switch-back`. A refusal `install-failed`: report its `reason`; the
    developer can install herdr by hand.
 4. **Jira values.** `jira.complete` false: ask the developer to run
    `python <this skill's folder>/scripts/setup.py secrets` in their own terminal

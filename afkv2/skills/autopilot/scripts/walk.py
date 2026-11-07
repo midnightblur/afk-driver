@@ -32,7 +32,7 @@ ATTEMPT_CAP = 3
 RULING_CAP = 3
 RULED_KINDS = ("scope", "file-owner", "subtask-order")
 PARK_KINDS = ("acceptance", "one-way", "cost")
-CLASSES = ("mechanical", "standard", "complex")
+CLASSES = ("mechanical", "standard", "complex")  # copy of the enum in to-subtasks/SUBTASK-CONTRACT.md; estimate.py reads it
 JOURNAL_HEADER = "# Journal: append-only event log, one line per event. Newest last.\n"
 LEDGER_HEADER = "# Decisions: taken hands-off, each one reversible on the record. Newest last.\n"
 LEDGER_ID = re.compile(r"^## D-(\d+) ", re.MULTILINE)
@@ -157,6 +157,11 @@ def _class_of(contract):
     return word if word in CLASSES else "standard"
 
 
+def _has_class_line(plan, subtask):
+    journal = plan / "JOURNAL.md"
+    return journal.is_file() and f" | {subtask} | complexity " in read_text(journal)
+
+
 def locate(payload):
     """The worktree of the run branch of the current feature branch; it adds that worktree when none exists."""
     branch = git_line(".", "rev-parse", "--abbrev-ref", "HEAD")
@@ -229,7 +234,8 @@ def start(payload):
     if status == "pending":
         write_status(plan, subtask, "developing")
         _journal(plan, "autopilot", subtask, "developing", "a fresh helper starts work on this subtask")
-        _journal(plan, "autopilot", subtask, f"complexity {_class_of(contract)}", "the size class of this subtask, for later estimates")
+        if not _has_class_line(plan, subtask):
+            _journal(plan, "autopilot", subtask, f"complexity {_class_of(contract)}", "the size class of this subtask, for later estimates")
     _commit_run(plan, f"run: {subtask}: start, attempt {record['attempts']}")
     rulings = _rulings_for(state, subtask)
     return ok(subtask=subtask, base=record["base"], change=state["change"], attempt=record["attempts"], resume=resume,
@@ -468,39 +474,58 @@ def end(payload):
     return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses))
 
 
-def _feature_worktree(plan, run_branch):
-    """The linked worktree that has the feature branch of this run branch checked out. The main checkout never counts."""
-    feature = run_branch.removesuffix(RUN_SUFFIX)
-    for block in _git(plan, "worktree", "list", "--porcelain").split("\n\n")[1:]:
+def _worktree_of(porcelain, branch):
+    """The linked worktree of `branch` in `git worktree list --porcelain`, or None. The main checkout, a prunable block
+    and a block whose folder is gone never count."""
+    for block in porcelain.split("\n\n")[1:]:
         lines = block.splitlines()
-        if lines and f"branch refs/heads/{feature}" in lines and Path(lines[0].removeprefix("worktree ")).is_dir():
-            return Path(lines[0].removeprefix("worktree "))
-    raise Refusal("no-feature-worktree", f"no linked worktree has {feature} checked out: check it out in one, and run `archive` again")
+        if not lines or f"branch refs/heads/{branch}" not in lines or any(line.startswith("prunable") for line in lines):
+            continue
+        path = Path(lines[0].removeprefix("worktree "))
+        if path.is_dir():
+            return path
+    return None
 
 
-def _spec_dir(plan):
-    """The folder of the first `## Parent PRD` in rank order, relative to the repository root."""
+def _feature_worktree(plan, run_branch):
+    """The linked worktree that has the feature branch of this run branch checked out."""
+    feature = run_branch.removesuffix(RUN_SUFFIX)
+    worktree = _worktree_of(_git(plan, "worktree", "list", "--porcelain"), feature)
+    if worktree is None:
+        raise Refusal("no-feature-worktree", f"no linked worktree has {feature} checked out: check it out in one, and run `archive` again")
+    return worktree
+
+
+def _spec_dir(plan, worktree):
+    """The folder of the first `## Parent PRD` in rank order: the whole cell, backticks stripped, relative to the
+    repository root. It refuses a folder outside the feature worktree, before any write."""
     for contract in _contracts(plan):
-        words = contract.sections.get("Parent PRD", "").replace("`", " ").split()
-        if words:
-            return Path(words[0]).parent
+        cell = contract.sections.get("Parent PRD", "").strip().strip("`").strip()
+        if not cell:
+            continue
+        folder = Path(cell).parent
+        root = Path(worktree).resolve()
+        if folder.is_absolute() or folder.drive or not (root / folder).resolve().is_relative_to(root):
+            raise Refusal("no-spec-dir", f"`## Parent PRD` of {contract.id} names {cell}, which is outside the feature worktree")
+        return folder
     raise Refusal("no-spec-dir", "no contract names its `## Parent PRD`, so the spec folder is unknown")
 
 
 def _copy_journal(plan, run_branch):
-    """Copy plan/JOURNAL.md to `<spec dir>/runs/<run branch>.md` in the feature worktree; commit it there when it changed."""
+    """Copy plan/JOURNAL.md to `<spec dir>/runs/<run branch>.md` in the feature worktree; commit it there when it changed.
+    Also answers the newest commit of the copy."""
     worktree = _feature_worktree(plan, run_branch)
-    relative = _spec_dir(plan) / "runs" / (run_branch.replace("/", "-") + ".md")
+    relative = _spec_dir(plan, worktree) / "runs" / (run_branch.replace("/", "-") + ".md")
     target = worktree / relative
     source = plan / "JOURNAL.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(source.read_bytes() if source.is_file() else JOURNAL_HEADER.encode("utf-8"))
     name = relative.as_posix()
     _git(worktree, "add", "--", name)
-    if git_line(worktree, "diff", "--cached", "--quiet", "--", name) is not None:
-        return target, False
-    _git(worktree, "commit", "-qm", f"run: journal copy of {run_branch}", "--", name)
-    return target, True
+    committed = git_line(worktree, "diff", "--cached", "--quiet", "--", name) is None
+    if committed:
+        _git(worktree, "commit", "-qm", f"run: journal copy of {run_branch}", "--", name)
+    return target, committed, _git(worktree, "log", "-1", "--format=%H", "--", name)
 
 
 def archive(payload):
@@ -511,11 +536,11 @@ def archive(payload):
     last = read_text(journal).rstrip("\n").rsplit("\n", 1)[-1] if journal.is_file() else ""
     if " | autopilot | run | run end (" not in last:
         raise Refusal("not-ended", "the last journal line is not the run end: run `end`, then `archive`")
-    target, committed = _copy_journal(plan, run_branch_of(plan))
+    target, committed, commit = _copy_journal(plan, run_branch_of(plan))
     state["archived"] = _journal_digest(plan)
     _save(plan, state)
     _commit_run(plan, "run: journal copied to the feature branch")
-    return ok(path=str(target), committed=committed, ship=_ships(plan, state, _tally(statuses), statuses))
+    return ok(path=str(target), committed=committed, commit=commit, ship=_ships(plan, state, _tally(statuses), statuses))
 
 
 VERBS = {"locate": locate, "next": next_subtask, "start": start, "status": set_status, "set-change": set_change,
