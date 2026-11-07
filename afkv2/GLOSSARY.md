@@ -146,3 +146,9 @@ A part of a page that holds the current state of one part of the topic, kept up 
 
 **Question for others**:
 A point of a grill that neither the human nor the code can settle, so someone outside the session must answer it: a product owner, a tester, a director or another team. It is kept with who to ask, its context, why the answer is needed, the ways we see and an example, written so that person can read it.
+
+**Solution proposer**:
+An agent session, of Claude or Codex, that drafts a whole design on its own from the design inputs. A lasting disagreement between 2 solution proposers becomes a fork card.
+
+**Agent run time**:
+The days the agents would need to build a design, from the plan to a change ready for review, with no human work counted. Shown as a low, likely and high range.

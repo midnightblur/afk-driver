@@ -1,0 +1,3316 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Requirements grill",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261107-031503",
+    "skill": "grill",
+    "feature": "178",
+    "ticket": "178",
+    "started": "2026-11-07T03:26:07Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Design page like the grill"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-scope",
+      "props": {
+        "title": "What this ticket covers",
+        "groups": [
+          {
+            "id": "g-page",
+            "label": "The page"
+          },
+          {
+            "id": "g-content",
+            "label": "The design content"
+          },
+          {
+            "id": "g-run",
+            "label": "How the design is made"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "n-whole",
+            "label": "Whole design in view",
+            "group": "g-page",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "n-notes",
+            "label": "Notes on top",
+            "group": "g-page",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-comeback",
+            "label": "Coming back",
+            "group": "g-page",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-levels",
+            "label": "High level first",
+            "group": "g-content",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "n-visuals",
+            "label": "Pictures",
+            "group": "g-content",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-critical",
+            "label": "Critical parts",
+            "group": "g-content",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-decisions",
+            "label": "Decisions explained",
+            "group": "g-content",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-others",
+            "label": "Questions for others",
+            "group": "g-content",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "n-parallel",
+            "label": "Parallel proposers",
+            "group": "g-run",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "n-estimate",
+            "label": "Effort estimate",
+            "group": "g-run",
+            "state": "focus",
+            "round": 1
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "N-1-i-parallel-1",
+      "round": 1,
+      "target": "i-parallel",
+      "item": "i-parallel",
+      "text": "but do not fallback to multi models from same provider. fallback to just one proposer",
+      "deleted": false
+    },
+    {
+      "id": "N-2-i-run-other-1",
+      "round": 2,
+      "target": "i-run-other",
+      "item": "i-run-other",
+      "text": "herdr should be installed automatically in afkv2:setup\n\nwe can introduce a skill so agents know how to use herdr properly\n\n    - understanding of spaces, tabs, panes \n    - ops: open, close, rename\n    - operating the terminal (not agent session)\n    - call up agents using claude --dangerously-skip-permissions or codex --yolo, always\n    - communicate to other panes\n- check herdr official docs, decide which capabilities we need, then build a playbook as a skill",
+      "deleted": false
+    },
+    {
+      "id": "N-2-i-visuals-1",
+      "round": 2,
+      "target": "i-visuals",
+      "item": "i-visuals",
+      "text": "good but not enough\n\nwhen applicable, I would like to see all the design patterns applied, which part, why selecting this pattern (which non-functional requirements, or code quality attributes trying to achieve)\n\nbesides, performance and security should be part of the design, and of course visualized",
+      "deleted": false
+    },
+    {
+      "id": "N-2-i-terms-1",
+      "round": 2,
+      "target": "t-terms",
+      "item": "i-terms",
+      "text": "Solution Proposer, it's clearer than just Proposer",
+      "deleted": false
+    },
+    {
+      "id": "N-3-i-visuals-1",
+      "round": 3,
+      "target": "i-visuals",
+      "item": "i-visuals",
+      "text": "some educational about the pattern itself would be good, as devs can't be familiar with all the patterns",
+      "deleted": false
+    },
+    {
+      "id": "N-3-i-patterns-1",
+      "round": 3,
+      "target": "i-patterns",
+      "item": "i-patterns",
+      "text": "explain why this pattern would work here",
+      "deleted": false
+    },
+    {
+      "id": "N-3-i-quality-1",
+      "round": 3,
+      "target": "i-quality",
+      "item": "i-quality",
+      "text": "the solution design must cover the performance design, anticipate performance problems, large data, and incorporate the solution. this section should focus on all performance-related info of the design",
+      "deleted": false
+    },
+    {
+      "id": "N-3-i-quality-2",
+      "round": 3,
+      "target": "i-quality",
+      "item": "i-quality",
+      "text": "forget security for now. remove it from this plan",
+      "deleted": false
+    },
+    {
+      "id": "N-4-i-cap-1",
+      "round": 4,
+      "target": "i-cap",
+      "item": "i-cap",
+      "text": "no need. if it's a real problem we will deal with it later",
+      "deleted": false
+    },
+    {
+      "id": "N-5-m-scope-1",
+      "round": 5,
+      "target": "m-scope",
+      "item": null,
+      "text": "it seems we have a visual problem here. these sections have absolutely no styling, including smaller elements like chips. all are text, no boundaries, no styling",
+      "deleted": false,
+      "quote": "Sections Why the design page must change 4 pains, accepted in round 1: Lost picture: you see one layer's questions at a time, so the whole design is never in view at once. Hidden reasons: a decision shows little of the requirement that drov"
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "the scope of this ticket"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#178: afkv2: propose-solution page takes the grill's living page and visual design view"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "## Want\n\nBring the page-communication changes of the requirements grill to `/afkv2:propose-solution`.\n\n- Same principle as the requirements grill: the agents work on their own first, come up with a complete design and solution (a multi-provider pattern where it applies), then present it on the lavish page.\n- More visualization: architecture, flows, modules, key logic.\n- Structure: high level first, then progressive disclosure of lower-level detail. Critical parts get more attention, for example a dedicated section.\n- Each design decision is explained: it cites the requirements and constraints that lead to it (the ADRs) and gives a brief of the alternatives, so the developer knows them.\n- After sign-off: suggest an estimated effort in dev days, fully executed by agents. Not every repository has an effort field.\n- Page layout: the always-current cards (living sections), with the notes and response cards on top, stacking up over the rounds.\n- Also carry over the other recent grill page enhancements.\n\n## Recent grill page enhancements to check\n\n- #175: page format 2, living sections with a change list per round, stories, examples, questions for others, take-over, `stale` / `changed` end check.\n- #172: page-owned terms and exact-id tips.\n- #171: use-lavish skill, page format 1, charts, diagram text, code and diff components.\n- #167: one note per annotation, one tab across rounds.\n- #177 (open): rename grill to grill-requirements.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+                  "markdown": true
+                },
+                "fold": "The ticket text"
+              },
+              {
+                "type": "table",
+                "id": "i-ticket-links",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Ticket",
+                    "Title",
+                    "Status"
+                  ],
+                  "rows": [
+                    [
+                      "named in this ticket",
+                      "#175",
+                      "afkv2: living page sections and questions for others (#174)",
+                      "MERGED"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#172",
+                      "Add page-owned tips with versioned page schemas",
+                      "MERGED"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#171",
+                      "afkv2: use-lavish skill and page format 1 (#163)",
+                      "MERGED"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#167",
+                      "afkv2: one note per page annotation, one tab across rounds",
+                      "MERGED"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#177",
+                      "afkv2: rename grill to grill-requirements",
+                      "OPEN"
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-today",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-today-t",
+            "props": {
+              "text": "I checked each wish against the code. Paths are in the afkv2 plugin folder."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-today",
+                "props": {
+                  "columns": [
+                    "What you want",
+                    "Today",
+                    "Source"
+                  ],
+                  "rows": [
+                    [
+                      "Whole design in view, kept current",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: the design skill sends no sections",
+                          "tone": "blocked"
+                        }
+                      },
+                      "skills/propose-solution/SKILL.md"
+                    ],
+                    [
+                      "Notes and replies on top, stacking up",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "there: the engine puts them under the banner",
+                          "tone": "settled"
+                        }
+                      },
+                      "engine/shell/page.py:457-469"
+                    ],
+                    [
+                      "Pictures of architecture, flows, modules, logic",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "there: the components exist; the skill asks for a picture only before a critical question",
+                          "tone": "open"
+                        }
+                      },
+                      "skills/visualize/SKILL.md:70-94"
+                    ],
+                    [
+                      "High level first, detail on demand",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "partly: design layers exist, but sections are flat and only pictures fold",
+                          "tone": "open"
+                        }
+                      },
+                      "engine/schema/page-v2.schema.json:229-244"
+                    ],
+                    [
+                      "Decisions cite requirements and alternatives",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "partly: a decided card shows other options; nothing links the requirement records",
+                          "tone": "open"
+                        }
+                      },
+                      "skills/propose-solution/DRAFT.md:23"
+                    ],
+                    [
+                      "Several proposers in parallel",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: an empty slot, switched off",
+                          "tone": "blocked"
+                        }
+                      },
+                      "skills/propose-solution/scripts/second_provider.py:1-27"
+                    ],
+                    [
+                      "Effort estimate in dev days",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: no field anywhere",
+                          "tone": "blocked"
+                        }
+                      },
+                      "searched the afkv2 folder"
+                    ],
+                    [
+                      "Coming back to a finished design",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: a new run starts a new page",
+                          "tone": "blocked"
+                        }
+                      },
+                      "skills/propose-solution/scripts/design_files.py:63-66"
+                    ],
+                    [
+                      "Questions for others",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing in the design skill",
+                          "tone": "blocked"
+                        }
+                      },
+                      "skills/propose-solution/SKILL.md"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What the design page does today, against what you want",
+          "node": "n-whole",
+          "section": "s-whole"
+        },
+        {
+          "id": "i-pains",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-pains-t",
+            "props": {
+              "text": "My reading of the ticket and your first note. Accept, or note the line that is wrong."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-pains",
+                "props": {
+                  "columns": [
+                    "Pain",
+                    "In one sentence"
+                  ],
+                  "rows": [
+                    [
+                      "Lost picture",
+                      "You see one layer's questions at a time, so the whole design is never in view at once."
+                    ],
+                    [
+                      "Hidden reasons",
+                      "A decision shows little of the requirement that drove it or the options it beat, so you cannot audit it."
+                    ],
+                    [
+                      "Text-only design",
+                      "Architecture, flows and logic are described in words, which is slow to read and easy to misread."
+                    ],
+                    [
+                      "One voice",
+                      "One agent proposes the design alone, so a better design that another agent or tool would find stays unseen."
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "The 4 pains this ticket removes",
+          "node": "n-whole",
+          "section": "s-pain",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-actors",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-actors-t",
+            "props": {
+              "text": "Accept, or note who is missing."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-actors",
+                "props": {
+                  "columns": [
+                    "Who",
+                    "Role in this ticket"
+                  ],
+                  "rows": [
+                    [
+                      "You, the developer",
+                      "read the whole design, note anything, answer the forks, sign off"
+                    ],
+                    [
+                      "The design proposers",
+                      "1 or more agents that each draft a design alone"
+                    ],
+                    [
+                      "The design agent in charge",
+                      "merges the drafts, writes the page, replies to your notes, writes the design document"
+                    ],
+                    [
+                      "Someone outside the session",
+                      "answers a question only they can settle (a product owner, another team)"
+                    ],
+                    [
+                      "Later skills",
+                      "read the design document; nothing on the page changes what they read"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Who takes part",
+          "node": "n-whole",
+          "section": "s-pain",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-scope",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-scope-t",
+            "props": {
+              "text": "Recommended. Most of what you want is already in the shared page engine and the page skill; the gap is what the design skill sends. So this ticket changes the design skill and its guides, and the engine only where a wish cannot be met today. The #174 requirements put this exact work out of their scope as a follow-up ticket (docs/afk/174/PRD.md:223).",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-scope",
+                "props": {
+                  "columns": [
+                    "In",
+                    "Out"
+                  ],
+                  "rows": [
+                    [
+                      "Design sections, change lines, pictures, decision briefs, critical sections, questions for others, coming back, effort estimate, parallel proposers",
+                      "A new page format; changes to the requirements grill; writing an estimate to the tracker; the rename of the grill skill (its own change, #177)"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "In scope: the design skill's content; the engine only where it must",
+          "node": "n-whole",
+          "section": "s-whole",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-levels",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-levels-t",
+            "props": {
+              "text": "Sections are a flat list today. Which reading of \"high level first, then detail\" do you want? Recommended: A. It meets the wish with no engine change, and B can follow later if A feels flat."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-levels-options",
+                "props": {
+                  "columns": [
+                    "A: ordered sections, folded detail",
+                    "B: nested sections",
+                    "C: one clickable picture"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-levels-opt-a",
+                        "props": {
+                          "text": "Sections in level order (system, boundaries, data, modules, key logic). Each opens with its picture and a 2-line summary; the detail sits in folds and links down to the next level."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-levels-opt-b",
+                        "props": {
+                          "text": "A section can hold child sections. The page shows the top level open and the children closed. Needs a new field in the page format and engine work."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-levels-opt-c",
+                        "props": {
+                          "text": "One architecture picture on top; a click on a box jumps to that part's section. Today a click on a map box opens its card, not a section."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "How the page reveals detail level by level",
+          "node": "n-levels",
+          "section": "s-levels",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-parallel",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-parallel-t",
+            "props": {
+              "text": "Nothing in afkv2 starts another tool today. The slot's planned protocol: each proposer drafts alone, each critiques the other, they reconcile, and a lasting disagreement becomes a fork card for you (skills/propose-solution/scripts/second_provider.py:3-7). Recommended: B, because it works on any machine and C can add Codex later without changing the page. (inferred: the extra cost of C is starting and watching a second tool's session.)"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-parallel-options",
+                "props": {
+                  "columns": [
+                    "A: one proposer (today)",
+                    "B: several agents of the same tool",
+                    "C: Claude and Codex both"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-parallel-opt-a",
+                        "props": {
+                          "text": "Keep 1 proposer; only the page changes."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-parallel-opt-b",
+                        "props": {
+                          "text": "2 or 3 fresh agents of the running tool draft alone, each from a different angle, then critique and reconcile. Works with one tool installed."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-parallel-opt-c",
+                        "props": {
+                          "text": "Claude and Codex each draft; needs a way to start and read the other tool's session. Falls back to B when the other tool is not installed."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What \"several proposers in parallel\" means for this ticket",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "note",
+            "round": 1,
+            "signal": "N-1-i-parallel-1",
+            "reading": "Picks C: Claude and Codex each propose a design. When the other tool is not available, 1 proposer drafts alone; never several agents of the same tool."
+          }
+        },
+        {
+          "id": "i-estimate",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-estimate-t",
+            "props": {
+              "text": "\"Dev days, fully executed by agents\" can be read 2 ways. Which one? Recommended: C, shown as a low-likely-high range per part, marked as estimated."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-estimate-options",
+                "props": {
+                  "columns": [
+                    "A: human-equivalent days",
+                    "B: agent run time",
+                    "C: both"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-estimate-opt-a",
+                        "props": {
+                          "text": "What a developer would spend on the same work; fits a team's usual estimate field."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-estimate-opt-b",
+                        "props": {
+                          "text": "How long the agents would run, from plan to the change ready for review."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-estimate-opt-c",
+                        "props": {
+                          "text": "Both numbers side by side, per part and in total."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What one \"dev day\" of the estimate measures",
+          "node": "n-estimate",
+          "section": "s-estimate",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-carry",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-carry-t",
+            "props": {
+              "text": "Recommended: all of these. Accept, or note the ones to leave out."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-carry",
+                "props": {
+                  "columns": [
+                    "Improvement",
+                    "From",
+                    "Design skill today"
+                  ],
+                  "rows": [
+                    [
+                      "Coming back to a finished session on the same page, with stale and changed lists",
+                      "#175",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "Questions for others",
+                      "#175",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "Worked examples, read as: a key flow walked through the design with sample data",
+                      "#175",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "The ticket card on round 1",
+                      "#171",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: the design build passes no ticket",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "Side-question replies from the btw button",
+                      "#171",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing from its wait step",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "Your notes copied into the design log",
+                      "#175",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "missing: no sync step",
+                          "tone": "blocked"
+                        }
+                      }
+                    ],
+                    [
+                      "Page-owned tips and links",
+                      "#172, #166",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "there, through the shared builder",
+                          "tone": "settled"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Other grill improvements the design skill takes over",
+          "node": "n-comeback",
+          "section": "s-comeback",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T03:39:53Z",
+          "raw": "[round R-1]\ni-levels a\ni-parallel c\ni-parallel note 1\n  but do not fallback to multi models from same provider. fallback to just one proposer\ni-estimate b\ni-pains accept\ni-actors accept\ni-scope accept\ni-carry accept",
+          "signals": [
+            {
+              "target": "i-levels",
+              "item": "i-levels",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a98f4c116ec11e8f"
+            },
+            {
+              "target": "i-parallel",
+              "item": "i-parallel",
+              "mark": "c",
+              "note": "N-1-i-parallel-1",
+              "text": "but do not fallback to multi models from same provider. fallback to just one proposer",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "caeb7145b22feebd"
+            },
+            {
+              "target": "i-estimate",
+              "item": "i-estimate",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ead9e85f66e1a357"
+            },
+            {
+              "target": "i-pains",
+              "item": "i-pains",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3f052574794be72c"
+            },
+            {
+              "target": "i-actors",
+              "item": "i-actors",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0d586405e1d61072"
+            },
+            {
+              "target": "i-scope",
+              "item": "i-scope",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7e8d91d84c3ef63d"
+            },
+            {
+              "target": "i-carry",
+              "item": "i-carry",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "08edc822ba417ae9"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-1-1",
+          "text": "Settled by your note: Picks C: Claude and Codex each propose a design. When the other tool is not available, 1 proposer drafts alone; never several agents of the same tool.",
+          "notes": [
+            "N-1-i-parallel-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "the 4 pains",
+          "who takes part",
+          "the scope",
+          "sections in level order",
+          "Claude and Codex as proposers",
+          "agent run time as the estimate",
+          "every grill improvement carried over"
+        ],
+        "unlocks": [
+          "how the tools run and reconcile",
+          "the estimate basis",
+          "pictures and decision briefs"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-run-other",
+          "kind": "debate",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-run-other-t",
+            "props": {
+              "text": "The session must start the other tool and read its draft. Nothing in afkv2 does this yet. The page engine already types into the agent's own terminal pane through herdr for side questions (engine/side_question.py:1-19). An earlier design on this repository recorded a policy risk in one tool driving another under a subscription login (the research feature, its ADR-0006); I have not checked it again. Recommended: A, because you can watch it and stop it, and it is the agent pane the glossary already defines (afkv2/GLOSSARY.md:86-87)."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-run-other-options",
+                "props": {
+                  "columns": [
+                    "A: a visible terminal pane",
+                    "B: a hidden background run"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-run-other-opt-a",
+                        "props": {
+                          "text": "The other tool runs in its own terminal pane, under your login, and you can watch or stop it. Needs herdr; without it, 1 proposer."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-run-other-opt-b",
+                        "props": {
+                          "text": "The other tool runs headless in the background (its non-interactive mode). Works without herdr; you see only its result."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "How the other tool's proposer runs",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-i-run-other-1",
+            "reading": "Picks A: the other tool runs in a visible herdr pane. Adds 2 needs: setup installs herdr, and a herdr playbook skill built from the official herdr docs; agents always start with full auto-approval."
+          }
+        },
+        {
+          "id": "i-reconcile",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-reconcile-t",
+            "props": {
+              "text": "Recommended. Accept, or note the step that is wrong."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-reconcile",
+                "props": {
+                  "columns": [
+                    "Step",
+                    "What happens"
+                  ],
+                  "rows": [
+                    [
+                      "1. Same inputs",
+                      "Both get the PRD, the requirement records, the claim ledger and the code reading; neither sees the other's draft."
+                    ],
+                    [
+                      "2. Draft alone",
+                      "Each writes a whole design, every level."
+                    ],
+                    [
+                      "3. Critique",
+                      "Each reads the other's draft and lists what it would change and why."
+                    ],
+                    [
+                      "4. Reconcile",
+                      "Parts both accept become one design. A part still in dispute becomes a fork card, each option credited to its tool."
+                    ],
+                    [
+                      "5. Show",
+                      "The banner says how many proposers ran, or why only 1 did."
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "How the two drafts become one design",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-estimate-basis",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-estimate-basis-t",
+            "props": {
+              "text": "The page must say how each number is known. Which basis? Recommended: A now, because I have not checked whether past run times are recorded anywhere (not verified). The estimate shows per design part and in total, as a low, likely and high range."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-estimate-basis-options",
+                "props": {
+                  "columns": [
+                    "A: judgment from the design's size",
+                    "B: past runs of this repository"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-estimate-basis-opt-a",
+                        "props": {
+                          "text": "The agent sizes each part (files, modules, tests touched) and gives a range, marked as estimated."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-estimate-basis-opt-b",
+                        "props": {
+                          "text": "The agent reads how long earlier runs took here and scales; falls back to A when no record exists."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What the agent run-time estimate rests on",
+          "node": "n-estimate",
+          "section": "s-estimate",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-critical-place",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-critical-place-t",
+            "props": {
+              "text": "Recommended: right after the whole-system section, as its own section with a \"critical\" chip and a picture of now beside proposed. Its level section links to it. This way the parts with the most risk come before the detail. Accept or note."
+            }
+          },
+          "title": "Where a critical part's section sits",
+          "node": "n-critical",
+          "section": "s-critical",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-visuals",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-visuals-t",
+            "props": {
+              "text": "Recommended. Each level section opens with this picture. Accept, or note a row."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-visuals",
+                "props": {
+                  "columns": [
+                    "Level",
+                    "Picture"
+                  ],
+                  "rows": [
+                    [
+                      "The whole system and its neighbours",
+                      "boxes grouped by system, arrows labelled with what passes"
+                    ],
+                    [
+                      "Boundaries and integration",
+                      "a sequence diagram of the main request"
+                    ],
+                    [
+                      "Data",
+                      "an entity diagram, or a field table for 3 entities or fewer"
+                    ],
+                    [
+                      "Domain model and states",
+                      "a class diagram; a state diagram for each item that moves through states"
+                    ],
+                    [
+                      "Process and coordination",
+                      "a flowchart or a sequence diagram"
+                    ],
+                    [
+                      "Modules",
+                      "boxes grouped by module, the touched parts chipped"
+                    ],
+                    [
+                      "Key logic",
+                      "a flowchart or a decision table, and a short code block when the shape of the code is the point"
+                    ],
+                    [
+                      "Change impact",
+                      "a now and proposed table per file, field or step"
+                    ],
+                    [
+                      "A critical part",
+                      "how it works now beside how it will work"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "The picture each design level gets",
+          "node": "n-visuals",
+          "section": "s-visuals",
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-i-visuals-1",
+            "reading": "Accepts the picture per level. Adds: a design patterns part (each pattern, where, and the quality goal it serves), and performance and security as visualized parts of every design."
+          }
+        },
+        {
+          "id": "i-decision-brief",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-decision-brief-t",
+            "props": {
+              "text": "Recommended for every decision, decided or forked, on the page and in its design record. Each requirement shows its title, and its text on hover. Accept or note."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-decision-brief",
+                "props": {
+                  "columns": [
+                    "Block",
+                    "Holds"
+                  ],
+                  "rows": [
+                    [
+                      "Decision",
+                      "1 sentence"
+                    ],
+                    [
+                      "Driven by",
+                      "the requirements and requirement records it serves, and the constraints, by name"
+                    ],
+                    [
+                      "Other options",
+                      "each in 1 line, with why it lost"
+                    ],
+                    [
+                      "Why this one",
+                      "the criterion that beat the runner-up"
+                    ],
+                    [
+                      "To undo",
+                      "what to revert"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What each design decision shows",
+          "node": "n-decisions",
+          "section": "s-decisions",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-policy",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-policy-t",
+            "props": {
+              "text": "Recommended. Accept, or note a row."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-policy",
+                "props": {
+                  "columns": [
+                    "Who",
+                    "May",
+                    "May not"
+                  ],
+                  "rows": [
+                    [
+                      "You",
+                      "note anything, pick forks, sign off, reopen a finished design",
+                      "nothing is closed to you"
+                    ],
+                    [
+                      "A proposer",
+                      "read the inputs and the other draft, write its draft and critique",
+                      "open a page, read your notes, write the design document"
+                    ],
+                    [
+                      "The agent in charge",
+                      "merge drafts, decide reversible points, write the page and documents",
+                      "sign off for you, decide a fork the tools dispute, write the tracker"
+                    ],
+                    [
+                      "Someone outside",
+                      "answer a question for others, through you",
+                      "see the page by default"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Who may do what",
+          "node": "n-whole",
+          "section": "s-whole",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-stories",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-stories-t",
+            "props": {
+              "text": "The stories and the worked examples are now on the page, below the sections. Accept, or note the one that is wrong."
+            }
+          },
+          "title": "5 stories and 4 walk-throughs",
+          "node": "n-whole",
+          "section": "s-walks",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-terms",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-terms-t",
+            "props": {
+              "text": "My definitions for the glossary. Accept, or note the one that is wrong."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-terms",
+                "props": {
+                  "columns": [
+                    "Term",
+                    "Definition"
+                  ],
+                  "rows": [
+                    [
+                      "Proposer",
+                      "An agent session, of Claude or Codex, that drafts a whole design on its own from the design inputs."
+                    ],
+                    [
+                      "Agent run time",
+                      "The days the agents would need to build a design, from the plan to a change ready for review, with no human work counted."
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "2 new terms",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "note",
+            "round": 2,
+            "signal": "N-2-i-terms-1",
+            "reading": "Accepts both terms, with Proposer renamed to Solution proposer."
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T03:56:40Z",
+          "raw": "[round R-2]\ni-run-other a\ni-run-other note 1\n  herdr should be installed automatically in afkv2:setup\n  \n  we can introduce a skill so agents know how to use herdr properly\n  \n      - understanding of spaces, tabs, panes \n      - ops: open, close, rename\n      - operating the terminal (not agent session)\n      - call up agents using claude --dangerously-skip-permissions or codex --yolo, always\n      - communicate to other panes\n  - check herdr official docs, decide which capabilities we need, then build a playbook as a skill\ni-estimate-basis a\ni-reconcile accept\ni-critical-place accept\ni-visuals accept\ni-visuals note 1\n  good but not enough\n  \n  when applicable, I would like to see all the design patterns applied, which part, why selecting this pattern (which non-functional requirements, or code quality attributes trying to achieve)\n  \n  besides, performance and security should be part of the design, and of course visualized\ni-decision-brief accept\ni-policy accept\ni-stories accept\ni-terms accept\nt-terms note 1\n  Solution Proposer, it's clearer than just Proposer",
+          "signals": [
+            {
+              "target": "i-run-other",
+              "item": "i-run-other",
+              "mark": "a",
+              "note": "N-2-i-run-other-1",
+              "text": "herdr should be installed automatically in afkv2:setup\n\nwe can introduce a skill so agents know how to use herdr properly\n\n    - understanding of spaces, tabs, panes \n    - ops: open, close, rename\n    - operating the terminal (not agent session)\n    - call up agents using claude --dangerously-skip-permissions or codex --yolo, always\n    - communicate to other panes\n- check herdr official docs, decide which capabilities we need, then build a playbook as a skill",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "db989397467170ed"
+            },
+            {
+              "target": "i-estimate-basis",
+              "item": "i-estimate-basis",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7fe0e57216c80d02"
+            },
+            {
+              "target": "i-reconcile",
+              "item": "i-reconcile",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cf34f796a50df556"
+            },
+            {
+              "target": "i-critical-place",
+              "item": "i-critical-place",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "09eb02e269c51f53"
+            },
+            {
+              "target": "i-visuals",
+              "item": "i-visuals",
+              "mark": "accept",
+              "note": "N-2-i-visuals-1",
+              "text": "good but not enough\n\nwhen applicable, I would like to see all the design patterns applied, which part, why selecting this pattern (which non-functional requirements, or code quality attributes trying to achieve)\n\nbesides, performance and security should be part of the design, and of course visualized",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "d6f886213e23a297"
+            },
+            {
+              "target": "i-decision-brief",
+              "item": "i-decision-brief",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "34d7ade501f4ae8c"
+            },
+            {
+              "target": "i-policy",
+              "item": "i-policy",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "72afd26e688c6c93"
+            },
+            {
+              "target": "i-stories",
+              "item": "i-stories",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2c3b624706929f39"
+            },
+            {
+              "target": "i-terms",
+              "item": "i-terms",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "983e0b227b71f1fb"
+            },
+            {
+              "target": "t-terms",
+              "item": "i-terms",
+              "mark": null,
+              "note": "N-2-i-terms-1",
+              "text": "Solution Proposer, it's clearer than just Proposer",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "902e614b634af163"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-2-1",
+          "text": "Settled by your note: Picks A: the other tool runs in a visible herdr pane. Adds 2 needs: setup installs herdr, and a herdr playbook skill built from the official herdr docs; agents always start with full auto-approval.",
+          "notes": [
+            "N-2-i-run-other-1"
+          ]
+        },
+        {
+          "id": "A-2-2",
+          "text": "Settled by your note: Accepts the picture per level. Adds: a design patterns part (each pattern, where, and the quality goal it serves), and performance and security as visualized parts of every design.",
+          "notes": [
+            "N-2-i-visuals-1"
+          ]
+        },
+        {
+          "id": "A-2-3",
+          "text": "Settled by your note: Accepts both terms, with Proposer renamed to Solution proposer.",
+          "notes": [
+            "N-2-i-terms-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "a visible herdr pane for the other tool",
+          "the 5 merge steps",
+          "the estimate rests on the design's size",
+          "critical sections after the system section",
+          "the picture per level",
+          "the 5 decision blocks",
+          "who may do what",
+          "the stories and walk-throughs",
+          "2 glossary terms"
+        ],
+        "unlocks": [
+          "the herdr playbook",
+          "patterns, performance and security"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-yolo",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-yolo-t",
+            "props": {
+              "text": "Counter-proposal on one point of your note. A solution proposer only reads and writes 1 draft. Started with full auto-approval, nothing stops it from changing your branch, and its edits would mix with the design session's work. I keep the auto-approval you asked for, and add a fence. Recommended: B, because a stray write then lands in a throwaway copy, and it costs 1 worktree per run."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-yolo-options",
+                "props": {
+                  "columns": [
+                    "A: as you wrote",
+                    "B: auto-approval in a throwaway worktree",
+                    "C: read-only mode"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-yolo-opt-a",
+                        "props": {
+                          "text": "Full auto-approval in the session's own worktree; the brief alone tells it to write only its draft file."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-yolo-opt-b",
+                        "props": {
+                          "text": "Full auto-approval, but it runs in its own throwaway worktree; only its draft file is read back, then the worktree is removed."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-yolo-opt-c",
+                        "props": {
+                          "text": "The tool's read-only mode; the draft comes back through the pane output, which is harder to read reliably."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What a solution proposer with full auto-approval may touch",
+          "node": "n-parallel",
+          "section": "s-herdr",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-herdr-scope",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-herdr-scope-t",
+            "props": {
+              "text": "The playbook and the setup install serve more than the design skill: side questions already use herdr (afkv2/engine/side_question.py:5), and other skills could start agents too. Setup does not install herdr today (no match in afkv2/skills/setup). Recommended: B, because the playbook needs its own read of the herdr docs and its own review, and the rest of this ticket does not wait on it. (inferred)"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-herdr-scope-options",
+                "props": {
+                  "columns": [
+                    "A: in this ticket",
+                    "B: its own ticket, built first"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-herdr-scope-opt-a",
+                        "props": {
+                          "text": "One change holds the design page, the 2-tool proposers, the herdr playbook and the setup install."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-herdr-scope-opt-b",
+                        "props": {
+                          "text": "A new ticket for the herdr playbook and setup install. This ticket depends on it: the 2-tool proposers wait for it, while the page work goes ahead."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Is the herdr playbook part of this ticket",
+          "node": "n-parallel",
+          "section": "s-herdr",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-herdr-caps",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-herdr-caps-t",
+            "props": {
+              "text": "Your list, plus 4 lessons from earlier runs on this repository (marked \"added\"). herdr 0.9.1 here has commands for workspace, tab, pane, agent, worktree and notification (herdr --help). The playbook is checked against the official docs when it is built. Accept, or note a row."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-herdr-caps",
+                "props": {
+                  "columns": [
+                    "Capability",
+                    "From"
+                  ],
+                  "rows": [
+                    [
+                      "Workspaces, tabs and panes: what each is",
+                      "your note"
+                    ],
+                    [
+                      "Open, close and rename a pane or tab",
+                      "your note"
+                    ],
+                    [
+                      "Run commands in a terminal pane, not in an agent session",
+                      "your note"
+                    ],
+                    [
+                      "Start Claude with --dangerously-skip-permissions, Codex with --yolo, always",
+                      "your note"
+                    ],
+                    [
+                      "Send text to another pane, and read its output",
+                      "your note"
+                    ],
+                    [
+                      "Check that a sent prompt was submitted and the agent is working",
+                      "added: a sent prompt was once left unsubmitted in Codex"
+                    ],
+                    [
+                      "Wait for an agent to finish without polling in a loop",
+                      "added"
+                    ],
+                    [
+                      "Close each pane the agent opened once its result is read",
+                      "added"
+                    ],
+                    [
+                      "Detect when the session is not inside herdr, and fall back",
+                      "added"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What the herdr playbook covers",
+          "node": "n-parallel",
+          "section": "s-herdr",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-patterns",
+          "kind": "confirm",
+          "state": "settled_by_note",
+          "body": {
+            "type": "text",
+            "id": "i-patterns-t",
+            "props": {
+              "text": "Recommended. Accept, or note a column."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-patterns",
+                "props": {
+                  "columns": [
+                    "Column",
+                    "Holds"
+                  ],
+                  "rows": [
+                    [
+                      "Pattern",
+                      "its name, with a 1-line meaning on hover"
+                    ],
+                    [
+                      "Where",
+                      "the module or part it applies to, linked to that section"
+                    ],
+                    [
+                      "Quality goal",
+                      "the non-functional requirement or code quality attribute it serves, by name"
+                    ],
+                    [
+                      "Instead of",
+                      "the simpler option it beat, and why"
+                    ],
+                    [
+                      "Picture",
+                      "a class diagram of the pattern's shape in this design, folded"
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-patterns-none",
+                "props": {
+                  "text": "With no pattern applied, the section says so in 1 line."
+                }
+              }
+            ]
+          },
+          "title": "What the design patterns section shows",
+          "node": "n-decisions",
+          "section": "s-patterns",
+          "settled": {
+            "by": "note",
+            "round": 3,
+            "signal": "N-3-i-patterns-1",
+            "reading": "Accepts the columns, and adds 1: why the pattern works in this design, beyond the quality goal it serves."
+          }
+        },
+        {
+          "id": "i-quality",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-quality-t",
+            "props": {
+              "text": "Recommended. Accept, or note a row."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-quality",
+                "props": {
+                  "columns": [
+                    "Part",
+                    "Holds",
+                    "Picture"
+                  ],
+                  "rows": [
+                    [
+                      "Performance",
+                      "a budget per key flow (time, size or count), each with how it is known: measured, inferred or estimated",
+                      "bars against the target, or a step-by-step timing waterfall"
+                    ],
+                    [
+                      "Security",
+                      "trust boundaries, the data that crosses them, and each threat with its asset, chance, impact and mitigation",
+                      "boxes grouped by trust zone with labelled flows, and a threat table"
+                    ],
+                    [
+                      "Both",
+                      "the PRD's non-functional requirements each part answers",
+                      "links to them"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "What the performance and security parts show",
+          "node": "n-visuals",
+          "section": "s-quality"
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T04:26:40Z",
+          "raw": "[round R-3]\ni-visuals note 1\n  some educational about the pattern itself would be good, as devs can't be familiar with all the patterns\ni-yolo b\ni-herdr-scope a\ni-herdr-caps accept\ni-patterns accept\ni-patterns note 1\n  explain why this pattern would work here\ni-quality write-in\ni-quality note 1\n  the solution design must cover the performance design, anticipate performance problems, large data, and incorporate the solution. this section should focus on all performance-related info of the design\ni-quality note 2\n  forget security for now. remove it from this plan",
+          "signals": [
+            {
+              "target": "i-visuals",
+              "item": "i-visuals",
+              "mark": null,
+              "note": "N-3-i-visuals-1",
+              "text": "some educational about the pattern itself would be good, as devs can't be familiar with all the patterns",
+              "conflict": false,
+              "state": "settled_by_note",
+              "reopened": false,
+              "stamp": "a7e0429aba036fa4"
+            },
+            {
+              "target": "i-yolo",
+              "item": "i-yolo",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "86dc9a2371446886"
+            },
+            {
+              "target": "i-herdr-scope",
+              "item": "i-herdr-scope",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7af1854b3911b5b4"
+            },
+            {
+              "target": "i-herdr-caps",
+              "item": "i-herdr-caps",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ae8cafa8105e88eb"
+            },
+            {
+              "target": "i-patterns",
+              "item": "i-patterns",
+              "mark": "accept",
+              "note": "N-3-i-patterns-1",
+              "text": "explain why this pattern would work here",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "d2c2c32a91986aba"
+            },
+            {
+              "target": "i-quality",
+              "item": "i-quality",
+              "mark": "write-in",
+              "note": "N-3-i-quality-1",
+              "text": "the solution design must cover the performance design, anticipate performance problems, large data, and incorporate the solution. this section should focus on all performance-related info of the design",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "34e4ed79dbe82e91"
+            },
+            {
+              "target": "i-quality",
+              "item": "i-quality",
+              "mark": null,
+              "note": "N-3-i-quality-2",
+              "text": "forget security for now. remove it from this plan",
+              "conflict": true,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "6a75619380bb704c"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-3-1",
+          "text": "Settled by your note: Accepts the columns, and adds 1: why the pattern works in this design, beyond the quality goal it serves.",
+          "notes": [
+            "N-3-i-patterns-1"
+          ]
+        },
+        {
+          "id": "A-3-2",
+          "text": "Recorded. The part becomes a performance design: the problems the design anticipates, large data among them, each with the solution built into the design. Your write-in cannot settle the card, so the next round asks you to confirm my reading of it.",
+          "notes": [
+            "N-3-i-quality-1"
+          ]
+        },
+        {
+          "id": "A-3-3",
+          "text": "Done. Security leaves this ticket; the next round removes it from the section, the story and the walk-through. I record it as deferred work, not a requirement.",
+          "notes": [
+            "N-3-i-quality-2"
+          ]
+        },
+        {
+          "id": "A-3-4",
+          "text": "Agreed. Each pattern gets a short plain explanation of what it is, so a developer who does not know it can follow. It goes into the design patterns section next round; the pictures per level stay settled.",
+          "notes": [
+            "N-3-i-visuals-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "a throwaway worktree per solution proposer",
+          "the herdr playbook and install are in this ticket",
+          "the playbook's 9 capabilities",
+          "the patterns section, with what each pattern is and why it works here"
+        ],
+        "unlocks": [
+          "the exit check, once the devil's-advocate findings settle"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-quality-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-quality-2-t",
+            "props": {
+              "text": "You wrote in an answer and 2 notes. My reading, for you to accept or correct. The design skill already holds parts of this: quality attributes with a number in design level 4, and large data as a critical aspect (skills/propose-solution/DRAFT.md:16, ASPECTS.md:17). Recommended: 1 performance section is the one home for every performance fact; level 4 and the large-data aspect point to it."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "t-quality-2",
+                "props": {
+                  "columns": [
+                    "Part",
+                    "Holds",
+                    "Picture"
+                  ],
+                  "rows": [
+                    [
+                      "Anticipated problems",
+                      "each performance problem the design expects: hot paths, large data, unbounded lists, repeated queries, memory, waiting on others",
+                      "a table: problem, where, cause, size"
+                    ],
+                    [
+                      "Large data",
+                      "current and expected sizes of each growing table or list, and what each read or write costs",
+                      "a table of sizes now, in 1 year and at worst"
+                    ],
+                    [
+                      "The solution",
+                      "how the design meets each problem: paging, streaming, batching, indexes, caching, limits",
+                      "the design picture of that part, with the fix chipped"
+                    ],
+                    [
+                      "Budgets",
+                      "a target per key flow (time, size or count), each marked measured, inferred or estimated",
+                      "bars against the target"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "My reading of your performance write-in",
+          "node": "n-visuals",
+          "carries": [
+            "i-quality"
+          ],
+          "section": "s-quality",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-proposer-timing",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-proposer-timing-t",
+            "props": {
+              "text": "Finding: the design asks the critical-aspect questions first, and refuses any draft card until all are settled (skills/propose-solution/scripts/design_round.py:140-142). The empty slot today runs before the first draft round. A draft made before your aspect answers would miss them. A proposer also may not read your notes, so it misses your steers. Recommended: A, because the aspects shape every level, and B doubles the cost of each later round."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-proposer-timing-options",
+                "props": {
+                  "columns": [
+                    "A: once, after the aspects",
+                    "B: after the aspects and every draft round"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-proposer-timing-opt-a",
+                        "props": {
+                          "text": "Both draft once, after you settle the critical aspects, with the settled aspects and your steers as input. Later rounds are the agent in charge's."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-proposer-timing-opt-b",
+                        "props": {
+                          "text": "Both draft after the aspects, and both redo the parts your notes touch in each later round."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "When the 2 solution proposers draft",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-fork-rule",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-fork-rule-t",
+            "props": {
+              "text": "Finding: Claude both proposes and reconciles, so it judges which disagreements \"remain\" (inferred: a bias toward its own draft). Recommended rule: every point where the 2 drafts differ becomes a fork card, unless both critiques state agreement in writing. Accept or note."
+            }
+          },
+          "title": "Every difference between the drafts reaches you",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-estimate-2",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-estimate-2-t",
+            "props": {
+              "text": "Finding: no accepted pain names effort, and the files and tests touched are known well only once a plan exists. Also new evidence: the autopilot journal stamps every event with a date and minute (skills/autopilot/scripts/walk.py:93-96), so past run times can be read, which changes your round 2 basis. Recommended: C. Please also note the decision the number helps you make (for example: build now, or split the ticket)."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-estimate-2-options",
+                "props": {
+                  "columns": [
+                    "A: design page, from the design's size",
+                    "B: plan page, from past runs",
+                    "C: both"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-estimate-2-opt-a",
+                        "props": {
+                          "text": "As settled: after sign-off on the design page, judged from the design's size."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-estimate-2-opt-b",
+                        "props": {
+                          "text": "Only on the plan approval page, once the subtasks exist, scaled from past run times in the journals."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-estimate-2-opt-c",
+                        "props": {
+                          "text": "A rough range on the design page from the design's size; a refined range on the plan page from past run times, when any exist."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Where the estimate shows, and what it rests on",
+          "node": "n-estimate",
+          "carries": [
+            "i-estimate-basis"
+          ],
+          "section": "s-estimate",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-fence",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-fence-t",
+            "props": {
+              "text": "Finding: a throwaway worktree fences only the working folder. With approvals skipped, an agent can still write by full path to other folders or reach the network. Some machines or teams forbid skipped approvals. Recommended: B. The page says plainly that the worktree is a folder fence, not a sandbox."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-fence-options",
+                "props": {
+                  "columns": [
+                    "A: always",
+                    "B: the default, with a setting to lower it"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-fence-opt-a",
+                        "props": {
+                          "text": "Every solution proposer always starts with full auto-approval; where that is forbidden, 1 proposer only."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-fence-opt-b",
+                        "props": {
+                          "text": "Full auto-approval by default; a repository setting may pick the tool's normal approval mode, and the banner names the mode."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Full auto-approval: always, or the default",
+          "node": "n-parallel",
+          "section": "s-herdr",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-same-tool",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-same-tool-t",
+            "props": {
+              "text": "Counter-argument to your round 1 rule. A team with only Claude, or only Codex, always gets 1 voice. A fresh agent of the same tool, on another model, still catches premises the first never questioned. Recommended: B, because your rule stays the default and nothing changes unless a repository asks."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-same-tool-options",
+                "props": {
+                  "columns": [
+                    "A: keep the rule strictly",
+                    "B: a setting turns on a same-tool critic"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-same-tool-opt-a",
+                        "props": {
+                          "text": "Without the other tool, 1 proposer drafts alone. No exception."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-same-tool-opt-b",
+                        "props": {
+                          "text": "Off by default, as you said. A repository setting may add a fresh same-tool agent that only critiques the draft."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "A same-tool critic, off by default",
+          "node": "n-parallel",
+          "section": "s-parallel",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-herdr-install",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-herdr-install-t",
+            "props": {
+              "text": "Finding: setup that downloads a native program on Windows can trip the endpoint scanner, and a developer who never wanted panes gets a new tool. Recommended: setup checks for herdr; when missing, it asks the developer once, then installs through herdr's official installer or a package manager, never by copying a program into a temp folder. A no keeps 1 proposer. Accept or note."
+            }
+          },
+          "title": "How setup installs herdr",
+          "node": "n-parallel",
+          "section": "s-herdr",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-security-steer",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-security-steer-t",
+            "props": {
+              "text": "Finding: the design skill already designs authorization in level 4, and you sign authorization as an aspect only you may approve (skills/propose-solution/DRAFT.md:12,49). My reading: your note removes the new security section only; those 2 stay as they are. Accept or note."
+            }
+          },
+          "title": "What \"forget security\" leaves in place",
+          "node": "n-visuals",
+          "section": "s-quality",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-cap",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-cap-t",
+            "props": {
+              "text": "Finding: nothing bounds a hung pane or the cost of 2 full drafts. Recommended: a time cap per solution proposer, 30 minutes by default and set per repository. On timeout or a hung pane, the session closes the pane, goes on with 1 proposer, and the banner says why. Accept, or note another number."
+            }
+          },
+          "title": "A time cap per solution proposer",
+          "node": "n-parallel",
+          "section": "s-parallel"
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T04:50:27Z",
+          "raw": "[round R-4]\ni-proposer-timing a\ni-estimate-2 b\ni-fence a\ni-same-tool a\ni-quality-2 accept\ni-fork-rule accept\ni-herdr-install accept\ni-security-steer accept\ni-cap write-in\ni-cap note 1\n  no need. if it's a real problem we will deal with it later",
+          "signals": [
+            {
+              "target": "i-proposer-timing",
+              "item": "i-proposer-timing",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6343c32df46ec5fe"
+            },
+            {
+              "target": "i-estimate-2",
+              "item": "i-estimate-2",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "daca658248b3c884"
+            },
+            {
+              "target": "i-fence",
+              "item": "i-fence",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9a9bc1d99f91ea06"
+            },
+            {
+              "target": "i-same-tool",
+              "item": "i-same-tool",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "232f4a221c7e89df"
+            },
+            {
+              "target": "i-quality-2",
+              "item": "i-quality-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d919c70725530f35"
+            },
+            {
+              "target": "i-fork-rule",
+              "item": "i-fork-rule",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "65bc20e5899699d5"
+            },
+            {
+              "target": "i-herdr-install",
+              "item": "i-herdr-install",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2e690b4340f49f97"
+            },
+            {
+              "target": "i-security-steer",
+              "item": "i-security-steer",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "987256d80d06f8ec"
+            },
+            {
+              "target": "i-cap",
+              "item": "i-cap",
+              "mark": "write-in",
+              "note": "N-4-i-cap-1",
+              "text": "no need. if it's a real problem we will deal with it later",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "eeaf2fe6d325ead9"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-4-1",
+          "text": "Recorded: no time cap now; a hung pane is dealt with if it shows up as a real problem. Your write-in cannot settle the card, so the next round asks you to accept this reading in 1 click.",
+          "notes": [
+            "N-4-i-cap-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "solution proposers draft once, after the aspects",
+          "every draft difference becomes a fork",
+          "full auto-approval always",
+          "no same-tool critic",
+          "1 performance section",
+          "herdr installs after your yes",
+          "authorization stays as it is",
+          "the estimate shows on the plan page"
+        ],
+        "unlocks": [
+          "the exit check"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-cap-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-cap-2-t",
+            "props": {
+              "text": "My reading of your write-in: no time cap and no hang handling now; it is dealt with later if it shows up as a real problem. Accept, or correct."
+            }
+          },
+          "title": "No time cap on a solution proposer",
+          "node": "n-parallel",
+          "carries": [
+            "i-cap"
+          ],
+          "section": "s-parallel",
+          "settled": {
+            "by": "mark",
+            "round": 5,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-scope-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-scope-2-t",
+            "props": {
+              "text": "Your plan-page pick touches the scope you accepted in round 1. My reading: the plan skill's approval page (/afkv2:to-subtasks) gains the estimate; the design page shows none. When no earlier run time exists, the range is judged from each subtask's size and marked estimated. Whether the cleanup skill deletes the journals of a merged feature is not verified yet; the design checks it, because the estimate reads them. Accept or note."
+            }
+          },
+          "title": "The plan page joins the scope",
+          "node": "n-estimate",
+          "carries": [
+            "i-scope"
+          ],
+          "section": "s-whole",
+          "settled": {
+            "by": "mark",
+            "round": 5,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T04:59:55Z",
+          "raw": "[round R-5]\nm-scope note 1\n  on: \"Sections Why the design page must change 4 pains, accepted in round 1: Lost picture: you see one layer's questions at a time, so the whole design is never in view at once. Hidden reasons: a decision shows little of the requirement that drov\"\n  it seems we have a visual problem here. these sections have absolutely no styling, including smaller elements like chips. all are text, no boundaries, no styling\ni-cap-2 accept\ni-scope-2 accept",
+          "signals": [
+            {
+              "target": "m-scope",
+              "item": null,
+              "mark": null,
+              "text": "it seems we have a visual problem here. these sections have absolutely no styling, including smaller elements like chips. all are text, no boundaries, no styling",
+              "note": "N-5-m-scope-1",
+              "steer": true,
+              "quote": "Sections Why the design page must change 4 pains, accepted in round 1: Lost picture: you see one layer's questions at a time, so the whole design is never in view at once. Hidden reasons: a decision shows little of the requirement that drov",
+              "stamp": "8a245b401d24dc13"
+            },
+            {
+              "target": "i-cap-2",
+              "item": "i-cap-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2ab82edf30e389d5"
+            },
+            {
+              "target": "i-scope-2",
+              "item": "i-scope-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3165f494e5176e48"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-5-1",
+          "text": "Agreed, it is a real bug. The engine writes the sections, change lines, questions for others and examples with their own style classes, but no stylesheet defines any of them, in the installed version or on the latest branch (engine/shell/parts_v2.py). So they render as plain text. The grill pages have the same bug. The next round asks where to fix it.",
+          "notes": [
+            "N-5-m-scope-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "no time cap on a solution proposer",
+          "the plan page joins the scope"
+        ],
+        "unlocks": [
+          "the exit check"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-style",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-style-t",
+            "props": {
+              "text": "Your note found a real bug: the parts of the newest page format (sections, change lines, questions for others, worked examples) have style classes that no stylesheet defines (engine/shell/parts_v2.py), so they show as plain text. Every grill page has the same bug today. Recommended: A, because it is small, the grill needs it now, and this ticket can then assume a styled page.",
+              "markdown": false
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-style-options",
+                "props": {
+                  "columns": [
+                    "A: its own fix, first",
+                    "B: inside this ticket"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-style-opt-a",
+                        "props": {
+                          "text": "A separate bug fix on the afkv2 branch, with a live browser check: boxed sections, chips, change lists. This ticket's requirements say the page must be styled, and rest on that fix."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-style-opt-b",
+                        "props": {
+                          "text": "This ticket's change also styles the newest page format; the grill pages stay unstyled until it ships."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Where to fix the unstyled sections",
+          "node": "n-whole",
+          "section": "s-whole",
+          "settled": {
+            "by": "mark",
+            "round": 6,
+            "signal": "a"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T05:05:56Z",
+          "raw": "[round R-6]\ni-style a",
+          "signals": [
+            {
+              "target": "i-style",
+              "item": "i-style",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0a181f2f3ae68704"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "s-pain",
+      "title": "Why the design page must change",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-pain-b",
+        "props": {
+          "text": "4 pains, accepted in round 1:\n\n- **Lost picture:** you see one layer's questions at a time, so the whole design is never in view at once.\n- **Hidden reasons:** a decision shows little of the requirement that drove it or the options it beat.\n- **Text-only design:** architecture, flows and logic are described in words.\n- **One voice:** one agent proposes alone, so a better design another tool would find stays unseen.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-pains",
+          "text": "You accepted the 4 pains."
+        }
+      ]
+    },
+    {
+      "id": "s-whole",
+      "title": "The whole design in view every round",
+      "state": "current",
+      "links": [
+        "s-levels"
+      ],
+      "body": {
+        "type": "text",
+        "id": "s-whole-b",
+        "props": {
+          "markdown": true,
+          "text": "Each part of the design has its own section. It shows its current text every round, in a styled box with its chips and change list, and it never folds into the settled points. Each round adds 1 change line per changed section.\n\n**Scope:** this ticket changes the design skill and its guides, the plan skill's approval page (the estimate), adds the herdr playbook skill and the herdr install in setup, and changes the page engine only where a wish cannot be met today. Out: a new page format, the requirements grill, any tracker write of the estimate, a security part, a time cap on proposers, and the grill rename (#177, now merged)."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-scope",
+          "text": "You accepted the scope."
+        },
+        {
+          "round": 4,
+          "cause": "answer",
+          "card": "i-herdr-scope",
+          "text": "You put the herdr playbook and the setup install in this ticket."
+        },
+        {
+          "round": 6,
+          "cause": "answer",
+          "card": "i-scope-2",
+          "text": "The plan page joins the scope; the page must be styled, from your note."
+        }
+      ]
+    },
+    {
+      "id": "s-levels",
+      "title": "High level first, then detail",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-levels-b",
+        "props": {
+          "text": "Sections follow the design levels in order, from the whole system down to key logic. Each section opens with its picture and a 2-line summary; the detail sits in folds, and the section links down to the next level. No nested sections and no engine change.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-visuals"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-levels",
+          "text": "You picked ordered sections with folded detail."
+        }
+      ]
+    },
+    {
+      "id": "s-visuals",
+      "title": "Pictures of the design",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-visuals-b",
+        "props": {
+          "text": "Each level section opens with its picture (accepted table): system boxes, a sequence of the main request, an entity diagram, class and state diagrams, a flowchart or sequence for the process, module boxes, a flowchart or decision table for key logic, a now and proposed table for change impact, and now beside proposed for a critical part. Design patterns, performance and security get their own pictures too.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-levels",
+        "s-patterns",
+        "s-quality"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-visuals",
+          "text": "You accepted the picture per level and asked for patterns, performance and security."
+        }
+      ]
+    },
+    {
+      "id": "s-critical",
+      "title": "Critical parts get their own section",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-critical-b",
+        "props": {
+          "text": "A critical part (a change to existing code, data or a flow, or an aspect only you may approve) gets its own section right after the whole-system section, with a \"critical\" chip and a picture of how it works now beside how it will work. Its level section links to it.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-decisions"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-critical-place",
+          "text": "You accepted the place right after the whole-system section."
+        }
+      ]
+    },
+    {
+      "id": "s-decisions",
+      "title": "Each decision explains itself",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-decisions-b",
+        "props": {
+          "text": "Every decision, decided or forked, shows the same 5 blocks on the page and in its design record: the decision in 1 sentence; the requirements, requirement records and constraints it serves, by name with their text on hover; the other options, each with why it lost; the criterion that beat the runner-up; and what to revert to undo it.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-decision-brief",
+          "text": "You accepted the 5 blocks."
+        }
+      ]
+    },
+    {
+      "id": "s-parallel",
+      "title": "Two tools propose in parallel",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-parallel-b",
+        "props": {
+          "text": "Claude and Codex each act as a **solution proposer**. Both draft once, after you settle the critical aspects, with the settled aspects and your steers as input; later rounds belong to the agent in charge. The other tool runs in a visible herdr pane. The 2 drafts merge by the 5 accepted steps, and every point where they differ becomes a fork card credited to each tool, unless both critiques state agreement in writing. Without the other tool or without herdr, 1 solution proposer drafts alone, and the banner says why. Never several agents of the same tool, and no setting changes that.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-herdr"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-parallel",
+          "text": "You picked Claude and Codex, with a fallback to 1 proposer only."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-run-other",
+          "text": "You picked a visible herdr pane, and accepted the 5 merge steps."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-proposer-timing",
+          "text": "You picked 1 draft each after the aspects, the fork rule, and no same-tool critic."
+        }
+      ]
+    },
+    {
+      "id": "s-estimate",
+      "title": "Effort estimate on the plan page",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-estimate-b",
+        "props": {
+          "text": "The estimate shows on the plan approval page, once the subtasks exist, not on the design page. It gives the **agent run time** per subtask and in total, as a low, likely and high range, scaled from the run times of earlier runs in their journals. It goes on the page only; no tracker field is written.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-estimate",
+          "text": "You picked agent run time."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-estimate-basis",
+          "text": "You picked a judgment from the design's size."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-estimate-2",
+          "text": "You picked the plan page, from past run times."
+        }
+      ]
+    },
+    {
+      "id": "s-notes",
+      "title": "Your notes and my replies on top",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-notes-b",
+        "props": {
+          "text": "Your notes and my replies stack at the top of the page, newest round first, above the round's questions and the living sections. *Today:* the engine already lays the page out this way for page format 2.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "s-comeback",
+      "title": "Coming back to a finished design",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-comeback-b",
+        "props": {
+          "text": "A design that passed its check can be reopened with new input: the same page continues, a touched point returns as a new card, and the check lists the later documents that may now be out of date and the points that changed. Your notes are copied into the design log every round. Older design pages get their sections built once from their settled points.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-carry",
+          "text": "You accepted every grill improvement in the list."
+        }
+      ]
+    },
+    {
+      "id": "s-others",
+      "title": "Questions only someone else can answer",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-others-b",
+        "props": {
+          "text": "A design point that neither you nor the code can settle becomes a question for another person (a product owner, another team), tracked on the page until it is answered, dropped with a reason, or assumed. The design check blocks on an open one.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built in round 1 from the ticket, your first note and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-carry",
+          "text": "You accepted questions for others in the design skill."
+        }
+      ]
+    },
+    {
+      "id": "s-walks",
+      "title": "Worked design walk-throughs",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-walks-b",
+        "props": {
+          "text": "Each design shows at least 1 key flow walked through it with sample data, from the trigger to the result: a frequent case, an edge case and a risky case. These are the design version of the grill's worked examples.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-carry",
+          "text": "You accepted worked examples, read as walk-throughs of the design."
+        }
+      ]
+    },
+    {
+      "id": "s-herdr",
+      "title": "Agents know how to drive herdr",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-herdr-b",
+        "props": {
+          "text": "Setup checks for herdr; when it is missing, setup asks the developer once, then installs it through herdr's official installer or a package manager, never by copying a program into a temp folder. A no keeps 1 proposer. A new playbook skill, built from the official herdr docs, teaches agents the 9 accepted capabilities. Each solution proposer always starts with full auto-approval (--dangerously-skip-permissions for Claude, --yolo for Codex) in its own throwaway worktree; the page says plainly that the worktree fences only the working folder. Where full auto-approval is forbidden, 1 proposer only.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-parallel"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "note",
+          "notes": [
+            "N-2-i-run-other-1"
+          ],
+          "text": "New section from your note on how the other tool runs."
+        },
+        {
+          "round": 4,
+          "cause": "answer",
+          "card": "i-yolo",
+          "text": "You picked a throwaway worktree per solution proposer, and accepted the playbook's 9 capabilities."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-fence",
+          "text": "You picked full auto-approval always, and accepted the consented install."
+        }
+      ]
+    },
+    {
+      "id": "s-patterns",
+      "title": "Design patterns, where and why",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-patterns-b",
+        "props": {
+          "text": "When the design applies design patterns, each one shows: its name and a short plain explanation of what it is, for a developer who does not know it; the part of the design it applies to; why it works here; the quality goal it serves (a non-functional requirement or a code quality attribute such as testability or changeability); the simpler option it beat; and a folded class diagram of its shape in this design. With no pattern, the section says so in 1 line.",
+          "markdown": true
+        }
+      },
+      "links": [
+        "s-decisions"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "note",
+          "notes": [
+            "N-2-i-visuals-1"
+          ],
+          "text": "New section from your note on the pictures."
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "notes": [
+            "N-3-i-patterns-1",
+            "N-3-i-visuals-1"
+          ],
+          "text": "Adds what the pattern is and why it works here, from your 2 notes."
+        }
+      ]
+    },
+    {
+      "id": "s-quality",
+      "title": "Performance is part of every design",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "s-quality-b",
+        "props": {
+          "text": "1 performance section is the one home for every performance fact of the design; design level 4 and the large-data aspect point to it. It holds the anticipated problems (hot paths, large data, unbounded lists, repeated queries, memory, waiting on others), the sizes of each growing table or list now, in 1 year and at worst, the solution built in for each problem, and a budget per key flow marked measured, inferred or estimated, each with its picture. Security gets no new section; the authorization design in level 4 and its sign-off stay as they are.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 3,
+          "cause": "note",
+          "notes": [
+            "N-2-i-visuals-1"
+          ],
+          "text": "New section from your note on the pictures."
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "notes": [
+            "N-3-i-quality-1"
+          ],
+          "text": "Rewritten as a performance design, from your write-in; security removed."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-quality-2",
+          "text": "You accepted the 4 parts and the one home; and that authorization stays."
+        }
+      ]
+    }
+  ],
+  "stories": [
+    {
+      "id": "st-whole",
+      "text": "As the developer, I see the whole design every round, from the system down to key logic, kept current.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "st-why",
+      "text": "As the developer, I see for each decision the requirements that drove it and the options it beat.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "st-two",
+      "text": "As the developer, I get designs from Claude and Codex, and I pick where they still disagree.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "st-estimate",
+      "text": "As the developer, on the plan page I see how many days the agents would need to build the plan, per subtask and in total.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-estimate-2",
+          "text": "The estimate moved to the plan page."
+        }
+      ]
+    },
+    {
+      "id": "st-back",
+      "text": "As the developer, I reopen a finished design with new input on the same page.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "st-quality",
+      "text": "As the developer, I see which design patterns apply where and why, and how the design anticipates and solves its performance problems.",
+      "changes": [
+        {
+          "round": 3,
+          "cause": "note",
+          "notes": [
+            "N-2-i-visuals-1"
+          ],
+          "text": "New story from your note on the pictures."
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "notes": [
+            "N-3-i-quality-2"
+          ],
+          "text": "Security removed from the story."
+        }
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "id": "ex-frequent",
+      "title": "A new feature, both tools installed",
+      "kind": "frequent",
+      "stories": [
+        "st-whole",
+        "st-why",
+        "st-two",
+        "st-estimate",
+        "st-quality"
+      ],
+      "body": {
+        "type": "text",
+        "id": "ex-frequent-b",
+        "props": {
+          "text": "**Start:** a settled PRD with 12 requirements and 3 requirement records, 1 of them a performance goal; Claude runs the session in herdr, Codex is installed.\n\n1. You settle the critical aspects first.\n2. Claude opens a herdr pane and starts Codex there, in a throwaway worktree. Both draft alone from the PRD, the records, the code reading and the settled aspects.\n3. Each critiques the other's draft; both agree in writing on 9 of 11 design parts.\n4. The page shows the sections in level order, each with its picture: a patterns table (a strategy for 2 export formats, for changeability, with what a strategy is), a performance part (an export of 200,000 orders streams in pages of 1,000 instead of loading all rows), and 2 fork cards: \"Claude proposes A, Codex proposes B\". Claude closes the Codex pane.\n5. You pick on both forks, and sign the aspects only you may approve.\n6. **Result:** the design document and design records are written. Later, the plan page shows 2 to 4 days of agent run time, most likely 3, from 4 earlier runs.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        },
+        {
+          "round": 3,
+          "cause": "note",
+          "notes": [
+            "N-2-i-visuals-1"
+          ],
+          "text": "The walk-through now shows patterns, performance and security, and the herdr pane."
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "notes": [
+            "N-3-i-quality-2"
+          ],
+          "text": "Security removed; the performance step shows a large-data case."
+        },
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-proposer-timing",
+          "text": "The drafts now start after the aspects; the estimate moved to the plan page."
+        }
+      ]
+    },
+    {
+      "id": "ex-edge",
+      "title": "Codex is not installed",
+      "kind": "edge",
+      "stories": [
+        "st-two"
+      ],
+      "body": {
+        "type": "text",
+        "id": "ex-edge-b",
+        "props": {
+          "text": "**Start:** the same PRD; only Claude is installed.\n\n1. The banner says: 1 proposer, because Codex was not found.\n2. Claude drafts alone; no critique step; no card credits a tool.\n3. **Result:** the same page and documents, with every fork from Claude's own weighing.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "ex-risky",
+      "title": "The tools disagree on a change that cannot be undone",
+      "kind": "risky",
+      "stories": [
+        "st-two",
+        "st-why"
+      ],
+      "body": {
+        "type": "text",
+        "id": "ex-risky-b",
+        "props": {
+          "text": "**Start:** Claude proposes a new table for saved exports; Codex proposes a column on the orders table. Both are hard to undo once data exists.\n\n1. The critique does not reconcile them.\n2. A fork card shows both options, each credited to its tool, each with the requirements it serves and what it costs.\n3. The point is critical, so its section shows the current orders table beside each option.\n4. **Result:** nothing settles until you pick; the agent may not decide it.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "ex-back",
+      "title": "The PRD changes after the design passed",
+      "kind": "edge",
+      "stories": [
+        "st-back"
+      ],
+      "body": {
+        "type": "text",
+        "id": "ex-back-b",
+        "props": {
+          "text": "**Start:** a design that passed its check; the PRD gains 1 requirement.\n\n1. The design skill continues the same page; round 0 takes the change.\n2. The 2 sections it touches return as new cards; the other 9 stay settled.\n3. **Result:** the check passes again and lists the plan as possibly out of date.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Round 2 adds the detail that the round 1 answers made possible."
+        }
+      ]
+    },
+    {
+      "id": "ex-plan-new",
+      "title": "A repository with no earlier runs",
+      "kind": "edge",
+      "stories": [
+        "st-estimate"
+      ],
+      "body": {
+        "type": "text",
+        "id": "ex-plan-new-b",
+        "props": {
+          "text": "**Start:** a plan of 6 subtasks in a repository whose journals hold no run yet.\n\n1. No past run time exists to scale from.\n2. **Result:** the plan page shows the range judged from each subtask's size, marked estimated, and says that no earlier run exists.",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 5,
+          "cause": "answer",
+          "card": "i-estimate-2",
+          "text": "New walk-through for a plan with no past run times."
+        }
+      ]
+    }
+  ]
+}
