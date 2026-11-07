@@ -37,6 +37,8 @@ GROUPS = {
                "map": "m-locked", "title": "Human-locked aspects", "prefix": "locked-", "edges": False},
 }
 ASPECT_KINDS = {"confirm", "debate"}
+CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC-\d{3,})\b\s*(.*)$", re.M)
+TIP_LIMIT = 1000
 
 
 def group_rows(group):
@@ -87,6 +89,77 @@ def _tagged(raw):
     if group == "locked" and raw.get("kind") != "signoff":
         raise Refusal("bad-item", f"{where}: `locked` names the aspect of a `signoff` card")
     return raw
+
+
+def _alternative_lines(rows):
+    """Each `{option, why_lost}` row as the line "option — why it lost", and whether every row holds both fields."""
+    rows = rows if isinstance(rows, list) else []
+    typed = [row if isinstance(row, dict) else {"option": str(row)} for row in rows]
+    lines = [" — ".join(str(row.get(field)).strip() for field in ("option", "why_lost") if str(row.get(field) or "").strip())
+             for row in typed]
+    whole = bool(rows) and all(isinstance(row.get(field), str) and row[field].strip()
+                               for row in typed for field in ("option", "why_lost"))
+    return [line for line in lines if line], whole
+
+
+def _design_decided(raw, known_ids, degraded):
+    """A decided card of a design page holds the 5 blocks D-1 to D-5; a card that misses one becomes a confirm card
+    with the same fields, listed in `degraded` (SDD §6 I-3, ADR-0004 design)."""
+    if raw.get("kind") != "decided":
+        return raw
+    fields = raw.get("decided") if isinstance(raw.get("decided"), dict) else {}
+    lines, typed = _alternative_lines(fields.get("alternatives"))
+    shared = {**fields, "alternatives": lines}
+    if typed and fields.get("driven_by"):
+        return {**raw, "decided": shared}
+    blocks, _ = rd._decided_fields(raw.get("id"), shared, known_ids)
+    body = copy.deepcopy(raw.get("body"))
+    if body:
+        body["children"] = [*(body.get("children") or []), *blocks]
+    elif blocks:
+        body = {**blocks[0], "children": blocks[1:]}
+    degraded.append(raw.get("id"))
+    return {**{key: value for key, value in raw.items() if key != "decided"}, "kind": "confirm", "body": body}
+
+
+def _spec_texts(doc_path):
+    """The text of each acceptance criterion of the PRD and of each requirement record, by id; none without a PRD.
+    The page lives in `<spec dir>/pages/`."""
+    spec = Path(doc_path).parent.parent
+    if Path(doc_path).parent.name != "pages" or not (spec / "PRD.md").exists():
+        return {}
+    texts = {key: value.strip() for key, value in CRITERION.findall((spec / "PRD.md").read_text("utf-8"))}
+    for record in sorted((spec / "adr" / "requirements").glob("[0-9][0-9][0-9][0-9]-*.md")):
+        title = next((line[2:].strip() for line in record.read_text("utf-8").splitlines() if line.startswith("# ")), "")
+        texts[f"ADR-{record.name[:4]}"] = title or record.stem
+    return texts
+
+
+def _driven_by_tips(doc_path, items):
+    """1 hover tip per decided card on its Driven by block: the text of each id that is a PRD criterion or a
+    requirement record (PRD AC-010)."""
+    texts = _spec_texts(doc_path)
+    tips = []
+    for item in items:
+        fields = item.get("decided") if isinstance(item.get("decided"), dict) else {}
+        lines = [f"{key}: {texts[key]}" for key in fields.get("driven_by") or [] if key in texts]
+        if lines:
+            tips.append({"id": f"{item['id']}-driven-by", "title": "\n".join(lines)[:TIP_LIMIT]})
+    return tips
+
+
+def _merged_tips(doc, round_input, tips):
+    """The tips catalog with the driven-by tips of this round; a stored driven-by tip of a dropped card goes."""
+    if "tips" in round_input:
+        base = copy.deepcopy(round_input["tips"])
+    else:
+        live = rd._used_ids(doc)
+        base = copy.deepcopy(doc.get("tips") or {})
+        base["ids"] = [tip for tip in base.get("ids") or []
+                       if not str(tip.get("id")).endswith("-driven-by") or tip.get("id") in live]
+    new = {tip["id"] for tip in tips}
+    ids = [tip for tip in base.get("ids") or [] if tip.get("id") not in new] + tips
+    return {**base, "ids": ids} if ids else {key: value for key, value in base.items() if key != "ids"}
 
 
 def _empty():
@@ -201,7 +274,12 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     _check_carriers(doc, items)
     _check_order(doc, items)
     built = copy.deepcopy(round_input)
-    built["items"] = items
+    known = rd._used_ids(doc) | {item.get("id") for item in items}
+    degraded = []
+    built["items"] = [_design_decided(item, known, degraded) for item in items]
+    tips = _driven_by_tips(doc_path, items)
+    if tips or "tips" in round_input:
+        built["tips"] = _merged_tips(doc, round_input, tips)
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
     order = [entry["id"] for entry in doc.get("sections") or []]
     # A version 0 or 1 page refuses sections in the shared builder, unless the round upgrades it.
@@ -209,7 +287,8 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     if isinstance(round_input.get("sections"), list) and takes_sections:
         built["sections"], order = _filled_sections(doc, round_input["sections"])
     answer = rd.build_round_document(doc_path, session, built, None, replace, links)
-    return {**answer, "section_order": order}
+    late = [item_id for item_id in answer["degraded"] if item_id not in degraded]
+    return {**answer, "degraded": [*degraded, *late], "section_order": order}
 
 
 def _entries(group, keys):

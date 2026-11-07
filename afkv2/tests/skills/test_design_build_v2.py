@@ -126,3 +126,68 @@ def test_a_stored_level_section_gets_the_link_to_a_later_level_with_a_change_lin
     level = next(entry for entry in stored(tmp_path)["sections"] if entry["id"] == "sec-l1")
     assert level["links"] == ["sec-l2"]
     assert [line["round"] for line in level["changes"]] == [1, 2]
+
+
+# --- decided cards: driven_by, typed alternatives, hover tips (SDD §6 I-3; PRD AC-009, AC-010; ADR-0004 design)
+
+PRD = """# PRD
+
+## Acceptance Criteria
+
+- [ ] AC-009 Every decision on the page shows the 5 blocks.
+- [ ] AC-010 Every requirement named in a D-2 block shows its text on hover.
+"""
+
+
+def decided(item_id, **changes):
+    fields = {"decision": "Keep one table.", "driven_by": ["AC-009", "ADR-0001", "c-1"],
+              "alternatives": [{"option": "Two tables", "why_lost": "a join on every read"}],
+              "evidence": "src/orders.py:12", "grade": "repo", "why": "fewer reads", "reverse": "split the table"}
+    fields.update(changes)
+    return {"id": item_id, "kind": "decided", "decided": {k: v for k, v in fields.items() if v is not None}}
+
+
+def write_spec(tmp_path):
+    spec = tmp_path / "PROJ-1"
+    (spec / "adr" / "requirements").mkdir(parents=True, exist_ok=True)
+    (spec / "PRD.md").write_text(PRD, "utf-8")
+    (spec / "adr" / "requirements" / "0001-one-table.md").write_text("# Orders stay in one table\n\nBody.\n", "utf-8")
+
+
+def card(tmp_path, item_id):
+    return next(item for rnd in stored(tmp_path)["rounds"] for item in rnd["items"] if item["id"] == item_id)
+
+
+def test_a_whole_decided_card_stays_decided_with_each_alternative_as_one_line(tmp_path):
+    answer = build(tmp_path, round_of(decided("d-1")))
+    assert answer["degraded"] == []
+    item = card(tmp_path, "d-1")
+    assert item["kind"] == "decided"
+    parts = {c["props"].get("label"): c["props"]["text"] for c in [item["body"], *item["body"]["children"]]}
+    assert parts["Driven by"] == "AC-009, ADR-0001, c-1"
+    assert parts["Other options considered (rejected)"] == "- Two tables — a join on every read"
+
+
+@pytest.mark.parametrize("changes", [{"driven_by": None}, {"driven_by": []},
+                                     {"alternatives": [{"option": "Two tables"}]},
+                                     {"alternatives": [{"option": "", "why_lost": "slow"}]},
+                                     {"alternatives": ["Two tables lose"]}])
+def test_a_decided_card_missing_a_block_degrades_to_confirm(tmp_path, changes):
+    answer = build(tmp_path, round_of(decided("d-1", **changes)))
+    assert answer["degraded"] == ["d-1"]
+    assert card(tmp_path, "d-1")["kind"] == "confirm"
+
+
+def test_each_driven_by_id_of_the_prd_or_a_record_gets_its_text_on_hover(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(decided("d-1"), tips={"terms": [{"term": "run", "definition": "1 export."}]}))
+    tips = stored(tmp_path)["tips"]
+    assert tips["terms"] == [{"term": "run", "definition": "1 export."}]
+    assert tips["ids"] == [{"id": "d-1-driven-by", "title": "AC-009: Every decision on the page shows the 5 blocks.\n"
+                                                             "ADR-0001: Orders stay in one table"}]
+
+
+def test_a_card_whose_ids_the_prd_does_not_hold_gets_no_tip(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "AC-999"])))
+    assert "ids" not in (stored(tmp_path).get("tips") or {})
