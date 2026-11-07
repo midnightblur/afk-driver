@@ -13,7 +13,7 @@ The design skill shows its questions one layer at a time, so the developer never
 | Design ADRs | adr/design/ | 7 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-178-propose-solution-page-run:plan/PLAN.md | 10 subtasks; division approved 2026-11-07 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
