@@ -22,6 +22,7 @@ SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 import round_document as rd  # noqa: E402
+import section_rules  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
 from grill_common import Parser, Refusal, read_json, serve  # noqa: E402
 from page_links import links_for  # noqa: E402
@@ -167,6 +168,28 @@ def _design_maps(doc, items, own_maps):
     return [*maps, *own_maps]
 
 
+def _filled_sections(doc, sent):
+    """The sent sections with the links of `section_rules.fill_links`; a stored section whose links change is sent
+    too, with a change line. Refuse a broken section rule of the merged list before any write (SDD §6 I-1, I-2)."""
+    preview = copy.deepcopy(doc)
+    n = max((rnd["n"] for rnd in preview.get("rounds") or []), default=0) + 1
+    rd._merge_entries(preview, {"sections": copy.deepcopy(sent)}, n)
+    merged = section_rules.fill_links(preview["sections"])
+    failures = section_rules.check_sections(merged)
+    if failures:
+        raise Refusal(failures[0].split(":")[0], "; ".join(failures))
+    links = {entry["id"]: entry.get("links") for entry in merged}
+    stored = {entry["id"]: entry for entry in doc.get("sections") or []}
+    filled = [{**raw, **({"links": links[raw["id"]]} if links[raw["id"]] else {})} for raw in sent]
+    sent_ids = {raw["id"] for raw in sent}
+    for sid, entry in stored.items():
+        if sid not in sent_ids and links[sid] != entry.get("links"):
+            added = [link for link in links[sid] if link not in (entry.get("links") or [])]
+            filled.append({**{key: value for key, value in entry.items() if key != "changes"}, "links": links[sid],
+                           "change": {"cause": "finding", "text": f"The design build linked {', '.join(added)}."}})
+    return filled, [entry["id"] for entry in merged]
+
+
 def build_design_round(doc_path, session, round_input, replace=False, links=None):
     """Check the round against the fixed orders, then let the grill's builder write it; write nothing on a refusal.
 
@@ -180,7 +203,13 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     built = copy.deepcopy(round_input)
     built["items"] = items
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
-    return rd.build_round_document(doc_path, session, built, None, replace, links)
+    order = [entry["id"] for entry in doc.get("sections") or []]
+    # A version 0 or 1 page refuses sections in the shared builder, unless the round upgrades it.
+    takes_sections = "schema" not in doc or rd.is_version_2(doc) or round_input.get("upgrade") is True
+    if isinstance(round_input.get("sections"), list) and takes_sections:
+        built["sections"], order = _filled_sections(doc, round_input["sections"])
+    answer = rd.build_round_document(doc_path, session, built, None, replace, links)
+    return {**answer, "section_order": order}
 
 
 def _entries(group, keys):
