@@ -7,10 +7,16 @@ Verbs, run from the repository root; each answers one JSON object:
   critique --doc D                        each proposer critiques the DRAFT.md of the other
   cleanup  --doc D                        closes each recorded pane and removes each recorded worktree
 
+`plan` answers exactly the `proposers` input of the design build: {count, tools, reason}. `cleanup` answers it
+again under `proposers`. After a refusal of `start`, `wait` or `critique` once the proposers started, both answer
+count 1 with reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
+
 The state file `<doc stem>.proposers.json` beside the page document is the ledger, version 1:
-{version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree}], cleaned}. A pane or a
-worktree that is not null is open. `cleanup` keeps the file with `cleaned` true (decision D-7). Every herdr and
-git call, and every host fact, goes through `HerdrRunner`.
+{version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree}], cleaned, failed}.
+`stage` is planned, drafting, drafted, critiquing, critiqued or failed. `failed`, present only after a failure, is
+{stage, code}: the stage the failure stopped and the refusal code. A pane or a worktree that is not null is open.
+`cleanup` keeps the file with `cleaned` true (decision D-7). Every herdr and git call, and every host fact, goes
+through `HerdrRunner`.
 
 Full auto-approval counts as forbidden when a policy file turns it off: Claude managed settings
 `permissions.disableBypassPermissionsMode: "disable"` (`managed-settings.json` and `managed-settings.d/*.json`),
@@ -190,12 +196,40 @@ def _save(doc, state):
     write_json(dr.proposers_state_path(doc), state)
 
 
+LIVE = ("drafting", "drafted", "critiquing", "critiqued")
+
+
+def _recording(verb):
+    """Run a verb; a refusal once the proposers started records the failure (SDD §6: drafting/critiquing -> failed)."""
+    def run(args, runner):
+        try:
+            return verb(args, runner)
+        except Refusal as refusal:
+            state = _load(args.doc)
+            if (state and state["count"] == 2 and not state.get("cleaned") and not state.get("failed")
+                    and state.get("stage") in LIVE):
+                state["failed"] = {"stage": state["stage"], "code": refusal.code}
+                state["stage"] = "failed"
+                _save(args.doc, state)
+            raise
+    return run
+
+
+def _answer(state, runner):
+    """The `proposers` input of the design build, from the state file."""
+    if state.get("failed"):
+        return {"count": 1, "tools": [_own_tool(runner)], "reason": dr.PROPOSER_FAILED}
+    tools = state.get("tools") or (list(TOOLS) if state["count"] == 2 else [_own_tool(runner)])
+    return {"count": state["count"], "tools": tools, "reason": state.get("reason")}
+
+
 def _started(doc):
     """The state of a session whose 2 proposers both run: each tool recorded with a pane and a worktree."""
     state = _load(doc)
     entries = (state or {}).get("proposers") or []
     running = [entry for entry in entries if entry.get("pane") and entry.get("worktree")]
-    if state is None or state.get("cleaned") or sorted(entry.get("tool") for entry in running) != sorted(TOOLS):
+    if (state is None or state.get("cleaned") or state.get("failed")
+            or sorted(entry.get("tool") for entry in running) != sorted(TOOLS)):
         raise Refusal("not-started", "both solution proposers must run, each with a pane and a worktree: run "
                                      "`cleanup`, and the agent in charge drafts alone")
     return state
@@ -204,10 +238,6 @@ def _started(doc):
 def _check_aspects(doc, state):
     if dr.next_step(dr._view(doc), state)["phase"] == "aspects":
         raise Refusal("aspects-open", "the solution proposers start after every critical aspect settles")
-
-
-def _fence(count):
-    return dr.FENCE if count == 2 else None
 
 
 # The verbs.
@@ -219,9 +249,7 @@ def plan(args, runner):
         state = {"version": dr.STATE_VERSION, **plan_proposers(runner), "stage": "planned", "proposers": [],
                  "cleaned": False}
         _save(args.doc, state)
-    tools = state.get("tools") or (list(TOOLS) if state["count"] == 2 else [_own_tool(runner)])
-    return {"ok": True, "count": state["count"], "tools": tools, "reason": state.get("reason"),
-            "fence": _fence(state["count"])}
+    return _answer(state, runner)
 
 
 def _compact(text):
@@ -279,12 +307,12 @@ def start(args, runner):
     main = _main_checkout(runner)
     stem = Path(args.doc).stem
     state.update(brief=hashlib.sha256(brief.encode("utf-8")).hexdigest(), stage="drafting")
+    _save(args.doc, state)
     answer = []
     for tool in TOOLS:
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
         code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), args.base)
         if code != 0:
-            _save(args.doc, state)
             raise Refusal("worktree-failed", f"{tool}: git worktree add: {err.strip()}")
         entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree)}
         state["proposers"].append(entry)
@@ -393,10 +421,11 @@ def cleanup(args, runner):
                                         f"cleanup again", left=left, closed=closed, removed=removed)
     state["cleaned"] = True
     _save(args.doc, state)
-    return {"ok": True, "closed": closed, "removed": removed}
+    return {"ok": True, "closed": closed, "removed": removed, "proposers": _answer(state, runner)}
 
 
-VERBS = {"plan": plan, "start": start, "wait": wait, "critique": critique, "cleanup": cleanup}
+VERBS = {"plan": plan, "start": _recording(start), "wait": _recording(wait), "critique": _recording(critique),
+         "cleanup": cleanup}
 
 
 def main(argv, runner=None):

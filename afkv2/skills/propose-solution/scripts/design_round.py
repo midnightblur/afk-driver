@@ -40,9 +40,11 @@ GROUPS = {
 ASPECT_KINDS = {"confirm", "debate"}
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC-\d{3,})\b\s*(.*)$", re.M)
 TIP_LIMIT = 1000
+PROPOSER_FAILED = "proposer-failed"
 # Why only 1 solution proposer drafted, by the reason code of the proposers plan (PRD AC-024).
 SOLO_REASONS = {"no-herdr": "herdr is not installed", "outside-herdr": "the session runs outside herdr",
-                "no-other-tool": "the other tool is not installed", "bypass-forbidden": "full auto-approval is forbidden"}
+                "no-other-tool": "the other tool is not installed", "bypass-forbidden": "full auto-approval is forbidden",
+                PROPOSER_FAILED: "a solution proposer failed after it started"}
 PROPOSERS_FIELDS = {"count", "tools", "reason"}
 PROPOSERS_PHASE = "proposers"
 STATE_VERSION = 1
@@ -186,8 +188,8 @@ def proposers_state_path(doc_path):
 def proposers_state(doc_path):
     """The proposers state of the session, or None before the proposers plan wrote it.
 
-    Shape, version 1: {version, count: 1 or 2, proposers: [{tool, pane, worktree}], cleaned}. A pane or a worktree
-    that is not null is still open; `cleaned` true records that cleanup is done."""
+    The shape, version 1, is in the docstring of proposers.py, its one writer. This reader needs `count` (1 or 2),
+    `proposers` (a pane or a worktree that is not null is still open) and `cleaned` (true when cleanup is done)."""
     path = proposers_state_path(doc_path)
     if not path.exists():
         return None

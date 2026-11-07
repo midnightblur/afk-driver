@@ -188,7 +188,8 @@ def started(runner, doc, brief):
 def test_plan_answers_both_tools_when_herdr_both_tools_and_bypass_are_there(runner, doc, phase):
     answer = run(runner, "plan", doc)
 
-    assert answer == {"ok": True, "count": 2, "tools": ["claude", "codex"], "reason": None, "fence": dr.FENCE}
+    assert answer == {"count": 2, "tools": ["claude", "codex"], "reason": None}
+    assert dr._proposers_banner(answer)[1] == dr.FENCE
     recorded = state(doc)
     assert recorded["count"] == 2 and recorded["proposers"] == [] and recorded["cleaned"] is False
     assert not dr._proposers_done(recorded)
@@ -236,7 +237,9 @@ def test_plan_falls_back_to_one_proposer_and_starts_nothing(runner, doc, phase, 
 
     answer = run(runner, "plan", doc)
 
-    assert answer == {"ok": True, "count": 1, "tools": ["claude"], "reason": reason, "fence": None}
+    assert answer == {"count": 1, "tools": ["claude"], "reason": reason}
+    assert dr._proposers_banner(answer) == [
+        f"1 solution proposer drafted the design alone (Claude): {dr.SOLO_REASONS[reason]}."]
     assert state(doc)["count"] == 1 and dr._proposers_done(state(doc))
     assert runner.calls == []
 
@@ -456,6 +459,63 @@ def test_wait_refuses_pane_gone_when_a_pane_closed(runner, doc, phase, brief):
     assert refused(runner, "wait", doc).code == "pane-gone"
 
 
+# A failure after start: the agent in charge drafts alone, and the banner says why (SDD §6, §7; decision D-10).
+
+def _fail_codex_worktree(runner, doc, brief):
+    runner.on = lambda argv: ((128, "", "fatal: busy") if argv[1:3] == ["worktree", "add"] and "codex" in argv[4]
+                              else None)
+    run(runner, "plan", doc)
+    return refused(runner, "start", doc, "--brief", str(brief), "--base", BASE)
+
+
+def _fail_draft(runner, doc, brief):
+    runner.lazy.add("codex")
+    started(runner, doc, brief)
+    return refused(runner, "wait", doc)
+
+
+def _fail_pane(runner, doc, brief):
+    entries = started(runner, doc, brief)["proposers"]
+    runner.panes.pop(entries[1]["pane"])
+    return refused(runner, "wait", doc)
+
+
+def _fail_critique(runner, doc, brief):
+    started(runner, doc, brief)
+    run(runner, "wait", doc)
+    runner.on = lambda argv: _error("agent_blocked") if argv[1:3] == ["agent", "prompt"] and "codex" in argv[3] else None
+    return refused(runner, "critique", doc)
+
+
+@pytest.mark.parametrize("fail, stage, code", [
+    (_fail_codex_worktree, "drafting", "worktree-failed"),
+    (_fail_draft, "drafting", "no-draft"),
+    (_fail_pane, "drafting", "pane-gone"),
+    (_fail_critique, "drafted", "not-submitted"),
+])
+def test_a_failure_after_start_records_proposer_failed(runner, doc, phase, brief, fail, stage, code):
+    assert fail(runner, doc, brief).code == code
+
+    recorded = state(doc)
+    assert recorded["stage"] == "failed" and recorded["failed"] == {"stage": stage, "code": code}
+    solo = {"count": 1, "tools": ["claude"], "reason": "proposer-failed"}
+    assert run(runner, "plan", doc) == solo
+    assert refused(runner, "wait", doc).code == "not-started"
+    assert refused(runner, "critique", doc).code == "not-started"
+    runner.on = None
+    assert run(runner, "cleanup", doc)["proposers"] == solo
+    assert dr._proposers_banner(solo) == [
+        f"1 solution proposer drafted the design alone (Claude): {dr.SOLO_REASONS['proposer-failed']}."]
+
+
+def test_a_refusal_before_start_records_no_failure(runner, doc, phase, brief):
+    run(runner, "plan", doc)
+    refused(runner, "start", doc, "--brief", str(brief.with_name("missing.md")), "--base", BASE)
+
+    assert state(doc)["stage"] == "planned" and "failed" not in state(doc)
+    assert run(runner, "plan", doc)["count"] == 2
+
+
 # cleanup: every recorded pane and worktree goes (PRD AC-026; decision D-7).
 
 def test_cleanup_closes_each_pane_removes_each_worktree_and_keeps_the_state_file_cleaned(runner, doc, phase, brief):
@@ -465,7 +525,8 @@ def test_cleanup_closes_each_pane_removes_each_worktree_and_keeps_the_state_file
     answer = run(runner, "cleanup", doc)
 
     assert answer == {"ok": True, "closed": [entry["pane"] for entry in entries],
-                      "removed": [entry["worktree"] for entry in entries]}
+                      "removed": [entry["worktree"] for entry in entries],
+                      "proposers": {"count": 2, "tools": ["claude", "codex"], "reason": None}}
     assert not any(Path(entry["worktree"]).exists() for entry in entries) and runner.panes == {}
     assert len(runner.commands("worktree", "remove", "--force")) == 2
     recorded = state(doc)
@@ -483,7 +544,7 @@ def test_cleanup_refuses_cleanup_failed_naming_what_is_left_then_runs_again(runn
     assert dr._open_resources(state(doc)) == [stuck] and not state(doc)["cleaned"]
 
     runner.locked.clear()
-    assert run(runner, "cleanup", doc) == {"ok": True, "closed": [], "removed": [stuck]}
+    assert run(runner, "cleanup", doc)["removed"] == [stuck]
     assert state(doc)["cleaned"] is True
 
 
@@ -499,7 +560,8 @@ def test_cleanup_after_a_one_proposer_plan_records_cleaned(runner, doc, phase):
     _no_herdr(runner)
     run(runner, "plan", doc)
 
-    assert run(runner, "cleanup", doc) == {"ok": True, "closed": [], "removed": []}
+    assert run(runner, "cleanup", doc) == {"ok": True, "closed": [], "removed": [],
+                                           "proposers": {"count": 1, "tools": ["claude"], "reason": "no-herdr"}}
     assert state(doc)["cleaned"] is True and runner.calls == []
 
 
