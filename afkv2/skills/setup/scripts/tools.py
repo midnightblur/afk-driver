@@ -294,9 +294,23 @@ def herdr_installer(run: Runner, windows: bool, env: Mapping[str, str] | None = 
 
 
 def install_herdr(run: Runner, windows: bool = os.name == "nt",
-                  env: Mapping[str, str] | None = None) -> dict:
-    """Run the official installer. Only after the developer's yes in session."""
-    got = run(herdr_installer(run, windows, env), env=env, timeout=HERDR_INSTALL_TIMEOUT)
+                  env: Mapping[str, str] | None = None, download_dir: Path | None = None) -> dict:
+    """Run the official installer. Only after the developer's yes in session.
+
+    The official scripts download into GetTempPath() or `mktemp -d`. With `download_dir`, TMP,
+    TEMP and TMPDIR name that folder for the installer process only, so no program file lands in
+    a temporary folder (AC-029, decision D-11); the folder is removed after the run."""
+    command = herdr_installer(run, windows, env)
+    run_env = env
+    if download_dir is not None:
+        download_dir.mkdir(parents=True, exist_ok=True)
+        folder = str(download_dir)
+        run_env = {**(env if env is not None else os.environ), "TMP": folder, "TEMP": folder, "TMPDIR": folder}
+    try:
+        got = run(command, env=run_env, timeout=HERDR_INSTALL_TIMEOUT)
+    finally:
+        if download_dir is not None:
+            shutil.rmtree(download_dir, ignore_errors=True)
     if got.code != 0:
         lines = [line.strip() for line in f"{got.out}\n{got.err}".splitlines() if line.strip()]
         return {"ok": False, "error": {"code": "install-failed",

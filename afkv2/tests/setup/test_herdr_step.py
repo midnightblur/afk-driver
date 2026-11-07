@@ -87,7 +87,8 @@ def test_a_failed_installer_answers_its_last_line(herdr_runner):
 
 
 def test_no_install_path_writes_a_program_file(herdr_runner):
-    """AC-029: each installer streams into a shell or a package manager; none saves a file first."""
+    """AC-029, our side only: no command saves a file first. The vendor scripts download into a
+    temporary folder; the setup-folder test below covers that."""
     herdr_runner.paths["brew"] = "/opt/homebrew/bin/brew"
     for windows in (True, False):
         tools.install_herdr(herdr_runner, windows=windows)
@@ -201,3 +202,27 @@ def test_the_installed_path_is_read_from_a_fresh_environment(env, places, herdr_
     assert code == 0 and answer["on_path"] is True
     assert seen[-1] == ("herdr", f"fresh-{len(reads)}") and len(reads) >= 2
 
+
+def test_the_installer_downloads_into_the_setup_folder_not_a_temporary_folder(env, places, herdr_system,
+                                                                               herdr_runner, capsys):
+    """AC-029, D-11: the official installers download into GetTempPath() or mktemp -d, so setup points
+    TMP, TEMP and TMPDIR at its own folder for the installer process only, and removes it after."""
+    _prepared(places)
+    seen = {}
+
+    original = herdr_runner.__class__.__call__
+
+    def spy(argv, env=None, timeout=300):
+        if argv[0] in ("powershell", "sh", "brew"):
+            seen.update(env or {})
+            seen["exists"] = places.data.joinpath("herdr-download").is_dir()
+        return original(herdr_runner, argv, env, timeout)
+
+    herdr_system.run = lambda argv, env=None, timeout=300: spy(argv, env, timeout)
+    herdr_system.run.which = herdr_runner.which
+    code, _ = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
+    folder = str(places.data / "herdr-download")
+    assert code == 0 and seen["exists"]
+    assert seen["TMP"] == seen["TEMP"] == seen["TMPDIR"] == folder
+    assert "PATH" in seen
+    assert not (places.data / "herdr-download").exists()

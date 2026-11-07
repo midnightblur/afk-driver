@@ -109,7 +109,8 @@ def herdr(places: Places, system: System, answer: str) -> dict:
 
     if tools.herdr_status(system.run, {}, fresh()) == "present":
         return {"ok": True, "herdr": "present"}
-    done = (tools.install_herdr(system.run, system.windows, fresh()) if answer == "yes"
+    done = (tools.install_herdr(system.run, system.windows, fresh(), places.data / "herdr-download")
+            if answer == "yes"
             else {"ok": True, "herdr": "declined"})
     if done["ok"] and done["herdr"] == "installed":
         # The installer changes the user path: only an environment read after it shows herdr.
