@@ -46,7 +46,7 @@ The page shows the design in sections, in the order of the section catalog. `sec
 - A system, critical or level section has a picture as its body root.
 - A level section: the children of its picture are the caption, then a `text` labelled "Summary" of at most 2 lines, then the rest of the detail, each child folded (`fold`).
 - A critical section holds a chip whose text starts "critical", and names its level section in `links`. The build fills the links: each level section links to the next level section on the page and to each critical section that names it.
-- Every performance fact stands only in `sec-performance`. The L4 section and the large-data aspect point to `sec-performance` and repeat no performance fact.
+- Every performance fact stands only in `sec-performance`. The L4 section and the large-data aspect point to it by its title, Performance, never by its id, and repeat no performance fact.
 
 ### Pattern columns
 

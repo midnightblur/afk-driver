@@ -195,7 +195,7 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
         return _article(section, "afkv2-v2-section afkv2-v2-gone", f'<p class="afkv2-v2-gone-line">{line}</p>', state=state)
     targets = [current_target(sections, other) for other in section.get("links") or []]
     targets = [other for other in dict.fromkeys(targets) if other != section["id"]]
-    links = LINKS.format("Depends on", _links(doc, targets)) if targets else ""
+    links = LINKS.format("Linked sections", _links(doc, targets)) if targets else ""
     reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
                if state == "not_reached" else "")
     head = f'<h3 class="afkv2-v2-h">{title}</h3>{reached}{_chip(counts.get(section["id"], 0))}'

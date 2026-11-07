@@ -14,7 +14,7 @@ Ask these before the draft, in this order. The build refuses any other order. `d
 | 8 | `authorization` | Authorization | Who may do each action, who may not, and where is the guard? | `table` of surfaces and roles today |
 | 9 | `lifecycle` | Entity life cycle and states | Which states exist, which moves are legal, and who may trigger each? | `graph` of the current states, or `run-strip` of today's run |
 | 10 | `other-teams` | Other teams' modules | Which modules outside the ownership config does this touch? | `graph` of the code area, with the owner of each module |
-| 11 | `large-data` | Large data | Which tables or lists can grow large? Every size, cost and fix stands only in the `sec-performance` section; this card points there and repeats none of them. | `table` of the tables and lists that can grow; each row names `sec-performance` in its text, and that section comes in the draft rounds |
+| 11 | `large-data` | Large data | Which tables or lists can grow large? Every size, cost and fix stands only in the `sec-performance` section; this card points there and repeats none of them. | `table` of the tables and lists that can grow; each row points to the Performance section by its title, never by its id, and that section comes in the draft rounds |
 
 ## How to ask
 

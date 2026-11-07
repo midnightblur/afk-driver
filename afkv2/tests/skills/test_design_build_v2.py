@@ -41,7 +41,7 @@ def critical_body():
 
 def section(sid, body=None, **extra):
     return {"id": sid, "title": sid, "state": "current", "body": body or level_body(),
-            "change": {"cause": "finding", "text": "drafted"}, **extra}
+            "change": {"cause": "finding", "text": "drafted"}} | extra
 
 
 def confirm(item_id):
@@ -207,29 +207,44 @@ def test_a_decided_card_missing_a_block_degrades_to_confirm(tmp_path, changes):
         assert parts["Driven by"] == "AC-009, ADR-0001, P-01"
 
 
+def _block(doc, block_id):
+    found = []
+
+    def walk(component):
+        if isinstance(component, dict):
+            if component.get("id") == block_id:
+                found.append(component)
+            for child in component.get("children") or []:
+                walk(child)
+    for rnd in doc["rounds"]:
+        for item in rnd["items"]:
+            walk(item.get("body"))
+    return found[0] if found else None
+
+
 def test_each_driven_by_id_of_the_prd_or_a_record_gets_its_text_on_hover(tmp_path):
     write_spec(tmp_path)
     build(tmp_path, round_of(decided("d-1"), tips={"terms": [{"term": "run", "definition": "1 export."}]}))
-    tips = stored(tmp_path)["tips"]
-    assert tips["terms"] == [{"term": "run", "definition": "1 export."}]
-    assert tips["ids"] == [{"id": "d-1-driven-by", "title": "AC-009: Every decision on the page shows the 5 blocks.\n"
-                                                             "ADR-0001: Orders stay in one table"}]
+    doc = stored(tmp_path)
+    assert doc["tips"] == {"terms": [{"term": "run", "definition": "1 export."}]}
+    assert _block(doc, "d-1-driven-by")["tip"] == ("AC-009: Every decision on the page shows the 5 blocks.\n"
+                                                    "ADR-0001: Orders stay in one table")
 
 
-def test_a_later_round_with_its_own_tips_keeps_the_driven_by_tips_of_earlier_cards(tmp_path):
+def test_a_later_round_keeps_the_driven_by_tip_of_an_earlier_card(tmp_path):
     write_spec(tmp_path)
     build(tmp_path, round_of(decided("d-1")))
     build(tmp_path, round_of(confirm("c-2"), tips={"terms": [{"term": "run", "definition": "1 export."}]}))
-    tips = stored(tmp_path)["tips"]
-    assert tips["terms"] == [{"term": "run", "definition": "1 export."}]
-    assert [tip["id"] for tip in tips["ids"]] == ["d-1-driven-by"]
+    assert _block(stored(tmp_path), "d-1-driven-by")["tip"].startswith("AC-009: ")
 
 
-def test_a_later_round_with_no_tips_key_keeps_the_driven_by_tip_of_an_earlier_card(tmp_path):
+def test_a_long_driven_by_text_is_cut_to_the_schema_cap(tmp_path):
     write_spec(tmp_path)
-    build(tmp_path, round_of(decided("d-1")))
-    build(tmp_path, round_of(confirm("c-2")))
-    assert [tip["id"] for tip in stored(tmp_path)["tips"]["ids"]] == ["d-1-driven-by"]
+    item = decided("d-1")
+    item["decided"]["driven_by"] = ["AC-009", "ADR-0001"] * 20
+    build(tmp_path, round_of(item))
+    tip = _block(stored(tmp_path), "d-1-driven-by")["tip"]
+    assert len(tip) == 300 and tip.endswith("\u2026")
 
 
 def test_a_confirm_card_that_carries_decided_fields_gets_no_driven_by_tip(tmp_path):
@@ -237,6 +252,7 @@ def test_a_confirm_card_that_carries_decided_fields_gets_no_driven_by_tip(tmp_pa
     item = {**confirm("c-1"), "decided": {"driven_by": ["AC-009"]}}
     assert build(tmp_path, round_of(item))["ok"] is True
     assert "ids" not in (stored(tmp_path).get("tips") or {})
+    assert _block(stored(tmp_path), "c-1-driven-by") is None or "tip" not in _block(stored(tmp_path), "c-1-driven-by")
 
 
 @pytest.mark.parametrize("tips", [None, "x", ["a"]])
@@ -505,3 +521,14 @@ def test_a_state_file_of_the_wrong_shape_is_refused(tmp_path, state):
     with pytest.raises(Refusal) as refusal:
         phase(tmp_path)
     assert refusal.value.code == "bad-proposers-state"
+
+
+def test_a_late_section_moves_the_next_level_link_and_the_change_line_names_titles(tmp_path):
+    build(tmp_path, round_of(sections=[section("sec-l7", title="L7 Modules"), section("sec-l8", title="L8 Patterns")]))
+    build(tmp_path, round_of(sections=[section("sec-logic", title="Key logic", after="sec-l7")]))
+    level = next(entry for entry in stored(tmp_path)["sections"] if entry["id"] == "sec-l7")
+    titles = {entry["id"]: entry["title"] for entry in stored(tmp_path)["sections"]}
+    assert level["links"] == ["sec-logic"]
+    text = level["changes"][-1]["text"]
+    assert text == f"The design build now links {titles['sec-logic']} and no longer links {titles['sec-l8']}."
+    assert "sec-" not in text

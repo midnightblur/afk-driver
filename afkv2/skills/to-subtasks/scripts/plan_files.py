@@ -398,7 +398,8 @@ def _division_card(plan, subtasks, why, card_id, digest, carries, spec_root):
              "props": {"columns": ["Subtask", "Goal", "Why the cut is here", "Waits on", "Gates", "Low days", "Likely days", "High days"], "rows": rows},
              "children": [{"type": "text", "id": f"{card_id}-ask", "props": {"text": text}},
                           {"type": "text", "id": f"{card_id}-estimate", "props": {"text": _estimate_line(times)}}]}
-    return {"id": card_id, "kind": "signoff", "body": table, **({"carries": carries} if carries else {})}, times
+    return {"id": card_id, "kind": "signoff", "title": f"Approve the division into {len(subtasks)} subtasks", "body": table,
+            **({"carries": carries} if carries else {})}, times
 
 
 def _carried_cards(doc):

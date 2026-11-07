@@ -224,17 +224,21 @@ def check_sections(doc_sections):
 
 def fill_links(sections):
     """A copy of the sections; each level section links to the next level section and to each critical section
-    that names it in its links. Every link already there stays, and no link repeats."""
+    that names it in its links. A link to another level section goes, because the next one can change when a
+    section comes late; every other link stays, and no link repeats."""
     filled = copy.deepcopy(sections)
     active = [entry for entry in _active(filled) if _row_or_none(entry["id"])]
     levels = [entry for entry in active if _kind(entry["id"]) == "level"]
     critical = [entry for entry in active if _kind(entry["id"]) == "critical"]
     for k, level in enumerate(levels):
         wanted = levels[k + 1:k + 2] + [crit for crit in critical if level["id"] in (crit.get("links") or [])]
-        links = list(level.get("links") or [])
+        levels_ids = {entry["id"] for entry in levels}
+        links = [link for link in level.get("links") or [] if link not in levels_ids]
         links += [other["id"] for other in wanted if other["id"] not in links]
         if links:
             level["links"] = links
+        else:
+            level.pop("links", None)
     return filled
 
 

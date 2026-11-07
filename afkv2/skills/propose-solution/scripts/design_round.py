@@ -25,7 +25,7 @@ sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 import round_document as rd  # noqa: E402
 import section_rules  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
-from grill_common import Parser, Refusal, read_json, serve  # noqa: E402
+from grill_common import Parser, Refusal, read_json, serve, write_json  # noqa: E402
 from page_links import links_for  # noqa: E402
 
 SKILL_NAME = "propose-solution"
@@ -39,7 +39,8 @@ GROUPS = {
 }
 ASPECT_KINDS = {"confirm", "debate"}
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC-\d{3,})\b\s*(.*)$", re.M)
-TIP_LIMIT = 1000
+# The page schema caps a component `tip` at 300 characters.
+TIP_LIMIT = 300
 PROPOSER_FAILED = "proposer-failed"
 # Why only 1 solution proposer drafted, by the reason code of the proposers plan (PRD AC-024).
 SOLO_REASONS = {"no-herdr": "herdr is not installed", "outside-herdr": "the session runs outside herdr",
@@ -172,38 +173,40 @@ def _check_driven_by(doc_path, items, known_ids):
 
 
 def _driven_by_tips(doc_path, items):
-    """1 hover tip per decided card on its Driven by block: the text of each id that is a PRD criterion or a
-    requirement record (PRD AC-010)."""
+    """{block id: hover text} per decided card: the text of each `driven_by` id that is a PRD criterion or a
+    requirement record (PRD AC-010). The text goes on the Driven by block as its `tip`; the page tips catalog
+    cannot carry it, because an id tip shows only where its element id stands as a word in the text."""
     texts = _spec_texts(doc_path)
-    tips = []
+    tips = {}
     for item in items:
         if item.get("kind") != "decided":
             continue
         fields = item.get("decided") if isinstance(item.get("decided"), dict) else {}
         lines = [f"{key}: {texts[key]}" for key in fields.get("driven_by") or [] if key in texts]
         if lines:
-            tips.append({"id": f"{item['id']}-driven-by", "title": "\n".join(lines)[:TIP_LIMIT]})
+            text = "\n".join(lines)
+            tips[f"{item['id']}-driven-by"] = text if len(text) <= TIP_LIMIT else text[:TIP_LIMIT - 1] + "\u2026"
     return tips
 
 
-def _merged_tips(doc, round_input, tips):
-    """The tips catalog with the driven-by tips of this round. A round's own `tips` replace the stored catalog, but
-    the stored driven-by tips of live cards stay, because only this build writes them; a dropped card's tip goes."""
-    live = rd._used_ids(doc)
-    stored = copy.deepcopy(doc.get("tips") or {})
-    kept = [tip for tip in stored.get("ids") or []
-            if isinstance(tip, dict) and str(tip.get("id")).endswith("-driven-by") and tip.get("id") in live]
-    if "tips" in round_input:
-        base = copy.deepcopy(round_input["tips"])
-        sent = {tip.get("id") for tip in base.get("ids") or [] if isinstance(tip, dict)}
-        base["ids"] = [*(base.get("ids") or []), *(tip for tip in kept if tip["id"] not in sent)]
-    else:
-        base = stored
-        base["ids"] = [tip for tip in stored.get("ids") or []
-                       if not str(tip.get("id")).endswith("-driven-by") or tip in kept]
-    new = {tip["id"] for tip in tips}
-    ids = [tip for tip in base.get("ids") or [] if tip.get("id") not in new] + tips
-    return {**base, "ids": ids} if ids else {key: value for key, value in base.items() if key != "ids"}
+def _put_tips(component, tips):
+    """Set `tip` on each component in the tree whose id has a hover text."""
+    if not isinstance(component, dict):
+        return
+    if component.get("id") in tips:
+        component["tip"] = tips[component["id"]]
+    for child in component.get("children") or []:
+        _put_tips(child, tips)
+
+
+def _write_driven_by_tips(doc_path, tips):
+    """Write each hover text on its Driven by block in the current round of the stored page."""
+    if not tips:
+        return
+    doc = read_json(doc_path)
+    for item in (doc.get("rounds") or [{}])[-1].get("items") or []:
+        _put_tips(item.get("body"), tips)
+    write_json(doc_path, doc)
 
 
 def proposers_state_path(doc_path):
@@ -378,15 +381,27 @@ def _filled_sections(doc, sent):
     if failures:
         raise Refusal(failures[0].split(":")[0], "; ".join(failures))
     links = {entry["id"]: entry.get("links") for entry in merged}
+    titles = {entry["id"]: entry.get("title") or entry["id"] for entry in merged}
     stored = {entry["id"]: entry for entry in doc.get("sections") or []}
-    filled = [{**raw, **({"links": links[raw["id"]]} if links[raw["id"]] else {})} for raw in sent]
+    filled = [{**{key: value for key, value in raw.items() if key != "links"},
+               **({"links": links[raw["id"]]} if links[raw["id"]] else {})} for raw in sent]
     sent_ids = {raw["id"] for raw in sent}
     for sid, entry in stored.items():
-        if sid not in sent_ids and links[sid] != entry.get("links"):
-            added = [link for link in links[sid] if link not in (entry.get("links") or [])]
-            filled.append({**{key: value for key, value in entry.items() if key != "changes"}, "links": links[sid],
-                           "change": {"cause": "finding", "text": f"The design build linked {', '.join(added)}."}})
+        if sid not in sent_ids and (links[sid] or []) != (entry.get("links") or []):
+            kept = {key: value for key, value in entry.items() if key not in ("changes", "links")}
+            filled.append({**kept, **({"links": links[sid]} if links[sid] else {}),
+                           "change": {"cause": "finding", "text": _link_change(entry.get("links"), links[sid], titles)}})
     return filled, [entry["id"] for entry in merged]
+
+
+def _link_change(before, after, titles):
+    """The change line of a stored section whose links the build changed, with section titles, not ids."""
+    before, after = before or [], after or []
+    added = [titles.get(link, link) for link in after if link not in before]
+    removed = [titles.get(link, link) for link in before if link not in after]
+    parts = ([f"now links {', '.join(added)}"] if added else []) + ([f"no longer links {', '.join(removed)}"]
+                                                                     if removed else [])
+    return f"The design build {' and '.join(parts)}."
 
 
 def build_design_round(doc_path, session, round_input, replace=False, links=None, ticket=None):
@@ -412,9 +427,6 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     _check_driven_by(doc_path, items, known)
     degraded = []
     built["items"] = [_design_decided(item, known, degraded) for item in items]
-    tips = _driven_by_tips(doc_path, items)
-    if tips or "tips" in round_input or doc.get("tips"):
-        built["tips"] = _merged_tips(doc, round_input, tips)
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
     order = [entry["id"] for entry in doc.get("sections") or []]
     # A version 0 or 1 page refuses sections in the shared builder, unless the round upgrades it.
@@ -422,6 +434,7 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     if isinstance(round_input.get("sections"), list) and takes_sections:
         built["sections"], order = _filled_sections(doc, round_input["sections"])
     answer = rd.build_round_document(doc_path, session, built, ticket, replace, links)
+    _write_driven_by_tips(doc_path, _driven_by_tips(doc_path, built["items"]))
     late = [item_id for item_id in answer["degraded"] if item_id not in degraded]
     return {**answer, "degraded": [*degraded, *late], "section_order": order}
 

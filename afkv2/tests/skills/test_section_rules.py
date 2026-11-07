@@ -289,3 +289,10 @@ def test_fill_links_adds_no_link_twice_and_skips_removed_sections():
     sections[1]["state"] = "removed"
     filled = {entry["id"]: entry.get("links") for entry in sr.fill_links(sections)}
     assert filled["sec-l1"] == ["sec-l2", "sec-l3"]
+
+
+def test_fill_links_drops_the_old_next_level_link_when_a_section_comes_between():
+    sections = page(["sec-l7", "sec-logic", "sec-l8"])
+    sections[0]["links"] = ["sec-l8", "sec-system"]
+    filled = {entry["id"]: entry.get("links") for entry in sr.fill_links(sections)}
+    assert filled["sec-l7"] == ["sec-system", "sec-logic"]
