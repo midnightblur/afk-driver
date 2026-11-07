@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 
@@ -21,9 +22,22 @@ from plan_fixture import contract_text, git  # noqa: E402
 COPY = Path("docs") / "runs" / "feat-x-run.md"
 
 
+def linked(found):
+    """Move the feature branch from the main checkout into a linked worktree, as a run has it."""
+    git(found.work, "checkout", "-q", "--detach")
+    feature = found.root / "work-feature"
+    git(found.work, "worktree", "add", "-q", str(feature), plan_fixture.FEATURE)
+    found.work = feature
+    return found
+
+
+def with_prd(subtask, prd):
+    return contract_text(subtask).replace("## Parent PRD\ndocs/PRD.md", f"## Parent PRD\n{prd}")
+
+
 @pytest.fixture
 def built(tmp_path, monkeypatch):
-    found = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a"), "0002-b": contract_text("0002-b")})
+    found = linked(plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a"), "0002-b": contract_text("0002-b")}))
     monkeypatch.chdir(found.work)
     monkeypatch.setattr(start_gate, "forge_answer", lambda code: {"ok": True, "authenticated": True, "user": "t"})
     return found
@@ -72,6 +86,9 @@ def test_archive_leaves_other_work_in_the_feature_worktree_alone(built):
 
 def test_ship_waits_for_archive(built):
     all_done(built)
+    with pytest.raises(start_gate.Refusal) as caught:
+        verb("archive", built)
+    assert caught.value.code == "not-ended"
     assert verb("end", built)["ship"] is False
     assert verb("archive", built)["ship"] is True
     assert verb("end", built)["ship"] is False
@@ -100,14 +117,57 @@ def test_a_failed_commit_refuses_keeps_ship_false_and_may_run_again(built, tmp_p
     assert again["committed"] is True and again["ship"] is True
 
 
+def test_archive_never_writes_in_the_main_checkout(tmp_path, monkeypatch):
+    found = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a")})
+    monkeypatch.chdir(found.work)
+    walk.VERBS["end"]({"plan": str(found.plan)})
+    with pytest.raises(start_gate.Refusal) as caught:
+        walk.VERBS["archive"]({"plan": str(found.plan)})
+    assert caught.value.code == "no-feature-worktree"
+    assert not (found.work / "docs").exists() and git(found.work, "status", "--porcelain") == ""
+
+
+def test_a_feature_worktree_whose_folder_is_gone_refuses(built, monkeypatch):
+    verb("end", built)
+    monkeypatch.chdir(built.root)
+    shutil.rmtree(built.work)
+    assert f"branch refs/heads/{plan_fixture.FEATURE}" in git(built.root / "work", "worktree", "list", "--porcelain")
+    with pytest.raises(start_gate.Refusal) as caught:
+        verb("archive", built)
+    assert caught.value.code == "no-feature-worktree"
+    assert not built.work.exists()
+
+
+@pytest.mark.parametrize("prds, folder", [
+    (["`specs/T-9/PRD.md`", "docs/PRD.md"], "specs/T-9"),
+    (["", "other/T-2/PRD.md"], "other/T-2"),
+])
+def test_the_spec_folder_is_the_folder_of_the_first_parent_prd(tmp_path, monkeypatch, prds, folder):
+    found = linked(plan_fixture.build(tmp_path, {"0001-a": with_prd("0001-a", prds[0]), "0002-b": with_prd("0002-b", prds[1])}))
+    monkeypatch.chdir(found.work)
+    walk.VERBS["end"]({"plan": str(found.plan)})
+    answer = walk.VERBS["archive"]({"plan": str(found.plan)})
+    assert Path(answer["path"]).resolve() == (found.work / folder / "runs" / "feat-x-run.md").resolve()
+
+
+def test_no_parent_prd_refuses(tmp_path, monkeypatch):
+    found = linked(plan_fixture.build(tmp_path, {"0001-a": with_prd("0001-a", "")}))
+    monkeypatch.chdir(found.work)
+    walk.VERBS["end"]({"plan": str(found.plan)})
+    with pytest.raises(start_gate.Refusal) as caught:
+        walk.VERBS["archive"]({"plan": str(found.plan)})
+    assert caught.value.code == "no-spec-dir"
+
+
 def test_archive_with_no_feature_worktree_refuses(built):
     git(built.work, "checkout", "-q", "-b", "other")
+    verb("end", built)
     with pytest.raises(start_gate.Refusal) as caught:
         verb("archive", built)
     assert caught.value.code == "no-feature-worktree"
 
 
-@pytest.mark.parametrize("complexity, logged", [("complex", "complex"), ("mechanical", "mechanical"), ("", "standard"), ("huge", "standard")])
+@pytest.mark.parametrize("complexity, logged", [("complex", "complex"), ("mechanical", "mechanical"), ("`Complex`", "complex"), ("", "standard"), ("huge", "standard")])
 def test_start_writes_the_complexity_class_into_the_journal(tmp_path, monkeypatch, complexity, logged):
     text = contract_text("0001-a").replace("## Complexity\nstandard", f"## Complexity\n{complexity}")
     found = plan_fixture.build(tmp_path, {"0001-a": text})

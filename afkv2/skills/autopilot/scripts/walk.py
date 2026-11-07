@@ -152,8 +152,9 @@ def _brief(plan, subtask, record, change, rulings, resume):
 
 def _class_of(contract):
     """The `## Complexity` class of a contract; `standard` when the section names none of the classes."""
-    words = contract.sections.get("Complexity", "").split()
-    return words[0] if words and words[0] in CLASSES else "standard"
+    words = contract.sections.get("Complexity", "").lower().split()
+    word = words[0].strip("`*_.,;:") if words else ""
+    return word if word in CLASSES else "standard"
 
 
 def locate(payload):
@@ -457,6 +458,7 @@ def _ships(plan, state, tally, statuses):
 
 
 def end(payload):
+    """`ship` is true only when `archive` copied this journal as it is; `end` adds a journal line, so after a walk it is false."""
     plan = _plan(payload)
     state, statuses = _load(plan), _statuses(plan)
     tally = _tally(statuses)
@@ -467,13 +469,13 @@ def end(payload):
 
 
 def _feature_worktree(plan, run_branch):
-    """The worktree that has the feature branch of this run branch checked out."""
+    """The linked worktree that has the feature branch of this run branch checked out. The main checkout never counts."""
     feature = run_branch.removesuffix(RUN_SUFFIX)
-    for block in _git(plan, "worktree", "list", "--porcelain").split("\n\n"):
+    for block in _git(plan, "worktree", "list", "--porcelain").split("\n\n")[1:]:
         lines = block.splitlines()
-        if lines and f"branch refs/heads/{feature}" in lines:
+        if lines and f"branch refs/heads/{feature}" in lines and Path(lines[0].removeprefix("worktree ")).is_dir():
             return Path(lines[0].removeprefix("worktree "))
-    raise Refusal("no-feature-worktree", f"no worktree has {feature} checked out: check it out in a worktree, and run `archive` again")
+    raise Refusal("no-feature-worktree", f"no linked worktree has {feature} checked out: check it out in one, and run `archive` again")
 
 
 def _spec_dir(plan):
@@ -505,6 +507,10 @@ def archive(payload):
     """After `end`: copy the journal into the spec folder on the feature branch. `ship` stays false until this passed."""
     plan = _plan(payload)
     state, statuses = _load(plan), _statuses(plan)
+    journal = plan / "JOURNAL.md"
+    last = read_text(journal).rstrip("\n").rsplit("\n", 1)[-1] if journal.is_file() else ""
+    if " | autopilot | run | run end (" not in last:
+        raise Refusal("not-ended", "the last journal line is not the run end: run `end`, then `archive`")
     target, committed = _copy_journal(plan, run_branch_of(plan))
     state["archived"] = _journal_digest(plan)
     _save(plan, state)
