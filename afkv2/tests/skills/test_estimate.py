@@ -16,8 +16,10 @@ SCRIPTS = HERE.parents[1] / "skills" / "to-subtasks" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(HERE))
 
+import check_plan  # noqa: E402
 import estimate  # noqa: E402
 import plan_files  # noqa: E402
+from grill_common import Refusal  # noqa: E402
 from test_to_subtasks import World, programs_on_the_path  # noqa: E402,F401
 
 HEADER = "# Journal: append-only event log, one line per event. Newest last."
@@ -132,11 +134,98 @@ def test_the_division_card_shows_the_estimate_from_earlier_runs_and_keeps_the_di
     assert [row[-3:] for row in card["body"]["props"]["rows"]] == [["0.50", "0.50", "0.50"]] * 2
     assert "app: none" in card["body"]["children"][0]["props"]["text"]
     total = card["body"]["children"][1]["props"]["text"]
-    assert "low 1.00, likely 1.00, high 1.00" in total and "1 earlier run" in total
+    assert total == "Agent run time in days, in total: low 1.00, likely 1.00, high 1.00. Basis: past run times from 1 earlier run."
+    assert answer["estimate_notes"] == []
 
 
 def test_the_division_card_says_no_earlier_run_exists(world):
     started = world.committed_plan()
     world.division(started)
-    total = world.card(started)["body"]["children"][1]["props"]["text"]
-    assert "estimated" in total and "no earlier run exists" in total and "low 0.50, likely 1.00, high 2.00" in total
+    card = world.card(started)
+    assert [row[-3:] for row in card["body"]["props"]["rows"]] == [["0.25", "0.50", "1.00"]] * 2
+    total = card["body"]["children"][1]["props"]["text"]
+    assert total == ("Agent run time in days, in total: low 0.50, likely 1.00, high 2.00. "
+                     "Basis: estimated from the size of each subtask, because no earlier run exists.")
+
+
+
+# Bad input.
+
+def test_an_unreadable_journal_copy_is_a_bad_journal_note_not_a_crash(tmp_path):
+    specs = tmp_path / "specs"
+    journal(specs, "A-1", "feat-a-run", ran("0001-x", "2026-01-02 08:00", "2026-01-02 20:00", "standard"))
+    (specs / "B-2" / "runs" / "folder.md").mkdir(parents=True)
+    unreadable = journal(specs, "C-3", "feat-c-run", [])
+    real_read = Path.read_text
+
+    def read_text(self, *args, **kwargs):
+        if self == unreadable:
+            raise PermissionError("denied")
+        return real_read(self, *args, **kwargs)
+
+    plan = plan_of(tmp_path, ["standard"])
+    from unittest import mock
+    with mock.patch.object(Path, "read_text", read_text):
+        answer = estimate.estimate(plan, specs)
+    assert answer["ok"] and answer["runs"] == 1 and answer["skipped"] == 1
+    assert answer["notes"][0].startswith("bad-journal: ") and "feat-c-run.md" in answer["notes"][0]
+
+
+@pytest.mark.parametrize("missing", ["plan", "spec_root"])
+def test_a_missing_folder_refuses(tmp_path, missing):
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    plan = plan_of(tmp_path, ["standard"])
+    args = {"plan": plan, "spec_root": specs, missing: tmp_path / "nowhere"}
+    with pytest.raises(Refusal) as caught:
+        estimate.estimate(args["plan"], args["spec_root"])
+    assert caught.value.code == ("no-plan" if missing == "plan" else "no-spec-root")
+
+
+def test_the_command_refuses_a_missing_plan_with_one_json_object(tmp_path):
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    done = subprocess.run([sys.executable, str(SCRIPTS / "estimate.py"), "--plan", str(tmp_path / "nowhere"), "--spec-root", str(specs)],
+                          capture_output=True, text=True)
+    assert done.returncode == 1 and json.loads(done.stdout)["error"]["code"] == "no-plan"
+
+
+def test_journal_copies_with_no_finished_run_are_told_apart_from_no_copy(tmp_path):
+    specs = tmp_path / "specs"
+    journal(specs, "A-1", "feat-a-run", [line("2026-01-04 00:00", "0003-open", "developing")])
+    journal(specs, "B-2", "feat-b-run", [])
+    answer = estimate.estimate(plan_of(tmp_path, ["standard"]), specs)
+    assert (answer["basis"], answer["runs"], answer["copies"]) == ("estimated", 0, 2)
+    assert plan_files._estimate_line(answer).endswith(
+        "Basis: estimated from the size of each subtask, because the 2 journal copies hold no finished run.")
+
+
+def test_the_total_is_the_sum_of_the_shown_rows(tmp_path):
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    answer = estimate.estimate(plan_of(tmp_path, ["mechanical"] * 3), specs)
+    assert [row["likely"] for row in answer["rows"]] == [0.12] * 3
+    assert answer["total"]["likely"] == 0.36
+
+
+@pytest.mark.parametrize("runs, copies, skipped, basis, tail", [
+    (1, 1, 0, "journals", "Basis: past run times from 1 earlier run."),
+    (2, 2, 0, "journals", "Basis: past run times from 2 earlier runs."),
+    (2, 3, 1, "journals", "Basis: past run times from 2 earlier runs. 1 unreadable journal line skipped."),
+    (1, 1, 3, "journals", "Basis: past run times from 1 earlier run. 3 unreadable journal lines skipped."),
+    (0, 1, 0, "estimated", "Basis: estimated from the size of each subtask, because the 1 journal copy holds no finished run."),
+])
+def test_the_estimate_line_counts_runs_copies_and_skipped_lines(runs, copies, skipped, basis, tail):
+    answer = {"total": {"low": 1, "likely": 2, "high": 3}, "runs": runs, "copies": copies, "skipped": skipped, "basis": basis}
+    assert plan_files._estimate_line(answer) == f"Agent run time in days, in total: low 1.00, likely 2.00, high 3.00. {tail}"
+
+
+def test_the_card_puts_low_likely_and_high_in_order_per_subtask(tmp_path):
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    plan = plan_of(tmp_path, ["mechanical", "complex"])
+    (plan / "PLAN.md").write_text("# Plan\n\n> Feature: x\n", "utf-8")
+    subtasks = check_plan.read_subtasks(plan)
+    card, _ = plan_files._division_card(plan, subtasks, {s.id: "why" for s in subtasks}, "card-1", "d", [], specs)
+    rows = card["body"]["props"]["rows"]
+    assert [row[-3:] for row in rows] == [["0.05", "0.12", "0.25"], ["0.50", "1.00", "2.00"]]

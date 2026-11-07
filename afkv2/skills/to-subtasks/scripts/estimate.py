@@ -16,8 +16,9 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path[:0] = [str(SCRIPTS), str(SCRIPTS.parents[1] / "use-lavish" / "scripts")]
 
 import check_plan as cp  # noqa: E402
-from grill_common import Parser, serve  # noqa: E402
+from grill_common import Parser, Refusal, serve  # noqa: E402
 
+# The class set is a copy of the enum in SUBTASK-CONTRACT.md `## Complexity`; walk.py CLASSES writes the journal events.
 WEIGHTS = {"mechanical": 0.5, "standard": 1.0, "complex": 2.0}
 SIZE_TABLE = {"mechanical": (0.05, 0.125, 0.25), "standard": (0.25, 0.5, 1.0), "complex": (0.5, 1.0, 2.0)}
 PERCENTILES = (0.2, 0.5, 0.8)
@@ -39,7 +40,12 @@ def class_of(text):
 def _events(path, notes):
     """[(time, subject, event)] of one journal; each unreadable line becomes a `bad-journal` note."""
     found = []
-    for number, text in enumerate(path.read_text("utf-8", errors="replace").splitlines(), 1):
+    try:
+        lines = path.read_text("utf-8", errors="replace").splitlines()
+    except OSError as error:
+        notes.append(f"bad-journal: {path.as_posix()} cannot be read: {error.strerror or error}")
+        return found
+    for number, text in enumerate(lines, 1):
         if not text.strip() or text.startswith("#"):
             continue
         match = LINE.match(text)
@@ -82,23 +88,31 @@ def _days(value):
 
 
 def estimate(plan, spec_root):
-    """{"ok", "rows": [{subtask, low, likely, high}], "total", "runs", "basis", "skipped", "notes"}; days."""
-    notes, samples, runs = [], [], 0
+    """{"ok", "rows": [{subtask, low, likely, high}], "total", "runs", "copies", "basis", "skipped", "notes"}; days.
+    The total is the sum of the shown, rounded rows."""
+    if not Path(plan).is_dir():
+        raise Refusal("no-plan", f"{plan} is no folder")
+    if not Path(spec_root).is_dir():
+        raise Refusal("no-spec-root", f"{spec_root} is no folder, so no journal copy can be read")
+    notes, samples, runs, copies = [], [], 0, 0
     for path in sorted(Path(spec_root).glob(JOURNAL_GLOB)):
+        if not path.is_file():
+            continue
+        copies += 1
         found = _samples(_events(path, notes))
         runs += bool(found)
         samples += found
     ordered = sorted(samples)
-    rows, total = [], [0.0, 0.0, 0.0]
+    rows = []
     for subtask in cp.read_subtasks(plan):
         complexity = class_of(subtask.sections.get("Complexity", ""))
         if ordered:
             spread = [_percentile(ordered, fraction) * WEIGHTS[complexity] / MINUTES_A_DAY for fraction in PERCENTILES]
         else:
             spread = list(SIZE_TABLE[complexity])
-        total = [whole + part for whole, part in zip(total, spread)]
         rows.append({"subtask": subtask.id, **{key: _days(value) for key, value in zip(KEYS, spread)}})
-    return {"ok": True, "rows": rows, "total": {key: _days(value) for key, value in zip(KEYS, total)}, "runs": runs,
+    total = {key: _days(sum(row[key] for row in rows)) for key in KEYS}
+    return {"ok": True, "rows": rows, "total": total, "runs": runs, "copies": copies,
             "basis": "journals" if ordered else "estimated", "skipped": len(notes), "notes": notes}
 
 
