@@ -16,17 +16,19 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
+import subprocess  # noqa: F401  the grill tests reach git through grill_log.subprocess
 import sys
-import time
+import time  # noqa: F401  and the clock through grill_log.time
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
-from round_document import (ASKING, _carried, _carries_card, _components, card_notes, current_round,  # noqa: E402
+from round_document import (ASKING, _carried, _components, card_notes, current_round,  # noqa: E402
                             format_1, is_version_2, returning, signature_missing, steer_targets, steers)
+import pass_history  # noqa: E402
+from pass_history import GIT_LIMIT_S, RUN_SUFFIX, last_pass, last_pass_row  # noqa: E402,F401
 
 SECTION = "## Requirements grill"
 KEYED_KINDS = {"Ledger", "Term", "Policy", "Staples", "Spinoff", "Takeover"}
@@ -35,17 +37,10 @@ REQUIRED_KINDS = ("Policy", "Staples", "Examples", "Devil")
 STATUS_ROW = re.compile(r"^.+ → (pending|(verified|refuted) \(.+\)|unverified-external\b.*)$")
 # A takeover row: the round and the time of one entry of `session.takeovers`, as take-over answers them.
 TAKEOVER_ROW = re.compile(r"^R[1-9][0-9]* · \d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
-# The run branch of a feature branch. Lockstep copy of check_plan.RUN_SUFFIX of to-subtasks, not imported: a test world
-# copies only the skills it runs. test_grill_v2.py compares them.
-RUN_SUFFIX = "-run"
-GIT_LIMIT_S = 30
 GATE_PASSED = "- Settled: exit gate passed"
-# The round of the session's last passed end check; `changed` measures from it. A sync keeps it.
-LAST_PASS_ROW = re.compile(r"^- Last pass: R([1-9][0-9]*) · session (\S+)$")
 EXAMPLE_KINDS = ("frequent", "edge", "risky")
-# The page lists whose entries carry change lines, with the field that names each entry (SDD §4).
-ENTRY_TEXT = {"sections": ("section", "title"), "stories": ("story", "text"), "examples": ("example", "title"),
-              "questions": ("question", "question")}
+# The documents a later skill writes, as (file, record folder) pairs of the spec folder (decision D-25).
+LATER_WRITERS = (("PRD.md", "adr/requirements"), ("SDD.md", "adr/design"))
 GENERATED = re.compile(r"^- (Session|Steer): |^- (Settled|Open|Carried|Info): .* · card \S+$")
 
 
@@ -118,14 +113,6 @@ def write_row(log, kind, text):
     return {"ok": True, "row": row}
 
 
-def _first_text(item):
-    for component in _components(item["body"]):
-        value = (component.get("props") or {}).get("text")
-        if component.get("type") == "text" and value:
-            return " ".join(value.split())
-    return item["id"]
-
-
 def _field_text(item, name, prefix=""):
     """The text of a decided field. A field with a label carries its grade as a badge; an older card has the
     grade or the prefix in its text already."""
@@ -163,7 +150,7 @@ def _how_settled(doc, item):
 
 
 def _item_row(doc, item, is_current, targets):
-    title, card, notes = _first_text(item), f"· card {item['id']}", _note_lines(doc, item, targets)
+    title, card, notes = pass_history.card_text(item), f"· card {item['id']}", _note_lines(doc, item, targets)
     if item.get("settled") and item["state"] in ("settled_by_mark", "settled_by_note"):
         return [f"- Settled: {title} · {_how_settled(doc, item)} {card}", *notes]
     if is_current and item["kind"] in ASKING:
@@ -248,8 +235,8 @@ def _v2_failures(doc):
     page with no story and no worked example keeps today's check: the log's Examples row (decision D-24)."""
     failures = []
     for question in doc.get("questions") or []:
-        if question.get("state") == "open":
-            failures.append(("question-open", f"{question['id']}: {question['question']} (who: {', '.join(question['who'])})"))
+        if pass_history.is_open(question):
+            failures.append(("question-open", pass_history.question_line(question)))
         if question.get("state") == "dropped" and not ((question.get("dropped") or {}).get("reason") or "").strip():
             failures.append(("drop-no-reason", f"{question['id']}: {question['question']}"))
     stories, examples = doc.get("stories") or [], doc.get("examples") or []
@@ -277,88 +264,22 @@ def _log_failures(blocks):
     return failures
 
 
-def _last_pass(block, session):
-    """The round that the block's `Last pass` row holds for the session, else None."""
-    found = LAST_PASS_ROW.match(block[0])
-    return int(found.group(1)) if found and found.group(2) == session else None
-
-
-def _last_pass_row(doc):
-    return f"- Last pass: R{current_round(doc)['n']} · session {doc['session']['id']}"
-
-
 def keep_last_pass(doc_path, log):
     """A log from before the `Last pass` row: write the row for a session whose end check passed. The current round of
     its page is the passed round, because a sync after a new round removes the gate row."""
     doc = format_1(read_json(doc_path))
     head, blocks, tail = _split(log)
-    if not any(_last_pass(block, doc["session"]["id"]) is not None for block in blocks):
-        write_text(log, _join(head, blocks + [[_last_pass_row(doc)]], tail))
+    if not any(last_pass(block[0], doc["session"]["id"]) is not None for block in blocks):
+        write_text(log, _join(head, blocks + [[last_pass_row(doc)]], tail))
 
 
 def _changed(doc, passed):
-    """Each point of the last passed round or earlier that changed later: a card a later card carries, and an entry
-    with a change line on both sides of that round. An entry added later is new, not changed. No pass yet: nothing."""
-    if passed is None:
-        return []
-    later = [card for rnd in doc["rounds"] if rnd["n"] > passed for card in rnd["items"]]
-    changed = [{"id": item["id"], "kind": "card", "text": _first_text(item)}
-               for rnd in doc["rounds"] if rnd["n"] <= passed for item in rnd["items"]
-               if item["kind"] in ASKING and any(_carries_card(card, item["id"]) for card in later)]
-    for name, (kind, field) in ENTRY_TEXT.items():
-        for entry in doc.get(name) or []:
-            rounds = [line.get("round", 0) for line in entry.get("changes") or []]
-            if any(n <= passed for n in rounds) and any(n > passed for n in rounds):
-                changed.append({"id": entry["id"], "kind": kind, "text": entry[field]})
-    return changed
-
-
-class _NoAnswer(Exception):
-    """Git did not answer: no git program, or the shared time limit ran out."""
-
-
-def _run_plan(spec_dir):
-    """`<run branch>:plan/PLAN.md` when git holds the plan of this feature branch, else None. When git does not
-    answer within GIT_LIMIT_S for all its calls, that spec with ` (not checked: <reason>)`: the plan can be stale."""
-    deadline = time.monotonic() + GIT_LIMIT_S
-
-    def git(*args):
-        left = deadline - time.monotonic()
-        if left <= 0:
-            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s")
-        try:
-            done = subprocess.run(["git", "-C", str(spec_dir), *args], capture_output=True, stdin=subprocess.DEVNULL,
-                                  timeout=left)
-        except subprocess.TimeoutExpired as error:
-            raise _NoAnswer(f"git took more than {GIT_LIMIT_S} s") from error
-        except OSError as error:
-            raise _NoAnswer(f"git did not run: {error}") from error
-        return done.stdout.decode("utf-8", "replace").strip() if done.returncode == 0 else None
-    run = f"<feature branch>{RUN_SUFFIX}"
-    try:
-        branch = git("rev-parse", "--abbrev-ref", "HEAD")
-        if not branch or branch == "HEAD":
-            return None
-        run = branch + RUN_SUFFIX
-        for ref in (f"refs/heads/{run}", f"refs/remotes/origin/{run}"):
-            if git("cat-file", "-e", f"{ref}:plan/PLAN.md") is not None:
-                return f"{run}:plan/PLAN.md"
-    except _NoAnswer as error:
-        return f"{run}:plan/PLAN.md (not checked: {error})"
-    return None
+    return pass_history.changed(doc, passed)
 
 
 def _later_documents(spec_dir):
-    """Each document of the ticket that a later skill wrote and that exists (decision D-25). An entry is a file path,
-    or the git spec `<run branch>:plan/PLAN.md` (read it with `git show`), with ` (not checked: <reason>)` when git
-    did not answer."""
-    spec_dir = Path(spec_dir)
-    found = []
-    for name, folder in (("PRD.md", "adr/requirements"), ("SDD.md", "adr/design")):
-        found += [path for path in [spec_dir / name] if path.is_file()]
-        found += sorted((spec_dir / folder).glob("*.md"))
-    plan = _run_plan(spec_dir)
-    return [path.as_posix() for path in found] + ([plan] if plan else [])
+    """Each document of the ticket that a later skill wrote and that exists, and the plan of the run branch."""
+    return pass_history.stale(spec_dir, LATER_WRITERS)
 
 
 def gate(doc_path, log):
@@ -368,10 +289,10 @@ def gate(doc_path, log):
     if failures:
         raise Refusal("exit-gate", f"{len(failures)} exit-gate checks failed", failures=failures)
     today, session = datetime.now(timezone.utc).strftime("%Y-%m-%d"), doc["session"]["id"]
-    passed = next((n for n in (_last_pass(block, session) for block in blocks) if n is not None), None)
+    passed = next((n for n in (last_pass(block[0], session) for block in blocks) if n is not None), None)
     blocks = [block for block in blocks
-              if not block[0].startswith(GATE_PASSED) and _last_pass(block, session) is None]
-    blocks += [[f"{GATE_PASSED} {today} · session {session}"], [_last_pass_row(doc)]]
+              if not block[0].startswith(GATE_PASSED) and last_pass(block[0], session) is None]
+    blocks += [[f"{GATE_PASSED} {today} · session {session}"], [last_pass_row(doc)]]
     write_text(log, _join(head, blocks, tail))
     return {"ok": True, "passed": today, "stale": _later_documents(Path(doc_path).parent.parent),
             "changed": _changed(doc, passed)}
