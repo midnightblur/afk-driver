@@ -262,3 +262,10 @@ def test_the_banner_line_comes_before_the_lines_of_the_agent(tmp_path):
 def test_a_bad_proposers_input_is_refused(tmp_path, proposers):
     assert refused(tmp_path, round_of(confirm("c-1"), proposers=proposers)).code == "bad-proposers"
     assert not doc_path(tmp_path).exists()
+
+
+# --- no estimate (PRD AC-042, SDD §6 I-7)
+
+def test_a_design_page_holds_no_estimate_field(tmp_path):
+    build(tmp_path, round_of(decided("d-1"), estimate={"hours": 3}))
+    assert '"estimate"' not in doc_path(tmp_path).read_text("utf-8")
