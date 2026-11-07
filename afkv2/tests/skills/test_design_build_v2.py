@@ -269,3 +269,45 @@ def test_a_bad_proposers_input_is_refused(tmp_path, proposers):
 def test_a_design_page_holds_no_estimate_field(tmp_path):
     build(tmp_path, round_of(decided("d-1"), estimate={"hours": 3}))
     assert '"estimate"' not in doc_path(tmp_path).read_text("utf-8")
+
+
+# --- fork credits (PRD AC-022; SDD §14 row "fork cards")
+
+import fork_cards  # noqa: E402
+
+
+def fork_item(*options):
+    return {"id": "f-1", "fork": {"question": "Which store?", "why_open": "2 live options.", "options": list(options)}}
+
+
+def option_table(item):
+    return next(c for c in item["body"]["children"] if c["type"] == "table")
+
+
+def test_a_fork_option_with_by_shows_the_tool_credit(tmp_path):
+    build(tmp_path, round_of(fork_item({"name": "One table", "text": "Fewer reads.", "by": "claude"},
+                                       {"name": "Two tables", "text": "Smaller rows.", "by": "codex"})))
+    rows = option_table(card(tmp_path, "f-1"))["props"]["rows"]
+    assert [cell["id"] for cell in rows[0]] == ["f-1-opt-a", "f-1-opt-b"]
+    assert [(cell["type"], cell["props"]["text"]) for cell in rows[1]] == [("chip", "Claude proposes"),
+                                                                        ("chip", "Codex proposes")]
+
+
+def test_an_option_without_by_gets_an_empty_credit_cell(tmp_path):
+    item = fork_cards.expand_fork(fork_item({"name": "One table", "text": "Fewer reads.", "by": "codex"},
+                                            {"name": "Two tables", "text": "Smaller rows."}))
+    assert option_table(item)["props"]["rows"][1][1] == ""
+
+
+def test_a_fork_with_no_credit_keeps_one_row(tmp_path):
+    item = fork_cards.expand_fork(fork_item({"name": "One table", "text": "Fewer reads."},
+                                            {"name": "Two tables", "text": "Smaller rows."}))
+    assert len(option_table(item)["props"]["rows"]) == 1
+
+
+@pytest.mark.parametrize("by", ["", 3, None])
+def test_a_bad_credit_is_refused(by):
+    with pytest.raises(Refusal) as refusal:
+        fork_cards.expand_fork(fork_item({"name": "One table", "text": "Fewer reads.", "by": by},
+                                         {"name": "Two tables", "text": "Smaller rows."}))
+    assert refusal.value.code == "bad-fork"

@@ -1,7 +1,8 @@
 """Fork cards: a `debate` item whose body shows the options side by side (SDD §4).
 
 One table column per option, and one cell per option with the id `<item id>-opt-<letter>`. The page
-offers one option mark per such cell, labelled with its column heading.
+offers one option mark per such cell, labelled with its column heading. An option with `by`, the tool that
+proposed it, adds a second row with a credit chip "<Tool> proposes" (ADR-0003 design).
 """
 
 from __future__ import annotations
@@ -23,6 +24,11 @@ def _text(component_id, value):
     return {"type": "text", "id": component_id, "props": {"text": value}}
 
 
+def _credit(component_id, tool):
+    return {"type": "chip", "id": component_id,
+            "props": {"text": f"{tool[:1].upper()}{tool[1:]} proposes", "tone": "proposed"}}
+
+
 def _check(item_id, question, options, why_open, recommended, picture):
     where = f"fork {item_id}"
     if not question or not why_open:
@@ -32,6 +38,8 @@ def _check(item_id, question, options, why_open, recommended, picture):
     names = [option.get("name") if isinstance(option, dict) else None for option in options]
     if not all(names) or not all(isinstance(option, dict) and option.get("text") for option in options):
         raise Refusal("bad-fork", f"{where}: each option has a name and a text")
+    if not all(isinstance(option["by"], str) and option["by"].strip() for option in options if "by" in option):
+        raise Refusal("bad-fork", f"{where}: `by` names the tool that proposed the option")
     if len(set(names)) != len(names):
         raise Refusal("bad-fork", f"{where}: 2 options have the same name")
     if recommended is not None and recommended not in LETTERS[:len(options)]:
@@ -48,9 +56,13 @@ def build_fork_card(item_id, question, options, why_open, recommended=None, pict
     _check(item_id, question, options, why_open, recommended, picture)
     choice = f"Recommended: {recommended.upper()}." if recommended else "No recommendation."
     asked = _text(f"{item_id}-question", f"{question} {choice}")
+    rows = [[_text(f"{item_id}-opt-{letter}", option["text"]) for letter, option in zip(LETTERS, options)]]
+    if any("by" in option for option in options):
+        rows.append([_credit(f"{item_id}-by-{letter}", option["by"]) if "by" in option else ""
+                     for letter, option in zip(LETTERS, options)])
     table = {"type": "table", "id": f"{item_id}-options", "props": {
         "columns": [f"{letter.upper()} — {option['name']}" for letter, option in zip(LETTERS, options)],
-        "rows": [[_text(f"{item_id}-opt-{letter}", option["text"]) for letter, option in zip(LETTERS, options)]]}}
+        "rows": rows}}
     why = _text(f"{item_id}-why-open", why_open)
     if picture is None:
         body = {**asked, "children": [table, why]}
