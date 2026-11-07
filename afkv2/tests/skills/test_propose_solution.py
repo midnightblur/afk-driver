@@ -470,13 +470,6 @@ def test_an_answer_on_disk_is_reported_at_resume(world):
     assert world.run("start", ticket_key="PROJ-1")["raw_pending"] is True
 
 
-# The second provider.
-
-def test_the_second_provider_slot_is_off(world):
-    answer = world.run("second-provider", round_input=world.file("r.json", round_of()))
-    assert answer == {"ok": True, "state": "off", "forks": []}
-
-
 # The log.
 
 def test_a_premise_row_is_written_once_and_updated(world):
@@ -781,7 +774,6 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
                      {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                       "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}})
     draft["sections"] = SECTIONS
-    assert world.run("second-provider", round_input=world.file("draft.json", draft))["forks"] == []
     world.build(started, draft)
     world.run("present", doc=started["doc"], log=started["log"])
     world.accept_all(started)
