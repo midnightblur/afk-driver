@@ -107,7 +107,7 @@ Contract rows, at HL-2 grade. Each surface is a CLI verb run from the repository
 | S-9 | `estimate.py --plan P --spec-root R` (new) and the division card (changed) | plan skill step 6 (`plan_files.py division` calls it) | plan passes `check_plan.py` | `{"ok", "rows": [{subtask, low, likely, high}], "total": {low, likely, high}, "runs": n, "basis": "journals" or "estimated"}`, days to 1 decimal | `bad-journal` names a line it cannot read, and the line is skipped, never fatal | read-only | the division card gains 1 child; `plan_digest` is unchanged because the estimate is outside the plan files |
 | S-10 | setup herdr status (changed) and `setup.py herdr --answer yes|no` (new) | setup skill | status: read-only check of `herdr` on PATH and the record key `herdr`; the verb runs only with the developer's answer from the session | status `{"herdr": "present" or "declined" or "ask"}`; verb `{"herdr": "installed" or "declined"}` | `install-failed` with the installer's last line | an answer `declined` is recorded once and never asked again (fork d2-setup-decline) | setup runs that find herdr present ask nothing (AC-030) |
 
-The herdr playbook skill (`afkv2/skills/herdr/SKILL.md`) is a document surface, read by agents, with H-1 to H-9.
+The herdr playbook skill (`afkv2/skills/herdr-playbook/SKILL.md`) is a document surface, read by agents, with H-1 to H-9.
 
 ## §4 L3 — Data Architecture
 
@@ -425,6 +425,6 @@ Performance section of this design (`sec-performance`): PF-1 problems are the pa
 | gc | deletes the run branch (`cleanup.py:244,254`) | none; the copy lives outside its scope | cleanup | — | fits |
 | division card | 1 signoff card with the subtask table (`plan_files.py:368-376`) | + Low, Likely, High day columns and 1 total and basis line | plan approval | the digest covers plan files only (`plan_files.py:335`), so it stays the same | extends (ADR-0005) |
 | setup tools | hard-coded tools behind a Runner (`tools.py:115-146`) | + herdr check and consented install | setup | never download a program into a temp folder (AC-029) | extends (ADR-0006) |
-| skills folder | every folder loads as a skill (`plugin.json`) | + `skills/herdr/` | agent skill list | frontmatter + `plugin_check.py` + glossary entry | fits |
+| skills folder | every folder loads as a skill (`plugin.json`) | + `skills/herdr-playbook/` | agent skill list | frontmatter + `plugin_check.py` + glossary entry | fits |
 
 Compatibility findings accepted under the delegation: grill rounds and decided cards render unchanged when they send no new field; the 8 old design pages stay readable and upgrade only on reopen; `second_provider.py` disappears, and nothing outside the design skill calls it.

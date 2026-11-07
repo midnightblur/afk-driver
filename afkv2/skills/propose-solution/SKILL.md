@@ -57,7 +57,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `draft` | step 4 with [DRAFT.md](DRAFT.md): propose `layers_to_ask` from the top down, and return each of `layers_open` and `locked_open` |
    | `write` | step 9 |
 
-   **The solution proposers.** `proposers.py` drives herdr; for a herdr command you run yourself, use the herdr playbook ([../herdr/SKILL.md](../herdr/SKILL.md)). Run `plan`. It starts nothing.
+   **The solution proposers.** `proposers.py` drives herdr; for a herdr command you run yourself, use the herdr playbook ([../herdr-playbook/SKILL.md](../herdr-playbook/SKILL.md)). Run `plan`. It starts nothing.
 
    ```sh step=proposers-plan
    <python> "<this skill's folder>/scripts/proposers.py" plan --doc "<doc>"

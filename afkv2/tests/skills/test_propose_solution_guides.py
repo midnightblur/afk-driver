@@ -105,7 +105,7 @@ def test_step_3_names_each_proposer_failure_the_script_records():
 
 
 def test_step_3_points_at_the_herdr_playbook():
-    link = re.search(r"\]\((\.\./herdr/SKILL\.md)\)", _step(3))
+    link = re.search(r"\]\((\.\./herdr-playbook/SKILL\.md)\)", _step(3))
     assert link and (SKILL_DIR / link.group(1)).resolve().is_file()
 
 
@@ -152,7 +152,7 @@ def test_step_8_copies_the_notes_into_the_log(tmp_path):
 # --- no guide names the deleted second-provider slot (SDD §14)
 
 def test_no_guide_names_the_second_provider_script():
-    guides = [*SKILL_DIR.glob("*.md"), *(SKILLS / "visualize").rglob("*.md"), *(SKILLS / "herdr").glob("*.md")]
+    guides = [*SKILL_DIR.glob("*.md"), *(SKILLS / "visualize").rglob("*.md"), *(SKILLS / "herdr-playbook").glob("*.md")]
     named = [path.name for path in guides if re.search(r"second.provider", path.read_text("utf-8"), re.I)]
     assert not named, named
     assert "second-provider" not in _steps()

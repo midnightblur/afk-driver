@@ -5,7 +5,7 @@ description: herdr playbook — how an agent uses herdr to open and close panes,
 
 # herdr playbook
 
-herdr is a terminal workspace manager for coding agents. Each row below gives the command and the official page that the command was checked against: herdr docs v0.9.5, local herdr 0.9.1. When a command fails, the installed binary is the authority: run `herdr <group>` with no subcommand (for example `herdr pane`) to print its syntax. Never run bare `herdr`: it opens the terminal UI. Never omit the arguments of a command that changes the layout to learn its syntax: `herdr workspace create` runs with its defaults.
+herdr is a terminal workspace manager for coding agents. Each section below gives the commands and the official pages they were checked against: herdr docs v0.9.5, local herdr 0.9.1. When a command fails, the installed binary is the authority: run `herdr <group>` with no subcommand (for example `herdr pane`) to print its syntax. Never run bare `herdr`: it opens the terminal UI. Never omit the arguments of a command that changes the layout to learn its syntax: `herdr workspace create` runs with its defaults.
 
 Most commands print one JSON object. Read each id from that answer; never predict an id. An error prints JSON on stderr with exit 1, and its code at `.error.code`. A usage error exits 2.
 
@@ -24,17 +24,17 @@ herdr pane current --current
 herdr agent list
 ```
 
-Docs: <https://herdr.dev/tui/docs/concepts/>, <https://herdr.dev/tui/docs/agent-automation/#three-primitives>
+Docs: <https://herdr.dev/tui/docs/concepts/>, <https://herdr.dev/tui/docs/agent-automation/#three-primitives>, <https://herdr.dev/tui/docs/agent-skill/> (the id forms and the closed-id rule)
 
 ## H-2 Open, close and rename a pane or tab
 
-Default: a sibling pane in the current tab, with the working folder you need. Do not create a workspace or a tab unless the task asks for one. Keep the user's focus with `--no-focus`.
+Default: a sibling pane in the current tab, with the working folder you need. Do not create a workspace or a tab unless the task asks for one. Keep the developer's focus with `--no-focus`.
 
 ```
 herdr pane split --current --direction right --cwd <folder> --no-focus   # new id: .result.pane.pane_id
 herdr pane rename <pane_id> <label>
 herdr pane close <pane_id>
-herdr tab create --cwd <folder> --label <label> --no-focus               # .result.tab.tab_id, .result.root_pane.pane_id
+herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd <folder> --label <label> --no-focus   # .result.tab.tab_id, .result.root_pane.pane_id
 herdr tab rename <tab_id> <label>
 herdr tab close <tab_id>
 ```
@@ -53,7 +53,7 @@ herdr pane wait-output <pane_id> --match "<text>" --timeout 120000      # or --r
 herdr pane read <pane_id> --source recent-unwrapped --lines 120
 ```
 
-`pane wait-output` also matches output that is already on the screen. Read sources: `visible` (the screen now), `recent`, `recent-unwrapped` (best for logs), `detection`.
+`pane wait-output` searches the last 80 rows (`--lines`) at once, and that includes the echoed command. Pick a match text that only new output holds. Read sources: `visible` (the screen now), `recent`, `recent-unwrapped` (best for logs), `detection`.
 
 Docs: <https://herdr.dev/tui/docs/cli-reference/#panes>, <https://herdr.dev/tui/docs/cli-reference/#output-waits>, <https://herdr.dev/tui/docs/cli-reference/#read-sources>
 
@@ -66,9 +66,14 @@ herdr agent start <name> --kind claude --pane <pane_id> --timeout 90000 -- --dan
 herdr agent start <name> --kind codex  --pane <pane_id> --timeout 90000 -- --yolo
 ```
 
-`--timeout` is in milliseconds, more than 3000 and at most 300000; the default is 30000. The answer `agent_not_ready` means the agent shows a dialog at startup: read it (H-5) before you do anything else. A policy can forbid full auto-approval: Claude managed settings `permissions.disableBypassPermissionsMode: "disable"`, or a Codex `requirements.toml` without `danger-full-access`. Then do not start the agent; fall back as in H-9.
+`--timeout` is in milliseconds, more than 3000 and at most 300000; the default is 30000. The answer `agent_not_ready` means the agent shows a dialog at startup: read it (H-5) before you do anything else. A policy can forbid full auto-approval:
 
-Docs: <https://herdr.dev/tui/docs/agent-automation/#agent-identity-and-launch>, <https://code.claude.com/docs/en/permission-modes>, <https://developers.openai.com/codex/cli/reference>
+- Claude: `permissions.disableBypassPermissionsMode` is `"disable"` in `managed-settings.json` or in a file of `managed-settings.d/`. The folder is `/Library/Application Support/ClaudeCode/` on macOS, `/etc/claude-code/` on Linux and WSL, and `C:\Program Files\ClaudeCode\` on Windows.
+- Codex: `allowed_sandbox_modes` is set and does not hold `danger-full-access`, in `/etc/codex/requirements.toml` on Linux and macOS, or `%ProgramData%\OpenAI\Codex\requirements.toml` on Windows.
+
+Then do not start the agent; fall back as in H-9.
+
+Docs: <https://herdr.dev/tui/docs/agent-automation/#agent-identity-and-launch>, <https://code.claude.com/docs/en/permission-modes>, <https://code.claude.com/docs/en/managed-settings>, <https://developers.openai.com/codex/cli/reference>, <https://developers.openai.com/codex/enterprise/managed-configuration>
 
 ## H-5 Send text to another pane, and read its output
 
@@ -81,7 +86,7 @@ herdr pane send-keys <pane_id> enter
 herdr pane read <pane_id> --source visible --lines 40
 ```
 
-`agent prompt` refuses `agent_blocked` and sends nothing when the agent shows an approval or a question dialog. Read the dialog before you answer it. For a long answer, ask the agent to write it to a file and reply with the path; then read the file. A full-screen agent that is still working can refuse `agent read --lines N` with `agent_not_idle`.
+`agent prompt` refuses `agent_blocked` and sends nothing when the agent shows an approval or a question dialog. Read the dialog, then ask the developer before you answer it with `agent send-keys`. For a dialog at startup, wait for idle before you prompt. A full-screen agent refuses `agent read --lines N` with `agent_not_idle` while it is working, blocked or unknown: wait for idle and read again, or use `--source visible`. When a longer `recent-unwrapped` read still cuts the answer, ask the agent to write it to a file and reply with the path; then read the file. Use this only as a fallback, never in the first prompt.
 
 Docs: <https://herdr.dev/tui/docs/agent-automation/#choose-the-control-surface>, <https://herdr.dev/tui/docs/agent-automation/#alternate-screen-history-reads>, <https://herdr.dev/tui/docs/cli-reference/#agents>
 
@@ -95,7 +100,7 @@ Exit 0: the agent started work. The code `agent_prompt_stalled`: herdr saw no wo
 
 1. `herdr pane read <pane_id> --source visible --lines 40`.
 2. The text is gone from the input line: the prompt was submitted.
-3. The text still sits in the input line: send 1 Enter with `herdr pane send-keys <pane_id> enter`, then `herdr agent wait <name> --until working --timeout 30000`. Exit not 0: report the prompt as not submitted. Send no second Enter.
+3. The text still sits in the input line: send 1 Enter with `herdr pane send-keys <pane_id> enter`, then `herdr agent wait <name> --until working --timeout 30000`. Exit not 0: the agent can finish before herdr sees it work, so read the pane again, or check `completion_seq` in `herdr agent get <name>`. Only when neither shows work, report the prompt as not submitted. Send no second Enter.
 
 Docs: <https://herdr.dev/tui/docs/cli-reference/#agents>, <https://herdr.dev/tui/docs/cli-reference/#output-waits>
 
@@ -118,7 +123,7 @@ herdr pane close <pane_id>
 git worktree remove <worktree>                           # only a worktree you created for the agent
 ```
 
-The code `pane_not_found` means the pane is already gone. Close only the panes you opened, never the pane of the user or of another agent.
+The code `pane_not_found` means the pane is already gone. Close only the panes you opened, never the pane of the developer or of another agent.
 
 Docs: <https://herdr.dev/tui/docs/cli-reference/#panes>, <https://git-scm.com/docs/git-worktree>
 
@@ -129,6 +134,6 @@ herdr sets `HERDR_ENV=1` in each process of a pane it manages, with `HERDR_PANE_
 - `HERDR_ENV` is `1`.
 - `herdr` is on `PATH`.
 
-If one check fails, send no herdr command: an agent outside herdr must not control a session it does not own. Fall back: do the work in your own session or a subagent, and tell the user the reason (herdr missing, or the session outside herdr). Setup installs herdr after the user's yes.
+If one check fails, send no herdr command: an agent outside herdr must not control a session it does not own. Fall back: do the work in your own session or a subagent, and tell the developer the reason (herdr missing, or the session outside herdr). Setup installs herdr after the developer's yes.
 
 Docs: <https://herdr.dev/tui/docs/cli-reference/#environment-variables>, <https://herdr.dev/tui/docs/agent-skill/>, <https://herdr.dev/tui/docs/install/>
