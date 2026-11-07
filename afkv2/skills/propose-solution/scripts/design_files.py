@@ -11,6 +11,8 @@
 `design_files.py gate --doc FILE --spec-dir DIR`: the mechanical part of the design gate; lists every failure.
   A pass answers `stale`, the plan of the run branch when it exists, and `changed`, the points changed since the
   session's last passed gate; each list is empty when nothing applies. It writes the gate row and the `Last pass` row.
+  Failures include `question-open` per open question for others, `section-missing` per absent whole-system, patterns
+  or performance section, and `pane-open` per proposer pane or worktree that the proposers state file holds open.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ import grill_log  # noqa: E402
 import grill_start  # noqa: E402
 import pass_history  # noqa: E402
 import prd_files  # noqa: E402
+import section_rules  # noqa: E402
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
 from round_document import session_notes  # noqa: E402
 
@@ -53,6 +56,8 @@ EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
 ADR_SECTIONS = ("Decision", "Alternatives Considered")
 SDD_NAME = "SDD.md"
+# The section kinds of the catalog in DRAFT.md that every design page holds (PRD P-01, P-04, P-05).
+REQUIRED_KINDS = ("system", "patterns", "performance")
 # The later documents of a design are only the plan of the run branch: no later writer has a file in the spec folder.
 LATER_WRITERS = ()
 OPEN_QUESTIONS = "§13 Open Questions"
@@ -305,6 +310,15 @@ def _fork_problems(doc, records):
     return problems
 
 
+def _page_problems(doc, doc_path):
+    """The open questions for others, the absent required sections and the open proposer resources (SDD §6 I-6, I-8)."""
+    present = {entry["id"] for entry in section_rules._active(doc.get("sections") or [])}
+    required = [row["id"] for row in section_rules.catalog() if row["kind"] in REQUIRED_KINDS]
+    return ([f"question-open: {pass_history.question_line(question)}" for question in pass_history.open_questions(doc)]
+            + [f"section-missing: {sid}" for sid in required if sid not in present]
+            + [f"pane-open: {name}" for name in dr._open_resources(dr.proposers_state(doc_path))])
+
+
 def _premise_problems(log):
     head, rows, tail = _section_parts(log)
     return [f"{state}: {claim}" for claim, state in PREMISE.findall("\n".join(rows))]
@@ -319,7 +333,7 @@ def gate(argv):
     log, sdd, adr_dir = spec_dir / "GRILL-LOG.md", spec_dir / SDD_NAME, spec_dir / "adr" / "design"
     adrs = sorted(adr_dir.glob("*.md"))
     records = "\n".join(path.read_text("utf-8") for path in [*adrs, sdd] if path.is_file())
-    failures = [*grill_log._doc_failures(doc), *dr.unfinished(doc), *_premise_problems(log),
+    failures = [*grill_log._doc_failures(doc), *dr.unfinished(doc), *_page_problems(doc, args.doc), *_premise_problems(log),
                 *_sdd_problems(sdd, doc), *_adr_problems(adrs), *_fork_problems(doc, records)]
     if failures:
         raise Refusal("design-gate", f"{len(failures)} design-gate checks failed", failures=failures)

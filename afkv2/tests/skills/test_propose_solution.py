@@ -42,6 +42,20 @@ SESSION = {"id": "s-1", "skill": "propose-solution", "feature": "PROJ-1", "ticke
 OPTIONS = [{"name": "Join table", "text": "Keeps every run."}, {"name": "Run id", "text": "Keeps the last run."}]
 
 
+def section_entry(sid, body):
+    return {"id": sid, "title": sid, "state": "current", "body": body, "change": {"cause": "finding", "text": "drafted"}}
+
+
+# The sections that the design gate requires on every design page.
+SECTIONS = [
+    section_entry("sec-system", {"type": "graph", "props": {"nodes": [{"id": "n1", "label": "Orders"}]},
+                                 "children": [{"type": "text", "props": {"text": "what passes", "label": "What to see"}}]}),
+    section_entry("sec-patterns", {"type": "text", "props": {"text": "no pattern applied"}}),
+    section_entry("sec-performance", {"type": "text", "props": {"text": "the design reads 1 file of under 1 KB",
+                                                                "label": "No performance risk"}}),
+]
+
+
 def skill_steps():
     return dict(STEP.findall(SKILL_MD.read_text("utf-8")))
 
@@ -152,7 +166,7 @@ class World:
         self.accept_all(started)
         sign = {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                 "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}}
-        self.build(started, round_of(sign, *(layer_card(f"L{n}") for n in range(1, 10))))
+        self.build(started, {**round_of(sign, *(layer_card(f"L{n}") for n in range(1, 10))), "sections": SECTIONS})
         self.accept_all(started)
 
 
@@ -766,6 +780,7 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
     draft = round_of(*(layer_card(f"L{n}") for n in range(1, 10)),
                      {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                       "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}})
+    draft["sections"] = SECTIONS
     assert world.run("second-provider", round_input=world.file("draft.json", draft))["forks"] == []
     world.build(started, draft)
     world.run("present", doc=started["doc"], log=started["log"])

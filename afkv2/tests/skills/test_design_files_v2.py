@@ -107,3 +107,55 @@ def test_a_pass_after_a_takeover_lists_the_points_changed_since_the_last_pass(wo
     assert passed["changed"] == [{"id": "a-entities", "kind": "card", "text": "The reading on entities."}]
     rows = (world.spec / "GRILL-LOG.md").read_text("utf-8").split("## Solution design", 1)[1].splitlines()
     assert [row for row in rows if row.startswith("- Last pass:")] == [f"- Last pass: R3 · session {started['session']}"]
+
+
+def walked(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    world.write_design()
+    return started
+
+
+def write_page(world, started, doc):
+    (world.repo / started["doc"]).write_text(json.dumps(doc), "utf-8")
+
+
+def test_the_gate_refuses_each_open_question_for_others(world):
+    started = walked(world)
+    doc = world.doc(started)
+    doc["questions"] = [{"id": "q-1", "question": "Which store?", "who": ["ops"], "state": "open"},
+                        {"id": "q-2", "question": "Which font?", "who": ["design"], "state": "answered"}]
+    write_page(world, started, doc)
+    failures = gate_failures(world, started)
+    assert "question-open: q-1: Which store? (who: ops)" in failures
+    assert not any("q-2" in failure for failure in failures)
+
+
+@pytest.mark.parametrize("missing", ["sec-system", "sec-patterns", "sec-performance"])
+def test_the_gate_refuses_a_missing_required_section(world, missing):
+    started = walked(world)
+    doc = world.doc(started)
+    doc["sections"] = [entry for entry in doc["sections"] if entry["id"] != missing]
+    write_page(world, started, doc)
+    failures = gate_failures(world, started)
+    assert [failure for failure in failures if failure.startswith("section-missing")] == [f"section-missing: {missing}"]
+
+
+def test_a_removed_section_counts_as_missing(world):
+    started = walked(world)
+    doc = world.doc(started)
+    next(entry for entry in doc["sections"] if entry["id"] == "sec-performance")["state"] = "removed"
+    write_page(world, started, doc)
+    assert "section-missing: sec-performance" in gate_failures(world, started)
+
+
+def test_the_gate_refuses_while_the_proposers_state_file_records_an_open_pane(world):
+    started = walked(world)
+    state = (world.repo / started["doc"]).with_suffix(".proposers.json")
+    state.write_text(json.dumps({"version": 1, "count": 2, "cleaned": False, "proposers": [
+        {"tool": "claude", "pane": "p-1", "worktree": None}, {"tool": "codex", "pane": None, "worktree": "w-2"}]}), "utf-8")
+    failures = gate_failures(world, started)
+    assert "pane-open: p-1" in failures and "pane-open: w-2" in failures
+    state.write_text(json.dumps({"version": 1, "count": 2, "cleaned": True, "proposers": [
+        {"tool": "claude", "pane": None, "worktree": None}, {"tool": "codex", "pane": None, "worktree": None}]}), "utf-8")
+    assert gate_failures(world, started, expect=0)["ok"] is True
