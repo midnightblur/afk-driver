@@ -156,6 +156,28 @@ def test_a_picture_with_a_title_or_a_diagram_caption_passes():
     assert sr.check_sections(sections) == []
 
 
+def test_a_caption_of_more_than_1_line_is_named():
+    long = {"type": "graph", "props": {"nodes": []}, "children": [text("a\nb\nc", label="What to see")]}
+    failures = sr.check_sections([section("sec-system", body=long)])
+    assert codes(failures) == ["section-caption"] and "1 line" in failures[0]
+
+
+def test_draft_md_is_read_once_per_check(monkeypatch):
+    reads = []
+    real = Path.read_text
+
+    def counting(self, *args, **kwargs):
+        if self == sr.DRAFT:
+            reads.append(1)
+        return real(self, *args, **kwargs)
+
+    sr._draft_text.cache_clear()
+    monkeypatch.setattr(Path, "read_text", counting)
+    sr.check_sections(page(ORDER))
+    sr.check_sections(page(ORDER))
+    assert len(reads) == 1
+
+
 def test_a_nested_picture_with_no_caption_is_named():
     nested = picture(caption=False)
     sections = [section("sec-l1", body=level_body(rest=[text("detail", fold="Detail", children=[nested])]))]

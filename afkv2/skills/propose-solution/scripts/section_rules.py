@@ -7,6 +7,7 @@ The section catalog, the pattern columns and the performance parts are tables of
 from __future__ import annotations
 
 import copy
+import functools
 import re
 import sys
 from pathlib import Path
@@ -22,6 +23,7 @@ DRAFT = SKILL / "DRAFT.md"
 PICTURES = rd.PICTURES | {"diagram"}
 PICTURE_ROOT_KINDS = {"system", "critical", "level"}
 CAPTION_LABEL = "What to see"
+CAPTION_LINES = 1
 SUMMARY_LABEL = "Summary"
 SUMMARY_LINES = 2
 NO_PATTERN = "no pattern applied"
@@ -31,9 +33,15 @@ INACTIVE = {"merged", "removed"}
 CELL = re.compile(r"\s*\|\s*")
 
 
+@functools.lru_cache(maxsize=1)
+def _draft_text():
+    """DRAFT.md, read once per process: a check reads several of its tables."""
+    return DRAFT.read_text("utf-8")
+
+
 def _table(heading):
     """The body rows of the first table under the `### <heading>` of DRAFT.md, each a list of cells."""
-    text = DRAFT.read_text("utf-8")
+    text = _draft_text()
     start = text.index(f"### {heading}\n")
     rows = []
     for line in text[start:].splitlines()[1:]:
@@ -167,10 +175,24 @@ def _shape(entry, kind, level_ids):
     return failures
 
 
+def _lines(component):
+    return [line for line in str(_props(component).get("text") or "").splitlines() if line.strip()]
+
+
 def _captions(sid, body):
-    return [f"section-caption: a {c['type']} picture{' ' + c['id'] if c.get('id') else ''} of {sid} has no caption "
-            f"labelled {CAPTION_LABEL!r} and no title"
-            for c in _components(body) if c.get("type") in PICTURES and not _has_caption(c)]
+    failures = []
+    for c in _components(body):
+        if c.get("type") not in PICTURES:
+            continue
+        name = f"a {c['type']} picture{' ' + c['id'] if c.get('id') else ''} of {sid}"
+        if not _has_caption(c):
+            failures.append(f"section-caption: {name} has no caption labelled {CAPTION_LABEL!r} and no title")
+        long = [child for child in c.get("children") or []
+                if _labelled(child, CAPTION_LABEL) and len(_lines(child)) > CAPTION_LINES]
+        if long:
+            failures.append(f"section-caption: the caption of {name} has {len(_lines(long[0]))} lines; "
+                            f"at most {CAPTION_LINES} line")
+    return failures
 
 
 def _active(sections):
