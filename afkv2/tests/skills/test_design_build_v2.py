@@ -156,11 +156,15 @@ PRD = """# PRD
 
 - [ ] AC-009 Every decision on the page shows the 5 blocks.
 - [ ] AC-010 Every requirement named in a D-2 block shows its text on hover.
+
+## Catalog
+
+| P-01 | One table per entity |
 """
 
 
 def decided(item_id, **changes):
-    fields = {"decision": "Keep one table.", "driven_by": ["AC-009", "ADR-0001", "c-1"],
+    fields = {"decision": "Keep one table.", "driven_by": ["AC-009", "ADR-0001", "P-01"],
               "alternatives": [{"option": "Two tables", "why_lost": "a join on every read"}],
               "evidence": "src/orders.py:12", "grade": "repo", "why": "fewer reads", "reverse": "split the table"}
     fields.update(changes)
@@ -184,7 +188,7 @@ def test_a_whole_decided_card_stays_decided_with_each_alternative_as_one_line(tm
     item = card(tmp_path, "d-1")
     assert item["kind"] == "decided"
     parts = {c["props"].get("label"): c["props"]["text"] for c in [item["body"], *item["body"]["children"]]}
-    assert parts["Driven by"] == "AC-009, ADR-0001, c-1"
+    assert parts["Driven by"] == "AC-009, ADR-0001, P-01"
     assert parts["Other options considered (rejected)"] == "- Two tables — a join on every read"
 
 
@@ -200,7 +204,7 @@ def test_a_decided_card_missing_a_block_degrades_to_confirm(tmp_path, changes):
     parts = {c["props"].get("label"): c["props"]["text"] for c in [item["body"], *item["body"]["children"]]}
     assert parts["Decision"] == "Keep one table."
     if changes.get("driven_by", True):
-        assert parts["Driven by"] == "AC-009, ADR-0001, c-1"
+        assert parts["Driven by"] == "AC-009, ADR-0001, P-01"
 
 
 def test_each_driven_by_id_of_the_prd_or_a_record_gets_its_text_on_hover(tmp_path):
@@ -249,10 +253,25 @@ def test_a_replaced_round_drops_the_driven_by_tip_of_its_card(tmp_path):
     assert "ids" not in (stored(tmp_path).get("tips") or {})
 
 
-def test_a_card_whose_ids_the_prd_does_not_hold_gets_no_tip(tmp_path):
+def test_a_card_whose_ids_are_page_or_catalog_ids_gets_no_tip(tmp_path):
     write_spec(tmp_path)
-    build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "AC-999"])))
+    build(tmp_path, round_of(confirm("c-1")))
+    build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "P-01"])))
     assert "ids" not in (stored(tmp_path).get("tips") or {})
+
+
+def test_a_driven_by_id_that_names_nothing_is_refused_before_any_write(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(confirm("c-1")))
+    answer_current_round(doc_path(tmp_path))
+    before = doc_path(tmp_path).read_text("utf-8")
+    refusal = refused(tmp_path, round_of(decided("d-1", driven_by=["AC-009", "AC-999"])))
+    assert refusal.code == "driven-by-unknown" and "AC-999" in refusal.reason and "AC-009" not in refusal.reason
+    assert doc_path(tmp_path).read_text("utf-8") == before
+
+
+def test_a_page_with_no_prd_beside_it_checks_no_driven_by_id(tmp_path):
+    assert build(tmp_path, round_of(decided("d-1", driven_by=["AC-999"])))["ok"] is True
 
 
 # --- the ticket card (PRD AC-036)

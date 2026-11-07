@@ -135,17 +135,40 @@ def _design_decided(raw, known_ids, degraded):
     return {**{key: value for key, value in raw.items() if key != "decided"}, "kind": "confirm", "body": body}
 
 
+def _prd(doc_path):
+    """The PRD beside the page, which lives in `<spec dir>/pages/`, or None."""
+    prd = Path(doc_path).parent.parent / "PRD.md"
+    return prd if Path(doc_path).parent.name == "pages" and prd.is_file() else None
+
+
 def _spec_texts(doc_path):
-    """The text of each acceptance criterion of the PRD and of each requirement record, by id; none without a PRD.
-    The page lives in `<spec dir>/pages/`."""
-    spec = Path(doc_path).parent.parent
-    if Path(doc_path).parent.name != "pages" or not (spec / "PRD.md").exists():
+    """The text of each acceptance criterion of the PRD and of each requirement record, by id; none without a PRD."""
+    prd = _prd(doc_path)
+    if prd is None:
         return {}
-    texts = {key: value.strip() for key, value in CRITERION.findall((spec / "PRD.md").read_text("utf-8"))}
+    spec = prd.parent
+    texts = {key: value.strip() for key, value in CRITERION.findall(prd.read_text("utf-8"))}
     for record in sorted((spec / "adr" / "requirements").glob("[0-9][0-9][0-9][0-9]-*.md")):
         title = next((line[2:].strip() for line in record.read_text("utf-8").splitlines() if line.startswith("# ")), "")
         texts[f"ADR-{record.name[:4]}"] = title or record.stem
     return texts
+
+
+def _check_driven_by(doc_path, items, known_ids):
+    """Each `driven_by` id of a decided card names an acceptance criterion, a requirement record, another id the PRD
+    holds (a catalog id) or a page id. A page with no PRD beside it checks nothing (SDD §3 row S-1)."""
+    prd = _prd(doc_path)
+    if prd is None:
+        return
+    texts, prd_text = _spec_texts(doc_path), prd.read_text("utf-8")
+    for item in items:
+        fields = item.get("decided") if item.get("kind") == "decided" and isinstance(item.get("decided"), dict) else {}
+        ids = fields.get("driven_by") if isinstance(fields.get("driven_by"), list) else []
+        unknown = [key for key in ids if isinstance(key, str) and key not in texts and key not in known_ids
+                   and not re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", prd_text)]
+        if unknown:
+            raise Refusal("driven-by-unknown", f"item {item['id']}: driven_by names {', '.join(unknown)}, which is no "
+                                               f"criterion, requirement record or id of the PRD and no page id")
 
 
 def _driven_by_tips(doc_path, items):
@@ -386,6 +409,7 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
         if isinstance(built.get("banner"), dict):
             built["banner"]["settled"] = [*lines, *(built["banner"].get("settled") or [])]
     known = rd._used_ids(doc) | {item.get("id") for item in items}
+    _check_driven_by(doc_path, items, known)
     degraded = []
     built["items"] = [_design_decided(item, known, degraded) for item in items]
     tips = _driven_by_tips(doc_path, items)
