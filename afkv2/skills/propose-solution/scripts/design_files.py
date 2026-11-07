@@ -15,7 +15,7 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
-sys.path.insert(0, str(SKILL.parent / "grill" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "grill-requirements" / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 import design_round as dr  # noqa: E402

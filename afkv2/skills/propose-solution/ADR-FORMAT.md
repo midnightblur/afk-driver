@@ -1,6 +1,6 @@
 # Design ADR format
 
-A design ADR records how the feature is built. The records live in `adr/design/` beside the SDD. Numbers are local to that folder and start at `0001`. Take the highest number and add one. Never edit a record in `adr/requirements/`: a requirement that blocks the design is a gap for `/afkv2:grill`.
+A design ADR records how the feature is built. The records live in `adr/design/` beside the SDD. Numbers are local to that folder and start at `0001`. Take the highest number and add one. Never edit a record in `adr/requirements/`: a requirement that blocks the design is a gap for `/afkv2:grill-requirements`.
 
 ## When to write one
 

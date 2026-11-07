@@ -20,7 +20,7 @@ Every layer gets at least one card, in this order. A layer with nothing to decid
 
 ## Cards
 
-The kinds, the decide rule, a note that contradicts its mark, steers and the escape: [../grill/ROUNDS.md](../grill/ROUNDS.md), the sections with these names. The same rules hold here. How a signal settles: the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md).
+The kinds, the decide rule, a note that contradicts its mark, steers and the escape: [../grill-requirements/ROUNDS.md](../grill-requirements/ROUNDS.md), the sections with these names. The same rules hold here. How a signal settles: the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md).
 
 A card on a lower layer that depends on an open fork says "holds if <id> = <option>", or is `blocked`.
 

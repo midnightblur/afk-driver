@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[2]
-HOME = PLUGIN / "skills" / "grill"
+HOME = PLUGIN / "skills" / "grill-requirements"
 SKILLS = PLUGIN / "skills"
 for _folder in (HOME / "scripts", SKILLS / "use-lavish" / "scripts", PLUGIN / "engine"):
     sys.path.insert(0, str(_folder))

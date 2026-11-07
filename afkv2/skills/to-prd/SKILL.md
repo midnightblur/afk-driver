@@ -13,7 +13,7 @@ Write what the grill settled, then show the developer exactly what the ticket wi
 |-------|--------|--------------------|
 | ticket key | the invocation | stop and name it |
 | `.afkv2/config.json`, with a tracker kind | written by `/afkv2:setup` | stop and name the file and `/afkv2:setup` |
-| `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill` | stop and name them and `/afkv2:grill` |
+| `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill-requirements` | stop and name them and `/afkv2:grill-requirements` |
 | `mmdc` on the path and `%LOCALAPPDATA%\afkv2\puppeteer-config.json`, when the PRD has a diagram | `/afkv2:setup` | the preview refuses `no-renderer` and names `setup`; a publish downloads nothing |
 
 ## The commands
@@ -32,7 +32,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
 2. **Write the PRD.** Read `log` and the page documents in `<spec_dir>/pages/`. They are your whole source. Write `prd` by [PRD-FORMAT.md](PRD-FORMAT.md). Done when each settled point stands in the PRD, and each owner note and `Steer` row is honoured.
 
-   Ask the human no question about requirements. A point the grill left out is a gap of the grill: stop, name the gap, and send the human to `/afkv2:grill`. `resume` true: `prd` exists, so change only what the grill changed, and keep every id.
+   Ask the human no question about requirements. A point the grill left out is a gap of the grill: stop, name the gap, and send the human to `/afkv2:grill-requirements`. `resume` true: `prd` exists, so change only what the grill changed, and keep every id.
 
 3. **Write the requirement ADRs** by [ADR-FORMAT.md](ADR-FORMAT.md), into `adr_dir`. Where a record exists, the PRD gives the decision in one line with a link. Done when each decision that meets the 3 tests has a record.
 

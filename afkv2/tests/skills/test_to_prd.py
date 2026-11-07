@@ -115,7 +115,7 @@ class World:
     def __init__(self, root, config=None):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.state_file = root / "calls.log", root / "jira.json"
-        for skill in ("to-prd", "grill", "use-lavish"):
+        for skill in ("to-prd", "grill-requirements", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_jira_port.py", "ports/tracker/cli.py"), ("fake_v1_facts.py", "ports/tracker/fake_v1_facts.py"),
                              ("fake_config.py", "scripts/afkv2_config.py")):
@@ -371,7 +371,7 @@ def test_start_answers_the_paths(world):
 def test_start_refuses_a_grill_that_did_not_pass_its_gate(world):
     world.log.write_text("## Requirements grill\n- Open: a point · card c1\n", "utf-8")
     error = world.run("start", expect=1, ticket_key=KEY)["error"]
-    assert error["code"] == "missing-input" and error["writer"] == "/afkv2:grill"
+    assert error["code"] == "missing-input" and error["writer"] == "/afkv2:grill-requirements"
 
 
 def test_start_refuses_a_gate_of_an_older_session(world):

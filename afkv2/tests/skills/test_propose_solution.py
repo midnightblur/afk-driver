@@ -79,7 +79,7 @@ class World:
         self.repo = root / "repo"
         self.calls = root / "calls.log"
         self.raw = root / "raw-response.txt"
-        for skill in ("propose-solution", "grill", "to-prd", "use-lavish"):
+        for skill in ("propose-solution", "grill-requirements", "to-prd", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
@@ -419,13 +419,13 @@ def test_missing_config_names_its_writer(tmp_path):
 def test_missing_grill_output_names_its_writer(tmp_path):
     world = World(tmp_path, spec=False)
     error = world.run("start", expect=1, ticket_key="PROJ-1")["error"]
-    assert error["code"] == "missing-input" and error["writer"] == "/afkv2:grill" and "GRILL-LOG.md" in error["missing"]
+    assert error["code"] == "missing-input" and error["writer"] == "/afkv2:grill-requirements" and "GRILL-LOG.md" in error["missing"]
 
 
 def test_a_grill_with_no_passed_gate_names_its_writer(world):
     log = world.spec / "GRILL-LOG.md"
     log.write_text(log.read_text("utf-8").replace("- Settled: exit gate passed 2026-01-05 · session s-fixture\n", ""), "utf-8")
-    assert world.run("start", expect=1, ticket_key="PROJ-1")["error"]["writer"] == "/afkv2:grill"
+    assert world.run("start", expect=1, ticket_key="PROJ-1")["error"]["writer"] == "/afkv2:grill-requirements"
 
 
 def test_missing_prd_names_its_writer(world):
