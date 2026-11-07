@@ -16,6 +16,7 @@ class HerdrRunner(FakeRunner):
         super().__init__(places)
         self.installer_code = 0
         self.installer_out = "herdr installed to ~/.local/bin\n"
+        self.installer_leaves_path = True
 
     def __call__(self, argv, env=None, timeout=300):
         name = str(argv[0]).split("/")[-1].split("\\")[-1].split(".")[0]
@@ -23,7 +24,8 @@ class HerdrRunner(FakeRunner):
             self.calls.append(list(argv))
             self.last_env = env
             if self.installer_code == 0:
-                self.paths["herdr"] = "/home/me/.local/bin/herdr"
+                if self.installer_leaves_path:
+                    self.paths["herdr"] = "/home/me/.local/bin/herdr"
                 return tools.Result(0, self.installer_out)
             return tools.Result(self.installer_code, "", "downloading\nerror: no release for this platform\n")
         return super().__call__(argv, env, timeout)
@@ -65,7 +67,7 @@ def test_windows_runs_the_official_powershell_installer(herdr_runner):
 
 
 def test_unix_runs_the_official_shell_installer(herdr_runner):
-    tools.install_herdr(herdr_runner, windows=False)
+    assert tools.install_herdr(herdr_runner, windows=False)["herdr"] == "installed"
     (call,) = herdr_runner.installer_calls()
     assert call[:2] == ["sh", "-c"] and call[2] == f"curl -fsSL {tools.HERDR_INSTALL_SH} | sh"
     assert tools.HERDR_INSTALL_SH == "https://herdr.dev/install.sh"
@@ -73,7 +75,7 @@ def test_unix_runs_the_official_shell_installer(herdr_runner):
 
 def test_unix_with_brew_uses_the_package_manager(herdr_runner):
     herdr_runner.paths["brew"] = "/opt/homebrew/bin/brew"
-    tools.install_herdr(herdr_runner, windows=False)
+    assert tools.install_herdr(herdr_runner, windows=False)["ok"] is True
     assert herdr_runner.installer_calls() == [["brew", "install", "herdr"]]
 
 
@@ -164,3 +166,38 @@ def test_a_failed_install_records_nothing(env, places, herdr_system, herdr_runne
 def test_the_verb_needs_an_answer(env, herdr_system, capsys):
     code, answer = _run(["herdr"], env, herdr_system, capsys)
     assert code == 2 and answer["error"]["code"] == "bad-arguments"
+
+
+def test_a_yes_that_leaves_herdr_off_the_path_is_not_asked_again(env, places, repo, herdr_system, herdr_runner,
+                                                                  capsys):
+    _prepared(places)
+    herdr_runner.installer_leaves_path = False
+    code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
+    assert code == 0 and answer["herdr"] == "installed" and answer["on_path"] is False
+    _, status = _run(["status"], env, herdr_system, capsys, repo)
+    assert status["herdr"] == "installed"
+    assert len(herdr_runner.installer_calls()) == 1
+
+
+def test_the_installed_path_is_read_from_a_fresh_environment(env, places, herdr_runner, capsys):
+    """The installer changes the user path; only a newly read environment shows it."""
+    _prepared(places)
+    reads = []
+
+    def fresh():
+        reads.append(1)
+        return {"PATH": f"fresh-{len(reads)}"}
+
+    seen = []
+    base_which = herdr_runner.which
+
+    def which(name, env=None):
+        seen.append((name, (env or {}).get("PATH")))
+        return base_which(name, env)
+
+    herdr_runner.which = which
+    system = setup.System(run=herdr_runner, windows=False, fresh_env=fresh, is_terminal=lambda: True)
+    code, answer = _run(["herdr", "--answer", "yes"], env, system, capsys)
+    assert code == 0 and answer["on_path"] is True
+    assert seen[-1] == ("herdr", f"fresh-{len(reads)}") and len(reads) >= 2
+

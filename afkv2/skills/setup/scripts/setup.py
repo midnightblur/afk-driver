@@ -104,11 +104,17 @@ def _write_record(places: Places, record: dict[str, str]) -> None:
 
 def herdr(places: Places, system: System, answer: str) -> dict:
     """Act on the developer's answer and record it once: `declined` stops the question for good."""
-    env = system.fresh_env() if system.fresh_env else None
-    if tools.herdr_status(system.run, {}, env) == "present":
+    def fresh():
+        return system.fresh_env() if system.fresh_env else None
+
+    if tools.herdr_status(system.run, {}, fresh()) == "present":
         return {"ok": True, "herdr": "present"}
-    done = (tools.install_herdr(system.run, system.windows, env) if answer == "yes"
+    done = (tools.install_herdr(system.run, system.windows, fresh()) if answer == "yes"
             else {"ok": True, "herdr": "declined"})
+    if done["ok"] and done["herdr"] == "installed":
+        # The installer changes the user path: only an environment read after it shows herdr.
+        done["path"] = system.run.which("herdr", fresh())
+        done["on_path"] = done["path"] is not None
     if done["ok"]:
         record = read_install_record(places)
         record["herdr"] = done["herdr"]

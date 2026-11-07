@@ -24,7 +24,9 @@ you ask in this session; the Jira token never passes through you.
    Then `setup.py diagram-renderer` — installs the diagram command with the browser
    download off, and writes `puppeteer-config.json` that names the installed Edge.
    A refusal `no-edge` installs nothing and downloads nothing: report its `reason`.
-3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is `ask`:
+3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
+   `installed`: ask nothing; tell the developer to open a new terminal and
+   harness, so that herdr is on the path. `herdr` is `ask`:
    ask the developer once in this session whether to install herdr through its
    official installer; without it, design sessions get 1 solution proposer. Then
    `setup.py herdr --answer yes` or `setup.py herdr --answer no`. A no is recorded

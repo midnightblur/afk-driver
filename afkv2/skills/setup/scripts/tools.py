@@ -275,10 +275,11 @@ def restore_lavish(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
 # -------------------------------------------------------------------- herdr
 
 def herdr_status(run: Runner, record: Mapping[str, str], env: Mapping[str, str] | None = None) -> str:
-    """`present` on the path, `declined` after a recorded no, else `ask`. Read-only."""
+    """`present` on the path, else the recorded answer (`declined` or `installed`), else `ask`. Read-only.
+    `installed` off the path means a new terminal has not read the installer's path change yet."""
     if run.which("herdr", env):
         return "present"
-    return "declined" if record.get("herdr") == "declined" else "ask"
+    return record.get("herdr") if record.get("herdr") in ("declined", "installed") else "ask"
 
 
 def herdr_installer(run: Runner, windows: bool, env: Mapping[str, str] | None = None) -> list[str]:
@@ -297,9 +298,9 @@ def install_herdr(run: Runner, windows: bool = os.name == "nt",
     """Run the official installer. Only after the developer's yes in session."""
     got = run(herdr_installer(run, windows, env), env=env, timeout=HERDR_INSTALL_TIMEOUT)
     if got.code != 0:
-        lines = [line for line in (got.err or got.out).splitlines() if line.strip()]
+        lines = [line.strip() for line in f"{got.out}\n{got.err}".splitlines() if line.strip()]
         return {"ok": False, "error": {"code": "install-failed",
-                                       "reason": lines[-1].strip() if lines else f"exit {got.code}"}}
+                                       "reason": lines[-1][:300] if lines else f"exit {got.code}"}}
     return {"ok": True, "herdr": "installed", "path": run.which("herdr", env)}
 
 
