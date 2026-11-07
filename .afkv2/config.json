@@ -1,0 +1,13 @@
+{
+  "tracker": {
+    "repo": "midnightblur/afk-driver",
+    "kind": "github-issues"
+  },
+  "forge": "github",
+  "spec_folder": "docs/afk",
+  "ownership": {
+    "own": [
+      "**"
+    ]
+  }
+}
