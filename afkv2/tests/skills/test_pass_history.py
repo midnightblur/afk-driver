@@ -105,3 +105,26 @@ def test_the_grill_log_calls_the_shared_helpers_and_keeps_no_private_copy():
     assert "pass_history.changed(" in source and "pass_history.stale(" in source
     assert "pass_history.is_open(" in source
     assert grill_log.RUN_SUFFIX is pass_history.RUN_SUFFIX and grill_log.GIT_LIMIT_S == pass_history.GIT_LIMIT_S
+
+
+def test_resume_or_take_over_resumes_an_open_session_and_takes_over_a_passed_one(tmp_path):
+    page = tmp_path / "page.json"
+    page.write_text(__import__("json").dumps(doc_of([card("i-a")], [card("i-b")])), "utf-8")
+    rows = ["- Last pass: R2 · session s-1"]
+    assert pass_history.resume_or_take_over(None, False, page, []) == (None, None)
+    assert pass_history.resume_or_take_over("s-1", False, page, []) == ("s-1", None)
+    assert pass_history.resume_or_take_over("s-1", True, page, rows) == (None, "s-1")
+    assert pass_history.resume_or_take_over("s-1", True, page, []) == (None, "s-1")
+
+
+def test_resume_or_take_over_resumes_a_passed_session_with_a_later_round(tmp_path):
+    page = tmp_path / "page.json"
+    page.write_text(__import__("json").dumps(doc_of([card("i-a")], [card("i-b")], [card("i-c")])), "utf-8")
+    assert pass_history.resume_or_take_over("s-1", True, page, ["- Last pass: R2 · session s-1"]) == ("s-1", None)
+
+
+def test_missing_last_pass_row_is_the_current_round_only_when_no_row_holds_the_session():
+    doc = doc_of([card("i-a")], [card("i-b")])
+    assert pass_history.missing_last_pass_row(doc, ["- Policy: x"]) == "- Last pass: R2 · session s-1"
+    assert pass_history.missing_last_pass_row(doc, ["- Last pass: R1 · session s-1"]) is None
+    assert pass_history.missing_last_pass_row(doc, ["- Last pass: R1 · session s-9"]) == "- Last pass: R2 · session s-1"

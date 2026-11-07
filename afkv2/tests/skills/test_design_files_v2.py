@@ -86,6 +86,45 @@ def test_start_takes_over_the_session_whose_gate_passed(world):
     assert rows.count(f"- Last pass: R2 · session {started['session']}") == 1
 
 
+def solution_rows(world):
+    return (world.spec / "GRILL-LOG.md").read_text("utf-8").split("## Solution design", 1)[1].splitlines()
+
+
+def test_start_writes_the_last_pass_row_when_it_takes_over_a_log_from_before_that_row(world):
+    started, _ = passed_design(world)
+    log = world.spec / "GRILL-LOG.md"
+    log.write_text("\n".join(line for line in log.read_text("utf-8").splitlines()
+                             if not line.startswith("- Last pass:")) + "\n", "utf-8")
+    assert not any(row.startswith("- Last pass:") for row in solution_rows(world))
+    again = world.run("start", ticket_key="PROJ-1")
+    assert again["takeover"] == started["session"]
+    assert [row for row in solution_rows(world) if row.startswith("- Last pass:")] == [
+        f"- Last pass: R2 · session {started['session']}"]
+
+
+def test_start_resumes_a_taken_over_session_once_a_later_round_exists(world):
+    started, _ = passed_design(world)
+    assert world.run("start", ticket_key="PROJ-1")["takeover"] == started["session"]
+    world.build(started, round_of(aspect_card("entities", "a-entities-2", carries=["a-entities"])))
+    again = world.run("start", ticket_key="PROJ-1")
+    assert again["resume"] is True and again["takeover"] is None and again["session"] == started["session"]
+
+
+def test_a_pass_answers_stale_with_the_plan_of_the_run_branch(world, monkeypatch):
+    from test_pass_history import git
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(world.root))
+    started = walked(world)
+    git(world.repo, "init", "-q", "-b", "feat-x")
+    git(world.repo, "commit", "-q", "--allow-empty", "-m", "base")
+    git(world.repo, "checkout", "-q", "--orphan", "feat-x-run")
+    (world.repo / "plan").mkdir()
+    (world.repo / "plan" / "PLAN.md").write_text("# Plan\n", "utf-8")
+    git(world.repo, "add", "plan/PLAN.md")
+    git(world.repo, "commit", "-q", "-m", "plan")
+    git(world.repo, "checkout", "-q", "-f", "feat-x")
+    assert gate_failures(world, started, expect=0)["stale"] == ["feat-x-run:plan/PLAN.md"]
+
+
 def test_start_names_no_takeover_for_a_new_or_open_session(world):
     first = world.run("start", ticket_key="PROJ-1")
     assert first["takeover"] is None

@@ -168,6 +168,8 @@ class World:
         cards = [fork if key == "relations" else aspect_card(key) for key in CAT_A]
         self.build(started, round_of(*cards))
         self.accept_all(started)
+        (self.repo / started["doc"]).with_suffix(".proposers.json").write_text(
+            json.dumps({"version": 1, "count": 1, "proposers": [], "cleaned": False}), "utf-8")
         sign = {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                 "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}}
         self.build(started, {**round_of(sign, *(layer_card(f"L{n}") for n in range(1, 10))), "sections": SECTIONS})

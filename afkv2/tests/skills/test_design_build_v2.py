@@ -111,6 +111,26 @@ def test_a_section_placed_with_after_is_checked_in_its_merged_place(tmp_path):
     assert answer["section_order"] == ["sec-l1", "sec-l2", "sec-l3"]
 
 
+def as_version_1(tmp_path):
+    doc = stored(tmp_path)
+    doc["schema"] = "afkv2.page/1"
+    doc_path(tmp_path).write_text(json.dumps(doc), "utf-8")
+
+
+def test_a_version_1_page_refuses_sections_before_the_section_rules_run(tmp_path):
+    build(tmp_path, round_of())
+    as_version_1(tmp_path)
+    refusal = refused(tmp_path, round_of(sections=[section("sec-l2"), section("sec-l1")]))
+    assert refusal.code == "bad-round" and "version 2" in refusal.reason
+
+
+def test_a_version_1_page_that_upgrades_runs_the_section_rules(tmp_path):
+    build(tmp_path, round_of())
+    as_version_1(tmp_path)
+    refusal = refused(tmp_path, round_of(sections=[section("sec-l2"), section("sec-l1")], upgrade=True))
+    assert refusal.code == "section-order"
+
+
 def test_a_built_page_links_each_level_to_the_next_level_and_its_critical_sections(tmp_path):
     build(tmp_path, round_of(sections=[section("sec-crit-keys", critical_body(), links=["sec-l3"]),
                                        section("sec-l1"), section("sec-l3")]))
@@ -136,11 +156,15 @@ PRD = """# PRD
 
 - [ ] AC-009 Every decision on the page shows the 5 blocks.
 - [ ] AC-010 Every requirement named in a D-2 block shows its text on hover.
+
+## Catalog
+
+| P-01 | One table per entity |
 """
 
 
 def decided(item_id, **changes):
-    fields = {"decision": "Keep one table.", "driven_by": ["AC-009", "ADR-0001", "c-1"],
+    fields = {"decision": "Keep one table.", "driven_by": ["AC-009", "ADR-0001", "P-01"],
               "alternatives": [{"option": "Two tables", "why_lost": "a join on every read"}],
               "evidence": "src/orders.py:12", "grade": "repo", "why": "fewer reads", "reverse": "split the table"}
     fields.update(changes)
@@ -164,7 +188,7 @@ def test_a_whole_decided_card_stays_decided_with_each_alternative_as_one_line(tm
     item = card(tmp_path, "d-1")
     assert item["kind"] == "decided"
     parts = {c["props"].get("label"): c["props"]["text"] for c in [item["body"], *item["body"]["children"]]}
-    assert parts["Driven by"] == "AC-009, ADR-0001, c-1"
+    assert parts["Driven by"] == "AC-009, ADR-0001, P-01"
     assert parts["Other options considered (rejected)"] == "- Two tables — a join on every read"
 
 
@@ -175,7 +199,12 @@ def test_a_whole_decided_card_stays_decided_with_each_alternative_as_one_line(tm
 def test_a_decided_card_missing_a_block_degrades_to_confirm(tmp_path, changes):
     answer = build(tmp_path, round_of(decided("d-1", **changes)))
     assert answer["degraded"] == ["d-1"]
-    assert card(tmp_path, "d-1")["kind"] == "confirm"
+    item = card(tmp_path, "d-1")
+    assert item["kind"] == "confirm"
+    parts = {c["props"].get("label"): c["props"]["text"] for c in [item["body"], *item["body"]["children"]]}
+    assert parts["Decision"] == "Keep one table."
+    if changes.get("driven_by", True):
+        assert parts["Driven by"] == "AC-009, ADR-0001, P-01"
 
 
 def test_each_driven_by_id_of_the_prd_or_a_record_gets_its_text_on_hover(tmp_path):
@@ -196,6 +225,26 @@ def test_a_later_round_with_its_own_tips_keeps_the_driven_by_tips_of_earlier_car
     assert [tip["id"] for tip in tips["ids"]] == ["d-1-driven-by"]
 
 
+def test_a_later_round_with_no_tips_key_keeps_the_driven_by_tip_of_an_earlier_card(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(decided("d-1")))
+    build(tmp_path, round_of(confirm("c-2")))
+    assert [tip["id"] for tip in stored(tmp_path)["tips"]["ids"]] == ["d-1-driven-by"]
+
+
+def test_a_confirm_card_that_carries_decided_fields_gets_no_driven_by_tip(tmp_path):
+    write_spec(tmp_path)
+    item = {**confirm("c-1"), "decided": {"driven_by": ["AC-009"]}}
+    assert build(tmp_path, round_of(item))["ok"] is True
+    assert "ids" not in (stored(tmp_path).get("tips") or {})
+
+
+@pytest.mark.parametrize("tips", [None, "x", ["a"]])
+def test_tips_that_are_not_an_object_are_refused(tmp_path, tips):
+    assert refused(tmp_path, round_of(confirm("c-1"), tips=tips)).code == "bad-round"
+    assert not doc_path(tmp_path).exists()
+
+
 def test_a_replaced_round_drops_the_driven_by_tip_of_its_card(tmp_path):
     write_spec(tmp_path)
     build(tmp_path, round_of(decided("d-1")))
@@ -204,10 +253,25 @@ def test_a_replaced_round_drops_the_driven_by_tip_of_its_card(tmp_path):
     assert "ids" not in (stored(tmp_path).get("tips") or {})
 
 
-def test_a_card_whose_ids_the_prd_does_not_hold_gets_no_tip(tmp_path):
+def test_a_card_whose_ids_are_page_or_catalog_ids_gets_no_tip(tmp_path):
     write_spec(tmp_path)
-    build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "AC-999"])))
+    build(tmp_path, round_of(confirm("c-1")))
+    build(tmp_path, round_of(decided("d-1", driven_by=["c-1", "P-01"])))
     assert "ids" not in (stored(tmp_path).get("tips") or {})
+
+
+def test_a_driven_by_id_that_names_nothing_is_refused_before_any_write(tmp_path):
+    write_spec(tmp_path)
+    build(tmp_path, round_of(confirm("c-1")))
+    answer_current_round(doc_path(tmp_path))
+    before = doc_path(tmp_path).read_text("utf-8")
+    refusal = refused(tmp_path, round_of(decided("d-1", driven_by=["AC-009", "AC-999"])))
+    assert refusal.code == "driven-by-unknown" and "AC-999" in refusal.reason and "AC-009" not in refusal.reason
+    assert doc_path(tmp_path).read_text("utf-8") == before
+
+
+def test_a_page_with_no_prd_beside_it_checks_no_driven_by_id(tmp_path):
+    assert build(tmp_path, round_of(decided("d-1", driven_by=["AC-999"])))["ok"] is True
 
 
 # --- the ticket card (PRD AC-036)
@@ -260,6 +324,13 @@ def test_one_proposer_writes_one_line_with_the_reason_and_no_fence(tmp_path, rea
     assert banner(tmp_path)["settled"] == [f"1 solution proposer drafted the design alone (Claude): {words}."]
 
 
+def test_a_failed_proposer_writes_the_reason_and_the_fence(tmp_path):
+    build(tmp_path, round_of(proposers={"count": 1, "tools": ["claude"], "reason": dr.PROPOSER_FAILED}))
+    assert banner(tmp_path)["settled"] == [
+        "1 solution proposer drafted the design alone (Claude): a solution proposer failed before the drafts and "
+        "critiques were done.", FENCE]
+
+
 def test_the_banner_line_comes_before_the_lines_of_the_agent(tmp_path):
     round_input = round_of(proposers={"count": 1, "tools": ["codex"], "reason": "no-herdr"})
     round_input["banner"]["settled"] = ["Keys settled."]
@@ -275,6 +346,7 @@ def test_the_banner_line_comes_before_the_lines_of_the_agent(tmp_path):
                                        {"count": 1, "tools": ["claude"], "reason": None},
                                        {"count": 1, "tools": ["claude"], "reason": "tired"},
                                        {"count": 1, "tools": ["claude"], "reason": "no-herdr", "extra": 1},
+                                       {"count": True, "tools": ["claude"], "reason": "no-herdr"},
                                        "two"])
 def test_a_bad_proposers_input_is_refused(tmp_path, proposers):
     assert refused(tmp_path, round_of(confirm("c-1"), proposers=proposers)).code == "bad-proposers"
@@ -364,6 +436,28 @@ def test_next_answers_proposers_between_aspects_and_draft(tmp_path):
     assert phase(tmp_path) == "proposers"
 
 
+def test_a_draft_round_with_no_state_file_is_refused_and_writes_nothing(tmp_path):
+    settle_aspects(tmp_path)
+    before = doc_path(tmp_path).read_text("utf-8")
+    refusal = refused(tmp_path, round_of(layer("L1")))
+    assert refusal.code == "proposers-first"
+    assert doc_path(tmp_path).read_text("utf-8") == before
+
+
+def test_a_draft_round_is_refused_while_2_proposers_are_not_cleaned_up(tmp_path):
+    settle_aspects(tmp_path)
+    write_state(tmp_path, count=2, proposers=[{"tool": "codex", "pane": None, "worktree": None}], cleaned=False)
+    assert refused(tmp_path, round_of(layer("L1"))).code == "proposers-first"
+
+
+def test_a_later_draft_round_needs_no_state_file(tmp_path):
+    settle_aspects(tmp_path)
+    write_state(tmp_path, count=1, proposers=[], cleaned=False)
+    build(tmp_path, round_of(layer("L1")))
+    doc_path(tmp_path).with_suffix(".proposers.json").unlink()
+    assert build(tmp_path, round_of(layer("L2")))["ok"] is True
+
+
 def test_a_state_file_with_count_one_moves_on_to_the_draft(tmp_path):
     settle_aspects(tmp_path)
     write_state(tmp_path, count=1, proposers=[], cleaned=False)
@@ -395,4 +489,19 @@ def test_an_unreadable_state_file_is_refused(tmp_path):
     doc_path(tmp_path).with_suffix(".proposers.json").write_text('{"version": 9}', "utf-8")
     with pytest.raises(Refusal) as refusal:
         phase(tmp_path)
-    assert refusal.value.code == "bad-proposers"
+    assert refusal.value.code == "bad-proposers-state"
+
+
+@pytest.mark.parametrize("state", [{"count": True, "proposers": [], "cleaned": False},
+                                   {"count": 2, "proposers": ["claude"], "cleaned": False},
+                                   {"count": 2, "proposers": [], "cleaned": "yes"},
+                                   {"count": 2, "proposers": [{"tool": "claude", "pane": "p-1", "worktree": None}],
+                                    "cleaned": True},
+                                   {"count": 2, "proposers": [{"tool": "claude", "pane": None, "worktree": "w-1"}],
+                                    "cleaned": True}])
+def test_a_state_file_of_the_wrong_shape_is_refused(tmp_path, state):
+    settle_aspects(tmp_path)
+    write_state(tmp_path, **state)
+    with pytest.raises(Refusal) as refusal:
+        phase(tmp_path)
+    assert refusal.value.code == "bad-proposers-state"

@@ -46,7 +46,15 @@ def test_a_decided_card_that_sends_driven_by_shows_a_driven_by_block_with_each_i
     assert answer["degraded"] == []
     block = next(c for c in components(path) if c.get("id") == "i-a-driven-by")
     assert block["props"]["label"] == rd.DRIVEN_BY_LABEL == "Driven by"
-    assert "AC-009" in block["props"]["text"] and "ADR-0004" in block["props"]["text"]
+    assert block["props"]["text"] == "AC-009, ADR-0004"
+
+
+@pytest.mark.parametrize("driven_by", ["AC-009", 5, ["AC-009", ""], ["AC-009", 7], {"AC-009": 1}])
+def test_a_driven_by_that_is_not_a_list_of_id_strings_is_refused(path, driven_by):
+    with pytest.raises(rd.Refusal) as refused:
+        build(path, decided_card(driven_by=driven_by))
+    assert refused.value.code == "bad-item" and "driven_by" in refused.value.reason
+    assert not path.exists()
 
 
 def test_the_driven_by_block_follows_the_decision(path):
@@ -134,3 +142,29 @@ def test_a_round_without_after_builds_the_same_section_order_as_before(path):
     build_sections(path, "i-a", section("sec-l1"), section("sec-l2"))
     build_sections(path, "i-b", section("sec-l0"))
     assert section_ids(path) == ["sec-l1", "sec-l2", "sec-l0"]
+
+
+def test_a_section_with_after_a_section_sent_later_in_the_same_round_is_refused(path):
+    """Order matters: `after` resolves against stored sections and the sections sent before it."""
+    with pytest.raises(Refusal) as refused:
+        build_sections(path, "i-a", section("sec-l2", after="sec-l1"), section("sec-l1"))
+    assert refused.value.code == "bad-entry" and "sent before this one" in refused.value.reason
+    assert not path.exists()
+
+
+def test_a_stored_section_with_after_that_names_itself_is_refused(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"))
+    answer_current_round(path)
+    before = path.read_bytes()
+    changed = section("sec-l2", after="sec-l2")
+    changed["title"] = "New title"
+    with pytest.raises(Refusal) as refused:
+        build_sections(path, "i-b", changed)
+    assert refused.value.code == "bad-entry" and "names no other section" in refused.value.reason
+    assert path.read_bytes() == before
+
+
+def test_a_stored_section_resent_with_after_moves_to_its_new_place(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"), section("sec-l3"))
+    build_sections(path, "i-b", section("sec-l3", after="sec-l1"))
+    assert section_ids(path) == ["sec-l1", "sec-l3", "sec-l2"]

@@ -211,7 +211,11 @@ def _decided_fields(item_id, decided, known_ids):
     fields = []
     if decided.get("decision"):
         fields.append({**_labelled(f"{item_id}-decision", "Decision", decided["decision"]), "style": "font-weight: 600"})
-    driven_by = [str(value) for value in decided.get("driven_by") or []]
+    driven_by = decided.get("driven_by")
+    if driven_by is None:
+        driven_by = []
+    if not isinstance(driven_by, list) or not all(isinstance(value, str) and value.strip() for value in driven_by):
+        raise Refusal("bad-item", f"item {item_id}: driven_by is a list of non-empty id strings: {driven_by!r}")
     if driven_by:
         fields.append(_labelled(f"{item_id}-driven-by", DRIVEN_BY_LABEL, ", ".join(driven_by)))
     if decided.get("why"):
@@ -456,7 +460,8 @@ def _change_line(where, line, n):
 def _place_after(stored, entry, after, where, name):
     """The list with the entry right after the other entry of the list that `after` names."""
     if after == entry["id"] or not any(old["id"] == after for old in stored):
-        raise Refusal("bad-entry", f"{where}: after {after!r} names no other {name} of the list")
+        raise Refusal("bad-entry", f"{where}: after {after!r} names no other {name} of the list; a same-round "
+                                   f"{name} counts only when it is sent before this one")
     rest = [old for old in stored if old["id"] != entry["id"]]
     at = next(k for k, old in enumerate(rest) if old["id"] == after) + 1
     return [*rest[:at], entry, *rest[at:]]
@@ -468,7 +473,7 @@ def _place_question(stored, entry, after, where):
 
 
 def _place_section(stored, entry, after, where):
-    """The list with the section right after the stored or same-round section that `after` names (ADR-0001 design)."""
+    """The list with the section right after the stored or earlier-sent same-round section that `after` names (ADR-0001 design)."""
     return _place_after(stored, entry, after, where, "section")
 
 
