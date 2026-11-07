@@ -98,16 +98,16 @@ Contract rows, at HL-2 grade. Each surface is a CLI verb run from the repository
 |---|---------|-----------|-------------------------------|----------------|---------------|-------------|------------------|
 | S-1 | `design_round.py build` and `next` (changed) | agent in charge | build: as today, + `--ticket-file F` (optional, the read ticket); round input may hold `sections` with `after`, `proposers {count, tools, reason}`, decided `driven_by`, and typed alternatives `{option, why_lost}`. next: a new phase `proposers` between `aspects` and `draft`, until the proposers state file records cleanup done or count 1 | as today, + `section_order` (ids in page order) | as today + `section-order`, `section-shape`, `section-caption`, `driven-by-unknown`, `bad-proposers`, `proposers-open` (a draft round while a recorded pane or worktree is not cleaned up) | `--replace` as today | the design skill only; unchanged rounds build the same |
 | S-2 | `round_document.py build` / `_merge_entries` (changed) | grill, design build | a section may hold `after`: the id of a stored or same-round section | as today | `bad-entry` when `after` names no section | as today | grill rounds that send no `after` are unchanged |
-| S-3 | `design_files.py start` (changed) | design skill | as today | as today, + `takeover` (a session whose gate passed, for new input) | as today | read-only | unchanged fields keep their meaning |
+| S-3 | `design_files.py start` (changed) | design skill | as today | as today, + `takeover` (a session whose gate passed, for new input) | as today | writes the `## Solution design` heading of the log when it is missing, and on a takeover the `Last pass` row of the taken-over session; a second run adds nothing | unchanged fields keep their meaning |
 | S-4 | `design_files.py sync --doc D --log L` (new) | design skill step 8 | doc and log exist | `{"ok", "notes": n, "rows": n}`: each new note of the doc copied word for word under `## Solution design` as a `Note` row | `missing-input` | a note id already in the log is skipped | none |
 | S-5 | `design_files.py gate` (changed) | design skill step 10 | as today | as today, + `stale` (later documents: `plan/` of the run branch, when it exists) and `changed` (settled points changed since the last passed gate); each list empty when nothing applies | as today + `question-open` per open question for others, `section-missing` per missing P-01, P-04, P-05 section | rewrites its own gate row | the `design-gate` refusal shape is unchanged |
-| S-6 | `proposers.py plan --doc D` (new; replaces `second_provider.py review`) | design skill, in phase `proposers` | the design phase is `proposers` | `{"ok", "count": 1 or 2, "tools": [...], "reason": null or one of no-herdr, outside-herdr, no-other-tool, bypass-forbidden, "fence": text}`; count 1 starts nothing: the agent in charge drafts | `aspects-open` when an aspect is unsettled | read-only; writes the state file with count 1 so `next` moves on | `second_provider.py` is deleted; its one caller (the design SKILL step 4) moves here |
-| S-7 | `proposers.py start --doc D --brief F --base REF` (new) | design skill | count 2 from `plan`; no recorded resource of this session | `{"ok", "proposers": [{tool, pane, worktree, submitted}]}`: 1 Claude and 1 Codex, launched in 1 call (AC-025) | `same-tool` (a tool already recorded), `no-herdr`, `not-submitted`, `worktree-failed` | a second `start` refuses `same-tool` | none |
-| S-8 | `proposers.py wait`, `critique`, `cleanup` (new) | design skill | `--doc D` | wait: `{"ok", "states"}`; critique: `{"ok", "submitted"}` (each tool gets the other's DRAFT.md path); wait after critique also answers `files`: the 4 paths; cleanup: `{"ok", "closed", "removed"}` and deletes the state file | `no-draft` (a DRAFT.md or CRITIQUE.md is missing), `pane-gone`, `cleanup-failed` (names each resource left) | cleanup acts only on recorded resources and may run again | none |
-| S-9 | `estimate.py --plan P --spec-root R` (new) and the division card (changed) | plan skill step 6 (`plan_files.py division` calls it) | plan passes `check_plan.py` | `{"ok", "rows": [{subtask, low, likely, high}], "total": {low, likely, high}, "runs": n, "basis": "journals" or "estimated"}`, days to 1 decimal | `bad-journal` names a line it cannot read, and the line is skipped, never fatal | read-only | the division card gains 1 child; `plan_digest` is unchanged because the estimate is outside the plan files |
+| S-6 | `proposers.py plan --doc D` (new; replaces `second_provider.py review`) | design skill, in phase `proposers` | the design phase is `proposers` | exactly `{"count": 1 or 2, "tools": [...], "reason": null or one of no-herdr, outside-herdr, no-other-tool, bypass-forbidden, proposer-failed}`, with no `ok` key: the `proposers` input of the design build, as it is; count 1 starts nothing: the agent in charge drafts; the fence statement is a banner line of the build | `aspects-open` when an aspect is unsettled | the first call writes the state file (stage `planned`); each later call, after `cleanup` too, answers from it; after a proposer failure: count 1, reason `proposer-failed` | `second_provider.py` is deleted; its one caller (the design SKILL step 4) moves here |
+| S-7 | `proposers.py start --doc D --brief F --base REF` (new) | design skill | count 2 from `plan`; no recorded resource of this session | `{"ok", "proposers": [{tool, pane, worktree, submitted}]}`: 1 Claude and 1 Codex, launched in 1 call (AC-025) | `same-tool` (a tool already recorded), `not-planned` (no count 2 plan, or it failed or was cleaned up), `aspects-open`, `no-herdr`, `missing-input` (brief), `worktree-failed`, `herdr-failed`, `not-submitted` | a second `start` refuses `same-tool` | none |
+| S-8 | `proposers.py wait`, `critique`, `cleanup` (new) | design skill | `--doc D` | wait: `{"ok", "states"}`; critique: `{"ok", "submitted"}` (each tool gets the other's DRAFT.md path); wait after critique also answers `files`: the 4 paths; cleanup: `{"ok", "closed", "removed", "proposers"}`, `proposers` being the plan object (absent when no plan was recorded); it keeps the state file with `cleaned` true and every pane and worktree null (D-7) | wait: `not-started` (both proposers must run), `pane-gone`, `herdr-failed`, `no-draft` (a DRAFT.md or CRITIQUE.md is missing); critique: `not-started`, `not-drafted` (critique runs once, after both drafts), `no-draft`, `not-submitted`; cleanup: `cleanup-failed` (names each resource left in `left`). After start, a refusal coded no-herdr, worktree-failed, herdr-failed, not-submitted, pane-gone or no-draft records a failure, and so does a cleanup of a count 2 run before the critiques; the plan object then has count 1 and reason `proposer-failed` (banner: a solution proposer failed, D-10) | cleanup acts only on recorded resources and may run again | none |
+| S-9 | `estimate.py --plan P --spec-root R` (new) and the division card (changed) | plan skill step 6 (`plan_files.py division` calls it) | plan passes `check_plan.py` | `{"ok", "rows": [{subtask, low, likely, high}], "total": {low, likely, high}, "runs": n, "basis": "journals" or "estimated", "skipped": n, "notes": [...]}`, days to 2 decimals (D-13); a run with a `parked(...)` line between `developing` and `done` gives no sample (D-14) | none: each unreadable line is skipped and named in `notes` as `bad-journal` | read-only | the division card gains 1 child; `plan_digest` is unchanged because the estimate is outside the plan files |
 | S-10 | setup herdr status (changed) and `setup.py herdr --answer yes|no` (new) | setup skill | status: read-only check of `herdr` on PATH and the record key `herdr`; the verb runs only with the developer's answer from the session | status `{"herdr": "present" or "declined" or "ask"}`; verb `{"herdr": "installed" or "declined"}` | `install-failed` with the installer's last line | an answer `declined` is recorded once and never asked again (fork d2-setup-decline) | setup runs that find herdr present ask nothing (AC-030) |
 
-The herdr playbook skill (`afkv2/skills/herdr/SKILL.md`) is a document surface, read by agents, with H-1 to H-9.
+The herdr playbook skill (`afkv2/skills/herdr-playbook/SKILL.md`) is a document surface, read by agents, with H-1 to H-9.
 
 ## §4 L3 — Data Architecture
 
@@ -116,10 +116,10 @@ The herdr playbook skill (`afkv2/skills/herdr/SKILL.md`) is a document surface, 
 | Page document (design session) | JSON file in `<spec dir>/pages/`, format afkv2.page/2 | 1 file per session | git, on the feature branch | lives with the spec folder | format 2 is frozen; only optional input-side fields are added | no | git history |
 | Section `after` | round input only; the stored section list order holds the result | — | — | — | not stored as a field: the order of the list is the record | no | — |
 | Decided `driven_by` | inside the card body, as 1 labelled text component | per card | git | with the page | a new labelled component; format 2 accepts any text component | no | git history |
-| Run journal copy | Markdown file `<spec dir>/runs/<run branch>.md` on the feature branch | 1 file per run branch | git | lives with the spec folder; gc never deletes it | the journal line grammar of `JOURNAL-FORMAT.md` | no | git history |
+| Run journal copy | Markdown file `<spec dir>/runs/<run branch, '/' as '-'>.md` on the feature branch (D-12) | 1 file per run branch | git | lives with the spec folder; gc never deletes it | the journal line grammar of `JOURNAL-FORMAT.md` | no | git history |
 | Install record key `herdr` | the setup install record (per machine) | 1 key | none | until setup runs again | a new key; old records without it read as "ask" | no | no |
 | Proposer files | `DRAFT.md`, `CRITIQUE.md` in each throwaway worktree | 1 per proposer | none | deleted with the worktree at `cleanup`, after the agent in charge read them | free Markdown | no | no |
-| Proposers state file | `<doc>.proposers.json` beside the page document | 1 per session | none | deleted by `cleanup` | `version: 1`; brief hash, and each recorded pane and worktree by tool | no | no |
+| Proposers state file | `<doc>.proposers.json` beside the page document | 1 per session | none | kept by `cleanup`, with `cleaned` true and every pane and worktree null (D-7) | `version: 1`: `{version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree, created}], cleaned, failed}`; `created` is true once `git worktree add` exits 0; `failed` is `{stage, code}` | no | no |
 | Design log rows | `GRILL-LOG.md` section `## Solution design` | 1 section | git | with the spec folder | new row kind `Note` | no | git history |
 
 Per entity, at HL-1 grade:
@@ -198,7 +198,7 @@ Data scoping: a proposer sees the PRD, the requirement records, the log's premis
 | Surface | Key shape | Window | Ledger |
 |---------|-----------|--------|--------|
 | `proposers.py start` | tool name per session | the session | the state file `<doc>.proposers.json` |
-| `proposers.py cleanup` | each recorded pane and worktree | the session | the same state file; removed when every resource is gone |
+| `proposers.py cleanup` | each recorded pane and worktree | the session | the same state file; kept with `cleaned` true when every resource is gone |
 | journal copy | run branch name | forever | the file name; a commit only when the content changed |
 | setup herdr step | install record key | per machine | the install record |
 
@@ -207,9 +207,9 @@ Data scoping: a proposer sees the PRD, the requirement records, the log's premis
 | Call | Attempts | Backoff (s) | Timeout (s) |
 |------|----------|-------------|-------------|
 | `herdr agent start` | 1 | — | 90 |
-| `herdr agent prompt --wait` | 1, then 1 Enter only when the answer is `agent_prompt_stalled` and `pane read` shows the brief still in the input line (fork d2-prompt-submit) | 2 | 30 each |
+| `herdr agent prompt --wait --until working` | 1; on `agent_prompt_stalled`, `pane read`: the brief still in the input line gets 1 Enter after a 2 s pause (fork d2-prompt-submit); then `agent wait --until working`, and a failed wait refuses `not-submitted` | 2 | 30 each |
 | `herdr agent wait` | 1 | — | none (PRD: no time cap) |
-| official herdr installer | 1 | — | 300 |
+| official herdr installer, with TMP, TEMP and TMPDIR set to `<data>/herdr-download` for the installer process only; the folder is removed after the run (D-11) | 1 | — | 300 |
 
 Rate limit: none. Feature flags: none; the fallback rules of AC-024 are the switch. Observability: each `proposers.py` verb answers JSON; the banner names the proposer count and the reason (R-5). Performance: every performance fact stands in `sec-performance` and §10; this layer only points there (AC-014).
 
@@ -242,8 +242,10 @@ stateDiagram-v2
   drafted --> critiquing: critique
   critiquing --> critiqued: wait answers idle/done, 4 files
   critiqued --> cleaned: cleanup (panes closed, worktrees removed)
-  drafting --> failed: pane-gone or no-draft
-  critiquing --> failed: pane-gone or no-draft
+  drafting --> failed: a proposer failure (worktree-failed, herdr-failed, not-submitted, pane-gone, no-draft)
+  drafted --> failed: critique not-submitted or no-draft
+  critiquing --> failed: pane-gone, herdr-failed or no-draft
+  drafted --> cleaned: cleanup before the critiques (failed, not-finished)
   failed --> cleaned: cleanup (removes what remains)
   solo --> [*]
   cleaned --> [*]
@@ -282,7 +284,7 @@ sequenceDiagram
   participant R as run worktree plan/JOURNAL.md
   participant F as feature worktree
   W->>R: end: append run end, commit on the run branch
-  W->>F: archive: copy to <spec dir>/runs/<run branch>.md
+  W->>F: archive: copy to <spec dir>/runs/<run branch with / as ->.md
   W->>F: archive: git add + commit on the feature branch (only when changed)
   W-->>W: archive ok, else ship stays false
 ```
@@ -293,10 +295,10 @@ Caption: the copy rides the feature branch into the merge, so gc deleting the ru
 |---------------|------------------|--------------------|-----------------|-------|
 | herdr missing or session outside herdr | `HERDR_ENV` unset or `herdr` not on PATH | `plan` answers count 1 with the reason | run setup, start the session in herdr | proposers script |
 | other tool missing | `which codex` / `which claude` empty | count 1, reason `no-other-tool` | install the tool | proposers script |
-| full auto-approval forbidden | managed settings `disableBypassPermissionsMode`, or Codex `requirements.toml` without `danger-full-access` | count 1, reason `bypass-forbidden` | — | proposers script |
-| prompt not submitted | `agent_prompt_stalled`, and `pane read` shows the brief in the input line | 1 Enter, then refuse `not-submitted` | read the pane | proposers script |
+| full auto-approval forbidden | Claude `permissions.disableBypassPermissionsMode: "disable"` in managed-settings files, the `HKLM` or `HKCU` `SOFTWARE\Policies\ClaudeCode` value `Settings`, or the macOS domain `com.anthropic.claudecode`; Codex requirements (`requirements.toml`, macOS `com.openai.codex:requirements_toml_base64`) whose `allowed_sandbox_modes` omits `danger-full-access`, `allowed_approval_policies` omits `never`, or `allowed_permission_profiles` does not set `:danger-full-access` true | count 1, reason `bypass-forbidden` | — | proposers script |
+| prompt not submitted | `agent_prompt_stalled`, then `agent wait --until working` fails | 1 Enter when `pane read` shows the brief in the input line; refuse `not-submitted` when the wait fails | read the pane | proposers script |
 | proposer writes no draft | `DRAFT.md` absent after `wait` | refuse `no-draft`; `cleanup`; the agent in charge drafts alone | — | proposers script |
-| worktree remove fails (file lock on Windows) | `git worktree remove` exit not 0 | retry once with `--force`; then refuse `cleanup-failed`, naming the path; the design round stays blocked | delete the folder by hand, run `cleanup` again | proposers script |
+| worktree remove fails (file lock on Windows) | `git worktree remove` exit not 0 | retry once with `--force`, only for a worktree with `created` true; then refuse `cleanup-failed`, naming the path; a folder left by a failed `git worktree add` is never forced and is named too; the design round stays blocked | delete the folder by hand, run `cleanup` again: it prunes the worktree record | proposers script |
 | journal copy commit fails | git exit not 0 | `archive` refuses; `ship` stays false | run `archive` again | autopilot |
 | herdr installer fails | installer exit not 0 | answer `install-failed`; 1 proposer | install by hand | setup |
 | journal line unreadable | grammar mismatch | the line is skipped and counted in `skipped` | — | estimate script |
@@ -368,7 +370,7 @@ Caption: new modules sit at the skill edges; the page engine and the shared buil
 |----------|----------------------|---------------------------|-----------------|-----------|
 | herdr CLI | herdr 0.9.1 (local), docs v0.9.5 | returns JSON with `agent_status`; `pane split --cwd` sets the working folder | non-zero exit, `agent_status` idle after a prompt | a fake `Runner` replays recorded herdr JSON; 1 live check by the owner on the trial run |
 | claude CLI | installed version | `--dangerously-skip-permissions` = bypassPermissions; managed settings can disable it | the agent starts in normal mode | fake runner asserts the flag; `plan` reads the managed setting |
-| codex CLI | installed version | `--yolo` = `--dangerously-bypass-approvals-and-sandbox`; `-C` sets the cwd | `requirements.toml` restricts sandbox modes | fake runner asserts the flag |
+| codex CLI | installed version | `--yolo` = `--dangerously-bypass-approvals-and-sandbox`; `-C` sets the cwd | requirements restrict sandbox modes, approval policies and permission profiles; `plan` reads them | fake runner asserts the flag |
 | git worktree | git on PATH | `worktree add --detach <path> <ref>` makes a folder; `remove` may fail on a Windows lock | exit not 0 | test with a temporary repository |
 | herdr official installer | install.ps1 / install.sh at the docs pin | installs herdr to the user's path | exit not 0 | fake installer in tests: yes, no, present |
 | page engine | format afkv2.page/2 (frozen) | renders sections in list order, cards, labelled text | `check` refuses a broken rule | render a mocked page with every part; browser UAT |
@@ -425,6 +427,6 @@ Performance section of this design (`sec-performance`): PF-1 problems are the pa
 | gc | deletes the run branch (`cleanup.py:244,254`) | none; the copy lives outside its scope | cleanup | — | fits |
 | division card | 1 signoff card with the subtask table (`plan_files.py:368-376`) | + Low, Likely, High day columns and 1 total and basis line | plan approval | the digest covers plan files only (`plan_files.py:335`), so it stays the same | extends (ADR-0005) |
 | setup tools | hard-coded tools behind a Runner (`tools.py:115-146`) | + herdr check and consented install | setup | never download a program into a temp folder (AC-029) | extends (ADR-0006) |
-| skills folder | every folder loads as a skill (`plugin.json`) | + `skills/herdr/` | agent skill list | frontmatter + `plugin_check.py` + glossary entry | fits |
+| skills folder | every folder loads as a skill (`plugin.json`) | + `skills/herdr-playbook/` | agent skill list | frontmatter + `plugin_check.py` + glossary entry | fits |
 
 Compatibility findings accepted under the delegation: grill rounds and decided cards render unchanged when they send no new field; the 8 old design pages stay readable and upgrade only on reopen; `second_provider.py` disappears, and nothing outside the design skill calls it.

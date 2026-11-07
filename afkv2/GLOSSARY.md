@@ -88,7 +88,7 @@ A second agent session, of another provider or a higher model tier, that the age
 `Related:` herdr
 
 **herdr**:
-The terminal workspace manager that holds agent panes: workspaces, tabs and panes, with a command line that starts an agent in a pane, prompts it, waits for it and reads its output. An agent learns its commands from the herdr playbook skill (`afkv2/skills/herdr/SKILL.md`). Setup installs it after the developer's yes. A session outside herdr has 1 solution proposer.
+The terminal workspace manager that holds agent panes: workspaces, tabs and panes, with a command line that starts an agent in a pane, prompts it, waits for it and reads its output. An agent learns its commands from the herdr playbook skill (`afkv2/skills/herdr-playbook/SKILL.md`). Setup installs it after the developer's yes. A session outside herdr has 1 solution proposer.
 `Related:` Agent pane, Solution proposer
 
 ## Pages
