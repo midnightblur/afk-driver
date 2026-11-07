@@ -7,6 +7,10 @@ Verbs, run from the repository root; each answers one JSON object:
   critique --doc D                        each proposer critiques the DRAFT.md of the other
   cleanup  --doc D                        closes each recorded pane and removes each recorded worktree
 
+Refusal codes: plan `aspects-open`; start `same-tool`, `not-planned`, `aspects-open`, `no-herdr`, `missing-input`,
+`worktree-failed`, `herdr-failed`, `not-submitted`; wait `not-started`, `pane-gone`, `herdr-failed`, `no-draft`;
+critique `not-started`, `no-draft`, `not-submitted`; cleanup `cleanup-failed`.
+
 `plan` answers exactly the `proposers` input of the design build: {count, tools, reason}. `cleanup` answers it
 again under `proposers`. After a refusal of `start`, `wait` or `critique` once the proposers started, both answer
 count 1 with reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
@@ -32,6 +36,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 from pathlib import Path
 
@@ -44,7 +49,8 @@ from grill_common import Parser, Refusal, serve, write_json  # noqa: E402
 TOOLS = ("claude", "codex")
 BYPASS = {"claude": ["--dangerously-skip-permissions"], "codex": ["--yolo"]}
 DRAFT, CRITIQUE, BRIEF = "DRAFT.md", "CRITIQUE.md", "BRIEF.md"
-START_MS, PROMPT_MS, ENTER_MS = "60000", "60000", "10000"
+START_MS, PROMPT_MS, ENTER_MS = "90000", "30000", "30000"
+ENTER_PAUSE_S = 2
 COMMAND_S = 120
 INPUT_LINES = 6
 PREFIX = 40
@@ -77,6 +83,9 @@ class HerdrRunner:
 
     def glob(self, folder, pattern):
         return sorted(Path(folder).glob(pattern)) if Path(folder).is_dir() else []
+
+    def sleep(self, seconds):
+        time.sleep(seconds)
 
     def run(self, argv, timeout=COMMAND_S):
         """`(exit code, stdout, stderr)`. A timeout of None waits without a limit."""
@@ -273,9 +282,13 @@ def _submit(runner, entry, text):
         return True
     if _error_code(out, err) != "agent_prompt_stalled":
         raise Refusal("not-submitted", f"{entry['tool']}: {_error_code(out, err) or (err or out).strip()}")
-    _, screen, _ = _call(runner, "pane", "read", entry["pane"], "--source", "visible", "--lines", "40")
+    code, screen, err = _call(runner, "pane", "read", entry["pane"], "--source", "visible", "--lines", "40")
+    if code != 0:
+        raise Refusal("not-submitted", f"{entry['tool']}: the prompt stalled, and herdr pane read failed: "
+                                       f"{_error_code(screen, err) or (err or screen).strip()}")
     if not _in_input_line(screen, text):
         return True
+    runner.sleep(ENTER_PAUSE_S)
     _herdr_ok(runner, "pane", "send-keys", entry["pane"], "enter")
     code, _, _ = _call(runner, "agent", "wait", entry["agent"], "--until", "working", "--timeout", ENTER_MS)
     if code != 0:
@@ -311,13 +324,16 @@ def start(args, runner):
     answer = []
     for tool in TOOLS:
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
-        code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), args.base)
-        if code != 0:
-            raise Refusal("worktree-failed", f"{tool}: git worktree add: {err.strip()}")
         entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree)}
         state["proposers"].append(entry)
         _save(args.doc, state)
-        (worktree / BRIEF).write_text(brief, "utf-8")
+        code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), args.base)
+        if code != 0:
+            raise Refusal("worktree-failed", f"{tool}: git worktree add: {err.strip()}")
+        try:
+            (worktree / BRIEF).write_text(brief, "utf-8")
+        except OSError as error:
+            raise Refusal("worktree-failed", f"{tool}: {BRIEF}: {error}") from None
         where = ["--pane", runner.env["HERDR_PANE_ID"]] if runner.env.get("HERDR_PANE_ID") else ["--current"]
         split = _herdr_ok(runner, "pane", "split", *where, "--direction", "right", "--cwd", str(worktree), "--no-focus")
         entry["pane"] = ((split.get("result") or {}).get("pane") or {}).get("pane_id")
@@ -409,7 +425,10 @@ def cleanup(args, runner):
                 _save(args.doc, state)
             else:
                 left.append(entry["pane"])
-        if entry.get("worktree"):
+        if entry.get("pane"):
+            if entry.get("worktree"):
+                left.append(entry["worktree"])
+        elif entry.get("worktree"):
             if _remove(runner, entry["worktree"]):
                 removed.append(entry["worktree"])
                 entry["worktree"] = None

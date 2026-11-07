@@ -51,6 +51,8 @@ class FakeRunner:
         self.lazy = set()
         self.locked = set()
         self.screen = ""
+        self.timeouts = []
+        self.slept = []
 
     # The host facts.
     def which(self, name):
@@ -64,8 +66,12 @@ class FakeRunner:
                       if Path(key).parent == Path(folder) and fnmatchcase(Path(key).name, pattern))
 
     # The commands.
+    def sleep(self, seconds):
+        self.slept.append((seconds, len(self.calls)))
+
     def run(self, argv, timeout=None):
         self.calls.append(list(argv))
+        self.timeouts.append(timeout)
         if self.on:
             answer = self.on(list(argv))
             if answer is not None:
@@ -459,6 +465,84 @@ def test_wait_refuses_pane_gone_when_a_pane_closed(runner, doc, phase, brief):
     assert refused(runner, "wait", doc).code == "pane-gone"
 
 
+def test_the_herdr_waits_follow_the_retry_and_timeout_table(runner, doc, phase, brief):
+    _stalled(runner)
+    runner.screen = "> Read BRIEF.md in your working folder and follow it.\n"
+
+    started(runner, doc, brief)
+
+    starts = runner.commands("agent", "start")
+    assert all(s[s.index("--timeout") + 1] == "90000" for s in starts)
+    prompts = runner.commands("agent", "prompt")
+    assert all(p[p.index("--timeout") + 1] == "30000" for p in prompts)
+    after = [c for c in runner.commands("agent", "wait") if "working" in c]
+    assert len(after) == 2 and all(c[c.index("--timeout") + 1] == "30000" for c in after)
+    keys = [n for n, call in enumerate(runner.calls) if call[1:3] == ["pane", "send-keys"]]
+    assert [seconds for seconds, _ in runner.slept] == [2, 2] and [at for _, at in runner.slept] == keys
+
+
+def test_a_failed_pane_read_after_a_stall_refuses_not_submitted(runner, doc, phase, brief):
+    _stalled(runner)
+    stalled = runner.on
+    runner.on = lambda argv: _error("timeout") if argv[1:3] == ["pane", "read"] else stalled(argv)
+    run(runner, "plan", doc)
+
+    error = refused(runner, "start", doc, "--brief", str(brief), "--base", BASE)
+    assert error.code == "not-submitted" and "timeout" in error.reason
+    assert runner.commands("pane", "send-keys") == []
+
+
+def test_a_partial_worktree_add_is_recorded_and_cleanup_removes_it(runner, doc, phase, brief):
+    def on(argv):
+        if argv[1:3] == ["worktree", "add"]:
+            Path(argv[4]).mkdir(parents=True)
+            (Path(argv[4]) / "half").write_text("x", "utf-8")
+            return 128, "", "fatal: checkout failed"
+        return None
+    runner.on = on
+    run(runner, "plan", doc)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "worktree-failed"
+    tree = state(doc)["proposers"][0]["worktree"]
+    assert Path(tree).is_dir() and dr._open_resources(state(doc)) == [tree]
+    runner.on = None
+    assert run(runner, "cleanup", doc)["removed"] == [tree] and not Path(tree).exists()
+
+
+def test_a_brief_that_cannot_be_written_refuses_worktree_failed(runner, doc, phase, brief):
+    def on(argv):
+        if argv[1:3] == ["worktree", "add"]:
+            (Path(argv[4]) / "BRIEF.md").mkdir(parents=True)
+            return 0, "", ""
+        return None
+    runner.on = on
+    run(runner, "plan", doc)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "worktree-failed"
+    assert runner.commands("pane", "split") == []
+
+
+def test_wait_waits_without_a_limit_until_idle_done_or_blocked(runner, doc, phase, brief):
+    started(runner, doc, brief)
+    before = len(runner.calls)
+
+    run(runner, "wait", doc)
+
+    waits = [(call, runner.timeouts[before + n]) for n, call in enumerate(runner.calls[before:])
+             if call[1:3] == ["agent", "wait"]]
+    assert len(waits) == 2
+    assert all(call[4:] == ["--until", "idle", "--until", "done", "--until", "blocked"] and timeout is None
+               for call, timeout in waits)
+
+
+def test_critique_before_wait_refuses_no_draft_and_sends_nothing(runner, doc, phase, brief):
+    started(runner, doc, brief)
+    before = len(runner.commands("agent", "prompt"))
+
+    assert refused(runner, "critique", doc).code == "no-draft"
+    assert len(runner.commands("agent", "prompt")) == before
+
+
 # A failure after start: the agent in charge drafts alone, and the banner says why (SDD §6, §7; decision D-10).
 
 def _fail_codex_worktree(runner, doc, brief):
@@ -546,6 +630,28 @@ def test_cleanup_refuses_cleanup_failed_naming_what_is_left_then_runs_again(runn
     runner.locked.clear()
     assert run(runner, "cleanup", doc)["removed"] == [stuck]
     assert state(doc)["cleaned"] is True
+
+
+def test_cleanup_keeps_the_worktree_of_a_pane_it_could_not_close(runner, doc, phase, brief):
+    entries = started(runner, doc, brief)["proposers"]
+    stuck = entries[0]["pane"]
+    runner.on = lambda argv: _error("timeout") if argv[1:3] == ["pane", "close"] and argv[3] == stuck else None
+
+    error = refused(runner, "cleanup", doc)
+    assert error.code == "cleanup-failed" and error.extra["left"] == [stuck, entries[0]["worktree"]]
+    assert Path(entries[0]["worktree"]).is_dir() and not Path(entries[1]["worktree"]).exists()
+
+
+def test_cleanup_counts_a_pane_already_gone_as_closed_and_tries_a_plain_remove_first(runner, doc, phase, brief):
+    entries = started(runner, doc, brief)["proposers"]
+    runner.panes.pop(entries[0]["pane"])
+    for item in Path(entries[1]["worktree"]).iterdir():
+        item.unlink()
+
+    answer = run(runner, "cleanup", doc)
+
+    assert answer["closed"] == [entry["pane"] for entry in entries]
+    assert runner.commands("worktree", "remove")[-1] == ["worktree", "remove", entries[1]["worktree"]]
 
 
 def test_cleanup_prunes_a_worktree_deleted_by_hand(runner, doc, phase, brief):
