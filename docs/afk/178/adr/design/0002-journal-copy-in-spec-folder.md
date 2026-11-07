@@ -16,7 +16,7 @@ AC-038, AC-039, AC-040; requirement ADR-0003.
 
 ## Decision
 
-After `end`, an `archive` verb copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the feature worktree, and commits it on the feature branch when it changed; `ship` stays false until `archive` passed. When a subtask starts, autopilot writes 1 `complexity <class>` line, so the copy keeps the class. The copy merges with the feature; gc never touches it.
+After `end`, an `archive` verb copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch, with / as ->.md` in the feature worktree (plan decision D-12), and commits it on the feature branch when it changed; `ship` stays false until `archive` passed. When a subtask starts, autopilot writes 1 `complexity <class>` line, so the copy keeps the class. The copy merges with the feature; gc never touches it.
 
 ```mermaid
 flowchart LR
