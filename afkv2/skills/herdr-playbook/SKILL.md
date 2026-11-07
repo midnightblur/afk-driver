@@ -68,10 +68,10 @@ herdr agent start <name> --kind codex  --pane <pane_id> --timeout 90000 -- --yol
 
 `--timeout` is in milliseconds, more than 3000 and at most 300000; the default is 30000. The answer `agent_not_ready` means the agent shows a dialog at startup: read it (H-5) before you do anything else. A policy can forbid full auto-approval:
 
-- Claude: `permissions.disableBypassPermissionsMode` is `"disable"` in `managed-settings.json` or in a file of `managed-settings.d/`. The folder is `/Library/Application Support/ClaudeCode/` on macOS, `/etc/claude-code/` on Linux and WSL, and `C:\Program Files\ClaudeCode\` on Windows.
-- Codex: `allowed_sandbox_modes` is set and does not hold `danger-full-access`, in `/etc/codex/requirements.toml` on Linux and macOS, or `%ProgramData%\OpenAI\Codex\requirements.toml` on Windows.
+- Claude: `permissions.disableBypassPermissionsMode` is `"disable"` in a managed source: `managed-settings.json` or a file of `managed-settings.d/` in `/Library/Application Support/ClaudeCode/` (macOS), `/etc/claude-code/` (Linux and WSL) or `C:\Program Files\ClaudeCode\` (Windows); the registry value `Settings` under `HKLM\SOFTWARE\Policies\ClaudeCode` or `HKCU\SOFTWARE\Policies\ClaudeCode` (Windows); the macOS profile domain `com.anthropic.claudecode`.
+- Codex: a `requirements.toml` in `/etc/codex/` (Linux and macOS) or `%ProgramData%\OpenAI\Codex\` (Windows), or the macOS key `com.openai.codex:requirements_toml_base64`, sets `allowed_sandbox_modes` without `danger-full-access`, sets `allowed_approval_policies` without `never`, or sets `allowed_permission_profiles` without `:danger-full-access = true`.
 
-Then do not start the agent; fall back as in H-9.
+An unreadable policy counts as a ban. Then do not start the agent; fall back as in H-9.
 
 Docs: <https://herdr.dev/tui/docs/agent-automation/#agent-identity-and-launch>, <https://code.claude.com/docs/en/permission-modes>, <https://code.claude.com/docs/en/managed-settings>, <https://developers.openai.com/codex/cli/reference>, <https://developers.openai.com/codex/enterprise/managed-configuration>
 
@@ -99,8 +99,9 @@ herdr agent prompt <name> "<text>" --wait --until working --timeout 30000
 Exit 0: the agent started work. The code `agent_prompt_stalled`: herdr saw no work within 5 seconds. A stall or a `timeout` does not prove that the text did not arrive, so never send the prompt again. Do this:
 
 1. `herdr pane read <pane_id> --source visible --lines 40`.
-2. The text is gone from the input line: the prompt was submitted.
-3. The text still sits in the input line: send 1 Enter with `herdr pane send-keys <pane_id> enter`, then `herdr agent wait <name> --until working --timeout 30000`. Exit not 0: the agent can finish before herdr sees it work, so read the pane again, or check `completion_seq` in `herdr agent get <name>`. Only when neither shows work, report the prompt as not submitted. Send no second Enter.
+2. The text is gone from the input line: run `herdr agent wait <name> --until working --timeout 30000`.
+3. The text still sits in the input line: send 1 Enter with `herdr pane send-keys <pane_id> enter`, then run the same wait. Send no second Enter.
+4. The wait exits not 0: the agent can finish before herdr sees it work, so check `completion_seq` in `herdr agent get <name>`. Only when it shows no finished work, report the prompt as not submitted.
 
 Docs: <https://herdr.dev/tui/docs/cli-reference/#agents>, <https://herdr.dev/tui/docs/cli-reference/#output-waits>
 
