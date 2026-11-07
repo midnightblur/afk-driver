@@ -1,4 +1,4 @@
-"""Machine tools setup checks or installs: Python 3, rg, the lavish host and the diagram renderer.
+"""Machine tools setup checks or installs: Python 3, rg, the lavish host, herdr and the diagram renderer.
 
 Every outside command goes through a `Runner`, so a test replaces it with an
 in-process fake.
@@ -26,6 +26,9 @@ MERMAID_VERSION = "12.0.0"
 # https://pptr.dev/api/puppeteer.configuration: this variable overrides `skipDownload`.
 NO_BROWSER_DOWNLOAD = {"PUPPETEER_SKIP_DOWNLOAD": "true"}
 EDGE_ROOTS = ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")
+HERDR_INSTALL_PS1 = "https://herdr.dev/install.ps1"
+HERDR_INSTALL_SH = "https://herdr.dev/install.sh"
+HERDR_INSTALL_TIMEOUT = 300
 
 
 @dataclass
@@ -267,6 +270,37 @@ def restore_lavish(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
                                        "reason": (got.err or got.out).strip()[:300]}}
     record.unlink()
     return {"ok": True, "action": "restored", "version": prior}
+
+
+# -------------------------------------------------------------------- herdr
+
+def herdr_status(run: Runner, record: Mapping[str, str], env: Mapping[str, str] | None = None) -> str:
+    """`present` on the path, `declined` after a recorded no, else `ask`. Read-only."""
+    if run.which("herdr", env):
+        return "present"
+    return "declined" if record.get("herdr") == "declined" else "ask"
+
+
+def herdr_installer(run: Runner, windows: bool, env: Mapping[str, str] | None = None) -> list[str]:
+    """The official install command (https://herdr.dev/tui/docs/install/). Each one streams
+    the installer into a shell or uses a package manager, and saves no program file first (AC-029)."""
+    if windows:
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                f"irm {HERDR_INSTALL_PS1} | iex"]
+    if run.which("brew", env):
+        return ["brew", "install", "herdr"]
+    return ["sh", "-c", f"curl -fsSL {HERDR_INSTALL_SH} | sh"]
+
+
+def install_herdr(run: Runner, windows: bool = os.name == "nt",
+                  env: Mapping[str, str] | None = None) -> dict:
+    """Run the official installer. Only after the developer's yes in session."""
+    got = run(herdr_installer(run, windows, env), env=env, timeout=HERDR_INSTALL_TIMEOUT)
+    if got.code != 0:
+        lines = [line for line in (got.err or got.out).splitlines() if line.strip()]
+        return {"ok": False, "error": {"code": "install-failed",
+                                       "reason": lines[-1].strip() if lines else f"exit {got.code}"}}
+    return {"ok": True, "herdr": "installed", "path": run.which("herdr", env)}
 
 
 # ---------------------------------------------------------- diagram renderer
