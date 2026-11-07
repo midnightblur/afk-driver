@@ -550,7 +550,7 @@ class World:
     def __init__(self, root, prd=True, sdd=True, config=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
-        for skill in ("to-subtasks", "propose-solution", "grill", "to-prd", "use-lavish"):
+        for skill in ("to-subtasks", "propose-solution", "grill-requirements", "to-prd", "use-lavish"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
         for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
@@ -1204,7 +1204,7 @@ def test_the_links_of_the_skill_resolve():
 
 
 def test_the_grill_step_named_for_the_reading_keys_states_them():
-    grill = (SKILLS / "grill" / "SKILL.md").read_text("utf-8")
+    grill = (SKILLS / "grill-requirements" / "SKILL.md").read_text("utf-8")
     step = re.search(r"^7\. .*?(?=^8\. )", grill, re.S | re.M).group(0)
     assert "apply-readings" in step and "settle" in step
 

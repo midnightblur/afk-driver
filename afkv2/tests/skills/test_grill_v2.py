@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
-for _folder in (PLUGIN / "skills" / "grill" / "scripts", PLUGIN / "skills" / "use-lavish" / "scripts", PLUGIN / "engine"):
+for _folder in (PLUGIN / "skills" / "grill-requirements" / "scripts", PLUGIN / "skills" / "use-lavish" / "scripts", PLUGIN / "engine"):
     sys.path.insert(0, str(_folder))
 
 import grill_log  # noqa: E402
@@ -360,7 +360,7 @@ def test_a_second_comeback_lists_only_the_points_changed_since_the_last_pass(rep
                       {"id": "s-two", "kind": "section", "text": "Title of s-two"}]
     assert grill_log.gate(again["doc"], again["log"])["changed"] == []
     assert Path(again["log"]).read_text("utf-8").count("- Last pass: ") == 1
-    log_format = (PLUGIN / "skills" / "grill" / "GRILL-LOG-FORMAT.md").read_text("utf-8")
+    log_format = (PLUGIN / "skills" / "grill-requirements" / "GRILL-LOG-FORMAT.md").read_text("utf-8")
     assert "| Last pass | `gate`, `grill_start` | `- Last pass: R<n> · session <id>`" in log_format
     assert "keeps the `Last pass` row" in log_format
 

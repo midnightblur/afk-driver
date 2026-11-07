@@ -1,9 +1,9 @@
 ---
-name: grill
-description: /afkv2:grill — grills a ticket into settled requirements. Reads the ticket with its comments and links, takes an optional round 0, runs requirement rounds on the page, keeps the claim ledger, and ends at the exit gate. Writes GRILL-LOG.md, the page document and glossary terms. Use to start the requirements of a ticket or to resume a grill.
+name: grill-requirements
+description: /afkv2:grill-requirements — grills a ticket into settled requirements. Reads the ticket with its comments and links, takes an optional round 0, runs requirement rounds on the page, keeps the claim ledger, and ends at the exit gate. Writes GRILL-LOG.md, the page document and glossary terms. Use to start the requirements of a ticket or to resume a grill.
 ---
 
-# /afkv2:grill
+# /afkv2:grill-requirements
 
 The team works first. Each round shows the human the whole picture at once: what the agent decided, what only the human can call, and why. The grill ends at the exit gate, when every point is settled.
 

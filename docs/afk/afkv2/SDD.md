@@ -352,7 +352,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph skills["Skills"]
-    grill["grill / propose-solution / propose-verification"]
+    grill["grill-requirements / propose-solution / propose-verification"]
     toprd["to-prd"]
     tosub["to-subtasks"]
     exec["autopilot + execute, code-review, create-change-request"]

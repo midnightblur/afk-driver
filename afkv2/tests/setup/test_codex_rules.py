@@ -6,7 +6,7 @@ import setup
 
 def _install(places, version="2.0.0"):
     root = places.codex_dir / "plugins" / "cache" / "market" / "afkv2" / version
-    for relative in ("engine/engine.py", "skills/use-lavish/scripts/page_round.py", "skills/grill/SKILL.md"):
+    for relative in ("engine/engine.py", "skills/use-lavish/scripts/page_round.py", "skills/grill-requirements/SKILL.md"):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"")

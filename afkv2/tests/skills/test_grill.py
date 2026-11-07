@@ -1,4 +1,4 @@
-"""Tests for the grill skill.
+"""Tests for the grill-requirements skill.
 
 The dry runs take every command from the fenced `sh step=...` blocks of SKILL.md, so a
 command the skill states is a command that ran. Tracker, engine and config reader are
@@ -22,7 +22,7 @@ from test_visualize import V1_WORD, _example_v0, _find, _next_round
 from test_visualize import check_document as check_format_1
 
 PLUGIN = Path(__file__).resolve().parents[2]
-SKILL_DIR = PLUGIN / "skills" / "grill"
+SKILL_DIR = PLUGIN / "skills" / "grill-requirements"
 LAVISH_DIR = PLUGIN / "skills" / "use-lavish"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 ENGINE = PLUGIN / "engine" / "engine.py"
@@ -82,7 +82,7 @@ class World:
         if swap:
             assert swap[0] in command
             command = command.replace(*swap)
-        filled = {"python": Path(sys.executable), "this skill's folder": self.plugin / "skills" / "grill",
+        filled = {"python": Path(sys.executable), "this skill's folder": self.plugin / "skills" / "grill-requirements",
                   "plugin root": self.plugin, **{k.replace("_", " "): v for k, v in values.items()}}
         for name, value in filled.items():
             command = command.replace(f"<{name}>", Path(value).as_posix() if isinstance(value, Path) else str(value))
@@ -164,9 +164,9 @@ DECIDED = {"decision": "The export writes UTF-8.", "alternatives": ["UTF-16: no 
 def test_frontmatter_and_produces_anchors():
     text_md = SKILL_MD.read_text("utf-8")
     head = re.match(r"---\n(.*?)\n---\n", text_md, re.S).group(1)
-    assert re.search(r"^name: grill$", head, re.M)
+    assert re.search(r"^name: grill-requirements$", head, re.M)
     assert re.search(r"^description: .+", head, re.M)
-    assert "/afkv2:grill" in text_md
+    assert "/afkv2:grill-requirements" in text_md
     assert "def build_round_document(" in (LAVISH_DIR / "scripts" / "round_document.py").read_text("utf-8")
 
 
@@ -185,7 +185,7 @@ def test_no_v1_name_and_no_upstream_caller():
         assert not v1.search(path.relative_to(SKILL_DIR).as_posix()), path
         assert not v1.search(path.read_text("utf-8")), path
     refs = set(re.findall(r"/afkv2:[\w-]+", SKILL_MD.read_text("utf-8")))
-    assert refs <= {"/afkv2:grill", "/afkv2:visualize", "/afkv2:use-lavish", "/afkv2:setup", "/afkv2:to-prd"}, refs
+    assert refs <= {"/afkv2:grill-requirements", "/afkv2:visualize", "/afkv2:use-lavish", "/afkv2:setup", "/afkv2:to-prd"}, refs
 
 
 def test_skill_states_each_harness_wait():
@@ -368,7 +368,7 @@ def test_no_tracker_kind_names_the_key_and_its_writer(tmp_path):
 
 def test_no_ticket_key_is_refused(world):
     command = shlex.split(skill_steps()["start"].replace("<python>", Path(sys.executable).as_posix()).replace(
-        "<this skill's folder>", (world.plugin / "skills" / "grill").as_posix()).replace(' --ticket "<ticket key>"', ""))
+        "<this skill's folder>", (world.plugin / "skills" / "grill-requirements").as_posix()).replace(' --ticket "<ticket key>"', ""))
     run = subprocess.run(command, cwd=world.repo, capture_output=True, text=True, timeout=60)
     assert run.returncode == 1, run.stdout + run.stderr
     assert json.loads(run.stdout)["error"]["missing"] == "ticket key"
