@@ -115,6 +115,14 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/design_round.py" build --doc "<doc>" --session "<session>" --ticket "<ticket key>" --round-input "<round input>" --ticket-file "<ticket file>"
    ```
 
+   A build refusal names the field in `reason`:
+
+   | Code | What you do |
+   |------|-------------|
+   | `proposers-first`, `proposers-open` | finish step 3: `cleanup`, or a `plan` with count 1 |
+   | `bad-proposers`, `bad-proposers-state` | pass the `proposers` object exactly as `plan` or `cleanup` answered it; a broken state file: show `reason` to the developer and stop |
+   | `bad-fork`, `bad-round`, `bad-item`, `section-*`, `driven-by-unknown` | fix the named field of the round input by [DRAFT.md](DRAFT.md), and run `build` again |
+
    ```sh step=present
    <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>" --scan "<log>"
    ```
