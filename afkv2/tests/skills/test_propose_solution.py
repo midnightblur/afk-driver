@@ -758,6 +758,9 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
     world.run("present", doc=started["doc"], log=started["log"])
     world.answer(started, "a-cascade-2: accept")
 
+    assert world.run("next", doc=started["doc"])["phase"] == "proposers"
+    (world.repo / started["doc"]).with_suffix(".proposers.json").write_text(
+        json.dumps({"version": 1, "count": 1, "proposers": [], "cleaned": False}), "utf-8")
     step = world.run("next", doc=started["doc"])
     assert step["phase"] == "draft" and step["aspects_open"] == [] and step["layers_to_ask"][0]["key"] == "L1"
     draft = round_of(*(layer_card(f"L{n}") for n in range(1, 10)),
