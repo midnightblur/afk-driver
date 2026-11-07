@@ -42,6 +42,7 @@ START_MS, PROMPT_MS, ENTER_MS = "60000", "60000", "10000"
 COMMAND_S = 120
 INPUT_LINES = 6
 PREFIX = 40
+MARKERS = (">", "›", "❯")
 FRAME = str.maketrans("", "", "│┃║|╭╮╰╯─━>›❯")
 DRAFT_PROMPT = (f"Read {BRIEF} in your working folder and follow it. Write your design draft to {DRAFT} in your "
                 f"working folder. Write no other file.")
@@ -190,9 +191,13 @@ def _save(doc, state):
 
 
 def _started(doc):
+    """The state of a session whose 2 proposers both run: each tool recorded with a pane and a worktree."""
     state = _load(doc)
-    if not state or not state.get("proposers"):
-        raise Refusal("not-planned", "no solution proposer is recorded: run `plan`, then `start`")
+    entries = (state or {}).get("proposers") or []
+    running = [entry for entry in entries if entry.get("pane") and entry.get("worktree")]
+    if state is None or state.get("cleaned") or sorted(entry.get("tool") for entry in running) != sorted(TOOLS):
+        raise Refusal("not-started", "both solution proposers must run, each with a pane and a worktree: run "
+                                     "`cleanup`, and the agent in charge drafts alone")
     return state
 
 
@@ -219,10 +224,17 @@ def plan(args, runner):
             "fence": _fence(state["count"])}
 
 
+def _compact(text):
+    return "".join(text.translate(FRAME).split())
+
+
 def _in_input_line(screen, text):
-    lines = [line for line in (screen or "").replace("\r\n", "\n").split("\n") if line.strip()]
-    tail = "".join("".join(line.translate(FRAME).split()) for line in lines[-INPUT_LINES:])
-    return "".join(text.split())[:PREFIX] in tail
+    """Whether `text` still sits in the input line: the last line that opens with a prompt marker, and the lines
+    it wraps onto. With no marker on the screen, the last INPUT_LINES lines count."""
+    lines = (screen or "").replace("\r\n", "\n").split("\n")
+    marked = [n for n, line in enumerate(lines) if line.lstrip(" │┃║|").startswith(MARKERS)]
+    tail = lines[marked[-1]:] if marked else [line for line in lines if line.strip()][-INPUT_LINES:]
+    return _compact(text)[:PREFIX] in _compact("".join(tail))
 
 
 def _submit(runner, entry, text):

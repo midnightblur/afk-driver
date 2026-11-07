@@ -365,6 +365,54 @@ def test_a_failed_worktree_refuses_worktree_failed(runner, doc, phase, brief):
     assert runner.commands("pane", "split") == []
 
 
+def _boxed(text, width):
+    """A Claude-style input box that wraps `text` at `width`, with a footer under it."""
+    words, lines, line = text.split(), [], "> "
+    for word in words:
+        if len(line) + len(word) + 1 > width:
+            lines.append(line)
+            line = "  "
+        line += word + " "
+    lines.append(line)
+    return "\n".join(["Claude Code", "╭" + "─" * (width + 2) + "╮", *(f"│ {item:<{width}} │" for item in lines),
+                      "╰" + "─" * (width + 2) + "╯", "  ? for shortcuts", "  ⏵⏵ bypass permissions on (shift+tab)"])
+
+
+@pytest.mark.parametrize("width", [40, 60, 80])
+def test_a_stalled_prompt_wrapped_in_a_narrow_input_box_still_gets_its_enter(width):
+    text = proposers.CRITIQUE_PROMPT.format(other=r"C:\work\repo-worktrees\proposer-s-1-codex\DRAFT.md",
+                                            brief=proposers.BRIEF, critique=proposers.CRITIQUE)
+
+    assert proposers._in_input_line(_boxed(text, width), text)
+    assert proposers._in_input_line(_boxed(proposers.DRAFT_PROMPT, width), proposers.DRAFT_PROMPT)
+
+
+def test_a_brief_above_an_empty_input_line_counts_as_submitted():
+    screen = "\n".join([f"> {proposers.DRAFT_PROMPT}", "", "Reading BRIEF.md", *(f"line {n}" for n in range(8)),
+                        _boxed("", 60)])
+
+    assert not proposers._in_input_line(screen, proposers.DRAFT_PROMPT)
+
+
+def test_after_a_partial_start_wait_and_critique_refuse_not_started(runner, doc, phase, brief):
+    runner.on = lambda argv: ((128, "", "fatal: busy") if argv[1:3] == ["worktree", "add"] and "codex" in argv[4]
+                              else None)
+    run(runner, "plan", doc)
+    refused(runner, "start", doc, "--brief", str(brief), "--base", BASE)
+
+    assert refused(runner, "wait", doc).code == "not-started"
+    assert refused(runner, "critique", doc).code == "not-started"
+
+
+def test_after_cleanup_critique_refuses_not_started(runner, doc, phase, brief):
+    started(runner, doc, brief)
+    run(runner, "wait", doc)
+    run(runner, "cleanup", doc)
+
+    assert refused(runner, "critique", doc).code == "not-started"
+    assert refused(runner, "wait", doc).code == "not-started"
+
+
 # wait and critique: only the 4 declared files come back (PRD AC-020).
 
 def test_wait_then_critique_then_wait_answers_the_four_files(runner, doc, phase, brief):
