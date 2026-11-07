@@ -94,3 +94,73 @@ def test_no_install_path_writes_a_program_file(herdr_runner):
     for call in herdr_runner.installer_calls():
         text = " ".join(call).lower()
         assert not any(word in text for word in ("temp", "tmp", "install.cmd", "-o ", "-fsslo", "outfile", ".exe"))
+
+
+# ----------------------------------------------------------- the setup verb
+
+@pytest.fixture
+def herdr_system(herdr_runner):
+    return setup.System(run=herdr_runner, windows=False, add_to_user_path=lambda _f: False,
+                        is_terminal=lambda: True)
+
+
+def _run(argv, env, system, capsys, repo=None):
+    code = setup.main(argv + (["--repo", str(repo)] if repo else []), env=env, system=system)
+    return code, json.loads(capsys.readouterr().out)
+
+
+def _prepared(places):
+    setup.write_install_record(places, {"path": "/py", "version": "3.12"}, "/rg")
+
+
+def test_status_asks_when_herdr_is_missing_and_unanswered(env, places, repo, herdr_system, capsys):
+    code, answer = _run(["status"], env, herdr_system, capsys, repo)
+    assert code == 0 and answer["herdr"] == "ask"
+
+
+def test_status_with_herdr_present_asks_nothing(env, places, repo, herdr_system, herdr_runner, capsys):
+    herdr_runner.paths["herdr"] = "/usr/local/bin/herdr"
+    _, answer = _run(["status"], env, herdr_system, capsys, repo)
+    assert answer["herdr"] == "present"
+    assert herdr_runner.installer_calls() == []
+
+
+def test_answer_yes_installs_and_records(env, places, herdr_system, herdr_runner, capsys):
+    _prepared(places)
+    code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
+    assert code == 0 and answer["herdr"] == "installed"
+    assert len(herdr_runner.installer_calls()) == 1
+    record = setup.read_install_record(places)
+    assert record["herdr"] == "installed" and record["python"] == "/py 3.12"
+
+
+def test_answer_no_records_declined_and_is_never_asked_again(env, places, repo, herdr_system, herdr_runner,
+                                                             capsys):
+    _prepared(places)
+    code, answer = _run(["herdr", "--answer", "no"], env, herdr_system, capsys)
+    assert code == 0 and answer == {"ok": True, "herdr": "declined"}
+    assert herdr_runner.installer_calls() == []
+    _, status = _run(["status"], env, herdr_system, capsys, repo)
+    assert status["herdr"] == "declined"
+    setup.write_install_record(places, {"path": "/py", "version": "3.13"}, "/rg")
+    assert setup.read_install_record(places)["herdr"] == "declined"
+
+
+def test_answer_yes_with_herdr_present_runs_nothing(env, places, herdr_system, herdr_runner, capsys):
+    herdr_runner.paths["herdr"] = "/usr/local/bin/herdr"
+    code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
+    assert code == 0 and answer["herdr"] == "present"
+    assert herdr_runner.installer_calls() == []
+
+
+def test_a_failed_install_records_nothing(env, places, herdr_system, herdr_runner, capsys):
+    _prepared(places)
+    herdr_runner.installer_code = 2
+    code, answer = _run(["herdr", "--answer", "yes"], env, herdr_system, capsys)
+    assert code == 1 and answer["error"]["code"] == "install-failed"
+    assert "herdr" not in setup.read_install_record(places)
+
+
+def test_the_verb_needs_an_answer(env, herdr_system, capsys):
+    code, answer = _run(["herdr"], env, herdr_system, capsys)
+    assert code == 2 and answer["error"]["code"] == "bad-arguments"
