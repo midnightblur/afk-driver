@@ -52,6 +52,8 @@ TICKET_CARD = "i-ticket"
 TICKET_TITLE = "What the ticket says"
 FOLD_OVER = 600
 SESSION_TEXT_LIMIT = 40
+# The label of the optional block that names what a decision serves (ADR-0004 design).
+DRIVEN_BY_LABEL = "Driven by"
 
 
 def _components(component):
@@ -198,7 +200,7 @@ def _labelled(component_id, label, value, **extra):
 def _decided_fields(item_id, decided, known_ids):
     """The six fields of a decided card as labelled text components, and whether the card holds all six.
 
-    The decision comes first, in bold. The alternatives are a list under a label that calls them rejected,
+    The decision comes first, in bold. A sent `driven_by` list adds a "Driven by" block right after it. The alternatives are a list under a label that calls them rejected,
     so they never read as parts of the decision. The grade is a badge on the evidence label."""
     decided = decided if isinstance(decided, dict) else {}
     alternatives = [str(a) for a in decided.get("alternatives") or []]
@@ -209,6 +211,9 @@ def _decided_fields(item_id, decided, known_ids):
     fields = []
     if decided.get("decision"):
         fields.append({**_labelled(f"{item_id}-decision", "Decision", decided["decision"]), "style": "font-weight: 600"})
+    driven_by = [str(value) for value in decided.get("driven_by") or []]
+    if driven_by:
+        fields.append(_labelled(f"{item_id}-driven-by", DRIVEN_BY_LABEL, ", ".join(driven_by)))
     if decided.get("why"):
         fields.append(_labelled(f"{item_id}-why", "Why this one", decided["why"]))
     if alternatives:
