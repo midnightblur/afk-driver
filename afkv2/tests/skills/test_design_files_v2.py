@@ -159,3 +159,19 @@ def test_the_gate_refuses_while_the_proposers_state_file_records_an_open_pane(wo
     state.write_text(json.dumps({"version": 1, "count": 2, "cleaned": True, "proposers": [
         {"tool": "claude", "pane": None, "worktree": None}, {"tool": "codex", "pane": None, "worktree": None}]}), "utf-8")
     assert gate_failures(world, started, expect=0)["ok"] is True
+
+
+def test_a_design_adr_without_driven_by_fails_the_gate(world):
+    started = walked(world)
+    adr = next((world.spec / "adr" / "design").glob("*.md"))
+    text = adr.read_text("utf-8")
+    assert "## Driven by\n" in text
+    adr.write_text(text.replace("## Driven by\n", "## Drivers\n"), "utf-8")
+    assert f"{adr.name}: no section `## Driven by`" in gate_failures(world, started)
+
+
+def test_the_adr_format_shows_the_driven_by_section():
+    template = (PLUGIN / "skills" / "propose-solution" / "ADR-FORMAT.md").read_text("utf-8")
+    sections = [line for line in template.split("```markdown", 1)[1].split("\n```", 1)[0].splitlines()
+                if line.startswith("## ")]
+    assert sections[:3] == ["## Context", "## Driven by", "## Decision"]

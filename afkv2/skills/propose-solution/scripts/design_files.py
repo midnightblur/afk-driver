@@ -54,7 +54,7 @@ BLOCKING_LAYER = re.compile(r"L[2-79]\b")
 BLOCKING_ANSWER = re.compile(r"yes\b", re.I)
 EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
-ADR_SECTIONS = ("Decision", "Alternatives Considered")
+ADR_SECTIONS = ("Driven by", "Decision", "Alternatives Considered")
 SDD_NAME = "SDD.md"
 # The section kinds of the catalog in DRAFT.md that every design page holds (PRD P-01, P-04, P-05).
 REQUIRED_KINDS = ("system", "patterns", "performance")
