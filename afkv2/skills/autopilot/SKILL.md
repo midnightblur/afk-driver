@@ -5,7 +5,7 @@ description: /afkv2:autopilot — builds an approved plan hands-off, one subtask
 
 # /afkv2:autopilot
 
-Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. A human merges the change. Never run /afkv2:gc.
+Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. The journal copy of `archive` is the 1 run record that lands on the feature branch. A human merges the change. Never run /afkv2:gc.
 
 ## Input
 
@@ -28,7 +28,7 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
    3. `start` with `subtask` and optional `app`. A refusal `contract-mismatch` or `gate-cannot-run`: `park` with `by: "autopilot"`, and name the failure in `reason`.
    4. Start one fresh subagent with `brief` as its whole prompt. It runs `/afkv2:execute`.
    5. Read its last lines, and route them by the table below. Read the tracker through `next`: the report does not move the walk.
-4. **End.** `end`. Its answer lists `done`, `parked`, `waiting`, `rulings` and `ship`.
+4. **End.** `end`. Its answer lists `done`, `parked`, `waiting` and `rulings`. Then `archive`: it copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the feature worktree, with each `/` of the branch name as `-`, and commits it on the feature branch when it changed. Its answer holds `path`, `committed` and `ship`. `committed: true`: push the feature branch. `ship` is false until `archive` passed. A refusal: correct its cause and run `archive` again.
 5. **Report to the developer.** One line per ruling: its id, the question and the ruling. One line per park: the subtask, why, and the ledger id.
 6. **Ship.** `ship: true`: run the "Ship" section of `/afkv2:create-change-request` with `id` and `plan`. `ship: false`: stop. The change stays Draft.
 
@@ -63,6 +63,7 @@ You are the orchestrator, and the rule is yours: an executor never rules its own
 | `start-refused` | the gate lists each failure | step 2 |
 | `not-run-branch` | the plan folder is not `plan/` at the root of a run branch | pass the path from `locate` |
 | `not-feature-branch`, `no-run-branch` | no feature branch, or no run branch | run from the feature branch, or slice with `/afkv2:to-subtasks` |
+| `no-feature-worktree`, `no-spec-dir` | `archive` finds no worktree of the feature branch, or no contract names its `## Parent PRD` | check the feature branch out, or correct the plan; run `archive` again |
 | `subtask-in-flight`, `blocked-by`, `parked`, `already-done` | this subtask cannot start now | `next` names the one that can |
 | `contract-mismatch`, `gate-cannot-run` | a consumed anchor is missing, or a gate cannot run | `park` |
 | `not-running`, `not-finished`, `change-differs` | an executor's verb went wrong | the executor reads them; see `/afkv2:execute` |

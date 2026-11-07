@@ -1,10 +1,11 @@
 """The walk of one plan: `walk.py <verb> [json-payload]`, or the payload on stdin.
 
-Every write lands in `plan/` on the run branch and is committed there. The feature branch gets no write.
+Every write lands in `plan/` on the run branch and is committed there. The feature branch gets 1 write: the journal copy of `archive`.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -444,6 +445,17 @@ def done(payload):
     return ok(subtask=subtask, commits=commits)
 
 
+def _journal_digest(plan):
+    path = plan / "JOURNAL.md"
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+
+
+def _ships(plan, state, tally, statuses):
+    """Every subtask is done, and `archive` copied the journal as it is now."""
+    archived = state.get("archived") is not None and state["archived"] == _journal_digest(plan)
+    return archived and len(tally["done"]) == len(statuses)
+
+
 def end(payload):
     plan = _plan(payload)
     state, statuses = _load(plan), _statuses(plan)
@@ -451,11 +463,57 @@ def end(payload):
     _journal(plan, "autopilot", "run", f"run end ({len(tally['done'])}/{len(statuses)} done, {len(tally['parked'])} parked)",
              "the walk of the plan has stopped")
     _commit_run(plan, "run: end")
-    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=len(tally["done"]) == len(statuses))
+    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses))
+
+
+def _feature_worktree(plan, run_branch):
+    """The worktree that has the feature branch of this run branch checked out."""
+    feature = run_branch.removesuffix(RUN_SUFFIX)
+    for block in _git(plan, "worktree", "list", "--porcelain").split("\n\n"):
+        lines = block.splitlines()
+        if lines and f"branch refs/heads/{feature}" in lines:
+            return Path(lines[0].removeprefix("worktree "))
+    raise Refusal("no-feature-worktree", f"no worktree has {feature} checked out: check it out in a worktree, and run `archive` again")
+
+
+def _spec_dir(plan):
+    """The folder of the first `## Parent PRD` in rank order, relative to the repository root."""
+    for contract in _contracts(plan):
+        words = contract.sections.get("Parent PRD", "").replace("`", " ").split()
+        if words:
+            return Path(words[0]).parent
+    raise Refusal("no-spec-dir", "no contract names its `## Parent PRD`, so the spec folder is unknown")
+
+
+def _copy_journal(plan, run_branch):
+    """Copy plan/JOURNAL.md to `<spec dir>/runs/<run branch>.md` in the feature worktree; commit it there when it changed."""
+    worktree = _feature_worktree(plan, run_branch)
+    relative = _spec_dir(plan) / "runs" / (run_branch.replace("/", "-") + ".md")
+    target = worktree / relative
+    source = plan / "JOURNAL.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(source.read_bytes() if source.is_file() else JOURNAL_HEADER.encode("utf-8"))
+    name = relative.as_posix()
+    _git(worktree, "add", "--", name)
+    if git_line(worktree, "diff", "--cached", "--quiet", "--", name) is not None:
+        return target, False
+    _git(worktree, "commit", "-qm", f"run: journal copy of {run_branch}", "--", name)
+    return target, True
+
+
+def archive(payload):
+    """After `end`: copy the journal into the spec folder on the feature branch. `ship` stays false until this passed."""
+    plan = _plan(payload)
+    state, statuses = _load(plan), _statuses(plan)
+    target, committed = _copy_journal(plan, run_branch_of(plan))
+    state["archived"] = _journal_digest(plan)
+    _save(plan, state)
+    _commit_run(plan, "run: journal copied to the feature branch")
+    return ok(path=str(target), committed=committed, ship=_ships(plan, state, _tally(statuses), statuses))
 
 
 VERBS = {"locate": locate, "next": next_subtask, "start": start, "status": set_status, "set-change": set_change,
-         "decide": decide, "park": park, "rule": rule, "done": done, "end": end}
+         "decide": decide, "park": park, "rule": rule, "done": done, "end": end, "archive": archive}
 
 
 def main(argv=None):

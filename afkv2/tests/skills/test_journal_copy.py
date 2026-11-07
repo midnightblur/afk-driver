@@ -67,7 +67,7 @@ def test_archive_leaves_other_work_in_the_feature_worktree_alone(built):
     verb("end", built)
     assert verb("archive", built)["committed"] is True
     assert git(built.work, "show", "--name-only", "--format=", "HEAD").splitlines() == [COPY.as_posix()]
-    assert sorted(git(built.work, "status", "--porcelain").splitlines()) == [" M README.md", "?? notes.txt"]
+    assert sorted(line.strip() for line in git(built.work, "status", "--porcelain").splitlines()) == ["?? notes.txt", "M README.md"]
 
 
 def test_ship_waits_for_archive(built):
@@ -87,7 +87,8 @@ def test_a_failed_commit_refuses_keeps_ship_false_and_may_run_again(built, tmp_p
     all_done(built)
     hooks = tmp_path / "hooks"
     hooks.mkdir()
-    (hooks / "pre-commit").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook = '#!/bin/sh\n[ "$(git rev-parse --abbrev-ref HEAD)" = "feat/x" ] && exit 1\nexit 0\n'  # the run branch still commits
+    (hooks / "pre-commit").write_text(hook, encoding="utf-8")
     git(built.work, "config", "core.hooksPath", str(hooks))
     verb("end", built)
     with pytest.raises(start_gate.Refusal) as caught:
