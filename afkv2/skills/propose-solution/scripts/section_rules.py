@@ -103,8 +103,10 @@ def _level_shape(sid, body):
     lines = [line for line in str(_props(summary).get("text") or "").splitlines() if line.strip()]
     if len(lines) > SUMMARY_LINES:
         return [f"section-shape: the summary of {sid} has {len(lines)} lines; at most {SUMMARY_LINES}"]
-    open_detail = [child for child in children if child is not summary and not _labelled(child, CAPTION_LABEL)
-                   and not child.get("fold")]
+    detail = [child for child in children if child is not summary and not _labelled(child, CAPTION_LABEL)]
+    if detail and children.index(detail[0]) < children.index(summary):
+        return [f"section-shape: {sid} shows detail before its summary; the summary comes first"]
+    open_detail = [child for child in detail if not child.get("fold")]
     if open_detail:
         return [f"section-shape: {sid} shows {len(open_detail)} detail part(s) open; give each a fold"]
     return []
@@ -133,6 +135,10 @@ def _performance_shape(sid, body):
     missing = [row[0] for row in _table("Performance parts") if row[0] not in parts]
     if missing:
         return [f"section-shape: {sid} holds no part {', '.join(missing)}; label each part 'PF-<n> <name>'"]
+    bare = [name for name, part in parts.items() if name.startswith("PF-")
+            and not any(c.get("type") in PICTURES for c in _components(part) if c is not part)]
+    if bare:
+        return [f"section-shape: the part {', '.join(sorted(bare))} of {sid} holds no picture"]
     tables = [c for c in _components(parts["PF-4"]) if c.get("type") == "table"]
     rows = [row for c in tables for row in _props(c).get("rows") or []]
     unmarked = [n for n, row in enumerate(rows, 1)
@@ -147,13 +153,17 @@ def _performance_shape(sid, body):
 SHAPES = {"level": _level_shape, "patterns": _patterns_shape, "performance": _performance_shape}
 
 
-def _shape(sid, kind, body):
+def _shape(entry, kind, level_ids):
+    sid, body = entry["id"], entry.get("body") or {}
     if kind in PICTURE_ROOT_KINDS and body.get("type") not in PICTURES:
         return [f"section-shape: {sid} opens with a {body.get('type')!r}, not a picture"]
     failures = SHAPES[kind](sid, body) if kind in SHAPES else []
-    if kind == "critical" and not any(c.get("type") == "chip" and str(_props(c).get("text") or "").lower()
-                                      .startswith("critical") for c in _components(body)):
-        failures.append(f"section-shape: {sid} holds no chip whose text starts 'critical'")
+    if kind == "critical":
+        if not any(c.get("type") == "chip" and str(_props(c).get("text") or "").lower().startswith("critical")
+                   for c in _components(body)):
+            failures.append(f"section-shape: {sid} holds no chip whose text starts 'critical'")
+        if not set(entry.get("links") or []) & level_ids:
+            failures.append(f"section-shape: {sid} names no level section of the page in its links")
     return failures
 
 
@@ -184,9 +194,9 @@ def check_sections(doc_sections):
             out_of_order = (f"section-order: {entry['id']} stands after {last[1]}; the section catalog of DRAFT.md "
                             f"puts it before")
             failures.append(out_of_order)
+    level_ids = {entry["id"] for entry in known if _kind(entry["id"]) == "level"}
     for entry in known:
-        body = entry.get("body") or {}
-        failures += _shape(entry["id"], _kind(entry["id"]), body) + _captions(entry["id"], body)
+        failures += _shape(entry, _kind(entry["id"]), level_ids) + _captions(entry["id"], entry.get("body") or {})
     return failures
 
 

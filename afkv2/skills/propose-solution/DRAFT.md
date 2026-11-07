@@ -70,7 +70,7 @@ The `sec-performance` section holds 1 `text` per part, labelled "PF-<n> <name>",
 | PF-1 | Anticipated problems: hot paths, large data, unbounded lists, repeated queries, memory, waiting on others | a table: problem, where, cause, size |
 | PF-2 | Large data: the size of each growing table or list now, in 1 year and at worst, and the cost of each read or write | a size table |
 | PF-3 | The solution to each problem: paging, streaming, batching, indexes, caching, limits | the design picture of that part, the fix chipped |
-| PF-4 | Budgets: a target per key flow (time, size or count) | a table of the budgets, each row with a `measured`, `inferred` or `estimated` chip, or bars against the target |
+| PF-4 | Budgets: a target per key flow (time, size or count) | a table of the budgets, each row with a `measured`, `inferred` or `estimated` chip |
 
 ## Decision blocks
 

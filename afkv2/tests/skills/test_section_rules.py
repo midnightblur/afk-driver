@@ -35,6 +35,7 @@ def level_body(summary="one line", rest=None):
 
 
 def section(sid, body=None, links=None, state="current"):
+    links = ["sec-l1"] if links is None and sid.startswith("sec-crit-") else links
     return {"id": sid, "title": sid, "state": state, "changes": [], "body": body or default_body(sid),
             **({"links": links} if links is not None else {})}
 
@@ -74,7 +75,7 @@ def test_order_key_sorts_ids_in_catalog_order():
     assert sr.order_key("sec-crit-a") == sr.order_key("sec-crit-zz")
 
 
-@pytest.mark.parametrize("sid", ["sec-l10", "sec-crit-", "sec-other", "section-l1"])
+@pytest.mark.parametrize("sid", ["sec-l10", "sec-crit-", "sec-crit-A", "sec-other", "section-l1"])
 def test_order_key_refuses_an_id_the_catalog_does_not_name(sid):
     with pytest.raises(Refusal) as refusal:
         sr.order_key(sid)
@@ -103,8 +104,9 @@ def test_an_unknown_id_is_named():
     assert codes(sr.check_sections(page(["sec-system", "sec-extra"]))) == ["section-unknown"]
 
 
-def test_a_removed_section_is_not_checked():
-    sections = page(["sec-system", "sec-l1"]) + [section("sec-crit-a", state="removed")]
+@pytest.mark.parametrize("state", ["removed", "merged"])
+def test_a_removed_or_merged_section_is_not_checked(state):
+    sections = page(["sec-system", "sec-l1"]) + [section("sec-crit-a", state=state)]
     assert sr.check_sections(sections) == []
 
 
@@ -119,6 +121,16 @@ def test_a_summary_of_3_lines_has_the_wrong_shape():
     sections = [section("sec-l1", body=level_body("a\nb\nc"))]
     failures = sr.check_sections(sections)
     assert codes(failures) == ["section-shape"] and "summary" in failures[0]
+
+
+def test_a_summary_of_2_lines_passes():
+    assert sr.check_sections([section("sec-l1", body=level_body("a\nb"))]) == []
+
+
+def test_detail_before_the_summary_has_the_wrong_shape():
+    body = picture([text("detail", fold="Detail"), text("one line", label="Summary")])
+    failures = sr.check_sections([section("sec-l1", body=body)])
+    assert codes(failures) == ["section-shape"] and "summary" in failures[0].lower()
 
 
 def test_a_level_section_with_no_summary_has_the_wrong_shape():
@@ -150,8 +162,15 @@ def test_a_nested_picture_with_no_caption_is_named():
     assert codes(sr.check_sections(sections)) == ["section-caption"]
 
 
+@pytest.mark.parametrize("links", [[], ["sec-system"], ["sec-l3"]])
+def test_a_critical_section_that_names_no_level_section_on_the_page_is_named(links):
+    sections = [section("sec-crit-a", links=links), section("sec-l1")]
+    failures = sr.check_sections(sections)
+    assert codes(failures) == ["section-shape"] and "links" in failures[0]
+
+
 def test_a_critical_section_with_no_critical_chip_is_named():
-    sections = [section("sec-crit-a", body=picture())]
+    sections = [section("sec-crit-a", body=picture()), section("sec-l1")]
     failures = sr.check_sections(sections)
     assert codes(failures) == ["section-shape"] and "critical" in failures[0]
 
@@ -182,7 +201,7 @@ def performance(budget_tone="measured", parts=("PF-1", "PF-2", "PF-3", "PF-4")):
         if name == "PF-4":
             return text("budgets", label=f"{name} Budgets",
                         children=[table(["Flow", "Target", "Basis"], [["build", "3 s", chip("measured", budget_tone)]])])
-        return text("words", label=f"{name} part")
+        return text("words", label=f"{name} part", children=[table(["Item"], [["x"]])])
     return text("performance", children=[part(name) for name in parts])
 
 
@@ -202,6 +221,25 @@ def test_a_budget_row_with_no_basis_mark_has_the_wrong_shape():
     assert codes(failures) == ["section-shape"] and "PF-4" in failures[0]
 
 
+def test_a_pf_part_with_no_picture_has_the_wrong_shape():
+    body = performance()
+    body["children"][0]["children"] = []
+    failures = sr.check_sections([section("sec-performance", body=body)])
+    assert codes(failures) == ["section-shape"] and "PF-1" in failures[0]
+
+
+def test_a_pf_4_part_with_no_budget_table_has_the_wrong_shape():
+    body = performance()
+    body["children"][3]["children"] = [picture()]
+    failures = sr.check_sections([section("sec-performance", body=body)])
+    assert codes(failures) == ["section-shape"] and "no budget table" in failures[0]
+
+
+def test_a_no_risk_line_with_a_child_has_the_wrong_shape():
+    body = text("one line", label="No performance risk", children=[text("more")])
+    assert codes(sr.check_sections([section("sec-performance", body=body)])) == ["section-shape"]
+
+
 def test_a_no_risk_line_of_2_lines_has_the_wrong_shape():
     body = text("a\nb", label="No performance risk")
     assert codes(sr.check_sections([section("sec-performance", body=body)])) == ["section-shape"]
@@ -213,6 +251,7 @@ def test_fill_links_links_each_level_to_the_next_and_to_its_critical_sections():
     sections = page(["sec-system", "sec-crit-a", "sec-l1", "sec-l3", "sec-logic", "sec-l9", "sec-patterns"])
     sections[1]["links"] = ["sec-l3"]
     sections[2]["links"] = ["sec-system"]
+    assert sr.check_sections(sections) == []
     filled = {entry["id"]: entry.get("links") for entry in sr.fill_links(sections)}
     assert filled["sec-l1"] == ["sec-system", "sec-l3"]
     assert filled["sec-l3"] == ["sec-logic", "sec-crit-a"]
