@@ -1,8 +1,10 @@
 """The disk side of propose-solution, from the repository root.
 
 `design_files.py start --ticket KEY`: the paths of the spec folder; refuses a missing input and names its writer.
-  The newest session open: `resume` true. The newest session passed its design gate: `takeover` names it, and
-  `session` and `doc` are its own, so new input adds a round to that page; its `Last pass` row is kept or written.
+  The newest session open, or passed with a round after its `Last pass` round: `resume` true. The newest session
+  passed its design gate and its page stays at that round: `takeover` names it, and `session` and `doc` are its own,
+  so new input adds a round to that page; a log with no `Last pass` row for it gets one (the only write of start
+  besides the section heading).
 `design_files.py row --log FILE --kind K --text T`: one row of this skill's section of the grill log.
   A `Takeover` row reads `- Takeover: R<n> · <at>`: the entry that `take-over` added; one row per takeover.
 `design_files.py sync --doc FILE --log FILE`: copies each new note of the page document into this skill's section.
@@ -83,28 +85,26 @@ def _newest_session(pages):
     return sessions[-1] if sessions else None
 
 
+def _sessions(pages, log):
+    """(resumed, takeover) for the newest document: open, or past its passed gate by a later round, resumes; passed
+    and still at its `Last pass` round, a run with new input takes it over."""
+    session = _newest_session(pages)
+    passed = session is not None and gate_passed(log, session)
+    rows = _section_parts(log)[1] if passed else []
+    return pass_history.resume_or_take_over(session, passed, pages / f"{DOC_PREFIX}{session}.json", rows)
+
+
 def _open_session(pages, log):
-    """The newest document whose session has no passed design gate; a run resumes it."""
-    session = _newest_session(pages)
-    return session if session is not None and not gate_passed(log, session) else None
-
-
-def finished_session(pages, log):
-    """The newest document whose session passed its design gate; a run with new input takes it over."""
-    session = _newest_session(pages)
-    return session if session is not None and gate_passed(log, session) else None
-
-
-def _passed_round(rows, session):
-    return next((n for n in (pass_history.last_pass(line, session) for line in rows) if n is not None), None)
+    """The session a run resumes, else None."""
+    return _sessions(pages, log)[0]
 
 
 def keep_last_pass(doc_path, log):
     """A log from before the `Last pass` row: write the row of a taken-over session, at the current round of its page."""
-    doc = read_json(doc_path)
     head, rows, tail = _section_parts(log)
-    if _passed_round(rows, doc["session"]["id"]) is None:
-        _write_section(log, head, [*rows, pass_history.last_pass_row(doc)], tail)
+    row = pass_history.missing_last_pass_row(read_json(doc_path), rows)
+    if row:
+        _write_section(log, head, [*rows, row], tail)
 
 
 def ensure_section(log):
@@ -127,8 +127,7 @@ def start(argv):
         raise Refusal("missing-input", f"missing {prd}; {TO_PRD} writes it", missing=str(prd), writer=TO_PRD)
     log, pages = Path(paths["log"]), spec_dir / "pages"
     ensure_section(log)
-    resumed = _open_session(pages, log)
-    takeover = None if resumed else finished_session(pages, log)
+    resumed, takeover = _sessions(pages, log)
     session = resumed or takeover or _new_session(pages)
     doc, raw_file = pages / f"{DOC_PREFIX}{session}.json", pages / f"{DOC_PREFIX}{session}.raw.txt"
     if takeover:
@@ -341,7 +340,7 @@ def gate(argv):
     head, rows, tail = _section_parts(log)
     session_id = doc["session"]["id"]
     session = f"· session {session_id}"
-    passed = _passed_round(rows, session_id)
+    passed = pass_history.passed_round(rows, session_id)
     rows = [line for line in rows if not (line.startswith(GATE_PASSED) and line.endswith(session))
             and pass_history.last_pass(line, session_id) is None]
     _write_section(log, head, [*rows, f"{GATE_PASSED} {today} {session}", pass_history.last_pass_row(doc)], tail)

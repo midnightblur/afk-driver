@@ -267,10 +267,10 @@ def _log_failures(blocks):
 def keep_last_pass(doc_path, log):
     """A log from before the `Last pass` row: write the row for a session whose end check passed. The current round of
     its page is the passed round, because a sync after a new round removes the gate row."""
-    doc = format_1(read_json(doc_path))
     head, blocks, tail = _split(log)
-    if not any(last_pass(block[0], doc["session"]["id"]) is not None for block in blocks):
-        write_text(log, _join(head, blocks + [[last_pass_row(doc)]], tail))
+    row = pass_history.missing_last_pass_row(read_json(doc_path), [block[0] for block in blocks])
+    if row:
+        write_text(log, _join(head, blocks + [[row]], tail))
 
 
 def _changed(doc, passed):
@@ -289,7 +289,7 @@ def gate(doc_path, log):
     if failures:
         raise Refusal("exit-gate", f"{len(failures)} exit-gate checks failed", failures=failures)
     today, session = datetime.now(timezone.utc).strftime("%Y-%m-%d"), doc["session"]["id"]
-    passed = next((n for n in (last_pass(block[0], session) for block in blocks) if n is not None), None)
+    passed = pass_history.passed_round([block[0] for block in blocks], session)
     blocks = [block for block in blocks
               if not block[0].startswith(GATE_PASSED) and last_pass(block[0], session) is None]
     blocks += [[f"{GATE_PASSED} {today} · session {session}"], [last_pass_row(doc)]]

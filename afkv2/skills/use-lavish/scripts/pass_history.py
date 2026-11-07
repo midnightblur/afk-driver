@@ -1,6 +1,8 @@
 """The pass history of a gate that ends a page session, shared by the grill gate and the design gate.
 
 `last_pass_row(doc)` and `last_pass(row, session)`: the `- Last pass: R<n> · session <id>` row of a passed gate.
+`resume_or_take_over(session, passed, doc_path, rows)`: whether a start resumes the newest session or takes it over.
+`missing_last_pass_row(doc, rows)`: the `Last pass` row that a log from before that row needs on a take-over.
 `changed(doc, since_round)`: the points changed after the round of the last passed gate.
 `stale(spec_dir, writers)`: the later documents that may be out of date.
 `open_questions(doc)`: the open questions for others of a version 2 page.
@@ -13,7 +15,8 @@ import subprocess
 import time
 from pathlib import Path
 
-from round_document import ASKING, _carries_card, _components, current_round
+from grill_common import read_json
+from round_document import ASKING, _carries_card, _components, current_round, format_1
 
 # The run branch of a feature branch. Lockstep copy of check_plan.RUN_SUFFIX of to-subtasks, not imported: a test world
 # copies only the skills it runs. test_pass_history.py compares them.
@@ -43,6 +46,33 @@ def last_pass(row, session):
 
 def last_pass_row(doc):
     return f"- Last pass: R{current_round(doc)['n']} · session {doc['session']['id']}"
+
+
+def passed_round(rows, session):
+    """The round of the session's `Last pass` row among the log rows, else None."""
+    return next((n for n in (last_pass(row, session) for row in rows) if n is not None), None)
+
+
+def resume_or_take_over(session, passed, doc_path, rows):
+    """(resumed, takeover) for the newest session of a skill: each the session id or None. `passed` is true when
+    the session's gate row is in the log; `rows` are the first lines of the skill's log rows. A passed session takes
+    over while its page stays at its `Last pass` round; once a later round exists, the start resumes it."""
+    if session is None:
+        return None, None
+    if not passed:
+        return session, None
+    n = passed_round(rows, session)
+    rounds = (format_1(read_json(doc_path)).get("rounds") or []) if n is not None and Path(doc_path).is_file() else []
+    if n is not None and max((rnd["n"] for rnd in rounds), default=0) > n:
+        return session, None
+    return None, session
+
+
+def missing_last_pass_row(doc, rows):
+    """The `Last pass` row of a taken-over session at the current round of its page, when no row holds one, else
+    None. A log from before the row records the pass this way."""
+    doc = format_1(doc)
+    return None if passed_round(rows, doc["session"]["id"]) is not None else last_pass_row(doc)
 
 
 def changed(doc, since_round):
