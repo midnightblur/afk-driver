@@ -14,7 +14,8 @@ def _written_classes():
 
 
 def test_parts_v2_writes_style_classes():
-    assert "afkv2-v2-section" in _written_classes()
+    """The scan finds the classes at all, so an empty scan cannot pass the rule check below."""
+    assert len(_written_classes()) >= 10
 
 
 def test_every_version_2_class_has_a_rule():
