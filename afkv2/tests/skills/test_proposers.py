@@ -615,7 +615,52 @@ def test_cleanup_of_a_two_proposer_plan_that_never_started_answers_proposer_fail
     answer = run(runner, "cleanup", doc)
 
     assert answer["proposers"] == {"count": 1, "tools": ["claude"], "reason": "proposer-failed"}
-    assert state(doc)["failed"] == {"stage": "planned", "code": "not-started"} and state(doc)["cleaned"] is True
+    assert state(doc)["failed"] == {"stage": "planned", "code": "not-finished"} and state(doc)["cleaned"] is True
+
+
+@pytest.mark.parametrize("steps", [[], ["wait"], ["wait", "critique"]])
+def test_cleanup_before_the_critiques_are_back_answers_proposer_failed(runner, doc, phase, brief, steps):
+    started(runner, doc, brief)
+    for verb in steps:
+        run(runner, verb, doc)
+    stage = state(doc)["stage"]
+
+    assert run(runner, "cleanup", doc)["proposers"] == {"count": 1, "tools": ["claude"], "reason": "proposer-failed"}
+    assert state(doc)["failed"] == {"stage": stage, "code": "not-finished"}
+
+
+def test_start_after_a_failure_refuses_and_starts_nothing(runner, doc, phase, brief):
+    runner.on = lambda argv: (128, "", "fatal: not a git repository") if argv[1:2] == ["rev-parse"] else None
+    run(runner, "plan", doc)
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "worktree-failed"
+    assert state(doc)["failed"] == {"stage": "drafting", "code": "worktree-failed"}
+    runner.on = None
+    before = len(runner.calls)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "not-planned"
+    assert len(runner.calls) == before
+
+
+def test_start_leaves_a_folder_that_was_there_before_it(runner, doc, phase, brief):
+    held = runner.root / "repo-worktrees" / "proposer-propose-solution-s-1-codex"
+    held.mkdir(parents=True)
+    (held / "work.txt").write_text("keep", "utf-8")
+    run(runner, "plan", doc)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "worktree-failed"
+    assert [args[3] for args in runner.commands("worktree", "add")] == [
+        str(runner.root / "repo-worktrees" / "proposer-propose-solution-s-1-claude")]
+    run(runner, "cleanup", doc)
+    assert (held / "work.txt").read_text("utf-8") == "keep"
+    assert all(str(held) not in call for call in runner.commands("worktree", "remove"))
+
+
+def test_start_after_a_cleaned_plan_with_no_proposers_refuses_not_planned(runner, doc, phase, brief):
+    _no_codex(runner)
+    run(runner, "plan", doc)
+    run(runner, "cleanup", doc)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "not-planned"
 
 
 def test_a_refusal_before_start_records_no_failure(runner, doc, phase, brief):
@@ -630,6 +675,8 @@ def test_a_refusal_before_start_records_no_failure(runner, doc, phase, brief):
 
 def test_cleanup_closes_each_pane_removes_each_worktree_and_keeps_the_state_file_cleaned(runner, doc, phase, brief):
     entries = started(runner, doc, brief)["proposers"]
+    run(runner, "wait", doc)
+    run(runner, "critique", doc)
     run(runner, "wait", doc)
 
     answer = run(runner, "cleanup", doc)

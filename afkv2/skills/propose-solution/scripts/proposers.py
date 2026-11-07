@@ -13,13 +13,13 @@ critique `not-started`, `not-drafted`, `no-draft`, `not-submitted`; cleanup `cle
 
 `plan` answers exactly the `proposers` input of the design build: {count, tools, reason}. `cleanup` answers it
 again under `proposers`, except when no plan was recorded. A proposer failure is a refusal coded in `FAILURES`
-once the proposers started, or a cleanup of a count 2 plan that never started; after it, both answer count 1 with
-reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
+once the proposers started, or a cleanup of a count 2 plan before `wait` answered the critiques; after it, both
+answer count 1 with reason `proposer-failed`: the agent in charge drafts alone (SDD §6, §7; decision D-10).
 
 The state file `<doc stem>.proposers.json` beside the page document is the ledger, version 1:
 {version, count, tools, reason, stage, brief, proposers: [{tool, agent, pane, worktree}], cleaned, failed}.
 `stage` is planned, drafting, drafted, critiquing, critiqued or failed. `failed`, present only after a failure, is
-{stage, code}: the stage the failure stopped and the refusal code. A pane or a worktree that is not null is open.
+{stage, code}: the stage the failure stopped, and the refusal code or `not-finished` from cleanup. A pane or a worktree that is not null is open.
 `cleanup` keeps the file with `cleaned` true (decision D-7). Every herdr and git call, and every host fact, goes
 through `HerdrRunner`.
 
@@ -307,11 +307,12 @@ def _main_checkout(runner):
 
 def start(args, runner):
     state = _load(args.doc)
-    if state and (state.get("proposers") or state.get("cleaned")):
-        tools = [entry.get("tool") for entry in state.get("proposers") or []]
+    if state and state.get("proposers"):
+        tools = [entry.get("tool") for entry in state["proposers"]]
         raise Refusal("same-tool", f"this session already started its solution proposers: {', '.join(tools)}")
-    if not state or state["count"] != 2:
-        raise Refusal("not-planned", "start needs a `plan` answer of count 2; with count 1 the agent in charge drafts")
+    if not state or state["count"] != 2 or state.get("cleaned") or state.get("failed"):
+        raise Refusal("not-planned", "start needs a `plan` answer of count 2 that has not failed or been cleaned "
+                                     "up; otherwise the agent in charge drafts")
     _check_aspects(args.doc, state)
     if not _herdr(runner):
         raise Refusal("no-herdr", "herdr is not on PATH")
@@ -326,6 +327,8 @@ def start(args, runner):
     answer = []
     for tool in TOOLS:
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
+        if worktree.exists():
+            raise Refusal("worktree-failed", f"{tool}: {worktree} already exists; start leaves it as it is")
         entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree)}
         state["proposers"].append(entry)
         _save(args.doc, state)
@@ -443,8 +446,8 @@ def cleanup(args, runner):
     if left:
         raise Refusal("cleanup-failed", f"still open: {', '.join(left)}; close or delete each by hand, then run "
                                         f"cleanup again", left=left, closed=closed, removed=removed)
-    if state["count"] == 2 and state.get("stage") == "planned" and not state.get("failed"):
-        state["failed"] = {"stage": "planned", "code": "not-started"}
+    if state["count"] == 2 and state.get("stage") != "critiqued" and not state.get("failed"):
+        state["failed"] = {"stage": state.get("stage"), "code": "not-finished"}
     state["cleaned"] = True
     _save(args.doc, state)
     return {"ok": True, "closed": closed, "removed": removed, "proposers": _answer(state, runner)}
