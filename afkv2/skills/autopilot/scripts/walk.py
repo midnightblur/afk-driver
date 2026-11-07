@@ -31,6 +31,7 @@ ATTEMPT_CAP = 3
 RULING_CAP = 3
 RULED_KINDS = ("scope", "file-owner", "subtask-order")
 PARK_KINDS = ("acceptance", "one-way", "cost")
+CLASSES = ("mechanical", "standard", "complex")
 JOURNAL_HEADER = "# Journal: append-only event log, one line per event. Newest last.\n"
 LEDGER_HEADER = "# Decisions: taken hands-off, each one reversible on the record. Newest last.\n"
 LEDGER_ID = re.compile(r"^## D-(\d+) ", re.MULTILINE)
@@ -148,6 +149,12 @@ def _brief(plan, subtask, record, change, rulings, resume):
     return "\n".join(lines)
 
 
+def _class_of(contract):
+    """The `## Complexity` class of a contract; `standard` when the section names none of the classes."""
+    words = contract.sections.get("Complexity", "").split()
+    return words[0] if words and words[0] in CLASSES else "standard"
+
+
 def locate(payload):
     """The worktree of the run branch of the current feature branch; it adds that worktree when none exists."""
     branch = git_line(".", "rev-parse", "--abbrev-ref", "HEAD")
@@ -220,6 +227,7 @@ def start(payload):
     if status == "pending":
         write_status(plan, subtask, "developing")
         _journal(plan, "autopilot", subtask, "developing", "a fresh helper starts work on this subtask")
+        _journal(plan, "autopilot", subtask, f"complexity {_class_of(contract)}", "the size class of this subtask, for later estimates")
     _commit_run(plan, f"run: {subtask}: start, attempt {record['attempts']}")
     rulings = _rulings_for(state, subtask)
     return ok(subtask=subtask, base=record["base"], change=state["change"], attempt=record["attempts"], resume=resume,
