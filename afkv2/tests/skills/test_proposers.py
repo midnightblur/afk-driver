@@ -6,6 +6,7 @@ worktree starts.
 """
 
 import ast
+import base64
 import json
 import shutil
 import sys
@@ -51,6 +52,7 @@ class FakeRunner:
         self.lazy = set()
         self.locked = set()
         self.worktrees = set()
+        self.queries = {}
         self.screen = ""
         self.timeouts = []
         self.slept = []
@@ -78,7 +80,13 @@ class FakeRunner:
             if answer is not None:
                 return answer
         tool, args = Path(argv[0]).name, list(argv[1:])
+        if tool in ("reg", "plutil"):
+            return self.queries.get(tuple(argv), (1, "", "ERROR: The system was unable to find the specified value."))
         return self._git(args) if tool == "git" else self._herdr(args)
+
+    def spawned(self):
+        """The herdr and git calls: the commands that start or change something."""
+        return [call for call in self.calls if Path(call[0]).name not in ("reg", "plutil")]
 
     def commands(self, *head):
         return [call[1:] for call in self.calls if call[1:1 + len(head)] == list(head)]
@@ -236,6 +244,59 @@ def _codex_requirements(runner):
     runner.files[str(Path("/etc/codex/requirements.toml"))] = 'allowed_sandbox_modes = ["read-only", "workspace-write"]\n'
 
 
+CLAUDE_LINUX = str(Path("/etc/claude-code/managed-settings.json"))
+CODEX_LINUX = str(Path("/etc/codex/requirements.toml"))
+DISABLE = _json({"permissions": {"disableBypassPermissionsMode": "disable"}})
+CLAUDE_PLIST = "/Library/Managed Preferences/com.anthropic.claudecode.plist"
+CODEX_PLIST = "/Library/Managed Preferences/com.openai.codex.plist"
+
+
+def _file(path, text):
+    def setup(runner):
+        runner.files[path] = text
+    return setup
+
+
+def _claude_macos(runner):
+    runner.platform = "darwin"
+    runner.files[str(Path("/Library/Application Support/ClaudeCode/managed-settings.json"))] = DISABLE
+
+
+def _codex_windows(runner):
+    runner.platform = "win32"
+    runner.env["ProgramData"] = r"D:\Data"
+    runner.files[str(Path(r"D:\Data\OpenAI\Codex\requirements.toml"))] = 'allowed_sandbox_modes = ["read-only"]\n'
+
+
+def _registry(hive, data, kind="REG_SZ"):
+    def setup(runner):
+        runner.platform = "win32"
+        out = f"\r\n{hive}\\SOFTWARE\\Policies\\ClaudeCode\r\n    Settings    {kind}    {data}\r\n\r\n"
+        runner.queries[("reg", "query", rf"{hive}\SOFTWARE\Policies\ClaudeCode", "/v", "Settings")] = (0, out, "")
+    return setup
+
+
+def _claude_plist(answer):
+    def setup(runner):
+        runner.platform = "darwin"
+        runner.files[str(Path(CLAUDE_PLIST))] = "plist"
+        runner.queries[("plutil", "-convert", "json", "-o", "-", CLAUDE_PLIST)] = answer
+    return setup
+
+
+def _codex_plist(payload):
+    def setup(runner):
+        runner.platform = "darwin"
+        runner.files[str(Path(CODEX_PLIST))] = "plist"
+        runner.queries[("plutil", "-extract", "requirements_toml_base64", "raw", "-o", "-", CODEX_PLIST)] = (
+            0, payload + "\n", "")
+    return setup
+
+
+def _b64(text):
+    return base64.b64encode(text.encode("utf-8")).decode("ascii")
+
+
 @pytest.mark.parametrize("setup, reason", [
     (_no_herdr, "no-herdr"),
     (_outside, "outside-herdr"),
@@ -243,6 +304,24 @@ def _codex_requirements(runner):
     (_claude_managed, "bypass-forbidden"),
     (_claude_drop_in_windows, "bypass-forbidden"),
     (_codex_requirements, "bypass-forbidden"),
+    (_file(CLAUDE_LINUX, "{not json"), "bypass-forbidden"),
+    (_file(CLAUDE_LINUX, "[1]"), "bypass-forbidden"),
+    (_file(CLAUDE_LINUX, proposers.UNREADABLE), "bypass-forbidden"),
+    (_file(CODEX_LINUX, "allowed_sandbox_modes = ["), "bypass-forbidden"),
+    (_file(CODEX_LINUX, proposers.UNREADABLE), "bypass-forbidden"),
+    (_file(CODEX_LINUX, 'allowed_sandbox_modes = "read-only"\n'), "bypass-forbidden"),
+    (_file(CODEX_LINUX, 'allowed_approval_policies = ["untrusted", "on-request"]\n'), "bypass-forbidden"),
+    (_file(CODEX_LINUX, '[allowed_permission_profiles]\n":workspace" = true\n'), "bypass-forbidden"),
+    (_file(CODEX_LINUX, '[allowed_permission_profiles]\n":danger-full-access" = false\n'), "bypass-forbidden"),
+    (_claude_macos, "bypass-forbidden"),
+    (_codex_windows, "bypass-forbidden"),
+    (_registry("HKLM", DISABLE), "bypass-forbidden"),
+    (_registry("HKCU", DISABLE, "REG_EXPAND_SZ"), "bypass-forbidden"),
+    (_registry("HKLM", "{not json"), "bypass-forbidden"),
+    (_claude_plist((0, DISABLE, "")), "bypass-forbidden"),
+    (_claude_plist((1, "", "Property List error")), "bypass-forbidden"),
+    (_codex_plist(_b64('allowed_sandbox_modes = ["read-only"]\n')), "bypass-forbidden"),
+    (_codex_plist("%%% not base64"), "bypass-forbidden"),
 ])
 def test_plan_falls_back_to_one_proposer_and_starts_nothing(runner, doc, phase, setup, reason):
     setup(runner)
@@ -253,6 +332,38 @@ def test_plan_falls_back_to_one_proposer_and_starts_nothing(runner, doc, phase, 
     assert dr._proposers_banner(answer) == [
         f"1 solution proposer drafted the design alone (Claude): {dr.SOLO_REASONS[reason]}."]
     assert state(doc)["count"] == 1 and dr._proposers_done(state(doc))
+    assert runner.spawned() == []
+
+
+@pytest.mark.parametrize("setup", [
+    _file(CLAUDE_LINUX, _json({"permissions": {"disableBypassPermissionsMode": "enable"}})),
+    _file(CLAUDE_LINUX, _json({"permissions": {"deny": ["Read(./.env)"]}})),
+    _file(CODEX_LINUX, 'allowed_approval_policies = ["on-request", "never"]\n'),
+    _file(CODEX_LINUX, '[features]\nunified_exec = true\n'),
+    _file(CODEX_LINUX, '[allowed_permission_profiles]\n":danger-full-access" = true\n'),
+    _registry("HKLM", _json({"model": "opus"})),
+    _claude_plist((0, _json({"model": "opus"}), "")),
+    _codex_plist(_b64('[features]\nunified_exec = true\n')),
+])
+def test_plan_keeps_two_when_no_policy_turns_full_auto_approval_off(runner, doc, phase, setup):
+    setup(runner)
+
+    assert run(runner, "plan", doc)["count"] == 2
+
+
+def test_plan_reads_both_registry_hives_and_no_plist_on_windows(runner, doc, phase):
+    runner.platform = "win32"
+
+    assert run(runner, "plan", doc)["count"] == 2
+    assert [call[2] for call in runner.calls if call[0] == "reg"] == [
+        r"HKLM\SOFTWARE\Policies\ClaudeCode", r"HKCU\SOFTWARE\Policies\ClaudeCode"]
+    assert not [call for call in runner.calls if call[0] == "plutil"]
+
+
+def test_plan_runs_no_plutil_for_an_absent_managed_profile(runner, doc, phase):
+    runner.platform = "darwin"
+
+    assert run(runner, "plan", doc)["count"] == 2
     assert runner.calls == []
 
 

@@ -25,14 +25,23 @@ worktree, and a folder that a failed add left counts as open until a plain remov
 `cleanup` keeps the file with `cleaned` true (decision D-7). Every herdr and git call, and every host fact, goes
 through `HerdrRunner`.
 
-Full auto-approval counts as forbidden when a policy file turns it off: Claude managed settings
-`permissions.disableBypassPermissionsMode: "disable"` (`managed-settings.json` and `managed-settings.d/*.json`),
-or a Codex `requirements.toml` whose `allowed_sandbox_modes` leaves out `danger-full-access`. An unreadable policy
-file counts as forbidden. A policy from a server, a device-management profile or the registry is not read.
+Full auto-approval counts as forbidden when a local policy source turns it off:
+- Claude managed settings with `permissions.disableBypassPermissionsMode: "disable"`, from `managed-settings.json`,
+  `managed-settings.d/*.json`, the Windows registry value `Settings` under `HKLM` or `HKCU`
+  `\\SOFTWARE\\Policies\\ClaudeCode`, or the macOS managed profile `com.anthropic.claudecode`.
+- Codex requirements, from the system `requirements.toml` or the macOS managed profile key
+  `com.openai.codex:requirements_toml_base64`, whose `allowed_sandbox_modes` leaves out `danger-full-access`, whose
+  `allowed_approval_policies` leaves out `never`, or whose `allowed_permission_profiles` table does not set
+  `:danger-full-access` to true.
+Any one source that forbids is enough; a source that exists but cannot be read or parsed counts as forbidden. A
+policy from a server (Claude server-managed settings, Codex cloud requirements) is not read: no documented local
+copy exists.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -59,6 +68,10 @@ INPUT_LINES = 6
 PREFIX = 40
 MARKERS = (">", "›", "❯")
 FRAME = str.maketrans("", "", "│┃║|╭╮╰╯─━>›❯")
+UNREADABLE = object()
+MANAGED_PREFERENCES = "/Library/Managed Preferences"
+CLAUDE_DOMAIN, CODEX_DOMAIN = "com.anthropic.claudecode", "com.openai.codex"
+CLAUDE_KEY = r"SOFTWARE\Policies\ClaudeCode"
 DRAFT_PROMPT = (f"Read {BRIEF} in your working folder and follow it. Write your design draft to {DRAFT} in your "
                 f"working folder. Write no other file.")
 CRITIQUE_PROMPT = ("Read {other}, the design draft of the other solution proposer. Critique it against {brief} in "
@@ -77,12 +90,13 @@ class HerdrRunner:
         return shutil.which(name)
 
     def read_text(self, path):
+        """The text, None for an absent file, or UNREADABLE."""
         try:
             return Path(path).read_text("utf-8")
         except FileNotFoundError:
             return None
-        except (OSError, UnicodeDecodeError) as error:
-            return f"unreadable: {error}"
+        except (OSError, UnicodeDecodeError):
+            return UNREADABLE
 
     def glob(self, folder, pattern):
         return sorted(Path(folder).glob(pattern)) if Path(folder).is_dir() else []
@@ -109,7 +123,32 @@ def _own_tool(runner):
     return next((tool for tool in TOOLS if runner.which(tool)), TOOLS[0])
 
 
-def _claude_forbids(runner):
+def _settings_forbid(text):
+    """Whether one Claude managed settings document turns bypass off; an unparsable one counts as forbidden."""
+    try:
+        permissions = json.loads(text).get("permissions") or {}
+    except (TypeError, ValueError, AttributeError):
+        return True
+    return not isinstance(permissions, dict) or permissions.get("disableBypassPermissionsMode") == "disable"
+
+
+def _registry_value(out):
+    """The data of the `Settings` value in a `reg query` answer, or None."""
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0] == "Settings" and parts[1] in ("REG_SZ", "REG_EXPAND_SZ"):
+            return parts[2]
+    return None
+
+
+def _profile(runner, domain):
+    """The path of a macOS managed profile, or None when the profile is absent."""
+    found = runner.glob(Path(MANAGED_PREFERENCES), f"{domain}.plist")
+    return f"{MANAGED_PREFERENCES}/{domain}.plist" if found else None
+
+
+def _claude_documents(runner):
+    """Each Claude managed settings document of this host: its text, or UNREADABLE."""
     if runner.platform == "win32":
         folder = Path(runner.env.get("ProgramFiles") or r"C:\Program Files") / "ClaudeCode"
     elif runner.platform == "darwin":
@@ -118,30 +157,56 @@ def _claude_forbids(runner):
         folder = Path("/etc/claude-code")
     for path in [folder / "managed-settings.json", *runner.glob(folder / "managed-settings.d", "*.json")]:
         text = runner.read_text(path)
-        if text is None:
-            continue
-        try:
-            permissions = json.loads(text).get("permissions") or {}
-        except (ValueError, AttributeError):
-            return True
-        if isinstance(permissions, dict) and permissions.get("disableBypassPermissionsMode") == "disable":
-            return True
-    return False
+        if text is not None:
+            yield text
+    if runner.platform == "win32":
+        for hive in ("HKLM", "HKCU"):
+            code, out, _ = runner.run(["reg", "query", rf"{hive}\{CLAUDE_KEY}", "/v", "Settings"])
+            if code == 0:
+                yield _registry_value(out) or UNREADABLE
+    elif runner.platform == "darwin" and (plist := _profile(runner, CLAUDE_DOMAIN)):
+        code, out, _ = runner.run(["plutil", "-convert", "json", "-o", "-", plist])
+        yield out if code == 0 else UNREADABLE
 
 
-def _codex_forbids(runner):
+def _claude_forbids(runner):
+    return any(text is UNREADABLE or _settings_forbid(text) for text in _claude_documents(runner))
+
+
+def _requirements_forbid(text):
+    """Whether one Codex requirements document forbids `--yolo`; an unparsable one counts as forbidden."""
+    try:
+        data = tomllib.loads(text)
+    except (TypeError, tomllib.TOMLDecodeError):
+        return True
+    modes, approvals = data.get("allowed_sandbox_modes"), data.get("allowed_approval_policies")
+    profiles = data.get("allowed_permission_profiles")
+    return ((modes is not None and (not isinstance(modes, list) or "danger-full-access" not in modes))
+            or (approvals is not None and (not isinstance(approvals, list) or "never" not in approvals))
+            or (profiles is not None and (not isinstance(profiles, dict)
+                                          or profiles.get(":danger-full-access") is not True)))
+
+
+def _codex_documents(runner):
+    """Each Codex requirements document of this host: its text, or UNREADABLE."""
     if runner.platform == "win32":
         path = Path(runner.env.get("ProgramData") or r"C:\ProgramData") / "OpenAI" / "Codex" / "requirements.toml"
     else:
         path = Path("/etc/codex/requirements.toml")
     text = runner.read_text(path)
-    if text is None:
-        return False
-    try:
-        modes = tomllib.loads(text).get("allowed_sandbox_modes")
-    except tomllib.TOMLDecodeError:
-        return True
-    return modes is not None and "danger-full-access" not in modes
+    if text is not None:
+        yield text
+    if runner.platform == "darwin" and (plist := _profile(runner, CODEX_DOMAIN)):
+        code, out, _ = runner.run(["plutil", "-extract", "requirements_toml_base64", "raw", "-o", "-", plist])
+        if code == 0:
+            try:
+                yield base64.b64decode(out.strip(), validate=True).decode("utf-8")
+            except (binascii.Error, ValueError):
+                yield UNREADABLE
+
+
+def _codex_forbids(runner):
+    return any(text is UNREADABLE or _requirements_forbid(text) for text in _codex_documents(runner))
 
 
 def plan_proposers(runner):
