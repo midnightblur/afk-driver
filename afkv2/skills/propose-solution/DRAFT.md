@@ -41,7 +41,7 @@ The page shows the design in sections, in the order of the section catalog. `sec
 | `sec-patterns` | Design patterns | patterns | the pattern table, or the line "no pattern applied" |
 | `sec-performance` | Performance | performance | PF-1 to PF-4, or 1 line on why there is no performance risk |
 
-- Send a section that comes late with `after`, the id of the section it follows.
+- Send a section that comes late with `after`, the id of the section it follows. That section is stored, or comes earlier in the same round input.
 - A picture is a component of type `map`, `graph`, `table`, `sequence`, `run-strip`, `freestyle` or `diagram`. Every picture has a caption: a child `text` labelled "What to see", of 1 line, or a `title` or a `caption` on the picture itself.
 - A system, critical or level section has a picture as its body root.
 - A level section: the children of its picture are the caption, then a `text` labelled "Summary" of at most 2 lines, then the rest of the detail, each child folded (`fold`).
@@ -79,7 +79,7 @@ A decided card on a design page holds 5 blocks. A card with a block missing degr
 | Block | Field of `decided` | Content |
 |-------|--------------------|---------|
 | D-1 Decision | `decision` | 1 sentence |
-| D-2 Driven by | `driven_by` | the ids of the requirements, requirement records and constraints it serves; each shows its text on hover |
+| D-2 Driven by | `driven_by` | a list of id strings: the requirements, requirement records and constraints it serves; each shows its text on hover. An id that names nothing refuses `driven-by-unknown` |
 | D-3 Other options | `alternatives` | a list of `{option, why_lost}`, both non-empty text, 1 per option |
 | D-4 Why this one | `why` | the criterion that beat the runner-up |
 | D-5 To undo | `reverse` | what to revert |

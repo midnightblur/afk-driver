@@ -818,7 +818,7 @@ def test_a_failure_after_start_records_proposer_failed(runner, doc, phase, brief
     assert run(runner, "cleanup", doc)["proposers"] == solo
     assert dr._proposers_banner(solo) == [
         "1 solution proposer drafted the design alone (Claude): a solution proposer failed before the drafts and "
-        "critiques were done."]
+        "critiques were done.", dr.FENCE]
 
 
 def test_a_failure_in_a_codex_session_names_codex(runner, doc, phase, brief):
