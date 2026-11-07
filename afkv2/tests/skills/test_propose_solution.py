@@ -527,7 +527,7 @@ def test_the_gate_passes_a_whole_design_and_closes_the_session(world):
     assert "| SDD | SDD.md | draft |" in index and "| Design ADRs | adr/design/ | 1 records |" in index
     assert f"· session {started['session']}" in (world.spec / "GRILL-LOG.md").read_text("utf-8")
     again = world.run("start", ticket_key="PROJ-1")
-    assert again["resume"] is False and again["session"] != started["session"] and again["sdd_exists"] is True
+    assert again["resume"] is False and again["takeover"] == started["session"] and again["sdd_exists"] is True
 
 
 @pytest.mark.parametrize("old, new, expected", [

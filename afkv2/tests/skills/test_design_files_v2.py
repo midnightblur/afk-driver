@@ -57,3 +57,37 @@ def test_sync_is_a_verb_and_refuses_a_missing_file(files):
     with pytest.raises(Refusal) as refused:
         design_files.main(["sync", "--doc", str(doc.with_name("none.json")), "--log", str(log)])
     assert refused.value.code == "missing-input"
+
+
+# Take-over, the gate lists and refusals: through the stated commands of SKILL.md.
+
+from test_propose_solution import World, aspect_card, gate_failures, round_of  # noqa: E402
+
+
+@pytest.fixture
+def world(tmp_path):
+    return World(tmp_path)
+
+
+def passed_design(world):
+    started = world.run("start", ticket_key="PROJ-1")
+    world.walk_to_write(started)
+    world.write_design()
+    return started, gate_failures(world, started, expect=0)
+
+
+def test_start_takes_over_the_session_whose_gate_passed(world):
+    started, _ = passed_design(world)
+    log = world.spec / "GRILL-LOG.md"
+    again = world.run("start", ticket_key="PROJ-1")
+    assert again["takeover"] == started["session"] and again["resume"] is False
+    assert (again["session"], again["doc"]) == (started["session"], started["doc"])
+    rows = log.read_text("utf-8").split("## Solution design", 1)[1].splitlines()
+    assert rows.count(f"- Last pass: R2 · session {started['session']}") == 1
+
+
+def test_start_names_no_takeover_for_a_new_or_open_session(world):
+    first = world.run("start", ticket_key="PROJ-1")
+    assert first["takeover"] is None
+    world.build(first, round_of(aspect_card("entities")))
+    assert world.run("start", ticket_key="PROJ-1")["takeover"] is None
