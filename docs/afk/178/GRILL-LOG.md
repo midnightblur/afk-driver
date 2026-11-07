@@ -70,3 +70,25 @@
 - Examples: ex-frequent (frequent): new feature, both tools, 12 requirements, 2 forks, export of 200,000 orders streamed in pages of 1,000, plan page 2 to 4 days; ex-edge (edge): Codex not installed, 1 proposer; ex-risky (risky): tools disagree on new table vs column for saved exports, fork, you pick; ex-back (edge): PRD gains 1 requirement after the design passed, 2 sections return; ex-plan-new (edge): plan of 6 subtasks, no earlier runs, size-judged range
 - Settled: exit gate passed 2026-11-07 · session s-20261107-031503
 - Last pass: R6 · session s-20261107-031503
+
+## Solution design
+
+- Premise: The design build passes the round input whole to the grill's builder, so sections, stories, examples and questions reach a design page, and a new design page is format 2 → verified (afkv2/skills/propose-solution/scripts/design_round.py:180-183; afkv2/skills/use-lavish/scripts/round_document.py:41,579)
+- Premise: The design build sends no ticket file, and design_files has no take-over, no sync of notes, no stale or changed lists and no refusal on an open question for others → verified (design_round.py:183,223-229; design_files.py:76-97,251-273; grill_log.py:246-262,299-361)
+- Premise: A decided card has no block for the requirements that drove it; depends_on accepts only ids on the page → verified (round_document.py:198-223,208)
+- Premise: Page format 2 is frozen, a section has no level or order field, and a new section goes to the end of its list; only a question takes after → verified (afkv2/engine/schema/page-v2.schema.json:5,229-244; round_document.py:481-482,500-501)
+- Premise: A table and a code block have no caption field; a diagram and the charts require one → verified (afkv2/engine/components/base_table.py:49-58; text_code.py:25-28; text_diagram.py:31)
+- Premise: Hover text for an id comes from tips.ids at the document root → verified (afkv2/engine/schema/page-v2.schema.json:32-57; afkv2/skills/visualize/SKILL.md:45-64)
+- Premise: The autopilot journal lives only on the orphan run branch, never merges, and /afkv2:gc deletes that branch, so no afkv2 journal survives a cleanup; the repository holds 0 afkv2 journals and 5 v1 journals with 15 timed subtasks → verified (afkv2/skills/to-subtasks/scripts/plan_files.py:102-106; afkv2/skills/gc/scripts/cleanup.py:244,254; afkv2/skills/autopilot/scripts/walk.py:94-97)
+- Premise: A subtask contract has a Complexity heading (mechanical, standard, complex) that nothing reads → verified (afkv2/skills/to-subtasks/SUBTASK-CONTRACT.md:9-10; check_plan.py:109-121)
+- Premise: The plan approval page is 1 signoff card whose body is the subtask table → verified (afkv2/skills/to-subtasks/scripts/plan_files.py:368-376,387-410)
+- Premise: herdr 0.9.1 has pane split --cwd, pane close and rename, pane run, agent start --kind, agent prompt --wait, agent read and an event-driven agent wait; a session inside herdr has HERDR_ENV=1 → verified (herdr --help; https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/content/docs/cli-reference.mdx; herdr --skill lines 13-16)
+- Premise: herdr's official installers are install.sh, brew, mise and nix on Linux and macOS, and install.ps1 or install.cmd on Windows; no winget package → verified (https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/content/docs/install.mdx)
+- Premise: claude --dangerously-skip-permissions equals bypassPermissions mode, which managed settings can disable; codex --yolo is the alias of --dangerously-bypass-approvals-and-sandbox, and codex -C sets the working folder → verified (https://code.claude.com/docs/en/permission-modes; https://developers.openai.com/codex/llms-full.txt lines 375,8607)
+- Premise: afkv2 has no throwaway-worktree helper; worktrees are made with git worktree add → verified (afkv2/skills/autopilot/scripts/walk.py:159-168; afkv2/skills/gc/scripts/folder_remove.py:73-80)
+- Premise: Setup hard-codes its tools in tools.py behind a Runner that tests replace, and records an ask-once skip in a file → verified (afkv2/skills/setup/scripts/tools.py:1-4,115-146; repo_config.py:176-183)
+- Premise: Every folder under afkv2/skills loads as a skill; the manifests list no skills → verified (afkv2/.claude-plugin/plugin.json; .claude/wiring-ious.md:11)
+- Premise: The 8 existing design pages are format 0 or 1, 4 to 158 KB, with no sections → verified (measured: docs/afk/{158,159,163,174}/pages/propose-solution-*.json)
+- Premise: Driving the other tool interactively under the developer's own login in a visible pane fits the tools' terms of use → unverified-external (human acknowledged)
+- Spinoff: One shared herdr transport for the proposers script and the side-question listener → 2 places call herdr; out because fork d2-transport kept the tested side-question path untouched in this ticket
+- Settled: design gate passed 2026-11-07 · session s-20261107-113622
