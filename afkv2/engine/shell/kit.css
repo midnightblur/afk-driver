@@ -339,3 +339,66 @@ body > #afkv2-back {
 .afkv2-freestyle > figcaption { margin-bottom: .35rem; font-size: .78rem; color: var(--open); }
 .afkv2-freestyle-body { overflow-x: auto; }
 
+
+/* --- page format 2: sections, worked examples, questions for others ----- */
+
+.afkv2-v2-sections, .afkv2-v2-examples, .afkv2-v2-questions { margin: 2rem 0; }
+.afkv2-v2-section, .afkv2-v2-example, .afkv2-v2-question {
+  border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 6px;
+  background: var(--surface); padding: .85rem 1rem; margin: 0 0 1rem; scroll-margin-top: 1rem;
+}
+.afkv2-v2-h { display: inline-block; margin: 0 .5rem .5rem 0; font-size: 1rem; vertical-align: middle; }
+.afkv2-v2-h + .afkv2-chip, .afkv2-v2-h ~ .afkv2-v2-open-count { vertical-align: middle; }
+/* A section no question has reached yet: a dashed edge and its state word. */
+.afkv2-v2-section[data-afkv2-state="not_reached"] { border-left-style: dashed; border-left-color: var(--neutral); }
+.afkv2-v2-state { color: var(--fg-dim); }
+.afkv2-v2-open-count { color: var(--open); border-color: var(--open); }
+/* A merged or removed section stays as 1 dim line. */
+.afkv2-v2-gone { padding: .45rem 1rem; border-left-color: var(--neutral); background: transparent; }
+.afkv2-v2-gone-line { margin: 0; color: var(--fg-dim); }
+.afkv2-v2-links { margin: .6rem 0 0; font-size: .88rem; color: var(--fg-dim); }
+.afkv2-v2-link { margin-right: .35rem; }
+/* The change list: newest first, never folded; each line its round and its cause. */
+.afkv2-v2-changes {
+  list-style: none; margin: .75rem 0 0; padding: .5rem 0 0; border-top: 1px dashed var(--line);
+  font-size: .85rem; color: var(--fg-dim);
+}
+.afkv2-v2-change { margin: .15rem 0; }
+.afkv2-v2-change-round {
+  display: inline-block; padding: 0 .4rem; border: 1px solid var(--line); border-radius: 999px;
+  font: .75rem/1.5 ui-monospace, monospace; color: var(--fg);
+}
+.afkv2-v2-change-cause { font-weight: 600; }
+.afkv2-v2-change[data-afkv2-cause="note"] .afkv2-v2-change-cause,
+.afkv2-v2-change[data-afkv2-cause="answer"] .afkv2-v2-change-cause { color: var(--afkv2-you); }
+/* A worked example: its kind as a word in its chip, and as the colour of its edge. */
+.afkv2-v2-example[data-afkv2-kind="frequent"] { border-left-color: var(--settled); }
+.afkv2-v2-example[data-afkv2-kind="edge"] { border-left-color: var(--open); }
+.afkv2-v2-example[data-afkv2-kind="risky"] { border-left-color: var(--blocked); }
+.afkv2-v2-kind { font-weight: 600; }
+.afkv2-v2-example[data-afkv2-kind="frequent"] .afkv2-v2-kind { color: var(--settled); border-color: var(--settled); }
+.afkv2-v2-example[data-afkv2-kind="edge"] .afkv2-v2-kind { color: var(--open); border-color: var(--open); }
+.afkv2-v2-example[data-afkv2-kind="risky"] .afkv2-v2-kind { color: var(--blocked); border-color: var(--blocked); }
+/* The labelled parts of an example and a question. */
+.afkv2-v2-part { margin: .6rem 0 0; }
+.afkv2-v2-part-h {
+  margin: 0 0 .15rem; font-size: .75rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.afkv2-v2-part ul { margin: 0; padding-left: 1.1rem; }
+/* A question for others: who to ask, its outcome, and its ticks. */
+.afkv2-v2-question { border-left-color: var(--open); }
+.afkv2-v2-question[data-afkv2-state="answered"] { border-left-color: var(--settled); }
+.afkv2-v2-question[data-afkv2-state="dropped"] { border-left-color: var(--neutral); }
+.afkv2-v2-who { margin: 0 0 .35rem; font-size: .88rem; color: var(--fg-dim); }
+.afkv2-v2-outcome { margin: .6rem 0 0; padding: .35rem .6rem; border-radius: 4px; background: var(--surface-2); }
+.afkv2-v2-ticks { display: flow-root; margin: .75rem 0 0; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: 4px; }
+.afkv2-v2-ticks legend { display: block; float: none; width: 100%; margin: 0 0 .3rem; padding: 0;
+  font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim); }
+.afkv2-v2-tick { display: inline-flex; gap: .4rem; align-items: flex-start; margin-right: 1.25rem; padding: .15rem 0; cursor: pointer; }
+.afkv2-v2-hint { margin: .35rem 0 0; font-size: .85rem; color: var(--fg-dim); }
+.afkv2-v2-filter { display: block; margin: 0 0 .75rem; font-size: .9rem; }
+.afkv2-who-filter {
+  font: inherit; margin-left: .35rem; padding: .15rem .4rem; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+}
