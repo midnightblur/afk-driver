@@ -19,7 +19,7 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 SKILLS = SCRIPTS.parents[1]
-sys.path[:0] = [str(SCRIPTS), str(SKILLS / "propose-solution" / "scripts"), str(SKILLS / "to-prd" / "scripts"), str(SKILLS / "grill" / "scripts"),
+sys.path[:0] = [str(SCRIPTS), str(SKILLS / "propose-solution" / "scripts"), str(SKILLS / "to-prd" / "scripts"), str(SKILLS / "grill-requirements" / "scripts"),
                str(SKILLS / "use-lavish" / "scripts")]
 
 import check_plan as cp  # noqa: E402

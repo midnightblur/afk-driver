@@ -86,7 +86,7 @@ Run each command from the worktree of the feature branch, at the repository root
    <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
    ```
 
-   A lone `Sign` mark settles the card. Read each other signal and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and answer each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it. The keys of that file: [../grill/SKILL.md](../grill/SKILL.md), step 7.
+   A lone `Sign` mark settles the card. Read each other signal and each note by the round pass in [../use-lavish/ROUND-PASS.md](../use-lavish/ROUND-PASS.md), and answer each note by the answer rules of `/afkv2:use-lavish`. Write the result to a JSON file and apply it. The keys of that file: [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 7.
 
    ```sh step=apply-readings
    <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"

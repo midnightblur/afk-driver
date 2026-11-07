@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill" / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "grill-requirements" / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
@@ -21,7 +21,7 @@ from grill_log import exit_gate_passed  # noqa: E402
 from grill_start import read_config, ticket_slug  # noqa: E402
 from round_document import is_version_2  # noqa: E402
 
-GRILL = "/afkv2:grill"
+GRILL = "/afkv2:grill-requirements"
 SECTIONS = ("Problem Statement", "Solution", "User Stories", "Acceptance Criteria", "Worked examples",
             "Access & validation policy", "Implementation Decisions", "Testing Decisions", "Out of Scope",
             "Further Notes")

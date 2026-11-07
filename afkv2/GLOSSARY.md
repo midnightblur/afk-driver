@@ -5,7 +5,7 @@ Workflow vocabulary of the afkv2 plugin (AFK 2.0 beta): the words its skills, pl
 ## Chain and lanes
 
 **Chain**:
-The fixed order of skills that takes a ticket to a merged change: grill, to-prd, propose-solution, to-subtasks, autopilot (with code-review), create-change-request, gc. Each skill reads what the previous one wrote and never assumes who ran before it.
+The fixed order of skills that takes a ticket to a merged change: grill-requirements, to-prd, propose-solution, to-subtasks, autopilot (with code-review), create-change-request, gc. Each skill reads what the previous one wrote and never assumes who ran before it.
 `Related:` Lane, Chain smoke run
 
 **Lane**:

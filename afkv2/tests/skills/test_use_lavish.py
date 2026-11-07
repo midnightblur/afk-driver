@@ -10,7 +10,7 @@ HOME = SKILLS / "use-lavish"
 MOVED = ("page_round.py", "round_document.py", "grill_common.py", "page_links.py")
 ROUND_COMMANDS = {"page_round.py": ("present", "wait", "reply", "ingest", "end"),
                   "round_document.py": ("build", "apply-readings")}
-PAGE_SKILLS = ("grill", "propose-solution", "to-subtasks")
+PAGE_SKILLS = ("grill-requirements", "propose-solution", "to-subtasks")
 
 
 def _imports(path):
@@ -26,7 +26,7 @@ def _imports(path):
 def test_the_moved_scripts_live_only_in_the_use_lavish_home():
     for name in MOVED:
         assert (HOME / "scripts" / name).is_file(), name
-        assert not (SKILLS / "grill" / "scripts" / name).exists(), name
+        assert not (SKILLS / "grill-requirements" / "scripts" / name).exists(), name
 
 
 def test_the_new_home_holds_the_produced_symbols():
@@ -62,7 +62,7 @@ def test_the_page_skills_run_every_round_command_from_the_use_lavish_home():
             for script in ROUND_COMMANDS:
                 for line in [line for line in text.splitlines() if script in line]:
                     assert f"use-lavish/scripts/{script}" in line, (skill, name, line)
-                    assert "grill/scripts" not in line, (skill, name, line)
+                    assert "grill-requirements/scripts" not in line, (skill, name, line)
 
 
 # ---- the builder writes page format 1 (SDD §14 row "Page format"; ADR-0002 design)
@@ -70,7 +70,7 @@ def test_the_page_skills_run_every_round_command_from_the_use_lavish_home():
 import json  # noqa: E402
 import sys  # noqa: E402
 
-for _folder in (HOME / "scripts", SKILLS / "grill" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
+for _folder in (HOME / "scripts", SKILLS / "grill-requirements" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
     sys.path.insert(0, str(_folder))
 
 import engine  # noqa: E402
@@ -555,13 +555,13 @@ def test_each_page_skill_points_here_and_scans_its_files():
         assert "answer rules of `/afkv2:use-lavish`" in text and '"Take over a page"' in text, skill
         scan = '--scan "<spec dir>/INDEX.md"' if skill == "to-subtasks" else '--scan "<log>"'
         assert dict(STEP_LINE.findall(text))["present"].endswith(scan), skill
-    for other in (SKILLS / "grill" / "ROUNDS.md", SKILLS / "propose-solution" / "DRAFT.md"):
+    for other in (SKILLS / "grill-requirements" / "ROUNDS.md", SKILLS / "propose-solution" / "DRAFT.md"):
         text = other.read_text("utf-8")
         assert "visualize/components/card.md" not in text and "use-lavish/ROUND-PASS.md" in text, other.name
 
 
 def test_the_grill_repeats_no_steer_in_an_answer():
-    text = (SKILLS / "grill" / "SKILL.md").read_text("utf-8")
+    text = (SKILLS / "grill-requirements" / "SKILL.md").read_text("utf-8")
     assert "a steer word for word" not in text
 
 

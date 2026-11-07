@@ -13,10 +13,10 @@ The agent proposes a complete design, and the human vets it and adjusts it. Firs
 |-------|--------|--------------------|
 | ticket key | the invocation | stop and name it |
 | `.afkv2/config.json`, with a tracker kind | written by `/afkv2:setup` | stop and name the file and `/afkv2:setup` |
-| `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill` | stop and name them and `/afkv2:grill` |
+| `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill-requirements` | stop and name them and `/afkv2:grill-requirements` |
 | `PRD.md` and the requirement ADRs | written by `/afkv2:to-prd` | stop and name the file and `/afkv2:to-prd` |
 
-Read only what is on disk, and the code. A later session continues from the page document and `GRILL-LOG.md` alone. A requirement the PRD left out is a gap of the grill: name it, and send the human to `/afkv2:grill`.
+Read only what is on disk, and the code. A later session continues from the page document and `GRILL-LOG.md` alone. A requirement the PRD left out is a gap of the grill: name it, and send the human to `/afkv2:grill-requirements`.
 
 ## The commands
 
@@ -60,7 +60,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `layer: "<L1..L9>"` | the card belongs to that layer. The build refuses it until every aspect is settled, and refuses a layer before the ones above it. |
    | `locked: "<HL-n>"` | the `signoff` card of that human-locked aspect. |
    | `fork: {question, options, why_open, recommended, picture}` | the build writes a `debate` card with the options side by side. A `debate` card has no other form. |
-   | `decided`, `carries` | as in [../grill/SKILL.md](../grill/SKILL.md), step 4. A card that carries a tagged card has the same tag. |
+   | `decided`, `carries` | as in [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 4. A card that carries a tagged card has the same tag. |
 
    Before the first draft round, offer the draft to the second-provider slot. It is off in this version, and answers no forks. Add each entry of `forks` to the round as a fork card.
 
@@ -102,7 +102,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" apply-readings --doc "<doc>" --readings "<readings>"
    ```
 
-   The keys of the readings file: [../grill/SKILL.md](../grill/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill/ROUNDS.md](../grill/ROUNDS.md).
+   The keys of the readings file: [../grill-requirements/SKILL.md](../grill-requirements/SKILL.md), step 7. A `signoff` card settles only by a `sign` mark, so return it with `open`. A settled-round card never changes: a point in `returned`, and an asking card still open or blocked at the end of the round, gets one new card with `carries` in the next round. A steer binds every later decision. Write a human line `take over` as an `Escape` row, by [../grill-requirements/ROUNDS.md](../grill-requirements/ROUNDS.md).
 
 8. **Save the state.** Update each `Premise` row that changed. Real work outside this ticket gets a `Spinoff` row. Go to step 3. Done when the log matches this round.
 

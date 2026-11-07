@@ -14,7 +14,7 @@ import pytest
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN / "skills"
 HOST_OPEN = PLUGIN / "tests" / "engine" / "fixtures" / "host-open.txt"
-for _folder in (SKILLS / "use-lavish" / "scripts", SKILLS / "grill" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
+for _folder in (SKILLS / "use-lavish" / "scripts", SKILLS / "grill-requirements" / "scripts", PLUGIN / "scripts", PLUGIN / "engine"):
     sys.path.insert(0, str(_folder))
 
 import engine  # noqa: E402
