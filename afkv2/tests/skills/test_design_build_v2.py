@@ -311,3 +311,71 @@ def test_a_bad_credit_is_refused(by):
         fork_cards.expand_fork(fork_item({"name": "One table", "text": "Fewer reads.", "by": by},
                                          {"name": "Two tables", "text": "Smaller rows."}))
     assert refusal.value.code == "bad-fork"
+
+
+# --- the proposers phase and open resources (PRD AC-018, AC-026; SDD §3 row S-1, §6 I-6)
+
+def aspect(key):
+    body = {"type": "table", "id": f"a-{key}-now", "props": {"columns": ["Entity"], "rows": [["order"]]},
+            "children": [text("The reading.") | {"id": f"a-{key}-question"}]}
+    return {"id": f"a-{key}", "aspect": key, "kind": "confirm", "body": body}
+
+
+def layer(key):
+    return {"id": f"l-{key.lower()}", "layer": key, "kind": "confirm", "body": text("Inherited.") | {"id": f"l-{key.lower()}-text"}}
+
+
+def settle_aspects(tmp_path):
+    build(tmp_path, round_of(*(aspect(key) for key in dr.group_keys("aspect"))))
+    answer_current_round(doc_path(tmp_path))
+
+
+def write_state(tmp_path, **state):
+    path = doc_path(tmp_path).with_suffix(".proposers.json")
+    path.write_text(json.dumps({"version": 1, **state}), "utf-8")
+
+
+def phase(tmp_path):
+    return dr.main(["next", "--doc", str(doc_path(tmp_path))])["phase"]
+
+
+def test_next_answers_proposers_between_aspects_and_draft(tmp_path):
+    assert dr.PROPOSERS_PHASE == "proposers"
+    build(tmp_path, round_of(*(aspect(key) for key in dr.group_keys("aspect"))))
+    assert phase(tmp_path) == "aspects"
+    answer_current_round(doc_path(tmp_path))
+    assert phase(tmp_path) == "proposers"
+
+
+def test_a_state_file_with_count_one_moves_on_to_the_draft(tmp_path):
+    settle_aspects(tmp_path)
+    write_state(tmp_path, count=1, proposers=[], cleaned=False)
+    assert phase(tmp_path) == "draft"
+
+
+def test_two_proposers_hold_the_phase_until_cleanup_is_done(tmp_path):
+    settle_aspects(tmp_path)
+    write_state(tmp_path, count=2, proposers=[{"tool": "claude", "pane": "p-1", "worktree": "w-1"}], cleaned=False)
+    assert phase(tmp_path) == "proposers"
+    write_state(tmp_path, count=2, proposers=[{"tool": "claude", "pane": None, "worktree": None}], cleaned=True)
+    assert phase(tmp_path) == "draft"
+
+
+def test_a_draft_round_is_refused_while_a_pane_or_worktree_is_recorded(tmp_path):
+    settle_aspects(tmp_path)
+    before = doc_path(tmp_path).read_text("utf-8")
+    write_state(tmp_path, count=2, proposers=[{"tool": "codex", "pane": None, "worktree": "w-2"}], cleaned=False)
+    refusal = refused(tmp_path, round_of(layer("L1")))
+    assert refusal.code == "proposers-open" and "w-2" in refusal.reason
+    assert doc_path(tmp_path).read_text("utf-8") == before
+    write_state(tmp_path, count=2, proposers=[{"tool": "codex", "pane": None, "worktree": None}], cleaned=True)
+    assert build(tmp_path, round_of(layer("L1")))["ok"] is True
+    assert phase(tmp_path) == "draft"
+
+
+def test_an_unreadable_state_file_is_refused(tmp_path):
+    settle_aspects(tmp_path)
+    doc_path(tmp_path).with_suffix(".proposers.json").write_text('{"version": 9}', "utf-8")
+    with pytest.raises(Refusal) as refusal:
+        phase(tmp_path)
+    assert refusal.value.code == "bad-proposers"
