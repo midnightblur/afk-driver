@@ -3,11 +3,15 @@
 `design_files.py start --ticket KEY`: the paths of the spec folder; refuses a missing input and names its writer.
 `design_files.py row --log FILE --kind K --text T`: one row of this skill's section of the grill log.
   A `Takeover` row reads `- Takeover: R<n> · <at>`: the entry that `take-over` added; one row per takeover.
+`design_files.py sync --doc FILE --log FILE`: copies each new note of the page document into this skill's section.
+  A `Note` row reads `- Note: <note id> · R<round> · on <element id>: <the human's words as one JSON string>`;
+  a note id already in the section is skipped, so a row keeps the words it was first copied with.
 `design_files.py gate --doc FILE --spec-dir DIR`: the mechanical part of the design gate; lists every failure.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -23,10 +27,12 @@ import grill_log  # noqa: E402
 import grill_start  # noqa: E402
 import prd_files  # noqa: E402
 from grill_common import Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
+from round_document import session_notes  # noqa: E402
 
 TO_PRD = "/afkv2:to-prd"
 SECTION = "## Solution design"
 KINDS = {"Premise", "Spinoff", "Escape", "Takeover"}
+NOTE_ROW = re.compile(r"^- Note: (\S+) · ")
 PREMISE = re.compile(r"^- Premise: (.+) → (pending|refuted)\b", re.M)
 GATE_PASSED = "- Settled: design gate passed"
 DOC_PREFIX = f"{dr.SKILL_NAME}-"
@@ -143,6 +149,29 @@ def row(argv):
     else:
         _upsert(args.log, key, text)
     return {"ok": True, "row": text}
+
+
+def sync_notes(doc_path, log):
+    """Append a `Note` row for each live note of the document whose id the section does not hold yet."""
+    for path in (doc_path, log):
+        if not Path(path).is_file():
+            raise Refusal("missing-input", f"missing {path}", missing=str(path))
+    doc = read_json(doc_path)
+    head, rows, tail = _section_parts(log)
+    known = {found.group(1) for found in map(NOTE_ROW.match, rows) if found}
+    new = [f"- Note: {note['id']} · R{note['round']} · on {note['target']}: {json.dumps(note['text'], ensure_ascii=False)}"
+           for note in session_notes(doc) if note["id"] not in known]
+    if new:
+        _write_section(log, head, rows + new, tail)
+    return {"ok": True, "notes": len(new), "rows": len(known) + len(new)}
+
+
+def sync(argv):
+    parser = Parser(add_help=False)
+    for name in ("--doc", "--log"):
+        parser.add_argument(name, required=True)
+    args = parser.parse_args(argv)
+    return sync_notes(args.doc, args.log)
 
 
 def sdd_template():
@@ -273,7 +302,7 @@ def gate(argv):
     return {"ok": True, "passed": today, "design_adrs": len(adrs), "index_missing": not index.is_file()}
 
 
-VERBS = {"start": start, "row": row, "gate": gate}
+VERBS = {"start": start, "row": row, "sync": sync, "gate": gate}
 
 
 def main(argv):
