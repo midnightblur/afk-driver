@@ -535,6 +535,67 @@ def test_a_brief_above_an_empty_input_line_counts_as_submitted():
     assert not proposers._in_input_line(screen, proposers.DRAFT_PROMPT)
 
 
+def test_a_screen_with_no_prompt_marker_reads_its_last_lines_as_the_input_line():
+    text = proposers.DRAFT_PROMPT
+    near = "\n".join(["output", text, *(f"line {n}" for n in range(proposers.INPUT_LINES - 1))])
+    far = "\n".join([text, *(f"line {n}" for n in range(proposers.INPUT_LINES))])
+
+    assert proposers._in_input_line(near, text)
+    assert not proposers._in_input_line(far, text)
+
+
+def test_a_shared_short_prefix_is_not_the_prompt():
+    assert proposers.PREFIX == 40
+    text = proposers.DRAFT_PROMPT
+
+    assert not proposers._in_input_line(f"> {text[:12]} something else entirely", text)
+
+
+def test_start_splits_the_current_pane_without_focus_when_herdr_names_no_pane(runner, doc, phase, brief):
+    del runner.env["HERDR_PANE_ID"]
+
+    started(runner, doc, brief)
+
+    splits = runner.commands("pane", "split")
+    assert len(splits) == 2 and all("--current" in split and "--pane" not in split for split in splits)
+    assert all("--no-focus" in split for split in splits)
+
+
+def test_start_runs_the_herdr_named_by_herdr_bin_path(runner, doc, phase, brief):
+    runner.tools.discard("herdr")
+    runner.env["HERDR_BIN_PATH"] = "/opt/herdr/herdr"
+
+    started(runner, doc, brief)
+
+    assert {call[0] for call in runner.calls if call[0] != "git"} == {"/opt/herdr/herdr"}
+
+
+def test_start_refuses_no_herdr_when_herdr_went_away_after_the_plan(runner, doc, phase, brief):
+    run(runner, "plan", doc)
+    runner.tools.discard("herdr")
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "no-herdr"
+    assert runner.calls == [] and state(doc)["stage"] == "planned" and "failed" not in state(doc)
+
+
+def test_a_split_with_no_pane_id_refuses_herdr_failed(runner, doc, phase, brief):
+    runner.on = lambda argv: (0, _json({"result": {}}), "") if argv[1:3] == ["pane", "split"] else None
+    run(runner, "plan", doc)
+
+    error = refused(runner, "start", doc, "--brief", str(brief), "--base", BASE)
+    assert error.code == "herdr-failed" and "no pane id" in error.reason
+    assert runner.commands("agent", "start") == []
+    assert state(doc)["failed"] == {"stage": "drafting", "code": "herdr-failed"}
+
+
+def test_start_after_cleanup_of_a_two_proposer_plan_refuses_not_planned(runner, doc, phase, brief):
+    run(runner, "plan", doc)
+    run(runner, "cleanup", doc)
+
+    assert refused(runner, "start", doc, "--brief", str(brief), "--base", BASE).code == "not-planned"
+    assert runner.calls == []
+
+
 def test_after_a_partial_start_wait_and_critique_refuse_not_started(runner, doc, phase, brief):
     runner.on = lambda argv: ((128, "", "fatal: busy") if argv[1:3] == ["worktree", "add"] and "codex" in argv[4]
                               else None)
@@ -595,6 +656,24 @@ def test_wait_refuses_pane_gone_when_a_pane_closed(runner, doc, phase, brief):
     runner.panes.pop(entries[0]["pane"])
 
     assert refused(runner, "wait", doc).code == "pane-gone"
+
+
+def test_wait_refuses_herdr_failed_when_pane_get_fails_another_way(runner, doc, phase, brief):
+    started(runner, doc, brief)
+    runner.on = lambda argv: _error("timeout") if argv[1:3] == ["pane", "get"] else None
+
+    error = refused(runner, "wait", doc)
+    assert error.code == "herdr-failed" and "timeout" in error.reason
+    assert state(doc)["failed"] == {"stage": "drafting", "code": "herdr-failed"}
+
+
+def test_wait_refuses_herdr_failed_when_the_agent_wait_fails_while_the_pane_lives(runner, doc, phase, brief):
+    started(runner, doc, brief)
+    runner.on = lambda argv: _error("timeout") if argv[1:3] == ["agent", "wait"] else None
+
+    error = refused(runner, "wait", doc)
+    assert error.code == "herdr-failed" and "agent wait" in error.reason and "timeout" in error.reason
+    assert state(doc)["failed"] == {"stage": "drafting", "code": "herdr-failed"}
 
 
 def test_the_herdr_waits_follow_the_retry_and_timeout_table(runner, doc, phase, brief):
