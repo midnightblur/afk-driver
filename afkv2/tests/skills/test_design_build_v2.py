@@ -217,3 +217,48 @@ def test_a_later_round_gets_no_ticket_card(tmp_path):
     build(tmp_path, round_of(confirm("c-1")), ticket=TICKET)
     build(tmp_path, round_of(confirm("c-2")), ticket=TICKET)
     assert [item["id"] for item in stored(tmp_path)["rounds"][1]["items"]] == ["c-2"]
+
+
+# --- the proposers banner (PRD AC-021, AC-024, R-5; SDD §5)
+
+FENCE = ("Each solution proposer ran with full auto-approval in a throwaway worktree. "
+         "The worktree fences only the working folder; it is not a sandbox.")
+
+
+def banner(tmp_path):
+    return stored(tmp_path)["rounds"][-1]["banner"]
+
+
+def test_two_proposers_write_one_line_and_the_fence(tmp_path):
+    build(tmp_path, round_of(proposers={"count": 2, "tools": ["claude", "codex"], "reason": None}))
+    assert banner(tmp_path)["settled"] == ["2 solution proposers drafted the design: Claude and Codex.", FENCE]
+
+
+@pytest.mark.parametrize("reason, words", [("no-herdr", "herdr is not installed"),
+                                           ("outside-herdr", "the session runs outside herdr"),
+                                           ("no-other-tool", "the other tool is not installed"),
+                                           ("bypass-forbidden", "full auto-approval is forbidden")])
+def test_one_proposer_writes_one_line_with_the_reason_and_no_fence(tmp_path, reason, words):
+    build(tmp_path, round_of(proposers={"count": 1, "tools": ["claude"], "reason": reason}))
+    assert banner(tmp_path)["settled"] == [f"1 solution proposer drafted the design alone (Claude): {words}."]
+
+
+def test_the_banner_line_comes_before_the_lines_of_the_agent(tmp_path):
+    round_input = round_of(proposers={"count": 1, "tools": ["codex"], "reason": "no-herdr"})
+    round_input["banner"]["settled"] = ["Keys settled."]
+    build(tmp_path, round_input)
+    assert banner(tmp_path)["settled"][1:] == ["Keys settled."]
+    assert "proposers" not in json.dumps(stored(tmp_path)["rounds"])
+
+
+@pytest.mark.parametrize("proposers", [{"count": 3, "tools": ["a", "b", "c"], "reason": None},
+                                       {"count": 2, "tools": ["claude"], "reason": None},
+                                       {"count": 2, "tools": ["claude", "claude"], "reason": None},
+                                       {"count": 2, "tools": ["claude", "codex"], "reason": "no-herdr"},
+                                       {"count": 1, "tools": ["claude"], "reason": None},
+                                       {"count": 1, "tools": ["claude"], "reason": "tired"},
+                                       {"count": 1, "tools": ["claude"], "reason": "no-herdr", "extra": 1},
+                                       "two"])
+def test_a_bad_proposers_input_is_refused(tmp_path, proposers):
+    assert refused(tmp_path, round_of(confirm("c-1"), proposers=proposers)).code == "bad-proposers"
+    assert not doc_path(tmp_path).exists()

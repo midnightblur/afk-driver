@@ -40,6 +40,12 @@ GROUPS = {
 ASPECT_KINDS = {"confirm", "debate"}
 CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC-\d{3,})\b\s*(.*)$", re.M)
 TIP_LIMIT = 1000
+# Why only 1 solution proposer drafted, by the reason code of the proposers plan (PRD AC-024).
+SOLO_REASONS = {"no-herdr": "herdr is not installed", "outside-herdr": "the session runs outside herdr",
+                "no-other-tool": "the other tool is not installed", "bypass-forbidden": "full auto-approval is forbidden"}
+PROPOSERS_FIELDS = {"count", "tools", "reason"}
+FENCE = ("Each solution proposer ran with full auto-approval in a throwaway worktree. "
+         "The worktree fences only the working folder; it is not a sandbox.")
 
 
 def group_rows(group):
@@ -163,6 +169,31 @@ def _merged_tips(doc, round_input, tips):
     return {**base, "ids": ids} if ids else {key: value for key, value in base.items() if key != "ids"}
 
 
+def _tool_name(tool):
+    return tool[:1].upper() + tool[1:]
+
+
+def _proposers_banner(proposers):
+    """The R-5 banner line: how many solution proposers drafted, or why only 1 did; then the fence statement of
+    SDD §5 when 2 proposers ran (PRD AC-021, AC-024)."""
+    where = f"proposers {proposers!r}"
+    if not isinstance(proposers, dict) or set(proposers) != PROPOSERS_FIELDS:
+        raise Refusal("bad-proposers", f"{where}: one object with {sorted(PROPOSERS_FIELDS)}")
+    count, tools, reason = proposers["count"], proposers["tools"], proposers["reason"]
+    if count not in (1, 2) or isinstance(count, bool):
+        raise Refusal("bad-proposers", f"{where}: count is 1 or 2")
+    if (not isinstance(tools, list) or len(tools) != count or len(set(map(str, tools))) != count
+            or not all(isinstance(tool, str) and tool.strip() for tool in tools)):
+        raise Refusal("bad-proposers", f"{where}: tools names {count} different tools")
+    if count == 2:
+        if reason is not None:
+            raise Refusal("bad-proposers", f"{where}: 2 proposers ran, so reason is null")
+        return [f"2 solution proposers drafted the design: {' and '.join(map(_tool_name, tools))}.", FENCE]
+    if reason not in SOLO_REASONS:
+        raise Refusal("bad-proposers", f"{where}: reason is one of {sorted(SOLO_REASONS)}")
+    return [f"1 solution proposer drafted the design alone ({_tool_name(tools[0])}): {SOLO_REASONS[reason]}."]
+
+
 def _empty():
     return {"maps": [], "rounds": []}
 
@@ -276,6 +307,10 @@ def build_design_round(doc_path, session, round_input, replace=False, links=None
     _check_carriers(doc, items)
     _check_order(doc, items)
     built = copy.deepcopy(round_input)
+    if "proposers" in built:
+        lines = _proposers_banner(built.pop("proposers"))
+        if isinstance(built.get("banner"), dict):
+            built["banner"]["settled"] = [*lines, *(built["banner"].get("settled") or [])]
     known = rd._used_ids(doc) | {item.get("id") for item in items}
     degraded = []
     built["items"] = [_design_decided(item, known, degraded) for item in items]
