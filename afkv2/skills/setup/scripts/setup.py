@@ -4,6 +4,7 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
 
   status                                   read-only report
   prepare                                  Python 3, rg on every shell, install record
+  herdr --answer yes|no                    the developer's answer: yes runs the official installer
   diagram-renderer                         the diagram command, and its config that names the installed Edge
   secrets                                  the developer's own terminal only: Jira values
   copy-config [--spec-folder PATH] [--no-v1-values]
@@ -91,9 +92,43 @@ def write_install_record(places: Places, python: dict, rg: str | None) -> dict:
     record.setdefault("installed", _now().isoformat())
     record["python"] = f"{python['path']} {python['version']}"
     record["rg"] = rg or "unknown"
-    text = "".join(f"{k} {record[k]}\n" for k in ("installed", "python", "rg"))
-    write_atomic(places.install_record, text.encode("utf-8"))
+    _write_record(places, record)
     return record
+
+
+def _write_record(places: Places, record: dict[str, str]) -> None:
+    first = [k for k in ("installed", "python", "rg") if k in record]
+    keys = first + sorted(k for k in record if k not in first)
+    write_atomic(places.install_record, "".join(f"{k} {record[k]}\n" for k in keys).encode("utf-8"))
+
+
+def herdr_answer_file(places: Places) -> Path:
+    """The developer's herdr answer, apart from the install record, so that switch-back keeps a no."""
+    return places.data / "herdr-answer.txt"
+
+
+def read_herdr_answer(places: Places) -> str | None:
+    path = herdr_answer_file(places)
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip() or None
+    return read_install_record(places).get("herdr")
+
+
+def herdr(places: Places, system: System, answer: str, env: Mapping[str, str]) -> dict:
+    """Act on the developer's answer and record it once: `declined` stops the question for good."""
+    fresh = system.fresh_env or (lambda: env)
+    if tools.herdr_status(system.run, {}, fresh()) == "present":
+        return {"ok": True, "herdr": "present"}
+    done = (tools.install_herdr(system.run, system.windows, fresh(), places.data / "herdr-download")
+            if answer == "yes"
+            else {"ok": True, "herdr": "declined"})
+    if done["ok"] and done["herdr"] == "installed":
+        # The installer changes the user path: only an environment read after it shows herdr.
+        done["path"] = system.run.which("herdr", fresh())
+        done["on_path"] = done["path"] is not None
+    if done["ok"]:
+        write_atomic(herdr_answer_file(places), (done["herdr"] + "\n").encode("utf-8"))
+    return done
 
 
 # ============================================================ v1 rule block
@@ -650,6 +685,8 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "ok": True,
         "repo": str(repo),
         "install_record": read_install_record(places),
+        "herdr": tools.herdr_status(system.run, {"herdr": read_herdr_answer(places)},
+                                    system.fresh_env() if system.fresh_env else env),
         "fired": {p: places.fired_record(p).exists() for p in PROVIDERS},
         "jira": jira_values.status(places, env),
         "v1_config": repo_config.copy_plan(repo),
@@ -723,7 +760,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     env = os.environ if env is None else env
     system = system or default_system()
     parser = argparse.ArgumentParser(prog="setup.py", description=__doc__.splitlines()[0])
-    parser.add_argument("verb", choices=("status", "prepare", "diagram-renderer", "secrets", "copy-config",
+    parser.add_argument("verb", choices=("status", "prepare", "herdr", "diagram-renderer", "secrets", "copy-config",
                                          "ownership", "takeover", "switch-back"))
     parser.add_argument("--repo")
     parser.add_argument("--provider", choices=PROVIDERS)
@@ -733,6 +770,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     parser.add_argument("--skip", action="store_true")
     parser.add_argument("--spec-folder")
     parser.add_argument("--no-v1-values", action="store_true")
+    parser.add_argument("--answer", choices=("yes", "no"))
     try:
         args = parser.parse_args(argv)
     except SystemExit:
@@ -740,7 +778,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         return 2
     places = Places.from_env(env)
     repo = None
-    if args.verb not in ("prepare", "diagram-renderer", "secrets", "switch-back"):
+    if args.verb not in ("prepare", "herdr", "diagram-renderer", "secrets", "switch-back"):
         repo = repo_top(system.run, Path(args.repo) if args.repo else (cwd or Path.cwd()))
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
@@ -748,11 +786,16 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     if args.verb == "takeover" and not args.provider:
         print(json.dumps(_error("bad-arguments", "takeover needs --provider")))
         return 2
+    if args.verb == "herdr" and not args.answer:
+        print(json.dumps(_error("bad-arguments", "herdr needs --answer yes or --answer no from the developer")))
+        return 2
     try:
         if args.verb == "status":
             answer = status(places, repo, system, env)
         elif args.verb == "prepare":
             answer = prepare(places, system, env)
+        elif args.verb == "herdr":
+            answer = herdr(places, system, args.answer, env)
         elif args.verb == "diagram-renderer":
             answer = tools.ensure_diagram_renderer(places, system.run, env)
         elif args.verb == "secrets":

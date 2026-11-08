@@ -1,0 +1,4196 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Solution design",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261107-113622",
+    "skill": "propose-solution",
+    "feature": "178",
+    "ticket": "178",
+    "started": "2026-11-07T11:51:14Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Design page like the grill"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "focus",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "focus",
+            "round": 2
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 2
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "N-1-m-aspects-1",
+      "round": 1,
+      "target": "m-aspects",
+      "item": null,
+      "text": "Owner steer, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\" The marks in this send apply the agent's recommendation on each card under this steer.",
+      "deleted": false
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "the draft of every design level"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "a-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-entities-t",
+            "props": {
+              "columns": [
+                "Record",
+                "Where it lives",
+                "Today",
+                "After the change"
+              ],
+              "rows": [
+                [
+                  "Page document of a design session",
+                  "spec folder, pages/",
+                  "format 2, cards only",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept format",
+                      "tone": "kept"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "gains sections, walk-throughs and questions for others"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Round input of the design build",
+                  "a scratch file",
+                  "aspect, layer, locked, fork",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new fields",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "a \"driven by\" block on decided and fork cards"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Design log (the design part of GRILL-LOG.md)",
+                  "spec folder",
+                  "premise, spinoff, escape, take-over rows",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new rows",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "each note word for word, and the last passed check"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Drafts and critiques of the solution proposers",
+                  "—",
+                  "none",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "1 draft and 1 critique per tool, kept in the spec folder"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Run times for the estimate",
+                  "the run journal, on a branch that cleanup deletes",
+                  "lost at cleanup",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "proposed",
+                      "tone": "proposed"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "see the cascade question"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Setup's install record",
+                  "the afkv2 folder in your local app data",
+                  "python and rg lines",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new line",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "herdr found, installed or declined"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Design document and design records",
+                  "spec folder",
+                  "decision, options, why, undo",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new block",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "\"driven by\" in each record"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-entities-cap",
+                "props": {
+                  "text": "Each row is something this design writes to disk; the chips show what changes.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-entities-q",
+                "props": {
+                  "text": "My reading: no new page format and no database. Where the run times live is the fork in the cascade question below. Accept, or note a row."
+                }
+              }
+            ]
+          },
+          "title": "This design stores no new kind of record; 4 records gain fields, 2 are new",
+          "node": "aspect-entities",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-relations-g",
+            "props": {
+              "title": "How the records link",
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "r-page",
+                  "label": "page document",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-log",
+                  "label": "design log",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-prd",
+                  "label": "PRD and requirement records",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-drafts",
+                  "label": "drafts and critiques",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-sdd",
+                  "label": "SDD and design records",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-times",
+                  "label": "run times",
+                  "group": "run"
+                },
+                {
+                  "id": "r-plan",
+                  "label": "plan approval page",
+                  "group": "run"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "r-page",
+                  "to": "r-log",
+                  "label": "1 to 1, by session id"
+                },
+                {
+                  "from": "r-page",
+                  "to": "r-drafts",
+                  "label": "1 to 0 or 2, by session id"
+                },
+                {
+                  "from": "r-page",
+                  "to": "r-prd",
+                  "label": "driven-by names"
+                },
+                {
+                  "from": "r-sdd",
+                  "to": "r-page",
+                  "label": "card id"
+                },
+                {
+                  "from": "r-plan",
+                  "to": "r-times",
+                  "label": "reads many"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "spec",
+                  "label": "spec folder of the ticket"
+                },
+                {
+                  "id": "run",
+                  "label": "plan and run"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-relations-q",
+                "props": {
+                  "text": "My reading: the session owns its drafts; a session with 1 solution proposer has no draft file, because the agent in charge drafts on the page. A design record points at its card. The plan page reads the run times of every earlier feature and owns none. Accept, or note a link."
+                }
+              }
+            ]
+          },
+          "title": "Each link has 1 owner: the design session",
+          "node": "aspect-relations",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-keys",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-keys-t",
+            "props": {
+              "columns": [
+                "Key",
+                "Identifies",
+                "Rule today"
+              ],
+              "rows": [
+                [
+                  "card id",
+                  "1 card",
+                  "unique in the document, never reused"
+                ],
+                [
+                  "section id",
+                  "1 section",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "no order",
+                      "tone": "open"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "unique, never reused; a new one goes to the end"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "map node",
+                  "an aspect, a layer or a locked aspect",
+                  "fixed by the skill's 2 tables"
+                ],
+                [
+                  "session id",
+                  "1 design session",
+                  "date and time"
+                ],
+                [
+                  "subtask id",
+                  "1 subtask in a journal line",
+                  "number and short name"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-keys-question",
+                "props": {
+                  "text": "How does the design page keep its sections in the order of the catalog, when a new section always goes to the end of the list? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-keys-options",
+                "props": {
+                  "columns": [
+                    "A — ids name the part, and a section can go after another",
+                    "B — seed every section once",
+                    "C — a new page format with an order field"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-keys-opt-a",
+                        "props": {
+                          "text": "Each section id names its part: the system, a critical part, a level 1 to 9, key logic, patterns, performance. The design build refuses a list out of that order. The shared builder takes \"after\" on a section, as it does on a question, so a critical part found late goes in its place. Costs 1 small change in the shared builder; the grill may use it too."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-keys-opt-b",
+                        "props": {
+                          "text": "The first draft round creates every section, not reached yet. A critical part found later folds into its level section. No builder change; but a late critical part gets no section of its own, against the PRD."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-keys-opt-c",
+                        "props": {
+                          "text": "Each section carries its place, and the page sorts. Costs a new schema value, which the PRD puts out of scope."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-keys-why-open",
+                "props": {
+                  "text": "Option A changes the shared builder, which the grill also uses; it is cheap to undo, but it is a change you may want to call."
+                }
+              }
+            ]
+          },
+          "title": "Keep the sections in page order: ids that name the part",
+          "node": "aspect-keys",
+          "section": "sec-crit-builder",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-constraints-t",
+            "props": {
+              "columns": [
+                "Rule",
+                "Checked today",
+                "Proposed"
+              ],
+              "rows": [
+                [
+                  "Critical aspects first, in a fixed order",
+                  "the design build refuses",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Only your sign mark signs a locked aspect",
+                  "the readings step and the check",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "Sections in catalog order",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design build refuses"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Every decision shows its 5 blocks",
+                  "4 blocks exist; a gap turns a decided card into a confirm card",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design build requires \"driven by\" on decided and fork cards"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "A named requirement shows its text on hover",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design build writes the hover texts from the PRD and the records"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Every picture has a 1-line caption",
+                  "diagrams and charts only",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design build refuses a section picture with none: its caption field, else 1 line right below it"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "A patterns and a performance section exist",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design check refuses"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "No open question for others at the end",
+                  "the grill's check only",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the design check refuses"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "Every performance fact stands only in the performance section",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "judgment",
+                      "tone": "proposed"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "no script can tell a performance fact"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "No estimate on the design page",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "judgment",
+                      "tone": "proposed"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "a check before the design check"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                [
+                  "A solution proposer sees only its inputs",
+                  "nothing",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "judgment",
+                      "tone": "proposed"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "its folder holds only its brief; a folder fence, not a sandbox"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-constraints-cap",
+                "props": {
+                  "text": "Rows marked new get a script check; rows marked judgment are checks you and I confirm before the design check.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-constraints-q",
+                "props": {
+                  "text": "Accept, or note a row."
+                }
+              }
+            ]
+          },
+          "title": "8 new rules: 5 checked by the build or the check, 3 by judgment",
+          "node": "aspect-constraints",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-cascade",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-cascade-g",
+            "props": {
+              "title": "What the cleanup after a merge reaches today",
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "c-gc",
+                  "label": "cleanup after merge",
+                  "you": true,
+                  "tip": "/afkv2:gc, after your yes"
+                },
+                {
+                  "id": "c-wt",
+                  "label": "run worktree",
+                  "group": "gone"
+                },
+                {
+                  "id": "c-rb",
+                  "label": "run branch, local and remote",
+                  "group": "gone"
+                },
+                {
+                  "id": "c-j",
+                  "label": "run journal with the run times",
+                  "group": "gone"
+                },
+                {
+                  "id": "c-spec",
+                  "label": "spec folder: PRD, SDD, pages, log",
+                  "group": "kept"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "c-gc",
+                  "to": "c-wt",
+                  "label": "removes"
+                },
+                {
+                  "from": "c-gc",
+                  "to": "c-rb",
+                  "label": "deletes"
+                },
+                {
+                  "from": "c-rb",
+                  "to": "c-j",
+                  "label": "holds"
+                },
+                {
+                  "from": "c-gc",
+                  "to": "c-spec",
+                  "label": "leaves; it merged"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "gone",
+                  "label": "deleted"
+                },
+                {
+                  "id": "kept",
+                  "label": "survives"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-cascade-now",
+                "props": {
+                  "text": "Today the repository holds 0 journals of this version and 5 old journals with 15 timed subtasks. A solution proposer's throwaway worktree is removed after its draft and critique are copied to the spec folder; nothing else of it remains."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-cascade-question",
+                "props": {
+                  "text": "The PRD assumed the run journals survive; they do not. Each journal lives only on the run branch, which never merges, and cleanup deletes that branch. Where do the run times live, so the plan page can read them? Recommended: A."
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-cascade-options",
+                "props": {
+                  "columns": [
+                    "A — copy the journal into the spec folder",
+                    "B — a run-times file per machine",
+                    "C — read only what still exists"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-cascade-opt-a",
+                        "props": {
+                          "text": "At the end of a run, autopilot commits a copy of its journal into the ticket's spec folder on the feature branch. It merges with the feature, so every developer on the repository reads the same history, and git keeps it. Costs 1 more file per feature, and 1 more commit in autopilot."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-cascade-opt-b",
+                        "props": {
+                          "text": "Autopilot appends each finished subtask's minutes and size to a file in your local app data. No file in the repository. Costs: each machine has its own history, a new machine starts empty, and no one else sees it."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-cascade-opt-c",
+                        "props": {
+                          "text": "The estimate reads the run branches not yet cleaned up and the 5 old journals. No change. Costs: after each cleanup the data is gone, so most estimates are judged from size."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-cascade-why-open",
+                "props": {
+                  "text": "It changes what autopilot writes and what every merged feature holds, so you call it."
+                }
+              }
+            ]
+          },
+          "title": "Cleanup deletes the run times the estimate needs",
+          "node": "aspect-cascade",
+          "section": "sec-crit-runtimes",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-api-t",
+            "props": {
+              "columns": [
+                "Surface",
+                "Today",
+                "After the change",
+                "Callers"
+              ],
+              "rows": [
+                [
+                  "design build",
+                  "aspects, layers, locked aspects, forks",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "ticket card, section order, \"driven by\", captions, hover texts"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ],
+                [
+                  "design start",
+                  "resumes an open session only",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "takes over a session that passed, as the grill does"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ],
+                [
+                  "design check",
+                  "no lists of what changed",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "later documents out of date, settled points changed, open questions for others, the 2 required sections"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ],
+                [
+                  "design sync",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "copies each note word for word to the log"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ],
+                [
+                  "second-provider slot",
+                  "a stub, always off",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "removed",
+                      "tone": "removed"
+                    }
+                  },
+                  "the design skill only"
+                ],
+                [
+                  "solution proposers",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "which tools can run and why not; start; collect the drafts and critiques; close"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ],
+                [
+                  "shared round builder",
+                  "\"after\" on questions only",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "\"after\" on sections; an optional \"driven by\" on decided cards"
+                        }
+                      }
+                    ]
+                  },
+                  "the grill, the design, the plan; all keep working"
+                ],
+                [
+                  "setup",
+                  "no herdr",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "status shows herdr; a herdr step installs it after your yes"
+                        }
+                      }
+                    ]
+                  },
+                  "the setup skill"
+                ],
+                [
+                  "plan approval page",
+                  "the subtask table",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "extends",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the estimate per subtask and in total"
+                        }
+                      }
+                    ]
+                  },
+                  "the plan skill"
+                ],
+                [
+                  "estimate",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "reads the run times, scales them, or judges from size"
+                        }
+                      }
+                    ]
+                  },
+                  "the plan skill"
+                ],
+                [
+                  "herdr playbook",
+                  "—",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new skill",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "the 9 capabilities, for any skill that drives herdr"
+                        }
+                      }
+                    ]
+                  },
+                  "the design skill"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api-cap",
+                "props": {
+                  "text": "Read the Callers column: each change adds a field, a verb or a skill, except the stub, which only the design skill calls.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api-q",
+                "props": {
+                  "text": "My reading: no caller outside this ticket breaks. Accept, or note a row."
+                }
+              }
+            ]
+          },
+          "title": "11 surfaces change; every existing caller keeps working",
+          "node": "aspect-api",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-migration-t",
+            "props": {
+              "columns": [
+                "Ticket",
+                "Format",
+                "Rounds",
+                "Size",
+                "Sections"
+              ],
+              "rows": [
+                [
+                  "158",
+                  "0",
+                  "3",
+                  "158 KB",
+                  "0"
+                ],
+                [
+                  "159 (2 pages)",
+                  "0",
+                  "2 and 3",
+                  "75 and 61 KB",
+                  "0"
+                ],
+                [
+                  "163 (2 pages)",
+                  "0",
+                  "2 each",
+                  "129 and 110 KB",
+                  "0"
+                ],
+                [
+                  "174",
+                  "1",
+                  "2",
+                  "124 KB",
+                  "0"
+                ],
+                [
+                  "plan pages (5)",
+                  "0 and 1",
+                  "1 to 3",
+                  "4 to 25 KB",
+                  "0"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-migration-cap",
+                "props": {
+                  "text": "No existing design page has sections; measured on disk today.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-migration-q",
+                "props": {
+                  "text": "My reading: nothing is rewritten. A design page reopened with new input gets its sections built once from its settled points, each with a change line that says so, as the grill does. A page never reopened keeps rendering as it is. To go back: revert the branch. Accept, or note."
+                }
+              }
+            ]
+          },
+          "title": "8 existing design pages stay as they are until reopened",
+          "node": "aspect-migration",
+          "section": "sec-l9",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-authorization-t",
+            "props": {
+              "columns": [
+                "Action",
+                "Who may, today",
+                "Who may, after",
+                "Guard"
+              ],
+              "rows": [
+                [
+                  "Sign a locked aspect",
+                  "you",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  },
+                  "only a sign mark settles it"
+                ],
+                [
+                  "Pick a fork",
+                  "you",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "a disputed point too"
+                        }
+                      }
+                    ]
+                  },
+                  "the check refuses a disputed point with no fork card you settled"
+                ],
+                [
+                  "Decide a reversible point",
+                  "the agent in charge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "narrower",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "not a point the 2 drafts dispute"
+                        }
+                      }
+                    ]
+                  },
+                  "the same check"
+                ],
+                [
+                  "Draft a design",
+                  "the agent in charge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "a solution proposer"
+                        }
+                      }
+                    ]
+                  },
+                  "its own throwaway worktree, made from the target branch, so your page and notes are not in it"
+                ],
+                [
+                  "Read your notes, open the page, write the design or the tracker",
+                  "the agent in charge",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    },
+                    "children": [
+                      {
+                        "type": "text",
+                        "props": {
+                          "text": "never a solution proposer"
+                        }
+                      }
+                    ]
+                  },
+                  "its brief holds the inputs and your steers as text; a folder fence, not a sandbox"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-authorization-cap",
+                "props": {
+                  "text": "The new rows are the solution proposer's; the guard column says what stops each misuse.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-authorization-q",
+                "props": {
+                  "text": "Accept, or note a row."
+                }
+              }
+            ]
+          },
+          "title": "A solution proposer drafts and critiques; only you sign and pick",
+          "node": "aspect-authorization",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-lifecycle-g",
+            "props": {
+              "title": "The design session's phases, and a solution proposer's run",
+              "direction": "down",
+              "nodes": [
+                {
+                  "id": "l-asp",
+                  "label": "critical aspects",
+                  "group": "s"
+                },
+                {
+                  "id": "l-prop",
+                  "label": "solution proposers",
+                  "group": "s",
+                  "tip": "new phase"
+                },
+                {
+                  "id": "l-draft",
+                  "label": "draft rounds",
+                  "group": "s"
+                },
+                {
+                  "id": "l-write",
+                  "label": "write the design",
+                  "group": "s"
+                },
+                {
+                  "id": "l-pass",
+                  "label": "check passed",
+                  "group": "s"
+                },
+                {
+                  "id": "l-back",
+                  "label": "come back with new input",
+                  "group": "s",
+                  "you": true
+                },
+                {
+                  "id": "p-open",
+                  "label": "pane open",
+                  "group": "p"
+                },
+                {
+                  "id": "p-draft",
+                  "label": "drafting",
+                  "group": "p"
+                },
+                {
+                  "id": "p-crit",
+                  "label": "critiquing",
+                  "group": "p"
+                },
+                {
+                  "id": "p-read",
+                  "label": "read back",
+                  "group": "p"
+                },
+                {
+                  "id": "p-closed",
+                  "label": "closed",
+                  "group": "p"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "l-asp",
+                  "to": "l-prop",
+                  "label": "all settled"
+                },
+                {
+                  "from": "l-prop",
+                  "to": "l-draft",
+                  "label": "2 drafts merged, or 1"
+                },
+                {
+                  "from": "l-draft",
+                  "to": "l-write"
+                },
+                {
+                  "from": "l-write",
+                  "to": "l-pass"
+                },
+                {
+                  "from": "l-pass",
+                  "to": "l-back"
+                },
+                {
+                  "from": "l-back",
+                  "to": "l-draft",
+                  "label": "touched points return"
+                },
+                {
+                  "from": "p-open",
+                  "to": "p-draft"
+                },
+                {
+                  "from": "p-draft",
+                  "to": "p-crit",
+                  "label": "both drafts ready"
+                },
+                {
+                  "from": "p-crit",
+                  "to": "p-read"
+                },
+                {
+                  "from": "p-read",
+                  "to": "p-closed"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "s",
+                  "label": "design session"
+                },
+                {
+                  "id": "p",
+                  "label": "1 solution proposer"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-lifecycle-q",
+                "props": {
+                  "text": "My reading: with both tools and herdr, both solution proposers run in panes, your own tool too, each in its throwaway worktree (the PRD says each one does), so the agent in charge merges 2 drafts it did not write. With 1, the agent in charge drafts itself, with no pane and no full auto-approval. The agent in charge moves each step; you may stop a pane at any time. Accept, or note."
+                }
+              }
+            ]
+          },
+          "title": "1 new phase between the aspects and the draft",
+          "node": "aspect-lifecycle",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-other-g",
+            "props": {
+              "title": "The code area, by owner",
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "o-design",
+                  "label": "design skill",
+                  "group": "own"
+                },
+                {
+                  "id": "o-builder",
+                  "label": "shared page builder and engine",
+                  "group": "own"
+                },
+                {
+                  "id": "o-setup",
+                  "label": "setup skill",
+                  "group": "own"
+                },
+                {
+                  "id": "o-plan",
+                  "label": "plan skill and autopilot",
+                  "group": "own"
+                },
+                {
+                  "id": "o-herdr",
+                  "label": "herdr",
+                  "group": "out"
+                },
+                {
+                  "id": "o-claude",
+                  "label": "Claude Code",
+                  "group": "out"
+                },
+                {
+                  "id": "o-codex",
+                  "label": "Codex",
+                  "group": "out"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "o-design",
+                  "to": "o-builder",
+                  "label": "builds pages"
+                },
+                {
+                  "from": "o-design",
+                  "to": "o-herdr",
+                  "label": "opens panes"
+                },
+                {
+                  "from": "o-herdr",
+                  "to": "o-claude",
+                  "label": "starts"
+                },
+                {
+                  "from": "o-herdr",
+                  "to": "o-codex",
+                  "label": "starts"
+                },
+                {
+                  "from": "o-setup",
+                  "to": "o-herdr",
+                  "label": "installs"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "own",
+                  "label": "yours: afkv2/** in the ownership config"
+                },
+                {
+                  "id": "out",
+                  "label": "outside tools, used only"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-other-q",
+                "props": {
+                  "text": "Accept, or note."
+                }
+              }
+            ]
+          },
+          "title": "No module of another team; 3 outside tools are used, not changed",
+          "node": "aspect-other-teams",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-large-data",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-large-t",
+            "props": {
+              "columns": [
+                "What grows",
+                "Size today",
+                "Grows by"
+              ],
+              "rows": [
+                [
+                  "a page document",
+                  "4 to 616 KB; design pages 61 to 158 KB (measured)",
+                  "1 round"
+                ],
+                [
+                  "a draft or critique",
+                  "—",
+                  "20 to 60 KB per file, 4 files per session (estimated)"
+                ],
+                [
+                  "the run-time history",
+                  "15 timed subtasks in 5 old journals (measured)",
+                  "5 to 15 lines per feature (estimated)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-large-cap",
+                "props": {
+                  "text": "The largest item is one page document; nothing grows without bound inside a session.",
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-large-q",
+                "props": {
+                  "text": "My reading: no part needs paging or limits. The performance section holds these facts; this card only points there. Accept, or note."
+                }
+              }
+            ]
+          },
+          "title": "No large data; the facts go to the performance section",
+          "node": "aspect-large-data",
+          "section": "sec-performance",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-terms",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-terms-t",
+            "props": {
+              "text": "Finding: an earlier design on this repository, not merged, recorded a policy risk in one tool driving another under a subscription login, and kept that route off by default. This design starts the other tool in a visible pane, under your own login, on by default, as you settled. I did not check the current terms of Claude or Codex again (unverified). Accept to record that you know this, or note."
+            }
+          },
+          "title": "One tool starting the other under your login: not checked against today's terms",
+          "section": "sec-crit-proposers",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-trial",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-trial-t",
+            "props": {
+              "text": "Before the first draft round, I start Codex in a herdr pane, with full auto-approval in a throwaway worktree, to draft this design from the same inputs. Each of us critiques the other's draft, and each difference reaches you as a fork card credited to its tool. It tests the 5 steps on a real ticket before we build them. Costs 1 Codex session. Accept, or note \"skip\"."
+            }
+          },
+          "title": "Try the 2 solution proposers by hand on this design",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T16:08:32Z",
+          "raw": "[round R-1]\nm-aspects note 1\n  Owner steer, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\" The marks in this send apply the agent's recommendation on each card under this steer.\na-entities accept\na-relations accept\na-keys a\na-constraints accept\na-cascade a\na-api accept\na-migration accept\na-authorization accept\na-lifecycle accept\na-other-teams accept\na-large-data accept\ni-terms accept\ni-trial accept\n",
+          "signals": [
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "Owner steer, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\" The marks in this send apply the agent's recommendation on each card under this steer.",
+              "note": "N-1-m-aspects-1",
+              "steer": true,
+              "stamp": "6d910c912cfecc15"
+            },
+            {
+              "target": "a-entities",
+              "item": "a-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "71b912dda0a32a29"
+            },
+            {
+              "target": "a-relations",
+              "item": "a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7a402a8b4f2b5ac2"
+            },
+            {
+              "target": "a-keys",
+              "item": "a-keys",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9b89609023ddd36b"
+            },
+            {
+              "target": "a-constraints",
+              "item": "a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6a1d66ac0ed74add"
+            },
+            {
+              "target": "a-cascade",
+              "item": "a-cascade",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "637a980aec0997d2"
+            },
+            {
+              "target": "a-api",
+              "item": "a-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3535fa86411ff3d8"
+            },
+            {
+              "target": "a-migration",
+              "item": "a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ec69e6bbada4570f"
+            },
+            {
+              "target": "a-authorization",
+              "item": "a-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7200288c10f5e6de"
+            },
+            {
+              "target": "a-lifecycle",
+              "item": "a-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cd99aadee9c1557b"
+            },
+            {
+              "target": "a-other-teams",
+              "item": "a-other-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a6349d7740b16fc1"
+            },
+            {
+              "target": "a-large-data",
+              "item": "a-large-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a9d0520f3cab904b"
+            },
+            {
+              "target": "i-terms",
+              "item": "i-terms",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ddbcc9ee39537338"
+            },
+            {
+              "target": "i-trial",
+              "item": "i-trial",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ce0fc3de379cfd48"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-1-1",
+          "text": "Taken as a binding steer for the rest of the design session and the chain after it: each card settles on my recommendation, every fork names the option I recommended and why, and each sign-off of a human-locked aspect records that it was signed under this delegation. You review the result on the final page before the merge.",
+          "notes": [
+            "N-1-m-aspects-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "every critical aspect, on the recommendations, under your delegation",
+          "2 solution proposers ran: Claude and Codex, as a live trial; each drafted alone and critiqued the other",
+          "Each solution proposer ran with full auto-approval in a throwaway worktree. The worktree fences only the working folder; it is not a sandbox.",
+          "merged where one critique accepted the other's option in writing: the estimate method, a proposers phase, start and cleanup verbs, 4 returned paths, typed alternatives, named section catalog, archive verb, setup install verb, plan columns"
+        ],
+        "unlocks": [
+          "the design document and the design records"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l1-topology",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l1-topology-t",
+            "props": {
+              "text": "Inherited from the afkv2 plugin: local scripts, 1 page engine, git worktrees. herdr is the only new program, and only setup installs it."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l1-topology-decision",
+                "props": {
+                  "text": "Inherited from the afkv2 plugin: local scripts, 1 page engine, git worktrees. herdr is the only new program, and only setup installs it.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-why",
+                "props": {
+                  "text": "nothing in the feature needs a server",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-alternatives",
+                "props": {
+                  "text": "- A hosted service that runs the proposers — needs servers and credentials the plugin does not have",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-evidence",
+                "props": {
+                  "text": "SDD §2; afkv2 runs only local scripts (afkv2/skills/*/scripts).",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-reverse",
+                "props": {
+                  "text": "drop the herdr step and the proposers script",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l1-topology-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 1: inherited, all on the developer's machine",
+          "node": "layer-l1",
+          "section": "sec-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l2-surfaces",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l2-surfaces-t",
+            "props": {
+              "text": "The 10 surfaces of SDD §3 (S-1 to S-10): the design build, the shared section merge, design start, a new sync verb, the gate, 4 proposers verbs, the estimate with the division card, and the setup herdr step."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-surfaces-decision",
+                "props": {
+                  "text": "The 10 surfaces of SDD §3 (S-1 to S-10): the design build, the shared section merge, design start, a new sync verb, the gate, 4 proposers verbs, the estimate with the division card, and the setup herdr step.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l2-surfaces-why",
+                "props": {
+                  "text": "matches every existing afkv2 surface",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-surfaces-alternatives",
+                "props": {
+                  "text": "- A Python library the skills import directly — breaks the 1-JSON-answer contract every afkv2 skill relies on",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-surfaces-evidence",
+                "props": {
+                  "text": "SDD §3; every afkv2 script answers through grill_common.serve.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-surfaces-reverse",
+                "props": {
+                  "text": "revert each verb's commit",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l2-surfaces-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 2: 10 callable surfaces, all CLI verbs with 1 JSON answer",
+          "node": "layer-l2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l3-data",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l3-data-t",
+            "props": {
+              "text": "The page format stays frozen. Section order is the list order; driven_by is a labelled text block; the journal copy is the only new stored file (SDD §4)."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-data-decision",
+                "props": {
+                  "text": "The page format stays frozen. Section order is the list order; driven_by is a labelled text block; the journal copy is the only new stored file (SDD §4).",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l3-data-why",
+                "props": {
+                  "text": "no format change and no migration",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-alternatives",
+                "props": {
+                  "text": "- A new order field and a driven_by field in the page format — the PRD puts a new page format out of scope",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-evidence",
+                "props": {
+                  "text": "SDD §4; page-v2.schema.json:5 is frozen.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-reverse",
+                "props": {
+                  "text": "revert; old pages never held the new parts",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l3-data-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 3: no new page field; 1 new stored file per run",
+          "node": "layer-l3",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l4-cross",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l4-cross-t",
+            "props": {
+              "text": "Each role rule is a script check (SDD §5); proposers keep a state file beside the page; herdr prompts get 2 tries; no time cap; the banner states the folder fence."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l4-cross-decision",
+                "props": {
+                  "text": "Each role rule is a script check (SDD §5); proposers keep a state file beside the page; herdr prompts get 2 tries; no time cap; the banner states the folder fence.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l4-cross-why",
+                "props": {
+                  "text": "deterministic-first",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-cross-alternatives",
+                "props": {
+                  "text": "- Guards in the skill prose only — an agent can skip prose; a script refusal cannot be skipped",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-cross-evidence",
+                "props": {
+                  "text": "SDD §5.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-cross-reverse",
+                "props": {
+                  "text": "revert the checks",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l4-cross-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 4: guards in scripts, ledgers in state files",
+          "node": "layer-l4",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l5-domain",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l5-domain-t",
+            "props": {
+              "text": "The 9 invariants and the proposer run life cycle of SDD §6; every path of the life cycle ends in collected."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l5-domain-decision",
+                "props": {
+                  "text": "The 9 invariants and the proposer run life cycle of SDD §6; every path of the life cycle ends in collected.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-why",
+                "props": {
+                  "text": "every pane and worktree has a recorded end",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-alternatives",
+                "props": {
+                  "text": "- No life cycle, only 1 call that does all — a failure halfway leaves a pane open with no record",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-evidence",
+                "props": {
+                  "text": "SDD §6.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-reverse",
+                "props": {
+                  "text": "revert proposers.py",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l5-domain-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 5: 9 invariants, 1 guardian each; 1 proposer life cycle",
+          "node": "layer-l5",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l6-process",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l6-process-t",
+            "props": {
+              "text": "Each step writes 1 file; the 9 failure rows and 5 outward effects of SDD §7 each name their recovery."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l6-process-decision",
+                "props": {
+                  "text": "Each step writes 1 file; the 9 failure rows and 5 outward effects of SDD §7 each name their recovery.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l6-process-why",
+                "props": {
+                  "text": "the steps are already serial",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-alternatives",
+                "props": {
+                  "text": "- A lock file around the whole session — 1 session per ticket already; a lock adds a stale-lock failure",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-evidence",
+                "props": {
+                  "text": "SDD §7.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-reverse",
+                "props": {
+                  "text": "revert",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l6-process-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 6: no transactions; 1 failure matrix; 5 outward effects",
+          "node": "layer-l6",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l7-modules",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l7-modules-t",
+            "props": {
+              "text": "New: section_rules.py, proposers.py, estimate.py, pass_history.py, the herdr playbook skill. Changed: design_round, fork_cards, round_document, design_files, grill_log, plan_files, walk, setup (SDD §8). No cycle."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l7-modules-decision",
+                "props": {
+                  "text": "New: section_rules.py, proposers.py, estimate.py, pass_history.py, the herdr playbook skill. Changed: design_round, fork_cards, round_document, design_files, grill_log, plan_files, walk, setup (SDD §8). No cycle.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-why",
+                "props": {
+                  "text": "the shared builder stays generic",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-alternatives",
+                "props": {
+                  "text": "- All new logic inside round_document.py — the shared builder would learn design-only rules",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-evidence",
+                "props": {
+                  "text": "SDD §8.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-reverse",
+                "props": {
+                  "text": "revert per module",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l7-modules-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 7: 5 new modules at the edges, 8 changed",
+          "node": "layer-l7",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l8-patterns",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l8-patterns-t",
+            "props": {
+              "text": "The 7 pattern rows of SDD §9 and ADR-0001 to ADR-0007."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l8-patterns-decision",
+                "props": {
+                  "text": "The 7 pattern rows of SDD §9 and ADR-0001 to ADR-0007.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-why",
+                "props": {
+                  "text": "each pattern has a record",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-alternatives",
+                "props": {
+                  "text": "- No named patterns, ad hoc code — the review cannot check a choice it cannot name",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-evidence",
+                "props": {
+                  "text": "SDD §9; ADR-0001..0006.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-reverse",
+                "props": {
+                  "text": "supersede the ADR",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l8-patterns-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 8: 7 patterns, each with what it beat",
+          "node": "layer-l8",
+          "section": "sec-patterns",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l9-seams",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l9-seams-t",
+            "props": {
+              "text": "The 15 seam rows of SDD §14, each with its path:line check: 13 extends, 1 reworked (second_provider.py), 1 fits."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l9-seams-decision",
+                "props": {
+                  "text": "The 15 seam rows of SDD §14, each with its path:line check: 13 extends, 1 reworked (second_provider.py), 1 fits.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-why",
+                "props": {
+                  "text": "smallest change that meets each criterion",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-alternatives",
+                "props": {
+                  "text": "- Rewrite the design skill from scratch — loses the tested build and gate",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-evidence",
+                "props": {
+                  "text": "SDD §14, each row cited.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-reverse",
+                "props": {
+                  "text": "revert per seam",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "l9-seams-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Level 9: 15 seams checked against the code",
+          "node": "layer-l9",
+          "section": "sec-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "hl-1-persistence",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-1-persistence-t",
+            "props": {
+              "text": "Sign the persisted shapes of SDD §4: the section entry (id catalog, input-only after, auto links), the decided driven_by block, the journal copy `<spec dir>/runs/<run branch>.md`, the install record key herdr, and the Note rows of the design log. Retention: with the spec folder; gc never deletes the copy. Migration: none; old pages upgrade on reopen. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "Persistence: the 5 persisted shapes",
+          "node": "locked-hl-1",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "hl-2-api",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-2-api-t",
+            "props": {
+              "text": "Sign the contract rows S-1 to S-10 of SDD §3: request fields, answers, error codes, idempotency and the verdict on existing callers. second_provider.py is removed; its only caller moves to proposers.py. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "API surface: the 10 surfaces",
+          "node": "locked-hl-2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "hl-3-authorization",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-3-authorization-t",
+            "props": {
+              "text": "Sign the role table of SDD §5: only the developer signs and picks a disputed fork; proposers draft and critique only, in a throwaway worktree with no page and no notes; only setup installs herdr, after a yes. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "Authorization: who may do what",
+          "node": "locked-hl-3",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "hl-4-lifecycle",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-4-lifecycle-t",
+            "props": {
+              "text": "Sign the proposer run states (planned, drafting, drafted, critiquing, critiqued, failed, collected) and the 9 invariants of SDD §6 with their guardians. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "Life cycle and invariants",
+          "node": "locked-hl-4",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "hl-5-effects",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-5-effects-t",
+            "props": {
+              "text": "Sign the 5 outward effects of SDD §7: the herdr install, pane open and close, throwaway worktree add and remove, agent sessions under your login, the journal copy commit on the feature branch; each with its order, key and recovery. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "Outward side effects",
+          "node": "locked-hl-5",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "hl-6-change",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "hl-6-change-t",
+            "props": {
+              "text": "Sign the seam table of SDD §14: grill rounds and decided cards render the same when they send no new field; old design pages upgrade only on reopen; second_provider.py goes. Signed under your delegation of 2026-11-07."
+            }
+          },
+          "title": "Change to existing behaviour",
+          "node": "locked-hl-6",
+          "section": "sec-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "d2-prompt-submit",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-prompt-submit-question",
+            "props": {
+              "text": "What does the proposers script do when herdr answers that a prompt stalled? Recommended: C."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-prompt-submit-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: send 1 more Enter",
+                    "B — Codex: inspect once, never resubmit",
+                    "C — Both: Enter only when the brief is still in the input line"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-prompt-submit-opt-a",
+                        "props": {
+                          "text": "Codex panes often keep the pasted brief unsent; 1 Enter fixes it. Costs: a blind Enter may submit an empty line."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-prompt-submit-opt-b",
+                        "props": {
+                          "text": "herdr says a stall does not prove the prompt was lost. Costs: a pane that kept the text stays idle."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-prompt-submit-opt-c",
+                        "props": {
+                          "text": "read the pane once; send 1 Enter only when the brief text is still there. Costs: 1 pane read."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-prompt-submit-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "A prompt that may not have been submitted",
+          "node": "layer-l4",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "c"
+          }
+        },
+        {
+          "id": "d2-journal-path",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-journal-path-question",
+            "props": {
+              "text": "Which path holds the journal copy in the spec folder? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-journal-path-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: runs/<run branch>.md",
+                    "B — Codex: runs/<run id>/JOURNAL.md"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-journal-path-opt-a",
+                        "props": {
+                          "text": "1 file per run branch; the journal is append-only, so a later run on the same branch adds lines and the copy holds every run. Costs: nothing extra."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-journal-path-opt-b",
+                        "props": {
+                          "text": "1 folder per run, with a run id in a new run.json. Costs: a new id field and a new file."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-journal-path-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "Where the journal copy lives",
+          "node": "layer-l6",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "d2-journal-time",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-journal-time-question",
+            "props": {
+              "text": "Do new journal lines change their time stamp to UTC seconds? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-journal-time-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: keep local minutes",
+                    "B — Codex: UTC seconds for new lines"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-journal-time-opt-a",
+                        "props": {
+                          "text": "The estimate is in days to 2 decimals; a minute is 0.0007 day. Every reader of the journal stays as it is. Costs: a daylight-saving change can skew 1 interval by 1 hour."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-journal-time-opt-b",
+                        "props": {
+                          "text": "Exact intervals across time zones. Costs: the journal grammar and every reader change, and old lines need a second parser."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-journal-time-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "The time stamp of journal lines",
+          "node": "layer-l6",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "d2-transport",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-transport-question",
+            "props": {
+              "text": "Do the proposers script and the side-question listener share 1 herdr module now? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-transport-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: proposers own their Runner now",
+                    "B — Codex: a shared herdr_transport.py"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-transport-opt-a",
+                        "props": {
+                          "text": "The side-question code stays untouched; a later change can extract the shared part. Costs: 2 places call herdr for a while."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-transport-opt-b",
+                        "props": {
+                          "text": "1 home for herdr calls and errors. Costs: a refactor of the tested side-question path inside this ticket."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-transport-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "One herdr transport for proposers and side questions",
+          "node": "layer-l7",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "d2-sec-logic",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-sec-logic-question",
+            "props": {
+              "text": "Does the page keep a key-logic section beside the 9 level sections? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-sec-logic-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: keep sec-logic after the modules",
+                    "B — Codex: only the 9 layers"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-sec-logic-opt-a",
+                        "props": {
+                          "text": "The PRD names key logic as a level picture (P-L7), and your ticket asked for key logic in pictures. Costs: 1 section beside the 9 layers."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-sec-logic-opt-b",
+                        "props": {
+                          "text": "Matches the layer model exactly. Costs: key logic has no home on the page."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-sec-logic-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "A key-logic section",
+          "node": "layer-l7",
+          "section": "sec-logic",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "d2-pass-history",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-pass-history-question",
+            "props": {
+              "text": "Does the design gate import the grill's private helpers, or a shared module? Recommended: B."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-pass-history-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: import the grill's helpers",
+                    "B — Codex: extract pass_history.py"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-pass-history-opt-a",
+                        "props": {
+                          "text": "No move. Costs: the design skill depends on another skill's private code."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-pass-history-opt-b",
+                        "props": {
+                          "text": "1 public home for both gates. Costs: a refactor of the grill's log script with no behaviour change."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-pass-history-why-open",
+                "props": {
+                  "text": "The 2 drafts differ; the Claude critique accepts the Codex option in writing, the Codex critique rejects the Claude option."
+                }
+              }
+            ]
+          },
+          "title": "Where the pass-history helpers live",
+          "node": "layer-l7",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "d2-setup-decline",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "d2-setup-decline-question",
+            "props": {
+              "text": "After a developer says no to the herdr install, does setup ask again on its next run? Recommended: A."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "d2-setup-decline-options",
+                "props": {
+                  "columns": [
+                    "A — Claude: record declined, never ask again",
+                    "B — Codex: ask once per setup run"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "d2-setup-decline-opt-a",
+                        "props": {
+                          "text": "1 question, as the PRD says. The developer can install herdr by hand at any time. Costs: a changed mind needs a manual install."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "d2-setup-decline-opt-b",
+                        "props": {
+                          "text": "A changed mind is caught. Costs: the same question every setup run."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "d2-setup-decline-why-open",
+                "props": {
+                  "text": "The 2 drafts differ, and neither critique accepted the other in writing."
+                }
+              }
+            ]
+          },
+          "title": "Remember a no to the herdr install",
+          "node": "layer-l9",
+          "section": "sec-crit-setup",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T16:27:14Z",
+          "raw": "[round R-2]\nl1-topology accept\nl2-surfaces accept\nl3-data accept\nl4-cross accept\nl5-domain accept\nl6-process accept\nl7-modules accept\nl8-patterns accept\nl9-seams accept\nhl-1-persistence sign\nhl-2-api sign\nhl-3-authorization sign\nhl-4-lifecycle sign\nhl-5-effects sign\nhl-6-change sign\nd2-prompt-submit c\nd2-journal-path a\nd2-journal-time a\nd2-transport a\nd2-sec-logic a\nd2-pass-history b\nd2-setup-decline a\n",
+          "signals": [
+            {
+              "target": "l1-topology",
+              "item": "l1-topology",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e8929262368dc97b"
+            },
+            {
+              "target": "l2-surfaces",
+              "item": "l2-surfaces",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "71e2590f5e1b401d"
+            },
+            {
+              "target": "l3-data",
+              "item": "l3-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0be5b54a07196f06"
+            },
+            {
+              "target": "l4-cross",
+              "item": "l4-cross",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6ae4fe13d434e09d"
+            },
+            {
+              "target": "l5-domain",
+              "item": "l5-domain",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9977be88a508c0c3"
+            },
+            {
+              "target": "l6-process",
+              "item": "l6-process",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "35cb8ec4fd256ba4"
+            },
+            {
+              "target": "l7-modules",
+              "item": "l7-modules",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5b31519e725cdb90"
+            },
+            {
+              "target": "l8-patterns",
+              "item": "l8-patterns",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e541fc563de69954"
+            },
+            {
+              "target": "l9-seams",
+              "item": "l9-seams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7d1be0233864d5f2"
+            },
+            {
+              "target": "hl-1-persistence",
+              "item": "hl-1-persistence",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0b18081d9e026f7a"
+            },
+            {
+              "target": "hl-2-api",
+              "item": "hl-2-api",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d9138f54c543cea2"
+            },
+            {
+              "target": "hl-3-authorization",
+              "item": "hl-3-authorization",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "07e2b25c1c55baae"
+            },
+            {
+              "target": "hl-4-lifecycle",
+              "item": "hl-4-lifecycle",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "64d1abd7265edd22"
+            },
+            {
+              "target": "hl-5-effects",
+              "item": "hl-5-effects",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f1ca0208ab878569"
+            },
+            {
+              "target": "hl-6-change",
+              "item": "hl-6-change",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "455846fda2be62d0"
+            },
+            {
+              "target": "d2-prompt-submit",
+              "item": "d2-prompt-submit",
+              "mark": "c",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0429e3f03c5688b4"
+            },
+            {
+              "target": "d2-journal-path",
+              "item": "d2-journal-path",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "33bf0874f68815ba"
+            },
+            {
+              "target": "d2-journal-time",
+              "item": "d2-journal-time",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cf69e5c97103b577"
+            },
+            {
+              "target": "d2-transport",
+              "item": "d2-transport",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "b163e3d7652393b7"
+            },
+            {
+              "target": "d2-sec-logic",
+              "item": "d2-sec-logic",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a715b1daa27a3ac7"
+            },
+            {
+              "target": "d2-pass-history",
+              "item": "d2-pass-history",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ba64b167fddc4709"
+            },
+            {
+              "target": "d2-setup-decline",
+              "item": "d2-setup-decline",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "253dc65cb89a0d89"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-system",
+      "title": "The whole system and its neighbours",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sec-system-g",
+        "props": {
+          "title": "The design skill and its neighbours",
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "y-dev",
+              "label": "you, at the page",
+              "you": true
+            },
+            {
+              "id": "y-design",
+              "label": "design skill (agent in charge)",
+              "group": "plugin"
+            },
+            {
+              "id": "y-engine",
+              "label": "page engine",
+              "group": "plugin"
+            },
+            {
+              "id": "y-play",
+              "label": "herdr playbook",
+              "group": "plugin"
+            },
+            {
+              "id": "y-setup",
+              "label": "setup",
+              "group": "plugin"
+            },
+            {
+              "id": "y-plan",
+              "label": "plan skill",
+              "group": "plugin"
+            },
+            {
+              "id": "y-herdr",
+              "label": "herdr panes",
+              "group": "outside"
+            },
+            {
+              "id": "y-p1",
+              "label": "Claude solution proposer",
+              "group": "outside"
+            },
+            {
+              "id": "y-p2",
+              "label": "Codex solution proposer",
+              "group": "outside"
+            }
+          ],
+          "edges": [
+            {
+              "from": "y-design",
+              "to": "y-engine",
+              "label": "round input"
+            },
+            {
+              "from": "y-engine",
+              "to": "y-dev",
+              "label": "page"
+            },
+            {
+              "from": "y-dev",
+              "to": "y-engine",
+              "label": "marks and notes"
+            },
+            {
+              "from": "y-design",
+              "to": "y-play",
+              "label": "follows"
+            },
+            {
+              "from": "y-design",
+              "to": "y-herdr",
+              "label": "opens 2 panes"
+            },
+            {
+              "from": "y-herdr",
+              "to": "y-p1",
+              "label": "brief"
+            },
+            {
+              "from": "y-herdr",
+              "to": "y-p2",
+              "label": "brief"
+            },
+            {
+              "from": "y-p1",
+              "to": "y-design",
+              "label": "draft, critique"
+            },
+            {
+              "from": "y-p2",
+              "to": "y-design",
+              "label": "draft, critique"
+            },
+            {
+              "from": "y-setup",
+              "to": "y-herdr",
+              "label": "installs after your yes"
+            },
+            {
+              "from": "y-plan",
+              "to": "y-engine",
+              "label": "plan page with the estimate"
+            }
+          ],
+          "groups": [
+            {
+              "id": "plugin",
+              "label": "afkv2 plugin"
+            },
+            {
+              "id": "outside",
+              "label": "outside tools"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-system-cap",
+            "props": {
+              "text": "Follow the arrows from the design skill: 2 panes go out, 2 drafts come back, 1 page goes to you.",
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-system-sum",
+            "props": {
+              "text": "The design skill keeps its rounds, and its page gains the grill's living sections. 2 solution proposers draft in herdr panes; setup installs herdr; the plan page shows the estimate."
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-proposers",
+      "title": "Critical: 2 solution proposers in herdr panes",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-crit-proposers-b",
+        "props": {
+          "text": "New phase of the design skill: after the critical aspects settle, 2 solution proposers draft alone, then critique each other; every difference becomes a fork card. Its picture of now beside proposed comes with the draft."
+        }
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-builder",
+      "title": "Critical: the shared round builder",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-crit-builder-b",
+        "props": {
+          "text": "The builder the grill and the plan use too. This design adds only optional fields: \"after\" on a section and \"driven by\" on a decided card (holds if the keys question = A)."
+        }
+      },
+      "links": [
+        "sec-l7"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-runtimes",
+      "title": "Critical: run times survive the cleanup",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-crit-runtimes-b",
+        "props": {
+          "text": "Today the cleanup after a merge deletes the only copy of the run times. The cascade question decides where they live."
+        }
+      },
+      "links": [
+        "sec-l3"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-setup",
+      "title": "Critical: setup installs herdr",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-crit-setup-t",
+        "props": {
+          "columns": [
+            "",
+            "Now",
+            "Proposed"
+          ],
+          "rows": [
+            [
+              "herdr missing",
+              "setup does nothing",
+              "ask once in session; a yes runs the official installer; a no records declined"
+            ],
+            [
+              "herdr present",
+              "nothing",
+              "nothing asked (AC-030)"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-crit-setup-cap",
+            "props": {
+              "text": "Only a yes installs anything, and never by copying a program into a temp folder.",
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from ADR-0006."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-plan",
+      "title": "Critical: the plan approval page shows the estimate",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-crit-plan-t",
+        "props": {
+          "columns": [
+            "",
+            "Now",
+            "Proposed"
+          ],
+          "rows": [
+            [
+              "division card",
+              "1 signoff card with the subtask table",
+              "+ a low/likely/high range per subtask and a total tile"
+            ],
+            [
+              "basis",
+              "—",
+              "weighted percentiles of past run times from the journal copies; else a size table, marked estimated"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-crit-plan-cap",
+            "props": {
+              "text": "The plan digest stays the same: the estimate is outside the plan files.",
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from ADR-0005."
+        }
+      ]
+    },
+    {
+      "id": "sec-l1",
+      "title": "Level 1: system topology",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l1-b",
+        "props": {
+          "text": "Inherited: everything runs on the developer's machine; herdr is the only new program (SDD §2).",
+          "markdown": true
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted: inherited."
+        }
+      ]
+    },
+    {
+      "id": "sec-l2",
+      "title": "Level 2: boundaries and integration",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l2-b",
+        "props": {
+          "text": "Which surface each part calls: the API question lists them."
+        }
+      },
+      "links": [
+        "sec-l3"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-l3",
+      "title": "Level 3: data",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l3-b",
+        "props": {
+          "text": "The records this design writes, and how they link: the entities and relations questions."
+        }
+      },
+      "links": [
+        "sec-l4"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-l4",
+      "title": "Level 4: cross-cutting rules",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l4-b",
+        "props": {
+          "text": "The rules each part must keep and who may do what; performance points to the performance section."
+        }
+      },
+      "links": [
+        "sec-l5",
+        "sec-performance"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-l5",
+      "title": "Level 5: domain model and states",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l5-b",
+        "props": {
+          "text": "The session's phases and a solution proposer's run: the life-cycle question."
+        }
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-l6",
+      "title": "Level 6: process and coordination",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l6-t",
+        "props": {
+          "columns": [
+            "Failure point",
+            "Automatic recovery"
+          ],
+          "rows": [
+            [
+              "herdr missing or outside herdr",
+              "1 proposer, the banner says why"
+            ],
+            [
+              "prompt stalled",
+              "1 Enter only when the brief is still in the input line, then refuse not-submitted"
+            ],
+            [
+              "no draft",
+              "cleanup, then the agent in charge drafts alone"
+            ],
+            [
+              "worktree remove fails",
+              "retry with --force, then refuse cleanup-failed and block the round"
+            ],
+            [
+              "journal copy commit fails",
+              "archive refuses; ship stays false until archive passes"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l6-cap",
+            "props": {
+              "text": "Every failure ends with 1 proposer or a named path; nothing hangs silently except a proposer that never stops (no time cap, by the PRD).",
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from SDD §7."
+        }
+      ]
+    },
+    {
+      "id": "sec-l7",
+      "title": "Level 7: modules",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l7-b",
+        "props": {
+          "text": "The scripts and skills this design changes or adds, and who calls whom."
+        }
+      },
+      "links": [
+        "sec-logic"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-logic",
+      "title": "Key logic",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-logic-t",
+        "props": {
+          "columns": [
+            "Logic",
+            "Rule"
+          ],
+          "rows": [
+            [
+              "section order",
+              "sort key by id prefix; refuse the first id out of place"
+            ],
+            [
+              "estimate",
+              "samples divided by class weight (0.5, 1, 2); 20th pct / median / 80th pct times the subtask weight; else the size table"
+            ],
+            [
+              "reconcile",
+              "a part both critiques accept in writing merges; every other difference is a fork credited to its tool"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-logic-cap",
+            "props": {
+              "text": "3 rules carry the feature; each is a pure function with its own tests.",
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from ADR-0001, ADR-0005 and R-4."
+        }
+      ]
+    },
+    {
+      "id": "sec-l9",
+      "title": "Level 9: change impact",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-l9-b",
+        "props": {
+          "text": "Each file, field and step that changes, now beside proposed."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-patterns",
+      "title": "Design patterns, where and why",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-patterns-t",
+        "props": {
+          "columns": [
+            "Pattern",
+            "What it is",
+            "Where",
+            "Why here",
+            "Beat"
+          ],
+          "rows": [
+            [
+              "Sort key",
+              "order items by a function of their id",
+              "section order",
+              "no new page field",
+              "a new format"
+            ],
+            [
+              "Copy on end",
+              "write a durable copy when a short-lived store closes",
+              "journal copy",
+              "gc deletes the run branch",
+              "a per-machine file"
+            ],
+            [
+              "Adapter behind a Runner",
+              "1 interface, 1 implementation per external tool, a fake for tests",
+              "proposers, setup",
+              "testable without herdr",
+              "direct subprocess calls"
+            ],
+            [
+              "Ask once",
+              "ask a consent question 1 time, record the answer",
+              "herdr install",
+              "AC-028",
+              "ask every run"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-patterns-cap",
+            "props": {
+              "text": "Each pattern serves testability or changeability, and each has its record.",
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        },
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from SDD §9."
+        }
+      ]
+    },
+    {
+      "id": "sec-performance",
+      "title": "Performance",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-performance-b",
+        "props": {
+          "text": "Filled with the draft; the large-data facts land here."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    }
+  ]
+}

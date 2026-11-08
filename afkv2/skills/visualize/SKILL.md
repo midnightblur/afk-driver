@@ -112,6 +112,75 @@ picture, in that card's body above the question:
 
 Mark what the question would change with chips (`kept`, `removed`, `new`, `proposed`).
 
+## Captions
+
+The caption rule and the picture types: `../propose-solution/DRAFT.md`,
+section "Sections". A caption child looks like this:
+`{"type": "text", "props": {"label": "What to see", "text": "One export request, from the button to the file link."}}`.
+
+## Design sections
+
+A design page shows the design in sections. The section ids, their order and
+the shape of each kind: `../propose-solution/DRAFT.md`, section "Sections". The
+body of a section is 1 component. These 2 kinds open with a picture.
+
+### A level section
+
+Shape: the level-section bullet of `../propose-solution/DRAFT.md` "Sections".
+
+```json fragment=component
+{
+  "type": "sequence",
+  "id": "sec-l2-request",
+  "props": {
+    "actors": [
+      {"id": "l2-user", "label": "User"},
+      {"id": "l2-api", "label": "Export endpoint"},
+      {"id": "l2-store", "label": "Order store"}
+    ],
+    "messages": [
+      {"from": "l2-user", "to": "l2-api", "text": "start export"},
+      {"from": "l2-api", "to": "l2-store", "text": "read orders", "tone": "kept"},
+      {"from": "l2-api", "to": "l2-user", "text": "file link", "tone": "new"}
+    ]
+  },
+  "children": [
+    {"type": "text", "id": "sec-l2-see", "props": {"label": "What to see", "text": "One export request, from the button to the file link."}},
+    {"type": "text", "id": "sec-l2-summary", "props": {"label": "Summary", "text": "The endpoint reads the orders and stores the file.\nThe user gets a link in place of an email."}},
+    {"type": "table", "id": "sec-l2-surfaces", "fold": "Each callable surface", "props": {
+      "columns": ["Surface", "Answer"],
+      "rows": [["POST /exports", "the export id"], ["GET /exports/{id}", "the file link"]]},
+     "children": [{"type": "text", "id": "sec-l2-surfaces-see", "props": {"label": "What to see", "text": "The 2 surfaces this level adds."}}]}
+  ]
+}
+```
+
+### A critical section
+
+Shape: the critical-section bullet of `../propose-solution/DRAFT.md` "Sections".
+
+```json fragment=component
+{
+  "type": "run-strip",
+  "id": "sec-crit-cancel-run",
+  "props": {
+    "current": [
+      {"label": "mark cancelled"},
+      {"label": "refund"}
+    ],
+    "proposed": [
+      {"label": "ask for a reason", "tone": "new"},
+      {"label": "mark cancelled", "tone": "kept"},
+      {"label": "refund", "tone": "kept"}
+    ]
+  },
+  "children": [
+    {"type": "text", "id": "sec-crit-cancel-see", "props": {"label": "What to see", "text": "A cancel asks for a reason before it marks the order."}},
+    {"type": "chip", "id": "sec-crit-cancel-chip", "props": {"text": "critical", "tone": "proposed"}}
+  ]
+}
+```
+
 ## Freestyle is the marked escape
 
 Use a freestyle component only for what no other component holds. Every freestyle

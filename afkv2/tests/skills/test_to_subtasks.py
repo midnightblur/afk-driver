@@ -934,6 +934,7 @@ def test_division_writes_one_sign_off_card_that_shows_every_subtask(world):
     assert answer["card"] == card["id"] == answer["items"][0]
     assert (card["kind"], card["state"], doc["session"]["skill"]) == ("signoff", "open", "to-subtasks")
     assert doc["session"]["step"] == "Plan approval"
+    assert card["title"] == "Approve the division into 2 subtasks"
     rows = card["body"]["props"]["rows"]
     assert [row[0] for row in rows] == ["0001-export-rows", "0002-export-endpoint"]
     assert rows[1][3] == "0001-export-rows" and rows[1][4] == "static, unit, api (not applicable)"

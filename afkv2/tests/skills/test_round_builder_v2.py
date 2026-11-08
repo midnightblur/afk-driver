@@ -245,8 +245,8 @@ def test_an_entry_sent_unchanged_in_its_own_place_is_refused_and_nothing_is_writ
 @pytest.mark.parametrize("lists, words", [
     ({"sections": [{"change": FINDING, **section("s-intro")}, {"change": FINDING, **section("s-intro", "Other.")}]},
      "sent twice"),
-    ({"sections": [{"change": FINDING, **section("s-intro"), "after": "s-scope"}]}, "only a question takes `after`"),
-    ({"stories": [{"change": FINDING, **STORY, "after": "st-0"}]}, "only a question takes `after`"),
+    ({"sections": [{"change": FINDING, **section("s-intro"), "after": "s-scope"}]}, "names no other section"),
+    ({"stories": [{"change": FINDING, **STORY, "after": "st-0"}]}, "only a question or a section takes `after`"),
     ({"sections": {"change": FINDING, **section("s-intro")}}, "is a list"),
     ({"stories": [{"change": FINDING, "text": "As a user, I export."}]}, "without an id"),
 ])

@@ -1,0 +1,309 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Plan approval",
+    "private": false,
+    "takeovers": [],
+    "id": "division-20261107-161803",
+    "skill": "to-subtasks",
+    "feature": "178",
+    "ticket": "178",
+    "started": "2026-11-07T16:28:45Z"
+  },
+  "maps": [],
+  "notes": [
+    {
+      "id": "N-1-division-fe265e10-1-1",
+      "round": 1,
+      "target": "division-fe265e10-1",
+      "item": "division-fe265e10-1",
+      "text": "Owner delegation, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\"",
+      "deleted": false
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-fe265e10-1",
+          "kind": "signoff",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "division-fe265e10-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-shared-builder-after-and-driven-by",
+                  "Shared builder: `after` on sections and the Driven by block.",
+                  "The shared builder is used by the grill too, so its 2 small changes land first and alone, with the grill's tests as a guard.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-section-rules",
+                  "Section rules: catalog order, shape, caption, links.",
+                  "The section rules are pure functions with no caller yet, so they build and test apart from the design build.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0003-design-build",
+                  "Design build: sections, driven-by, proposers banner, ticket card, fork credits.",
+                  "The design build wires the rules, the driven-by check, the banner and the ticket card into 1 entry point.",
+                  "0001-shared-builder-after-and-driven-by, 0002-section-rules",
+                  "static, unit"
+                ],
+                [
+                  "0004-design-files",
+                  "Design files: take-over, sync, gate lists, ADR Driven by.",
+                  "Start, sync and gate are 1 module with its own tests, apart from the build.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0005-proposers",
+                  "Proposers script drives herdr.",
+                  "The proposers script is the largest new module and talks to herdr through 1 fake-able Runner.",
+                  "0003-design-build",
+                  "static, unit"
+                ],
+                [
+                  "0006-herdr-playbook",
+                  "The herdr playbook skill.",
+                  "The playbook is a document only, checked by the plugin check.",
+                  "—",
+                  "static"
+                ],
+                [
+                  "0007-setup-herdr",
+                  "Setup asks once, then installs herdr.",
+                  "Setup is its own skill with its own tests and Runner.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0008-journal-copy",
+                  "Autopilot copies its journal into the spec folder.",
+                  "The journal copy changes autopilot only, and the estimate needs it first.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0009-estimate",
+                  "The estimate on the plan approval page.",
+                  "The estimate and the division card are the plan skill's part.",
+                  "0008-journal-copy",
+                  "static, unit"
+                ],
+                [
+                  "0010-design-skill-guides",
+                  "Design skill and page guides: the new flow.",
+                  "The guides describe the finished flow, so they go last, after every script they name exists.",
+                  "0002-section-rules, 0003-design-build, 0004-design-files, 0005-proposers, 0006-herdr-playbook, 0007-setup-herdr, 0008-journal-copy, 0009-estimate",
+                  "static, unit"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-fe265e10-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 10 subtasks, plan digest fe265e10, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T16:28:57Z",
+          "raw": "[round R-1]\ndivision-fe265e10-1 note 1\n  Owner delegation, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\"\ndivision-fe265e10-1 sign\n",
+          "signals": [
+            {
+              "target": "division-fe265e10-1",
+              "item": "division-fe265e10-1",
+              "mark": "sign",
+              "note": "N-1-division-fe265e10-1-1",
+              "text": "Owner delegation, chat 2026-11-07, word for word: \"I authorize you to always take your recommendations as the decision. Finalize the plan without me, to-sdd, to-subtasks, then autopilot till done.\"",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "48bfd5b70fff73fa"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-1-1",
+          "text": "Recorded as the authority for this approval. A sign-off settles only by a lone sign mark, so the next round asks the same plan again and takes the sign under this delegation."
+        },
+        {
+          "id": "A-1-2",
+          "text": "Recorded as the authority for this approval. A sign-off settles only by a lone sign mark, so the next round asks the same plan again and takes the sign under this delegation.",
+          "notes": [
+            "N-1-division-fe265e10-1-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-fe265e10-2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-fe265e10-2-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates"
+              ],
+              "rows": [
+                [
+                  "0001-shared-builder-after-and-driven-by",
+                  "Shared builder: `after` on sections and the Driven by block.",
+                  "The shared builder is used by the grill too, so its 2 small changes land first and alone, with the grill's tests as a guard.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0002-section-rules",
+                  "Section rules: catalog order, shape, caption, links.",
+                  "The section rules are pure functions with no caller yet, so they build and test apart from the design build.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0003-design-build",
+                  "Design build: sections, driven-by, proposers banner, ticket card, fork credits.",
+                  "The design build wires the rules, the driven-by check, the banner and the ticket card into 1 entry point.",
+                  "0001-shared-builder-after-and-driven-by, 0002-section-rules",
+                  "static, unit"
+                ],
+                [
+                  "0004-design-files",
+                  "Design files: take-over, sync, gate lists, ADR Driven by.",
+                  "Start, sync and gate are 1 module with its own tests, apart from the build.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0005-proposers",
+                  "Proposers script drives herdr.",
+                  "The proposers script is the largest new module and talks to herdr through 1 fake-able Runner.",
+                  "0003-design-build",
+                  "static, unit"
+                ],
+                [
+                  "0006-herdr-playbook",
+                  "The herdr playbook skill.",
+                  "The playbook is a document only, checked by the plugin check.",
+                  "—",
+                  "static"
+                ],
+                [
+                  "0007-setup-herdr",
+                  "Setup asks once, then installs herdr.",
+                  "Setup is its own skill with its own tests and Runner.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0008-journal-copy",
+                  "Autopilot copies its journal into the spec folder.",
+                  "The journal copy changes autopilot only, and the estimate needs it first.",
+                  "—",
+                  "static, unit"
+                ],
+                [
+                  "0009-estimate",
+                  "The estimate on the plan approval page.",
+                  "The estimate and the division card are the plan skill's part.",
+                  "0008-journal-copy",
+                  "static, unit"
+                ],
+                [
+                  "0010-design-skill-guides",
+                  "Design skill and page guides: the new flow.",
+                  "The guides describe the finished flow, so they go last, after every script they name exists.",
+                  "0002-section-rules, 0003-design-build, 0004-design-files, 0005-proposers, 0006-herdr-playbook, 0007-setup-herdr, 0008-journal-copy, 0009-estimate",
+                  "static, unit"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-fe265e10-2-ask",
+                "props": {
+                  "text": "Sign to approve this division: 10 subtasks, plan digest fe265e10, app: none. Ask for changes to get another division."
+                }
+              }
+            ]
+          },
+          "carries": [
+            "division-fe265e10-1"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-07T16:29:35Z",
+          "raw": "[round R-2]\ndivision-fe265e10-2 sign\n",
+          "signals": [
+            {
+              "target": "division-fe265e10-2",
+              "item": "division-fe265e10-2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9c88f0d0c1d68758"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

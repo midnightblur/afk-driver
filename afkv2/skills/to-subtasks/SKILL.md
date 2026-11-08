@@ -60,7 +60,7 @@ Run each command from the worktree of the feature branch, at the repository root
    <python> "<this skill's folder>/scripts/plan_files.py" division --plan "<plan>" --doc "<doc>" --session "<session>" --ticket "<ticket key>" --why "<why file>"
    ```
 
-   The script writes the one sign-off card, which shows every subtask. You write no page HTML. A later plan change takes back an earlier approval: run this step again after each change.
+   The script writes the one sign-off card, which shows every subtask. You write no page HTML. A later plan change takes back an earlier approval: run this step again after each change. Each line of `estimate_notes` names a journal copy or line the estimate skipped: tell the developer each one. A refusal `no-spec-root` means the page document is not at `<spec root>/<ticket>/pages/`: correct `--doc`.
 
 7. **Show the round.** Done when `present` answers ok.
 

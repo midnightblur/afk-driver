@@ -1,12 +1,13 @@
-"""Write the page document of one propose-solution session (schema afkv2.page/0, SDD §4).
+"""Write the page document of one propose-solution session (page format 2; SDD §3 row S-1).
 
 Verbs, run from the repository root:
-  build --doc D --session S --ticket K --round-input F [--replace]
+  build --doc D --session S --ticket K --round-input F [--ticket-file T] [--replace]
   next  --doc D
 
 The grill's round builder writes the document. This script adds what only this skill knows: the
 critical aspects in their fixed order, the layers from the top down, the human-locked aspects, the
-fork cards, and the maps that show all three.
+fork cards, the maps that show all three, the section rules, the 5 blocks of a decision, and the
+proposers banner.
 
 An item of the round input may name one of `aspect`, `layer` or `locked`, and may hold a `fork`.
 """
@@ -22,8 +23,9 @@ SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
 import round_document as rd  # noqa: E402
+import section_rules  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
-from grill_common import Parser, Refusal, read_json, serve  # noqa: E402
+from grill_common import Parser, Refusal, read_json, serve, write_json  # noqa: E402
 from page_links import links_for  # noqa: E402
 
 SKILL_NAME = "propose-solution"
@@ -36,6 +38,21 @@ GROUPS = {
                "map": "m-locked", "title": "Human-locked aspects", "prefix": "locked-", "edges": False},
 }
 ASPECT_KINDS = {"confirm", "debate"}
+CRITERION = re.compile(r"^\s*- \[[ xX]\] (AC-\d{3,})\b\s*(.*)$", re.M)
+# The page schema caps a component `tip` at 300 characters.
+TIP_LIMIT = 300
+PROPOSER_FAILED = "proposer-failed"
+# Why only 1 solution proposer drafted, by the reason code of the proposers plan (PRD AC-024).
+SOLO_REASONS = {"no-herdr": "herdr is not installed", "outside-herdr": "the session runs outside herdr",
+                "no-other-tool": "the other tool is not installed", "bypass-forbidden": "full auto-approval is forbidden",
+                PROPOSER_FAILED: "a solution proposer failed before the drafts and critiques were done"}
+PROPOSERS_FIELDS = {"count", "tools", "reason"}
+PROPOSERS_PHASE = "proposers"
+STATE_FAULT = "bad-proposers-state"
+STATE_VERSION = 1
+DRAFT_GROUPS = ("layer", "locked")
+FENCE = ("Each solution proposer ran with full auto-approval in a throwaway worktree. "
+         "The worktree fences only the working folder; it is not a sandbox.")
 
 
 def group_rows(group):
@@ -86,6 +103,192 @@ def _tagged(raw):
     if group == "locked" and raw.get("kind") != "signoff":
         raise Refusal("bad-item", f"{where}: `locked` names the aspect of a `signoff` card")
     return raw
+
+
+def _alternative_lines(rows):
+    """Each `{option, why_lost}` row as the line "option — why it lost", and whether every row holds both fields."""
+    rows = rows if isinstance(rows, list) else []
+    typed = [row if isinstance(row, dict) else {"option": str(row)} for row in rows]
+    lines = [" — ".join(str(row.get(field)).strip() for field in ("option", "why_lost") if str(row.get(field) or "").strip())
+             for row in typed]
+    whole = bool(rows) and all(isinstance(row.get(field), str) and row[field].strip()
+                               for row in typed for field in ("option", "why_lost"))
+    return [line for line in lines if line], whole
+
+
+def _design_decided(raw, known_ids, degraded):
+    """A decided card of a design page holds the 5 blocks D-1 to D-5; a card that misses one becomes a confirm card
+    with the same fields, listed in `degraded` (SDD §6 I-3, ADR-0004 design)."""
+    if raw.get("kind") != "decided":
+        return raw
+    fields = raw.get("decided") if isinstance(raw.get("decided"), dict) else {}
+    lines, typed = _alternative_lines(fields.get("alternatives"))
+    shared = {**fields, "alternatives": lines}
+    if typed and fields.get("driven_by"):
+        return {**raw, "decided": shared}
+    blocks, _ = rd._decided_fields(raw.get("id"), shared, known_ids)
+    body = copy.deepcopy(raw.get("body"))
+    if body:
+        body["children"] = [*(body.get("children") or []), *blocks]
+    elif blocks:
+        body = {**blocks[0], "children": blocks[1:]}
+    degraded.append(raw.get("id"))
+    return {**{key: value for key, value in raw.items() if key != "decided"}, "kind": "confirm", "body": body}
+
+
+def _prd(doc_path):
+    """The PRD beside the page, which lives in `<spec dir>/pages/`, or None."""
+    prd = Path(doc_path).parent.parent / "PRD.md"
+    return prd if Path(doc_path).parent.name == "pages" and prd.is_file() else None
+
+
+def _spec_texts(doc_path):
+    """The text of each acceptance criterion of the PRD and of each requirement record, by id; none without a PRD."""
+    prd = _prd(doc_path)
+    if prd is None:
+        return {}
+    spec = prd.parent
+    texts = {key: value.strip() for key, value in CRITERION.findall(prd.read_text("utf-8"))}
+    for record in sorted((spec / "adr" / "requirements").glob("[0-9][0-9][0-9][0-9]-*.md")):
+        title = next((line[2:].strip() for line in record.read_text("utf-8").splitlines() if line.startswith("# ")), "")
+        texts[f"ADR-{record.name[:4]}"] = title or record.stem
+    return texts
+
+
+def _check_driven_by(doc_path, items, known_ids):
+    """Each `driven_by` id of a decided card names an acceptance criterion, a requirement record, another id the PRD
+    holds (a catalog id) or a page id. A page with no PRD beside it checks nothing (SDD §3 row S-1)."""
+    prd = _prd(doc_path)
+    if prd is None:
+        return
+    texts, prd_text = _spec_texts(doc_path), prd.read_text("utf-8")
+    for item in items:
+        fields = item.get("decided") if item.get("kind") == "decided" and isinstance(item.get("decided"), dict) else {}
+        ids = fields.get("driven_by") if isinstance(fields.get("driven_by"), list) else []
+        unknown = [key for key in ids if isinstance(key, str) and key not in texts and key not in known_ids
+                   and not re.search(rf"(?<![\w-]){re.escape(key)}(?![\w-])", prd_text)]
+        if unknown:
+            raise Refusal("driven-by-unknown", f"item {item['id']}: driven_by names {', '.join(unknown)}, which is no "
+                                               f"criterion, requirement record or id of the PRD and no page id")
+
+
+def _driven_by_tips(doc_path, items):
+    """{block id: hover text} per decided card: the text of each `driven_by` id that is a PRD criterion or a
+    requirement record (PRD AC-010). The text goes on the Driven by block as its `tip`; the page tips catalog
+    cannot carry it, because an id tip shows only where its element id stands as a word in the text."""
+    texts = _spec_texts(doc_path)
+    tips = {}
+    for item in items:
+        if item.get("kind") != "decided":
+            continue
+        fields = item.get("decided") if isinstance(item.get("decided"), dict) else {}
+        lines = [f"{key}: {texts[key]}" for key in fields.get("driven_by") or [] if key in texts]
+        if lines:
+            text = "\n".join(lines)
+            tips[f"{item['id']}-driven-by"] = text if len(text) <= TIP_LIMIT else text[:TIP_LIMIT - 1] + "\u2026"
+    return tips
+
+
+def _put_tips(component, tips):
+    """Set `tip` on each component in the tree whose id has a hover text."""
+    if not isinstance(component, dict):
+        return
+    if component.get("id") in tips:
+        component["tip"] = tips[component["id"]]
+    for child in component.get("children") or []:
+        _put_tips(child, tips)
+
+
+def _write_driven_by_tips(doc_path, tips):
+    """Write each hover text on its Driven by block in the current round of the stored page."""
+    if not tips:
+        return
+    doc = read_json(doc_path)
+    for item in (doc.get("rounds") or [{}])[-1].get("items") or []:
+        _put_tips(item.get("body"), tips)
+    write_json(doc_path, doc)
+
+
+def proposers_state_path(doc_path):
+    """The proposers state file beside the page document."""
+    return Path(doc_path).with_suffix(".proposers.json")
+
+
+def proposers_state(doc_path):
+    """The proposers state of the session, or None before the proposers plan wrote it. The shape is in the docstring
+    of proposers.py, its writer; this reader checks the fields it acts on: version, count, proposers and cleaned."""
+    path = proposers_state_path(doc_path)
+    if not path.exists():
+        return None
+    try:
+        state = read_json(path)
+    except Refusal as refusal:
+        raise Refusal(STATE_FAULT, f"{path}: {refusal.reason}") from None
+    entries = state.get("proposers", []) if isinstance(state, dict) else None
+    if (not isinstance(state, dict) or state.get("version") != STATE_VERSION or isinstance(state.get("count"), bool)
+            or state.get("count") not in (1, 2) or not isinstance(entries, list)
+            or not all(isinstance(entry, dict) for entry in entries)
+            or not isinstance(state.get("cleaned", False), bool)):
+        raise Refusal(STATE_FAULT, f"{path} is not a version {STATE_VERSION} proposers state file")
+    if state.get("cleaned") and _open_resources(state):
+        raise Refusal(STATE_FAULT, f"{path} records cleanup done and still names {', '.join(_open_resources(state))}")
+    return state
+
+
+def _open_resources(state):
+    return [str(proposer.get(kind)) for proposer in (state or {}).get("proposers") or [] if isinstance(proposer, dict)
+            for kind in ("pane", "worktree") if proposer.get(kind)]
+
+
+def _proposers_done(state):
+    return bool(state) and (state["count"] == 1 or state.get("cleaned") is True)
+
+
+def _drafted(doc):
+    return any(_cards(doc, node_id(group, key)) for group in DRAFT_GROUPS for key in group_keys(group))
+
+
+def _check_proposers_closed(doc_path, doc, items):
+    """A draft round waits while the state file records a pane or a worktree (SDD §6 I-6). The first draft round
+    also waits until the state records count 1 or cleanup done, as `next` does (PRD AC-018)."""
+    drafting = {node_id(group, key) for group in DRAFT_GROUPS for key in group_keys(group)}
+    if not any(item.get("node") in drafting for item in items):
+        return
+    state = proposers_state(doc_path)
+    left = _open_resources(state)
+    if left:
+        raise Refusal("proposers-open", f"the draft waits until cleanup closes each proposer pane and worktree: "
+                                        f"{', '.join(left)}")
+    if not _drafted(doc) and not _proposers_done(state):
+        raise Refusal("proposers-first", "the draft waits for the proposers phase: run the proposers plan, and "
+                                         "cleanup when 2 proposers ran")
+
+
+def _tool_name(tool):
+    return tool[:1].upper() + tool[1:]
+
+
+def _proposers_banner(proposers):
+    """The R-5 banner line: how many solution proposers drafted, or why only 1 did; then the fence statement of
+    SDD §5 when a proposer ran (PRD AC-021, AC-024)."""
+    where = f"proposers {proposers!r}"
+    if not isinstance(proposers, dict) or set(proposers) != PROPOSERS_FIELDS:
+        raise Refusal("bad-proposers", f"{where}: one object with {sorted(PROPOSERS_FIELDS)}")
+    count, tools, reason = proposers["count"], proposers["tools"], proposers["reason"]
+    if count not in (1, 2) or isinstance(count, bool):
+        raise Refusal("bad-proposers", f"{where}: count is 1 or 2")
+    if (not isinstance(tools, list) or len(tools) != count or len(set(map(str, tools))) != count
+            or not all(isinstance(tool, str) and tool.strip() for tool in tools)):
+        raise Refusal("bad-proposers", f"{where}: tools names {count} different tools")
+    if count == 2:
+        if reason is not None:
+            raise Refusal("bad-proposers", f"{where}: 2 proposers ran, so reason is null")
+        return [f"2 solution proposers drafted the design: {' and '.join(map(_tool_name, tools))}.", FENCE]
+    if reason not in SOLO_REASONS:
+        raise Refusal("bad-proposers", f"{where}: reason is one of {sorted(SOLO_REASONS)}")
+    line = f"1 solution proposer drafted the design alone ({_tool_name(tools[0])}): {SOLO_REASONS[reason]}."
+    # A failed proposer ran with full auto-approval, so the fence statement stands (SDD §5).
+    return [line, FENCE] if reason == PROPOSER_FAILED else [line]
 
 
 def _empty():
@@ -167,20 +370,73 @@ def _design_maps(doc, items, own_maps):
     return [*maps, *own_maps]
 
 
-def build_design_round(doc_path, session, round_input, replace=False, links=None):
+def _filled_sections(doc, sent):
+    """The sent sections with the links of `section_rules.fill_links`; a stored section whose links change is sent
+    too, with a change line. Refuse a broken section rule of the merged list before any write (SDD §6 I-1, I-2)."""
+    preview = copy.deepcopy(doc)
+    n = max((rnd["n"] for rnd in preview.get("rounds") or []), default=0) + 1
+    rd._merge_entries(preview, {"sections": copy.deepcopy(sent)}, n)
+    merged = section_rules.fill_links(preview["sections"])
+    failures = section_rules.check_sections(merged)
+    if failures:
+        raise Refusal(failures[0].split(":")[0], "; ".join(failures))
+    links = {entry["id"]: entry.get("links") for entry in merged}
+    titles = {entry["id"]: entry.get("title") or entry["id"] for entry in merged}
+    stored = {entry["id"]: entry for entry in doc.get("sections") or []}
+    filled = [{**{key: value for key, value in raw.items() if key != "links"},
+               **({"links": links[raw["id"]]} if links[raw["id"]] else {})} for raw in sent]
+    sent_ids = {raw["id"] for raw in sent}
+    for sid, entry in stored.items():
+        if sid not in sent_ids and (links[sid] or []) != (entry.get("links") or []):
+            kept = {key: value for key, value in entry.items() if key not in ("changes", "links")}
+            filled.append({**kept, **({"links": links[sid]} if links[sid] else {}),
+                           "change": {"cause": "finding", "text": _link_change(entry.get("links"), links[sid], titles)}})
+    return filled, [entry["id"] for entry in merged]
+
+
+def _link_change(before, after, titles):
+    """The change line of a stored section whose links the build changed, with section titles, not ids."""
+    before, after = before or [], after or []
+    added = [titles.get(link, link) for link in after if link not in before]
+    removed = [titles.get(link, link) for link in before if link not in after]
+    parts = ([f"now links {', '.join(added)}"] if added else []) + ([f"no longer links {', '.join(removed)}"]
+                                                                     if removed else [])
+    return f"The design build {' and '.join(parts)}."
+
+
+def build_design_round(doc_path, session, round_input, replace=False, links=None, ticket=None):
     """Check the round against the fixed orders, then let the grill's builder write it; write nothing on a refusal.
 
-    `links` replaces `session.links`, so the page links each ticket, change and commit reference."""
+    `links` replaces `session.links`, so the page links each ticket, change and commit reference. `ticket`, the
+    read ticket, adds the ticket card to round 1 (PRD AC-036)."""
     if not isinstance(round_input, dict) or not isinstance(round_input.get("items", []), list):
         raise Refusal("bad-round", "the round input is one JSON object, and items is a list")
     doc = _view(doc_path, replace)
     items = [_tagged(raw) for raw in round_input.get("items") or []]
     _check_carriers(doc, items)
     _check_order(doc, items)
+    _check_proposers_closed(doc_path, doc, items)
+    if "tips" in round_input and not isinstance(round_input["tips"], dict):
+        raise Refusal("bad-round", f"tips is one object: {round_input['tips']!r}")
     built = copy.deepcopy(round_input)
-    built["items"] = items
+    if "proposers" in built:
+        lines = _proposers_banner(built.pop("proposers"))
+        if isinstance(built.get("banner"), dict):
+            built["banner"]["settled"] = [*lines, *(built["banner"].get("settled") or [])]
+    known = rd._used_ids(doc) | {item.get("id") for item in items}
+    _check_driven_by(doc_path, items, known)
+    degraded = []
+    built["items"] = [_design_decided(item, known, degraded) for item in items]
     built["maps"] = _design_maps(doc, items, round_input.get("maps"))
-    return rd.build_round_document(doc_path, session, built, None, replace, links)
+    order = [entry["id"] for entry in doc.get("sections") or []]
+    # A version 0 or 1 page refuses sections in the shared builder, unless the round upgrades it.
+    takes_sections = "schema" not in doc or rd.is_version_2(doc) or round_input.get("upgrade") is True
+    if isinstance(round_input.get("sections"), list) and takes_sections:
+        built["sections"], order = _filled_sections(doc, round_input["sections"])
+    answer = rd.build_round_document(doc_path, session, built, ticket, replace, links)
+    _write_driven_by_tips(doc_path, _driven_by_tips(doc_path, built["items"]))
+    late = [item_id for item_id in answer["degraded"] if item_id not in degraded]
+    return {**answer, "degraded": [*degraded, *late], "section_order": order}
 
 
 def _entries(group, keys):
@@ -188,16 +444,22 @@ def _entries(group, keys):
     return [{"key": key, "label": labels[key]} for key in keys]
 
 
-def next_step(doc):
-    """Which aspects and layers are still to ask or to settle, and so which phase the session is in."""
+def next_step(doc, proposers=None):
+    """Which aspects and layers are still to ask or to settle, and so which phase the session is in.
+
+    `proposers` is the proposers state (`proposers_state`). Phase `proposers` stands between the aspects and the
+    draft until the state records count 1 or cleanup done; a session with a draft card is past it."""
     unsettled, unasked = {}, {}
     for group in GROUPS:
         keys = group_keys(group)
         unsettled[group] = [key for key in keys if _cards(doc, node_id(group, key))
                             and not is_settled(doc, node_id(group, key))]
         unasked[group] = [key for key in keys if not _cards(doc, node_id(group, key))]
+    drafted = _drafted(doc)
     if unasked["aspect"] or unsettled["aspect"]:
         phase = "aspects"
+    elif not drafted and not _proposers_done(proposers):
+        phase = PROPOSERS_PHASE
     elif unasked["layer"] or unsettled["layer"] or unsettled["locked"]:
         phase = "draft"
     else:
@@ -226,17 +488,21 @@ def main(argv):
     parser.add_argument("--session")
     parser.add_argument("--ticket")
     parser.add_argument("--round-input")
+    parser.add_argument("--ticket-file")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args(argv)
     if args.verb == "next":
-        return next_step(_view(args.doc))
+        return next_step(_view(args.doc), proposers_state(args.doc))
     if not (args.session and args.ticket and args.round_input):
         raise Refusal("usage", "build needs --session, --ticket and --round-input", 2)
     feature = Path(args.doc).parent.parent.name
     session = {"id": args.session, "skill": SKILL_NAME, "feature": feature, "ticket": args.ticket}
     earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
+    ticket = read_json(args.ticket_file) if args.ticket_file else None
+    linked = [link.get("key") for link in [*((ticket or {}).get("links") or []),
+                                           *((ticket or {}).get("unread_links") or [])]]
     return build_design_round(args.doc, session, read_json(args.round_input), args.replace,
-                              links_for([args.ticket], earlier))
+                              links_for([args.ticket, *linked], earlier), ticket)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Machine tools setup checks or installs: Python 3, rg, the lavish host and the diagram renderer.
+"""Machine tools setup checks or installs: Python 3, rg, the lavish host, herdr and the diagram renderer.
 
 Every outside command goes through a `Runner`, so a test replaces it with an
 in-process fake.
@@ -26,6 +26,9 @@ MERMAID_VERSION = "12.0.0"
 # https://pptr.dev/api/puppeteer.configuration: this variable overrides `skipDownload`.
 NO_BROWSER_DOWNLOAD = {"PUPPETEER_SKIP_DOWNLOAD": "true"}
 EDGE_ROOTS = ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")
+HERDR_INSTALL_PS1 = "https://herdr.dev/install.ps1"
+HERDR_INSTALL_SH = "https://herdr.dev/install.sh"
+HERDR_INSTALL_TIMEOUT = 300
 
 
 @dataclass
@@ -47,7 +50,7 @@ class Runner:
         if not exe:
             return Result(127, "", f"{argv[0]} not found on PATH")
         try:
-            done = subprocess.run([exe, *argv[1:]], capture_output=True, text=True,
+            done = subprocess.run([exe, *argv[1:]], capture_output=True, text=True, stdin=subprocess.DEVNULL,
                                   env=dict(env) if env else None, timeout=timeout)
         except (OSError, subprocess.SubprocessError) as exc:
             return Result(126, "", str(exc))
@@ -267,6 +270,57 @@ def restore_lavish(places: Places, run: Runner, env: Mapping[str, str]) -> dict:
                                        "reason": (got.err or got.out).strip()[:300]}}
     record.unlink()
     return {"ok": True, "action": "restored", "version": prior}
+
+
+# -------------------------------------------------------------------- herdr
+
+def herdr_status(run: Runner, record: Mapping[str, str], env: Mapping[str, str] | None = None) -> str:
+    """`present` on the path, else the recorded answer (`declined` or `installed`), else `ask`. Read-only.
+    `installed` off the path means a new terminal has not read the installer's path change yet."""
+    if run.which("herdr", env):
+        return "present"
+    return record.get("herdr") if record.get("herdr") in ("declined", "installed") else "ask"
+
+
+def herdr_installer(run: Runner, windows: bool, env: Mapping[str, str] | None = None) -> list[str]:
+    """The official install command (https://herdr.dev/tui/docs/install/). Each one streams
+    the installer into a shell or uses a package manager, and saves no program file first (AC-029)."""
+    if windows:
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+                f"irm {HERDR_INSTALL_PS1} | iex"]
+    if run.which("brew", env):
+        return ["brew", "install", "herdr"]
+    return ["sh", "-c", f"curl -fsSL {HERDR_INSTALL_SH} | sh"]
+
+
+def install_herdr(run: Runner, windows: bool = os.name == "nt",
+                  env: Mapping[str, str] | None = None, download_dir: Path | None = None) -> dict:
+    """Run the official installer. Only after the developer's yes in session.
+
+    Where each one stages the program file (read 2026-11-07): install.ps1 downloads into
+    `Join-Path ([System.IO.Path]::GetTempPath()) "herdr-install-<guid>"`, which reads TMP, then TEMP;
+    install.sh runs `TMP="$(mktemp -d)"` and `curl ... -o "${TMP}/${BIN}"`, which reads TMPDIR; brew
+    builds in HOMEBREW_TEMP (https://docs.brew.sh/Manpage, ENVIRONMENT; default /private/tmp or /var/tmp).
+    With `download_dir`, TMP, TEMP, TMPDIR and HOMEBREW_TEMP name that folder for the installer process
+    only, so no program file lands in a temporary folder (AC-029, decision D-11); the folder is removed
+    after the run."""
+    command = herdr_installer(run, windows, env)
+    run_env = env
+    if download_dir is not None:
+        download_dir.mkdir(parents=True, exist_ok=True)
+        folder = str(download_dir)
+        run_env = {**(env if env is not None else os.environ), "TMP": folder, "TEMP": folder, "TMPDIR": folder,
+                   "HOMEBREW_TEMP": folder}
+    try:
+        got = run(command, env=run_env, timeout=HERDR_INSTALL_TIMEOUT)
+    finally:
+        if download_dir is not None:
+            shutil.rmtree(download_dir, ignore_errors=True)
+    if got.code != 0:
+        lines = [line.strip() for line in f"{got.out}\n{got.err}".splitlines() if line.strip()]
+        return {"ok": False, "error": {"code": "install-failed",
+                                       "reason": lines[-1][:300] if lines else f"exit {got.code}"}}
+    return {"ok": True, "herdr": "installed", "path": run.which("herdr", env)}
 
 
 # ---------------------------------------------------------- diagram renderer

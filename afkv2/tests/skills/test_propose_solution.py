@@ -33,13 +33,29 @@ import fork_cards  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
-STEP_ORDER = ["start", "row", "next", "second-provider", "build", "present", "wait", "ingest", "apply-readings", "gate", "end"]
+STEP_ORDER = ["start", "read-ticket", "row", "next", "proposers-plan", "proposers-start", "proposers-wait",
+              "proposers-critique", "proposers-cleanup", "build", "present", "wait", "reply", "ingest", "apply-readings",
+              "sync", "gate", "end"]
 CAT_A = ["entities", "relations", "keys", "constraints", "cascade", "api", "migration", "authorization", "lifecycle",
          "other-teams", "large-data"]
 CAT_A_LABELS = ["Entities", "Relations", "Keys", "Constraints", "Cascade", "API contract and compatibility",
                 "Data migration", "Authorization", "Entity life cycle and states", "Other teams' modules", "Large data"]
 SESSION = {"id": "s-1", "skill": "propose-solution", "feature": "PROJ-1", "ticket": "PROJ-1"}
 OPTIONS = [{"name": "Join table", "text": "Keeps every run."}, {"name": "Run id", "text": "Keeps the last run."}]
+
+
+def section_entry(sid, body):
+    return {"id": sid, "title": sid, "state": "current", "body": body, "change": {"cause": "finding", "text": "drafted"}}
+
+
+# The sections that the design gate requires on every design page.
+SECTIONS = [
+    section_entry("sec-system", {"type": "graph", "props": {"nodes": [{"id": "n1", "label": "Orders"}]},
+                                 "children": [{"type": "text", "props": {"text": "what passes", "label": "What to see"}}]}),
+    section_entry("sec-patterns", {"type": "text", "props": {"text": "no pattern applied"}}),
+    section_entry("sec-performance", {"type": "text", "props": {"text": "the design reads 1 file of under 1 KB",
+                                                                "label": "No performance risk"}}),
+]
 
 
 def skill_steps():
@@ -99,6 +115,8 @@ class World:
     def run(self, step, expect=0, swap=None, **values):
         """Run one stated command with its placeholders filled; return its one JSON answer."""
         command = skill_steps()[step]
+        if step == "build":
+            values.setdefault("ticket_file", self.file("no-ticket.json", {}))
         if swap:
             assert swap[0] in command
             command = command.replace(*swap)
@@ -150,9 +168,11 @@ class World:
         cards = [fork if key == "relations" else aspect_card(key) for key in CAT_A]
         self.build(started, round_of(*cards))
         self.accept_all(started)
+        (self.repo / started["doc"]).with_suffix(".proposers.json").write_text(
+            json.dumps({"version": 1, "count": 1, "proposers": [], "cleaned": False}), "utf-8")
         sign = {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                 "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}}
-        self.build(started, round_of(sign, *(layer_card(f"L{n}") for n in range(1, 10))))
+        self.build(started, {**round_of(sign, *(layer_card(f"L{n}") for n in range(1, 10))), "sections": SECTIONS})
         self.accept_all(started)
 
 
@@ -456,13 +476,6 @@ def test_an_answer_on_disk_is_reported_at_resume(world):
     assert world.run("start", ticket_key="PROJ-1")["raw_pending"] is True
 
 
-# The second provider.
-
-def test_the_second_provider_slot_is_off(world):
-    answer = world.run("second-provider", round_input=world.file("r.json", round_of()))
-    assert answer == {"ok": True, "state": "off", "forks": []}
-
-
 # The log.
 
 def test_a_premise_row_is_written_once_and_updated(world):
@@ -527,7 +540,7 @@ def test_the_gate_passes_a_whole_design_and_closes_the_session(world):
     assert "| SDD | SDD.md | draft |" in index and "| Design ADRs | adr/design/ | 1 records |" in index
     assert f"· session {started['session']}" in (world.spec / "GRILL-LOG.md").read_text("utf-8")
     again = world.run("start", ticket_key="PROJ-1")
-    assert again["resume"] is False and again["session"] != started["session"] and again["sdd_exists"] is True
+    assert again["resume"] is False and again["takeover"] == started["session"] and again["sdd_exists"] is True
 
 
 @pytest.mark.parametrize("old, new, expected", [
@@ -758,12 +771,15 @@ def test_dry_run_a_whole_session_through_every_stated_command(world):
     world.run("present", doc=started["doc"], log=started["log"])
     world.answer(started, "a-cascade-2: accept")
 
+    assert world.run("next", doc=started["doc"])["phase"] == "proposers"
+    (world.repo / started["doc"]).with_suffix(".proposers.json").write_text(
+        json.dumps({"version": 1, "count": 1, "proposers": [], "cleaned": False}), "utf-8")
     step = world.run("next", doc=started["doc"])
     assert step["phase"] == "draft" and step["aspects_open"] == [] and step["layers_to_ask"][0]["key"] == "L1"
     draft = round_of(*(layer_card(f"L{n}") for n in range(1, 10)),
                      {"id": "sign-hl-1", "locked": "HL-1", "kind": "signoff",
                       "body": {"type": "text", "id": "sign-hl-1-text", "props": {"text": "The field table is final."}}})
-    assert world.run("second-provider", round_input=world.file("draft.json", draft))["forks"] == []
+    draft["sections"] = SECTIONS
     world.build(started, draft)
     world.run("present", doc=started["doc"], log=started["log"])
     world.accept_all(started)

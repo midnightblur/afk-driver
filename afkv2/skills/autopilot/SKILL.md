@@ -5,7 +5,7 @@ description: /afkv2:autopilot — builds an approved plan hands-off, one subtask
 
 # /afkv2:autopilot
 
-Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. A human merges the change. Never run /afkv2:gc.
+Starting this skill authorizes commits and pushes on the feature branch, commits on the run branch, and the Draft change. The journal copy of `archive` is the 1 run record that lands on the feature branch. A human merges the change. Never run /afkv2:gc.
 
 ## Input
 
@@ -28,9 +28,9 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
    3. `start` with `subtask` and optional `app`. A refusal `contract-mismatch` or `gate-cannot-run`: `park` with `by: "autopilot"`, and name the failure in `reason`.
    4. Start one fresh subagent with `brief` as its whole prompt. It runs `/afkv2:execute`.
    5. Read its last lines, and route them by the table below. Read the tracker through `next`: the report does not move the walk.
-4. **End.** `end`. Its answer lists `done`, `parked`, `waiting`, `rulings` and `ship`.
+4. **End.** `end`. Its answer lists `done`, `parked`, `waiting` and `rulings`. Then `archive`: it copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the linked worktree of the feature branch, never the main checkout, with each `/` of the branch name as `-`, and commits it on the feature branch when it changed. Its answer holds `path`, `committed`, `commit` (the newest commit of the copy) and `ship`. Then push the feature branch, also when `committed` is false. Only the `ship` of `archive` counts: `end` adds a journal line, so its own `ship` is false after a walk. A refusal: correct its cause and run `archive` again. A `## Parent PRD` outside the feature worktree refuses `no-spec-dir`.
 5. **Report to the developer.** One line per ruling: its id, the question and the ruling. One line per park: the subtask, why, and the ledger id.
-6. **Ship.** `ship: true`: run the "Ship" section of `/afkv2:create-change-request` with `id` and `plan`. `ship: false`: stop. The change stays Draft.
+6. **Ship.** `ship: true` from `archive`: run the "Ship" section of `/afkv2:create-change-request` with `id` and `plan`, and list the `commit` of `archive` in its proofs. `ship: false`: stop. The change stays Draft.
 
 | Last lines of the subagent | Next action |
 |----------------------------|-------------|
@@ -63,6 +63,8 @@ You are the orchestrator, and the rule is yours: an executor never rules its own
 | `start-refused` | the gate lists each failure | step 2 |
 | `not-run-branch` | the plan folder is not `plan/` at the root of a run branch | pass the path from `locate` |
 | `not-feature-branch`, `no-run-branch` | no feature branch, or no run branch | run from the feature branch, or slice with `/afkv2:to-subtasks` |
+| `no-feature-worktree`, `no-spec-dir` | `archive` finds no linked worktree of the feature branch, or no contract names a `## Parent PRD` inside that worktree | check the feature branch out in a linked worktree, or correct the plan; run `archive` again |
+| `not-ended` | the last journal line is not the run end | `end`, then `archive` |
 | `subtask-in-flight`, `blocked-by`, `parked`, `already-done` | this subtask cannot start now | `next` names the one that can |
 | `contract-mismatch`, `gate-cannot-run` | a consumed anchor is missing, or a gate cannot run | `park` |
 | `not-running`, `not-finished`, `change-differs` | an executor's verb went wrong | the executor reads them; see `/afkv2:execute` |

@@ -281,7 +281,7 @@ def test_a_section_drops_a_link_to_itself_and_to_a_section_merged_into_it():
     doc = document()
     doc["sections"][1]["links"] = ["sec-format", "sec-old"]
     format_ = part_of(parts_v2.render_sections(doc), "sec-format")
-    assert "Depends on" not in visible(format_) and 'href="#sec-format"' not in format_
+    assert "Linked sections" not in visible(format_) and 'href="#sec-format"' not in format_
 
 
 def test_a_section_with_open_questions_shows_a_chip_with_their_count():

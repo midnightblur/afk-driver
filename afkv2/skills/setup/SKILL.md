@@ -24,12 +24,20 @@ you ask in this session; the Jira token never passes through you.
    Then `setup.py diagram-renderer` — installs the diagram command with the browser
    download off, and writes `puppeteer-config.json` that names the installed Edge.
    A refusal `no-edge` installs nothing and downloads nothing: report its `reason`.
-3. **Jira values.** `jira.complete` false: ask the developer to run
+3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
+   `installed`: ask nothing; tell the developer to open a new terminal and
+   harness, so that herdr is on the path. `herdr` is `ask`:
+   ask the developer once in this session whether to install herdr through its
+   official installer; without it, design sessions get 1 solution proposer. Then
+   `setup.py herdr --answer yes` or `setup.py herdr --answer no`. A no is recorded
+   and never asked again, also after `switch-back`. A refusal `install-failed`: report its `reason`; the
+   developer can install herdr by hand.
+4. **Jira values.** `jira.complete` false: ask the developer to run
    `python <this skill's folder>/scripts/setup.py secrets` in their own terminal
    (it asks for `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` and stores them
    where v1 keeps them), then run `status` again. Report each key's source, never
    a value.
-4. **Repository config.** `config_file` false: setup writes `.afkv2/config.json`
+5. **Repository config.** `config_file` false: setup writes `.afkv2/config.json`
    once, and it needs a spec folder. `spec_folder.value` set: use it, and pass no
    flag. `spec_folder.value` null: ask the developer in this session for a folder
    path relative to the repository root, then pass `--spec-folder <path>`.
@@ -37,14 +45,14 @@ you ask in this session; the Jira token never passes through you.
    copy. On yes, `setup.py copy-config`; on no, `setup.py copy-config --no-v1-values`.
    No v1 config: `setup.py copy-config`. The v1 file stays as it is. A refusal
    `no-spec-folder` or `bad-spec-folder` writes nothing: report its `reason`, and ask again.
-5. **Ownership.** `ownership` is `missing`: ask once which paths the developer's
+6. **Ownership.** `ownership` is `missing`: ask once which paths the developer's
    team owns and which it shares. Answer given: `setup.py ownership --own <globs>
    --shared <globs>`. Skipped: `setup.py ownership --skip`.
-6. **Codex hook trust review.** The developer uses Codex (a `codex_plugins` entry,
+7. **Codex hook trust review.** The developer uses Codex (a `codex_plugins` entry,
    or a block in `v1_blocks.codex`): ask them to start a new Codex session in this
    repository, trust the afkv2 hooks in Codex's hook review, and end that session.
    Codex skips an untrusted hook without a message.
-7. **Proof and takeover.** Find the line `afkv2-core-behaviors end <sha12>` in
+8. **Proof and takeover.** Find the line `afkv2-core-behaviors end <sha12>` in
    your own context — the session-start hook put it there. Run
    `setup.py takeover --provider <claude|codex> --end-marker "<that full line>"`
    (`--end-marker ""` when the line is absent). The script proves the hook, then
@@ -62,7 +70,7 @@ you ask in this session; the Jira token never passes through you.
      developer each line of `proof.reasons`, then to start a new session and run
      `/afkv2:setup` again.
    - Another step failed: report its `error`; a re-run continues where it stopped.
-8. **Report.** One line per step: done, already done, or why not.
+9. **Report.** One line per step: done, already done, or why not.
 
 ## Return to afkv2 after a switch-back
 

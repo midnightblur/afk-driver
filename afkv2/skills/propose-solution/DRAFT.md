@@ -1,6 +1,6 @@
 # The top-down draft
 
-After the critical aspects, propose the whole design: every layer, from the top down. The human vets it and adjusts it. `design_round.py` reads the 2 tables below, so they are the one copy of the layer order and of the human-locked set.
+After the critical aspects, propose the whole design: every layer, from the top down. The human vets it and adjusts it. `design_round.py` reads the tables Layers and Human-locked aspects, so they are the one copy of the layer order and of the human-locked set.
 
 ## Layers
 
@@ -17,6 +17,72 @@ After the critical aspects, propose the whole design: every layer, from the top 
 | L9 | Implementation Seams & Change Impact | each seam into existing code, checked against the code | §14 |
 
 Every layer gets at least one card, in this order. A layer with nothing to decide gets one line: "Inherited", on a `decided` card when the rule allows it. Give extra depth to entities and database schema, API endpoints, public interfaces and code with a large blast radius. Below L9 is executor latitude (file layout inside a module, private helpers, internal names, test fixtures): do not ask it.
+
+## Sections
+
+The page shows the design in sections, in the order of the section catalog. `section_rules.py` reads the 3 tables below, so they are the one copy of the section order and of the section shapes. The build refuses an id the catalog does not name (`section-unknown`), the first section out of order (`section-order`), a section of the wrong shape (`section-shape`) and a picture with no caption (`section-caption`).
+
+### Section catalog
+
+| Id | Part | Kind | Opens with |
+|----|------|------|------------|
+| `sec-system` | Whole system | system | boxes grouped by system, arrows labelled with what passes |
+| `sec-crit-<slug>` | 1 critical part: a change to existing code, data or a flow, or a human-locked aspect | critical | how it works now beside how it will work |
+| `sec-l1` | L1 System Topology | level | boxes grouped by system, arrows labelled with what passes |
+| `sec-l2` | L2 Service Boundaries & Integration | level | a sequence diagram of the main request |
+| `sec-l3` | L3 Data Architecture | level | an entity diagram, or a field table for 3 entities or fewer |
+| `sec-l4` | L4 Cross-Cutting & Quality Attributes | level | a table of each concern with its number or posture |
+| `sec-l5` | L5 Domain Model | level | a class diagram, and a state diagram per item that moves through states |
+| `sec-l6` | L6 Process & Coordination | level | a flowchart or a sequence diagram |
+| `sec-l7` | L7 Module Decomposition | level | boxes grouped by module, the touched parts chipped |
+| `sec-logic` | Key logic | level | a flowchart or a decision table; a short code block when the shape of the code is the point |
+| `sec-l8` | L8 Tactical Patterns | level | a table of the pattern per concern |
+| `sec-l9` | L9 Implementation Seams & Change Impact | level | a now and proposed table per file, field or step |
+| `sec-patterns` | Design patterns | patterns | the pattern table, or the line "no pattern applied" |
+| `sec-performance` | Performance | performance | PF-1 to PF-4, or 1 line on why there is no performance risk |
+
+- Send a section that comes late with `after`, the id of the section it follows. That section is stored, or comes earlier in the same round input.
+- A picture is a component of type `map`, `graph`, `table`, `sequence`, `run-strip`, `freestyle` or `diagram`. Every picture has a caption: a child `text` labelled "What to see", of 1 line, or a `title` or a `caption` on the picture itself.
+- A system, critical or level section has a picture as its body root.
+- A level section: the children of its picture are the caption, then a `text` labelled "Summary" of at most 2 lines, then the rest of the detail, each child folded (`fold`).
+- A critical section holds a chip whose text starts "critical", and names its level section in `links`. The build fills the links: each level section links to the next level section on the page and to each critical section that names it.
+- Every performance fact stands only in `sec-performance`. The L4 section and the large-data aspect point to it by its title, Performance, never by its id, and repeat no performance fact.
+
+### Pattern columns
+
+The `sec-patterns` section holds 1 table with these columns, 1 row per pattern, and a folded class diagram per pattern. A design with no pattern holds 1 `text`: "no pattern applied".
+
+| Column | Holds |
+|--------|-------|
+| Name | the name of the pattern |
+| What it is | a short plain explanation of the pattern |
+| Where | where it applies |
+| Why here | why it works here |
+| Quality goal | the quality goal it serves |
+| Beat | the simpler option it beat |
+
+### Performance parts
+
+The `sec-performance` section holds 1 `text` per part, labelled "PF-<n> <name>", with its picture as a child. A design with no performance risk holds 1 `text` labelled "No performance risk", of 1 line on why.
+
+| Part | Holds | Picture |
+|------|-------|---------|
+| PF-1 | Anticipated problems: hot paths, large data, unbounded lists, repeated queries, memory, waiting on others | a table: problem, where, cause, size |
+| PF-2 | Large data: the size of each growing table or list now, in 1 year and at worst, and the cost of each read or write | a size table |
+| PF-3 | The solution to each problem: paging, streaming, batching, indexes, caching, limits | the design picture of that part, the fix chipped |
+| PF-4 | Budgets: a target per key flow (time, size or count) | a table of the budgets, each row with a `measured`, `inferred` or `estimated` chip |
+
+## Decision blocks
+
+A decided card on a design page holds 5 blocks. A card with a block missing degrades to `confirm`.
+
+| Block | Field of `decided` | Content |
+|-------|--------------------|---------|
+| D-1 Decision | `decision` | 1 sentence |
+| D-2 Driven by | `driven_by` | a list of id strings: the requirements, requirement records and constraints it serves; each shows its text on hover. An id that names nothing refuses `driven-by-unknown` |
+| D-3 Other options | `alternatives` | a list of `{option, why_lost}`, both non-empty text, 1 per option |
+| D-4 Why this one | `why` | the criterion that beat the runner-up |
+| D-5 To undo | `reverse` | what to revert |
 
 ## Cards
 
