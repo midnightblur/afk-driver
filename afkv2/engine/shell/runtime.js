@@ -400,8 +400,8 @@
     box.setAttribute(TIP, name + ': ' + state + ', last changed in round ' + cards[node][1] + '. Click to open the card.');
     box.classList.add('afkv2-box--card');
     box.addEventListener('click', function (event) {
-      /* A card link in the box label makes its own jump. */
-      if (event.target.closest && event.target.closest(IN_PAGE_LINK)) return;
+      /* A link in the box label does its own work: a card link jumps, a reference opens its tab. */
+      if (event.target.closest && event.target.closest('a[href]')) return;
       jump(target);
     });
   });

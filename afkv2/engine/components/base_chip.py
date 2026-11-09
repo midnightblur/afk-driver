@@ -29,14 +29,18 @@ BOLD = re.compile(r"\*\*(.+?)\*\*")
 URL_TAIL = ".,;:!?"
 
 
+# lavish's note mode lets a click through only inside `[data-lavish-action]`; without it a link never opens.
+NEW_TAB = 'target="_blank" rel="noopener noreferrer" data-lavish-action="afkv2-link"'
+
+
 def _link(match):
     if match.group(2):
-        return f'<a href="{match.group(2)}" target="_blank" rel="noopener noreferrer">{match.group(1)}</a>'
+        return f'<a href="{match.group(2)}" {NEW_TAB}>{match.group(1)}</a>'
     url = match.group(3)
     tail = ""
     while url and url[-1] in URL_TAIL and not url.endswith("&amp;"):
         url, tail = url[:-1], url[-1] + tail
-    return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{url}</a>{tail}'
+    return f'<a href="{url}" {NEW_TAB}>{url}</a>{tail}'
 
 
 def _inline(text):

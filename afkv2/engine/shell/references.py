@@ -10,6 +10,9 @@
 A kind with no template stays text. Only text between tags changes, so ids and attributes keep their
 bytes. Text in a link, code, a script, a style, a form control, a fold label or an SVG stays text.
 
+Each link carries `data-lavish-action`. lavish catches every click in its note mode and opens the note
+composer instead; it lets a click on an element inside `[data-lavish-action]` through, so the link opens.
+
 `link_cards` links each card id in page text to that card, outside headings and outside the card itself.
 """
 
@@ -23,8 +26,9 @@ TAG = re.compile(r"(<[^>]*>)")
 TAG_NAME = re.compile(r"<(/?)([A-Za-z][\w-]*)")
 CHANGE_WORDS = r"(?i:\b(?:PR|MR|pull request|merge request)\s+)"
 COMMIT_WORDS = r"(?i:\b(?:commits?|sha)\b:?\s+)"
-LINK = '<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
-CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
+LINK = ('<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer" '
+        'data-lavish-action="afkv2-ref">{}</a>')
+CARD_LINK = '<a class="afkv2-card-link" href="#{0}" data-lavish-action="afkv2-card-link">{0}</a>'
 HEADINGS = {"h1", "h2", "h3", "h4", "title"}
 CARD_OPEN = re.compile(r'<article\b[^>]*\bdata-afkv2-item="([^"]+)"')
 

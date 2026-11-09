@@ -186,7 +186,7 @@ def _where(item: dict | None, note: dict, elements: dict, name=_raw) -> str:
 
 
 def _link(element: str, words: str, name=_raw) -> str:
-    return f'<a href="#{escape(element)}" title="{escape(name(element))}">{words}</a>'
+    return f'<a href="#{escape(element)}" title="{escape(name(element))}" data-lavish-action="afkv2-nr-link">{words}</a>'
 
 
 def change_links(reply: dict, elements: dict, name=_raw) -> str:

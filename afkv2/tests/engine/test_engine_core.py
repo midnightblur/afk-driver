@@ -685,17 +685,17 @@ def md(words):
     return html[html.index(MD_OPEN) + len(MD_OPEN):html.rindex("</div></div>")]
 
 
+LINK_ATTRS = 'target="_blank" rel="noopener noreferrer" data-lavish-action="afkv2-link"'
+
+
 def test_markdown_renders_the_safe_subset():
     words = ("# Summary\nFirst **bold** line\nsame paragraph with `a <b> code`.\n\n- one\n- two with [a link](https://x.test/a?b=1&c=2)\n"
              "\nSee https://x.test/page.")
     assert md(words) == (
         '<p class="afkv2-md-h"><strong>Summary</strong></p>'
         "<p>First <strong>bold</strong> line same paragraph with <code>a &lt;b&gt; code</code>.</p>"
-        '<ul><li>one</li><li>two with <a href="https://x.test/a?b=1&amp;c=2" target="_blank" rel="noopener noreferrer">a link</a></li></ul>'
-        '<p>See <a href="https://x.test/page" target="_blank" rel="noopener noreferrer">https://x.test/page</a>.</p>')
-
-
-LINK_ATTRS = 'target="_blank" rel="noopener noreferrer"'
+        f'<ul><li>one</li><li>two with <a href="https://x.test/a?b=1&amp;c=2" {LINK_ATTRS}>a link</a></li></ul>'
+        f'<p>See <a href="https://x.test/page" {LINK_ATTRS}>https://x.test/page</a>.</p>')
 
 
 @pytest.mark.parametrize("words, html", [
