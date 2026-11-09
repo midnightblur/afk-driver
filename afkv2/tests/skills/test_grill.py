@@ -312,6 +312,17 @@ def test_decided_card_with_a_gap_degrades_to_confirm(tmp_path, field):
     assert item["kind"] == "confirm"
 
 
+@pytest.mark.parametrize("decided", [None, "Use UTF-8.", []])
+def test_decided_card_without_its_fields_is_refused_by_name(tmp_path, decided):
+    content = round_one()
+    content["items"][0] = {"id": "i-scope", "kind": "decided", "node": "n-scope",
+                           **({} if decided is None else {"decided": decided})}
+    path = tmp_path / "doc.json"
+    with pytest.raises(rd.Refusal) as refused:
+        rd.build_round_document(path, session(), content)
+    assert refused.value.code == "no-decided-fields" and not path.exists()
+
+
 @pytest.mark.parametrize("change", [{"grade": "judgment"}, {"depends_on": ["i-none"]}])
 def test_decided_card_with_a_bad_grade_or_dependency_degrades(tmp_path, change):
     content = round_one()
@@ -1160,7 +1171,9 @@ def test_candidate_term_goes_on_the_log_and_not_in_the_glossary(world):
 
 @pytest.mark.parametrize("content, code, status", [
     ({"banner": {}, "items": "not a list"}, "bad-round", 1),
-    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "body": "not a component"}]}, "bad-input", 2),
+    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "decided": {}, "body": "not a component"}]}, "bad-input", 2),
+    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "body": {"type": "text", "props": {"text": "x"}}}]},
+     "no-decided-fields", 1),
     ({"banner": {}, "items": [], "maps": [{"props": {"nodes": ["not a node"]}}]}, "bad-input", 2),
 ])
 def test_a_malformed_round_answers_json_and_writes_nothing(world, content, code, status):

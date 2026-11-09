@@ -121,7 +121,8 @@ def _design_decided(raw, known_ids, degraded):
     with the same fields, listed in `degraded` (SDD §6 I-3, ADR-0004 design)."""
     if raw.get("kind") != "decided":
         return raw
-    fields = raw.get("decided") if isinstance(raw.get("decided"), dict) else {}
+    rd.require_decided(raw)
+    fields = raw["decided"]
     lines, typed = _alternative_lines(fields.get("alternatives"))
     shared = {**fields, "alternatives": lines}
     if typed and fields.get("driven_by"):

@@ -233,6 +233,14 @@ def _decided_fields(item_id, decided, known_ids):
     return fields, whole
 
 
+def require_decided(raw):
+    """Refuse `no-decided-fields` for a `decided` card with no `decided` object: a card with all its fields stays
+    decided, and a card with a gap in them degrades to `confirm` and is listed in `degraded`."""
+    if raw.get("kind") == "decided" and not isinstance(raw.get("decided"), dict):
+        raise Refusal("no-decided-fields", f"item {raw.get('id')}: a decided card holds its fields in `decided`, an "
+                                           "object; send them, or send the card as `confirm`")
+
+
 def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
     if not isinstance(raw, dict) or not raw.get("id"):
         raise Refusal("bad-item", f"item without an id: {raw!r}")
@@ -249,6 +257,7 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
     state = raw.get("state", "open")
     if state not in NEW_STATES:
         raise Refusal("bad-item", f"{where}: a new card is open or blocked, not {state!r}")
+    require_decided(raw)
     kind, body = raw["kind"], copy.deepcopy(raw.get("body"))
     if kind == "decided":
         fields, whole = _decided_fields(item_id, raw.get("decided"), known_ids)
