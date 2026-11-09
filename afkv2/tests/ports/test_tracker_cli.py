@@ -148,10 +148,10 @@ def test_the_payload_tracker_wins_over_the_config(capsys, reader, tools):
     assert code == 0 and answer["number"] == 7
 
 
-def test_issue_search_on_jira_is_unsupported(capsys, reader):
+def test_issue_search_on_jira_needs_a_jql_query(capsys, reader):
     reader({"ok": True, "tracker": {"kind": "jira"}})
     code, answer = call(capsys, "issue-search", "{}")
-    assert code == 1 and answer["error"]["code"] == "unsupported"
+    assert code == 2 and answer["error"]["code"] == "bad-payload"
 
 
 @pytest.mark.parametrize("config", [

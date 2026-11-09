@@ -1,7 +1,9 @@
 """The URL templates the page links references with (`session.links`), from the repository, at build time.
 
 The forge templates come from the `origin` remote; the issue template from `tracker.repo` when the tracker
-is GitHub issues; the ticket template from the tracker port's Jira base URL. Nothing here reads the network.
+is GitHub issues; the ticket template from the tracker port's Jira base URL. The Jira projects it links are the
+projects of the session tickets, the earlier page's projects, the config's `tracker.project` and `tracker.projects`,
+and the round input's `ticket_projects`. Nothing here reads the network.
 A source that is missing leaves its kinds out; with no source the answer is None and the page links nothing.
 """
 
@@ -19,6 +21,7 @@ TIMEOUT_S = 60
 FORGE_FORMS = {"github": {"issue": "/issues/{id}", "change": "/pull/{id}", "commit": "/commit/{id}"},
                "gitlab": {"issue": "/-/issues/{id}", "change": "/-/merge_requests/{id}", "commit": "/-/commit/{id}"}}
 JIRA_KEY = re.compile(r"([A-Z][A-Z0-9_]+)-\d+")
+PROJECT_KEY = re.compile(r"[A-Z][A-Z0-9_]+")
 
 
 def _origin() -> str | None:
@@ -63,8 +66,24 @@ def projects_of(*keys: str) -> list[str]:
     return sorted({match.group(1) for key in keys if key for match in [JIRA_KEY.fullmatch(key)] if match})
 
 
-def links_for(ticket_keys: list[str], earlier: dict | None = None) -> dict | None:
-    """`session.links` for this repository. `ticket_keys` are the session ticket and the tickets it links."""
+def project_keys(where: str, value) -> list[str]:
+    """A list of Jira project keys, such as `ABC`; refuse `bad-projects` for any other value."""
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(key, str) and PROJECT_KEY.fullmatch(key) for key in value):
+        raise Refusal("bad-projects", f"{where} is a list of Jira project keys, such as [\"ABC\"]: {value!r}")
+    return value
+
+
+def _config_projects(tracker: dict) -> list[str]:
+    """The project keys of the config; a value that is no project key links nothing, and the build goes on."""
+    listed = tracker.get("projects") if isinstance(tracker.get("projects"), list) else []
+    return [key for key in [tracker.get("project"), *listed] if isinstance(key, str) and PROJECT_KEY.fullmatch(key)]
+
+
+def links_for(ticket_keys: list[str], earlier: dict | None = None, projects: list[str] | None = None) -> dict | None:
+    """`session.links` for this repository. `ticket_keys` are the session ticket and the tickets it links;
+    `projects` are the round input's `ticket_projects`."""
     try:
         config = run_command(CONFIG_READER, ["read"], TIMEOUT_S)
     except Refusal:
@@ -81,7 +100,8 @@ def links_for(ticket_keys: list[str], earlier: dict | None = None) -> dict | Non
         links["issue"] = f"https://{host}/{tracker['repo']}" + FORGE_FORMS["github"]["issue"]
     if tracker.get("kind") == "jira":
         base = _jira_base()
-        projects = sorted(set(projects_of(*ticket_keys)) | set((earlier or {}).get("projects") or []))
-        if base and projects:
-            links.update(ticket=f"{base}/browse/{{id}}", projects=projects)
+        found = sorted(set(projects_of(*ticket_keys)) | set((earlier or {}).get("projects") or [])
+                       | set(_config_projects(tracker)) | set(projects or []))
+        if base and found:
+            links.update(ticket=f"{base}/browse/{{id}}", projects=found)
     return links or None

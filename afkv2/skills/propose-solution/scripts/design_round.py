@@ -26,7 +26,7 @@ import round_document as rd  # noqa: E402
 import section_rules  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
 from grill_common import Parser, Refusal, read_json, serve, write_json  # noqa: E402
-from page_links import links_for  # noqa: E402
+from page_links import links_for, project_keys  # noqa: E402
 
 SKILL_NAME = "propose-solution"
 GROUPS = {
@@ -121,7 +121,8 @@ def _design_decided(raw, known_ids, degraded):
     with the same fields, listed in `degraded` (SDD §6 I-3, ADR-0004 design)."""
     if raw.get("kind") != "decided":
         return raw
-    fields = raw.get("decided") if isinstance(raw.get("decided"), dict) else {}
+    rd.require_decided(raw)
+    fields = raw["decided"]
     lines, typed = _alternative_lines(fields.get("alternatives"))
     shared = {**fields, "alternatives": lines}
     if typed and fields.get("driven_by"):
@@ -501,8 +502,10 @@ def main(argv):
     ticket = read_json(args.ticket_file) if args.ticket_file else None
     linked = [link.get("key") for link in [*((ticket or {}).get("links") or []),
                                            *((ticket or {}).get("unread_links") or [])]]
-    return build_design_round(args.doc, session, read_json(args.round_input), args.replace,
-                              links_for([args.ticket, *linked], earlier), ticket)
+    round_input = read_json(args.round_input)
+    extra = project_keys("ticket_projects", round_input.pop("ticket_projects", None)) if isinstance(round_input, dict) else []
+    return build_design_round(args.doc, session, round_input, args.replace,
+                              links_for([args.ticket, *linked], earlier, extra), ticket)
 
 
 if __name__ == "__main__":

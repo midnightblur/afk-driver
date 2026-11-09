@@ -249,3 +249,43 @@ def test_the_media_id_comes_from_a_real_303_and_the_redirect_is_not_followed(mon
         thread.join()
         server.server_close()
     assert paths == ["/rest/api/3/attachment/content/9001"]
+
+
+class _Pages:
+    """A Jira client stand-in: answers the search pages in order and keeps each asked path."""
+
+    def __init__(self, *pages):
+        self.pages, self.paths = list(pages), []
+
+    def get_json(self, path):
+        self.paths.append(path)
+        return self.pages.pop(0)
+
+
+def test_issue_search_reads_every_page_of_the_jql(monkeypatch):
+    import urllib.parse
+    pages = _Pages({"issues": [{"key": "ABC-1"}, {"key": "ABC-2"}], "nextPageToken": "t2", "isLast": False},
+                   {"issues": [{"key": "ABC-3"}], "isLast": True})
+    monkeypatch.setattr(jira, "client", lambda: pages)
+    answer = jira.issue_search({"query": "project = ABC", "fields": ["summary", "status"]})
+    assert answer == {"ok": True, "issues": [{"key": "ABC-1"}, {"key": "ABC-2"}, {"key": "ABC-3"}], "count": 3,
+                      "truncated": False}
+    first, second = (urllib.parse.parse_qs(urllib.parse.urlsplit(path).query) for path in pages.paths)
+    assert first["jql"] == ["project = ABC"] and first["fields"] == ["summary,status"] and "nextPageToken" not in first
+    assert second["nextPageToken"] == ["t2"]
+
+
+def test_issue_search_stops_at_max_results_and_says_it_is_truncated(monkeypatch):
+    pages = _Pages({"issues": [{"key": "ABC-1"}, {"key": "ABC-2"}], "nextPageToken": "t2", "isLast": False})
+    monkeypatch.setattr(jira, "client", lambda: pages)
+    answer = jira.issue_search({"query": "project = ABC", "max_results": 2})
+    assert answer["count"] == 2 and answer["truncated"] is True and "maxResults=2" in pages.paths[0]
+
+
+@pytest.mark.parametrize("payload", [{}, {"query": " "}, {"query": "x", "max_results": "many"},
+                                     {"query": "x", "max_results": 0}])
+def test_issue_search_refuses_a_bad_payload(monkeypatch, payload):
+    monkeypatch.setattr(jira, "client", lambda: pytest.fail("a bad payload reaches no Jira"))
+    with pytest.raises(envelope.Refusal) as refused:
+        jira.issue_search(payload)
+    assert refused.value.code == "bad-payload"

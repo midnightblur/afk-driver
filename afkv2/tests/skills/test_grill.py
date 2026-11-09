@@ -312,6 +312,17 @@ def test_decided_card_with_a_gap_degrades_to_confirm(tmp_path, field):
     assert item["kind"] == "confirm"
 
 
+@pytest.mark.parametrize("decided", [None, "Use UTF-8.", []])
+def test_decided_card_without_its_fields_is_refused_by_name(tmp_path, decided):
+    content = round_one()
+    content["items"][0] = {"id": "i-scope", "kind": "decided", "node": "n-scope",
+                           **({} if decided is None else {"decided": decided})}
+    path = tmp_path / "doc.json"
+    with pytest.raises(rd.Refusal) as refused:
+        rd.build_round_document(path, session(), content)
+    assert refused.value.code == "no-decided-fields" and not path.exists()
+
+
 @pytest.mark.parametrize("change", [{"grade": "judgment"}, {"depends_on": ["i-none"]}])
 def test_decided_card_with_a_bad_grade_or_dependency_degrades(tmp_path, change):
     content = round_one()
@@ -457,6 +468,24 @@ def test_the_links_come_from_the_config_the_remote_and_the_jira_base(monkeypatch
     monkeypatch.setattr(page_links, "_origin", lambda: remote)
     monkeypatch.setattr(page_links, "_jira_base", lambda: base and base.rstrip("/"))
     assert page_links.links_for(["PROJ-1", "WEB-7", None, "8"], {"projects": ["OLD"]}) == expected
+
+
+def test_a_page_with_no_ticket_links_the_config_projects_and_the_round_input_projects(monkeypatch):
+    import page_links
+    config = {"tracker": {"kind": "jira", "project": "PROJ", "projects": ["WEB", "not a key"]}}
+    monkeypatch.setattr(page_links, "run_command", lambda *_: {"ok": True, **config})
+    monkeypatch.setattr(page_links, "_origin", lambda: None)
+    monkeypatch.setattr(page_links, "_jira_base", lambda: "https://acme.atlassian.net")
+    assert page_links.links_for([None], None, ["OPS"]) == {
+        "ticket": "https://acme.atlassian.net/browse/{id}", "projects": ["OPS", "PROJ", "WEB"]}
+
+
+@pytest.mark.parametrize("value", ["OPS", ["ops"], ["OPS-1"], [3]])
+def test_round_input_projects_that_are_no_project_keys_are_refused(value):
+    import page_links
+    with pytest.raises(page_links.Refusal) as refused:
+        page_links.project_keys("ticket_projects", value)
+    assert refused.value.code == "bad-projects"
 
 
 def test_unreadable_ticket_is_refused_and_writes_nothing(world):
@@ -1142,7 +1171,9 @@ def test_candidate_term_goes_on_the_log_and_not_in_the_glossary(world):
 
 @pytest.mark.parametrize("content, code, status", [
     ({"banner": {}, "items": "not a list"}, "bad-round", 1),
-    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "body": "not a component"}]}, "bad-input", 2),
+    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "decided": {}, "body": "not a component"}]}, "bad-input", 2),
+    ({"banner": {}, "items": [{"id": "i-a", "kind": "decided", "body": {"type": "text", "props": {"text": "x"}}}]},
+     "no-decided-fields", 1),
     ({"banner": {}, "items": [], "maps": [{"props": {"nodes": ["not a node"]}}]}, "bad-input", 2),
 ])
 def test_a_malformed_round_answers_json_and_writes_nothing(world, content, code, status):

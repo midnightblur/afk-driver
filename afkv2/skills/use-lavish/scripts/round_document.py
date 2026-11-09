@@ -3,6 +3,7 @@
 Verbs, run from the repository root:
   build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
                  The skill is the name part of `<skill>-<session>.json`. `--private` marks a new page private.
+                 The round input's `ticket_projects` adds Jira projects to `session.links` (page_links.py).
   apply-readings --doc D --readings F
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text
-from page_links import links_for
+from page_links import links_for, project_keys
 
 SCHEMA = "afkv2.page/1"
 FORMAT_0 = "afkv2.page/0"
@@ -232,6 +233,14 @@ def _decided_fields(item_id, decided, known_ids):
     return fields, whole
 
 
+def require_decided(raw):
+    """Refuse `no-decided-fields` for a `decided` card with no `decided` object: a card with all its fields stays
+    decided, and a card with a gap in them degrades to `confirm` and is listed in `degraded`."""
+    if raw.get("kind") == "decided" and not isinstance(raw.get("decided"), dict):
+        raise Refusal("no-decided-fields", f"item {raw.get('id')}: a decided card holds its fields in `decided`, an "
+                                           "object; send them, or send the card as `confirm`")
+
+
 def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
     if not isinstance(raw, dict) or not raw.get("id"):
         raise Refusal("bad-item", f"item without an id: {raw!r}")
@@ -248,6 +257,7 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
     state = raw.get("state", "open")
     if state not in NEW_STATES:
         raise Refusal("bad-item", f"{where}: a new card is open or blocked, not {state!r}")
+    require_decided(raw)
     kind, body = raw["kind"], copy.deepcopy(raw.get("body"))
     if kind == "decided":
         fields, whole = _decided_fields(item_id, raw.get("decided"), known_ids)
@@ -458,7 +468,10 @@ def _change_line(where, line, n):
 
 
 def _place_after(stored, entry, after, where, name):
-    """The list with the entry right after the other entry of the list that `after` names."""
+    """The list with the entry right after the other entry of the list that `after` names; `after: null` puts it
+    first."""
+    if after is None:
+        return [entry, *(old for old in stored if old["id"] != entry["id"])]
     if after == entry["id"] or not any(old["id"] == after for old in stored):
         raise Refusal("bad-entry", f"{where}: after {after!r} names no other {name} of the list; a same-round "
                                    f"{name} counts only when it is sent before this one")
@@ -485,7 +498,7 @@ def _merge_entries(doc, round_input, n):
     """Merge the sent entries of the 4 lists into the document by id; answer their ids in the order sent.
 
     An entry left out keeps its text and its change list exactly. A sent entry holds every field but `changes`,
-    + `change`: its 1 change line for round `n`; a question or a section may add `after`, the entry it follows. A new entry
+    + `change`: its 1 change line for round `n`; a question or a section may add `after`, the entry it follows, or null to go first. A new entry
     goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one; an entry
     of the replaced round that the new round leaves out keeps that round's text and line (decision D-20)."""
     changed = []
@@ -560,8 +573,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     """Create the document or append the next round; write nothing on a refusal.
 
     `round_input` holds banner, items and optional maps, replies, colour, short_title (round 1), step and
-    changed (the element ids the agent changed this round) and tips. A reply is {text, notes, changed}. `tips`
-    replaces the document's tips catalog; omitting it keeps the stored tips. An item may carry
+    changed (the element ids the agent changed this round), tips and value_sets. A reply is {text, notes, changed}.
+    `tips` replaces the document's tips catalog; omitting it keeps the stored tips. `value_sets` adds each sent
+    set to the document's value sets, by name, and replaces a stored set of the same name. An item may carry
     `critical` (a picture must be the body root), `decided` (the six decided-card fields; a gap
     makes it a confirm card) and `carries` (the older cards it asks again). `ticket` adds the
     ticket card to round 1. `replace` rewrites a current round that has no answer and was never shown.
@@ -616,6 +630,10 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         doc["session"]["links"] = links
     if "tips" in round_input:
         doc["tips"] = round_input["tips"]
+    if "value_sets" in round_input:
+        if not isinstance(round_input["value_sets"], dict):
+            raise Refusal("bad-round", "value_sets is an object {name: {values, ordered}}")
+        doc["value_sets"] = {**(doc.get("value_sets") or {}), **round_input["value_sets"]}
     n = max((rnd["n"] for rnd in doc["rounds"]), default=0) + 1
     if upgrading:
         doc["session"]["upgraded"] = n
@@ -907,7 +925,8 @@ def main(argv):
         earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
         keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
                                                              *((ticket or {}).get("unread_links") or [])])]
-        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier))
+        extra = project_keys("ticket_projects", round_input.pop("ticket_projects", None)) if isinstance(round_input, dict) else []
+        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier, extra))
     if not args.readings:
         raise Refusal("usage", "apply-readings needs --readings", 2)
     return apply_readings(args.doc, read_json(args.readings))

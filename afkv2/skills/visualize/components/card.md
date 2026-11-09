@@ -52,7 +52,10 @@ A `decided` card shows its fields as labelled blocks, one `text` with a `label`
 each, in this order: "Decision" in bold, "Why this one", "Other options
 considered (rejected)" as a list, "Evidence" with the grade as a badge, "To
 undo", "Depends on". The label says that the other options are rejected, so they
-never read as parts of the decision.
+never read as parts of the decision. The round input of a `decided` card holds these fields in its
+`decided` object. The build refuses a `decided` card with no `decided` object
+(`no-decided-fields`), and writes a card with a gap in its fields as `confirm`,
+listed in `degraded` in its result.
 
 ## Example
 

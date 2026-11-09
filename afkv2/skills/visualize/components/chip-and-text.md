@@ -36,7 +36,9 @@ both. The document names its sets in `value_sets` (format 1, `afkv2.page/1`):
 `{name: {values, ordered}}`, with `values` the list of values in order and
 `ordered` true when the values run from strong to weak, such as a risk level. The
 engine refuses a chip whose set is no set of the document, or whose text is no
-value of its set.
+value of its set. The round input of the skill's build takes `value_sets` in the
+same form: each sent set is added by name, a set of the same name is replaced, and
+the other sets stay.
 
 Any component, a chip or a text too, takes `tip` (format 1), a text of 1 to 300
 characters that shows when the human points at the component.
@@ -49,7 +51,8 @@ References link by themselves, in every text of the page, not only in a `text`:
 project in `session.links.projects`) and a commit sha after "commit" or "sha".
 Each opens in a new tab. A kind links only when `session.links` has its template;
 otherwise it stays text. Write the reference in that form, for example `#159`,
-not `issue 159`.
+not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hover
+tip holds no link: write a reference the human must open in a label or a text.
 
 ## Use it when
 

@@ -1,4 +1,5 @@
-"""Jira Cloud REST v3: the client ported from v1, and the publish verbs on it. No create, transition or comment."""
+"""Jira Cloud REST v3: the client ported from v1, the reads and the publish verbs on it. No create, transition or
+comment."""
 
 from __future__ import annotations
 
@@ -26,6 +27,9 @@ END_LINE = "afkv2:prd:end"
 PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 DEFAULT_FIELDS = ("summary,status,issuetype,assignee,reporter,priority,created,updated,labels,components,"
                   "description,comment,issuelinks")
+SEARCH_FIELDS = "summary,status,issuetype,assignee,priority,updated,labels,fixVersions"
+SEARCH_PAGE = 100
+SEARCH_LIMIT = 1000
 _RECEIPT = re.compile(r"[0-9a-f]{64}")
 _FIGURE_NODES = {"mediaSingle", "mediaGroup", "media"}
 _READ_ATTRS = {"level", "language"}
@@ -358,6 +362,34 @@ def issue_get(payload):
         if block:
             answer["block"] = _summary(block.family, content[block.start + 1:block.end])
     return answer
+
+
+@_rest
+def issue_search(payload):
+    """A JQL search, page by page through `nextPageToken`, up to `max_results` issues."""
+    query = need(payload, "query")
+    if not isinstance(query, str) or not query.strip():
+        raise Refusal("bad-payload", "`query` is a JQL text")
+    try:
+        limit = int(SEARCH_LIMIT if payload.get("max_results") is None else payload["max_results"])
+    except (TypeError, ValueError):
+        raise Refusal("bad-payload", "`max_results` must be a number") from None
+    if limit < 1:
+        raise Refusal("bad-payload", "`max_results` must be 1 or more")
+    asked = payload.get("fields") or SEARCH_FIELDS
+    fields = asked if isinstance(asked, str) else ",".join(asked)
+    jira, issues, token, more = client(), [], None, False
+    while len(issues) < limit:
+        form = {"jql": query, "fields": fields, "maxResults": min(SEARCH_PAGE, limit - len(issues))}
+        if token:
+            form["nextPageToken"] = token
+        page = jira.get_json("/rest/api/3/search/jql?" + urllib.parse.urlencode(form))
+        issues += page.get("issues") or []
+        token = page.get("nextPageToken")
+        more = bool(token) and not page.get("isLast", not token)
+        if not more or not page.get("issues"):
+            break
+    return ok(issues=issues[:limit], count=len(issues[:limit]), truncated=more or len(issues) > limit)
 
 
 def md_to_adf(payload):

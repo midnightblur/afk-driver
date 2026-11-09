@@ -73,7 +73,7 @@ def test_install_record_keeps_the_first_time(places):
     first = setup.write_install_record(places, {"path": "/py", "version": "3.12"}, "/rg")
     os.utime(places.install_record, (1, 1))
     second = setup.write_install_record(places, {"path": "/py2", "version": "3.13"}, None)
-    assert second["installed"] == first["installed"] and second["python"] == "/py2 3.13"
+    assert second["installed"] == first["installed"] and second["python"] == "/py2" and second["python_version"] == "3.13"
 
 
 def test_no_install_record_gives_a_reason_to_relay(places, plugin_root):

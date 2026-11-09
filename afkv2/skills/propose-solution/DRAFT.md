@@ -41,7 +41,7 @@ The page shows the design in sections, in the order of the section catalog. `sec
 | `sec-patterns` | Design patterns | patterns | the pattern table, or the line "no pattern applied" |
 | `sec-performance` | Performance | performance | PF-1 to PF-4, or 1 line on why there is no performance risk |
 
-- Send a section that comes late with `after`, the id of the section it follows. That section is stored, or comes earlier in the same round input.
+- Send a section that comes late with `after`, the id of the section it follows. That section is stored, or comes earlier in the same round input. Send `after: null` to put a section first.
 - A picture is a component of type `map`, `graph`, `table`, `sequence`, `run-strip`, `freestyle` or `diagram`. Every picture has a caption: a child `text` labelled "What to see", of 1 line, or a `title` or a `caption` on the picture itself.
 - A system, critical or level section has a picture as its body root.
 - A level section: the children of its picture are the caption, then a `text` labelled "Summary" of at most 2 lines, then the rest of the detail, each child folded (`fold`).

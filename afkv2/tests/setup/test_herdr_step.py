@@ -170,7 +170,7 @@ def test_answer_yes_installs_and_records(env, places, herdr_system, herdr_runner
     assert code == 0 and answer["herdr"] == "installed"
     assert len(herdr_runner.installer_calls()) == 1
     assert setup.read_herdr_answer(places) == "installed"
-    assert setup.read_install_record(places)["python"] == "/py 3.12"
+    assert setup.read_install_record(places)["python"] == "/py"
 
 
 def test_answer_no_records_declined_and_is_never_asked_again(env, places, repo, herdr_system, herdr_runner,

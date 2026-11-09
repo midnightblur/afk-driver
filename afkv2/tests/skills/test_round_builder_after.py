@@ -168,3 +168,29 @@ def test_a_stored_section_resent_with_after_moves_to_its_new_place(path):
     build_sections(path, "i-a", section("sec-l1"), section("sec-l2"), section("sec-l3"))
     build_sections(path, "i-b", section("sec-l3", after="sec-l1"))
     assert section_ids(path) == ["sec-l1", "sec-l3", "sec-l2"]
+
+
+def test_a_new_section_with_after_null_is_placed_first(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"))
+    build_sections(path, "i-b", section("sec-asks", after=None))
+    assert section_ids(path) == ["sec-asks", "sec-l1", "sec-l2"]
+    assert all("after" not in entry for entry in rd.read_json(path)["sections"])
+
+
+def test_a_stored_section_resent_with_after_null_moves_first(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"), section("sec-l3"))
+    build_sections(path, "i-b", section("sec-l3", after=None))
+    assert section_ids(path) == ["sec-l3", "sec-l1", "sec-l2"]
+
+
+def test_a_first_section_resent_with_after_null_and_no_other_change_is_refused(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-l2"))
+    answer_current_round(path)
+    with pytest.raises(Refusal) as refused:
+        build_sections(path, "i-b", section("sec-l1", after=None))
+    assert refused.value.code == "unchanged-entry"
+
+
+def test_a_section_with_after_null_in_round_1_goes_before_the_sections_sent_before_it(path):
+    build_sections(path, "i-a", section("sec-l1"), section("sec-asks", after=None))
+    assert section_ids(path) == ["sec-asks", "sec-l1"]

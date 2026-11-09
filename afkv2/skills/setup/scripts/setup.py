@@ -87,17 +87,19 @@ def read_install_record(places: Places) -> dict[str, str]:
 
 
 def write_install_record(places: Places, python: dict, rg: str | None) -> dict:
-    """Keep the first `installed` time: the hook proof compares against it."""
+    """Keep the first `installed` time: the hook proof compares against it. The `python` line holds only the
+    path, which a skill runs as `<python>`; the version has its own line, because a path may hold a space."""
     record = read_install_record(places)
     record.setdefault("installed", _now().isoformat())
-    record["python"] = f"{python['path']} {python['version']}"
+    record["python"] = python["path"]
+    record["python_version"] = python["version"]
     record["rg"] = rg or "unknown"
     _write_record(places, record)
     return record
 
 
 def _write_record(places: Places, record: dict[str, str]) -> None:
-    first = [k for k in ("installed", "python", "rg") if k in record]
+    first = [k for k in ("installed", "python", "python_version", "rg") if k in record]
     keys = first + sorted(k for k in record if k not in first)
     write_atomic(places.install_record, "".join(f"{k} {record[k]}\n" for k in keys).encode("utf-8"))
 
