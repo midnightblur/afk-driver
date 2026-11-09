@@ -83,7 +83,7 @@ flowchart LR
 | Command | Verbs | Input | Success envelope | Error envelope | Exit codes |
 |---------|-------|-------|------------------|----------------|-----------|
 | page engine | check, render, show, poll, ingest | page document path; ingest also takes the raw response text | `{"ok": true, ...}` per verb | `{"ok": false, "error": {"code", "reason"}}` naming item and field | 0 ok · 1 refused · 2 unreadable input |
-| Jira tracker | issue-get, md-to-adf, attachment-list, attachment-put, attachment-delete, description-put | one JSON payload | `{"ok": true, ...}`; attachment-put returns attachment id + media id | same shape; codes from an HTTP-status table; description-put refuses `stale`, `bad-receipt` and `bad-block` | 0 · 1 · 2 |
+| Jira tracker | issue-get, issue-search (JQL, paged), md-to-adf, attachment-list, attachment-put, attachment-delete, description-put | one JSON payload | `{"ok": true, ...}`; attachment-put returns attachment id + media id | same shape; codes from an HTTP-status table; description-put refuses `stale`, `bad-receipt` and `bad-block` | 0 · 1 · 2 |
 | GitHub issue tracker | issue-get, issue-search | one JSON payload | `{"ok": true, ...}` | same shape | 0 · 1 · 2 |
 | forge (GitHub, GitLab) | the commands the chain calls, v1 names and v1 JSON answers (ADR-0007) | v1 arguments | v1 JSON answer inside `{"ok": true, ...}` | same shape (replaces v1's `error: true` at exit 0) | 0 · 1 · 2 |
 
