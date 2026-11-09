@@ -657,3 +657,22 @@ def test_replace_with_upgrade_of_a_round_after_the_upgrade_round_is_refused_and_
     assert refused.value.code == "upgrade-not-taken-over"
     assert read(path)["session"]["upgraded"] == 3
     assert path.read_bytes() == before
+
+
+def test_the_round_input_adds_value_sets_by_name_and_keeps_the_others(tmp_path):
+    from round_document import Refusal, build_round_document
+    path = tmp_path / "doc.json"
+    session = {"id": "s-1", "skill": "use-lavish", "feature": "f"}
+    risk = {"values": ["high", "low"], "ordered": True}
+    chip = {"type": "chip", "id": "i-a-risk", "props": {"text": "high", "set": "risk"}}
+    first = {"banner": {"settled": [], "unlocks": [], "parked": []}, "value_sets": {"risk": risk},
+             "items": [{"id": "i-a", "kind": "info", "body": chip}]}
+    build_round_document(path, session, first)
+    doc = json.loads(path.read_text("utf-8"))
+    assert doc["value_sets"] == {"risk": risk}
+    who = {"values": ["you", "team"], "ordered": False}
+    build_round_document(path, session, {**first, "value_sets": {"who": who}}, replace=True)
+    assert json.loads(path.read_text("utf-8"))["value_sets"] == {"risk": risk, "who": who}
+    with pytest.raises(Refusal) as refused:
+        build_round_document(path, session, {**first, "value_sets": ["risk"]}, replace=True)
+    assert refused.value.code == "bad-round"

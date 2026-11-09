@@ -36,7 +36,9 @@ both. The document names its sets in `value_sets` (format 1, `afkv2.page/1`):
 `{name: {values, ordered}}`, with `values` the list of values in order and
 `ordered` true when the values run from strong to weak, such as a risk level. The
 engine refuses a chip whose set is no set of the document, or whose text is no
-value of its set.
+value of its set. The round input of the skill's build takes `value_sets` in the
+same form: each sent set is added by name, a set of the same name is replaced, and
+the other sets stay.
 
 Any component, a chip or a text too, takes `tip` (format 1), a text of 1 to 300
 characters that shows when the human points at the component.
