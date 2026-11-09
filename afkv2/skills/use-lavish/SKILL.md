@@ -112,6 +112,7 @@ The visible text holds no element id and no round code: a round reads "round 3".
 - A merge sets `merged` and `merged_into`, a current section. A removal sets `removed` and `reason`. The section stays as 1 line, and it never returns. Nothing is deleted, so every note finds its element.
 - A section that depends on another names it in `links`. A card names the section it asks about in `section`: the card shows a link to its section, and the section shows a chip with the count of its open questions.
 - The round input holds only the entries that changed, in `sections`, `stories`, `examples` and `questions`.
+- A new section goes to the end. Send it with `after`, the id of a section, to place it right after that section, or with `after: null` to place it first. A section sent again with `after` moves there.
 - Send each entry whole, without `changes`, and with `change`: its 1 change line for this round, `{cause, text}`.
 - The causes: `note` with `notes`; `answer` with `card`, the developer's answer on that card; `answer_from` with `question`, an answer from someone else; `finding`, an agent finding.
 - The builder appends the change line. It refuses an entry without one (`no-change-line`).
@@ -123,7 +124,7 @@ The visible text holds no element id and no round code: a round reads "round 3".
 #### The questions block
 
 - The asking cards of the round show in 1 block, after the notes and replies and above the sections. Each card with `section` shows a link to its section.
-- The questions for others show as their own part, in the order of `questions`, with a filter by who to ask (`who`). A new question goes to the end; a follow-up goes right after the question it follows, by `after`. A question that waits on another names it in `waits_on`, and the page links to it. A question with `choices` shows a tick for 1 option, or for several when `several` is true.
+- The questions for others show as their own part, in the order of `questions`, with a filter by who to ask (`who`). A new question goes to the end; a follow-up goes right after the question it follows, by `after`; `after: null` puts a question first. A question that waits on another names it in `waits_on`, and the page links to it. A question with `choices` shows a tick for 1 option, or for several when `several` is true.
 
 #### What goes first on a version 0 or 1 page
 

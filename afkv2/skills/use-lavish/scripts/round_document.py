@@ -468,7 +468,10 @@ def _change_line(where, line, n):
 
 
 def _place_after(stored, entry, after, where, name):
-    """The list with the entry right after the other entry of the list that `after` names."""
+    """The list with the entry right after the other entry of the list that `after` names; `after: null` puts it
+    first."""
+    if after is None:
+        return [entry, *(old for old in stored if old["id"] != entry["id"])]
     if after == entry["id"] or not any(old["id"] == after for old in stored):
         raise Refusal("bad-entry", f"{where}: after {after!r} names no other {name} of the list; a same-round "
                                    f"{name} counts only when it is sent before this one")
@@ -495,7 +498,7 @@ def _merge_entries(doc, round_input, n):
     """Merge the sent entries of the 4 lists into the document by id; answer their ids in the order sent.
 
     An entry left out keeps its text and its change list exactly. A sent entry holds every field but `changes`,
-    + `change`: its 1 change line for round `n`; a question or a section may add `after`, the entry it follows. A new entry
+    + `change`: its 1 change line for round `n`; a question or a section may add `after`, the entry it follows, or null to go first. A new entry
     goes to the end of its list. A line of round `n` that a replaced round wrote gives way to the new one; an entry
     of the replaced round that the new round leaves out keeps that round's text and line (decision D-20)."""
     changed = []
