@@ -4,7 +4,9 @@
 
 Rows and cells. Type `table`. Props: `columns` (a list of headings) and `rows`
 (a list of rows, each a list with one cell per column). A cell is plain text or
-any component: a chip, a graph, another table.
+any component: a chip, a graph, another table. Plain text renders no Markdown: a
+ticket key links by itself (`chip-and-text.md`); for a Markdown link, put a `text`
+with `markdown: true` in the cell.
 
 ## Use it when
 

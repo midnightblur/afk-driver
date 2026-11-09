@@ -8,7 +8,8 @@
   commit  7 to 40 hex characters after "commit" or "sha", and 40 hex characters alone
 
 A kind with no template stays text. Only text between tags changes, so ids and attributes keep their
-bytes. Text in a link, code, a script, a style, a form control, a fold label or an SVG stays text.
+bytes. Text in a link, code, a script, a style, a form control, a fold label or an SVG stays text, and so
+does a URL written in text: `https://host/browse/ABC-123` keeps its key as text.
 
 Each link carries `data-lavish-action`. lavish catches every click in its note mode and opens the note
 composer instead; it lets a click on an element inside `[data-lavish-action]` through, so the link opens.
@@ -26,6 +27,7 @@ TAG = re.compile(r"(<[^>]*>)")
 TAG_NAME = re.compile(r"<(/?)([A-Za-z][\w-]*)")
 CHANGE_WORDS = r"(?i:\b(?:PR|MR|pull request|merge request)\s+)"
 COMMIT_WORDS = r"(?i:\b(?:commits?|sha)\b:?\s+)"
+URL = re.compile(r"(https?://[^\s<>\"']+)")
 LINK = ('<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer" '
         'data-lavish-action="afkv2-ref">{}</a>')
 CARD_LINK = '<a class="afkv2-card-link" href="#{0}" data-lavish-action="afkv2-card-link">{0}</a>'
@@ -77,8 +79,13 @@ def linkify(html: str, links: dict | None) -> str:
             depth = _skip_depth(part, depth, SKIPPED)
             out.append(part)
         else:
-            out.append(part if depth or not part else pattern.sub(replace, part))
+            out.append(part if depth or not part else _outside_urls(part, lambda text: pattern.sub(replace, text)))
     return "".join(out)
+
+
+def _outside_urls(text: str, change) -> str:
+    """`change` applied to the text between the URLs in `text`; each URL keeps its bytes."""
+    return "".join(piece if index % 2 else change(piece) for index, piece in enumerate(URL.split(text)))
 
 
 def _skip_depth(part: str, depth: int, skipped: set[str]) -> int:
@@ -110,5 +117,6 @@ def link_cards(html: str, ids) -> str:
         elif depth or not part:
             out.append(part)
         else:
-            out.append(pattern.sub(lambda m: m.group(1) if m.group(1) in cards else CARD_LINK.format(m.group(1)), part))
+            out.append(_outside_urls(part, lambda text: pattern.sub(
+                lambda m: m.group(1) if m.group(1) in cards else CARD_LINK.format(m.group(1)), text)))
     return "".join(out)

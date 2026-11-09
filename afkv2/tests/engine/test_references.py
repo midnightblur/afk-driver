@@ -128,6 +128,18 @@ def test_each_link_lets_its_click_through_the_note_mode_of_lavish():
     assert attrs and set(attrs) == {NEW_TAB}
 
 
+@pytest.mark.parametrize("text", ["https://acme.atlassian.net/browse/ABC-12", "see https://x.test/ABC-12?a=1&amp;b=#9."])
+def test_a_reference_inside_a_url_stays_text(text):
+    assert linkify(f"<p>{text}</p>", LINKS) == f"<p>{text}</p>"
+
+
+def test_a_markdown_link_in_a_plain_cell_links_its_key_once_and_keeps_its_url_as_text():
+    """A plain cell is plain text: the brackets show, the key links, the key inside the URL does not."""
+    url = "https://acme.atlassian.net/browse/ABC-748"
+    assert linkify(f"<td>[ABC-748]({url})</td>", LINKS) == (
+        f"<td>[{anchor(url, 'ABC-748')}]({url})</td>")
+
+
 @pytest.mark.parametrize("fixture", ["v0-page-with-notes.json", "v0-sdd-pass.json"])
 def test_every_link_of_a_page_lets_its_click_through(fixture):
     """A link the engine writes without `data-lavish-action` opens the note composer, never its target."""
