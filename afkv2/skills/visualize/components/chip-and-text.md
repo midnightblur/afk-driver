@@ -49,7 +49,8 @@ References link by themselves, in every text of the page, not only in a `text`:
 project in `session.links.projects`) and a commit sha after "commit" or "sha".
 Each opens in a new tab. A kind links only when `session.links` has its template;
 otherwise it stays text. Write the reference in that form, for example `#159`,
-not `issue 159`.
+not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hover
+tip holds no link: write a reference the human must open in a label or a text.
 
 ## Use it when
 

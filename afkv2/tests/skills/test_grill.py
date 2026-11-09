@@ -459,6 +459,24 @@ def test_the_links_come_from_the_config_the_remote_and_the_jira_base(monkeypatch
     assert page_links.links_for(["PROJ-1", "WEB-7", None, "8"], {"projects": ["OLD"]}) == expected
 
 
+def test_a_page_with_no_ticket_links_the_config_projects_and_the_round_input_projects(monkeypatch):
+    import page_links
+    config = {"tracker": {"kind": "jira", "project": "PROJ", "projects": ["WEB", "not a key"]}}
+    monkeypatch.setattr(page_links, "run_command", lambda *_: {"ok": True, **config})
+    monkeypatch.setattr(page_links, "_origin", lambda: None)
+    monkeypatch.setattr(page_links, "_jira_base", lambda: "https://acme.atlassian.net")
+    assert page_links.links_for([None], None, ["OPS"]) == {
+        "ticket": "https://acme.atlassian.net/browse/{id}", "projects": ["OPS", "PROJ", "WEB"]}
+
+
+@pytest.mark.parametrize("value", ["OPS", ["ops"], ["OPS-1"], [3]])
+def test_round_input_projects_that_are_no_project_keys_are_refused(value):
+    import page_links
+    with pytest.raises(page_links.Refusal) as refused:
+        page_links.project_keys("ticket_projects", value)
+    assert refused.value.code == "bad-projects"
+
+
 def test_unreadable_ticket_is_refused_and_writes_nothing(world):
     out = world.scratch / "ticket.json"
     answer = world.run("read-ticket", expect=1, ticket_key="PROJ-404", ticket_file=out)

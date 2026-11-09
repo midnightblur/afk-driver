@@ -3,6 +3,7 @@
 Verbs, run from the repository root:
   build          --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]
                  The skill is the name part of `<skill>-<session>.json`. `--private` marks a new page private.
+                 The round input's `ticket_projects` adds Jira projects to `session.links` (page_links.py).
   apply-readings --doc D --readings F
 
 The engine stays the check of the whole document; this script holds the grill's own rules:
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text
-from page_links import links_for
+from page_links import links_for, project_keys
 
 SCHEMA = "afkv2.page/1"
 FORMAT_0 = "afkv2.page/0"
@@ -907,7 +908,8 @@ def main(argv):
         earlier = (read_json(args.doc).get("session") or {}).get("links") if Path(args.doc).exists() else None
         keys = [args.ticket, *(link.get("key") for link in [*((ticket or {}).get("links") or []),
                                                              *((ticket or {}).get("unread_links") or [])])]
-        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier))
+        extra = project_keys("ticket_projects", round_input.pop("ticket_projects", None)) if isinstance(round_input, dict) else []
+        return build_round_document(args.doc, session, round_input, ticket, args.replace, links_for(keys, earlier, extra))
     if not args.readings:
         raise Refusal("usage", "apply-readings needs --readings", 2)
     return apply_readings(args.doc, read_json(args.readings))

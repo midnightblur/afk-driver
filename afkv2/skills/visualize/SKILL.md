@@ -35,7 +35,7 @@ Field constraints: the engine's schema file `engine/schema/page-v1.schema.json`
 
 - `session.skill` is `grill`, `propose-solution` or `propose-verification`; `started` is ISO-8601 UTC.
 - `session.step` and `session.short_title` come from the round input's `step` and `short_title`; the build writes the short title in round 1 only.
-- `session.links` (optional) holds the URL templates that link references in the page text: `issue`, `change`, `commit`, `ticket`, each with `{id}` for the reference, and `projects`, the Jira project keys that `ticket` links. The skill's build writes it; the forms: `components/chip-and-text.md`.
+- `session.links` (optional) holds the URL templates that link references in the page text: `issue`, `change`, `commit`, `ticket`, each with `{id}` for the reference, and `projects`, the Jira project keys that `ticket` links. The skill's build writes it: `projects` holds the projects of the session ticket and its links, the config's `tracker.project` and `tracker.projects`, and the round input's `ticket_projects`, a list such as `["ABC"]` for the other projects the page names; the forms: `components/chip-and-text.md`.
 - `maps` holds the session's maps; you update their nodes in place.
 - `rounds`: exactly one round is `current`. A new round appends with the next `n`. A `settled` round is never rewritten.
 - An item is one card. Its `body` is one component; every component can hold more components in `children`.
