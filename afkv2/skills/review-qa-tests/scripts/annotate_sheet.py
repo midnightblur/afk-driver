@@ -4,6 +4,10 @@
 Usage:
     python annotate_sheet.py config.json          # write
     python annotate_sheet.py --verify out.xlsx    # validate a written file
+    python annotate_sheet.py --install-dependencies   # openpyxl into the afkv2 data folder
+
+openpyxl loads from %LOCALAPPDATA%/afkv2/python-packages first, then from the Python
+environment. When it is in neither, the script exits 3 and names --install-dependencies.
 
 config.json:
     source        .xlsx to read (alias: "backup")
@@ -24,7 +28,7 @@ Two modes, auto-selected by whether `source` already holds comments:
 Both write real threaded comments and dodge the two orphan-relationship faults that make
 Excel prompt to repair (see EXCEL.md).
 """
-import sys, os, re, json, uuid, zipfile, shutil
+import sys, os, re, json, uuid, zipfile, shutil, subprocess, importlib.util
 from xml.sax.saxutils import escape
 
 PERSON_ID = '{0C5AF367-69BB-4C84-BB7C-B41C21C97D64}'
@@ -33,6 +37,8 @@ BOILER = ('[Threaded comment]\n\nYour version of Excel allows you to read this t
           'newer version of Excel. Learn more: https://go.microsoft.com/fwlink/?linkid=870924'
           '\n\nComment:\n    ')
 HL_RGB = 'FFFFF2CC'   # pale yellow highlight for proposed new rows
+OPENPYXL = 'openpyxl==3.1.5'
+EXIT_MISSING_DEPENDENCY = 3
 COL = {c: i for i, c in enumerate('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}   # letter -> 0-based index
 
 
@@ -342,10 +348,33 @@ def verify(path):
     return ok
 
 
+# ---------------------------------------------------------------- dependencies
+def packages_folder():
+    base = os.environ.get('LOCALAPPDATA')
+    if not base:
+        sys.exit('ERROR: LOCALAPPDATA is not set; the afkv2 data folder is %LOCALAPPDATA%\afkv2')
+    return os.path.join(base, 'afkv2', 'python-packages')
+
+
+def use_packages_folder():
+    folder = packages_folder()
+    if os.path.isdir(folder) and folder not in sys.path:
+        sys.path.insert(0, folder)
+    return importlib.util.find_spec('openpyxl') is not None
+
+
+def install_dependencies(run=subprocess.run):
+    return run([sys.executable, '-m', 'pip', 'install', '--disable-pip-version-check', '--no-input', '--no-warn-conflicts',
+                '--upgrade', '--target', packages_folder(), OPENPYXL]).returncode
+
+
 if __name__ == '__main__':
-    import importlib.util
-    if importlib.util.find_spec('openpyxl') is None:
-        sys.exit('ERROR: the openpyxl package is missing. Install it: python -m pip install openpyxl')
+    if sys.argv[1:] == ['--install-dependencies']:
+        sys.exit(install_dependencies())
+    if not use_packages_folder():
+        print(f'MISSING: {OPENPYXL}. After the developer says yes, run: '
+              f'"{sys.executable}" "{os.path.abspath(__file__)}" --install-dependencies', file=sys.stderr)
+        sys.exit(EXIT_MISSING_DEPENDENCY)
     if len(sys.argv) == 3 and sys.argv[1] == '--verify':
         sys.exit(0 if verify(sys.argv[2]) else 1)
     if len(sys.argv) != 2:

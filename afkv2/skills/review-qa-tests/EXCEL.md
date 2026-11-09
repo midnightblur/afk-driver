@@ -4,7 +4,9 @@ QA sheets need **threaded comments** (the modern reply boxes), not legacy **note
 
 ## Run it
 
-`<python>` is the Python in the setup install record (line `python`). The script needs the `openpyxl` package. If the script reports that `openpyxl` is missing, tell the developer to run `<python> -m pip install openpyxl`.
+`<python>` is the Python in the setup install record (line `python`). The script needs the `openpyxl` package. It loads `openpyxl` from `%LOCALAPPDATA%\afkv2\python-packages` first, then from the Python environment.
+
+When the script exits 3 with `MISSING:`, `openpyxl` is in neither place. Tell the developer that the install downloads `openpyxl` from the Python Package Index (PyPI) into that folder and changes no other Python package. Ask for a yes, and end your turn. After the yes, run the command that the message gives, then run the script again. Never install without the yes.
 
 ```
 <python> "<this skill's folder>/scripts/annotate_sheet.py" config.json
