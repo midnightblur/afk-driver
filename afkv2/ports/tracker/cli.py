@@ -32,9 +32,7 @@ def _issue_get(payload):
 
 def _issue_search(payload):
     kind, payload = _kind_and_repo(payload)
-    if kind != "github-issues":
-        raise envelope.Refusal("unsupported", f"issue-search has no {kind} form")
-    return github_issues.issue_search(payload)
+    return KINDS[kind].issue_search(payload)
 
 
 VERBS = {

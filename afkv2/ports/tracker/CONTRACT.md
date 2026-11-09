@@ -10,7 +10,7 @@ Exit 0 is ok. Exit 1 is a refusal. Exit 2 is unreadable input (`bad-payload`, `u
 | Verb | Payload | Answer | Kind |
 |------|---------|--------|------|
 | `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` (the bare number, also for `owner/name#7`) and the `gh` fields | both |
-| `issue-search` | optional `query`, `max_results`, `tracker`, `repo` | `issues, count` | GitHub issues |
+| `issue-search` | GitHub: optional `query`, `max_results`, `tracker`, `repo`. Jira: `query` (JQL); optional `fields` (comma string or list), `max_results` (default 1000), `tracker` | GitHub: `issues, count`. Jira: `issues, count, truncated`; the port reads every page up to `max_results`, and `truncated` is true when Jira holds more | both |
 | `md-to-adf` | `markdown`; optional `figures` `{index: [ADF nodes]}` | `content, figure_token, block_text` | Jira |
 | `attachment-list` | `key` | `attachments, count` | Jira |
 | `attachment-put` | `key, png, receipt, preview` | `key, attachment_id, media_id, filename, width, height` | Jira |
