@@ -458,8 +458,11 @@ def test_the_install_record_ends_at_switch_back(taken_over, env, places, repo, s
 
 def test_prepare_records_the_python_it_found(world, env, places, repo, system, plugin_root, capsys):
     code, prepared = _cli(["prepare"], env, system, plugin_root, repo, capsys)
-    assert code == 0 and prepared["install_record"]["python"] == "/usr/bin/python3 3.12.4"
-    assert setup.read_install_record(places)["python"] == "/usr/bin/python3 3.12.4"
+    assert code == 0 and prepared["install_record"]["python"] == "/usr/bin/python3"
+    assert prepared["install_record"]["python_version"] == "3.12.4"
+    assert setup.read_install_record(places)["python"] == "/usr/bin/python3"
+    assert places.install_record.read_text("utf-8").splitlines()[1:3] == ["python /usr/bin/python3",
+                                                                          "python_version 3.12.4"]
 
 
 def test_copy_config_verb_copies_once_and_keeps_the_v1_config(world, env, repo, system, plugin_root, capsys):
