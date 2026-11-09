@@ -27,7 +27,8 @@ TAG = re.compile(r"(<[^>]*>)")
 TAG_NAME = re.compile(r"<(/?)([A-Za-z][\w-]*)")
 CHANGE_WORDS = r"(?i:\b(?:PR|MR|pull request|merge request)\s+)"
 COMMIT_WORDS = r"(?i:\b(?:commits?|sha)\b:?\s+)"
-URL = re.compile(r"(https?://[^\s<>\"']+)")
+# Text is escaped: a URL also ends at an escaped quote or angle bracket.
+URL = re.compile(r"(https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s<>\"'])+)")
 LINK = ('<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer" '
         'data-lavish-action="afkv2-ref">{}</a>')
 CARD_LINK = '<a class="afkv2-card-link" href="#{0}" data-lavish-action="afkv2-card-link">{0}</a>'

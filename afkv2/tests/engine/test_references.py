@@ -146,3 +146,15 @@ def test_every_link_of_a_page_lets_its_click_through(fixture):
     doc = json.loads((PLUGIN / "tests" / "engine" / "fixtures" / fixture).read_text("utf-8"))
     tags = OPEN_LINK.findall(page.build(doc))
     assert tags and [tag for tag in tags if not LET_THROUGH.search(tag)] == []
+
+
+def test_a_url_ends_at_an_escaped_quote_so_the_key_after_it_links():
+    url = "https://x.test/a"
+    assert linkify(f"<p>&quot;{url}&quot;ABC-1</p>", LINKS) == (
+        f'<p>&quot;{url}&quot;{anchor("https://acme.atlassian.net/browse/ABC-1", "ABC-1")}</p>')
+
+
+def test_an_element_link_of_a_version_2_page_lets_its_click_through():
+    from shell import parts_v2
+    tags = OPEN_LINK.findall(parts_v2.link({"session": {}, "rounds": []}, "sec-a"))
+    assert len(tags) == 1 and LET_THROUGH.search(tags[0])
