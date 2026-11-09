@@ -117,7 +117,8 @@ def _tip(doc: dict, element: str) -> str:
 
 def link(doc: dict, element: str) -> str:
     """A link to an element: its label as the text, its meaning as the hover text, its id only as the target."""
-    return (f'<a class="afkv2-v2-link" href="#{escape(element)}" data-afkv2-tip="{escape(_tip(doc, element))}">'
+    return (f'<a class="afkv2-v2-link" href="#{escape(element)}" data-afkv2-tip="{escape(_tip(doc, element))}" '
+            'data-lavish-action="afkv2-v2-link">'
             f'{escape(visible_label(doc, "element", element))}</a>')
 
 

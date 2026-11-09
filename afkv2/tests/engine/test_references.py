@@ -20,9 +20,12 @@ REPO = "https://github.com/acme/shop"
 LINKS = {"issue": REPO + "/issues/{id}", "change": REPO + "/pull/{id}", "commit": REPO + "/commit/{id}",
          "ticket": "https://acme.atlassian.net/browse/{id}", "projects": ["ABC"]}
 SHA = "0123456789abcdef0123456789abcdef01234567"
-NEW_TAB = 'target="_blank" rel="noopener noreferrer"'
+NEW_TAB = 'target="_blank" rel="noopener noreferrer" data-lavish-action="afkv2-ref"'
 REF_CLASS = 'class="afkv2-ref"'
 TIPS_DICT = 'id="afkv2-tips-dict"'
+OPEN_LINK = re.compile(r"<a\b[^>]*>")
+LET_THROUGH = re.compile(r'\sdata-lavish-action="[^"]+"')
+REF_ATTRS = re.compile(r'<a class="afkv2-ref" href="[^"]*" ([^>]*)>')
 
 
 def anchor(href, words):
@@ -115,3 +118,43 @@ def test_the_check_accepts_the_links_block(tmp_path, monkeypatch, capsys):
     path = tmp_path / "doc.json"
     path.write_text(json.dumps(document(LINKS)), "utf-8")
     assert engine.main(["check", str(path)]) == 0
+
+
+def test_each_link_lets_its_click_through_the_note_mode_of_lavish():
+    """lavish's note mode takes every click outside `[data-lavish-action]` and opens the note composer, so a
+    link without the attribute never opens."""
+    html = page.build(document(LINKS))
+    attrs = REF_ATTRS.findall(html)
+    assert attrs and set(attrs) == {NEW_TAB}
+
+
+@pytest.mark.parametrize("text", ["https://acme.atlassian.net/browse/ABC-12", "see https://x.test/ABC-12?a=1&amp;b=#9."])
+def test_a_reference_inside_a_url_stays_text(text):
+    assert linkify(f"<p>{text}</p>", LINKS) == f"<p>{text}</p>"
+
+
+def test_a_markdown_link_in_a_plain_cell_links_its_key_once_and_keeps_its_url_as_text():
+    """A plain cell is plain text: the brackets show, the key links, the key inside the URL does not."""
+    url = "https://acme.atlassian.net/browse/ABC-748"
+    assert linkify(f"<td>[ABC-748]({url})</td>", LINKS) == (
+        f"<td>[{anchor(url, 'ABC-748')}]({url})</td>")
+
+
+@pytest.mark.parametrize("fixture", ["v0-page-with-notes.json", "v0-sdd-pass.json"])
+def test_every_link_of_a_page_lets_its_click_through(fixture):
+    """A link the engine writes without `data-lavish-action` opens the note composer, never its target."""
+    doc = json.loads((PLUGIN / "tests" / "engine" / "fixtures" / fixture).read_text("utf-8"))
+    tags = OPEN_LINK.findall(page.build(doc))
+    assert tags and [tag for tag in tags if not LET_THROUGH.search(tag)] == []
+
+
+def test_a_url_ends_at_an_escaped_quote_so_the_key_after_it_links():
+    url = "https://x.test/a"
+    assert linkify(f"<p>&quot;{url}&quot;ABC-1</p>", LINKS) == (
+        f'<p>&quot;{url}&quot;{anchor("https://acme.atlassian.net/browse/ABC-1", "ABC-1")}</p>')
+
+
+def test_an_element_link_of_a_version_2_page_lets_its_click_through():
+    from shell import parts_v2
+    tags = OPEN_LINK.findall(parts_v2.link({"session": {}, "rounds": []}, "sec-a"))
+    assert len(tags) == 1 and LET_THROUGH.search(tags[0])

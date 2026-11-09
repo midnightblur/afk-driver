@@ -26,7 +26,8 @@ CHANGED_LIST = "afkv2-banner-changed"
 FRESH_ATTR = "data-afkv2-fresh"
 FRESH = FRESH_ATTR + '="{}"'
 FRESH_RULE = f"[{FRESH_ATTR}]"
-CARD_LINK = '<a class="afkv2-card-link" href="#{0}">{0}</a>'
+CARD_LINK = '<a class="afkv2-card-link" href="#{0}" data-lavish-action="afkv2-card-link">{0}</a>'
+CHANGED_LINK = '<a href="#{0}" data-lavish-action="afkv2-changed">{1}</a>'
 CARD_LINK_START = '<a class="afkv2-card-link"'
 CANVAS = 'class="afkv2-boxes"'
 GROUPS = '<div class="afkv2-map-groups">'
@@ -154,7 +155,8 @@ def test_after_round_1_the_banner_lists_each_changed_element_with_a_link():
     html = build(changed_rounds())
     current = banner(html, 2)
     assert CHANGED_LIST in current and "What changed" in current
-    assert '<a href="#i-new">The new card</a>' in current and '<a href="#d-cost">d-cost</a>' in current
+    assert (CHANGED_LINK.format("i-new", "The new card") in current
+            and CHANGED_LINK.format("d-cost", "d-cost") in current)
     assert current.index("#i-new") < current.index("#d-cost")
 
 
@@ -178,7 +180,7 @@ def test_an_element_that_an_answer_changed_is_listed_and_marked_too():
     doc["rounds"][1]["replies"] = [{"text": "Done.", "changed": ["i-plain", "i-new"]}]
     html = build(doc)
     current = banner(html, 2)
-    assert current.count('href="#i-new"') == 1 and '<a href="#i-plain">i-plain</a>' in current
+    assert current.count('href="#i-new"') == 1 and CHANGED_LINK.format("i-plain", "i-plain") in current
     assert current.index("#d-cost") < current.index("#i-plain")
     assert FRESH.format(2) in element_tag(html, "i-plain")
     assert html.count(FRESH_ATTR + "=") == 3
@@ -417,11 +419,12 @@ def test_an_answer_that_changed_the_card_sets_the_round_of_the_box():
     assert node_cards(build(doc)) == {"n-1": ["i-a", 2]}
 
 
-BOX_SKIPS_LINK = "if (event.target.closest && event.target.closest(IN_PAGE_LINK)) return;"
+BOX_SKIPS_LINK = "if (event.target.closest && event.target.closest('a[href]')) return;"
 
 
-def test_a_card_link_in_a_box_label_jumps_once_and_an_odd_id_still_jumps():
-    """Review findings: a link in a box label pushed 2 places; a bare % in an id threw before the jump."""
+def test_a_link_in_a_box_label_does_only_its_own_work_and_an_odd_id_still_jumps():
+    """Review findings: a link in a box label pushed 2 places; a bare % in an id threw before the jump. A
+    reference link in the label opens its tab and does not also jump to the box's card."""
     assert BOX_SKIPS_LINK in RUNTIME
     assert "decodeURIComponent" not in RUNTIME
 

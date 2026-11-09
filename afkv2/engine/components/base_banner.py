@@ -21,7 +21,8 @@ def _list(values):
 def _changed(entries):
     if entries is None:
         return ""
-    links = [f'<a href="#{escape(entry["id"])}">{escape(entry["label"])}</a>' for entry in entries]
+    links = [f'<a href="#{escape(entry["id"])}" data-lavish-action="afkv2-changed">{escape(entry["label"])}</a>'
+             for entry in entries]
     return f'<div class="{LIST_CLASS} {CHANGED_CLASS}"><h3>What changed</h3>{_list(links)}</div>'
 
 

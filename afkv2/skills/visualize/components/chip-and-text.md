@@ -53,6 +53,9 @@ Each opens in a new tab. A kind links only when `session.links` has its template
 otherwise it stays text. Write the reference in that form, for example `#159`,
 not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hover
 tip holds no link: write a reference the human must open in a label or a text.
+A reference inside a URL stays text. Plain text, a table cell among it, renders no
+Markdown: write the bare key `ABC-123`, not `[ABC-123](https://...)`, which shows
+its brackets and its URL.
 
 ## Use it when
 
