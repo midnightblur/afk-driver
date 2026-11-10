@@ -185,3 +185,10 @@ def test_a_titled_link_in_a_table_cell_a_text_and_a_map_label_keeps_its_tip_on_t
         {"id": "n-1", "label": "ABC-3 login", "state": "open", "round": 1}]}}]
     html = page.build(engine.READERS[doc["schema"]](doc))
     assert html.count(FLAG_TIP) == 1 and html.count(LOGIN_TIP) == 2
+
+
+def test_a_change_written_after_its_words_takes_the_title_of_the_change_before_the_issue():
+    links = {**LINKS, "titles": {"#5": "issue five", "!5": "change five", "#6": "shared six"}}
+    html = linkify("<p>MR #5, #5, PR #6.</p>", links)
+    assert html == (f'<p>MR {titled(REPO + "/pull/5", "#5", "change five")}, '
+                    f'{titled(REPO + "/issues/5", "#5", "issue five")}, PR {titled(REPO + "/pull/6", "#6", "shared six")}.</p>')

@@ -7,7 +7,8 @@
   ticket  `ABC-123`, only for a project key in `projects`
   commit  7 to 40 hex characters after "commit" or "sha", and 40 hex characters alone
 
-`session.links.titles` maps a reference as the text writes it (`ABC-123`, `#123`, `!123`) to its title: the
+`session.links.titles` maps a reference as the text writes it (`ABC-123`, `#123`, `!123`; `PR #123` takes the
+title of `!123` first) to its title: the
 link shows it on hover through the tooltip layer (`tips.js`). A reference with no title gets no hover text.
 
 A kind with no template stays text. Only text between tags changes, so ids and attributes keep their
@@ -65,8 +66,8 @@ def _href(template: str, reference: str) -> str:
 def _replace(links: dict):
     titles = links.get("titles") or {}
 
-    def anchor(kind: str, reference: str) -> str:
-        title = titles.get(reference)
+    def anchor(kind: str, reference: str, title_key: str | None = None) -> str:
+        title = titles.get(title_key or reference)
         if title:
             return TITLED_LINK.format(_href(links[kind], reference), escape(title), reference)
         return LINK.format(_href(links[kind], reference), reference)
@@ -74,7 +75,9 @@ def _replace(links: dict):
     def link(match: re.Match) -> str:
         found = match.groupdict()
         if found.get("cr"):
-            return found["cw"] + anchor("change", found["cr"])
+            # "MR #5" is change 5: its title is the one of `!5`, else of `#5` (one number space on GitHub).
+            number = found["cr"].lstrip("#!")
+            return found["cw"] + anchor("change", found["cr"], "!" + number if "!" + number in titles else None)
         for group, kind in (("c", "change"), ("i", "issue"), ("t", "ticket"), ("f", "commit")):
             if found.get(group):
                 return anchor(kind, found[group])
