@@ -331,3 +331,54 @@ def test_the_send_line_of_a_tick_ingests(path):
     raw = prompt_lines.raw_from_prompts(copy.deepcopy(doc), [tick("q-many tick xls pdf")], ids_of(doc))
     answer, _ = ingested(path, doc, raw)
     assert answer["questions_to_read"][0]["choices"] == ["xls", "pdf"]
+
+
+# --- a note on a table row keeps its row
+
+
+def table_document():
+    doc = v2_document()
+    grid = {"type": "table", "id": "i-new-t", "props": {"columns": ["#", "Link", "Write?"],
+                                                         "rows": [["1", "ABC-1", "yes"], ["2", "ABC-2", "no"],
+                                                                  ["3", "", "4"]]}}
+    item_of(doc, "i-new")["body"] = text("Two links.", children=[grid])
+    return doc
+
+
+ROW_2 = "tr#afkv2-tr-i-new-t-2 > td:nth-of-type(2)"
+
+
+def test_a_note_on_a_table_row_stores_the_row_and_the_ingest_answer_and_notes_table_show_it(path):
+    from shell import page
+    doc = table_document()
+    save(path, doc)
+    raw = engine.poll_raw(str(path), [
+        {"uid": "u1", "prompt": "Approve.", "selector": ROW_2, "tag": "td", "text": "no"},
+        {"uid": "u2", "prompt": "Why this?", "selector": ROW_2, "tag": "text", "text": "no"},
+        {"uid": "u3", "prompt": "Empty.", "selector": "tr#afkv2-tr-i-new-t-3 > td:nth-of-type(1)", "tag": "td",
+         "text": ""}])
+    assert raw == ('[round R-2]\ni-new-t note 1\n  on: "row 2 (ABC-2)"\n  Approve.\n'
+                   'i-new-t note 2\n  on: "row 2 (ABC-2): no"\n  Why this?\n'
+                   'i-new-t note 3\n  on: "row 3"\n  Empty.')
+    answer, after = ingested(path, doc, raw)
+    assert [(n["target"], n["quote"]) for n in after["notes"]] == [
+        ("i-new-t", "row 2 (ABC-2)"), ("i-new-t", "row 2 (ABC-2): no"), ("i-new-t", "row 3")]
+    assert [signal["quote"] for signal in answer["signals"]] == ["row 2 (ABC-2)", "row 2 (ABC-2): no", "row 3"]
+    assert "row 2 (ABC-2)" in page.build(engine.READERS[V2](after))
+    assert checks(path) == 0
+
+
+def test_a_note_on_a_cell_component_with_its_own_id_names_that_component_and_no_row(path):
+    doc = table_document()
+    item_of(doc, "i-new")["body"]["children"][0]["props"]["rows"][0][2] = text("yes", id="i-new-cell")
+    save(path, doc)
+    raw = engine.poll_raw(str(path), [{"uid": "u1", "prompt": "Fine.", "tag": "p", "text": "yes",
+                                       "selector": "div#i-new-cell > p"}])
+    assert raw == "[round R-2]\ni-new-cell note 1\n  Fine."
+
+
+def test_a_stored_note_on_a_table_with_no_row_still_reads_and_checks(path):
+    doc = table_document()
+    doc["notes"] = [{"id": "N-2-i-new-1", "round": 2, "target": "i-new-t", "item": "i-new", "text": "ok",
+                     "deleted": False}]
+    assert checks(save(path, doc)) == 0

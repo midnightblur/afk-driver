@@ -664,7 +664,7 @@ def poll_raw(document: str, prompts: list[dict]) -> str:
     """The raw response that a poll's prompts make, read against the page document."""
     raw, doc = load_document(document)
     _, ids, _ = _element_ids(doc)
-    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc), raw["schema"])
+    return prompt_lines.raw_from_prompts(doc, prompts, ids, page.targets(doc), raw["schema"], page.labels(doc))
 
 
 def set_aside_file(document: str, stamp: str) -> Path:
