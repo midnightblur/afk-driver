@@ -312,6 +312,45 @@ def test_decided_card_with_a_gap_degrades_to_confirm(tmp_path, field):
     assert item["kind"] == "confirm"
 
 
+def debate_with_options(recommend):
+    options = {"type": "table", "id": "i-format-options", "props": {"columns": ["A: CSV", "B: JSON lines"], "rows": [[
+        {"type": "text", "id": "i-format-opt-a", "props": {"text": "Flat rows."}},
+        {"type": "text", "id": "i-format-opt-b", "props": {"text": "Nested fields."}}]]}}
+    return {"id": "i-format", "kind": "debate", "node": "n-format", "recommend": recommend,
+            "body": text("Which file format?", children=[options, text("Both open in the tools of today.")])}
+
+
+@pytest.mark.parametrize("option, label", [("b", "Recommended: B"), (None, "No recommendation")])
+def test_debate_card_shows_its_recommendation_right_after_the_options(tmp_path, option, label):
+    content = round_one()
+    content["items"][1] = debate_with_options({"option": option, "why": "Nested fields keep the order lines."})
+    path = tmp_path / "doc.json"
+    rd.build_round_document(path, session(), content)
+    doc = json.loads(path.read_text("utf-8"))
+    check_document(doc)
+    item = doc["rounds"][0]["items"][1]
+    assert "recommend" not in item
+    assert [child.get("id") for child in item["body"]["children"]][:2] == ["i-format-options", "i-format-recommend"]
+    block = item["body"]["children"][1]["props"]
+    assert (block["label"], block["text"]) == (label, "Nested fields keep the order lines.")
+
+
+@pytest.mark.parametrize("change", [
+    {"recommend": {"option": "c", "why": "No such column."}},
+    {"recommend": {"option": "a", "why": ""}},
+    {"recommend": {"option": "a"}},
+    {"recommend": "a"},
+    {"kind": "confirm", "recommend": {"option": "a", "why": "Flat rows suffice."}},
+])
+def test_a_bad_recommend_is_refused_by_name(tmp_path, change):
+    content = round_one()
+    content["items"][1] = {**debate_with_options(None), **change}
+    path = tmp_path / "doc.json"
+    with pytest.raises(rd.Refusal) as refused:
+        rd.build_round_document(path, session(), content)
+    assert refused.value.code == "bad-recommend" and not path.exists()
+
+
 @pytest.mark.parametrize("decided", [None, "Use UTF-8.", []])
 def test_decided_card_without_its_fields_is_refused_by_name(tmp_path, decided):
     content = round_one()

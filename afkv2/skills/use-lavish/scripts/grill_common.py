@@ -45,6 +45,12 @@ def serve(handler, argv=None):
         return EXIT_UNREADABLE
 
 
+def recommendation(item_id, option, why):
+    """The recommendation of a debate card, as 1 labelled text block that goes after its options."""
+    label = f"Recommended: {option.upper()}" if option else "No recommendation"
+    return {"type": "text", "id": f"{item_id}-recommend", "props": {"text": why, "label": label}}
+
+
 def read_json(path):
     try:
         return json.loads(Path(path).read_text("utf-8"))

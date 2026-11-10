@@ -544,3 +544,11 @@ def test_the_design_build_passes_ticket_projects_to_the_links_and_not_to_the_doc
              "--ticket", "PROJ-1", "--round-input", str(round_input)])
     assert seen["extra"] == ["OPS"] and "ticket_projects" not in seen["sent"]
     assert seen["titles"] == {"OPS-1": "A title"} and "ticket_titles" not in seen["sent"]
+
+
+def test_a_fork_refuses_a_second_recommendation_field():
+    raw = {**fork_item({"name": "One table", "text": "Fewer reads."}, {"name": "Two tables", "text": "Smaller rows."}),
+           "recommend": {"option": "a", "why": "Fewer reads."}}
+    with pytest.raises(Refusal) as refusal:
+        fork_cards.expand_fork(raw)
+    assert refusal.value.code == "bad-fork"
