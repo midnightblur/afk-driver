@@ -18,12 +18,16 @@ import side_question  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
 FOOTER = "  ⇧←/→ to browse · c to copy · f to fork · x to clear history · Esc to close"
+# The first /btw of a session has no history to browse (Claude Code 2.1.322, read live from a herdr pane).
+FIRST_FOOTER = "  ↑/↓ to scroll · c to copy · f to fork · Esc to close"
+# While the answer streams, the footer offers no `c to copy` (read live, same version).
+STREAMING_FOOTER = "  ⇧←/→ to browse · x to clear history · Esc to close"
 PROMPT_SCREEN = "> \n  ? for shortcuts"
 ANSWER = ("You are grilling PROJ-123, the export feature. The round asks about the file format and the order "
           "of the columns in the export.\n\n- CSV is the default.\n- Excel waits on a later ticket.")
 
 
-def overlay(question="which ticket are we grilling?"):
+def overlay(question="which ticket are we grilling?", footer=FOOTER):
     """The /btw overlay as `herdr pane read` shows it: earlier questions, the newest, the answer, the footer."""
     return "\n".join([
         "  /btw what does round 1 settle?",
@@ -36,7 +40,7 @@ def overlay(question="which ticket are we grilling?"):
         "  - Excel waits on a",
         "    later ticket.",
         "",
-        FOOTER,
+        footer,
     ])
 
 
@@ -132,6 +136,26 @@ def test_ask_types_the_question_reads_the_answer_and_closes_the_overlay(herdr_en
     assert pane.verbs()[:3] == ["read visible", "send-text w1:p1", "send-keys w1:p1"]
     assert pane.calls[2] == ["send-keys", "w1:p1", "enter"] and pane.calls[-1] == ["send-keys", "w1:p1", "esc"]
     assert pane.calls[0][-2:] == ["--lines", side_question.READ_LINES]
+
+
+def test_the_first_side_question_of_a_session_is_read_and_closed(herdr_env):
+    pane = FakePane(screen=overlay(footer=FIRST_FOOTER))
+    result = ask("which ticket are we grilling?", herdr_env, pane)
+    assert result["status"] == "answered" and result["answer"] == ANSWER
+    assert pane.calls[-1] == ["send-keys", "w1:p1", "esc"]
+
+
+def test_an_answer_still_streaming_is_not_read_and_gets_no_esc(herdr_env):
+    streaming = "\n".join(["  /btw q?", "    ✶ Answering…", STREAMING_FOOTER])
+    pane = FakePane(screen=streaming)
+    assert ask("q?", herdr_env, pane)["status"] == "timeout"
+    assert ["send-keys", "w1:p1", "esc"] not in pane.calls
+
+
+def test_an_answer_line_that_mentions_esc_to_close_is_not_the_footer():
+    screen = overlay().replace("  - CSV is the default.", "  Press Esc to close")
+    assert "Press Esc to close" in side_question.extract_answer(screen, "/btw which ticket are we grilling?",
+                                                                side_question.HARNESSES["claude"].footer)
 
 
 def test_ask_waits_until_the_answer_stops_changing(herdr_env):
