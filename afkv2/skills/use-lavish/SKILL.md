@@ -74,7 +74,7 @@ A session that resumes a page whose session ended takes it over before it writes
 |---|---|
 | PR-01 | A heading states the conclusion, with a number. |
 | PR-02 | A card opens with the verdict, then the evidence, then the detail, then risks and pushback. |
-| PR-03 | Put first what the human needs first: what changed and where the asks are, then the overview, then the detail. Open questions first, each with a recommendation. |
+| PR-03 | Put first what the human needs first: what changed and where the asks are, then the overview, then the detail. Each open question has a recommendation. |
 | PR-04 | Show the whole topic as a map, and tie each card to its node. |
 | PR-05 | Pick the form by the kind of fact (table K). |
 | PR-06 | Say how each number is known: measured, inferred or estimated, and from where. |
@@ -86,6 +86,7 @@ A session that resumes a page whose session ended takes it over before it writes
 | PR-12 | Avoid: round badges stacked in one heading; trace codes in prose; new cards that push the main section down. The same tooltip on every repeat of a term is allowed. |
 | PR-13 | Every diagram has a 1-line caption that says what to see. |
 | PR-14 | A scope map groups its parts by module or area and draws no flow arrows; an arrow only where one part must settle before another. |
+| PR-15 | Make a note the main answer: show the information first and the questions last. A card's question asks for the human's view; a mark is a shortcut, not the only answer. |
 
 ### Page layout
 
@@ -95,11 +96,11 @@ The engine lays out the page by its version: you write the content, and the engi
 
 1. the title and the banner of the current round: each section that the round added, changed, merged or removed, each other element that it changed, each as a link; then what settled, what it unlocks and what is parked;
 2. the notes and replies of the session;
-3. the questions of the round: its cards in 1 block;
-4. the maps;
-5. the sections, in the order of `sections`;
-6. the worked examples, each marked frequent, edge or risky, with the stories it covers;
-7. the questions for others;
+3. the maps;
+4. the sections, in the order of `sections`;
+5. the worked examples, each marked frequent, edge or risky, with the stories it covers;
+6. the questions for others;
+7. the questions of the round: its cards in 1 block (PR-15);
 8. the settled points, each folded to its heading and settled line;
 9. the earlier banners, closed.
 
@@ -123,7 +124,7 @@ The visible text holds no element id and no round code: a round reads "round 3".
 
 #### The questions block
 
-- The asking cards of the round show in 1 block, after the notes and replies and above the sections. Each card with `section` shows a link to its section.
+- The asking cards of the round show in 1 block, after the questions for others and above the settled points. Each card with `section` shows a link to its section.
 - The questions for others show as their own part, in the order of `questions`, with a filter by who to ask (`who`). A new question goes to the end; a follow-up goes right after the question it follows, by `after`; `after: null` puts a question first. A question that waits on another names it in `waits_on`, and the page links to it. A question with `choices` shows a tick for 1 option, or for several when `several` is true.
 
 #### What goes first on a version 0 or 1 page

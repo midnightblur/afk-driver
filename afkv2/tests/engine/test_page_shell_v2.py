@@ -74,8 +74,9 @@ def block(html, start_marker):
 
 def test_a_version_2_page_shows_its_parts_in_the_version_2_order():
     html = build(document())
-    order = ['<h1 class="afkv2-title">', BANNER.format(3), 'id="afkv2-notes-replies"', 'id="afkv2-r-3"',
-             'id="afkv2-maps"', SECTIONS_PART, 'id="afkv2-examples"', 'id="afkv2-questions"']
+    order = ['<h1 class="afkv2-title">', BANNER.format(3), 'id="afkv2-notes-replies"', 'id="afkv2-maps"',
+             SECTIONS_PART, 'id="afkv2-examples"', 'id="afkv2-questions"', 'id="afkv2-r-3"', SETTLED_PART,
+             'id="afkv2-earlier-banners"']
     places = [html.index(marker) for marker in order]
     assert places == sorted(places)
 

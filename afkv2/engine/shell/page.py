@@ -364,8 +364,8 @@ def _document(doc: dict, title: str, body: str, current: dict, btw: tuple[int, s
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')
 
 
-# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, the round's questions, maps,
-# sections, worked examples, questions for others; then the settled points and the earlier banners.
+# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, maps, sections, worked examples,
+# questions for others, the round's questions; then the settled points and the earlier banners.
 
 
 SECTION_LISTS = (("added", "Sections added"), ("changed", "Sections changed"), ("merged", "Sections merged"),
@@ -474,9 +474,9 @@ def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> 
     body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
             f'{_banner_v2(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
-            f'{_round_questions(doc, current, live)}'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{parts_v2.render_sections(doc)}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{_round_questions(doc, current, live)}'
             f'{_settled_section(doc, settled, current["n"])}'
             f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')
     return _document(doc, title, body, current, btw)
