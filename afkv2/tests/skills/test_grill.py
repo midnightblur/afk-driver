@@ -1192,3 +1192,43 @@ def test_a_failed_reverse_search_leaves_the_rest_of_the_read(tmp_path):
     ticket = json.loads(out.read_text("utf-8"))
     assert [link["key"] for link in ticket["links"]] == ["8"]
     assert any("issue-search" in entry["reason"] for entry in ticket["unread_links"])
+
+
+def test_the_round_input_titles_join_the_earlier_titles_and_need_links(monkeypatch):
+    import page_links
+    monkeypatch.setattr(page_links, "run_command", lambda *_: {"ok": True, "tracker": {"kind": "jira"}})
+    monkeypatch.setattr(page_links, "_origin", lambda: None)
+    monkeypatch.setattr(page_links, "_jira_base", lambda: "https://acme.atlassian.net")
+    earlier = {"projects": ["OPS"], "titles": {"OPS-1": "Old", "OPS-2": "Kept"}}
+    links = page_links.links_for([None], earlier, [], {"OPS-1": "New", "#4": "An issue"})
+    assert links["titles"] == {"OPS-1": "New", "OPS-2": "Kept", "#4": "An issue"}
+    monkeypatch.setattr(page_links, "_jira_base", lambda: None)
+    assert page_links.links_for([None], earlier, [], {"OPS-1": "New"}) is None
+
+
+def test_round_input_titles_keep_one_line_each():
+    import page_links
+    assert page_links.reference_titles("ticket_titles", {"ABC-1": " Fix\n the  login ", "!3": "x"}) == {
+        "ABC-1": "Fix the login", "!3": "x"}
+    assert page_links.reference_titles("ticket_titles", None) == {}
+
+
+@pytest.mark.parametrize("value", [["ABC-1"], {"abc-1": "x"}, {"ABC": "x"}, {"ABC-1": ""}, {"ABC-1": " "},
+                                   {"ABC-1": 3}, {"#x": "y"}, {"ABC-1": "x" * 301}])
+def test_round_input_titles_that_are_no_map_of_reference_to_title_are_refused(value):
+    import page_links
+    with pytest.raises(page_links.Refusal) as refused:
+        page_links.reference_titles("ticket_titles", value)
+    assert refused.value.code == "bad-titles"
+
+
+def test_the_round_build_passes_ticket_titles_to_the_links_and_not_to_the_document(tmp_path, monkeypatch):
+    import round_document as rd
+    seen = {}
+    monkeypatch.setattr(rd, "links_for", lambda keys, earlier, extra, titles: seen.update(titles=titles) or None)
+    monkeypatch.setattr(rd, "build_round_document", lambda doc, session, round_input, *rest: seen.update(sent=round_input))
+    round_input = tmp_path / "round.json"
+    round_input.write_text(json.dumps({"banner": {}, "items": [], "ticket_titles": {"OPS-1": "A title"}}), "utf-8")
+    rd.main(["build", "--doc", str(tmp_path / "pages" / "use-lavish-s-1.json"), "--session", "s-1",
+             "--round-input", str(round_input)])
+    assert seen["titles"] == {"OPS-1": "A title"} and "ticket_titles" not in seen["sent"]

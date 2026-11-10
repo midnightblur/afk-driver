@@ -44,19 +44,23 @@ class ComponentType:
     takes_html: bool = False
     targets: Callable[[dict], dict] | None = None
     takes_id: bool = False
+    labels: Callable[[dict], dict] | None = None
 
 
 def register_component(name: str, schema: dict, render: Callable, *, nested: Callable | None = None,
                        check: Callable | None = None, inline: bool = False, takes_html: bool = False,
-                       targets: Callable | None = None, takes_id: bool = False) -> None:
+                       targets: Callable | None = None, takes_id: bool = False,
+                       labels: Callable | None = None) -> None:
     """Add one type. `nested(props)` yields `(path below props, component)` for components held in
     props; `check(props)` yields `(path below props, why)` for rules the schema cannot state;
     `targets(props)` maps each HTML id the renderer draws that is no element id to the element id that an
-    annotation on it stands for. With `takes_id`, `render` and `targets` find the element id in `props["id"]`."""
+    annotation on it stands for; `labels(props)` maps such an HTML id to the words that name its part to the
+    reader, such as `row 3 (Login)`. With `takes_id`, `render`, `targets` and `labels` find the element id in
+    `props["id"]`."""
     if name in _types:
         raise ValueError(f"component type {name!r} is registered already")
     check_schema(schema)
-    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html, targets, takes_id)
+    _types[name] = ComponentType(name, schema, render, nested, check, inline, takes_html, targets, takes_id, labels)
 
 
 def load_components(folder: Path = COMPONENTS) -> None:
@@ -165,6 +169,16 @@ def aliases(component: dict) -> dict:
         kind = lookup(part["type"])
         if kind.targets:
             found.update(kind.targets(_render_props(part, kind)))
+    return found
+
+
+def part_labels(component: dict) -> dict:
+    """Each HTML id of `aliases` whose component names its part, with those words."""
+    found = {}
+    for _, part in walk(component):
+        kind = lookup(part["type"])
+        if kind.labels:
+            found.update(kind.labels(_render_props(part, kind)))
     return found
 
 

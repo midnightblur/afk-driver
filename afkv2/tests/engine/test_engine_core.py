@@ -1417,7 +1417,7 @@ def test_an_annotation_on_a_table_cell_resolves_to_its_table(tmp_path):
     old_shape = "div:nth-of-type(1) > table > tbody > tr:nth-of-type(3) > td:nth-of-type(3)"
     raw = engine.poll_raw(str(save(tmp_path / "doc.json", doc)), [
         prompt("Wrong owner.", selector, "td", "the cell"), prompt("Lost.", old_shape, "td", "lost cell")])
-    assert raw == '[round R-2]\ni-new-table — | Wrong owner.\nm-1 — | Lost. (on: "lost cell")'
+    assert raw == '[round R-2]\ni-new-table — | Wrong owner. (on: "row 3 (g)")\nm-1 — | Lost. (on: "lost cell")'
     assert targets(doc)["afkv2-tr-i-new-table-1"] == "i-new-table"
 
 

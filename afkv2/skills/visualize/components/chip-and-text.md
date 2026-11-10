@@ -55,7 +55,8 @@ not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hove
 tip holds no link: write a reference the human must open in a label or a text.
 A reference inside a URL stays text. Plain text, a table cell among it, renders no
 Markdown: write the bare key `ABC-123`, not `[ABC-123](https://...)`, which shows
-its brackets and its URL.
+its brackets and its URL. A reference in `session.links.titles` shows its title
+on hover.
 
 ## Use it when
 

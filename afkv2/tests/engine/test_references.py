@@ -158,3 +158,37 @@ def test_an_element_link_of_a_version_2_page_lets_its_click_through():
     from shell import parts_v2
     tags = OPEN_LINK.findall(parts_v2.link({"session": {}, "rounds": []}, "sec-a"))
     assert len(tags) == 1 and LET_THROUGH.search(tags[0])
+
+
+FLAG_TIP = 'data-afkv2-tip="Add a flag"'
+LOGIN_TIP = 'data-afkv2-tip="Fix the &quot;login&quot; &lt;page&gt;"'
+TITLES = {**LINKS, "titles": {"ABC-3": 'Fix the "login" <page>', "#9": "Add a flag", "!7": "Ship it"}}
+
+
+def titled(href, words, title):
+    return (f'<a class="afkv2-ref afkv2-tip" href="{href}" {NEW_TAB} data-afkv2-tip="{title}">{words}</a>')
+
+
+def test_a_reference_with_a_title_shows_it_on_hover_and_one_with_none_has_no_hover_text():
+    html = linkify("<p>ABC-3, ABC-4, #9, MR !7, PR #12.</p>", TITLES)
+    assert html == (
+        f'<p>{titled("https://acme.atlassian.net/browse/ABC-3", "ABC-3", "Fix the &quot;login&quot; &lt;page&gt;")}, '
+        f'{anchor("https://acme.atlassian.net/browse/ABC-4", "ABC-4")}, '
+        f'{titled(REPO + "/issues/9", "#9", "Add a flag")}, MR {titled(REPO + "/pull/7", "!7", "Ship it")}, '
+        f'PR {anchor(REPO + "/pull/12", "#12")}.</p>')
+
+
+def test_a_titled_link_in_a_table_cell_a_text_and_a_map_label_keeps_its_tip_on_the_page():
+    doc = document(TITLES, text="See ABC-3.")
+    doc["rounds"][0]["items"][0]["body"]["children"][0]["props"]["rows"] = [["#9"]]
+    doc["maps"] = [{"type": "map", "id": "m-1", "props": {"nodes": [
+        {"id": "n-1", "label": "ABC-3 login", "state": "open", "round": 1}]}}]
+    html = page.build(engine.READERS[doc["schema"]](doc))
+    assert html.count(FLAG_TIP) == 1 and html.count(LOGIN_TIP) == 2
+
+
+def test_a_change_written_after_its_words_takes_the_title_of_the_change_before_the_issue():
+    links = {**LINKS, "titles": {"#5": "issue five", "!5": "change five", "#6": "shared six"}}
+    html = linkify("<p>MR #5, #5, PR #6.</p>", links)
+    assert html == (f'<p>MR {titled(REPO + "/pull/5", "#5", "change five")}, '
+                    f'{titled(REPO + "/issues/5", "#5", "issue five")}, PR {titled(REPO + "/pull/6", "#6", "shared six")}.</p>')
