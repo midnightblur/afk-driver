@@ -40,7 +40,7 @@ On fail: record it as a gap of PRD AC-012. The owner decides.
 
 ## Check 3 — a page answer sent after 10 minutes reaches the agent with no chat message
 
-Run this check after lavish-axi 0.1.80 is the global install. `engine show` refuses any other version.
+Run this check after lavish-axi 0.1.81 is the global install. `engine show` refuses any other version.
 
 1. In the test repository, make `.afkv2\config.json` with a `spec_folder`, and a page document at `<spec folder>\<feature>\pages\grill-check3.json`. Copy `afkv2\tests\engine\fixtures\v0-sdd-pass.json` for the body, and set `session.id` to `check3` and `session.skill` to `grill`.
 2. In a new Codex session, send: `Run: python <afkv2 source>\engine\engine.py show <page document path>. Then end your turn. Do not poll.`

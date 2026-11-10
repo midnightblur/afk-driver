@@ -29,7 +29,7 @@ from pathlib import Path
 
 from shell import inject
 
-PIN = "0.1.80"
+PIN = "0.1.81"
 FORBIDDEN = {
     "share": "publishes the page to a public third-party host",
     "setup": "installs session hooks into the coding agent",
