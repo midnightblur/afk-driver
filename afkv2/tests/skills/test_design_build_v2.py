@@ -536,10 +536,11 @@ def test_a_late_section_moves_the_next_level_link_and_the_change_line_names_titl
 
 def test_the_design_build_passes_ticket_projects_to_the_links_and_not_to_the_document(tmp_path, monkeypatch):
     seen = {}
-    monkeypatch.setattr(dr, "links_for", lambda keys, earlier, extra: seen.update(extra=extra) or None)
+    monkeypatch.setattr(dr, "links_for", lambda keys, earlier, extra, titles: seen.update(extra=extra, titles=titles) or None)
     monkeypatch.setattr(dr, "build_design_round", lambda doc, session, round_input, *rest: seen.update(sent=round_input))
     round_input = tmp_path / "round.json"
-    round_input.write_text(json.dumps({"banner": {}, "items": [], "ticket_projects": ["OPS"]}), "utf-8")
+    round_input.write_text(json.dumps({"banner": {}, "items": [], "ticket_projects": ["OPS"], "ticket_titles": {"OPS-1": "A title"}}), "utf-8")
     dr.main(["build", "--doc", str(tmp_path / "pages" / "propose-solution-s-1.json"), "--session", "s-1",
              "--ticket", "PROJ-1", "--round-input", str(round_input)])
     assert seen["extra"] == ["OPS"] and "ticket_projects" not in seen["sent"]
+    assert seen["titles"] == {"OPS-1": "A title"} and "ticket_titles" not in seen["sent"]

@@ -109,7 +109,8 @@
       if (!t) return;
       elx.setAttribute('data-afkv2-tip', t);
       elx.removeAttribute('title');
-      if (!elx.hasAttribute('data-lavish-action')) elx.classList.add('afkv2-tip');
+      /* A lavish control gets no tip underline; a link of the page does. */
+      if (!elx.hasAttribute('data-lavish-action') || elx.matches('a[href]')) elx.classList.add('afkv2-tip');
     });
   }
 

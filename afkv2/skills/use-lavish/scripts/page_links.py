@@ -3,7 +3,8 @@
 The forge templates come from the `origin` remote; the issue template from `tracker.repo` when the tracker
 is GitHub issues; the ticket template from the tracker port's Jira base URL. The Jira projects it links are the
 projects of the session tickets, the earlier page's projects, the config's `tracker.project` and `tracker.projects`,
-and the round input's `ticket_projects`. Nothing here reads the network.
+and the round input's `ticket_projects`. The titles are the round input's `ticket_titles` over the earlier page's
+titles. Nothing here reads the network.
 A source that is missing leaves its kinds out; with no source the answer is None and the page links nothing.
 """
 
@@ -22,6 +23,8 @@ FORGE_FORMS = {"github": {"issue": "/issues/{id}", "change": "/pull/{id}", "comm
                "gitlab": {"issue": "/-/issues/{id}", "change": "/-/merge_requests/{id}", "commit": "/-/commit/{id}"}}
 JIRA_KEY = re.compile(r"([A-Z][A-Z0-9_]+)-\d+")
 PROJECT_KEY = re.compile(r"[A-Z][A-Z0-9_]+")
+REFERENCE_KEY = re.compile(r"[A-Z][A-Z0-9_]+-\d+|[#!]\d+")
+TITLE_LIMIT = 300
 
 
 def _origin() -> str | None:
@@ -75,15 +78,33 @@ def project_keys(where: str, value) -> list[str]:
     return value
 
 
+def reference_titles(where: str, value) -> dict:
+    """A map of reference to title, such as `{"ABC-12": "Fix the login", "#4": "Add a flag"}`, each title on one
+    line. Refuse `bad-titles` for a key that is no ticket key, `#N` or `!N`, or a title that is no text of
+    1 to 300 characters."""
+    if value is None:
+        return {}
+    titles = {key: " ".join(title.split()) for key, title in value.items() if isinstance(title, str)} \
+        if isinstance(value, dict) else None
+    if titles is None or len(titles) != len(value) or not all(
+            isinstance(key, str) and REFERENCE_KEY.fullmatch(key) and 0 < len(title) <= TITLE_LIMIT
+            for key, title in titles.items()):
+        raise Refusal("bad-titles", f"{where} maps a ticket key, #N or !N to a title of 1 to {TITLE_LIMIT} "
+                                    f"characters, such as {{\"ABC-12\": \"Fix the login\"}}: {value!r}")
+    return titles
+
+
 def _config_projects(tracker: dict) -> list[str]:
     """The project keys of the config; a value that is no project key links nothing, and the build goes on."""
     listed = tracker.get("projects") if isinstance(tracker.get("projects"), list) else []
     return [key for key in [tracker.get("project"), *listed] if isinstance(key, str) and PROJECT_KEY.fullmatch(key)]
 
 
-def links_for(ticket_keys: list[str], earlier: dict | None = None, projects: list[str] | None = None) -> dict | None:
+def links_for(ticket_keys: list[str], earlier: dict | None = None, projects: list[str] | None = None,
+              titles: dict | None = None) -> dict | None:
     """`session.links` for this repository. `ticket_keys` are the session ticket and the tickets it links;
-    `projects` are the round input's `ticket_projects`."""
+    `projects` are the round input's `ticket_projects`; `titles` are its `ticket_titles`, which replace an
+    earlier title of the same key and keep the others."""
     try:
         config = run_command(CONFIG_READER, ["read"], TIMEOUT_S)
     except Refusal:
@@ -104,4 +125,7 @@ def links_for(ticket_keys: list[str], earlier: dict | None = None, projects: lis
                        | set(_config_projects(tracker)) | set(projects or []))
         if base and found:
             links.update(ticket=f"{base}/browse/{{id}}", projects=found)
+    held = {**((earlier or {}).get("titles") or {}), **(titles or {})}
+    if links and held:
+        links["titles"] = held
     return links or None

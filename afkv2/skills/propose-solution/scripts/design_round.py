@@ -26,7 +26,7 @@ import round_document as rd  # noqa: E402
 import section_rules  # noqa: E402
 from fork_cards import expand_fork  # noqa: E402
 from grill_common import Parser, Refusal, read_json, serve, write_json  # noqa: E402
-from page_links import links_for, project_keys  # noqa: E402
+from page_links import links_for, project_keys, reference_titles  # noqa: E402
 
 SKILL_NAME = "propose-solution"
 GROUPS = {
@@ -503,9 +503,11 @@ def main(argv):
     linked = [link.get("key") for link in [*((ticket or {}).get("links") or []),
                                            *((ticket or {}).get("unread_links") or [])]]
     round_input = read_json(args.round_input)
-    extra = project_keys("ticket_projects", round_input.pop("ticket_projects", None)) if isinstance(round_input, dict) else []
+    held = round_input if isinstance(round_input, dict) else {}
+    extra = project_keys("ticket_projects", held.pop("ticket_projects", None))
+    titles = reference_titles("ticket_titles", held.pop("ticket_titles", None))
     return build_design_round(args.doc, session, round_input, args.replace,
-                              links_for([args.ticket, *linked], earlier, extra), ticket)
+                              links_for([args.ticket, *linked], earlier, extra, titles), ticket)
 
 
 if __name__ == "__main__":

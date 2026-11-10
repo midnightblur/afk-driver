@@ -420,6 +420,8 @@ def test_an_answer_that_changed_the_card_sets_the_round_of_the_box():
 
 
 BOX_SKIPS_LINK = "if (event.target.closest && event.target.closest('a[href]')) return;"
+LINK_KEEPS_TIP = "if (!elx.hasAttribute('data-lavish-action') || elx.matches('a[href]')) elx.classList.add('afkv2-tip');"
+LINK_POINTS = "a[href].afkv2-tip { cursor: pointer; }"
 
 
 def test_a_link_in_a_box_label_does_only_its_own_work_and_an_odd_id_still_jumps():
@@ -431,3 +433,9 @@ def test_a_link_in_a_box_label_does_only_its_own_work_and_an_odd_id_still_jumps(
 
 def test_a_page_with_no_map_box_of_a_card_has_no_node_list():
     assert NODE_CARDS not in build(two_rounds())
+
+
+def test_a_link_with_a_hover_title_keeps_the_dotted_tip_underline_and_a_pointer():
+    tips_js = (ENGINE_DIR / "shell" / "tips.js").read_text("utf-8")
+    tips_css = (ENGINE_DIR / "shell" / "tips.css").read_text("utf-8")
+    assert LINK_KEEPS_TIP in tips_js and LINK_POINTS in tips_css
