@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "use-lavish" / "scripts"))
 
-from grill_common import Refusal  # noqa: E402
+from grill_common import Refusal, recommendation  # noqa: E402
 
 LETTERS = string.ascii_lowercase
 FORK_FIELDS = {"question", "options", "why_open", "recommended", "picture"}
@@ -49,13 +49,13 @@ def _check(item_id, question, options, why_open, recommended, picture):
 
 
 def build_fork_card(item_id, question, options, why_open, recommended=None, picture=None, node=None, state="open"):
-    """A debate item: the question, the options as table columns, and why the agent did not decide it.
+    """A debate item: the question, the options as table columns, then the recommendation with why the agent did
+    not decide it.
 
     With `picture`, the picture of the current state is the body root, above the question.
     """
     _check(item_id, question, options, why_open, recommended, picture)
-    choice = f"Recommended: {recommended.upper()}." if recommended else "No recommendation."
-    asked = _text(f"{item_id}-question", f"{question} {choice}")
+    asked = _text(f"{item_id}-question", question)
     rows = [[_text(f"{item_id}-opt-{letter}", option["text"]) for letter, option in zip(LETTERS, options)]]
     if any("by" in option for option in options):
         rows.append([_credit(f"{item_id}-by-{letter}", option["by"]) if "by" in option else ""
@@ -63,7 +63,7 @@ def build_fork_card(item_id, question, options, why_open, recommended=None, pict
     table = {"type": "table", "id": f"{item_id}-options", "props": {
         "columns": [f"{letter.upper()} — {option['name']}" for letter, option in zip(LETTERS, options)],
         "rows": rows}}
-    why = _text(f"{item_id}-why-open", why_open)
+    why = recommendation(item_id, recommended, why_open)
     if picture is None:
         body = {**asked, "children": [table, why]}
     else:
@@ -80,6 +80,8 @@ def expand_fork(raw):
     fork = raw.get("fork")
     if not isinstance(fork, dict) or set(fork) - FORK_FIELDS:
         raise Refusal("bad-fork", f"fork {raw.get('id')}: one object with {sorted(FORK_FIELDS)}")
+    if "recommend" in raw:
+        raise Refusal("bad-fork", f"fork {raw.get('id')}: a fork holds its recommendation in `recommended`")
     if "body" in raw or raw.get("kind", "debate") != "debate":
         raise Refusal("bad-fork", f"fork {raw.get('id')}: the card is built from its fork; give no body and no other kind")
     item = build_fork_card(raw.get("id"), fork.get("question"), fork.get("options"), fork.get("why_open"),

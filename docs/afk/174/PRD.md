@@ -16,6 +16,8 @@ In the developer's words: "I need a page where I can freely note, steer everythi
 
 A page becomes a document of the whole topic, from the overview down to the detail, kept current every round. Each part of the topic has a section; the round's questions sit in one block on top; worked examples are a standing section. The developer annotates anything at any time; the agent reads each note for everything it says and answers each note on its own. Every section shows its own changes, round by round, with their cause.
 
+> Amended 2026-11-10 (#185): the round's questions now sit last, above the settled points. The page skill `afkv2/skills/use-lavish/SKILL.md` owns the order.
+
 The grill gains questions for others: points that neither the developer nor the code can settle. They live in one section of the grill page, written for people outside the session, with a filter by who to ask. The developer shares the screen in a meeting, ticks or writes the answers, and the agent brings their effect back as points to confirm. The grill cannot end while such a question is open, unless the developer accepts an assumption for it. A finished grill can be called again when new facts arrive, and it continues from where it ended.
 
 The content of a session is the same with or without a page: the page only lays it out and adds pictures.

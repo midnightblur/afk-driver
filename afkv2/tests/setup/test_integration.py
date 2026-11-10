@@ -99,7 +99,7 @@ def test_takeover_changes_every_v1_place(taken_over, world, places, repo, runner
     assert taken_over["plugins"]["claude"]["effective"] == {V1_ID: False, NEW_ID: True}
     assert plugins.claude_effective(places.claude_user_settings, repo) == {V1_ID: False, NEW_ID: True}
     assert taken_over["plugins"]["codex"]["listed"] == {V1_ID: False, NEW_ID: True}
-    assert runner.lavish == "0.1.80"
+    assert runner.lavish == "0.1.81"
     assert places.claude_user_settings.read_bytes() == world[places.claude_user_settings]
     assert (repo / V1_CONFIG_FOLDER / "config.yaml").read_bytes() == V1_CONFIG
 
@@ -149,7 +149,7 @@ def test_a_failed_last_step_reports_the_steps_done_and_a_rerun_finishes(
     assert {f["action"] for f in done["v1_block"]["files"]} == {"absent"}
     assert set(done["git_hooks"]["hooks"].values()) == {"already-moved"}
     assert not done["plugins"]["claude"]["written"]
-    assert done["lavish"]["version"] == "0.1.80"
+    assert done["lavish"]["version"] == "0.1.81"
 
 
 def test_an_error_inside_a_step_names_that_step(
