@@ -73,7 +73,7 @@ A session that resumes a page whose session ended takes it over before it writes
 | Id | Rule |
 |---|---|
 | PR-01 | A heading states the conclusion, with a number. |
-| PR-02 | A card opens with the verdict, then the evidence, then the detail, then risks and pushback. |
+| PR-02 | A `debate` card shows the question, then the options, then the recommendation with its reason (`recommend`, `card` page). Every other card opens with the verdict, then the evidence, then the detail, then risks and pushback. |
 | PR-03 | Put first what the human needs first: what changed and where the asks are, then the overview, then the detail. Each open question has a recommendation. |
 | PR-04 | Show the whole topic as a map, and tie each card to its node. |
 | PR-05 | Pick the form by the kind of fact (table K). |
