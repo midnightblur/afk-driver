@@ -273,6 +273,31 @@ bash "$PROVISION" --source "$REPO" --worktree "$WT5" >/dev/null 2>&1
 [[ ! -s "$NPM_LOG" ]] && ok "worktree-install none runs no install" || bad "worktree-install none installed anyway"
 git -C "$REPO" worktree remove --force "$WT5" >/dev/null 2>&1 || true
 
+# --- 8: a failed install answers degraded and is not recorded as done ------
+# The npm adapter must answer `degraded` (not `provisioned`) when the install
+# command fails, and the driver must write no done marker for it: the next run
+# without --force retries the install instead of skipping it forever.
+write_config "  - npm
+npm:
+  worktree-install: ci
+  worktree-command:
+    - exit
+    - 7"
+WT6="$(new_worktree six)"
+: > "$NPM_LOG"
+OUT9="$(bash "$PROVISION" --source "$REPO" --worktree "$WT6" 2>"$TMP_ROOT/err9.log")"
+RC9=$?
+[[ $RC9 -eq 4 ]] && ok "a failed install exits 4" || bad "a failed install exits $RC9 (got: $OUT9; $(cat "$TMP_ROOT/err9.log"))"
+printf '%s' "$OUT9" | grep -q '"status":"degraded"' && ok "a failed install answers degraded" || bad "a failed install answers: $OUT9"
+MARKER9="$(git -C "$WT6" rev-parse --git-path afk/provisioned/npm)"
+[[ ! -f "$MARKER9" ]] && ok "a failed install writes no done marker" || bad "a failed install wrote a marker: $(cat "$MARKER9")"
+# The rerun must retry the install, not read a stale marker as done.
+bash "$PROVISION" --source "$REPO" --worktree "$WT6" >"$TMP_ROOT/out10.log" 2>"$TMP_ROOT/err10.log"
+RC10=$?
+[[ $RC10 -eq 4 ]] && ok "the rerun retries the failed install (exit 4 again)" || bad "the rerun exits $RC10"
+grep -q "already" "$TMP_ROOT/err10.log" && bad "the rerun skipped the install: $(cat "$TMP_ROOT/err10.log")" || ok "the rerun printed no already-provisioned skip"
+git -C "$REPO" worktree remove --force "$WT6" >/dev/null 2>&1 || true
+
 # --- summary ----------------------------------------------------------------
 echo ""
 echo "worktree-provision smoke: $PASS passed, $FAIL failed"
