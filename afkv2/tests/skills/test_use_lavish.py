@@ -404,7 +404,7 @@ def _table_ids(text, prefix):
 
 def test_the_skill_holds_the_four_tables_with_every_id():
     text = SKILL_MD.read_text("utf-8")
-    assert _table_ids(_section(text, "### Page rules"), "PR") == [f"PR-{k:02}" for k in range(1, 15)]
+    assert _table_ids(_section(text, "### Page rules"), "PR") == [f"PR-{k:02}" for k in range(1, 16)]
     assert _table_ids(_section(text, "### Answer rules"), "AR") == [f"AR-{k:02}" for k in range(1, 11)]
     forms = [f"K-{k:02}" for k in range(1, 54) if k not in RETIRED_KINDS]
     assert _table_ids(_section(text, "### Forms by kind"), "K") == forms

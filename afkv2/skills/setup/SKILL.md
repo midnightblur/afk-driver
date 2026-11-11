@@ -60,7 +60,7 @@ you ask in this session; the Jira token never passes through you.
    stubs aside, switches the plugins (Claude: this project's
    `.claude/settings.local.json`, kept out of git by a line in `.git/info/exclude`
    when git does not already ignore it; Codex: the global config) and installs
-   lavish host 0.1.80 — each with a backup. It also writes `codex_rules`, which lets
+   lavish host 0.1.86 — each with a backup. It also writes `codex_rules`, which lets
    the plugin's own scripts run outside the Codex sandbox with no prompt: tell the
    developer this in the report. After a plugin update, run setup again.
    A v1 session that starts in the repository installs the git hook stubs again;

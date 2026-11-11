@@ -56,12 +56,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
 4. **Work one round.** Load [ROUNDS.md](ROUNDS.md), the page and answer rules of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), and the page guide `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). Verify claims, weigh the options, take every decision the rules allow, and write the `Ledger` rows as they change. Then write the round input, a JSON file in a scratch folder: `banner`, `items`, and `maps` and `replies` when they change, and the entries of the session's lists that changed ([ROUNDS.md](ROUNDS.md) "The session's content"). You never write page HTML. Done when every item carries a decision, or names why you could not take it.
 
-   An item has the page document fields, plus 3 fields of the input only:
+   An item has the page document fields, plus 4 fields of the input only:
 
    | Field | Effect |
    |-------|--------|
    | `critical: true` | the card asks a critical-aspect question: how an existing code area, data set or flow must change. The body root must be a picture of the current state, with the question in its `children`. The build refuses any other shape. |
    | `decided: {decision, alternatives, evidence, grade, why, reverse, depends_on}` | on a `decided` card, the build writes these fields into the body as labelled blocks (`card` page). A gap makes it a `confirm` card and the answer lists it in `degraded`. |
+   | `recommend: {option, why}` | on a `debate` card, the build writes your recommendation and its reason after the options (`card` page). |
    | `carries: [<old card id>]` | this new card asks a returning point again. The build writes it into the card's `carries` field; each id must be a card of an earlier round. The page shows the old cards in the new card's history. Every point the round pass returns needs one such card; the build refuses the next round without it. A mention in other text or in `depends_on` carries nothing. |
 
 5. **Build and show the round.** Done when `present` answers ok.

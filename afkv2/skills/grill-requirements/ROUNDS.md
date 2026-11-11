@@ -84,7 +84,7 @@ A claim is any statement of how something works now: behaviour, a constraint, an
 
 | Kind | Use it when |
 |------|-------------|
-| `debate` | 2 or more live options, a tie, a one-way door, or a premise you cannot verify; the body names which condition failed and what resolving it would have cost |
+| `debate` | 2 or more live options, a tie, a one-way door, or a premise you cannot verify; the body names which condition failed and what resolving it would have cost; send your recommendation in `recommend` (SKILL.md step 4), not in the question |
 | `confirm` | your recommendation is safe by default and independent of every open point; the human only accepts or overrides |
 | `decided` | you decided, and the human audits it |
 | `info` | context the human needs; it asks nothing |

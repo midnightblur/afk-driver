@@ -1,6 +1,6 @@
 """Page engine core: check, render, show, poll, the registry, the launcher and the Codex Stop hook.
 
-Set AFKV2_TEST_LAVISH_DIR to a folder holding a local lavish-axi 0.1.80 install and playwright-core
+Set AFKV2_TEST_LAVISH_DIR to a folder holding a local lavish-axi 0.1.86 install and playwright-core
 to run the live seam test. It uses its own port and state folder and never stops a server.
 """
 
@@ -1054,7 +1054,7 @@ def test_exit_127_when_the_host_is_not_on_the_path(tmp_path, monkeypatch):
     assert launcher.run(["open", "p.html"])[0] == 127
 
 
-def fake_install(folder, version="0.1.80", layout="global"):
+def fake_install(folder, version="0.1.86", layout="global"):
     package = folder / "node_modules" / "lavish-axi" if layout == "global" else folder / "lavish-axi"
     (package / "dist").mkdir(parents=True)
     (package / "dist" / "cli.mjs").write_text("", "utf-8")
@@ -1079,7 +1079,7 @@ def test_the_launcher_refuses_any_host_version_but_the_pin(tmp_path, monkeypatch
     (tmp_path / "p.html").write_text("<html></html>", "utf-8")
     monkeypatch.setattr(launcher.shutil, "which", lambda name: str(shim))
     code, out = launcher.run(["end", str(tmp_path / "p.html")])
-    assert code == 64 and "0.1.63" in out and "0.1.80" in out
+    assert code == 64 and "0.1.63" in out and "0.1.86" in out
 
 
 def test_exit_65_when_the_page_cannot_be_injected(tmp_path, monkeypatch):
@@ -1820,9 +1820,9 @@ LIVE_NOTE = 'C:\\Users\\x back\\slash "q" trailing  \n\n  second line\ttab | pip
 
 @pytest.mark.skipif(not LIVE, reason="AFKV2_TEST_LAVISH_DIR is not set")
 def test_live_show_send_poll_and_stop_hook_on_the_pinned_host():
-    """Shows a rendered fixture on a local 0.1.80, sends from Edge, reads the raw text back.
+    """Shows a rendered fixture on a local 0.1.86, sends from Edge, reads the raw text back.
 
-    AFKV2_TEST_LAVISH_DIR holds lavish-axi@0.1.80 and playwright-core. A playwright-core install brings an
+    AFKV2_TEST_LAVISH_DIR holds lavish-axi@0.1.86 and playwright-core. A playwright-core install brings an
     .exe (PrintDeps.exe): keep the folder out of Temp, or delete the .exe at once.
     """
     folder = Path(LIVE)

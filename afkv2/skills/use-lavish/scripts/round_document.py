@@ -24,7 +24,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, serve, write_json, write_text
+from grill_common import PLUGIN_ROOT, Parser, Refusal, read_json, recommendation, serve, write_json, write_text
 from page_links import links_for, project_keys, reference_titles
 
 SCHEMA = "afkv2.page/1"
@@ -38,7 +38,8 @@ SETTLED_STATES = {"settled_by_mark", "settled_by_note"}
 PICTURES = {"map", "graph", "table", "sequence", "run-strip", "freestyle"}
 GRADES = {"repo", "spec", "pattern"}
 ENGINE_ITEM_FIELDS = {"notes", "settled"}
-ITEM_INPUT_FIELDS = {"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries"} | ENGINE_ITEM_FIELDS
+ITEM_INPUT_FIELDS = ({"id", "kind", "title", "node", "state", "body", "critical", "decided", "carries", "recommend"}
+                     | ENGINE_ITEM_FIELDS)
 # The lists of a version 2 page, by the name of 1 entry (SDD §4). The round input sends only the entries that changed.
 ENTRY_LISTS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question"}
 # The input fields of a sent entry that the builder does not store: its 1 change line and its place.
@@ -234,6 +235,40 @@ def _decided_fields(item_id, decided, known_ids):
     return fields, whole
 
 
+def _holds_options(component, item_id):
+    return component.get("type") == "table" and any(
+        str(cell.get("id", "")).startswith(f"{item_id}-opt-") for cell in _components(component))
+
+
+def _place_recommendation(item_id, body, recommend):
+    """Write the `recommend` field of a debate card right after its options table. Refuse `bad-recommend` for a
+    field of the wrong shape, on another kind, or with a letter that names no option cell `<id>-opt-<letter>`."""
+    where = f"item {item_id}"
+    if not isinstance(recommend, dict) or set(recommend) != {"option", "why"}:
+        raise Refusal("bad-recommend", f"{where}: recommend is {{option, why}}, not {recommend!r}")
+    option, why = recommend["option"], recommend["why"]
+    if not isinstance(why, str) or not why.strip():
+        raise Refusal("bad-recommend", f"{where}: recommend.why is 1 sentence")
+    letters = {match.group(1) for component in _components(body)
+               if (match := re.fullmatch(rf"{re.escape(item_id)}-opt-([a-z])", str(component.get("id", ""))))}
+    if option is not None and option not in letters:
+        raise Refusal("bad-recommend", f"{where}: recommend.option {option!r} names no option; "
+                                       f"the options are {sorted(letters)}")
+    block = recommendation(item_id, option, why)
+    if _holds_options(body, item_id):
+        body.setdefault("children", []).append(block)
+        return
+    parents = [body]
+    while parents:
+        children = parents.pop().get("children") or []
+        for place, child in enumerate(children):
+            if isinstance(child, dict) and _holds_options(child, item_id):
+                children.insert(place + 1, block)
+                return
+        parents.extend(child for child in children if isinstance(child, dict))
+    body.setdefault("children", []).append(block)
+
+
 def require_decided(raw):
     """Refuse `no-decided-fields` for a `decided` card with no `decided` object: a card with all its fields stays
     decided, and a card with a gap in them degrades to `confirm` and is listed in `degraded`."""
@@ -275,6 +310,10 @@ def _item(raw, known_ids, degraded, earlier_cards=frozenset(), version_2=False):
         if "html" in component and component.get("type") != "freestyle":
             raise Refusal("not-freestyle", f"{where}: only a freestyle component holds html, "
                                            f"not {component.get('type')!r}")
+    if "recommend" in raw:
+        if kind != "debate":
+            raise Refusal("bad-recommend", f"{where}: only a debate card takes recommend, not {kind!r}")
+        _place_recommendation(item_id, body, raw["recommend"])
     if raw.get("critical") and body["type"] not in PICTURES:
         raise Refusal("no-picture", f"{where}: a critical-aspect question needs a picture of the current state "
                                     f"as the body root, above the question; the root is {body['type']!r}")
