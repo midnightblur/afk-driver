@@ -1,0 +1,1689 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Design",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261111-182535",
+    "skill": "propose-solution",
+    "feature": "185",
+    "ticket": "185",
+    "started": "2026-11-11T18:32:32Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Verification in every task"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "open",
+            "round": 1
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "open",
+            "round": 1
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "N-1-m-aspects-1",
+      "round": 1,
+      "target": "m-aspects",
+      "item": null,
+      "text": "even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue",
+      "deleted": false,
+      "quote": "ran twice"
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "the 2-provider draft of the whole design"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#185: afkv2 verification: propose-verification (medium lane) + small lane, highest-value test level with proof"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "## Pain\n\nAn agent added a clickable Jira ticket URL to a lavish page, declared the job done, and the link did not work. The agent never ran the changed behavior through its real entry point. Nothing in afkv2 made it.\n\n## Goal\n\nVerification runs automatically in every development task: a small bug fix, a small enhancement, a full feature. Anything testable is tested, with proof, at the highest-value level at minimum:\n\n- testable through a UI → test it through the UI;\n- testable through an API → test the API;\n- testable at contract level → contract (Pact) test.\n\nThe bigger the task, the more levels of tests (unit to UAT).\n\n## Scope\n\n1. **Medium lane — `/afkv2:propose-verification`**: port v1 `grill-verification` in the afkv2 lean spirit (remove frictions and blockers, instructions over scripts). Agents research, investigate, multi-provider proposers draft and debate, then propose a final verification plan. The human sees the full plan, high to low level, on the lavish page and steers it — no grilling form. The plan is executed in subtasks during development and at the end before ship.\n2. **Small lane**: bring the half-built v1 small lane (branch `feat/feat-small-lane`, `docs/afk/small-lane/`) to v2 in the same spirit. Human and agents still talk through the issue, the expected fix and how to test it, even if only for a few minutes.\n\n## Evidence found (round 0)\n\n- v1 chain: grill-verification → VERIFICATION-PLAN.md → to-subtasks smoke gate → smoke-test. Script-gated; no highest-value-level rule; no contract (Pact) testing.\n- v1 small lane: bugs only; diagnose/fix split with approval; proof = failing-then-passing test, all tiers, live before/after. 6 of 13 subtasks done; two review stalemates.\n- afkv2 (`feat/afkv2`): medium lane only; `propose-verification` planned for P1 and small lane for 2.1 (`docs/afk/afkv2/PRD.md`); the autopilot done check verifies the TDD verdict and Produces anchors but never records Verification rows; `not applicable:` accepts any reason; no feature-level gate; change-request proofs are unchecked free text.\n\nRelates to #108, #102, #103.\n",
+                  "markdown": true
+                },
+                "fold": "The ticket text"
+              },
+              {
+                "type": "table",
+                "id": "i-ticket-links",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Ticket",
+                    "Title",
+                    "Status"
+                  ],
+                  "rows": [
+                    [
+                      "named in this ticket",
+                      "#108",
+                      "Medium and large lanes: a lighter workflow for mid-size work",
+                      "OPEN"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#102",
+                      "skills/afk/fix/SKILL.md: Phase 2 lets a user-visible bug close without e2e",
+                      "OPEN"
+                    ],
+                    [
+                      "named in this ticket",
+                      "#103",
+                      "skills/afk/fix/SKILL.md: post screenshot evidence with lead-up context to ticket",
+                      "OPEN"
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "a-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-entities-now",
+            "props": {
+              "columns": [
+                "File",
+                "Today",
+                "After",
+                ""
+              ],
+              "rows": [
+                [
+                  "VERIFICATION.md (spec folder)",
+                  "none; the code reserves the name VERIFICATION-PLAN.md",
+                  "the verification plan: plan rows, each with id, given, when, what you should see, level, tier, owner subtask",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Subtask contract, Verification table",
+                  "Tier, Check, Proves; tiers static, unit, integration, api, e2e",
+                  "adds a Plan row column and the contract tier; holds only the subtask's low-level rows",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Test-first record (per subtask)",
+                  "behavior, command, red, green; no plan row, no test file",
+                  "adds the plan row id and the test file per cycle",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "End-gate record (run branch)",
+                  "none",
+                  "per high-level plan row: each of the 2 runs, the evidence files, the judge verdict with its description",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Change request description",
+                  "What changes, Requests, Proofs (free text), Why it can merge, Self-critique",
+                  "Proofs holds proof lines (behavior, level, what ran, evidence link); a new Found along the way section",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Page document schema",
+                  "skill: grill, propose-solution, to-subtasks, use-lavish",
+                  "adds propose-verification and the small lane",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "changed",
+                      "tone": "proposed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-entities-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "2 new files and 4 changed shapes; nothing in a database"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-entities-q",
+                "props": {
+                  "text": "**The files this feature adds or changes.** My reading of the code. Accept or correct it.\n\n- The PRD names the plan file `VERIFICATION.md`; the code reserves `VERIFICATION-PLAN.md` for it. I rename the reservation to the PRD's name: one line in the plan cut and the index template.\n- The evidence of the end gate stays on the run branch beside the plan, and the change request links it.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The files this feature adds or changes",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-relations-now",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "r-ac",
+                  "label": "acceptance criterion",
+                  "group": "spec"
+                },
+                {
+                  "id": "r-row",
+                  "label": "plan row",
+                  "group": "spec",
+                  "tip": "one row of VERIFICATION.md"
+                },
+                {
+                  "id": "r-sub",
+                  "label": "subtask",
+                  "group": "plan"
+                },
+                {
+                  "id": "r-test",
+                  "label": "test",
+                  "group": "code"
+                },
+                {
+                  "id": "r-red",
+                  "label": "red step",
+                  "group": "plan"
+                },
+                {
+                  "id": "r-run",
+                  "label": "end-gate run",
+                  "group": "run",
+                  "tip": "high-level rows only"
+                },
+                {
+                  "id": "r-ver",
+                  "label": "judge verdict",
+                  "group": "run"
+                },
+                {
+                  "id": "r-line",
+                  "label": "proof line",
+                  "group": "cr",
+                  "tip": "on the change request"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "r-ac",
+                  "to": "r-row",
+                  "label": "1 to many"
+                },
+                {
+                  "from": "r-row",
+                  "to": "r-sub",
+                  "label": "low-level: owned by 1"
+                },
+                {
+                  "from": "r-row",
+                  "to": "r-test",
+                  "label": "1 to 1 or more"
+                },
+                {
+                  "from": "r-test",
+                  "to": "r-red",
+                  "label": "recorded by"
+                },
+                {
+                  "from": "r-row",
+                  "to": "r-run",
+                  "label": "high-level: 1 run each"
+                },
+                {
+                  "from": "r-run",
+                  "to": "r-ver",
+                  "label": "1"
+                },
+                {
+                  "from": "r-ver",
+                  "to": "r-line",
+                  "label": "1 per row"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "spec",
+                  "label": "spec folder"
+                },
+                {
+                  "id": "plan",
+                  "label": "plan"
+                },
+                {
+                  "id": "code",
+                  "label": "code"
+                },
+                {
+                  "id": "run",
+                  "label": "run branch"
+                },
+                {
+                  "id": "cr",
+                  "label": "change request"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-relations-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "today only the subtask and the test exist; the plan row is the new link"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-relations-q",
+                "props": {
+                  "text": "**How a requirement reaches a proof line.** Accept or correct it.\n\n- Each acceptance criterion with a user-visible outcome has 1 or more plan rows.\n- A low-level row belongs to exactly 1 subtask; a high-level row belongs to the chain and to the subtask that writes its test.\n- The plan row owns the links: the test, the red step and the proof line each name the row id.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "How a requirement reaches a proof line",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-keys-now",
+            "props": {
+              "columns": [
+                "Thing",
+                "Id today",
+                "Id after"
+              ],
+              "rows": [
+                [
+                  "acceptance criterion",
+                  "AC-NNN, never reused",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "subtask",
+                  "NNNN-slug, the file name",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "plan row",
+                  "none",
+                  "VR-NNN in VERIFICATION.md: never changed, never reused, retired in place"
+                ],
+                [
+                  "test",
+                  "a free-text behavior in the red step",
+                  "the plan row id plus the test file and name"
+                ],
+                [
+                  "proof line",
+                  "none",
+                  "the plan row id, first on the line"
+                ],
+                [
+                  "found bug",
+                  "none",
+                  "FB-NN in the change request section"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-keys-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "the plan row id is the one new key; every link carries it"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-keys-q",
+                "props": {
+                  "text": "**Plan rows get ids like the PRD's.** Accept or correct it.\n\n- `VR-NNN` follows the PRD id rules: it never changes and is never reused; a dropped row keeps its line with `retired: <why>`.\n- A script can then check each link: row to test, row to red step, row to proof line.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Plan rows get ids like the PRD's",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-constraints-now",
+            "props": {
+              "columns": [
+                "Rule",
+                "Holder today",
+                "Holder after"
+              ],
+              "rows": [
+                [
+                  "a medium feature has VERIFICATION.md before the plan cut (AC-001)",
+                  "none",
+                  "the plan cut's input check"
+                ],
+                [
+                  "each user-visible acceptance criterion has a high-level row (AC-012)",
+                  "none",
+                  "the plan check"
+                ],
+                [
+                  "each low-level row has 1 owner subtask; each high-level row has a test-writing subtask (AC-007)",
+                  "none",
+                  "the plan check"
+                ],
+                [
+                  "`not applicable:` never skips a live tier (AC-029)",
+                  "any reason skips any tier",
+                  "the plan check and the start gate refuse it; a lower level needs the developer's page mark"
+                ],
+                [
+                  "a subtask is done only with its low-level rows green (AC-008)",
+                  "the done check ignores the rows",
+                  "the done check reads the test-first record per row"
+                ],
+                [
+                  "each new test has a red step (AC-020)",
+                  "1 `no-test` entry turns the check off",
+                  "a `no-test` entry covers only its own row"
+                ],
+                [
+                  "Ready only with a proof line per high-level row (AC-012, AC-013)",
+                  "reviews and CI only",
+                  "the ship step reads the end-gate record"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-constraints-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "each rule gets one script that holds it; today none of them is held"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-constraints-q",
+                "props": {
+                  "text": "**The rules, and the script that holds each.** Accept or correct it.\n\n- Every rule is checked by a script, never by prose.\n- The ship step reads the end-gate record on disk, not the change request text: the forge cannot read a description back today.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The rules, and the script that holds each",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-cascade-now",
+            "props": {
+              "columns": [
+                "When",
+                "Today",
+                "After"
+              ],
+              "rows": [
+                [
+                  "an acceptance criterion is retired",
+                  "the PRD keeps its line",
+                  "its plan rows are retired too; the plan check refuses an active row on a retired criterion"
+                ],
+                [
+                  "a plan row is retired",
+                  "—",
+                  "its test may stay as a low-level test; the end gate skips it; no proof line"
+                ],
+                [
+                  "a subtask is dropped from the plan",
+                  "its contract file goes",
+                  "the plan check refuses until each of its rows has another owner or is retired"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-cascade-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "nothing is deleted; retiring flows down from the requirement"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-cascade-q",
+                "props": {
+                  "text": "**A dropped plan row or requirement.** Accept or correct it.\n\n- Nothing is deleted: a retired id stays with its reason, as in the PRD.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "A dropped plan row or requirement",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-api-now",
+            "props": {
+              "columns": [
+                "Surface",
+                "Change",
+                "Existing callers"
+              ],
+              "rows": [
+                [
+                  "plan cut: input check",
+                  "needs VERIFICATION.md for a medium feature",
+                  "a plan cut before this release keeps working"
+                ],
+                [
+                  "plan check, start gate",
+                  "refuse `not applicable:` on a live tier; new plan-row checks",
+                  "a plan approved before this release keeps the old rules"
+                ],
+                [
+                  "test-first record: red, green, no-test",
+                  "new optional `--row` and test file arguments",
+                  "an old call still works; the done check needs `--row` only on a new plan"
+                ],
+                [
+                  "autopilot: end gate",
+                  "a new step after the last subtask, before ship",
+                  "an old run has no high-level rows, so it passes through"
+                ],
+                [
+                  "change request: proof lines, found bugs, mark Ready",
+                  "new sections; Ready reads the end-gate record",
+                  "the small lane gets a path to Ready without a plan folder"
+                ],
+                [
+                  "page schema",
+                  "new skill names",
+                  "old pages stay valid"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "each change is additive, and a plan approved before the release keeps its rules"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api-q",
+                "props": {
+                  "text": "**The command surfaces that change.** Accept or correct it.\n\n- The new rules start with plans approved after the release; the plan header's approval date tells them apart.\n- Today a change request cannot reach Ready without a plan folder, so the small lane cannot ship at all; it gets its own path.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The command surfaces that change, and the plans already running",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-migration-now",
+            "props": {
+              "columns": [
+                "What exists",
+                "Sample",
+                "What happens"
+              ],
+              "rows": [
+                [
+                  "approved plans on run branches",
+                  "a plan with `> Division: approved 2026-11-08`",
+                  "keeps the old rules to its end"
+                ],
+                [
+                  "contracts with `not applicable:` on a live tier",
+                  "`e2e | not applicable: no app`",
+                  "allowed in old plans; refused in new ones"
+                ],
+                [
+                  "test-first records with no plan row",
+                  "`{behavior: \"parses id\", red: ...}`",
+                  "read as before"
+                ],
+                [
+                  "open change requests",
+                  "Proofs as free text",
+                  "unchanged until their next open or ship; ship applies the rule of the plan's date"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-migration-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "no file is rewritten; the date of the plan picks the rules"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-migration-q",
+                "props": {
+                  "text": "**Plans and runs that exist today.** Accept or correct it.\n\n- No migration script: nothing on disk is rewritten.\n- Going back means reverting the release; plans made under it keep their extra rows, which old code ignores.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Plans and runs that exist today",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-auth",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-auth-now",
+            "props": {
+              "columns": [
+                "Act",
+                "Who",
+                "Guard today",
+                "Guard after"
+              ],
+              "rows": [
+                [
+                  "accept a lower level",
+                  "developer only",
+                  "none: the agent writes `not applicable:`",
+                  "a page mark of the developer, recorded by the page engine; the script refuses a lower level with no such mark"
+                ],
+                [
+                  "go on a small-lane fix",
+                  "developer only",
+                  "none",
+                  "a page mark; no code commit before it"
+                ],
+                [
+                  "pass or fail a proof",
+                  "judge agent",
+                  "none",
+                  "the judge writes only its verdict file; the end gate refuses a verdict without a description"
+                ],
+                [
+                  "change a test or the evidence after the run",
+                  "nobody",
+                  "none",
+                  "the end-gate record holds the hash of each evidence file; ship refuses a changed file"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-auth-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "the developer's acts come from the page, which only the developer marks"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-auth-q",
+                "props": {
+                  "text": "**Who may accept a lower level, and how a script knows.** Accept or correct it.\n\n- A developer act counts only as a mark on the page: the agent can write a file, but it cannot mark the page.\n- In chat with no page, the developer's own message counts, as for the PRD publish.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Who may accept a lower level, and how a script knows",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-life",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "graph",
+            "id": "a-life-now",
+            "props": {
+              "direction": "down",
+              "nodes": [
+                {
+                  "id": "l-plan",
+                  "label": "planned",
+                  "group": "p"
+                },
+                {
+                  "id": "l-written",
+                  "label": "test written",
+                  "group": "p"
+                },
+                {
+                  "id": "l-run",
+                  "label": "ran twice",
+                  "group": "p"
+                },
+                {
+                  "id": "l-flaky",
+                  "label": "flaky",
+                  "group": "p"
+                },
+                {
+                  "id": "l-judge",
+                  "label": "judged",
+                  "group": "p"
+                },
+                {
+                  "id": "l-pass",
+                  "label": "proof line",
+                  "group": "p"
+                },
+                {
+                  "id": "l-back",
+                  "label": "back to subtasks",
+                  "group": "p"
+                },
+                {
+                  "id": "f-note",
+                  "label": "noted",
+                  "group": "f"
+                },
+                {
+                  "id": "f-now",
+                  "label": "fix now",
+                  "group": "f",
+                  "you": true
+                },
+                {
+                  "id": "f-ticket",
+                  "label": "ticket",
+                  "group": "f",
+                  "you": true
+                },
+                {
+                  "id": "f-drop",
+                  "label": "dropped, with reason",
+                  "group": "f",
+                  "you": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "l-plan",
+                  "to": "l-written",
+                  "label": "its subtask"
+                },
+                {
+                  "from": "l-written",
+                  "to": "l-run",
+                  "label": "end gate"
+                },
+                {
+                  "from": "l-run",
+                  "to": "l-flaky",
+                  "label": "verdicts differ"
+                },
+                {
+                  "from": "l-run",
+                  "to": "l-judge",
+                  "label": "same verdict"
+                },
+                {
+                  "from": "l-judge",
+                  "to": "l-pass",
+                  "label": "pass"
+                },
+                {
+                  "from": "l-judge",
+                  "to": "l-back",
+                  "label": "fail"
+                },
+                {
+                  "from": "l-flaky",
+                  "to": "l-back"
+                },
+                {
+                  "from": "l-back",
+                  "to": "l-run"
+                },
+                {
+                  "from": "f-note",
+                  "to": "f-now"
+                },
+                {
+                  "from": "f-note",
+                  "to": "f-ticket"
+                },
+                {
+                  "from": "f-note",
+                  "to": "f-drop"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "p",
+                  "label": "high-level plan row"
+                },
+                {
+                  "id": "f",
+                  "label": "found bug"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-life-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "both have no state today; YOU marks your choices"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-life-q",
+                "props": {
+                  "text": "**The states of a high-level proof and of a found bug.** Accept or correct it.\n\n- The subtask statuses stay as they are. The run gets one more state at its end: the end gate.\n- Only the developer moves a found bug out of noted.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The states of a high-level proof and of a found bug",
+          "node": "aspect-lifecycle"
+        },
+        {
+          "id": "a-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-teams-now",
+            "props": {
+              "columns": [
+                "Area",
+                "Owner",
+                "Touched"
+              ],
+              "rows": [
+                [
+                  "afkv2 skills, engine, scripts, ports",
+                  "this plugin",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Chrome DevTools MCP (npm package)",
+                  "Google, outside",
+                  "installed and registered by setup; not changed"
+                ],
+                [
+                  "Claude and Codex settings files",
+                  "the developer's machine",
+                  "setup adds the driver entry, with a backup, as it does for hooks"
+                ],
+                [
+                  "served repositories",
+                  "their teams",
+                  "only their config gains an optional contract level"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-teams-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "all code changes are inside this plugin"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-teams-q",
+                "props": {
+                  "text": "**No other team's module.** Accept or correct it.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "No other team's module; 1 new outside package",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-large",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-large-now",
+            "props": {
+              "columns": [
+                "What grows",
+                "Where",
+                "Details"
+              ],
+              "rows": [
+                [
+                  "screenshots and answers of the end gate",
+                  "the run branch",
+                  "see the Performance section"
+                ],
+                [
+                  "mutation runs on changed lines",
+                  "CI",
+                  "see the Performance section"
+                ],
+                [
+                  "plan rows",
+                  "VERIFICATION.md",
+                  "tens per feature; no risk"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-large-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "2 things can grow; their sizes and fixes are in the Performance section"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-large-q",
+                "props": {
+                  "text": "**What can grow.** Accept or correct it. The sizes, costs and fixes come in the Performance section of the draft.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "What can grow: evidence files and mutation time",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-11T18:38:10Z",
+          "raw": "[round R-1]\na-entities accept\na-relations accept\na-keys accept\na-constraints accept\na-cascade accept\na-api accept\na-migration accept\na-auth accept\nm-aspects note 1\n  on: \"ran twice\"\n  even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue\na-life write-in\na-teams accept\na-large accept",
+          "signals": [
+            {
+              "target": "a-entities",
+              "item": "a-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "45ee72dbb6613e32"
+            },
+            {
+              "target": "a-relations",
+              "item": "a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "40d9026823f5cac9"
+            },
+            {
+              "target": "a-keys",
+              "item": "a-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bfa96658fe4906d5"
+            },
+            {
+              "target": "a-constraints",
+              "item": "a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4220156d29a39c38"
+            },
+            {
+              "target": "a-cascade",
+              "item": "a-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "03597d5d0aefd906"
+            },
+            {
+              "target": "a-api",
+              "item": "a-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "56d9170bd8172e88"
+            },
+            {
+              "target": "a-migration",
+              "item": "a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7067f9bf6c6ce29d"
+            },
+            {
+              "target": "a-auth",
+              "item": "a-auth",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "dcc76960d1a65b2a"
+            },
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue",
+              "note": "N-1-m-aspects-1",
+              "steer": true,
+              "quote": "ran twice",
+              "stamp": "fcdf42737b66ec96"
+            },
+            {
+              "target": "a-life",
+              "item": "a-life",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "3322808f242749c4"
+            },
+            {
+              "target": "a-teams",
+              "item": "a-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1f576bba85e2b997"
+            },
+            {
+              "target": "a-large",
+              "item": "a-large",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e515be2bf55e1c67"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-1-1",
+          "text": "Your write-in arrived with no text of its own. I read your note on \"ran twice\" as its content. Round 2 asks the life cycle again with that change."
+        },
+        {
+          "id": "A-1-2",
+          "text": "You are right. 2 passing runs do not prove a test is stable, and they double the cost of the slowest tests. My proposal in place of it: each high-level test runs once. Only a failure runs once more. A fail followed by a pass counts as flaky, which is a fail: the test goes back to the builder with the rerun check named. A pass is not rerun. The judge also looks for the signs of a flaky test for each level, from the test levels table: fixed sleeps, selectors tied to the page structure, shared data, and a dependence on test order. That catches a flaky test that passed by luck, which a second run cannot do. The usual cost is 1 run. This changes a settled requirement (PRD AC-022), so after this design session I correct the PRD through a short return to the grill, and the two stay in agreement.",
+          "notes": [
+            "N-1-m-aspects-1"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "10 of 11 critical aspects"
+        ],
+        "unlocks": [
+          "the 2-provider draft of the whole design"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "a-life2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-life2-now",
+            "props": {
+              "direction": "down",
+              "nodes": [
+                {
+                  "id": "m-plan",
+                  "label": "planned",
+                  "group": "p"
+                },
+                {
+                  "id": "m-written",
+                  "label": "test written",
+                  "group": "p"
+                },
+                {
+                  "id": "m-run",
+                  "label": "ran once",
+                  "group": "p"
+                },
+                {
+                  "id": "m-rerun",
+                  "label": "failed: ran once more",
+                  "group": "p"
+                },
+                {
+                  "id": "m-flaky",
+                  "label": "flaky: a fail",
+                  "group": "p"
+                },
+                {
+                  "id": "m-judge",
+                  "label": "judged",
+                  "group": "p"
+                },
+                {
+                  "id": "m-pass",
+                  "label": "proof line",
+                  "group": "p"
+                },
+                {
+                  "id": "m-back",
+                  "label": "back to subtasks",
+                  "group": "p"
+                },
+                {
+                  "id": "g-note",
+                  "label": "noted",
+                  "group": "f"
+                },
+                {
+                  "id": "g-now",
+                  "label": "fix now",
+                  "group": "f",
+                  "you": true
+                },
+                {
+                  "id": "g-ticket",
+                  "label": "ticket",
+                  "group": "f",
+                  "you": true
+                },
+                {
+                  "id": "g-drop",
+                  "label": "dropped, with reason",
+                  "group": "f",
+                  "you": true
+                }
+              ],
+              "edges": [
+                {
+                  "from": "m-plan",
+                  "to": "m-written",
+                  "label": "its subtask"
+                },
+                {
+                  "from": "m-written",
+                  "to": "m-run",
+                  "label": "end gate"
+                },
+                {
+                  "from": "m-run",
+                  "to": "m-judge",
+                  "label": "pass"
+                },
+                {
+                  "from": "m-run",
+                  "to": "m-rerun",
+                  "label": "fail"
+                },
+                {
+                  "from": "m-rerun",
+                  "to": "m-flaky",
+                  "label": "pass"
+                },
+                {
+                  "from": "m-rerun",
+                  "to": "m-back",
+                  "label": "fail again"
+                },
+                {
+                  "from": "m-flaky",
+                  "to": "m-back"
+                },
+                {
+                  "from": "m-judge",
+                  "to": "m-pass",
+                  "label": "pass"
+                },
+                {
+                  "from": "m-judge",
+                  "to": "m-back",
+                  "label": "fail, or signs of a flaky test"
+                },
+                {
+                  "from": "m-back",
+                  "to": "m-run"
+                },
+                {
+                  "from": "g-note",
+                  "to": "g-now"
+                },
+                {
+                  "from": "g-note",
+                  "to": "g-ticket"
+                },
+                {
+                  "from": "g-note",
+                  "to": "g-drop"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "p",
+                  "label": "high-level plan row"
+                },
+                {
+                  "id": "f",
+                  "label": "found bug"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-life2-now-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "a pass runs once; only a failure runs again; YOU marks your choices"
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-life2-q",
+                "props": {
+                  "text": "**The states of a high-level proof and of a found bug.** With your round 1 note. Accept or correct it.\n\n- Each high-level test runs once at the end gate. Only a failure runs once more; a fail then a pass is flaky, and flaky counts as a fail.\n- The judge also fails a test that shows the signs of a flaky test for its level: fixed sleeps, structural selectors, shared data, order dependence.\n- The subtask statuses stay. The run gets one more state at its end: the end gate.\n- Only you move a found bug out of noted.\n- This changes PRD AC-022; I correct the PRD after this session.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The states of a high-level proof and of a found bug",
+          "node": "aspect-lifecycle",
+          "carries": [
+            "a-life"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-11T18:43:55Z",
+          "raw": "[round R-2]\na-life2 accept",
+          "signals": [
+            {
+              "target": "a-life2",
+              "item": "a-life2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "797666b539d1b9be"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": []
+}

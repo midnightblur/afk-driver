@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "count": 2,
+  "tools": [
+    "claude",
+    "codex"
+  ],
+  "reason": null,
+  "stage": "planned",
+  "proposers": [],
+  "cleaned": false
+}

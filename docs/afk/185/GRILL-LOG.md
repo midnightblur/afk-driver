@@ -114,3 +114,7 @@
 - Policy: Judge agent → permitted: pass or fail a high-level proof, each with a description of what it saw; denied: accept a lower level, change a test or the evidence, overrule a failed script check, read the conversation or the builder's claims; scope: the plan rows and the evidence of one ship; validation: a verdict without a description fails; runs on the other provider, else a higher-tier model of the same provider
 - Settled: exit gate passed 2026-11-11 · session s-20261110-045725
 - Last pass: R8 · session s-20261110-045725
+
+## Solution design
+
+- Note: N-1-m-aspects-1 · R1 · on m-aspects: "even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue"
