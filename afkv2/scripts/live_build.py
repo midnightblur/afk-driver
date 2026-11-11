@@ -99,10 +99,12 @@ def start_live(repo_root, live: dict | None = None) -> LiveHandle:
 
 
 def stop_live(handle: LiveHandle) -> None:
-    """Stop what `start_live` began: the `stop` command, else the process tree. Any process left is then killed."""
+    """Stop what `start_live` began: the `stop` command, else the process tree. Any process left is then killed.
+    A stop command is proven on its own: the address must stop answering before the process tree is killed."""
     try:
         failure = _run_stop(handle) if handle.live["stop"] else None
-        _kill(handle.spawned)
+        if not handle.live["stop"]:
+            _kill(handle.spawned)
         if failure is None and not _gone(handle):
             failure = f"{handle.live['address']} still answers after the stop"
         if failure:
@@ -194,13 +196,17 @@ def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
     if sys.platform != "win32":
         return _Spawned(subprocess.Popen(command, start_new_session=True, **common))
     job = _windows_job()
-    process = subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | _CREATE_SUSPENDED, **common)
     kernel32, ntdll = _windows_dlls()
+    try:
+        process = subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | _CREATE_SUSPENDED, **common)
+    except OSError:
+        kernel32.CloseHandle(job)
+        raise
     if not kernel32.AssignProcessToJobObject(job, int(process._handle)):
         error = ctypes.WinError(ctypes.get_last_error())
-        ntdll.NtResumeProcess(int(process._handle))
         kernel32.CloseHandle(job)
-        _kill(_Spawned(process))
+        process.kill()
+        _wait_exit(process, STOP_SECONDS)
         raise error
     ntdll.NtResumeProcess(int(process._handle))
     return _Spawned(process, job)

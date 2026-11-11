@@ -407,3 +407,12 @@ def test_prove_outside_git_refuses_and_writes_nothing(tmp_path):
     answer = live_build.prove(root)
     assert answer["error"]["code"] == "git-failed"
     assert (root / ".afkv2" / "config.json").read_bytes() == before
+
+
+def test_a_stop_command_that_stops_nothing_refuses(repo, monkeypatch):
+    monkeypatch.setattr(live_build, "STOP_SECONDS", 2)
+    write_config(repo, server_block(repo, stop=f"{PY} -c \"pass\""))
+    answer = live_build.check(repo)
+    assert answer["error"]["code"] == "live-stop-failed"
+    assert "still answers" in answer["error"]["reason"]
+    assert not alive(server_pid(repo))
