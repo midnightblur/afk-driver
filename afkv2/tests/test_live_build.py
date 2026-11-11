@@ -257,3 +257,90 @@ def test_command_refusal_exits_1_and_usage_exits_2(repo):
     assert (code, answer["error"]["code"]) == (2, "usage")
     code, answer = run_tool("launch", cwd=repo)
     assert (code, answer["error"]["code"]) == (2, "usage")
+
+
+NOT_HTTP = r"""
+import os, socket, sys
+port, pid_file = int(sys.argv[1]), sys.argv[2]
+open(pid_file, "w").write(str(os.getpid()))
+server = socket.socket()
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(("127.0.0.1", port))
+server.listen(5)
+while True:
+    conn, _ = server.accept()
+    try:
+        conn.recv(1024)
+        conn.sendall(b"SSH-2.0-garbage\r\n\r\n")
+    finally:
+        conn.close()
+"""
+
+
+def test_a_reply_that_is_not_http_is_no_answer_and_leaves_no_process(repo):
+    (repo / "nothttp.py").write_text(NOT_HTTP, encoding="utf-8")
+    pid_file = repo.parent / "nothttp.pid"
+    port = free_port()
+    write_config(repo, {"start": f"{PY} nothttp.py {port} \"{pid_file}\"", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 3})
+    answer = live_build.check(repo)
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "live-no-answer"
+    assert not alive(int(pid_file.read_text()))
+
+
+def test_a_hanging_stop_command_refuses_in_time_and_leaves_no_process(repo, monkeypatch):
+    monkeypatch.setattr(live_build, "STOP_SECONDS", 2)
+    pid_file = repo.parent / "stopper.pid"
+    stopper = f"import os, time; open(r'{pid_file}', 'w').write(str(os.getpid())); time.sleep(120)"
+    write_config(repo, server_block(repo, stop=f"{PY} -c \"{stopper}\""))
+    started = time.monotonic()
+    answer = live_build.check(repo)
+    assert answer["error"]["code"] == "live-stop-failed"
+    assert time.monotonic() - started < 40
+    assert not alive(int(pid_file.read_text()))
+    assert not alive(server_pid(repo))
+
+
+def test_a_proposed_block_replaces_a_bad_stored_block(repo):
+    write_config(repo, {"start": "serve", "address": "http://x", "ready_seconds": 0})
+    block = server_block(repo)
+    answer = live_build.prove(repo, live=block)
+    assert answer["ok"] is True, answer
+    assert read_raw(repo)["live"]["start"] == block["start"]
+
+
+def test_an_address_that_answers_before_the_start_refuses(repo):
+    port = free_port()
+    other = subprocess.Popen([sys.executable, str(repo / "server.py"), str(port), "200", str(repo.parent / "other.pid")],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.monotonic() + 20
+        while not answers(f"http://127.0.0.1:{port}/") and time.monotonic() < deadline:
+            time.sleep(0.2)
+        write_config(repo, {"start": f"{PY} -c \"import time; time.sleep(60)\"", "address": f"http://127.0.0.1:{port}/"})
+        answer = live_build.check(repo)
+        assert answer["error"]["code"] == "live-start-failed"
+        assert "already answers" in answer["error"]["reason"]
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_a_failed_config_write_refuses_and_leaves_no_temporary_file(repo, monkeypatch):
+    write_config(repo, server_block(repo))
+    before = read_raw(repo)
+
+    def refuse(*args):
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(live_build.os, "replace", refuse)
+    answer = live_build.prove(repo)
+    assert answer["error"]["code"] == "config-write-failed"
+    assert read_raw(repo) == before
+    assert not (repo / ".afkv2" / "config.tmp").exists()
+
+
+def test_the_write_keeps_non_ascii_text(repo):
+    write_config(repo, server_block(repo), note="caf\u00e9")
+    assert live_build.prove(repo)["ok"] is True
+    assert "caf\u00e9" in (repo / ".afkv2" / "config.json").read_text(encoding="utf-8")
