@@ -173,4 +173,10 @@ Every pass of `gate` answers `stale` and `changed`. A list is empty when it has 
 
 ## Devil's-advocate pass
 
-When the tree looks exhausted, start one fresh subagent. Give it the settled requirements, pains, restrictions and ledger from `GRILL-LOG.md`, not this conversation. Its brief: attack. Which requirement treats a symptom, which restriction blocks a legitimate scenario, which 2 requirements conflict, what nearby pain stays open. Show its findings as the last round. Write a `Devil` row when each one is resolved or accepted.
+When the tree looks exhausted, run the devil pass on the other provider. It reads only `GRILL-LOG.md`, not this conversation, and attacks it. `--session` is the provider of this session, `claude` or `codex`:
+
+```sh
+<python> "<this skill's folder>/../../scripts/other_provider.py" attack --log "<log>" --session <provider>
+```
+
+Show each finding of `findings` as a card of the last round, with its `kind`, `what` and `where`. Write a `Devil` row when each one is resolved or accepted, and name `provider` and `model` of the answer in it. A refusal (`no-provider`, `judge-timeout`, `judge-unreadable`): tell the developer its `reason`, and ask whether to run the pass again or to go on without it. Write the answer and the code in a `Devil` row.
