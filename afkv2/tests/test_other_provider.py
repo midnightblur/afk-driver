@@ -250,3 +250,57 @@ def test_a_fail_verdict_is_never_retried(tmp_path):
     fake = FakeCli(codex_answer(row_text(result="fail")), codex_answer(row_text()))
     assert judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]["result"] == "fail"
     assert len(fake.calls) == 1
+
+
+# ---------------------------------------------------------------- attack
+
+
+def grill_log(tmp_path):
+    folder = tmp_path / "ticket"
+    folder.mkdir()
+    (folder / "GRILL-LOG.md").write_text("## grill-requirements\n- R-1 the list shows a Status column\n", encoding="utf-8")
+    (folder / "PRD.md").write_text("not for the devil")
+    return folder / "GRILL-LOG.md"
+
+
+FINDING = {"kind": "conflict", "what": "R-1 and R-2 ask for different sort orders", "where": "R-1, R-2"}
+
+
+def test_attack_runs_1_read_only_call_on_a_copy_of_the_log_alone(tmp_path):
+    log = grill_log(tmp_path)
+    seen_files = []
+    fake = FakeCli((0, json.dumps({"findings": [FINDING]})))
+    run = fake.run
+
+    def spy(argv, *, stdin, cwd, timeout):
+        if cwd:
+            seen_files.extend(sorted(path.name for path in Path(cwd).iterdir()))
+        return run(argv, stdin=stdin, cwd=cwd, timeout=timeout)
+
+    answer = op.attack(log, "claude", lookup=fake.lookup, runner=spy)
+    argv = fake.calls[0]["argv"]
+    assert argv[argv.index("-s") + 1] == "read-only"
+    assert seen_files == ["GRILL-LOG.md"]
+    assert "symptom" in fake.calls[0]["stdin"]
+    assert answer == {"ok": True, "provider": "codex", "model": "cli-default", "effort": "medium", "findings": [FINDING]}
+
+
+def test_attack_retries_an_answer_that_breaks_the_findings_schema_once(tmp_path):
+    bad = (0, json.dumps({"findings": [{**FINDING, "score": 3}]}))
+    fake = FakeCli(bad, bad)
+    with pytest.raises(op.Refusal) as refused:
+        op.attack(grill_log(tmp_path), "claude", lookup=fake.lookup, runner=fake.run)
+    assert refused.value.code == "judge-unreadable"
+    assert len(fake.calls) == 2
+
+
+def test_attack_refuses_a_missing_log(tmp_path):
+    fake = FakeCli()
+    with pytest.raises(op.Refusal) as refused:
+        op.attack(tmp_path / "GRILL-LOG.md", "claude", lookup=fake.lookup, runner=fake.run)
+    assert refused.value.code == "bad-input"
+
+
+def test_the_command_answers_one_json_object_and_exit_2_on_bad_input(capsys):
+    assert op.main(["which", "--session", "gemini"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "bad-input"

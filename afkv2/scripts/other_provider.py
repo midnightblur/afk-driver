@@ -31,6 +31,8 @@ INPUT_ENTRIES = {"rows.json": "file", "evidence": "folder", "tests": "folder"}
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 CHECKS = ("VC-2", "VC-4", "VC-6", "VC-7", "level", "flaky")
 SCHEMA_CHECK = "verdict-schema"
+FINDING_FIELDS = ("kind", "what", "where")
+FINDING_KINDS = ("symptom", "blocked-scenario", "conflict", "open-pain")
 ROW_FIELDS = ("row", "seen", "compare", "checks", "result")
 CHECK_FIELDS = ("check", "result", "why")
 RESULTS = ("pass", "fail")
@@ -62,6 +64,24 @@ VERDICT_SCHEMA = {
         "result": {"type": "string", "enum": list(RESULTS)},
     },
 }
+
+# The answer of 1 devil pass.
+FINDINGS_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["findings"],
+    "properties": {"findings": {"type": "array", "items": {
+        "type": "object", "additionalProperties": False, "required": list(FINDING_FIELDS),
+        "properties": {"kind": {"type": "string", "enum": list(FINDING_KINDS)}, "what": {"type": "string"},
+                       "where": {"type": "string"}}}}},
+}
+
+ATTACK_PROMPT = """You are the devil's advocate of a requirements grill. You see only `GRILL-LOG.md` in this folder: its settled requirements, pains, restrictions and claim ledger. Read it. Change nothing. Attack it:
+- `symptom`: a requirement that treats a symptom, not the cause.
+- `blocked-scenario`: a restriction that blocks a legitimate scenario.
+- `conflict`: 2 requirements that conflict.
+- `open-pain`: a nearby pain that stays open.
+
+Answer only the JSON object of the schema: 1 entry of `findings` per finding, with its `kind`, 1 sentence `what` and `where`, the ids or the section of the log it touches. No finding: an empty list.
+"""
 
 JUDGE_PROMPT = """You are the judge of high-level test proofs. You see only this folder: `rows.json` (the plan rows; \
 each row says what you should see), `evidence/` (the screenshots, answers and logs of the test runs) and `tests/` \
@@ -189,18 +209,18 @@ def _command(judge_cli, folder: Path, schema_file: Path, images) -> list[str]:
     return argv
 
 
-def _call(judge_cli, prompt, folder: Path, schema, images, runner):
+def _call(judge_cli, prompt, folder: Path, schema, images, runner, accept=None):
     """Run the CLI; a transport failure gets 1 retry, an answer never. Answers the object as (key, value) pairs
     in their order. Raises `Refusal` after the second transport failure."""
     for attempt in range(ATTEMPTS):
         try:
-            return _call_once(judge_cli, prompt, folder, schema, images, runner)
+            return _call_once(judge_cli, prompt, folder, schema, images, runner, accept)
         except Refusal:
             if attempt == ATTEMPTS - 1:
                 raise
 
 
-def _call_once(judge_cli, prompt, folder: Path, schema, images, runner):
+def _call_once(judge_cli, prompt, folder: Path, schema, images, runner, accept):
     with tempfile.TemporaryDirectory(prefix="afkv2-judge-") as scratch:
         schema_file = Path(scratch) / "answer-schema.json"
         schema_file.write_text(json.dumps(schema), encoding="utf-8")
@@ -209,6 +229,8 @@ def _call_once(judge_cli, prompt, folder: Path, schema, images, runner):
     if ran.timed_out:
         raise Refusal("judge-timeout", f"{judge_cli['provider']} gave no answer in {CALL_SECONDS} s")
     answer = _answer(judge_cli["provider"], ran.stdout) if ran.exit == 0 else None
+    if answer is not None and accept:
+        answer = accept(answer)
     if answer is None:
         raise Refusal("judge-unreadable", f"{judge_cli['provider']} exited {ran.exit} with no readable answer on stdout")
     return answer
@@ -291,3 +313,70 @@ def _check(value):
     if fields["check"] not in CHECKS or fields["result"] not in RESULTS or not isinstance(fields["why"], str):
         return None
     return {key: fields[key] for key in CHECK_FIELDS}
+
+
+# ---------------------------------------------------------------- attack
+
+def attack(log_path, session_provider, *, lookup=shutil.which, runner=run_cli) -> dict:
+    """1 devil-pass call on a copy of the grill log alone. Answers the findings."""
+    log = Path(log_path)
+    if not log.is_file():
+        raise Refusal("bad-input", f"no grill log at {log}")
+    judge_cli = which(session_provider, lookup=lookup, runner=runner)
+    with tempfile.TemporaryDirectory(prefix="afkv2-devil-") as scratch:
+        folder = Path(scratch)
+        shutil.copyfile(log, folder / "GRILL-LOG.md")
+        findings = _call(judge_cli, ATTACK_PROMPT, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
+    return {"ok": True, **{key: judge_cli[key] for key in ("provider", "model", "effort")}, "findings": findings}
+
+
+def _findings(answer):
+    """The findings of an answer that keeps the schema, else None: the answer counts as unreadable."""
+    if [key for key, _ in answer] != ["findings"] or not isinstance(dict(answer)["findings"], list):
+        return None
+    findings = []
+    for entry in dict(answer)["findings"]:
+        if not _is_object(entry) or sorted(key for key, _ in entry) != sorted(FINDING_FIELDS):
+            return None
+        fields = dict(entry)
+        if fields["kind"] not in FINDING_KINDS or not all(isinstance(fields[key], str) for key in ("what", "where")):
+            return None
+        findings.append({key: fields[key] for key in FINDING_FIELDS})
+    return findings
+
+
+# ---------------------------------------------------------------- command
+
+UNREADABLE_CODES = frozenset({"bad-input", "usage"})
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="other_provider.py")
+    parser.add_argument("verb", choices=("which", "judge", "attack"))
+    parser.add_argument("--session", required=True, help="the provider of this session: claude or codex")
+    parser.add_argument("--input", help="judge: the input folder of rows.json, evidence/ and tests/")
+    parser.add_argument("--log", help="attack: the GRILL-LOG.md path")
+    args = parser.parse_args(argv)
+    try:
+        if args.verb == "which":
+            answer = {"ok": True, **which(args.session)}
+        elif args.verb == "judge":
+            answer = judge(_need(args.input, "--input"), args.session)
+        else:
+            answer = attack(_need(args.log, "--log"), args.session)
+    except Refusal as refusal:
+        answer = {"ok": False, "error": {"code": refusal.code, "reason": refusal.reason}}
+    print(json.dumps(answer, indent=1))
+    if answer["ok"]:
+        return 0
+    return 2 if answer["error"]["code"] in UNREADABLE_CODES else 1
+
+
+def _need(value, flag):
+    if not value:
+        raise Refusal("usage", f"{flag} is required for this verb")
+    return value
+
+
+if __name__ == "__main__":
+    sys.exit(main())
