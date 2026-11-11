@@ -9,17 +9,18 @@ Exit 0 is ok. Exit 1 is a refusal. Exit 2 is unreadable input (`bad-payload`, `u
 
 | Verb | Payload | Answer | Kind |
 |------|---------|--------|------|
-| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` (the bare number, also for `owner/name#7`) and the `gh` fields | both |
+| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` (the bare number, also for `owner/name#7`), the `gh` fields, `description_hash` (of the body), `block`, `length_without_block`, and `block_problem` when the block is broken | both |
 | `issue-search` | GitHub: optional `query`, `max_results`, `tracker`, `repo`. Jira: `query` (JQL); optional `fields` (comma string or list), `max_results` (default 1000), `tracker` | GitHub: `issues, count`. Jira: `issues, count, truncated`; the port reads every page up to `max_results`, and `truncated` is true when Jira holds more | both |
 | `md-to-adf` | `markdown`; optional `figures` `{index: [ADF nodes]}` | `content, figure_token, block_text` | Jira |
 | `attachment-list` | `key` | `attachments, count` | Jira |
 | `attachment-put` | `key, png, receipt, preview` | `key, attachment_id, media_id, filename, width, height` | Jira |
 | `attachment-delete` | `id` | `id, filename, deleted`; when Jira no longer has it, `deleted` is false and `filename` is null | Jira |
-| `description-put` | `key, adf, expect_hash, receipt, preview` | `key, replaced, block`; `replaced` is `afkv2`, `v1`, or null for a first publish | Jira |
+| `description-put` | Jira: `key, adf, expect_hash, receipt, preview`. GitHub: `key, markdown, expect_hash, receipt, preview`; optional `tracker`, `repo` | `key, replaced, block`; `replaced` is `afkv2`, `v1` (Jira only), or null for a first publish | both |
+| `block-text` | `markdown` | `block_text`: the GitHub canonical form | GitHub |
 
 The port has no create, transition or comment verb.
 
-`issue-get` and `issue-search` take the kind from the payload `tracker`, then from `tracker.kind` in the answer of `afkv2/scripts/afkv2_config.py read`. The kinds are `jira` and `github-issues`. Without a payload `tracker` and `repo`, `repo` comes from `tracker.repo` in the same answer. A GitHub key that names another repository than `repo` refuses `bad-payload`.
+`issue-get`, `issue-search` and `description-put` take the kind from the payload `tracker`, then from `tracker.kind` in the answer of `afkv2/scripts/afkv2_config.py read`. The kinds are `jira` and `github-issues`. Without a payload `tracker` and `repo`, `repo` comes from `tracker.repo` in the same answer. A GitHub key that names another repository than `repo` refuses `bad-payload`.
 
 ## The publish contract
 
@@ -31,6 +32,14 @@ The port has no create, transition or comment verb.
 - `adf` is a list of ADF nodes or a doc. It holds only the text between the block lines; the port writes the lines.
 - `figure_token` holds `{}` for the figure index. A paragraph that holds only the token becomes the nodes of `figures[index]`. With `figures`, a token that has no entry refuses `bad-payload`. Without `figures`, the paragraph is left out: use this for the text of the preview.
 - `attachment-delete` checks only the file name: it refuses all but an afkv2 or a v1 picture name. It takes no ticket: the caller takes `id` from `attachment-list` of the ticket or from the `attachment-put` answer.
+
+## The GitHub block
+
+- The block stands in the issue body between the lines `<!-- afkv2:prd:start -->` and `<!-- afkv2:prd:end -->`, each alone on its line. A line inside a code fence holds no block line.
+- `description-put` changes only the lines between the block lines. A first publish appends a blank line and the block at the end of the body.
+- The block holds the Markdown as is. GitHub draws each Mermaid fence. `media_ids` is always empty, and `picture_hashes` is an empty list.
+- `block_text` is the Markdown with LF line ends, no trailing spaces, and no blank lines at the start or the end. The `receipt` covers it.
+- `description-put` refuses `bad-block` for a broken or doubled block, or for new text that holds a block line; `stale` when the body hash is not `expect_hash`; `too-large` when the new body passes 65536 characters.
 
 ## The read-back compare
 

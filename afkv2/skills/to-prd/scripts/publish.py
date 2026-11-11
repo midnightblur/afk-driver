@@ -1,9 +1,10 @@
-"""The Jira publish of a PRD, from the repository root. Every tracker call goes through the tracker port.
+"""The publish of a PRD into a Jira ticket or a GitHub issue, from the repository root. Every tracker call goes through the tracker port.
 
 `publish.py preview --ticket KEY --prd FILE --run-dir DIR`: reads the ticket, builds the block and the pictures,
 writes the preview and the receipt. Writes nothing to the ticket.
 `publish.py publish --preview FILE --receipt RECEIPT`: runs after the developer's yes. Uploads the pictures, writes
 the block, reads it back, and removes the afkv2 and v1 pictures the new block does not use.
+A GitHub issue gets the PRD Markdown as is: no picture is rendered, uploaded or removed.
 """
 
 from __future__ import annotations
@@ -37,6 +38,10 @@ FENCE = re.compile(r"^ *(`{3,}|~{3,})[ \t]*(\S*)[ \t]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PUBLISHED_TICKETS = "published-tickets.txt"
 JIRA_TEXT_LIMIT = 32767
+GITHUB_TEXT_LIMIT = 65536
+GITHUB_FRAME = 60  # the 2 block lines and the blank line before the block
+JIRA, GITHUB = "jira", "github-issues"
+TRACKER_NAMES = {JIRA: "Jira", GITHUB: "GitHub"}
 
 
 def call_tracker(verb, payload):
@@ -251,9 +256,9 @@ def _write_page(path, ticket, receipt, action, nodes, picture_files):
                      f"{html.escape(action)} · receipt {receipt[:8]}</p></header>{_html(nodes, data)}</body></html>\n")
 
 
-def _action(block):
+def _action(block, where="the description"):
     family = (block or {}).get("family")
-    return f"replaces the {family} block" if family else "appends the block at the end of the description"
+    return f"replaces the {family} block" if family else f"appends the block at the end of {where}"
 
 
 def _already_published(block, preview, attachments, uploads):
@@ -265,13 +270,54 @@ def _already_published(block, preview, attachments, uploads):
     return all(name in uploads for name in names) and media == [uploads[name]["media_id"] for name in names]
 
 
-def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_mermaid):
-    """Read the ticket, build the block with picture placeholders, render the pictures, write the preview + receipt."""
-    run_dir = Path(run_dir)
+def _read_prd(prd):
     try:
-        markdown = Path(prd).read_text("utf-8").replace("\r\n", "\n")
+        return Path(prd).read_text("utf-8").replace("\r\n", "\n")
     except OSError as error:
         raise Refusal("unreadable", f"{prd}: {error}", EXIT_UNREADABLE) from error
+
+
+def _write_text_page(path, ticket, receipt, action, text):
+    """The exact Markdown the issue body gets. GitHub draws the Markdown and each Mermaid fence itself."""
+    write_text(path, f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{html.escape(ticket)} preview</title>'
+                     f"<style>{PAGE_STYLE}</style></head><body><header><p><strong>{html.escape(ticket)}</strong> · "
+                     f"{html.escape(action)} · receipt {receipt[:8]}</p><p>The exact Markdown of the block. GitHub "
+                     f"shows it formatted, with each Mermaid diagram drawn.</p></header><pre>{html.escape(text)}</pre>"
+                     "</body></html>\n")
+
+
+def _github_preview(ticket, prd, run_dir, tracker):
+    """The GitHub-issue preview: the PRD Markdown as is, Mermaid fences included; no picture to render or upload."""
+    markdown = _read_prd(prd)
+    issue = tracker("issue-get", {"key": ticket})
+    _refuse_bad_block(issue)
+    if not issue.get("description_hash"):
+        raise Refusal("bad-answer", "issue-get answered no `description_hash`")
+    text = tracker("block-text", {"markdown": markdown})["block_text"]
+    ids = check_ids_present(markdown, text)
+    write_text(run_dir / ".gitignore", "*\n")
+    receipt = compute_receipt(ticket, text, [])
+    preview = {"ticket_key": ticket, "kind": GITHUB, "receipt": receipt, "description_hash": issue["description_hash"],
+               "picture_hashes": [], "block_text": text, "pictures": [], "index": str(Path(prd).parent / "INDEX.md")}
+    write_text(run_dir / "block.md", markdown)
+    write_json(run_dir / "preview.json", preview)
+    page = run_dir / "preview.html"
+    action = _action(issue.get("block"), "the issue body")
+    _write_text_page(page, ticket, receipt, action, text)
+    length = (issue.get("length_without_block") or 0) + len(text) + GITHUB_FRAME
+    block = issue.get("block") or {}
+    return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
+            "page": str(page), "page_url": page.resolve().as_uri(), "pictures": [], "action": action, "ids": len(ids),
+            "over_github_limit": length > GITHUB_TEXT_LIMIT,
+            "already_published": block.get("family") == "afkv2" and block.get("text") == text}
+
+
+def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_mermaid, kind=JIRA):
+    """Read the ticket, build the block with picture placeholders, render the pictures, write the preview + receipt."""
+    run_dir = Path(run_dir)
+    if kind == GITHUB:
+        return _github_preview(ticket, prd, run_dir, tracker)
+    markdown = _read_prd(prd)
     issue = tracker("issue-get", {"key": ticket})
     _refuse_bad_block(issue)
     if not issue.get("description_hash"):
@@ -377,7 +423,8 @@ def _record(log_path, ticket, receipt, now, only_if_new):
 def _note_published(preview, now):
     index = Path(preview["index"])
     if index.exists():
-        set_row(index, "PRD", "PRD.md", f"published to Jira {now.strftime('%Y-%m-%d')}")
+        name = TRACKER_NAMES[preview.get("kind", JIRA)]
+        set_row(index, "PRD", "PRD.md", f"published to {name} {now.strftime('%Y-%m-%d')}")
 
 
 def _load_preview(preview_path, receipt):
@@ -397,10 +444,36 @@ def _publish_answer(preview, **fields):
     return {"ok": True, "ticket": preview["ticket_key"], "receipt": preview["receipt"], **fields}
 
 
+def _publish_github(preview, preview_path, run_dir, log_path, tracker, now):
+    """Write the block, read it back. A GitHub block has no pictures, so nothing is uploaded or deleted."""
+    key, receipt = preview["ticket_key"], preview["receipt"]
+    issue = tracker("issue-get", {"key": key})
+    _refuse_bad_block(issue)
+    block = issue.get("block") or {}
+    if block.get("family") == "afkv2" and block.get("text") == preview["block_text"]:
+        problem = _record(log_path, key, receipt, now, only_if_new=True)
+        _note_published(preview, now)
+        return _publish_answer(preview, published=False, already_published=True, deleted=[], not_deleted=[],
+                               log_problem=problem)
+    if issue.get("description_hash") != preview["description_hash"]:
+        raise Refusal("stale", "the issue body changed after the preview: show a new preview and ask again")
+    markdown = (run_dir / "block.md").read_text("utf-8")
+    put = tracker("description-put", {"key": key, "markdown": markdown, "expect_hash": preview["description_hash"],
+                                      "receipt": receipt, "preview": str(preview_path)})
+    back = tracker("issue-get", {"key": key})
+    _compare_read_back(back.get("block"), preview["block_text"], [])
+    problem = _record(log_path, key, receipt, now, only_if_new=False)
+    _note_published(preview, now)
+    return _publish_answer(preview, published=True, already_published=False, replaced=put.get("replaced"),
+                           uploaded=[], deleted=[], not_deleted=[], log_problem=problem)
+
+
 def publish_after_yes(preview_path, receipt, log_path, tracker=call_tracker, now=None):
     """The ordered writes. Call only after the developer said yes to this receipt's preview."""
     now = now or datetime.now(timezone.utc)
     preview, run_dir = _load_preview(preview_path, receipt)
+    if preview.get("kind") == GITHUB:
+        return _publish_github(preview, preview_path, run_dir, log_path, tracker, now)
     key = preview["ticket_key"]
     issue = tracker("issue-get", {"key": key})
     _refuse_bad_block(issue)
@@ -443,9 +516,9 @@ def _preview_verb(argv):
         parser.add_argument(name, required=True)
     args = parser.parse_args(argv)
     kind = (read_config().get("tracker") or {}).get("kind")
-    if kind != "jira":
-        raise Refusal("not-jira", f"the tracker kind is {kind}: the PRD stays on disk, and nothing is published")
-    return build_preview(args.ticket, args.prd, args.run_dir)
+    if kind not in TRACKER_NAMES:
+        raise Refusal("no-publish", f"the tracker kind is {kind}: the PRD stays on disk, and nothing is published")
+    return build_preview(args.ticket, args.prd, args.run_dir, kind=kind)
 
 
 def _publish_verb(argv):

@@ -1008,10 +1008,159 @@ def test_a_failed_mmdc_does_not_fall_back_to_a_download(tmp_path, monkeypatch):
     assert calls == ["mmdc"] and "syntax error" in refused.value.reason
 
 
-def test_a_github_tracker_publishes_nothing(tmp_path):
-    world = World(tmp_path, {"spec_folder": "specs", "tracker": {"kind": "github-issues", "repo": "acme/shop"}})
-    assert world.preview(expect=1)["error"]["code"] == "not-jira"
+def test_a_tracker_with_no_publish_path_publishes_nothing(tmp_path):
+    world = World(tmp_path, {"spec_folder": "specs", "tracker": {"kind": "gitlab-issues"}})
+    assert world.preview(expect=1)["error"]["code"] == "no-publish"
     assert world.verbs() == []
+
+
+# --- GitHub issues: the real port in-process, gh mocked ---
+
+
+class GitHubIssue:
+    """The real tracker port with `gh issue view` and `gh issue edit` over one body in memory."""
+
+    def __init__(self, monkeypatch, body=""):
+        sys.path.insert(0, str(PORT_TREE.parent))
+        from tracker import cli, envelope, settings, shell
+        self.cli, self.envelope, self.shell = cli, envelope, shell
+        self.body, self.edits, self.verbs = body, [], []
+        monkeypatch.setattr(settings, "read_config", lambda: {"tracker": {"kind": "github-issues", "repo": "o/r"}})
+        monkeypatch.setattr(shell, "run_tool", self._gh)
+
+    def _gh(self, tool, args, *, stdin_text=None, timeout=None):
+        assert tool == "gh", f"no fake for {tool}"
+        if args[:2] == ["issue", "view"]:
+            return self.shell.Done(0, json.dumps({"number": 7, "body": self.body}), "")
+        if args[:2] == ["issue", "edit"]:
+            self.body = stdin_text
+            self.edits.append(list(args))
+            return self.shell.Done(0, "", "")
+        return self.shell.Done(1, "", f"no fake for gh {' '.join(args)}")
+
+    def __call__(self, verb, payload):
+        self.verbs.append(verb)
+        try:
+            return self.cli.VERBS[verb](payload)
+        except self.envelope.Refusal as refusal:
+            raise publish.Refusal(refusal.code, refusal.reason) from None
+
+
+@pytest.fixture
+def github(world, monkeypatch):
+    return GitHubIssue(monkeypatch, "Text of the human.")
+
+
+def gh_preview(world, issue):
+    return publish.build_preview("7", world.prd, world.run_dir, tracker=issue, kind=publish.GITHUB)
+
+
+def gh_publish(world, issue, answer):
+    return publish_after_yes_now(answer["preview"], answer["receipt"], world.published, issue)
+
+
+def publish_after_yes_now(preview, receipt, log, issue):
+    return publish.publish_after_yes(preview, receipt, log, tracker=issue, now=datetime(2026, 11, 11, tzinfo=timezone.utc))
+
+
+def test_github_publish_puts_the_prd_as_markdown_and_keeps_the_body(world, github):
+    answer = gh_preview(world, github)
+    assert github.edits == [] and answer["pictures"] == [] and answer["already_published"] is False
+    assert answer["action"] == "appends the block at the end of the issue body"
+    done = gh_publish(world, github, answer)
+    assert done["published"] is True and done["uploaded"] == [] and done["deleted"] == []
+    assert github.body.startswith("Text of the human.\n\n<!-- afkv2:prd:start -->\n# PRD")
+    assert f"```mermaid\n{DIAGRAM}\n```" in github.body and github.body.endswith("<!-- afkv2:prd:end -->")
+    assert "attachment-put" not in github.verbs and "md-to-adf" not in github.verbs
+    assert len(world.lines()) == 1
+
+
+def test_github_preview_page_shows_the_exact_markdown(world, github):
+    page = Path(gh_preview(world, github)["page"]).read_text("utf-8")
+    assert "```mermaid" in page and "AC-001 The basket shows the total." in page
+
+
+def test_github_rerun_after_success_writes_nothing(world, github):
+    gh_publish(world, github, gh_preview(world, github))
+    again = gh_preview(world, github)
+    assert again["already_published"] is True and again["action"] == "replaces the afkv2 block"
+    done = gh_publish(world, github, again)
+    assert done["already_published"] is True and len(github.edits) == 1 and len(world.lines()) == 1
+
+
+def test_github_republish_replaces_only_the_block(world, github):
+    gh_publish(world, github, gh_preview(world, github))
+    github.body += "\n\nA later comment of the human."
+    world.prd.write_text(PRD.replace("An empty basket shows zero.", "An empty basket shows 0."), "utf-8")
+    gh_publish(world, github, gh_preview(world, github))
+    assert github.body.count("afkv2:prd:start") == 1 and "shows 0." in github.body
+    assert github.body.startswith("Text of the human.") and github.body.endswith("A later comment of the human.")
+
+
+def test_github_body_changed_after_the_preview_is_stale(world, github):
+    answer = gh_preview(world, github)
+    github.body += " edited"
+    with pytest.raises(publish.Refusal) as refused:
+        gh_publish(world, github, answer)
+    assert refused.value.code == "stale" and github.edits == []
+
+
+def test_github_bad_block_is_refused_at_the_preview(world, github):
+    github.body = "<!-- afkv2:prd:start -->\nno end"
+    with pytest.raises(publish.Refusal) as refused:
+        gh_preview(world, github)
+    assert refused.value.code == "bad-block" and github.edits == []
+
+
+def test_github_wrong_receipt_is_refused(world, github):
+    answer = gh_preview(world, github)
+    with pytest.raises(publish.Refusal) as refused:
+        publish_after_yes_now(answer["preview"], "0" * 64, world.published, github)
+    assert refused.value.code == "bad-receipt" and github.edits == []
+
+
+def test_github_changed_block_file_is_refused_by_the_port(world, github):
+    answer = gh_preview(world, github)
+    (world.run_dir / "block.md").write_text(PRD + "\nadded after the yes\n", "utf-8")
+    with pytest.raises(publish.Refusal) as refused:
+        gh_publish(world, github, answer)
+    assert refused.value.code == "bad-receipt" and github.edits == []
+
+
+def test_github_missing_id_is_refused(world, github, monkeypatch):
+    real = github.cli.VERBS["block-text"]
+    monkeypatch.setitem(github.cli.VERBS, "block-text",
+                        lambda payload: {**real(payload), "block_text": real(payload)["block_text"].replace("AC-002", "")})
+    with pytest.raises(publish.Refusal) as refused:
+        gh_preview(world, github)
+    assert refused.value.code == "missing-ids"
+
+
+def test_github_read_back_mismatch_is_a_failed_publish(world, github, monkeypatch):
+    answer = gh_preview(world, github)
+    real_gh = github._gh
+
+    def corrupting(tool, args, **kwargs):
+        done = real_gh(tool, args, **kwargs)
+        if args[:2] == ["issue", "edit"]:
+            github.body = github.body.replace("shows zero", "shows nothing")
+        return done
+    monkeypatch.setattr(github.shell, "run_tool", corrupting)
+    with pytest.raises(publish.Refusal) as refused:
+        gh_publish(world, github, answer)
+    assert refused.value.code == "read-back-mismatch" and world.lines() == []
+
+
+def test_github_index_row_names_github(world, github):
+    index = world.spec / "INDEX.md"
+    index.write_text("# PROJ-1\n\n## Artifacts\n\n| Artifact | Where | State |\n|---|---|---|\n| PRD | PRD.md | draft |\n", "utf-8")
+    gh_publish(world, github, gh_preview(world, github))
+    assert "| PRD | PRD.md | published to GitHub 2026-11-11 |" in index.read_text("utf-8")
+
+
+def test_github_warns_over_the_body_limit(world, github):
+    world.prd.write_text(PRD + "\n" + "A long paragraph of plain words.\n\n" * 2200, "utf-8")
+    assert gh_preview(world, github)["over_github_limit"] is True
 
 
 def test_a_crlf_prd_gives_the_same_receipt(world):

@@ -1,13 +1,22 @@
-"""GitHub-issue reads through gh. Ported from v1; no write verb."""
+"""GitHub issues through gh: reads ported from v1, and the managed PRD block of the issue body."""
 
 from __future__ import annotations
 
+import hashlib
+import re
+
 from . import shell
 from .envelope import Refusal, need, ok
+from .jira import preview_for
 
 ISSUE_FIELDS = "number,title,state,labels,assignees,author,createdAt,updatedAt,body,url,milestone,comments"
 SEARCH_FIELDS = "number,title,state,labels,assignees,updatedAt,url"
 DEFAULT_LIMIT = 50
+BEGIN_LINE = "<!-- afkv2:prd:start -->"
+END_LINE = "<!-- afkv2:prd:end -->"
+MARKER_WORD = re.compile(r"afkv2:prd:(?:start|end)")
+FENCE = re.compile(r"^ *(`{3,}|~{3,})")
+BODY_LIMIT = 65536
 
 
 def _repo_args(repo):
@@ -25,15 +34,25 @@ def _repo_and_number(payload):
     return named or repo, number
 
 
+def _view(repo, number, fields):
+    data = shell.json_answer("gh", ["issue", "view", number, *_repo_args(repo), "--json", fields])
+    if not isinstance(data, dict):
+        raise Refusal("bad-answer", "gh issue view answered no JSON object")
+    return data
+
+
 def issue_get(payload):
+    """The gh fields, plus the publish facts of the body: `description_hash`, `block`, `length_without_block`,
+    and `block_problem` when the block is broken."""
     repo, number = _repo_and_number(payload)
     fields = payload.get("fields") or ISSUE_FIELDS
     if not isinstance(fields, str):
         fields = ",".join(fields)
-    data = shell.json_answer("gh", ["issue", "view", number, *_repo_args(repo), "--json", fields])
-    if not isinstance(data, dict):
-        raise Refusal("bad-answer", "gh issue view answered no JSON object")
-    return ok(key=number, **{name: value for name, value in data.items() if name not in ("ok", "key")})
+    if "body" not in fields.split(","):
+        fields += ",body"
+    data = _view(repo, number, fields)
+    answer = ok(key=number, **{name: value for name, value in data.items() if name not in ("ok", "key")})
+    return {**answer, **_block_facts(data.get("body") or "")}
 
 
 def issue_search(payload):
@@ -48,3 +67,102 @@ def issue_search(payload):
     if not isinstance(data, list):
         raise Refusal("bad-answer", "gh issue list answered no JSON list")
     return ok(issues=data, count=len(data))
+
+
+def body_hash(body):
+    """The stale check compares this: any change of the body, a line end included, changes it."""
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _lines(text):
+    return text.replace("\r\n", "\n").split("\n")
+
+
+def block_text(markdown):
+    """The canonical form of a block: LF line ends, no trailing spaces, no blank lines at the start or the end."""
+    return "\n".join(line.rstrip() for line in _lines(markdown)).strip("\n")
+
+
+def find_block(lines):
+    """`(begin, end)` line indexes of the one block; None when there is none; `bad-block` otherwise.
+    A line inside a code fence quotes a marker and holds none."""
+    begins, ends, fence = [], [], None
+    for index, line in enumerate(lines):
+        found = FENCE.match(line)
+        if fence is not None:
+            if found and found.group(1)[0] == fence[0] and len(found.group(1)) >= len(fence):
+                fence = None
+            continue
+        if found:
+            fence = found.group(1)
+        elif line.strip() == BEGIN_LINE:
+            begins.append(index)
+        elif line.strip() == END_LINE:
+            ends.append(index)
+        elif MARKER_WORD.search(line):
+            raise Refusal("bad-block", f"a block line stands inside line {index + 1}, not alone on its own line")
+    if len(begins) > 1 or len(ends) > 1:
+        raise Refusal("bad-block", "2 or more block lines of one kind: the issue body holds a doubled block")
+    if begins and not ends:
+        raise Refusal("bad-block", "a begin line without an end line")
+    if ends and not begins:
+        raise Refusal("bad-block", "an end line without a begin line")
+    if not begins:
+        return None
+    if ends[0] < begins[0]:
+        raise Refusal("bad-block", "the end line stands before the begin line")
+    return begins[0], ends[0]
+
+
+def _summary(text):
+    """What a read-back compares. A GitHub block has no pictures: GitHub draws each Mermaid fence itself."""
+    return {"family": "afkv2", "text": block_text(text), "media_ids": []}
+
+
+def _block_facts(body):
+    facts = {"description_hash": body_hash(body), "block": None, "length_without_block": len(body)}
+    lines = _lines(body)
+    try:
+        span = find_block(lines)
+    except Refusal as refusal:
+        return {**facts, "block_problem": refusal.reason}
+    if span:
+        facts["block"] = _summary("\n".join(lines[span[0] + 1:span[1]]))
+        facts["length_without_block"] = len("\n".join(lines[:span[0]] + lines[span[1] + 1:]))
+    return facts
+
+
+def block_text_verb(payload):
+    return ok(block_text=block_text(need(payload, "markdown")))
+
+
+def description_put(payload):
+    """Write the block into the issue body. Only the lines between the block lines change; a first publish
+    appends the block at the end."""
+    key, markdown, expect_hash = need(payload, "key"), need(payload, "markdown"), need(payload, "expect_hash")
+    repo, number = _repo_and_number(payload)
+    preview = preview_for(payload, key)
+    if preview.get("description_hash") != expect_hash:
+        raise Refusal("bad-receipt", "`expect_hash` is not the body hash the preview showed")
+    text = block_text(markdown)
+    seen = hashlib.sha256((key + text + "".join(preview.get("picture_hashes") or [])).encode("utf-8")).hexdigest()
+    if seen != payload["receipt"]:
+        raise Refusal("bad-receipt", "this text is not what the receipt covers: show a new preview")
+    if any(MARKER_WORD.search(line) for line in _lines(text)):
+        raise Refusal("bad-block", "the new text holds a block line: it would break the next publish")
+    body = _view(repo, number, "body").get("body") or ""
+    if body_hash(body) != expect_hash:
+        raise Refusal("stale", "the issue body changed after the preview: show a new preview")
+    lines = _lines(body)
+    span = find_block(lines)
+    framed = [BEGIN_LINE, *text.split("\n"), END_LINE]
+    if span:
+        new_lines = [*lines[:span[0]], *framed, *lines[span[1] + 1:]]
+    else:
+        kept = "\n".join(lines).rstrip("\n")
+        new_lines = [*([kept, ""] if kept else []), *framed]
+    new_body = "\n".join(new_lines)
+    if len(new_body) > BODY_LIMIT:
+        raise Refusal("too-large", f"the new issue body has {len(new_body)} characters; GitHub takes {BODY_LIMIT}")
+    shell.checked("gh", ["issue", "edit", number, *_repo_args(repo), "--body-file", "-"], stdin_text=new_body)
+    return ok(key=key, replaced="afkv2" if span else None, block=_summary(text))

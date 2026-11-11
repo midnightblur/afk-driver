@@ -41,7 +41,7 @@ def reader(tmp_path, monkeypatch):
 
 def test_the_verb_set_is_exactly_the_contract():
     assert set(cli.VERBS) == {"issue-get", "issue-search", "md-to-adf", "attachment-list",
-                              "attachment-put", "attachment-delete", "description-put"}
+                              "attachment-put", "attachment-delete", "description-put", "block-text"}
 
 
 @pytest.mark.parametrize("verb", ["create", "transition", "comment", "tracker_create", "tracker_transition",

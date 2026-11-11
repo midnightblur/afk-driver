@@ -30,6 +30,11 @@ def _issue_get(payload):
     return KINDS[kind].issue_get(payload)
 
 
+def _description_put(payload):
+    kind, payload = _kind_and_repo(payload)
+    return KINDS[kind].description_put(payload)
+
+
 def _issue_search(payload):
     kind, payload = _kind_and_repo(payload)
     return KINDS[kind].issue_search(payload)
@@ -42,7 +47,8 @@ VERBS = {
     "attachment-list": jira.attachment_list,
     "attachment-put": jira.attachment_put,
     "attachment-delete": jira.attachment_delete,
-    "description-put": jira.description_put,
+    "description-put": _description_put,
+    "block-text": github_issues.block_text_verb,
 }
 
 
