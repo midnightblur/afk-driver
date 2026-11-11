@@ -29,7 +29,9 @@ from pathlib import Path
 
 from shell import inject
 
-PIN = "0.1.81"
+# A pin change: the newest lavish-axi release at least 30 days old on the release day, shipped in an
+# afkv2 release. `tools.LAVISH_PIN` of setup holds the same version.
+PIN = "0.1.86"
 FORBIDDEN = {
     "share": "publishes the page to a public third-party host",
     "setup": "installs session hooks into the coding agent",
