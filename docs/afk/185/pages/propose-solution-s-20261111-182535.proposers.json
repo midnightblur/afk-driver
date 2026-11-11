@@ -6,7 +6,23 @@
     "codex"
   ],
   "reason": null,
-  "stage": "planned",
-  "proposers": [],
-  "cleaned": false
+  "stage": "critiqued",
+  "proposers": [
+    {
+      "tool": "claude",
+      "agent": "proposer-fee21a09-claude",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    },
+    {
+      "tool": "codex",
+      "agent": "proposer-fee21a09-codex",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    }
+  ],
+  "cleaned": true,
+  "brief": "604f7953cade91a0f9b78796f4f953417defb2b2be777bc53e7fbac7c468ac2c"
 }

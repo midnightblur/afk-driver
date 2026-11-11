@@ -118,3 +118,7 @@
 ## Solution design
 
 - Note: N-1-m-aspects-1 · R1 · on m-aspects: "even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue"
+- Note: N-3-m-aspects-1 · R3 · on m-aspects: "depending on the repo, how to bring up a live build is different. propose-verification should work this out with user if the process is not clearly defined. also, to ensure autopilot being smooth, the process must be verified, live tested at propose-verification before autopilot starts. once the process is confirmed, the process should become part of the repo's config so future session can use it. it could be part of the repo setup process as well (spinoff). if a process config is already defined, then propose-verification should check if it is still true"
+- Note: N-3-m-aspects-2 · R3 · on m-aspects: "full proofs could be heavy so it should be local only (the run branch)\n\nthey then should be posted to the ticket as comments (with minimal explanation/narration). the ticket is the source of truth and the evidence that devs have done it should go there\n\nproofs to ticket should be done before gc apparently\n\ncheck if both Github issue and JIRA allow this, and any limitation might be imposed?"
+- Settled: design gate passed 2026-11-11 · session s-20261111-182535
+- Last pass: R4 · session s-20261111-182535

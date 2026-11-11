@@ -74,8 +74,8 @@
           {
             "id": "aspect-lifecycle",
             "label": "Entity life cycle and states",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 3
           },
           {
             "id": "aspect-other-teams",
@@ -143,56 +143,56 @@
           {
             "id": "layer-l1",
             "label": "System Topology",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l2",
             "label": "Service Boundaries & Integration",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l3",
             "label": "Data Architecture",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l4",
             "label": "Cross-Cutting & Quality Attributes",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l5",
             "label": "Domain Model",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l6",
             "label": "Process & Coordination",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 3
           },
           {
             "id": "layer-l7",
             "label": "Module Decomposition",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l8",
             "label": "Tactical Patterns",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           },
           {
             "id": "layer-l9",
             "label": "Implementation Seams & Change Impact",
-            "state": "open",
-            "round": 1
+            "state": "settled",
+            "round": 4
           }
         ],
         "edges": [
@@ -240,38 +240,38 @@
           {
             "id": "locked-hl-1",
             "label": "Persistence and entity design",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           },
           {
             "id": "locked-hl-2",
             "label": "API surface",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           },
           {
             "id": "locked-hl-3",
             "label": "Authorization and data scoping",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           },
           {
             "id": "locked-hl-4",
             "label": "Life cycle and invariants",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           },
           {
             "id": "locked-hl-5",
             "label": "Irreversible and outward side effects",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           },
           {
             "id": "locked-hl-6",
             "label": "Change to existing behaviour",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 4
           }
         ]
       }
@@ -286,6 +286,24 @@
       "text": "even running twice is not reliable as a flaky test can also pass in both run. is it necessary? it is costing double but does not fully address the issue",
       "deleted": false,
       "quote": "ran twice"
+    },
+    {
+      "id": "N-3-m-aspects-1",
+      "round": 3,
+      "target": "m-aspects",
+      "item": null,
+      "text": "depending on the repo, how to bring up a live build is different. propose-verification should work this out with user if the process is not clearly defined. also, to ensure autopilot being smooth, the process must be verified, live tested at propose-verification before autopilot starts. once the process is confirmed, the process should become part of the repo's config so future session can use it. it could be part of the repo setup process as well (spinoff). if a process config is already defined, then propose-verification should check if it is still true",
+      "deleted": false,
+      "quote": "you supply it at ship"
+    },
+    {
+      "id": "N-3-m-aspects-2",
+      "round": 3,
+      "target": "m-aspects",
+      "item": null,
+      "text": "full proofs could be heavy so it should be local only (the run branch)\n\nthey then should be posted to the ticket as comments (with minimal explanation/narration). the ticket is the source of truth and the evidence that devs have done it should go there\n\nproofs to ticket should be done before gc apparently\n\ncheck if both Github issue and JIRA allow this, and any limitation might be imposed?",
+      "deleted": false,
+      "quote": "A — a. Push the run branch"
     }
   ],
   "rounds": [
@@ -1475,7 +1493,7 @@
     },
     {
       "n": 2,
-      "state": "current",
+      "state": "settled",
       "banner": {
         "settled": [
           "10 of 11 critical aspects"
@@ -1683,7 +1701,4201 @@
           ]
         }
       ]
+    },
+    {
+      "n": 3,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "2 solution proposers drafted the design: Claude and Codex.",
+          "Each solution proposer ran with full auto-approval in a throwaway worktree. The worktree fences only the working folder; it is not a sandbox.",
+          "11 critical aspects"
+        ],
+        "unlocks": [
+          "the sign-off cards of the 6 human-locked aspects"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l-1",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-1-q",
+            "props": {
+              "text": "**L1 System Topology.** Accept or correct the section.\n\n- The judge is 1 headless call of the other provider's CLI. Its flags exist: I checked `codex exec --help` and `claude --help` today.\n- A live finding of this session: your Codex config names `gpt-5.6-sol`, and Codex refused it for a ChatGPT account. So setup proves the judge model with 1 small call, and names the model it found.",
+              "markdown": true
+            }
+          },
+          "title": "L1: everything new runs on your machine",
+          "node": "layer-l1",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-2-q",
+            "props": {
+              "text": "**L2 Service Boundaries & Integration.** Accept or correct the section. Codex wanted the verbs and refusal codes left to the build. I kept them: a test can check only a named code. A flag I could not verify becomes a step of setup's live proof.",
+              "markdown": true
+            }
+          },
+          "title": "L2: 13 surfaces, each a script verb",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-3-q",
+            "props": {
+              "text": "**L3 Data Architecture.** Accept or correct the section. The owner of a plan row is fork f-owner; the place of the evidence is fork f-evidence.",
+              "markdown": true
+            }
+          },
+          "title": "L3: files only, 4 entities field by field",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-4-q",
+            "props": {
+              "text": "**L4 Cross-Cutting.** Accept or correct the section.\n\n- Codex said a lower level comes only at plan approval. AC-028 and AC-011 also let you accept it at ship, for a surface the run could not reach. I kept both. Either way, only your mark counts.\n- A judge call that crashes or answers garbage gets 1 retry. A verdict is never retried.",
+              "markdown": true
+            }
+          },
+          "title": "L4: only you lower a level, give the go or pick a found bug",
+          "node": "layer-l4",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-5-q",
+            "props": {
+              "text": "**L5 Domain Model.** Accept or correct the section. The proof life cycle is the one you accepted in round 2.",
+              "markdown": true
+            }
+          },
+          "title": "L5: 11 rules, each with 1 guardian script",
+          "node": "layer-l5",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-6-q",
+            "props": {
+              "text": "**L6 Process & Coordination.** Accept or correct the section. What runs again after a failed gate is fork f-again.",
+              "markdown": true
+            }
+          },
+          "title": "L6: the flows, their failures and their recovery",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-7",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-7-q",
+            "props": {
+              "text": "**L7 Module Decomposition.** Accept or correct the section. Both proposers agree: propose-verification must not import propose-solution's script, so the generic part moves to `use-lavish/scripts/proposer_engine.py`.",
+              "markdown": true
+            }
+          },
+          "title": "L7: the proposer engine moves to a shared place",
+          "node": "layer-l7",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-8",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-8-q",
+            "props": {
+              "text": "**L8 Tactical Patterns.** Accept or correct the section.",
+              "markdown": true
+            }
+          },
+          "title": "L8: 6 patterns, each with what it beat",
+          "node": "layer-l8",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-9",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "l-9-q",
+            "props": {
+              "text": "**L9 Seams.** Accept or correct the section. The 4 reworked seams come back to you on a sign-off card once the forks settle.",
+              "markdown": true
+            }
+          },
+          "title": "L9: 15 seams, 4 change what existing callers see",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "f-owner",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "f-owner-question",
+            "props": {
+              "text": "Where is the owner subtask of each plan row written?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-owner-options",
+                "props": {
+                  "columns": [
+                    "A — a. A column in VERIFICATION.md",
+                    "B — b. Only in each contract's Plan row column"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-owner-opt-a",
+                        "props": {
+                          "text": "The plan cut fills it. You read the owner in one file, as the round 1 entities card says. Cost: a second writer on a spec file that merges to main; a re-cut rewrites it."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-owner-opt-b",
+                        "props": {
+                          "text": "The plan check derives the owners; the page and the end gate read them from the plan. One fact in one place. Cost: VERIFICATION.md alone does not say who owns a row."
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "type": "chip",
+                        "id": "f-owner-by-a",
+                        "props": {
+                          "text": "Codex proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-owner-by-b",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-owner-recommend",
+                "props": {
+                  "text": "A tie: both keep the trace; b changes the wording of the entities card you accepted.",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "Where the owner subtask of a plan row is written",
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "f-rules",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "f-rules-question",
+            "props": {
+              "text": "How does the code know a plan follows the old rules?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-rules-options",
+                "props": {
+                  "columns": [
+                    "A — a. The approval date",
+                    "B — b. A '> Rules: 2' header line written by the plan cut"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-rules-opt-a",
+                        "props": {
+                          "text": "As your round 1 card says: the date in '> Division: approved <date>' against the release date. Cost: a plan cut before the release and approved after it gets new rules on an old contract, and refuses; a re-cut fixes it."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-rules-opt-b",
+                        "props": {
+                          "text": "Exact, and no release date to set. Cost: 1 more header line."
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "type": "chip",
+                        "id": "f-rules-by-a",
+                        "props": {
+                          "text": "Codex proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-rules-by-b",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-rules-recommend",
+                "props": {
+                  "text": "It reopens a card you accepted, and the 2 proposers disagree on whether the edge case is worth it. In both, an old plan ships on today's rules, with no gate record.",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "How the code tells plans before the release from new ones",
+          "node": "layer-l9",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "f-ci",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "f-ci-question",
+            "props": {
+              "text": "AC-014 refuses ship for a named test that did not pass in CI. Where does that result come from?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-ci-options",
+                "props": {
+                  "columns": [
+                    "A — a. The end gate's run is the record",
+                    "B — b. Read per-test results from CI"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-ci-opt-a",
+                        "props": {
+                          "text": "Each high-level test's result is the gate record; CI's overall status stays green-required at ship. No forge change. Cost: the PRD wording of AC-014 changes from 'CI' to 'the end gate'."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-ci-opt-b",
+                        "props": {
+                          "text": "Extend the forge port: test reports on GitLab, check runs on GitHub. Cost: 2 forge implementations, and an app in CI for every served repository."
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "type": "chip",
+                        "id": "f-ci-by-a",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-ci-by-b",
+                        "props": {
+                          "text": "Codex proposes",
+                          "tone": "proposed"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-ci-recommend",
+                "props": {
+                  "text": "Only you can change a settled requirement: a needs a PRD correction, b adds a large build.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "What 'did not pass in CI' means for a high-level test",
+          "node": "layer-l2",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "f-evidence",
+          "kind": "debate",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "f-evidence-question",
+            "props": {
+              "text": "The change request links each proof's evidence. Where do the files live?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-evidence-options",
+                "props": {
+                  "columns": [
+                    "A — a. Push the run branch",
+                    "B — b. Copy the evidence into the spec folder",
+                    "C — c. Keep it local; the proof line carries the summary"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-evidence-opt-a",
+                        "props": {
+                          "text": "Only plan commits, with [skip ci] on gate commits; links point at a commit. The small lane gets a <branch>-run branch. Cost: links die when gc deletes the run branch after merge; [skip ci] is not verified for every forge."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-evidence-opt-b",
+                        "props": {
+                          "text": "As archive copies the journal: <spec>/runs/<run>-evidence/. Links last forever. Cost: main grows by about 6 MB per feature (estimated)."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-evidence-opt-c",
+                        "props": {
+                          "text": "No push, no growth; the judge's description is the reviewer's view. Cost: a reviewer cannot open a screenshot."
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "type": "chip",
+                        "id": "f-evidence-by-a",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-evidence-by-b",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-evidence-by-c",
+                        "props": {
+                          "text": "Codex proposes",
+                          "tone": "proposed"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-evidence-recommend",
+                "props": {
+                  "text": "A one-way door for a served repository's CI, and a premise ([skip ci]) I could not verify.",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "Where the evidence lives so the change request can link it",
+          "node": "layer-l6"
+        },
+        {
+          "id": "f-again",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "f-again-question",
+            "props": {
+              "text": "A row failed and its subtasks were fixed. What runs again, and when does it stop?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-again-options",
+                "props": {
+                  "columns": [
+                    "A — a. Every row again; stop after 3 failed gate runs",
+                    "B — b. Only the failed rows and those of reopened subtasks; no cap"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-again-opt-a",
+                        "props": {
+                          "text": "The proofs stand at the head that ships; a fix may break another journey. The judge runs once per passed gate run. Cost: up to 3 full gate runs; after the 3rd fail the run waits for you."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-again-opt-b",
+                        "props": {
+                          "text": "Cheaper, and the judge judges the final evidence once per ship. Cost: a passed row's evidence comes from an older head, so the head-drift rule must allow code drift for those rows; a test that keeps failing loops a hands-off run."
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "type": "chip",
+                        "id": "f-again-by-a",
+                        "props": {
+                          "text": "Claude proposes",
+                          "tone": "proposed"
+                        }
+                      },
+                      {
+                        "type": "chip",
+                        "id": "f-again-by-b",
+                        "props": {
+                          "text": "Codex proposes",
+                          "tone": "proposed"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-again-recommend",
+                "props": {
+                  "text": "A tie between your rule 'no extra time cost' and proof at the shipped head.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "What runs again after a failed end gate",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "a"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-11T20:22:05Z",
+          "raw": "[round R-3]\nm-aspects note 1\n  on: \"you supply it at ship\"\n  depending on the repo, how to bring up a live build is different. propose-verification should work this out with user if the process is not clearly defined. also, to ensure autopilot being smooth, the process must be verified, live tested at propose-verification before autopilot starts. once the process is confirmed, the process should become part of the repo's config so future session can use it. it could be part of the repo setup process as well (spinoff). if a process config is already defined, then propose-verification should check if it is still true\nm-aspects note 2\n  on: \"A — a. Push the run branch\"\n  full proofs could be heavy so it should be local only (the run branch)\n  \n  they then should be posted to the ticket as comments (with minimal explanation/narration). the ticket is the source of truth and the evidence that devs have done it should go there\n  \n  proofs to ticket should be done before gc apparently\n  \n  check if both Github issue and JIRA allow this, and any limitation might be imposed?\nf-owner b\nf-rules b\nf-ci a\nf-evidence write-in\nf-again a\nl-1 accept\nl-2 accept\nl-3 accept\nl-4 accept\nl-5 accept\nl-6 accept\nl-7 accept\nl-8 accept\nl-9 accept",
+          "signals": [
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "depending on the repo, how to bring up a live build is different. propose-verification should work this out with user if the process is not clearly defined. also, to ensure autopilot being smooth, the process must be verified, live tested at propose-verification before autopilot starts. once the process is confirmed, the process should become part of the repo's config so future session can use it. it could be part of the repo setup process as well (spinoff). if a process config is already defined, then propose-verification should check if it is still true",
+              "note": "N-3-m-aspects-1",
+              "steer": true,
+              "quote": "you supply it at ship",
+              "stamp": "0d5f4d74bd9853ec"
+            },
+            {
+              "target": "m-aspects",
+              "item": null,
+              "mark": null,
+              "text": "full proofs could be heavy so it should be local only (the run branch)\n\nthey then should be posted to the ticket as comments (with minimal explanation/narration). the ticket is the source of truth and the evidence that devs have done it should go there\n\nproofs to ticket should be done before gc apparently\n\ncheck if both Github issue and JIRA allow this, and any limitation might be imposed?",
+              "note": "N-3-m-aspects-2",
+              "steer": true,
+              "quote": "A — a. Push the run branch",
+              "stamp": "b052568275afbb54"
+            },
+            {
+              "target": "f-owner",
+              "item": "f-owner",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "91fbd0a8df32c6cb"
+            },
+            {
+              "target": "f-rules",
+              "item": "f-rules",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "141f2ff83d945035"
+            },
+            {
+              "target": "f-ci",
+              "item": "f-ci",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "283a6aa244da4ae7"
+            },
+            {
+              "target": "f-evidence",
+              "item": "f-evidence",
+              "mark": "write-in",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "4ad813648624fbdb"
+            },
+            {
+              "target": "f-again",
+              "item": "f-again",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0aeb95947727bc79"
+            },
+            {
+              "target": "l-1",
+              "item": "l-1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9704ed3b57882ae6"
+            },
+            {
+              "target": "l-2",
+              "item": "l-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f7e7d40a11c2dd9a"
+            },
+            {
+              "target": "l-3",
+              "item": "l-3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "33f0a065dfaf8acb"
+            },
+            {
+              "target": "l-4",
+              "item": "l-4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "47e92cf6dbc6c98c"
+            },
+            {
+              "target": "l-5",
+              "item": "l-5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "094a9ecc363ff55a"
+            },
+            {
+              "target": "l-6",
+              "item": "l-6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "61351a2f4a13aa30"
+            },
+            {
+              "target": "l-7",
+              "item": "l-7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "edb86da3dc6244bc"
+            },
+            {
+              "target": "l-8",
+              "item": "l-8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7615497716887e33"
+            },
+            {
+              "target": "l-9",
+              "item": "l-9",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bc8015c78e34ab87"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-3-1",
+          "text": "Your write-in replaces all 3 options. The full evidence stays on the run branch, which is local and never pushed. At ship, a short proof comment goes to the ticket, with the pictures attached. gc refuses to clean up until that comment is on the ticket. I checked both trackers; the limits are on the new card in round 4. It needs your mark there."
+        },
+        {
+          "id": "A-3-2",
+          "text": "Agreed. Today the live build is one free-text line in PLAN.md (`> App:` holds an address or a start command, PLAN-FORMAT.md:11), and nothing proves it works before autopilot starts. New design: propose-verification reads a `live` block in `.afkv2/config.json`. When the block is missing, it works out the start, the address and the stop with you on the page. When the block exists, it runs it again to check it still holds. Either way it starts the build, probes it and stops it before the plan is approved, then writes the proven block to the config. Setup gets the same step as a spinoff ticket. The card is in round 4.",
+          "notes": [
+            "N-3-m-aspects-1"
+          ]
+        },
+        {
+          "id": "A-3-3",
+          "text": "Checked against the vendor docs. GitHub: `gh issue comment --attach` posts pictures and video only (PNG, JPEG, GIF, WebP, SVG, MP4, MOV, WebM), at 10 MB per picture. It needs gh 2.99.0 or later and push access, and it does not work on GitHub Enterprise Server. This machine has gh 2.92.0, so setup must raise the floor. On a public repository anyone can open the attached files. Jira: up to 1 MB of text per comment, 2000 attachments and 5000 comments per work item, and a per-file size limit set by the site admin (`/rest/api/3/attachment/meta` reads it). The tracker port has no comment verb today (ports/tracker/CONTRACT.md:20), so the design adds one. The design also changes the rule that only to-prd writes to the ticket. Logs and JSON stay on the run branch, and the comment gives their hashes. The card is in round 4.",
+          "notes": [
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "9 layers accepted",
+          "4 forks: owner in contracts only, a Rules header, the end gate is the CI record, every row again with a cap of 3"
+        ],
+        "unlocks": [
+          "SDD.md and the design records"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "ev-ticket",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "ev-ticket-q",
+            "props": {
+              "text": "**Your write-in, made concrete.** Accept or correct.\n\n- The full evidence stays local on the run branch. It is never pushed.\n- At ship, the ship page shows the exact comment and pictures. Your ship mark is the yes, so this adds no step.\n- create-change-request posts it through a new tracker verb, then marks the change Ready. A failed post leaves the change in Draft.\n- gc refuses to delete the run branch until the comment is on the ticket.\n- Logs and JSON stay local: the comment gives their name and hash. Only pictures are attached, because `gh --attach` takes pictures and video only.\n- A small-lane run with no ticket posts the same comment on the change request.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "ev-ticket-lim",
+                "props": {
+                  "columns": [
+                    "Limit",
+                    "GitHub issue",
+                    "Jira"
+                  ],
+                  "rows": [
+                    [
+                      "attach from a script",
+                      "gh issue comment --attach, gh 2.99.0+ (this machine: 2.92.0)",
+                      "REST attachments, then the comment in ADF (the port has attachment-put)"
+                    ],
+                    [
+                      "file types",
+                      "PNG, JPEG, GIF, WebP, SVG, MP4, MOV, WebM",
+                      "any"
+                    ],
+                    [
+                      "size per file",
+                      "10 MB picture; video 10 MB free plan, 100 MB paid",
+                      "set by the site admin; /rest/api/3/attachment/meta reads it"
+                    ],
+                    [
+                      "comment text",
+                      "not checked today",
+                      "1 MB of rich text per comment"
+                    ],
+                    [
+                      "per work item",
+                      "not stated",
+                      "5000 comments, 2000 attachments"
+                    ],
+                    [
+                      "who can post",
+                      "push access to the repository",
+                      "the token's project permission"
+                    ],
+                    [
+                      "who can see",
+                      "public repository: anyone, with no sign-in",
+                      "people who can see the issue"
+                    ],
+                    [
+                      "not supported",
+                      "GitHub Enterprise Server",
+                      "none found"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "ev-ticket-lim-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "GitHub Enterprise Server cannot take pictures from the CLI; a public repository shows them to anyone"
+                    }
+                  }
+                ],
+                "fold": "What each tracker allows"
+              }
+            ]
+          },
+          "title": "Proof goes to the ticket as 1 comment at ship",
+          "node": "layer-l6",
+          "carries": [
+            "f-evidence"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "live-build",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "live-build-q",
+            "props": {
+              "text": "**Your round 3 note, made concrete.** Accept or correct.\n\n- **No live block in `.afkv2/config.json`:** propose-verification reads the repository and proposes start, address and stop. You confirm or correct them in 1 page round.\n- **A live block exists:** it is run again to check it still holds. Nothing is asked when it is green.\n- **The proof:** start, wait for an HTTP answer (120 s by default), then stop. Only a green proof writes the block, with the date and the commit, and commits it.\n- **Plan approval:** the plan is not approved without a green proof, or `> App: none` with your mark.\n- **Spinoff ticket:** setup offers the same proof for a new repository. That is a spinoff ticket, not this feature.\n- **Secrets:** the block stores the names of the variables the build needs, never their values.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "diagram",
+                "id": "live-build-now",
+                "props": {
+                  "caption": "Today: the app line is free text that no step proves",
+                  "text": "flowchart LR\n  A[to-subtasks writes > App: address or command] --> B[autopilot start gate probes the address]\n  B -- no answer --> C[app-unreachable: the run stops]"
+                }
+              }
+            ]
+          },
+          "title": "The live build is proven before autopilot starts",
+          "node": "layer-l6",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "sign-hl-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-1-q",
+            "props": {
+              "text": "**Persistence and entity design.** Files only, no database. Sign, or note what to change.\n\n**Risks you accept:** a field missed now needs a version bump of the gate record later; the proof comment lasts only as long as the tracker keeps it.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s1-ents",
+                "props": {
+                  "columns": [
+                    "Record",
+                    "Identity",
+                    "Home",
+                    "Relations",
+                    "Retention",
+                    "Old rows"
+                  ],
+                  "rows": [
+                    [
+                      "plan row",
+                      "VR-NNN, never reused",
+                      "VERIFICATION.md",
+                      "AC 1..n; contract row 1 (derived); test-first cycle 0..n; gate row 0..1",
+                      "forever",
+                      "old plans have none; they keep old rules"
+                    ],
+                    [
+                      "contract Plan row column",
+                      "subtask + VR id",
+                      "run branch plan/",
+                      "1 owner per low row; 1 test-writing subtask per high row",
+                      "gc",
+                      "read by header name"
+                    ],
+                    [
+                      "test-first record keys",
+                      "cycle per row",
+                      "plan/review/<id>.tdd.json",
+                      "plan row 1",
+                      "gc",
+                      "null, null, low"
+                    ],
+                    [
+                      "gate record",
+                      "(head, VERIFICATION.md digest)",
+                      "plan/gate/, local",
+                      "rows, runs 1..2, verdict 0..1, found",
+                      "gc, after the proof comment",
+                      "none exist"
+                    ],
+                    [
+                      "live block",
+                      "1 per repository",
+                      ".afkv2/config.json",
+                      "none",
+                      "until you change it",
+                      "none exist"
+                    ],
+                    [
+                      "proof comment",
+                      "receipt on its first line",
+                      "the ticket",
+                      "gate record 1",
+                      "the tracker's",
+                      "none exist"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s1-ents-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each record, its identity and its relations"
+                    }
+                  }
+                ],
+                "fold": "Each record, its identity and its relations"
+              },
+              {
+                "type": "table",
+                "id": "s1-fields",
+                "props": {
+                  "columns": [
+                    "Record",
+                    "Fields (type, null, default)"
+                  ],
+                  "rows": [
+                    [
+                      "plan row",
+                      "Id VR-NNN no; Criteria list of AC-NNN, null only for a low row with no user-visible outcome; Story text yes; Given/When/Then 1 sentence each no; Level enum TL-1..TL-7 no; Tier low/high no, derived; Data, Environment text yes; Status active/retired/lower no"
+                    ],
+                    [
+                      "gate record",
+                      "version int; lane medium/small; head commit; verification_digest sha256; rows[].runs[] {n, exit, started, seconds, log, evidence[{path, sha256, bytes}]} max 2; rows[].result pass/fail/flaky/waiting; rows[].verdict {provider, model, effort, seen[], compare[], checks[], result}; found[] {FB-NN, what, where, how, pick, by}; go {card, head, at} small only"
+                    ],
+                    [
+                      "live block",
+                      "start text no; address URL no; ready_seconds int no, 120; stop text yes, null; needs list yes, []; proven_at date no; proven_head commit no"
+                    ],
+                    [
+                      "test-first record",
+                      "cycles[].row, test, level: new, optional; no_test[].row new"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s1-fields-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Every field, from L3"
+                    }
+                  }
+                ],
+                "fold": "Every field, from L3"
+              }
+            ]
+          },
+          "title": "Sign: the 6 records, field by field",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-2-q",
+            "props": {
+              "text": "**API surface.** Every surface is a script verb with the existing JSON envelope `{ok, ...}` or `{ok: false, error: {code, reason}}`. No paging; each verb is idempotent by its key or by a receipt. Sign, or note what to change.\n\n**Risks you accept:** a code name fixed now is a contract the tests check; renaming it later moves every test.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s2-surf",
+                "props": {
+                  "columns": [
+                    "#",
+                    "Surface",
+                    "Request",
+                    "Refusal codes",
+                    "Existing callers"
+                  ],
+                  "rows": [
+                    [
+                      "S-1",
+                      "plan_files.py start",
+                      "as today",
+                      "missing-input (VERIFICATION.md)",
+                      "a cut plan never runs start again"
+                    ],
+                    [
+                      "S-2",
+                      "check_plan.py",
+                      "as today",
+                      "row-unknown, row-unowned, row-two-owners, row-no-test-subtask, ac-no-high-row, row-on-retired-ac, live-not-applicable, lower-level-unmarked, contract-row-missing",
+                      "only `> Rules: 2` plans"
+                    ],
+                    [
+                      "S-3",
+                      "start_gate.py",
+                      "as today",
+                      "live-not-applicable",
+                      "old plans as today"
+                    ],
+                    [
+                      "S-4",
+                      "tdd_log.py red, no-test",
+                      "+ row, test, level",
+                      "bad-payload",
+                      "old calls work"
+                    ],
+                    [
+                      "S-5",
+                      "walk.py done",
+                      "as today",
+                      "row-not-green, row-no-test, test-no-row",
+                      "new plans only"
+                    ],
+                    [
+                      "S-6",
+                      "end_gate.py run",
+                      "plan",
+                      "not-finished, gate-cap-reached",
+                      "none"
+                    ],
+                    [
+                      "S-7",
+                      "end_gate.py back",
+                      "plan, failed rows",
+                      "none new",
+                      "none"
+                    ],
+                    [
+                      "S-8",
+                      "small_lane.py start, go, gate",
+                      "record",
+                      "no-go-mark, code-before-go",
+                      "none"
+                    ],
+                    [
+                      "S-9",
+                      "change_request.py open",
+                      "proofs {row, behavior, level, ran, evidence}; found {what, where, how}",
+                      "bad-payload",
+                      "old {claim, evidence} refuses with a hint"
+                    ],
+                    [
+                      "S-10",
+                      "ci_watch.py mark-ready",
+                      "plan optional; gate record",
+                      "no-gate, gate-not-passed, proof-missing, proof-field-missing, evidence-changed, verdict-no-description, gate-head-stale, found-open, proof-not-posted",
+                      "plan-folder plans keep the review check"
+                    ],
+                    [
+                      "S-11",
+                      "other_provider.py judge, attack",
+                      "input folder",
+                      "no-provider, judge-timeout, judge-unreadable",
+                      "none"
+                    ],
+                    [
+                      "S-12",
+                      "setup.py browser-driver, judge",
+                      "none",
+                      "no-browser, driver-install-failed, register-failed, proof-failed, no-provider",
+                      "the install record keeps its lines"
+                    ],
+                    [
+                      "S-13",
+                      "page schema session.skill",
+                      "+ propose-verification, small-change",
+                      "none",
+                      "every stored page stays valid"
+                    ],
+                    [
+                      "S-14",
+                      "live_build.py prove, check",
+                      "repository",
+                      "live-undefined, live-start-failed, live-no-answer, live-stop-failed",
+                      "none"
+                    ],
+                    [
+                      "S-15",
+                      "tracker comment-put",
+                      "{key, body, pictures[], receipt}",
+                      "bad-receipt, too-large, gh-too-old, no-push-access, not-supported",
+                      "other verbs unchanged"
+                    ],
+                    [
+                      "S-16",
+                      "gc list",
+                      "as today",
+                      "proof-not-posted",
+                      "old plans are not checked"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s2-surf-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each surface"
+                    }
+                  }
+                ],
+                "fold": "Each surface"
+              }
+            ]
+          },
+          "title": "Sign: 16 script surfaces and their refusal codes",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-3-q",
+            "props": {
+              "text": "**Authorization.** One role holds each act: you, the developer. An agent message never counts. Each act has a guard on the page and a guard in a script. Sign, or note what to change.\n\n**Risks you accept:** your own chat message also counts for 3 acts (lower, found pick, go); it is quoted into the record, and a script cannot tell your words from a pasted text.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s3-acts",
+                "props": {
+                  "columns": [
+                    "Act",
+                    "Page guard",
+                    "Script guard",
+                    "Refusal"
+                  ],
+                  "rows": [
+                    [
+                      "accept a lower level",
+                      "your mark on the plan page or the ship page",
+                      "check_plan.py, mark-ready",
+                      "lower-level-unmarked"
+                    ],
+                    [
+                      "small-lane go",
+                      "your sign mark on the go card",
+                      "small_lane.py go, mark-ready",
+                      "no-go-mark, code-before-go"
+                    ],
+                    [
+                      "pick for a found bug",
+                      "your mark on the ship page",
+                      "mark-ready",
+                      "found-open"
+                    ],
+                    [
+                      "post the proof comment",
+                      "your ship mark on the exact comment",
+                      "comment-put needs the preview receipt",
+                      "bad-receipt"
+                    ],
+                    [
+                      "`> App: none` on a medium plan",
+                      "your mark",
+                      "verification_files.py write",
+                      "live-unproven"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s3-acts-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each act and its 2 guards"
+                    }
+                  }
+                ],
+                "fold": "Each act and its 2 guards"
+              },
+              {
+                "type": "text",
+                "id": "s3-scope",
+                "props": {
+                  "text": "**Scoping.** The judge sees only plan rows, evidence and test files: no conversation, no builder claims. It runs read-only and answers on stdout only.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Sign: 5 acts only you can make",
+          "node": "locked-hl-3",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-4-q",
+            "props": {
+              "text": "**Life cycle and invariants.** The subtask statuses stay. One move is new: done to pending, made only by end_gate.py back. Sign, or note what to change.\n\n**Risks you accept:** a rule held only by its guardian: a skill that writes a file around the script is caught only at mark-ready.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "diagram",
+                "id": "s4-life",
+                "props": {
+                  "caption": "A high-level proof: 1 run, a fail runs once more, fail then pass is flaky",
+                  "text": "stateDiagram-v2\n  [*] --> planned\n  planned --> written: test-writing subtask, red recorded\n  written --> waiting: gate cannot reach app, driver, credentials\n  waiting --> ran_once: you fix the live build, the gate runs again\n  written --> ran_once: end gate\n  ran_once --> judged: pass\n  ran_once --> ran_twice: fail\n  ran_twice --> flaky: pass\n  ran_twice --> back: fail\n  flaky --> back\n  judged --> proof_line: judge pass\n  judged --> back: judge fail or flaky signs\n  back --> ran_once: subtasks done again\n  proof_line --> [*]"
+                }
+              },
+              {
+                "type": "table",
+                "id": "s4-inv",
+                "props": {
+                  "columns": [
+                    "#",
+                    "Invariant",
+                    "Guardian",
+                    "Answer"
+                  ],
+                  "rows": [
+                    [
+                      "I-1",
+                      "a medium plan cut has VERIFICATION.md",
+                      "plan_files.py _check_inputs",
+                      "missing-input"
+                    ],
+                    [
+                      "I-2",
+                      "each user-visible AC has an active high-level row",
+                      "verification_files.py write, check_plan.py",
+                      "ac-no-high-row"
+                    ],
+                    [
+                      "I-3",
+                      "each low-level row has 1 owner; each high-level row 1 test-writing subtask",
+                      "check_plan.py",
+                      "row-unowned, row-two-owners, row-no-test-subtask"
+                    ],
+                    [
+                      "I-4",
+                      "not applicable never skips a live level",
+                      "check_plan.py, start_gate.py",
+                      "live-not-applicable"
+                    ],
+                    [
+                      "I-5",
+                      "a subtask is done only with its low-level rows green",
+                      "walk.py done",
+                      "row-not-green"
+                    ],
+                    [
+                      "I-6",
+                      "a new test has a red step; no-test covers only its row",
+                      "tdd_log.py verdict",
+                      "code-before-red per row, test-no-row"
+                    ],
+                    [
+                      "I-7",
+                      "Ready only with a passed, judged gate row and a proof line per active high-level row",
+                      "ci_watch.py mark-ready",
+                      "the S-10 codes"
+                    ],
+                    [
+                      "I-8",
+                      "evidence never changes after the run",
+                      "mark-ready",
+                      "evidence-changed"
+                    ],
+                    [
+                      "I-9",
+                      "old plans keep old rules",
+                      "rules_of(plan) in plan_contract.py reads `> Rules: 2`",
+                      "no line: old rules"
+                    ],
+                    [
+                      "I-10",
+                      "small lane: no code before the go",
+                      "small_lane.py, mark-ready",
+                      "code-before-go"
+                    ],
+                    [
+                      "I-11",
+                      "only you move a found bug out of noted",
+                      "mark-ready",
+                      "found-open"
+                    ],
+                    [
+                      "I-12",
+                      "gc deletes no run branch before its proof comment is on the ticket",
+                      "gc_checks.py",
+                      "proof-not-posted"
+                    ],
+                    [
+                      "I-13",
+                      "a medium plan is approved only with a live block proven at a commit of this feature, or `> App: none` with your mark",
+                      "verification_files.py write",
+                      "live-unproven"
+                    ],
+                    [
+                      "I-14",
+                      "a gate run starts only when fewer than 3 gate runs of this ship failed",
+                      "end_gate.py run",
+                      "gate-cap-reached"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s4-inv-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each invariant, its guardian and its answer"
+                    }
+                  }
+                ],
+                "fold": "Each invariant, its guardian and its answer"
+              }
+            ]
+          },
+          "title": "Sign: the proof life cycle and 14 rules",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-5",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-5-q",
+            "props": {
+              "text": "**Outward side effects.** Each effect, in order. Sign, or note what to change.\n\n**Risks you accept:** a picture on a public GitHub repository is public at once and stays in GitHub's store even if the comment is deleted.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s5-eff",
+                "props": {
+                  "columns": [
+                    "Effect",
+                    "Trigger",
+                    "Order",
+                    "Idempotency key",
+                    "Partial failure leaves",
+                    "Recovery"
+                  ],
+                  "rows": [
+                    [
+                      "live block committed to the config",
+                      "green proof",
+                      "after the proof",
+                      "proven_head",
+                      "nothing",
+                      "revert the commit"
+                    ],
+                    [
+                      "call to the other provider",
+                      "judge, devil pass",
+                      "after every row passed",
+                      "gate key",
+                      "no verdict: the row waits",
+                      "run the judge step again"
+                    ],
+                    [
+                      "change request description",
+                      "open",
+                      "before Ready",
+                      "the description",
+                      "the old description",
+                      "open again"
+                    ],
+                    [
+                      "proof comment on the ticket",
+                      "your ship mark",
+                      "after the gate verify, before Ready",
+                      "receipt on the first line",
+                      "pictures, no comment",
+                      "post again; the receipt finds them"
+                    ],
+                    [
+                      "Ready",
+                      "mark-ready",
+                      "last",
+                      "the change state",
+                      "Draft",
+                      "mark-ready again"
+                    ],
+                    [
+                      "Claude and Codex settings",
+                      "setup browser-driver",
+                      "backup first",
+                      "the MCP entry name",
+                      "1 of 2 harnesses",
+                      "run again; switch-back restores"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s5-eff-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each outward effect"
+                    }
+                  }
+                ],
+                "fold": "Each outward effect"
+              }
+            ]
+          },
+          "title": "Sign: 6 effects outside the feature's own state",
+          "node": "locked-hl-5",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-6-q",
+            "props": {
+              "text": "**Change to existing behaviour.** Sign, or note what to change.\n\n**Risks you accept:** a served repository's CI does not change; an old plan in flight ships on today's rules with no gate record.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "s6-seams",
+                "props": {
+                  "columns": [
+                    "Seam",
+                    "Callers see now",
+                    "Callers see after",
+                    "Compatibility",
+                    "Rollback"
+                  ],
+                  "rows": [
+                    [
+                      "not applicable on a live level",
+                      "any reason skips the row",
+                      "`> Rules: 2` plans refuse it",
+                      "old plans as today",
+                      "the release before"
+                    ],
+                    [
+                      "proof payload of change_request.py open",
+                      "{claim, evidence} free text",
+                      "{row, behavior, level, ran, evidence}",
+                      "the old shape refuses with a fix hint",
+                      "the release before"
+                    ],
+                    [
+                      "ci_watch.py mark-ready",
+                      "plan folder, reviews, CI",
+                      "plan optional; gate record and proof comment checked before CI",
+                      "plan-folder plans keep the review check",
+                      "the release before"
+                    ],
+                    [
+                      "proposers.py",
+                      "design-only module",
+                      "a thin caller of use-lavish proposer_engine.py",
+                      "CLI unchanged",
+                      "the release before"
+                    ],
+                    [
+                      "ticket writers",
+                      "only to-prd writes to the ticket",
+                      "create-change-request posts 1 proof comment at ship",
+                      "to-prd unchanged",
+                      "the release before; the comment stays"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "s6-seams-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "Each reworked seam"
+                    }
+                  }
+                ],
+                "fold": "Each reworked seam"
+              },
+              {
+                "type": "text",
+                "id": "s6-prd",
+                "props": {
+                  "text": "**PRD changes this design needs, after your marks:** AC-014 reads 'did not pass in the end gate' (fork f-ci = a); AC-022 reads 'a failed test runs once more' (your round 1 note). I make both through a take-over of the grill once this session ends.",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Sign: 5 reworked seams that change what callers see",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-11T20:30:32Z",
+          "raw": "[round R-4]\nev-ticket accept\nlive-build accept\nsign-hl-1 sign\nsign-hl-2 sign\nsign-hl-3 sign\nsign-hl-4 sign\nsign-hl-5 sign\nsign-hl-6 sign",
+          "signals": [
+            {
+              "target": "ev-ticket",
+              "item": "ev-ticket",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6b937876cedc112a"
+            },
+            {
+              "target": "live-build",
+              "item": "live-build",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "84e4b2f17b88ba91"
+            },
+            {
+              "target": "sign-hl-1",
+              "item": "sign-hl-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "124a8fb8b3d13edf"
+            },
+            {
+              "target": "sign-hl-2",
+              "item": "sign-hl-2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "78add90c2f26d4f0"
+            },
+            {
+              "target": "sign-hl-3",
+              "item": "sign-hl-3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "10faf612bff22579"
+            },
+            {
+              "target": "sign-hl-4",
+              "item": "sign-hl-4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6e7aed5fe9d4390f"
+            },
+            {
+              "target": "sign-hl-5",
+              "item": "sign-hl-5",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "18e25d0b42cea1ab"
+            },
+            {
+              "target": "sign-hl-6",
+              "item": "sign-hl-6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3e2ab778f222333f"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "sections": []
+  "sections": [
+    {
+      "id": "sec-system",
+      "title": "The whole system",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sys-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "s-ps",
+              "label": "propose-solution: SDD.md",
+              "group": "d"
+            },
+            {
+              "id": "s-pv",
+              "label": "propose-verification: VERIFICATION.md",
+              "group": "d"
+            },
+            {
+              "id": "s-ts",
+              "label": "to-subtasks: plan and contracts",
+              "group": "d"
+            },
+            {
+              "id": "s-ap",
+              "label": "autopilot walk",
+              "group": "b"
+            },
+            {
+              "id": "s-ex",
+              "label": "execute: test-first record per plan row",
+              "group": "b"
+            },
+            {
+              "id": "s-eg",
+              "label": "end gate: high-level rows",
+              "group": "b"
+            },
+            {
+              "id": "s-jd",
+              "label": "judge: the other provider",
+              "group": "b"
+            },
+            {
+              "id": "s-sl",
+              "label": "small lane: 1 page round, go mark, fix test-first",
+              "group": "s"
+            },
+            {
+              "id": "s-sg",
+              "label": "small gate: 1 high-level test, before and after",
+              "group": "s"
+            },
+            {
+              "id": "s-cr",
+              "label": "create-change-request: proof lines, Found along the way, Ready",
+              "group": "c"
+            },
+            {
+              "id": "s-st",
+              "label": "setup: browser driver, judge model",
+              "group": "c"
+            },
+            {
+              "id": "s-you",
+              "label": "you: steer, go, ship picks",
+              "group": "c",
+              "you": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "s-ps",
+              "to": "s-pv",
+              "label": "SDD"
+            },
+            {
+              "from": "s-pv",
+              "to": "s-ts",
+              "label": "plan rows"
+            },
+            {
+              "from": "s-ts",
+              "to": "s-ap",
+              "label": "contracts"
+            },
+            {
+              "from": "s-ap",
+              "to": "s-ex",
+              "label": "brief"
+            },
+            {
+              "from": "s-ex",
+              "to": "s-ap",
+              "label": "done check reads rows"
+            },
+            {
+              "from": "s-ap",
+              "to": "s-eg",
+              "label": "all subtasks done"
+            },
+            {
+              "from": "s-eg",
+              "to": "s-jd",
+              "label": "plan rows + evidence only"
+            },
+            {
+              "from": "s-jd",
+              "to": "s-eg",
+              "label": "verdict"
+            },
+            {
+              "from": "s-eg",
+              "to": "s-ap",
+              "label": "a row fails: its subtasks again"
+            },
+            {
+              "from": "s-sl",
+              "to": "s-sg",
+              "label": "fix done"
+            },
+            {
+              "from": "s-sg",
+              "to": "s-jd",
+              "label": "evidence"
+            },
+            {
+              "from": "s-eg",
+              "to": "s-cr",
+              "label": "gate record"
+            },
+            {
+              "from": "s-sg",
+              "to": "s-cr",
+              "label": "gate record"
+            },
+            {
+              "from": "s-st",
+              "to": "s-eg",
+              "label": "driver, judge model"
+            },
+            {
+              "from": "s-you",
+              "to": "s-pv",
+              "label": "steer"
+            },
+            {
+              "from": "s-you",
+              "to": "s-sl",
+              "label": "go"
+            },
+            {
+              "from": "s-you",
+              "to": "s-cr",
+              "label": "ship picks"
+            }
+          ],
+          "groups": [
+            {
+              "id": "d",
+              "label": "medium lane: design"
+            },
+            {
+              "id": "b",
+              "label": "medium lane: run branch"
+            },
+            {
+              "id": "s",
+              "label": "small lane"
+            },
+            {
+              "id": "c",
+              "label": "shared"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sys-g-see",
+            "props": {
+              "label": "What to see",
+              "text": "3 new parts (propose-verification, end gate with judge, small lane) and 1 new reader (Ready reads the gate record)"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        }
+      ]
+    },
+    {
+      "id": "sec-l1",
+      "title": "L1 System Topology",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "l1-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "l1-agent",
+              "label": "Claude or Codex session",
+              "group": "m"
+            },
+            {
+              "id": "l1-app",
+              "label": "the live build (config live block)",
+              "group": "m"
+            },
+            {
+              "id": "l1-mcp",
+              "label": "Chrome DevTools MCP, stdio",
+              "group": "m"
+            },
+            {
+              "id": "l1-judge",
+              "label": "other provider CLI, 1 headless call",
+              "group": "m"
+            },
+            {
+              "id": "l1-forge",
+              "label": "forge: change request, CI",
+              "group": "f"
+            },
+            {
+              "id": "l1-tr",
+              "label": "tracker: Jira or GitHub issue",
+              "group": "f"
+            }
+          ],
+          "edges": [
+            {
+              "from": "l1-agent",
+              "to": "l1-mcp",
+              "label": "drive the browser"
+            },
+            {
+              "from": "l1-mcp",
+              "to": "l1-app",
+              "label": "clicks, screenshots"
+            },
+            {
+              "from": "l1-agent",
+              "to": "l1-judge",
+              "label": "judge input folder"
+            },
+            {
+              "from": "l1-judge",
+              "to": "l1-agent",
+              "label": "verdict JSON"
+            },
+            {
+              "from": "l1-agent",
+              "to": "l1-forge",
+              "label": "push, description, Ready"
+            },
+            {
+              "from": "l1-agent",
+              "to": "l1-tr",
+              "label": "1 proof comment per ship"
+            }
+          ],
+          "groups": [
+            {
+              "id": "m",
+              "label": "developer machine"
+            },
+            {
+              "id": "f",
+              "label": "remote"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l1-g-see",
+            "props": {
+              "label": "What to see",
+              "text": "everything new runs on the developer's machine; only the change request and the proof comment leave it"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l1-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Inherited: skills plus Python scripts in a local worktree. New: the browser driver, the judge as 1 headless call of the other provider, a proven live build in the repository config, and 1 proof comment on the ticket per ship."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l1-dec",
+            "props": {
+              "columns": [
+                "#",
+                "Decision",
+                "Why",
+                "Not taken"
+              ],
+              "rows": [
+                [
+                  "L1-1",
+                  "Chrome DevTools MCP, global npm install at an exact pin, started by each harness from its MCP entry",
+                  "ADR-0004; same install path as the diagram renderer (setup/scripts/tools.py:338-361); no executable in a temp folder (AC-044)",
+                  "npx at start: unpacks into the npm cache on each cold start"
+                ],
+                [
+                  "L1-2",
+                  "The judge and the grill's devil pass: 1 headless call of the other provider's CLI, read-only, verdict on stdout",
+                  "AC-015, AC-019; works hands-off and outside herdr. Flags checked today: codex exec -m, -s, -i, -C, --output-schema; claude -p, --model, --effort, --output-format",
+                  "a herdr pane, as the proposers use: needs herdr, a worktree and a submit check per call"
+                ],
+                [
+                  "L1-3",
+                  "High-level tests run on the developer's machine at the end gate, against the live build of the config",
+                  "ADR-0001; the forge gives 1 overall CI status (ports/forge/CONTRACT.md), so no per-test result comes from CI",
+                  "a CI job: an app in CI for every served repository (fork f-ci)"
+                ],
+                [
+                  "L1-4",
+                  "The live build is a `live` block in .afkv2/config.json: start, address, stop. propose-verification proves it before the plan is approved; the end gate starts and stops it",
+                  "your round 3 note; today `> App:` is free text no step proves (to-subtasks PLAN-FORMAT.md:11)",
+                  "a start line per plan: each plan finds the start again, and nothing proves it"
+                ],
+                [
+                  "L1-5",
+                  "The proof comment goes to the ticket through the tracker port: Jira REST, or gh issue comment --attach",
+                  "your round 3 note: the ticket is the source of truth",
+                  "a link to the run branch: it is local and gc deletes it"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l1-dec-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "the 5 decisions; L1-4 and L1-5 come from your round 3 notes"
+                }
+              }
+            ],
+            "fold": "The 3 decisions"
+          }
+        ]
+      },
+      "links": [
+        "sec-l2"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds the proven live build and the proof comment on the ticket",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l2",
+      "title": "L2 Service Boundaries & Integration",
+      "state": "current",
+      "body": {
+        "type": "sequence",
+        "id": "l2-seq",
+        "props": {
+          "actors": [
+            {
+              "id": "q-ap",
+              "label": "autopilot"
+            },
+            {
+              "id": "q-eg",
+              "label": "end_gate.py"
+            },
+            {
+              "id": "q-app",
+              "label": "app and driver"
+            },
+            {
+              "id": "q-op",
+              "label": "other_provider.py"
+            },
+            {
+              "id": "q-cr",
+              "label": "mark-ready"
+            }
+          ],
+          "messages": [
+            {
+              "from": "q-ap",
+              "to": "q-eg",
+              "text": "run (all subtasks done)",
+              "tone": "new"
+            },
+            {
+              "from": "q-eg",
+              "to": "q-app",
+              "text": "probe app, driver, credentials",
+              "tone": "new"
+            },
+            {
+              "from": "q-eg",
+              "to": "q-app",
+              "text": "each row: 1 run; a fail runs once more",
+              "tone": "new"
+            },
+            {
+              "from": "q-eg",
+              "to": "q-op",
+              "text": "rows + evidence, when every row passed",
+              "tone": "new"
+            },
+            {
+              "from": "q-op",
+              "to": "q-eg",
+              "text": "verdict: describe, then compare",
+              "tone": "new"
+            },
+            {
+              "from": "q-eg",
+              "to": "q-ap",
+              "text": "passed, failed rows with their subtasks, or waiting rows",
+              "tone": "new"
+            },
+            {
+              "from": "q-ap",
+              "to": "q-cr",
+              "text": "mark-ready with the gate record",
+              "tone": "kept"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l2-see",
+            "props": {
+              "label": "What to see",
+              "text": "the main flow, from the end gate to Ready; blue is new"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l2-sum",
+            "props": {
+              "label": "Summary",
+              "text": "propose-verification writes VERIFICATION.md and proves the live build; the plan cut, the end gate and Ready read them. At ship, 1 proof comment goes to the ticket. Every surface is a script verb with the existing JSON envelope."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l2-own",
+            "props": {
+              "columns": [
+                "Area",
+                "Single writer",
+                "Readers"
+              ],
+              "rows": [
+                [
+                  "VERIFICATION.md",
+                  "propose-verification (verification_files.py write)",
+                  "plan cut, plan check, end gate, judge input"
+                ],
+                [
+                  "contract Verification table",
+                  "to-subtasks",
+                  "start gate, execute, done check, end gate"
+                ],
+                [
+                  "test-first record",
+                  "execute via tdd_log.py",
+                  "done check"
+                ],
+                [
+                  "gate record and evidence",
+                  "end_gate.py or small_lane.py, through gate_record.py",
+                  "mark-ready, the ship page, the proof comment"
+                ],
+                [
+                  "change request description",
+                  "create-change-request",
+                  "the developer, reviewers"
+                ],
+                [
+                  "MCP entries, judge model lines",
+                  "setup",
+                  "the harnesses, other_provider.py"
+                ],
+                [
+                  "live block of .afkv2/config.json",
+                  "scripts/live_build.py prove (run by propose-verification; later by setup)",
+                  "start gate, end gate, small gate"
+                ],
+                [
+                  "proof comment on the ticket",
+                  "create-change-request at ship, through the tracker port verb comment-put",
+                  "the team; gc checks it exists"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-own-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Who owns what"
+                }
+              }
+            ],
+            "fold": "Who owns what"
+          },
+          {
+            "type": "table",
+            "id": "l2-surf",
+            "props": {
+              "columns": [
+                "#",
+                "Surface",
+                "New or changed",
+                "New refusal codes",
+                "Existing callers"
+              ],
+              "rows": [
+                [
+                  "S-1",
+                  "plan_files.py start (input check)",
+                  "needs VERIFICATION.md on a medium plan",
+                  "missing-input, writer propose-verification",
+                  "a cut plan never runs start again"
+                ],
+                [
+                  "S-2",
+                  "check_plan.py",
+                  "plan-row checks",
+                  "row-unknown, row-unowned, row-two-owners, row-no-test-subtask, ac-no-high-row, row-on-retired-ac, live-not-applicable, lower-level-unmarked, contract-row-missing",
+                  "rules only for plans with `> Rules: 2`"
+                ],
+                [
+                  "S-3",
+                  "start_gate.py",
+                  "not applicable on a live level",
+                  "live-not-applicable",
+                  "old plans as today"
+                ],
+                [
+                  "S-4",
+                  "tdd_log.py red, no-test",
+                  "row (VR-NNN), test (file::name), level",
+                  "bad-payload when row is missing on a new plan",
+                  "old calls still work"
+                ],
+                [
+                  "S-5",
+                  "walk.py done",
+                  "row checks per subtask",
+                  "row-not-green, row-no-test, test-no-row",
+                  "new plans only"
+                ],
+                [
+                  "S-6",
+                  "end_gate.py run (new)",
+                  "after the walk finished",
+                  "not-finished",
+                  "none"
+                ],
+                [
+                  "S-7",
+                  "end_gate.py back (new)",
+                  "reopens the subtasks behind a failed row; the next gate run runs every row",
+                  "gate-cap-reached after 3 failed gate runs",
+                  "none"
+                ],
+                [
+                  "S-8",
+                  "small_lane.py start, go, gate (new)",
+                  "the small lane's record",
+                  "no-go-mark, code-before-go",
+                  "none"
+                ],
+                [
+                  "S-9",
+                  "change_request.py open",
+                  "proofs {row, behavior, level, ran, evidence}; found {what, where, how}",
+                  "bad-payload naming the field",
+                  "old {claim, evidence} refuses with a fix hint"
+                ],
+                [
+                  "S-10",
+                  "ci_watch.py mark-ready",
+                  "plan optional; gate record required",
+                  "no-gate, gate-not-passed, proof-missing, proof-field-missing, evidence-changed, verdict-no-description, gate-head-stale, found-open, proof-not-posted",
+                  "plan-folder plans keep the review check"
+                ],
+                [
+                  "S-11",
+                  "other_provider.py judge, attack (new)",
+                  "1 call, read-only",
+                  "no-provider, judge-timeout, judge-unreadable",
+                  "none"
+                ],
+                [
+                  "S-12",
+                  "setup.py browser-driver, judge (new verbs)",
+                  "install, register, prove",
+                  "no-browser, driver-install-failed, register-failed, proof-failed, no-provider",
+                  "the install record keeps its other lines"
+                ],
+                [
+                  "S-13",
+                  "page schema session.skill",
+                  "adds propose-verification, small-change",
+                  "none",
+                  "every stored page stays valid"
+                ],
+                [
+                  "S-14",
+                  "live_build.py prove, check (new)",
+                  "prove: start, wait for an HTTP answer, stop, then write the block. check: the same, with no write",
+                  "live-undefined, live-start-failed, live-no-answer, live-stop-failed",
+                  "none"
+                ],
+                [
+                  "S-15",
+                  "tracker port comment-put (new)",
+                  "{key, body, pictures[], receipt} to {comment_id, url, attached[]}",
+                  "bad-receipt, too-large, gh-too-old, no-push-access, not-supported (GitHub Enterprise Server)",
+                  "the port's other verbs do not change"
+                ],
+                [
+                  "S-16",
+                  "gc list",
+                  "a run branch whose proof comment is not on the ticket",
+                  "proof-not-posted",
+                  "a run with no gate record (an old plan) is not checked"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-surf-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "the forge port does not change; the tracker port gets 1 verb"
+                }
+              }
+            ],
+            "fold": "Each callable surface"
+          }
+        ]
+      },
+      "links": [
+        "sec-l3"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds live_build.py, the tracker verb comment-put and the gc check",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l3",
+      "title": "L3 Data Architecture",
+      "state": "current",
+      "body": {
+        "type": "diagram",
+        "id": "l3-er",
+        "props": {
+          "caption": "Each plan row links a requirement to its owner, its test, its run and its proof line",
+          "text": "erDiagram\n  ACCEPTANCE_CRITERION ||--o{ PLAN_ROW : \"covered by\"\n  PLAN_ROW ||--|| CONTRACT_ROW : \"owned by 1 subtask\"\n  PLAN_ROW ||--o{ TDD_CYCLE : \"tested by\"\n  PLAN_ROW ||--o| GATE_ROW : \"high-level only\"\n  GATE_ROW ||--|{ GATE_RUN : \"1, or 2 after a fail\"\n  GATE_ROW ||--o| VERDICT : \"judged\"\n  GATE_ROW ||--o| PROOF_LINE : \"on the change request\""
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l3-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Files only, no database. VERIFICATION.md is the plan; the gate record on the run branch is the proof, local only; the proof comment on the ticket is what lasts. Ids VR-NNN and FB-NN are never reused."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l3-store",
+            "props": {
+              "columns": [
+                "State",
+                "Where",
+                "Kept until",
+                "Evolution"
+              ],
+              "rows": [
+                [
+                  "VERIFICATION.md",
+                  "spec folder, feature branch",
+                  "forever, as the PRD",
+                  "ids never reused; retired rows stay; new columns at the right end"
+                ],
+                [
+                  "contract Verification table",
+                  "run branch plan/",
+                  "gc after merge",
+                  "new column Plan row; read by header name"
+                ],
+                [
+                  "test-first record",
+                  "run branch plan/review/<id>.tdd.json",
+                  "gc",
+                  "new optional keys; old records read as before"
+                ],
+                [
+                  "gate record + evidence",
+                  "run branch plan/gate/, local, never pushed",
+                  "gc, after the proof comment is on the ticket",
+                  "version field; an unknown major version refuses"
+                ],
+                [
+                  "change request description",
+                  "forge",
+                  "the forge's",
+                  "new sections; old ones untouched until the next open"
+                ],
+                [
+                  "proof comment",
+                  "the ticket (Jira, or GitHub issue)",
+                  "the tracker's",
+                  "1 comment per ship; first line `afkv2 proof v1 <receipt>`"
+                ],
+                [
+                  "live block",
+                  ".afkv2/config.json, committed",
+                  "until you change the build",
+                  "proven_at and proven_head move at each proof"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-store-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Each piece of state"
+                }
+              }
+            ],
+            "fold": "Each piece of state"
+          },
+          {
+            "type": "table",
+            "id": "l3-row",
+            "props": {
+              "columns": [
+                "Field",
+                "Type",
+                "Null",
+                "Rule"
+              ],
+              "rows": [
+                [
+                  "Id",
+                  "VR-NNN",
+                  "no",
+                  "3 digits, never changed or reused"
+                ],
+                [
+                  "Criteria",
+                  "list of AC-NNN",
+                  "only for a low-level row with no user-visible outcome",
+                  "each id exists in PRD.md"
+                ],
+                [
+                  "Story",
+                  "story number or journey",
+                  "yes",
+                  ""
+                ],
+                [
+                  "Given / When / Then",
+                  "1 sentence each",
+                  "no",
+                  "Then is what you should see; the judge compares to it"
+                ],
+                [
+                  "Level",
+                  "static, unit, integration, contract, api, ui-e2e, acceptance",
+                  "no",
+                  "TL-1..TL-7"
+                ],
+                [
+                  "Tier",
+                  "low or high",
+                  "no",
+                  "derived from Level; a mismatch refuses"
+                ],
+                [
+                  "Data, Environment",
+                  "text",
+                  "yes",
+                  "AC-004; the gate's reach check reads Environment"
+                ],
+                [
+                  "Status",
+                  "active, retired: <why>, lower: <from> to <to> · <card>",
+                  "no",
+                  "lower needs your mark"
+                ],
+                [
+                  "Owner",
+                  "not stored",
+                  "",
+                  "derived from the Plan row column of the contracts (fork f-owner = b)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-row-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The plan row, field by field"
+                }
+              }
+            ],
+            "fold": "The plan row, field by field"
+          },
+          {
+            "type": "table",
+            "id": "l3-gate",
+            "props": {
+              "columns": [
+                "Field",
+                "Holds"
+              ],
+              "rows": [
+                [
+                  "version, lane, head, verification_digest",
+                  "the record frame; head is the commit the tests ran at"
+                ],
+                [
+                  "rows[].runs[]",
+                  "{n, exit, started, seconds, log, evidence[{path, sha256, bytes}]}, at most 2 per gate run"
+                ],
+                [
+                  "rows[].result",
+                  "pass, fail, flaky (counts as a fail), waiting"
+                ],
+                [
+                  "rows[].waiting, rows[].lower",
+                  "what is missing and the next step; the lower level with your mark or quote"
+                ],
+                [
+                  "rows[].verdict",
+                  "{provider, model, effort, seen[], compare[], checks[], result}, written from the judge's stdout"
+                ],
+                [
+                  "found[]",
+                  "{id FB-NN, what, where, how, pick, by}"
+                ],
+                [
+                  "go",
+                  "small lane only: {card, head, at}"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-gate-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The gate record, field by field"
+                }
+              }
+            ],
+            "fold": "The gate record, field by field"
+          },
+          {
+            "type": "table",
+            "id": "l3-tdd",
+            "props": {
+              "columns": [
+                "Key",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "cycles[].row, test, level",
+                  "new, optional; old records read null, null, low"
+                ],
+                [
+                  "no_test[].row",
+                  "new; a no-test reason covers only its row"
+                ],
+                [
+                  "a high cycle",
+                  "needs no green in its subtask: its green comes at the end gate"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-tdd-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The test-first record, changed keys"
+                }
+              }
+            ],
+            "fold": "The test-first record, changed keys"
+          },
+          {
+            "type": "table",
+            "id": "l3-live",
+            "props": {
+              "columns": [
+                "Field",
+                "Type",
+                "Null",
+                "Default",
+                "Rule"
+              ],
+              "rows": [
+                [
+                  "start",
+                  "command line",
+                  "no",
+                  "",
+                  "run from the repository root, in the background"
+                ],
+                [
+                  "address",
+                  "http or https URL",
+                  "no",
+                  "",
+                  "ready when it gives any HTTP answer (start_gate.app_failure)"
+                ],
+                [
+                  "ready_seconds",
+                  "integer, seconds",
+                  "no",
+                  "120",
+                  "the wait for the first answer"
+                ],
+                [
+                  "stop",
+                  "command line",
+                  "yes",
+                  "null: stop the process tree the start began",
+                  ""
+                ],
+                [
+                  "needs",
+                  "list of variable names",
+                  "yes",
+                  "[]",
+                  "names only; a value is never stored"
+                ],
+                [
+                  "proven_at, proven_head",
+                  "date, commit",
+                  "no",
+                  "",
+                  "written only by live_build.py prove after a green proof"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-live-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The live block, field by field"
+                }
+              }
+            ],
+            "fold": "The live block, field by field"
+          },
+          {
+            "type": "table",
+            "id": "l3-comment",
+            "props": {
+              "columns": [
+                "Part",
+                "Holds"
+              ],
+              "rows": [
+                [
+                  "first line",
+                  "`afkv2 proof v1 <receipt>`: gc and a second post find it"
+                ],
+                [
+                  "1 line per high-level row",
+                  "VR id, behavior, level, result, 1 sentence of what the judge saw"
+                ],
+                [
+                  "pictures",
+                  "the screenshots of the rows, attached"
+                ],
+                [
+                  "logs",
+                  "name and sha256 only; the file stays local"
+                ],
+                [
+                  "footer",
+                  "head commit, change request link, judge provider and model"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-comment-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The proof comment, part by part"
+                }
+              }
+            ],
+            "fold": "The proof comment, part by part"
+          }
+        ]
+      },
+      "links": [
+        "sec-l4"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Evidence stays local; adds the live block and the proof comment; owner only in contracts",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l4",
+      "title": "L4 Cross-Cutting & Quality Attributes",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l4-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Decision",
+            "Number or posture"
+          ],
+          "rows": [
+            [
+              "Lower level",
+              "only you accept it: a page mark, or your own chat message quoted into the record",
+              "planned at plan approval; a surface unreachable only at ship waits for you there (AC-011, AC-028)"
+            ],
+            [
+              "Small-lane go",
+              "your sign mark on the go card",
+              "small_lane.py go; code-before-go at ship"
+            ],
+            [
+              "Found-bug pick",
+              "your mark on the ship page, or your own chat message",
+              "mark-ready refuses found-open"
+            ],
+            [
+              "Judge isolation",
+              "an input folder with plan rows, evidence and the test files; no conversation, no builder claims",
+              "read-only sandbox; output only on stdout; a field outside the schema fails the row"
+            ],
+            [
+              "Evidence integrity",
+              "sha256 per evidence file",
+              "mark-ready hashes again; any change refuses"
+            ],
+            [
+              "Flaky tests",
+              "1 run; a fail runs once more; fail then pass = flaky = fail; the judge fails flaky signs",
+              "at most 2 runs per row per gate run"
+            ],
+            [
+              "Judge transport failure",
+              "1 retry on no exit 0 or unreadable stdout; a verdict is never retried",
+              "then the row waits for you at ship"
+            ],
+            [
+              "Idempotency",
+              "gate key (head, VERIFICATION.md digest)",
+              "a second run at the same key runs nothing"
+            ],
+            [
+              "Head drift",
+              "Ready needs every change after the gate head to lie in the spec folder",
+              "else gate-head-stale"
+            ],
+            [
+              "Proof comment consent",
+              "your ship mark, on the ship page that shows the exact comment and pictures",
+              "no comment without it"
+            ],
+            [
+              "Public repositories",
+              "on a public GitHub repository anyone can open an attached picture (GitHub docs)",
+              "the ship page says so; the secret scan reads the comment before the post"
+            ],
+            [
+              "gh floor",
+              "gh 2.99.0 or later for --attach; setup checks it",
+              "this machine has 2.92.0 today"
+            ],
+            [
+              "Provider",
+              "the other provider if its CLI is on the path and signed in; else your provider at setup's judge model, medium effort",
+              "the page and the record name provider, model, effort (AC-019)"
+            ],
+            [
+              "Secrets",
+              "none new; attach reads only the debug port",
+              "0 new secrets"
+            ],
+            [
+              "Time and size",
+              "see Performance",
+              "see Performance"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l4-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "each concern with its number or posture; time and size numbers stand in Performance"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l4-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Only you lower a level, give the go or pick a found bug. A script holds each rule; the judge sees only plan rows and evidence."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l5"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds consent, exposure and the gh floor for the proof comment",
+          "notes": [
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l5",
+      "title": "L5 Domain Model",
+      "state": "current",
+      "body": {
+        "type": "diagram",
+        "id": "l5-life",
+        "props": {
+          "caption": "A high-level proof: 1 run, a fail runs once more, fail then pass is flaky",
+          "text": "stateDiagram-v2\n  [*] --> planned\n  planned --> written: test-writing subtask, red recorded\n  written --> waiting: gate cannot reach app, driver, credentials\n  waiting --> ran_once: you fix the live build, the gate runs again\n  written --> ran_once: end gate\n  ran_once --> judged: pass\n  ran_once --> ran_twice: fail\n  ran_twice --> flaky: pass\n  ran_twice --> back: fail\n  flaky --> back\n  judged --> proof_line: judge pass\n  judged --> back: judge fail or flaky signs\n  back --> ran_once: subtasks done again\n  proof_line --> [*]"
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l5-sum",
+            "props": {
+              "label": "Summary",
+              "text": "14 invariants, each with 1 guardian script. The subtask statuses stay; one move is new: done to pending, made only by end_gate.py back."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l5-inv",
+            "props": {
+              "columns": [
+                "#",
+                "Invariant",
+                "Guardian",
+                "Answer"
+              ],
+              "rows": [
+                [
+                  "I-1",
+                  "a medium plan cut has VERIFICATION.md",
+                  "plan_files.py _check_inputs",
+                  "missing-input"
+                ],
+                [
+                  "I-2",
+                  "each user-visible AC has an active high-level row",
+                  "verification_files.py write, check_plan.py",
+                  "ac-no-high-row"
+                ],
+                [
+                  "I-3",
+                  "each low-level row has 1 owner; each high-level row 1 test-writing subtask",
+                  "check_plan.py",
+                  "row-unowned, row-two-owners, row-no-test-subtask"
+                ],
+                [
+                  "I-4",
+                  "not applicable never skips a live level",
+                  "check_plan.py, start_gate.py",
+                  "live-not-applicable"
+                ],
+                [
+                  "I-5",
+                  "a subtask is done only with its low-level rows green",
+                  "walk.py done",
+                  "row-not-green"
+                ],
+                [
+                  "I-6",
+                  "a new test has a red step; no-test covers only its row",
+                  "tdd_log.py verdict",
+                  "code-before-red per row, test-no-row"
+                ],
+                [
+                  "I-7",
+                  "Ready only with a passed, judged gate row and a proof line per active high-level row",
+                  "ci_watch.py mark-ready",
+                  "the S-10 codes"
+                ],
+                [
+                  "I-8",
+                  "evidence never changes after the run",
+                  "mark-ready",
+                  "evidence-changed"
+                ],
+                [
+                  "I-9",
+                  "old plans keep old rules",
+                  "rules_of(plan) in plan_contract.py reads `> Rules: 2`",
+                  "no line: old rules"
+                ],
+                [
+                  "I-10",
+                  "small lane: no code before the go",
+                  "small_lane.py, mark-ready",
+                  "code-before-go"
+                ],
+                [
+                  "I-11",
+                  "only you move a found bug out of noted",
+                  "mark-ready",
+                  "found-open"
+                ],
+                [
+                  "I-12",
+                  "gc deletes no run branch before its proof comment is on the ticket",
+                  "gc_checks.py",
+                  "proof-not-posted"
+                ],
+                [
+                  "I-13",
+                  "a medium plan is approved only with a live block proven at a commit of this feature, or `> App: none` with your mark",
+                  "verification_files.py write",
+                  "live-unproven"
+                ],
+                [
+                  "I-14",
+                  "a gate run starts only when fewer than 3 gate runs of this ship failed",
+                  "end_gate.py run",
+                  "gate-cap-reached"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l5-inv-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Invariants and their guardians"
+                }
+              }
+            ],
+            "fold": "Invariants and their guardians"
+          },
+          {
+            "type": "diagram",
+            "id": "l5-bug",
+            "props": {
+              "caption": "A found bug: only you move it out of noted, except a bug that blocks a planned proof",
+              "text": "stateDiagram-v2\n  [*] --> noted: agent adds FB-NN\n  noted --> fix_in_place: blocks a planned proof or corrupts data\n  noted --> fix_now: your pick at ship\n  noted --> ticket: your pick at ship\n  noted --> dropped: your pick, with reason"
+            },
+            "fold": "The found bug"
+          }
+        ]
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds I-12 to I-14; I-9 reads the Rules header",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l6",
+      "title": "L6 Process & Coordination",
+      "state": "current",
+      "body": {
+        "type": "diagram",
+        "id": "l6-small",
+        "props": {
+          "caption": "The small lane: no code before your go; it stops and proposes the medium lane when it grows",
+          "text": "flowchart TD\n  A[read the code] --> B[1 line: lane and reason]\n  B -->|bug| C[diagnosis loop]\n  B -->|enhancement| D[current behavior]\n  C --> E[1 page round: problem, fix, test plan]\n  D --> E\n  E --> F{your go mark}\n  F -- no --> E\n  F -- go --> H[fix test-first]\n  H --> I{grew past small?}\n  I -- yes --> J[stop, propose the medium lane]\n  I -- no --> K[small gate: 1 high-level test, before and after]\n  K --> L[judge] --> M[change request, ship]"
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l6-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Medium: draft, critique, steer, prove the live build, VERIFICATION.md, plan cut, low-level rows per subtask, end gate (at most 3 runs), judge, proof lines, proof comment, Ready. Small: 1 round, your go, 1 high-level proof."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l6-fail",
+            "props": {
+              "columns": [
+                "Failure",
+                "Signal",
+                "Automatic",
+                "Manual",
+                "Owner"
+              ],
+              "rows": [
+                [
+                  "live build not up at the gate",
+                  "start_gate.app_failure (166-176)",
+                  "start it from the live block, wait, stop it after",
+                  "you fix the build; live_build.py prove again",
+                  "end gate"
+                ],
+                [
+                  "browser driver missing",
+                  "no green driver proof in the install record",
+                  "none",
+                  "/afkv2:setup browser-driver",
+                  "end gate"
+                ],
+                [
+                  "a test fails twice, or fail then pass",
+                  "exit codes",
+                  "back reopens its subtasks; every row runs again",
+                  "after 3 failed gate runs the run waits for you",
+                  "autopilot"
+                ],
+                [
+                  "judge absent, timeout, unreadable",
+                  "no-provider, judge-timeout, judge-unreadable",
+                  "own provider's higher tier; 1 retry",
+                  "the row waits at ship",
+                  "other_provider"
+                ],
+                [
+                  "judge fail",
+                  "verdict result fail",
+                  "back, with the failed check named (AC-017)",
+                  "none",
+                  "end gate"
+                ],
+                [
+                  "evidence edited after the run",
+                  "hash mismatch",
+                  "none",
+                  "run the gate again",
+                  "mark-ready"
+                ],
+                [
+                  "head moved after the gate",
+                  "gate-head-stale",
+                  "none",
+                  "run the gate again",
+                  "mark-ready"
+                ],
+                [
+                  "MCP registration fails",
+                  "register-failed",
+                  "restore the backup",
+                  "you",
+                  "setup"
+                ],
+                [
+                  "live block missing or stale",
+                  "live-undefined, live-no-answer",
+                  "none",
+                  "1 page round with you in propose-verification",
+                  "propose-verification"
+                ],
+                [
+                  "proof comment fails",
+                  "a tracker error code",
+                  "none",
+                  "post again from the ship page; gc refuses until it lands",
+                  "create-change-request"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l6-fail-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Failure and recovery"
+                }
+              }
+            ],
+            "fold": "Failure and recovery"
+          },
+          {
+            "type": "table",
+            "id": "l6-out",
+            "props": {
+              "columns": [
+                "Outward effect",
+                "Trigger",
+                "Partial failure leaves",
+                "Recovery"
+              ],
+              "rows": [
+                [
+                  "proof comment on the ticket",
+                  "your ship mark",
+                  "pictures attached, no comment: the next post finds them by receipt",
+                  "post again"
+                ],
+                [
+                  "change request description",
+                  "open",
+                  "the old description",
+                  "open again"
+                ],
+                [
+                  "Ready",
+                  "mark-ready, last",
+                  "Draft",
+                  "mark-ready again"
+                ],
+                [
+                  "Claude and Codex settings",
+                  "setup browser-driver",
+                  "1 of 2 harnesses: the answer names it",
+                  "run again; switch-back restores the backup"
+                ],
+                [
+                  "a call to the other provider",
+                  "judge, devil pass",
+                  "no verdict: the row waits",
+                  "run the judge step again"
+                ],
+                [
+                  "live block in the config",
+                  "a green proof in propose-verification",
+                  "nothing: written only after the proof",
+                  "revert the commit"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l6-out-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Outward side effects"
+                }
+              }
+            ],
+            "fold": "Outward side effects"
+          },
+          {
+            "type": "diagram",
+            "id": "l6-live",
+            "props": {
+              "caption": "The live build is worked out with you once, then only checked",
+              "text": "flowchart TD\n  A{live block in config?} -- no --> B[agent reads the repository, proposes start, address, stop]\n  B --> C[1 page round with you]\n  C --> D[prove: start, wait for an answer, stop]\n  A -- yes --> D\n  D -- green --> E[write proven_at, proven_head; commit]\n  D -- red --> C\n  E --> F[plan approval can go on]"
+            },
+            "fold": "The live build"
+          }
+        ]
+      },
+      "links": [
+        "sec-l7"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds the live-build flow and the proof comment; caps the gate at 3 runs",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-l7",
+      "title": "L7 Module Decomposition",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "l7-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "m-pv",
+              "label": "propose-verification: verification_files.py, verification_round.py",
+              "group": "k"
+            },
+            {
+              "id": "m-ps",
+              "label": "propose-solution: proposers.py (thin), design_round.py",
+              "group": "k"
+            },
+            {
+              "id": "m-sc",
+              "label": "small-change: small_lane.py, DIAGNOSIS.md",
+              "group": "k"
+            },
+            {
+              "id": "m-ap",
+              "label": "autopilot: walk.py, start_gate.py, end_gate.py",
+              "group": "k"
+            },
+            {
+              "id": "m-ex",
+              "label": "execute: tdd_log.py",
+              "group": "k"
+            },
+            {
+              "id": "m-cr",
+              "label": "create-change-request: change_request.py, ci_watch.py",
+              "group": "k"
+            },
+            {
+              "id": "m-ul",
+              "label": "use-lavish: proposer_engine.py",
+              "group": "k"
+            },
+            {
+              "id": "m-gr",
+              "label": "scripts/gate_record.py",
+              "group": "x"
+            },
+            {
+              "id": "m-op",
+              "label": "scripts/other_provider.py",
+              "group": "x"
+            },
+            {
+              "id": "m-en",
+              "label": "engine: page.py, base_card.py, kit.css, diagrams.py",
+              "group": "e"
+            }
+          ],
+          "edges": [
+            {
+              "from": "m-pv",
+              "to": "m-ul"
+            },
+            {
+              "from": "m-ps",
+              "to": "m-ul"
+            },
+            {
+              "from": "m-sc",
+              "to": "m-ul"
+            },
+            {
+              "from": "m-ap",
+              "to": "m-gr"
+            },
+            {
+              "from": "m-sc",
+              "to": "m-gr"
+            },
+            {
+              "from": "m-cr",
+              "to": "m-gr"
+            },
+            {
+              "from": "m-gr",
+              "to": "m-op"
+            },
+            {
+              "from": "m-ap",
+              "to": "m-ex"
+            },
+            {
+              "from": "m-ul",
+              "to": "m-en"
+            }
+          ],
+          "groups": [
+            {
+              "id": "k",
+              "label": "skills"
+            },
+            {
+              "id": "x",
+              "label": "shared afkv2/scripts"
+            },
+            {
+              "id": "e",
+              "label": "page engine"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l7-g-see",
+            "props": {
+              "label": "What to see",
+              "text": "skills point to shared scripts, never to each other; no cycle"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l7-sum",
+            "props": {
+              "label": "Summary",
+              "text": "The proposer engine moves out of propose-solution so 2 skills use it. The gate record has one reader and writer, shared by autopilot, the small lane and Ready."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l7-mod",
+            "props": {
+              "columns": [
+                "Module",
+                "Public interface"
+              ],
+              "rows": [
+                [
+                  "use-lavish/scripts/proposer_engine.py (moved from proposers.py)",
+                  "plan_proposers, start, wait, critique, cleanup; a Skill adapter: state_path, ready, noun, prefix"
+                ],
+                [
+                  "propose-verification/scripts/verification_files.py",
+                  "start, sync, write"
+                ],
+                [
+                  "propose-verification/scripts/verification_round.py",
+                  "build"
+                ],
+                [
+                  "small-change/scripts/small_lane.py",
+                  "start, go, gate"
+                ],
+                [
+                  "autopilot/scripts/end_gate.py",
+                  "run, back, status"
+                ],
+                [
+                  "scripts/gate_record.py",
+                  "write_run, write_verdict, verify(gate, proofs, head), proof_lines(gate)"
+                ],
+                [
+                  "scripts/other_provider.py",
+                  "judge(input), attack(log), which()"
+                ],
+                [
+                  "setup/scripts/tools.py",
+                  "ensure_browser_driver, register_mcp, prove_driver"
+                ],
+                [
+                  "engine",
+                  "changed mark, round chip fade, heading inside the body, diagrams.export(text, path)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l7-mod-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Each module and its interface"
+                }
+              }
+            ],
+            "fold": "Each module and its interface"
+          }
+        ]
+      },
+      "links": [
+        "sec-logic"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        }
+      ]
+    },
+    {
+      "id": "sec-logic",
+      "title": "Key logic: the end-gate row decision",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "lg-t",
+        "props": {
+          "columns": [
+            "Reachable?",
+            "Run 1",
+            "Run 2",
+            "Judge",
+            "Row",
+            "Next"
+          ],
+          "rows": [
+            [
+              "no",
+              "none",
+              "none",
+              "none",
+              "waiting",
+              "you at ship: supply it"
+            ],
+            [
+              "yes",
+              "pass",
+              "not run",
+              "pass",
+              "pass",
+              "proof line"
+            ],
+            [
+              "yes",
+              "pass",
+              "not run",
+              "fail or flaky signs",
+              "fail",
+              "back"
+            ],
+            [
+              "yes",
+              "fail",
+              "pass",
+              "not run",
+              "flaky = fail",
+              "back"
+            ],
+            [
+              "yes",
+              "fail",
+              "fail",
+              "not run",
+              "fail",
+              "back"
+            ],
+            [
+              "yes",
+              "any",
+              "any",
+              "no verdict after 1 retry",
+              "waiting",
+              "you at ship"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "lg-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "run 2 happens only after a fail; the judge runs only when every row passed its script checks"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-logic-sum",
+            "props": {
+              "label": "Summary",
+              "text": "1 run per row; only a fail runs again. The judge makes 1 call for all rows together."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l8"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        }
+      ]
+    },
+    {
+      "id": "sec-l8",
+      "title": "L8 Tactical Patterns",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l8-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Pattern",
+            "What it beat"
+          ],
+          "rows": [
+            [
+              "2-provider proposing in 2 skills",
+              "one engine, a per-skill adapter",
+              "a copy of proposers.py, which imports design_round (55-59)"
+            ],
+            [
+              "the rules of the feature",
+              "a guardian script per rule (L5)",
+              "prose: the incident shows an instruction alone is skipped (ADR-0003)"
+            ],
+            [
+              "gate evidence",
+              "write-once record with content hashes, one writer",
+              "trusting the change request text: the forge has no body read"
+            ],
+            [
+              "the other provider",
+              "1 adapter per CLI",
+              "inline calls in 3 callers"
+            ],
+            [
+              "old against new plans",
+              "one rules switch, rules_of(plan)",
+              "date checks in each checker"
+            ],
+            [
+              "judge output",
+              "schema first: description before comparison",
+              "a free-text verdict"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l8-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "each pattern with the simpler option it beat"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l8-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Strategy for the shared proposer engine, an adapter per provider CLI, and one script guarding each rule."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        }
+      ]
+    },
+    {
+      "id": "sec-l9",
+      "title": "L9 Implementation Seams & Change Impact",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l9-t",
+        "props": {
+          "columns": [
+            "Seam",
+            "Now",
+            "Proposed",
+            "Verdict"
+          ],
+          "rows": [
+            [
+              "to-subtasks plan_files.py:42 SPEC_FILES; to-prd/INDEX-FORMAT.md:28",
+              "reserves VERIFICATION-PLAN.md",
+              "VERIFICATION.md",
+              "fits"
+            ],
+            [
+              "plan_files.py:80-93 _check_inputs",
+              "PRD, SDD, ADRs",
+              "+ VERIFICATION.md",
+              "extends"
+            ],
+            [
+              "check_plan.py:65, start_gate.py:32 live tiers",
+              "lockstep copies",
+              "+ acceptance (high), + contract (low)",
+              "extends"
+            ],
+            [
+              "check_plan.py:504-520, start_gate.py:183-205",
+              "not applicable + any reason skips",
+              "new plans: refuse on a live level",
+              "reworked"
+            ],
+            [
+              "SUBTASK-CONTRACT.md:40-46, plan_contract.py:17-63",
+              "Tier | Check | Proves",
+              "Tier | Plan row | Check | Proves, read by header",
+              "extends"
+            ],
+            [
+              "execute tdd_log.py:88-141",
+              "1 no_test disables code-before-red",
+              "row, test, level; no-test covers its row only",
+              "extends"
+            ],
+            [
+              "walk.py:409-438, 460-463",
+              "no row check; ships when archived",
+              "+ row checks; + gate record passed or waiting",
+              "extends"
+            ],
+            [
+              "change_request.py:56-69",
+              "{claim, evidence} free text",
+              "{row, behavior, level, ran, evidence}; Found along the way",
+              "reworked"
+            ],
+            [
+              "ci_watch.py:353-397 mark-ready",
+              "plan folder required; reviews + CI",
+              "plan optional; gate record verified before CI",
+              "reworked"
+            ],
+            [
+              "propose-solution proposers.py",
+              "design-only imports",
+              "generic part to proposer_engine.py; CLI unchanged",
+              "reworked inside"
+            ],
+            [
+              "grill-requirements ROUNDS.md:174-176",
+              "devil pass: a fresh subagent",
+              "other_provider.py attack",
+              "extends"
+            ],
+            [
+              "engine page.py, kit.css, base_card.py",
+              "changed = left shadow; chip muted; h4 outside the body",
+              "changed chip after the title; chip fade by round age; h4 first in the body",
+              "extends"
+            ],
+            [
+              "engine diagrams.py",
+              "SVG cache, transparent",
+              "export(text, dest): light SVG on white into <spec>/pictures/",
+              "extends"
+            ],
+            [
+              "setup tools.py, setup.py",
+              "no MCP code",
+              "browser-driver and judge verbs",
+              "extends"
+            ],
+            [
+              "lavish dependency",
+              "pinned",
+              "changes only by a plugin release plus setup takeover, newest release at least 30 days old",
+              "fits"
+            ],
+            [
+              "to-subtasks PLAN-FORMAT.md:11 `> App:`",
+              "address or start command, free text, never proven",
+              "new plans: `> App: config`, the proven live block",
+              "extends"
+            ],
+            [
+              "scripts/afkv2_config.py read_config",
+              "spec_folder, tracker, ownership, forge",
+              "+ live",
+              "extends"
+            ],
+            [
+              "ports/tracker/CONTRACT.md:20",
+              "no comment verb",
+              "comment-put: Jira ADF with attachment-put; GitHub gh issue comment --attach",
+              "extends"
+            ],
+            [
+              "to-prd SKILL.md:8",
+              "the only skill that writes to Jira",
+              "the proof comment is a second ticket write, at ship, after your mark",
+              "reworked"
+            ],
+            [
+              "gc gc_checks.py:65-182",
+              "merge, clean, tips, platform",
+              "+ proof comment on the ticket",
+              "extends"
+            ],
+            [
+              "setup tools.py",
+              "no gh version floor",
+              "gh 2.99.0 or later when the tracker is GitHub",
+              "extends"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l9-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "each seam with now and proposed; reworked rows change what existing callers see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l9-sum",
+            "props": {
+              "label": "Summary",
+              "text": "21 seams; 5 are reworked and change what existing callers see: the not-applicable skip, the proof payload, mark-ready, the proposer engine inside, and the second ticket writer."
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Adds 6 seams: live block, tracker comment, gc check, gh floor",
+          "notes": [
+            "N-3-m-aspects-1",
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-patterns",
+      "title": "Design patterns",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "pt-t",
+        "props": {
+          "columns": [
+            "Name",
+            "What it is",
+            "Where",
+            "Why here",
+            "Quality goal",
+            "Beat"
+          ],
+          "rows": [
+            [
+              "Strategy",
+              "one algorithm with a swappable part per caller",
+              "proposer engine + Skill adapter",
+              "2 skills need the same draft, critique, reconcile",
+              "one fix point",
+              "a copy of the file"
+            ],
+            [
+              "Adapter",
+              "a thin wrapper that turns one interface into the one callers expect",
+              "other_provider.py per CLI",
+              "2 CLIs with different flags",
+              "replaceable provider",
+              "inline calls"
+            ],
+            [
+              "Guardian per invariant",
+              "each rule has 1 script that refuses its violation",
+              "L5 table",
+              "settled: every rule is held by a script",
+              "trust",
+              "prose"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "pt-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "3 patterns, each with the simpler option it beat"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        }
+      ]
+    },
+    {
+      "id": "sec-performance",
+      "title": "Performance",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "pf-wrap",
+        "props": {
+          "label": "Performance",
+          "text": "4 parts. All numbers are estimated design targets, not measurements. Codex disputed them as new requirements; the design format asks a number for each concern."
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "pf-1",
+            "props": {
+              "text": "Evidence growth on the run branch, end-gate wall time, judge tokens, mutation time in CI.",
+              "markdown": true,
+              "label": "PF-1 Anticipated problems"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-1-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Where",
+                    "Cause",
+                    "Size"
+                  ],
+                  "rows": [
+                    [
+                      "evidence growth",
+                      "run branch",
+                      "screenshots; 2 runs on a fail",
+                      "tens of files per run"
+                    ],
+                    [
+                      "end-gate wall time",
+                      "developer machine",
+                      "rows run in series",
+                      "sum of the rows"
+                    ],
+                    [
+                      "judge tokens",
+                      "other provider",
+                      "images in 1 call",
+                      "tens of images"
+                    ],
+                    [
+                      "mutation time",
+                      "CI",
+                      "mutants on changed lines",
+                      "repository-dependent"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-1-t-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "4 places the cost grows"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-2",
+            "props": {
+              "text": "A screenshot 150 KB; 20 rows x 2 files = 6 MB per run, local on the run branch; gc deletes it after the proof comment lands. The ticket gets the last run's pictures only: about 3 MB per ship.",
+              "markdown": true,
+              "label": "PF-2 Large data"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-2-t",
+                "props": {
+                  "columns": [
+                    "Item",
+                    "1 year",
+                    "Worst",
+                    "Cost"
+                  ],
+                  "rows": [
+                    [
+                      "screenshot",
+                      "150 KB",
+                      "2 MB cap",
+                      "1 write + 1 hash"
+                    ],
+                    [
+                      "evidence per run",
+                      "6 MB, local",
+                      "120 MB in run-branch history",
+                      "gone with the run branch"
+                    ],
+                    [
+                      "plan rows",
+                      "30 per feature",
+                      "100",
+                      "none"
+                    ],
+                    [
+                      "proof comment",
+                      "about 3 MB of pictures",
+                      "GitHub: 10 MB per picture; Jira: the site's limit, 1 MB of text",
+                      "1 post per ship"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-2-t-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "estimated sizes"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-3",
+            "props": {
+              "text": "At most 5 evidence files per row and 2 MB per file; only the last gate run's evidence stays in the tree; reruns only on a fail; mutation only on changed lines.",
+              "markdown": true,
+              "label": "PF-3 Solutions"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-3-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Fix"
+                  ],
+                  "rows": [
+                    [
+                      "evidence growth",
+                      "5 files x 2 MB cap per row"
+                    ],
+                    [
+                      "wall time",
+                      "reruns only on a fail"
+                    ],
+                    [
+                      "judge tokens",
+                      "1 call per passed gate run"
+                    ],
+                    [
+                      "mutation",
+                      "changed lines only"
+                    ],
+                    [
+                      "ticket size",
+                      "pictures of the last gate run only; logs as hashes"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-3-t-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "one fix per problem"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-4",
+            "props": {
+              "text": "Gate overhead above the tests 30 s; judge call 300 s; setup browser-driver 120 s; your added time in a green medium run: 1 ship page view.",
+              "markdown": true,
+              "label": "PF-4 Budgets"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-4-t",
+                "props": {
+                  "columns": [
+                    "Flow",
+                    "Budget",
+                    "Chip"
+                  ],
+                  "rows": [
+                    [
+                      "gate overhead",
+                      "30 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "judge call",
+                      "300 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "setup browser-driver",
+                      "120 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "your time, green run",
+                      "1 ship page view",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "inferred",
+                          "tone": "inferred"
+                        }
+                      }
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-4-t-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "4 budgets, none measured"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 3,
+          "cause": "finding",
+          "text": "drafted by 2 solution proposers, Claude and Codex, then reconciled"
+        },
+        {
+          "round": 4,
+          "cause": "note",
+          "text": "Evidence stays local; adds the proof comment size",
+          "notes": [
+            "N-3-m-aspects-2"
+          ]
+        }
+      ]
+    }
+  ]
 }

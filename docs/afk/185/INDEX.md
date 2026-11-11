@@ -9,8 +9,8 @@ afkv2 agents said a change was done without running it the way a user meets it, 
 | PRD | PRD.md | draft |
 | Requirement ADRs | adr/requirements/ | 4 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 8 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
 | Plan | plan/PLAN.md | — |
