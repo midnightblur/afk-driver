@@ -326,3 +326,66 @@ def test_verify_lists_every_failure_and_leads_with_the_first(gate):
     code, codes = _codes(gate, proofs=[])
     assert code == "verdict-no-description"
     assert codes == ["verdict-no-description", "evidence-changed", "proof-missing"]
+
+
+# ---------------------------------------------------------------- proof lines and the proof comment
+
+
+def _two_rows(gate):
+    (gate["folder"] / "run-2.log").write_text("1 failed\n1 passed\n", encoding="utf-8")
+    second = _row("VR-002", exits=(1, 0))
+    second["runs"][1]["log"] = "run-2.log"
+    second["runs"][1]["evidence"] = ["evidence/answer.json"]
+    return [_row(), second]
+
+
+def test_proof_lines_gives_1_line_per_row_with_its_fields(gate):
+    _passed(gate)
+    lines = gr.proof_lines(gr.read(gate["record"]))
+    picture = gate["folder"] / "evidence" / "click.png"
+    assert lines == [{"row": "VR-001", "behavior": "the link opens the ticket in a new tab", "level": "ui-e2e",
+                      "ran": "afkv2/tests/e2e/test_link.py::test_opens_tab", "result": "pass",
+                      "evidence": f"evidence/click.png (sha256 {gr.file_digest(picture)[:12]}), "
+                                  f"evidence/answer.json (sha256 {gr.file_digest(gate['folder'] / 'evidence' / 'answer.json')[:12]})"}]
+    assert gr.verify(gate["record"], lines, HEAD, spec_folder="docs", repo=gate["folder"])["ok"]
+
+
+def test_proof_lines_reads_the_last_run_of_a_row(gate):
+    _write(gate, _two_rows(gate))
+    lines = gr.proof_lines(gr.read(gate["record"]))
+    assert [line["row"] for line in lines] == ["VR-001", "VR-002"]
+    assert lines[1]["result"] == "flaky" and lines[1]["evidence"].startswith("evidence/answer.json (sha256 ")
+    assert "click.png" not in lines[1]["evidence"]
+
+
+def test_proof_comment_gives_the_receipt_rows_pictures_logs_and_footer(gate):
+    _passed(gate, seen=("The new tab shows ticket P-1. Its title matches.", "The answer is 200."))
+    comment = gr.proof_comment(gr.read(gate["record"]), receipt="r-123", change="https://forge/pr/191",
+                               folder=gate["folder"])
+    lines = comment["body"].splitlines()
+    assert lines[0] == "afkv2 proof v1 r-123"
+    assert lines[1] == "VR-001 · the link opens the ticket in a new tab · ui-e2e · pass · The new tab shows ticket P-1."
+    log_digest = gr.file_digest(gate["folder"] / "run-1.log")
+    answer_digest = gr.file_digest(gate["folder"] / "evidence" / "answer.json")
+    assert "Pictures: click.png" in lines
+    assert f"Logs: run-1.log sha256 {log_digest}, answer.json sha256 {answer_digest}" in lines
+    assert lines[-1] == f"Head {HEAD} · change https://forge/pr/191 · judge codex gpt-5 medium"
+    assert comment["pictures"] == [str(gate["folder"] / "evidence" / "click.png")]
+
+
+def test_proof_comment_names_an_unjudged_row_and_no_pictures(gate):
+    row = _row()
+    row["runs"][0]["evidence"] = ["evidence/answer.json"]
+    _write(gate, [row])
+    comment = gr.proof_comment(gr.read(gate["record"]), receipt="r-1", change="https://forge/pr/1", folder=gate["folder"])
+    assert "VR-001 · the link opens the ticket in a new tab · ui-e2e · pass · not judged" in comment["body"]
+    assert comment["pictures"] == [] and "Pictures: none" in comment["body"]
+    assert comment["body"].splitlines()[-1].endswith("judge none")
+
+
+@pytest.mark.parametrize("receipt, change", [("", "https://forge/pr/1"), ("r-1", " ")])
+def test_proof_comment_needs_the_receipt_and_the_change(gate, receipt, change):
+    _passed(gate)
+    with pytest.raises(Refusal) as refused:
+        gr.proof_comment(gr.read(gate["record"]), receipt=receipt, change=change, folder=gate["folder"])
+    assert refused.value.code == "bad-payload"

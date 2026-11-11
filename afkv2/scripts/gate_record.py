@@ -32,6 +32,9 @@ ROW_TEXT = ("row", "behavior", "ran")
 PROOF_FIELDS = ("behavior", "level", "ran", "evidence")
 DEVELOPER = "developer"
 GIT_SECONDS = 60
+SHORT_DIGEST = 12
+# The picture and video types a tracker attaches (ADR-0005: GitHub takes pictures and video only).
+PICTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".mov", ".webm")
 SHIP_CODES = ("gate-not-passed", "verdict-no-description", "evidence-changed", "gate-head-stale", "proof-missing",
               "proof-field-missing", "found-open")
 
@@ -315,3 +318,51 @@ def _git_changed(repo: Path):
             raise Refusal("git-failed", f"git diff {old} {new}: {done.stderr.decode('utf-8', 'replace').strip()}")
         return [line for line in done.stdout.decode("utf-8", "replace").splitlines() if line]
     return changed
+
+
+# ---------------------------------------------------------------- the proof
+
+
+def proof_lines(gate) -> list[dict]:
+    """1 proof line per high-level row of the record `gate`: row, behavior, level, what ran, result, and the evidence
+    of the row's last run as path and sha256 prefix."""
+    return [{"row": row["row"], "behavior": row["behavior"], "level": row["level"], "ran": row["ran"],
+             "result": row["result"],
+             "evidence": ", ".join(f"{item['path']} (sha256 {item['sha256'][:SHORT_DIGEST]})" for item in _last(row)["evidence"])}
+            for row in gate["rows"]]
+
+
+def proof_comment(gate, *, receipt, change, folder) -> dict:
+    """The ticket comment of the record `gate` (SDD §4 "Proof comment"): `body` and `pictures`, the picture files of
+    each row's last run under `folder`, the record's folder. Logs go as name and sha256; the files stay local."""
+    for key, value in (("receipt", receipt), ("change", change)):
+        if not isinstance(value, str) or not value.strip():
+            raise Refusal("bad-payload", f"the proof comment needs `{key}`")
+    lines, pictures, logs, judge = [f"afkv2 proof v1 {receipt}"], [], [], None
+    for row in gate["rows"]:
+        verdict = row["verdict"]
+        lines.append(" · ".join([row["row"], row["behavior"], row["level"], row["result"],
+                                 _sentence(verdict["seen"]) if verdict else "not judged"]))
+        judge = judge or verdict
+        run = _last(row)
+        for item in ([run["log"]] if run["log"] else []) + run["evidence"]:
+            name = Path(item["path"])
+            if name.suffix.lower() in PICTURE_SUFFIXES:
+                pictures.append(str(name if name.is_absolute() else Path(folder) / name))
+            else:
+                logs.append(f"{name.name} sha256 {item['sha256']}")
+    lines.append("Pictures: " + (", ".join(Path(picture).name for picture in pictures) or "none"))
+    lines.append("Logs: " + (", ".join(logs) or "none"))
+    named = " ".join(judge[key] for key in ("provider", "model", "effort")) if judge else "none"
+    lines.append(f"Head {gate['head']} · change {change} · judge {named}")
+    return {"body": "\n".join(lines), "pictures": pictures}
+
+
+def _last(row) -> dict:
+    return row["runs"][-1] if row["runs"] else {"log": None, "evidence": []}
+
+
+def _sentence(seen) -> str:
+    text = " ".join(str(seen[0]).split()) if seen else ""
+    end = re.search(r"[.!?](\s|$)", text)
+    return text[: end.start() + 1] if end else text
