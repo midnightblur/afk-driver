@@ -92,7 +92,8 @@ For each row of `rows.json`, answer 1 entry of `rows`, with its fields in this o
 2. `seen`: describe, in your own words, what you see in each evidence file of the row. Describe before you compare.
 3. `compare`: compare what you saw with what the row says you should see.
 4. `checks`: 1 entry per check below, each with `result` pass or fail and 1 sentence `why`:
-   - VC-2 refactor: the test still passes after a change that keeps behavior.
+   - VC-2 refactor: judge from the test file: the test would still pass after a change that keeps behavior, \
+because it uses the public interface, not internals.
    - VC-4 outcome: the test asserts on a result, not only "no error".
    - VC-6 no logic: the expected values are literals.
    - VC-7 clear failure: a failure shows expected, actual and input.
@@ -113,6 +114,7 @@ class Ran:
     exit: int | None
     stdout: str
     timed_out: bool
+    stderr: str = ""
 
 
 def run_cli(argv, *, stdin, cwd, timeout) -> Ran:
@@ -121,8 +123,8 @@ def run_cli(argv, *, stdin, cwd, timeout) -> Ran:
     except subprocess.TimeoutExpired:
         return Ran(None, "", True)
     except OSError as error:
-        return Ran(None, str(error), False)
-    return Ran(done.returncode, done.stdout.decode("utf-8", "replace"), False)
+        return Ran(None, "", False, str(error))
+    return Ran(done.returncode, done.stdout.decode("utf-8", "replace"), False, done.stderr.decode("utf-8", "replace"))
 
 
 # ---------------------------------------------------------------- which
@@ -167,7 +169,7 @@ def judge(input_folder, session_provider, *, lookup=shutil.which, runner=run_cli
     rows = _rows(folder)
     judge_cli = which(session_provider, lookup=lookup, runner=runner)
     images = sorted(str(path) for path in (folder / "evidence").rglob("*") if path.suffix.lower() in IMAGE_SUFFIXES)
-    answer = _call(judge_cli, JUDGE_PROMPT, folder, ANSWER_SCHEMA, images, runner)
+    answer, judge_cli = _call(judge_cli, JUDGE_PROMPT, folder, ANSWER_SCHEMA, images, runner)
     given = {key: judge_cli[key] for key in ("provider", "model", "effort")}
     return {"ok": True, **given, "verdicts": _verdicts(rows, answer, given)}
 
@@ -211,7 +213,8 @@ def _command(judge_cli, folder: Path, schema_file: Path, images) -> list[str]:
 
 def _call(judge_cli, prompt, folder: Path, schema, images, runner, accept=None):
     """Run the CLI; a transport failure gets 1 retry, an answer never. Answers the object as (key, value) pairs
-    in their order. Raises `Refusal` after the second transport failure."""
+    in their order, and `judge_cli` with the model the CLI reports when it ran its default. Raises `Refusal`
+    after the second transport failure."""
     for attempt in range(ATTEMPTS):
         try:
             return _call_once(judge_cli, prompt, folder, schema, images, runner, accept)
@@ -228,34 +231,61 @@ def _call_once(judge_cli, prompt, folder: Path, schema, images, runner, accept):
                      timeout=CALL_SECONDS)
     if ran.timed_out:
         raise Refusal("judge-timeout", f"{judge_cli['provider']} gave no answer in {CALL_SECONDS} s")
-    answer = _answer(judge_cli["provider"], ran.stdout) if ran.exit == 0 else None
+    answer, model = _answer(judge_cli["provider"], ran) if ran.exit == 0 else (None, None)
     if answer is not None and accept:
         answer = accept(answer)
     if answer is None:
         raise Refusal("judge-unreadable", f"{judge_cli['provider']} exited {ran.exit} with no readable answer on stdout")
-    return answer
+    if judge_cli["model"] == CLI_DEFAULT and model:
+        judge_cli = {**judge_cli, "model": model}
+    return answer, judge_cli
+
+
+class _Object(list):
+    """A JSON object as its (key, value) pairs in their order, so the key order can be checked."""
 
 
 def _pairs(text):
     try:
-        return json.loads(text, object_pairs_hook=list)
+        return json.loads(text, object_pairs_hook=_Object)
     except (TypeError, ValueError):
         return None
 
 
 def _is_object(value) -> bool:
-    return isinstance(value, list) and all(isinstance(item, tuple) and len(item) == 2 for item in value)
+    return isinstance(value, _Object)
 
 
-def _answer(provider, stdout):
-    """The answer object as a list of (key, value) pairs, or None when stdout holds none."""
-    parsed = _pairs(stdout.strip())
-    if provider == "claude" and _is_object(parsed):
-        envelope = dict(parsed)
-        if _is_object(envelope.get("structured_output")):
-            return envelope["structured_output"]
-        parsed = _pairs(envelope["result"]) if isinstance(envelope.get("result"), str) else None
-    return parsed if _is_object(parsed) else None
+def _answer(provider, ran: Ran):
+    """(the answer object as a list of (key, value) pairs or None, the model the CLI reports or None)."""
+    parsed = _pairs(ran.stdout.strip())
+    if provider == "codex":
+        model = next((line[len("model:"):].strip() for line in ran.stderr.splitlines() if line.startswith("model:")), None)
+        return (parsed if _is_object(parsed) else None), model or None
+    envelope = _claude_result(parsed)
+    if envelope is None:
+        return None, None
+    if _is_object(envelope.get("structured_output")):
+        answer = envelope["structured_output"]
+    else:
+        answer = _pairs(envelope["result"]) if isinstance(envelope.get("result"), str) else None
+    return (answer if _is_object(answer) else None), _claude_model(envelope.get("modelUsage"))
+
+
+def _claude_result(parsed):
+    """The `result` message of `--output-format json`: 1 object, or the last of a verbose message list."""
+    if _is_object(parsed):
+        return dict(parsed)
+    messages = [dict(item) for item in parsed if _is_object(item)] if isinstance(parsed, list) else []
+    return next((message for message in reversed(messages) if message.get("type") == "result"), None)
+
+
+def _claude_model(usage):
+    """The model of `modelUsage` with the most output tokens."""
+    if not _is_object(usage):
+        return None
+    tokens = {name: dict(value).get("outputTokens", 0) if _is_object(value) else 0 for name, value in usage}
+    return max(tokens, key=lambda name: tokens[name] if isinstance(tokens[name], int) else 0) if tokens else None
 
 
 def _verdicts(row_ids, answer, given) -> dict:
@@ -326,7 +356,7 @@ def attack(log_path, session_provider, *, lookup=shutil.which, runner=run_cli) -
     with tempfile.TemporaryDirectory(prefix="afkv2-devil-") as scratch:
         folder = Path(scratch)
         shutil.copyfile(log, folder / "GRILL-LOG.md")
-        findings = _call(judge_cli, ATTACK_PROMPT, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
+        findings, judge_cli = _call(judge_cli, ATTACK_PROMPT, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
     return {"ok": True, **{key: judge_cli[key] for key in ("provider", "model", "effort")}, "findings": findings}
 
 

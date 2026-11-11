@@ -26,6 +26,7 @@ class FakeCli:
         self.calls = []
         self.signed_in = set(signed_in)
         self.on_path = set(on_path)
+        self.stderr = ""
 
     def lookup(self, name):
         return f"/bin/{name}" if name in self.on_path else None
@@ -38,7 +39,7 @@ class FakeCli:
         answer = self.answers.pop(0)
         if answer == "timeout":
             return op.Ran(None, "", True)
-        return op.Ran(answer[0], answer[1], False)
+        return op.Ran(answer[0], answer[1], False, self.stderr)
 
 
 def record(lines):
@@ -304,3 +305,32 @@ def test_attack_refuses_a_missing_log(tmp_path):
 def test_the_command_answers_one_json_object_and_exit_2_on_bad_input(capsys):
     assert op.main(["which", "--session", "gemini"]) == 2
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "bad-input"
+
+
+# ---------------------------------------------------------------- claude output forms
+
+
+def claude_envelope(model="claude-x"):
+    return ('{"type": "result", "is_error": false, "result": "", "modelUsage": {"' + model + '": {"inputTokens": 1}}, '
+            '"structured_output": {"rows": [' + row_text() + "]}}")
+
+
+def test_judge_reads_the_result_of_a_verbose_claude_message_list(tmp_path):
+    stdout = '[{"type": "system", "subtype": "init", "model": "claude-x"}, ' + claude_envelope() + "]"
+    fake = FakeCli((0, stdout), on_path=("claude",))
+    record({"judge_claude": "opus-x"})
+    assert judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]["result"] == "pass"
+    assert len(fake.calls) == 1
+
+
+def test_a_cli_default_judge_names_the_model_the_cli_reports(tmp_path):
+    fake = FakeCli((0, claude_envelope("claude-y")))
+    answer = judge(input_folder(tmp_path), fake, session="codex")
+    assert answer["model"] == "claude-y"
+    assert answer["verdicts"]["VR-1"]["model"] == "claude-y"
+
+
+def test_a_cli_default_codex_judge_names_the_model_of_its_header(tmp_path):
+    fake = FakeCli(codex_answer(row_text()))
+    fake.stderr = "OpenAI Codex v0\n--------\nworkdir: x\nmodel: gpt-z\nprovider: openai\n"
+    assert judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]["model"] == "gpt-z"
