@@ -13,7 +13,7 @@ afkv2 agents said a change was done without running it the way a user meets it, 
 | Design ADRs | adr/design/ | 8 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/185-verification-run:plan/PLAN.md | 13 subtasks; division approved 2026-11-11 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
