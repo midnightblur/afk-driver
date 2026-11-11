@@ -8,8 +8,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path, PurePath
+from urllib.parse import urlsplit
 
 CONFIG_DIR = ".afkv2"
 CONFIG_FILE = "config.json"
@@ -17,6 +19,9 @@ DATA_FOLDER_NAME = "afkv2"
 TRACKER_KINDS = ("jira", "github-issues")
 OWNERSHIP_GRADES = ("own", "shared")
 FORGE_KINDS = ("github", "gitlab")
+LIVE_READY_SECONDS = 120
+LIVE_FIELDS = ("start", "address", "ready_seconds", "stop", "needs", "proven_at", "proven_head")
+VARIABLE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -37,7 +42,7 @@ def read_config(start: str | os.PathLike | None = None) -> dict:
         config_file = _find_config(Path(start or os.getcwd()).resolve())
         repo_root = config_file.parent.parent
         raw = _load(config_file)
-        return {
+        answer = {
             "ok": True,
             "repo_root": str(repo_root),
             "config_file": str(config_file),
@@ -47,6 +52,9 @@ def read_config(start: str | os.PathLike | None = None) -> dict:
             "forge": _forge(raw),
             "data_folder": str(data_folder()),
         }
+        if raw.get("live") is not None:
+            answer["live"] = live_block(raw["live"])
+        return answer
     except Refusal as refusal:
         return {"ok": False, "error": {"code": refusal.code, "reason": refusal.reason}}
 
@@ -125,6 +133,36 @@ def _forge(raw: dict) -> str | None:
     if value not in FORGE_KINDS:
         raise Refusal("bad-value", f"forge: {value!r} is not one of {', '.join(FORGE_KINDS)}")
     return value
+
+
+def live_block(value: object) -> dict:
+    """The `live` block with its defaults; a bad field refuses `bad-value`. `needs` holds variable names, never values."""
+    if not isinstance(value, dict):
+        raise Refusal("bad-value", "live: an object with start and address is required")
+    for name in value:
+        if name not in LIVE_FIELDS:
+            raise Refusal("bad-value", f"live.{name}: not one of {', '.join(LIVE_FIELDS)}")
+    start = value.get("start")
+    if not isinstance(start, str) or not start.strip():
+        raise Refusal("bad-value", "live.start: a non-empty command line is required")
+    address = value.get("address")
+    parts = urlsplit(address) if isinstance(address, str) else None
+    if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
+        raise Refusal("bad-value", f"live.address: {address!r} is not an http or https URL")
+    ready = value.get("ready_seconds", LIVE_READY_SECONDS)
+    if not isinstance(ready, int) or isinstance(ready, bool) or ready <= 0:
+        raise Refusal("bad-value", f"live.ready_seconds: {ready!r} is not a whole number of seconds above 0")
+    stop = value.get("stop")
+    if stop is not None and (not isinstance(stop, str) or not stop.strip()):
+        raise Refusal("bad-value", "live.stop: a non-empty command line or null is required")
+    needs = value.get("needs", [])
+    if not isinstance(needs, list) or not all(isinstance(n, str) and VARIABLE_NAME.fullmatch(n) for n in needs):
+        raise Refusal("bad-value", "live.needs: a list of variable names is required; a value is never stored")
+    for name in ("proven_at", "proven_head"):
+        if value.get(name) is not None and not isinstance(value[name], str):
+            raise Refusal("bad-value", f"live.{name}: a string or null is required")
+    return {"start": start, "address": address, "ready_seconds": ready, "stop": stop, "needs": list(needs),
+            "proven_at": value.get("proven_at"), "proven_head": value.get("proven_head")}
 
 
 class _Parser(argparse.ArgumentParser):
