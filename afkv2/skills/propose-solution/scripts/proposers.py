@@ -379,6 +379,11 @@ def _main_checkout(runner):
     return Path(out.strip()).parent
 
 
+def _agent_name(stem: str, tool: str) -> str:
+    """herdr refuses a name outside [a-z][a-z0-9_-]{0,31}; a session stem alone can pass 32."""
+    return f"proposer-{hashlib.sha256(stem.encode('utf-8')).hexdigest()[:8]}-{tool}"
+
+
 def start(args, runner):
     state = _load(args.doc)
     if state and state.get("proposers"):
@@ -403,7 +408,7 @@ def start(args, runner):
         worktree = main.parent / f"{main.name}-worktrees" / f"proposer-{stem}-{tool}"
         if worktree.exists():
             raise Refusal("worktree-failed", f"{tool}: {worktree} already exists; start leaves it as it is")
-        entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree), "created": False}
+        entry = {"tool": tool, "agent": _agent_name(stem, tool), "pane": None, "worktree": str(worktree), "created": False}
         state["proposers"].append(entry)
         _save(args.doc, state)
         code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), args.base)
