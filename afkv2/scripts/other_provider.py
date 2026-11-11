@@ -27,6 +27,8 @@ STATUS_SECONDS = 30
 STATUS_COMMAND = {"claude": ["auth", "status"], "codex": ["login", "status"]}
 CALL_SECONDS = 300
 ATTEMPTS = 2
+STDERR_TAIL = 500
+INLINE_CHARS = 2_000_000
 INPUT_ENTRIES = {"rows.json": "file", "evidence": "folder", "tests": "folder"}
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 CHECKS = ("VC-2", "VC-4", "VC-6", "VC-7", "level", "flaky")
@@ -53,6 +55,7 @@ ANSWER_SCHEMA = {
 }
 
 # The verdict of 1 row, as a caller stores it. An empty `seen` fails the row; `verdict-schema` names a broken answer.
+# A JSON Schema holds no key order: `_verdict` fails a row whose `compare` comes before `seen`.
 VERDICT_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "required": ["provider", "model", "effort", "seen", "compare", "checks", "result"],
@@ -87,7 +90,7 @@ Answer only the JSON object of the schema: 1 entry of `findings` per finding, wi
 
 JUDGE_PROMPT = """You are the judge of high-level test proofs. You see only this folder: `rows.json` (the plan rows; \
 each row says what you should see), `evidence/` (the screenshots, answers and logs of the test runs) and `tests/` \
-(the test files). Read every file. Change nothing.
+(the test files). Each text file follows below; each picture is attached or in the folder. Change nothing.
 
 For each row of `rows.json`, answer 1 entry of `rows`, with its fields in this order:
 1. `row`: the row id.
@@ -131,21 +134,28 @@ def run_cli(argv, *, stdin, cwd, timeout) -> Ran:
 
 # ---------------------------------------------------------------- which
 
-def which(session_provider, *, lookup=shutil.which, runner=run_cli) -> dict:
+def which(session_provider, *, lookup=None, runner=run_cli) -> dict:
     """The judge: the other provider if its CLI is on the path and signed in, else the own provider at the
     judge model the install record names. Raises `Refusal` `no-provider` when neither can run."""
     if session_provider not in PROVIDERS:
         raise Refusal("bad-input", f"the session provider must be one of {', '.join(PROVIDERS)}, not {session_provider!r}")
     other = next(name for name in PROVIDERS if name != session_provider)
     models = _judge_models()
-    cli = lookup(other)
+    lookup = lookup or shutil.which
+    cli = _executable(lookup(other))
     if cli and _signed_in(other, cli, runner):
         return {"provider": other, "model": models.get(other) or CLI_DEFAULT, "effort": EFFORT, "cli": cli}
-    own = lookup(session_provider)
+    own = _executable(lookup(session_provider))
     if own and models.get(session_provider):
         return {"provider": session_provider, "model": models[session_provider], "effort": EFFORT, "cli": own}
     raise Refusal("no-provider", f"{other} is not on the path or not signed in, and the install record names no "
                   f"`{JUDGE_KEY.format(provider=session_provider)}` model: run the judge step of /afkv2:setup")
+
+
+def _executable(path):
+    """A CLI path the adapter may run. A `.cmd` or `.bat` shim runs through cmd.exe, which reads `&` and `|` in
+    an evidence file name as commands: it counts as no CLI."""
+    return path if path and Path(path).suffix.lower() not in (".cmd", ".bat") else None
 
 
 def _signed_in(provider, cli, runner) -> bool:
@@ -165,13 +175,14 @@ def _judge_models() -> dict:
 
 # ---------------------------------------------------------------- judge
 
-def judge(input_folder, session_provider, *, lookup=shutil.which, runner=run_cli) -> dict:
+def judge(input_folder, session_provider, *, lookup=None, runner=run_cli) -> dict:
     """1 judge call on a folder of plan rows, evidence and test files. Answers 1 verdict per row id."""
     folder = Path(input_folder).resolve()
     rows = _rows(folder)
     judge_cli = which(session_provider, lookup=lookup, runner=runner)
     images = sorted(str(path) for path in (folder / "evidence").rglob("*") if path.suffix.lower() in IMAGE_SUFFIXES)
-    answer, judge_cli = _call(judge_cli, JUDGE_PROMPT, folder, ANSWER_SCHEMA, images, runner)
+    prompt = JUDGE_PROMPT + _inline(folder)
+    answer, judge_cli = _call(judge_cli, prompt, folder, ANSWER_SCHEMA, images, runner)
     given = {key: judge_cli[key] for key in ("provider", "model", "effort")}
     return {"ok": True, **given, "verdicts": _verdicts(rows, answer, given)}
 
@@ -186,6 +197,10 @@ def _rows(folder: Path) -> list[str]:
         path = folder / name
         if not (path.is_file() if kind == "file" else path.is_dir()):
             raise Refusal("bad-input", f"the judge input has no {kind} {name}")
+        if kind == "folder":
+            for entry in path.rglob("*"):
+                if entry.is_symlink() or not entry.resolve().is_relative_to(folder):
+                    raise Refusal("bad-input", f"{entry} is a link or lies outside the judge input")
     try:
         rows = json.loads((folder / "rows.json").read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -196,17 +211,35 @@ def _rows(folder: Path) -> list[str]:
     return ids
 
 
+def _inline(folder: Path) -> str:
+    """Each text file of the input, so the judge needs no shell to read it. A picture or other binary file is
+    named only. Raises `Refusal` `bad-input` past INLINE_CHARS."""
+    parts = []
+    for path in sorted(item for item in folder.rglob("*") if item.is_file()):
+        name = path.relative_to(folder).as_posix()
+        if path.suffix.lower() in IMAGE_SUFFIXES:
+            parts.append(f"\n({name}: a picture, attached or in the folder)\n")
+            continue
+        try:
+            parts.append(f"\n<{name}>\n{path.read_text(encoding='utf-8')}\n</{name}>\n")
+        except UnicodeDecodeError:
+            parts.append(f"\n({name}: a binary file of {path.stat().st_size} bytes)\n")
+        if sum(map(len, parts)) > INLINE_CHARS:
+            raise Refusal("bad-input", f"the judge input passes {INLINE_CHARS} characters of text; cut the logs")
+    return "".join(parts)
+
+
 def _command(judge_cli, folder: Path, schema_file: Path, images) -> list[str]:
     if judge_cli["provider"] == "codex":
         argv = [judge_cli["cli"], "exec", "-s", "read-only", "-C", str(folder), "--skip-git-repo-check", "--ephemeral",
-                "--output-schema", str(schema_file), "-c", f'model_reasoning_effort="{judge_cli["effort"]}"']
+                "--ignore-user-config", "--ignore-rules", "--output-schema", str(schema_file), "-c", f'model_reasoning_effort="{judge_cli["effort"]}"']
         if judge_cli["model"] != CLI_DEFAULT:
             argv += ["-m", judge_cli["model"]]
         for image in images:
             argv += ["-i", image]
         return argv
     argv = [judge_cli["cli"], "-p", "--output-format", "json", "--json-schema", schema_file.read_text(encoding="utf-8"),
-            "--tools", "Read,Glob,Grep", "--permission-mode", "dontAsk", "--strict-mcp-config",
+            "--tools", "Read,Glob,Grep", "--permission-mode", "dontAsk", "--strict-mcp-config", "--safe-mode", "--restricted",
             "--no-session-persistence", "--disable-slash-commands", "--effort", judge_cli["effort"]]
     if judge_cli["model"] != CLI_DEFAULT:
         argv += ["--model", judge_cli["model"]]
@@ -237,7 +270,9 @@ def _call_once(judge_cli, prompt, folder: Path, schema, images, runner, accept):
     if answer is not None and accept:
         answer = accept(answer)
     if answer is None:
-        raise Refusal("judge-unreadable", f"{judge_cli['provider']} exited {ran.exit} with no readable answer on stdout")
+        tail = ran.stderr.strip()[-STDERR_TAIL:]
+        raise Refusal("judge-unreadable", f"{judge_cli['provider']} exited {ran.exit} with no readable answer on stdout"
+                      + (f"; stderr ends: {tail}" if tail else ""))
     if judge_cli["model"] == CLI_DEFAULT and model:
         judge_cli = {**judge_cli, "model": model}
     return answer, judge_cli
@@ -316,6 +351,8 @@ def _verdict(entries, top_problems, given) -> dict:
         problems += [f"field `{key}` is outside the schema" for key in keys if key not in ROW_FIELDS]
         problems += [f"field `{key}` is missing" for key in ROW_FIELDS if key not in fields]
     seen, compare = _texts(fields.get("seen")), _texts(fields.get("compare"))
+    problems += [f"`{key}` is not a list of text" for key in ("seen", "compare")
+                 if key in fields and len(_texts(fields[key])) != len(fields[key] if isinstance(fields[key], list) else [None])]
     if entries and not seen:
         problems.append("`seen` is empty: the judge must describe what it sees")
     if "seen" in keys and "compare" in keys and keys.index("compare") < keys.index("seen"):
@@ -349,16 +386,18 @@ def _check(value):
 
 # ---------------------------------------------------------------- attack
 
-def attack(log_path, session_provider, *, lookup=shutil.which, runner=run_cli) -> dict:
+def attack(log_path, session_provider, *, lookup=None, runner=run_cli) -> dict:
     """1 devil-pass call on a copy of the grill log alone. Answers the findings."""
     log = Path(log_path)
-    if not log.is_file():
-        raise Refusal("bad-input", f"no grill log at {log}")
+    try:
+        text = log.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise Refusal("bad-input", f"cannot read the grill log at {log}: {error}") from None
     judge_cli = which(session_provider, lookup=lookup, runner=runner)
     with tempfile.TemporaryDirectory(prefix="afkv2-devil-") as scratch:
         folder = Path(scratch)
-        shutil.copyfile(log, folder / "GRILL-LOG.md")
-        prompt = f"{ATTACK_PROMPT}\n<GRILL-LOG.md>\n{log.read_text(encoding='utf-8')}\n</GRILL-LOG.md>\n"
+        (folder / "GRILL-LOG.md").write_text(text, encoding="utf-8")
+        prompt = f"{ATTACK_PROMPT}\n<GRILL-LOG.md>\n{text}\n</GRILL-LOG.md>\n"
         findings, judge_cli = _call(judge_cli, prompt, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
     return {"ok": True, **{key: judge_cli[key] for key in ("provider", "model", "effort")}, "findings": findings}
 

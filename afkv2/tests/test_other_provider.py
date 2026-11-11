@@ -340,3 +340,149 @@ def test_attack_gives_the_log_text_in_the_prompt(tmp_path):
     fake = FakeCli((0, json.dumps({"findings": []})))
     op.attack(grill_log(tmp_path), "claude", lookup=fake.lookup, runner=fake.run)
     assert "R-1 the list shows a Status column" in fake.calls[0]["stdin"]
+
+
+# ---------------------------------------------------------------- isolation and input hardening
+
+
+def test_the_codex_judge_ignores_the_user_config_and_rules_and_takes_the_recorded_model(tmp_path):
+    record({"judge_codex": "gpt-9"})
+    fake = FakeCli(codex_answer(row_text()))
+    judge(input_folder(tmp_path), fake)
+    argv = fake.calls[0]["argv"]
+    assert "--ignore-user-config" in argv and "--ignore-rules" in argv
+    assert argv[argv.index("-m") + 1] == "gpt-9"
+
+
+def test_the_claude_judge_runs_in_safe_and_restricted_mode_with_no_mcp(tmp_path):
+    fake = FakeCli((0, '{"type": "result", "structured_output": {"rows": [' + row_text() + "]}}"))
+    judge(input_folder(tmp_path), fake, session="codex")
+    argv = fake.calls[0]["argv"]
+    assert "--safe-mode" in argv and "--restricted" in argv and "--strict-mcp-config" in argv
+    assert argv[argv.index("--permission-mode") + 1] == "dontAsk"
+
+
+def test_a_cmd_shim_cli_is_refused(tmp_path):
+    fake = FakeCli()
+    fake.lookup = lambda name: f"C:/npm/{name}.cmd"
+    with pytest.raises(op.Refusal) as refused:
+        judge(input_folder(tmp_path), fake)
+    assert refused.value.code == "no-provider"
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize("text, why", [
+    (row_text().replace('"compare": ["the Then asks for Approved; the table shows Approved"]', '"compare": 5'), "compare"),
+    (row_text(seen=("x", 7)), "seen"),
+    (row_text(seen=(" ",)), "seen"),
+    (row_text().replace(', "compare": ["the Then asks for Approved; the table shows Approved"]', ""), "compare"),
+])
+def test_a_verdict_with_a_wrong_field_type_or_a_missing_field_fails_the_row(tmp_path, text, why):
+    fake = FakeCli(codex_answer(text))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+    assert any(item["check"] == "verdict-schema" and why in item["why"] for item in verdict["checks"])
+
+
+def test_two_verdicts_for_one_row_fail_it(tmp_path):
+    fake = FakeCli(codex_answer(row_text(), row_text()))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+    assert any("more than 1" in item["why"] for item in verdict["checks"] if item["check"] == "verdict-schema")
+
+
+def test_a_top_level_field_outside_the_schema_fails_each_row_naming_the_field(tmp_path):
+    fake = FakeCli((0, '{"rows": [' + row_text("VR-1") + ", " + row_text("VR-2") + '], "note": "fine"}'))
+    verdicts = judge(input_folder(tmp_path, rows=("VR-1", "VR-2")), fake)["verdicts"]
+    for row in ("VR-1", "VR-2"):
+        assert verdicts[row]["result"] == "fail"
+        assert any("`note`" in item["why"] for item in verdicts[row]["checks"])
+
+
+@pytest.mark.parametrize("breakage", ["no-evidence", "rows-object", "same-id", "no-id"])
+def test_a_bad_input_folder_is_refused_before_any_call(tmp_path, breakage):
+    folder = input_folder(tmp_path)
+    if breakage == "no-evidence":
+        for item in (folder / "evidence").iterdir():
+            item.unlink()
+        (folder / "evidence").rmdir()
+    else:
+        rows = {"rows-object": {}, "same-id": [{"id": "VR-1"}, {"id": "VR-1"}], "no-id": [{"then": "x"}]}[breakage]
+        (folder / "rows.json").write_text(json.dumps(rows))
+    fake = FakeCli()
+    with pytest.raises(op.Refusal) as refused:
+        judge(folder, fake)
+    assert refused.value.code == "bad-input"
+    assert fake.calls == []
+
+
+def test_a_verdict_validates_against_the_verdict_schema(tmp_path):
+    fake = FakeCli(codex_answer(row_text(seen=())))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    schema = op.VERDICT_SCHEMA
+    assert set(verdict) == set(schema["required"]) == set(schema["properties"])
+    assert verdict["provider"] in schema["properties"]["provider"]["enum"]
+    assert verdict["result"] in schema["properties"]["result"]["enum"]
+    check_enum = schema["properties"]["checks"]["items"]["properties"]["check"]["enum"]
+    assert all(item["check"] in check_enum and set(item) == {"check", "result", "why"} for item in verdict["checks"])
+
+
+def test_claude_answer_in_the_result_text_and_the_busiest_model_are_read(tmp_path):
+    envelope = {"type": "result", "result": '{"rows": [' + row_text() + "]}",
+                "modelUsage": {"claude-small": {"outputTokens": 3}, "claude-big": {"outputTokens": 900}}}
+    fake = FakeCli((0, json.dumps(envelope)))
+    answer = judge(input_folder(tmp_path), fake, session="codex")
+    assert answer["verdicts"]["VR-1"]["result"] == "pass"
+    assert answer["model"] == "claude-big"
+
+
+@pytest.mark.parametrize("bad", [
+    {"findings": [{**FINDING, "kind": "style"}]},
+    {"findings": [{**FINDING, "what": 3}]},
+    {"findings": [], "note": "x"},
+])
+def test_attack_counts_a_findings_answer_that_breaks_the_schema_as_unreadable(tmp_path, bad):
+    fake = FakeCli((0, json.dumps(bad)), (0, json.dumps(bad)))
+    with pytest.raises(op.Refusal) as refused:
+        op.attack(grill_log(tmp_path), "claude", lookup=fake.lookup, runner=fake.run)
+    assert refused.value.code == "judge-unreadable"
+
+
+def test_attack_refuses_a_log_that_is_not_utf8(tmp_path):
+    log = tmp_path / "GRILL-LOG.md"
+    log.write_bytes(b"\xff\xfe\x00bad")
+    fake = FakeCli()
+    with pytest.raises(op.Refusal) as refused:
+        op.attack(log, "claude", lookup=fake.lookup, runner=fake.run)
+    assert refused.value.code == "bad-input"
+
+
+def test_the_unreadable_reason_carries_the_tail_of_stderr(tmp_path):
+    fake = FakeCli((1, ""), (1, ""))
+    fake.stderr = "ERROR: the model is not supported"
+    with pytest.raises(op.Refusal) as refused:
+        judge(input_folder(tmp_path), fake)
+    assert "the model is not supported" in refused.value.reason
+
+
+def test_the_command_exits_1_on_a_refusal(capsys, monkeypatch):
+    monkeypatch.setattr(op.shutil, "which", lambda name: None)
+    assert op.main(["which", "--session", "claude"]) == 1
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "no-provider"
+
+
+def test_the_judge_prompt_holds_every_text_file_so_no_shell_is_needed(tmp_path):
+    fake = FakeCli(codex_answer(row_text()))
+    judge(input_folder(tmp_path), fake)
+    prompt = fake.calls[0]["stdin"]
+    assert "the list shows Approved" in prompt
+    assert "def test_list(): assert True" in prompt
+    assert "<evidence/shot.png>" not in prompt
+
+
+def test_an_input_too_large_to_inline_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(op, "INLINE_CHARS", 10)
+    fake = FakeCli()
+    with pytest.raises(op.Refusal) as refused:
+        judge(input_folder(tmp_path), fake)
+    assert refused.value.code == "bad-input"
