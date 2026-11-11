@@ -389,3 +389,48 @@ def test_proof_comment_needs_the_receipt_and_the_change(gate, receipt, change):
     with pytest.raises(Refusal) as refused:
         gr.proof_comment(gr.read(gate["record"]), receipt=receipt, change=change, folder=gate["folder"])
     assert refused.value.code == "bad-payload"
+
+
+# ---------------------------------------------------------------- review round 1
+
+
+def test_the_same_key_stores_a_later_pick_and_keeps_the_rows(gate):
+    bug = {"id": "FB-01", "what": "the save button is grey", "where": "settings page", "how": "seen in the run"}
+    _passed(gate, found=[bug])
+    assert _codes(gate)[0] == "found-open"
+    answer = _write(gate, [_row(exits=(1, 1))], found=[{**bug, "pick": "ticket", "by": "developer"}])
+    record = gr.read(gate["record"])
+    assert answer["written"] is False and answer["results"] == {"VR-001": "pass"}
+    assert record["found"][0]["pick"] == "ticket" and record["rows"][0]["verdict"] == _verdict()
+    assert _verify(gate)["ok"]
+    _write(gate, head=LATER, found=[bug])
+    assert gr.read(gate["record"])["found"][0]["pick"] == "ticket"
+
+
+def test_a_new_verification_digest_at_the_same_head_writes_again(gate):
+    _write(gate)
+    gate["verification"].write_text("| VR-001 | changed |\n", encoding="utf-8")
+    assert _write(gate)["written"] is True
+    assert gr.read(gate["record"])["verification_digest"] == gr.file_digest(gate["verification"])
+
+
+def test_a_waiting_row_runs_again_at_the_same_key(gate):
+    _write(gate, [_row(exits=(), waiting="no browser driver")])
+    answer = _write(gate)
+    assert answer["written"] is True and answer["results"] == {"VR-001": "pass"}
+
+
+def test_write_run_refuses_no_rows(gate):
+    with pytest.raises(Refusal) as refused:
+        _write(gate, [])
+    assert refused.value.code == "bad-payload"
+
+
+def test_proof_lines_names_the_log_when_a_run_has_no_evidence_file(gate):
+    row = _row()
+    row["runs"][0]["evidence"] = []
+    _write(gate, [row])
+    gr.write_verdict(gate["record"], _judged(), head=HEAD)
+    lines = gr.proof_lines(gr.read(gate["record"]))
+    assert lines[0]["evidence"] == f"run-1.log (sha256 {gr.file_digest(gate['folder'] / 'run-1.log')[:12]})"
+    assert gr.verify(gate["record"], lines, HEAD, spec_folder="specs", repo=gate["folder"])["ok"]

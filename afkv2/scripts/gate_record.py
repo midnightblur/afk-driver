@@ -64,7 +64,8 @@ def read(record_path) -> dict:
 
 
 def write_run(record_path, *, lane, head, verification, rows, found=None, go=None) -> dict:
-    """Write 1 gate run. A second run at the same (head, VERIFICATION.md digest) writes nothing.
+    """Write 1 gate run. A second run at the same (head, VERIFICATION.md digest) writes no run and keeps the rows;
+    only its `found` and `go` merge. A record with a waiting row runs again at the same key.
 
     `rows`: 1 entry per high-level row, `{row, behavior, level, ran, runs[{exit, started, seconds, log, evidence[]}],
     waiting, lower}`. `found`: the bugs `{id, what, where, how, pick, by}` this run adds or changes.
@@ -73,8 +74,15 @@ def write_run(record_path, *, lane, head, verification, rows, found=None, go=Non
     folder = path.parent
     digest = file_digest(verification)
     previous = read(path) if path.exists() else None
-    if previous and previous["head"] == head and previous["verification_digest"] == digest:
-        return _run_answer(path, previous, written=False)
+    if (previous and previous["head"] == head and previous["verification_digest"] == digest
+            and not any(row["result"] == "waiting" for row in previous["rows"])):
+        # The same key runs nothing; a later pick or go still reaches the record.
+        kept = {**previous, "found": _found(previous["found"], found or []),
+                "go": go if go is not None else previous["go"]}
+        _check_go(previous["lane"], kept["go"])
+        if kept != previous:
+            _save(path, kept)
+        return _run_answer(path, kept, written=False)
     if lane not in LANES:
         raise Refusal("bad-payload", f"lane {lane!r}: medium or small")
     if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{40}", head):
@@ -95,8 +103,8 @@ def _run_answer(path, record, *, written) -> dict:
 
 
 def _rows(rows, folder: Path) -> list[dict]:
-    if not isinstance(rows, list):
-        raise Refusal("bad-payload", "rows: a list of gate rows")
+    if not isinstance(rows, list) or not rows:
+        raise Refusal("bad-payload", "rows: a list of 1 or more gate rows")
     stored, ids = [], set()
     for row in rows:
         if not isinstance(row, dict):
@@ -174,6 +182,8 @@ def _found(previous, given) -> list[dict]:
         pick, by = item.get("pick"), item.get("by")
         if pick is not None and (pick not in PICKS or not by):
             raise Refusal("bad-payload", f"found bug {item['id']}: pick is one of {', '.join(PICKS)}, with `by`")
+        if pick is None and item["id"] in merged:
+            pick, by = merged[item["id"]]["pick"], merged[item["id"]]["by"]
         merged[item["id"]] = {**{key: item[key] for key in FOUND_FIELDS}, "pick": pick, "by": by if pick else None}
     return sorted(merged.values(), key=lambda item: int(item["id"][3:]))
 
@@ -325,11 +335,15 @@ def _git_changed(repo: Path):
 
 def proof_lines(gate) -> list[dict]:
     """1 proof line per high-level row of the record `gate`: row, behavior, level, what ran, result, and the evidence
-    of the row's last run as path and sha256 prefix."""
-    return [{"row": row["row"], "behavior": row["behavior"], "level": row["level"], "ran": row["ran"],
-             "result": row["result"],
-             "evidence": ", ".join(f"{item['path']} (sha256 {item['sha256'][:SHORT_DIGEST]})" for item in _last(row)["evidence"])}
-            for row in gate["rows"]]
+    of the row's last run as path and sha256 prefix; a run with no evidence file names its log."""
+    lines = []
+    for row in gate["rows"]:
+        run = _last(row)
+        files = run["evidence"] or ([run["log"]] if run["log"] else [])
+        lines.append({"row": row["row"], "behavior": row["behavior"], "level": row["level"], "ran": row["ran"],
+                      "result": row["result"],
+                      "evidence": ", ".join(f"{item['path']} (sha256 {item['sha256'][:SHORT_DIGEST]})" for item in files)})
+    return lines
 
 
 def proof_comment(gate, *, receipt, change, folder) -> dict:
