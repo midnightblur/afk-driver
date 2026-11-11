@@ -10,12 +10,14 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from afkv2_config import Refusal  # noqa: E402
+from other_provider import VERDICT_SCHEMA  # noqa: E402
 
 VERSION = 1
 LANES = ("medium", "small")
@@ -27,6 +29,11 @@ FOUND_FIELDS = ("id", "what", "where", "how")
 FOUND_ID = re.compile(r"FB-\d{2,}")
 GO_FIELDS = ("card", "head", "at")
 ROW_TEXT = ("row", "behavior", "ran")
+PROOF_FIELDS = ("behavior", "level", "ran", "evidence")
+DEVELOPER = "developer"
+GIT_SECONDS = 60
+SHIP_CODES = ("gate-not-passed", "verdict-no-description", "evidence-changed", "gate-head-stale", "proof-missing",
+              "proof-field-missing", "found-open")
 
 
 def file_digest(path) -> str:
@@ -180,3 +187,131 @@ def _save(path: Path, record: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(record, indent=1), encoding="utf-8", newline="\n")
     os.replace(temporary, path)
+
+
+# ---------------------------------------------------------------- the verdict
+
+
+def write_verdict(record_path, judged, *, head) -> dict:
+    """Store the judge's verdict per row (`judged["verdicts"]`, from `other_provider.judge`). 1 judge call per passed
+    gate run: a record whose rows carry a verdict already writes nothing."""
+    path = Path(record_path)
+    record = read(path)
+    if record["head"] != head:
+        raise Refusal("gate-key-differs", f"the verdict is for {head}; the gate record ran at {record['head']}")
+    open_rows = [row["row"] for row in record["rows"] if row["result"] != "pass"]
+    if open_rows:
+        raise Refusal("gate-not-passed", f"the judge runs only when every row passed; not passed: {', '.join(open_rows)}")
+    if record["rows"] and all(row["verdict"] is not None for row in record["rows"]):
+        return {"ok": True, "written": False, "path": str(path)}
+    verdicts = judged.get("verdicts") if isinstance(judged, dict) else None
+    verdicts = verdicts if isinstance(verdicts, dict) else {}
+    for row in record["rows"]:
+        verdict = verdicts.get(row["row"])
+        if verdict is None:
+            raise Refusal("verdict-missing", f"row {row['row']}: the judge answer has no verdict")
+        if not isinstance(verdict, dict) or sorted(verdict) != sorted(VERDICT_SCHEMA["required"]):
+            raise Refusal("bad-verdict", f"row {row['row']}: a verdict has exactly {', '.join(VERDICT_SCHEMA['required'])}")
+        row["verdict"] = verdict
+    _save(path, record)
+    return {"ok": True, "written": True, "path": str(path)}
+
+
+# ---------------------------------------------------------------- the ship check
+
+
+class GateRefusal(Refusal):
+    """A refusal of `verify`: `code` is the first failure, `failures` lists each `{code, row, reason}`."""
+
+    def __init__(self, failures: list[dict]) -> None:
+        super().__init__(failures[0]["code"], "; ".join(failure["reason"] for failure in failures))
+        self.failures = failures
+
+
+def verify(gate_path, proofs, head, *, spec_folder, repo, changed=None) -> dict:
+    """The ship check (SDD §3 S-10, invariants I-7, I-8, I-11). `proofs`: the proof lines `{row, behavior, level,
+    ran, evidence}` of the change. `head`: the commit to mark Ready. `changed(old, new)` names the paths changed
+    between 2 commits; the default asks git in `repo`, the repository root."""
+    path = Path(gate_path)
+    record = read(path)
+    failures = []
+
+    def fail(code, row, reason):
+        failures.append({"code": code, "row": row, "reason": reason})
+
+    for row in record["rows"]:
+        name, verdict = row["row"], row["verdict"]
+        if row["result"] != "pass":
+            fail("gate-not-passed", name, f"row {name} is {row['result']}" + (f": {row['waiting']}" if row["waiting"] else ""))
+        elif verdict is None:
+            fail("gate-not-passed", name, f"row {name} has no verdict of the judge")
+        elif verdict.get("result") != "pass":
+            fail("gate-not-passed", name, f"the judge failed row {name}")
+        if verdict is not None and not [text for text in verdict.get("seen") or [] if str(text).strip()]:
+            fail("verdict-no-description", name, f"the verdict of row {name} does not describe what the judge saw")
+        for stored in _stored_files(row):
+            problem = _changed_file(path.parent, stored)
+            if problem:
+                fail("evidence-changed", name, f"row {name}: {stored['path']} {problem}; run the gate again")
+    if head != record["head"]:
+        outside, problem = _outside_spec(record["head"], head, spec_folder, Path(repo), changed or _git_changed(Path(repo)))
+        if problem or outside:
+            fail("gate-head-stale", None, f"the gate ran at {record['head']}; "
+                 + (problem or f"changes after it lie outside the spec folder: {', '.join(outside)}") + "; run the gate again")
+    by_row = {proof.get("row"): proof for proof in proofs if isinstance(proof, dict)}
+    for row in record["rows"]:
+        proof = by_row.get(row["row"])
+        if proof is None:
+            fail("proof-missing", row["row"], f"row {row['row']} ({row['behavior']}) has no proof line")
+            continue
+        missing = [key for key in PROOF_FIELDS if not str(proof.get(key) or "").strip()]
+        if missing:
+            fail("proof-field-missing", row["row"], f"the proof line of row {row['row']} lacks {', '.join(missing)}")
+    for bug in record["found"]:
+        if bug["pick"] is None or (bug["pick"] != "fix-in-place" and bug["by"] != DEVELOPER):
+            fail("found-open", None, f"found bug {bug['id']} ({bug['what']}) waits for the developer's pick")
+    if failures:
+        raise GateRefusal(sorted(failures, key=lambda failure: SHIP_CODES.index(failure["code"])))
+    return {"ok": True, "gate": record}
+
+
+def _stored_files(row) -> list[dict]:
+    return [item for run in row["runs"] for item in ([run["log"]] if run["log"] else []) + run["evidence"]]
+
+
+def _changed_file(folder: Path, stored: dict) -> str | None:
+    path = Path(stored["path"])
+    full = path if path.is_absolute() else folder / path
+    if not full.is_file():
+        return "is missing"
+    if full.stat().st_size != stored["bytes"] or file_digest(full) != stored["sha256"]:
+        return "changed after the run"
+    return None
+
+
+def _outside_spec(old, new, spec_folder, repo: Path, changed):
+    folder = Path(spec_folder)
+    if folder.is_absolute():
+        try:
+            folder = folder.resolve().relative_to(repo.resolve())
+        except ValueError:
+            return [], f"the spec folder {spec_folder} is outside the repository {repo}"
+    prefix = folder.as_posix().strip("/") + "/"
+    try:
+        paths = changed(old, new)
+    except Refusal as refusal:
+        return [], refusal.reason
+    return [name for name in paths if not name.replace("\\", "/").startswith(prefix)], None
+
+
+def _git_changed(repo: Path):
+    def changed(old, new):
+        try:
+            done = subprocess.run(["git", "-C", str(repo), "diff", "--name-only", old, new], capture_output=True,
+                                  stdin=subprocess.DEVNULL, timeout=GIT_SECONDS)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise Refusal("git-failed", f"git diff {old} {new}: {error}") from None
+        if done.returncode != 0:
+            raise Refusal("git-failed", f"git diff {old} {new}: {done.stderr.decode('utf-8', 'replace').strip()}")
+        return [line for line in done.stdout.decode("utf-8", "replace").splitlines() if line]
+    return changed
