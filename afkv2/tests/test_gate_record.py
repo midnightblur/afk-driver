@@ -207,7 +207,7 @@ def _passed(gate, rows=None, found=None, **verdict):
 
 def _verify(gate, proofs=None, head=HEAD, changed=()):
     return gr.verify(gate["record"], [_proof()] if proofs is None else proofs, head,
-                     spec_folder="docs/afk/185", repo=gate["folder"], changed=lambda old, new: list(changed))
+                     spec_folder="specs/185", repo=gate["folder"], changed=lambda old, new: list(changed))
 
 
 def _codes(gate, **given):
@@ -270,10 +270,10 @@ def test_verify_refuses_a_missing_proof_and_a_proof_field_missing(gate):
 
 def test_verify_allows_a_later_change_inside_the_spec_folder_only(gate):
     _passed(gate)
-    assert _verify(gate, head=LATER, changed=["docs/afk/185/PRD.md"])["ok"]
-    code, _ = _codes(gate, head=LATER, changed=["docs/afk/185/PRD.md", "afkv2/scripts/x.py"])
+    assert _verify(gate, head=LATER, changed=["specs/185/PRD.md"])["ok"]
+    code, _ = _codes(gate, head=LATER, changed=["specs/185/PRD.md", "afkv2/scripts/x.py"])
     assert code == "gate-head-stale"
-    assert _codes(gate, head=LATER, changed=["docs/afk/1850/PRD.md"])[0] == "gate-head-stale"
+    assert _codes(gate, head=LATER, changed=["specs/1850/PRD.md"])[0] == "gate-head-stale"
 
 
 def test_verify_reads_the_changed_paths_from_git(gate, tmp_path):
@@ -285,25 +285,25 @@ def test_verify_reads_the_changed_paths_from_git(gate, tmp_path):
     git("init", "-q")
     git("config", "user.email", "t@example.com")
     git("config", "user.name", "t")
-    (repo / "docs" / "afk" / "185").mkdir(parents=True)
-    (repo / "docs" / "afk" / "185" / "PRD.md").write_text("1\n", encoding="utf-8")
+    (repo / "specs" / "185").mkdir(parents=True)
+    (repo / "specs" / "185" / "PRD.md").write_text("1\n", encoding="utf-8")
     git("add", ".")
     git("commit", "-q", "-m", "1")
     first = git("rev-parse", "HEAD")
     _write(gate, head=first)
     gr.write_verdict(gate["record"], _judged(), head=first)
-    (repo / "docs" / "afk" / "185" / "PRD.md").write_text("2\n", encoding="utf-8")
+    (repo / "specs" / "185" / "PRD.md").write_text("2\n", encoding="utf-8")
     git("commit", "-q", "-am", "2")
     spec_only = git("rev-parse", "HEAD")
-    assert gr.verify(gate["record"], [_proof()], spec_only, spec_folder=str(repo / "docs" / "afk" / "185"), repo=repo)["ok"]
+    assert gr.verify(gate["record"], [_proof()], spec_only, spec_folder=str(repo / "specs" / "185"), repo=repo)["ok"]
     (repo / "app.py").write_text("x = 1\n", encoding="utf-8")
     git("add", ".")
     git("commit", "-q", "-m", "3")
     with pytest.raises(gr.GateRefusal) as refused:
-        gr.verify(gate["record"], [_proof()], git("rev-parse", "HEAD"), spec_folder="docs/afk/185", repo=repo)
+        gr.verify(gate["record"], [_proof()], git("rev-parse", "HEAD"), spec_folder="specs/185", repo=repo)
     assert refused.value.code == "gate-head-stale" and "app.py" in refused.value.reason
     with pytest.raises(gr.GateRefusal) as refused:
-        gr.verify(gate["record"], [_proof()], "f" * 40, spec_folder="docs/afk/185", repo=repo)
+        gr.verify(gate["record"], [_proof()], "f" * 40, spec_folder="specs/185", repo=repo)
     assert refused.value.code == "gate-head-stale"
 
 
