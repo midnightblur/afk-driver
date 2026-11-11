@@ -1059,6 +1059,10 @@ def gh_publish(world, issue, answer):
     return publish_after_yes_now(answer["preview"], answer["receipt"], world.published, issue)
 
 
+GH_START = "<!-- afkv2:prd:start -->"
+GH_END = "<!-- afkv2:prd:end -->"
+
+
 def publish_after_yes_now(preview, receipt, log, issue):
     return publish.publish_after_yes(preview, receipt, log, tracker=issue, now=datetime(2026, 11, 11, tzinfo=timezone.utc))
 
@@ -1069,8 +1073,9 @@ def test_github_publish_puts_the_prd_as_markdown_and_keeps_the_body(world, githu
     assert answer["action"] == "appends the block at the end of the issue body"
     done = gh_publish(world, github, answer)
     assert done["published"] is True and done["uploaded"] == [] and done["deleted"] == []
-    assert github.body.startswith("Text of the human.\n\n<!-- afkv2:prd:start -->\n# PRD")
-    assert f"```mermaid\n{DIAGRAM}\n```" in github.body and github.body.endswith("<!-- afkv2:prd:end -->")
+    lines = github.body.splitlines()
+    assert lines[:3] == ["Text of the human.", "", GH_START] and lines[3].startswith("# PRD")
+    assert lines[-1] == GH_END and f"```mermaid\n{DIAGRAM}\n```" in github.body
     assert "attachment-put" not in github.verbs and "md-to-adf" not in github.verbs
     assert len(world.lines()) == 1
 
@@ -1093,7 +1098,8 @@ def test_github_republish_replaces_only_the_block(world, github):
     github.body += "\n\nA later comment of the human."
     world.prd.write_text(PRD.replace("An empty basket shows zero.", "An empty basket shows 0."), "utf-8")
     gh_publish(world, github, gh_preview(world, github))
-    assert github.body.count("afkv2:prd:start") == 1 and "shows 0." in github.body
+    starts = [line for line in github.body.splitlines() if line == GH_START]
+    assert len(starts) == 1 and "shows 0." in github.body
     assert github.body.startswith("Text of the human.") and github.body.endswith("A later comment of the human.")
 
 
