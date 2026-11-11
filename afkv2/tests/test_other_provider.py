@@ -334,3 +334,9 @@ def test_a_cli_default_codex_judge_names_the_model_of_its_header(tmp_path):
     fake = FakeCli(codex_answer(row_text()))
     fake.stderr = "OpenAI Codex v0\n--------\nworkdir: x\nmodel: gpt-z\nprovider: openai\n"
     assert judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]["model"] == "gpt-z"
+
+
+def test_attack_gives_the_log_text_in_the_prompt(tmp_path):
+    fake = FakeCli((0, json.dumps({"findings": []})))
+    op.attack(grill_log(tmp_path), "claude", lookup=fake.lookup, runner=fake.run)
+    assert "R-1 the list shows a Status column" in fake.calls[0]["stdin"]

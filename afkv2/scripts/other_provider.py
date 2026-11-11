@@ -74,13 +74,15 @@ FINDINGS_SCHEMA = {
                        "where": {"type": "string"}}}}},
 }
 
-ATTACK_PROMPT = """You are the devil's advocate of a requirements grill. You see only `GRILL-LOG.md` in this folder: its settled requirements, pains, restrictions and claim ledger. Read it. Change nothing. Attack it:
+ATTACK_PROMPT = """You are the devil's advocate of a requirements grill. You see only `GRILL-LOG.md`, below and in this \
+folder: its settled requirements, pains, restrictions and claim ledger. Read it. Change nothing. Attack it:
 - `symptom`: a requirement that treats a symptom, not the cause.
 - `blocked-scenario`: a restriction that blocks a legitimate scenario.
 - `conflict`: 2 requirements that conflict.
 - `open-pain`: a nearby pain that stays open.
 
-Answer only the JSON object of the schema: 1 entry of `findings` per finding, with its `kind`, 1 sentence `what` and `where`, the ids or the section of the log it touches. No finding: an empty list.
+Answer only the JSON object of the schema: 1 entry of `findings` per finding, with its `kind`, 1 sentence `what` and \
+`where`, the ids or the section of the log it touches. No finding: an empty list.
 """
 
 JUDGE_PROMPT = """You are the judge of high-level test proofs. You see only this folder: `rows.json` (the plan rows; \
@@ -356,7 +358,8 @@ def attack(log_path, session_provider, *, lookup=shutil.which, runner=run_cli) -
     with tempfile.TemporaryDirectory(prefix="afkv2-devil-") as scratch:
         folder = Path(scratch)
         shutil.copyfile(log, folder / "GRILL-LOG.md")
-        findings, judge_cli = _call(judge_cli, ATTACK_PROMPT, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
+        prompt = f"{ATTACK_PROMPT}\n<GRILL-LOG.md>\n{log.read_text(encoding='utf-8')}\n</GRILL-LOG.md>\n"
+        findings, judge_cli = _call(judge_cli, prompt, folder, FINDINGS_SCHEMA, [], runner, accept=_findings)
     return {"ok": True, **{key: judge_cli[key] for key in ("provider", "model", "effort")}, "findings": findings}
 
 
