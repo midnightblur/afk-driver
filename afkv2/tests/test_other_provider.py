@@ -88,3 +88,135 @@ def test_which_refuses_an_unknown_session_provider():
     with pytest.raises(op.Refusal) as refused:
         op.which("gemini", lookup=fake.lookup, runner=fake.run)
     assert refused.value.code == "bad-input"
+
+
+# ---------------------------------------------------------------- judge
+
+
+def input_folder(tmp_path, rows=("VR-1",), extra=None):
+    folder = tmp_path / "judge-input"
+    (folder / "evidence").mkdir(parents=True)
+    (folder / "tests").mkdir()
+    (folder / "rows.json").write_text(json.dumps([{"id": row, "then": "the list shows Approved"} for row in rows]))
+    (folder / "evidence" / "shot.png").write_bytes(b"\x89PNG")
+    (folder / "tests" / "test_list.py").write_text("def test_list(): assert True\n")
+    if extra:
+        (folder / extra).write_text("the builder says it works")
+    return folder
+
+
+def row_text(row="VR-1", seen=("a table with the Status column, value Approved",), result="pass", checks=None, first="seen", extra=""):
+    checks = checks if checks is not None else [{"check": name, "result": "pass", "why": "ok"} for name in CHECKS]
+    seen_part = f'"seen": {json.dumps(list(seen))}'
+    compare_part = '"compare": ["the Then asks for Approved; the table shows Approved"]'
+    parts = [seen_part, compare_part] if first == "seen" else [compare_part, seen_part]
+    return "{" + f'"row": "{row}", ' + ", ".join(parts) + f', "checks": {json.dumps(checks)}, "result": "{result}"{extra}' + "}"
+
+
+def codex_answer(*rows):
+    return (0, '{"rows": [' + ", ".join(rows) + "]}\n")
+
+
+def judge(folder, fake, session="claude"):
+    return op.judge(folder, session, lookup=fake.lookup, runner=fake.run)
+
+
+def test_judge_returns_one_verdict_per_row_naming_provider_model_and_effort(tmp_path):
+    fake = FakeCli(codex_answer(row_text()))
+    answer = judge(input_folder(tmp_path), fake)
+    verdict = answer["verdicts"]["VR-1"]
+    assert answer["ok"] is True
+    assert (verdict["provider"], verdict["model"], verdict["effort"]) == ("codex", "cli-default", "medium")
+    assert verdict["seen"] == ["a table with the Status column, value Approved"]
+    assert verdict["result"] == "pass"
+    assert list(verdict) == ["provider", "model", "effort", "seen", "compare", "checks", "result"]
+
+
+def test_judge_runs_codex_read_only_in_the_input_folder_with_the_answer_schema(tmp_path):
+    folder = input_folder(tmp_path)
+    fake = FakeCli(codex_answer(row_text()))
+    judge(folder, fake)
+    argv = fake.calls[0]["argv"]
+    assert argv[:2] == ["/bin/codex", "exec"]
+    assert argv[argv.index("-s") + 1] == "read-only"
+    assert argv[argv.index("-C") + 1] == str(folder)
+    assert fake.calls[0]["cwd"] == str(folder)
+    assert "--output-schema" in argv
+    assert 'model_reasoning_effort="medium"' in argv
+    assert argv[argv.index("-i") + 1] == str(folder / "evidence" / "shot.png")
+
+
+def test_judge_runs_claude_with_read_tools_only_and_json_output(tmp_path):
+    record({"judge_claude": "opus-x"})
+    fake = FakeCli((0, json.dumps({"type": "result", "result": "", "structured_output": None}) .replace(
+        '"structured_output": null', '"structured_output": {"rows": [' + row_text() + "]}")), signed_in=("claude",))
+    answer = judge(input_folder(tmp_path), fake)
+    argv = fake.calls[0]["argv"]
+    assert argv[:2] == ["/bin/claude", "-p"]
+    assert argv[argv.index("--tools") + 1] == "Read,Glob,Grep"
+    assert argv[argv.index("--model") + 1] == "opus-x"
+    assert argv[argv.index("--effort") + 1] == "medium"
+    assert argv[argv.index("--output-format") + 1] == "json"
+    assert json.loads(argv[argv.index("--json-schema") + 1]) == op.ANSWER_SCHEMA
+    assert answer["verdicts"]["VR-1"]["result"] == "pass"
+
+
+def test_judge_refuses_an_input_folder_with_anything_but_rows_evidence_and_tests(tmp_path):
+    fake = FakeCli()
+    with pytest.raises(op.Refusal) as refused:
+        judge(input_folder(tmp_path, extra="CLAIMS.md"), fake)
+    assert refused.value.code == "bad-input"
+    assert fake.calls == []
+
+
+def test_the_prompt_names_every_check_and_asks_to_describe_before_comparing(tmp_path):
+    fake = FakeCli(codex_answer(row_text()))
+    judge(input_folder(tmp_path), fake)
+    prompt = fake.calls[0]["stdin"]
+    for name in CHECKS:
+        assert name in prompt
+    assert prompt.index("seen") < prompt.index("compare")
+
+
+@pytest.mark.parametrize("text, why", [
+    (row_text(seen=()), "seen"),
+    (row_text(first="compare"), "compare"),
+    (row_text(extra=', "confidence": 0.9'), "confidence"),
+])
+def test_a_verdict_breaking_the_schema_fails_the_row(tmp_path, text, why):
+    fake = FakeCli(codex_answer(text))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+    schema_fails = [item for item in verdict["checks"] if item["check"] == "verdict-schema"]
+    assert schema_fails and why in schema_fails[0]["why"]
+    assert len(fake.calls) == 1
+
+
+def test_a_top_level_field_outside_the_schema_fails_every_row(tmp_path):
+    fake = FakeCli((0, '{"rows": [' + row_text() + '], "note": "looks fine"}'))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+
+
+def test_a_missing_check_fails_the_row_and_names_the_check(tmp_path):
+    checks = [{"check": name, "result": "pass", "why": "ok"} for name in CHECKS if name != "VC-6"]
+    fake = FakeCli(codex_answer(row_text(checks=checks)))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+    assert any(item["check"] == "verdict-schema" and "VC-6" in item["why"] for item in verdict["checks"])
+
+
+def test_a_failed_check_makes_the_row_fail_and_keeps_its_name(tmp_path):
+    checks = [{"check": name, "result": "fail" if name == "VC-4" else "pass", "why": "asserts only no error"} for name in CHECKS]
+    fake = FakeCli(codex_answer(row_text(checks=checks, result="pass")))
+    verdict = judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]
+    assert verdict["result"] == "fail"
+    assert [item["check"] for item in verdict["checks"] if item["result"] == "fail"] == ["VC-4"]
+
+
+def test_a_row_the_judge_left_out_fails(tmp_path):
+    fake = FakeCli(codex_answer(row_text("VR-1")))
+    verdicts = judge(input_folder(tmp_path, rows=("VR-1", "VR-2")), fake)["verdicts"]
+    assert verdicts["VR-1"]["result"] == "pass"
+    assert verdicts["VR-2"]["result"] == "fail"
+    assert verdicts["VR-2"]["seen"] == []
