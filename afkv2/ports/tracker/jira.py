@@ -1,5 +1,5 @@
-"""Jira Cloud REST v3: the client ported from v1, the reads and the publish verbs on it. No create, transition or
-comment."""
+"""Jira Cloud REST v3: the client ported from v1, the reads, the publish verbs and the proof comment on it. No create
+or transition."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import base64
 import functools
 import hashlib
 import json
+import mimetypes
 import os
 import re
 import struct
@@ -16,7 +17,7 @@ import urllib.request
 from pathlib import Path
 from typing import NamedTuple
 
-from . import adf, v1_facts
+from . import adf, proof, v1_facts
 from .envelope import Refusal, code_for_status, need, ok
 
 TIMEOUT_SECONDS = 60
@@ -31,6 +32,8 @@ SEARCH_FIELDS = "summary,status,issuetype,assignee,priority,updated,labels,fixVe
 SEARCH_PAGE = 100
 SEARCH_LIMIT = 1000
 _RECEIPT = re.compile(r"[0-9a-f]{64}")
+COMMENT_TEXT_LIMIT = 1_000_000
+COMMENT_PAGE = 100
 _FIGURE_NODES = {"mediaSingle", "mediaGroup", "media"}
 _READ_ATTRS = {"level", "language"}
 _BEGINS = {BEGIN_LINE: "afkv2", **{line: "v1" for line in v1_facts.BLOCK_BEGIN_LINES}}
@@ -125,15 +128,15 @@ class Jira:
             raise
         return True
 
-    def upload_attachment(self, key, filepath):
+    def upload_attachment(self, key, filepath, name=None, mime="image/png"):
         boundary = "----afkv2PrdBoundary7MA4YWxkTrZu0gW"
-        name = os.path.basename(filepath)
+        name = name or os.path.basename(filepath)
         with open(filepath, "rb") as file:
             payload = file.read()
         body = b"".join([
             f"--{boundary}\r\n".encode(),
             f'Content-Disposition: form-data; name="file"; filename="{name}"\r\n'.encode(),
-            b"Content-Type: image/png\r\n\r\n",
+            f"Content-Type: {mime}\r\n\r\n".encode(),
             payload, b"\r\n",
             f"--{boundary}--\r\n".encode(),
         ])
@@ -143,6 +146,30 @@ class Jira:
         if not (isinstance(items, list) and items and isinstance(items[0], dict) and items[0].get("id")):
             raise ValueError("the upload answer names no attachment id")
         return items[0]["id"]
+
+    def attachment_settings(self):
+        return self.get_json("/rest/api/3/attachment/meta")
+
+    def comments(self, key):
+        """Every comment of the work item, page by page."""
+        found, start = [], 0
+        while True:
+            query = urllib.parse.urlencode({"startAt": start, "maxResults": COMMENT_PAGE})
+            page = self.get_json(f"/rest/api/3/issue/{_segment(key)}/comment?{query}")
+            items = page.get("comments") or []
+            found += items
+            start += len(items)
+            if not items or start >= int(page.get("total") or 0):
+                return found
+
+    def post_comment(self, key, document):
+        body = json.dumps({"body": document}).encode()
+        answer = self._req("POST", f"/rest/api/3/issue/{_segment(key)}/comment", data=body,
+                           headers={"Content-Type": "application/json"})
+        data = json.loads(answer.read())
+        if not (isinstance(data, dict) and data.get("id")):
+            raise ValueError("the comment answer names no comment id")
+        return str(data["id"])
 
     def resolve_media_uuid(self, attachment_id):
         """Jira gives the media id only in the Location of the 303 on the attachment content."""
@@ -479,3 +506,63 @@ def description_put(payload):
     document = {**(description or {"type": "doc", "version": 1}), "content": new_content}
     jira.update_description(key, document)
     return ok(key=key, replaced=block.family if block else None, block=_summary("afkv2", nodes))
+
+
+def _comment_text(comment):
+    content = _content_of((comment or {}).get("body"))
+    return "\n".join(node_text(node) for node in content if isinstance(node, dict))
+
+
+def _comment_document(body, media_ids):
+    lines = [{"type": "paragraph", "content": [{"type": "text", "text": line}]} for line in body.split("\n") if line.strip()]
+    figures = [{"type": "mediaSingle", "attrs": {"layout": "center"},
+                "content": [{"type": "media", "attrs": {"type": "file", "id": media, "collection": ""}}]}
+               for media in media_ids]
+    return {"type": "doc", "version": 1, "content": [*lines, *figures]}
+
+
+def _attach_pictures(jira, key, paths, receipt):
+    """The media id of each picture. A picture a failed post already attached, same name and size, is used again."""
+    present = {item.get("filename"): item for item in
+               (jira.get_issue(key, "attachment").get("fields") or {}).get("attachment") or []}
+    names, media_ids = [], []
+    for n, path in enumerate(paths, start=1):
+        name = f"afkv2-proof-{receipt[:8]}-{n}{path.suffix.lower()}"
+        kept = present.get(name)
+        if kept and kept.get("id") and kept.get("size") == path.stat().st_size:
+            attachment_id = kept["id"]
+        else:
+            mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            attachment_id = jira.upload_attachment(key, str(path), name=name, mime=mime)
+        try:
+            media_ids.append(jira.resolve_media_uuid(attachment_id))
+        except (urllib.error.URLError, OSError, ValueError) as error:
+            raise Refusal("no-media-id", f"attachment {attachment_id} is on the ticket, but its media id is unknown: "
+                                         f"{error}", attachment_id=attachment_id) from None
+        names.append(name)
+    return names, media_ids
+
+
+def _comment_url(jira, key, comment_id):
+    return f"{jira.base}/browse/{_segment(key)}?focusedCommentId={_segment(comment_id)}"
+
+
+@_rest
+def comment_put(payload):
+    key, body, paths, receipt = proof.request(payload)
+    size = len(json.dumps(_comment_document(body, []), ensure_ascii=False).encode("utf-8"))
+    if size > COMMENT_TEXT_LIMIT:
+        raise Refusal("too-large", f"the comment is {size} bytes of rich text; Jira takes at most {COMMENT_TEXT_LIMIT}")
+    jira = client()
+    if paths:
+        settings = jira.attachment_settings()
+        if not settings.get("enabled"):
+            raise Refusal("not-supported", "attachments are off on this Jira site")
+        proof.check_sizes(paths, int(settings.get("uploadLimit") or 0), "this Jira site")
+    found = next((item for item in jira.comments(key) if proof.holds_receipt(_comment_text(item), receipt)), None)
+    if found:
+        return ok(comment_id=str(found.get("id")), url=_comment_url(jira, key, found.get("id")), attached=[],
+                  posted=False)
+    names, media_ids = _attach_pictures(jira, key, paths, receipt)
+    comment_id = jira.post_comment(key, _comment_document(body, media_ids))
+    return ok(comment_id=comment_id, url=_comment_url(jira, key, comment_id), attached=names, posted=True)
