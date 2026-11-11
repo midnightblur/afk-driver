@@ -1,10 +1,10 @@
 # Page live test
 
-An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.81`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host. The shell steps prove the page shell (AC-015, AC-020, AC-021, AC-026, AC-027, AC-035, AC-039, AC-040) and the seam row "Page host" (AC-036) on a page of their own.
+An agent runs this test. It needs Edge, Node 22 or later and a folder that holds `lavish-axi@0.1.86`. It proves AC-042 and the seam row "lavish host": a page with many notes, long text, wide tables, many rounds and big diagrams hides nothing and cuts nothing off, and every control works in a real browser through the real host. The shell steps prove the page shell (AC-015, AC-020, AC-021, AC-026, AC-027, AC-035, AC-039, AC-040) and the seam row "Page host" (AC-036) on a page of their own.
 
 ## Rules
 
-- Install `lavish-axi@0.1.81` with `npm install --ignore-scripts` in a scratch folder. Search that folder for `.exe` and `.dll`. If one appears, delete it, and stop.
+- Install `lavish-axi@0.1.86` with `npm install --ignore-scripts` in a scratch folder. Search that folder for `.exe` and `.dll`. If one appears, delete it, and stop.
 - Do not install `playwright-core`. Its install brings an `.exe`. The driver below speaks the Chrome DevTools Protocol to the installed Edge through the `WebSocket` of Node.
 - The host runs on its own port with its own state folder. Do not touch the shared host and do not set `LAVISH_AXI_HOST`.
 - The driver closes Edge and ends its sessions. Remove the scratch folder after the host stops.

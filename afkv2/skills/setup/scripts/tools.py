@@ -18,7 +18,7 @@ from typing import Callable, Mapping, Sequence
 from places import Places, has_backup, write_atomic
 
 LAVISH_PACKAGE = "lavish-axi"
-LAVISH_PIN = "0.1.81"
+LAVISH_PIN = "0.1.86"
 RG_WINGET_ID = "BurntSushi.ripgrep.MSVC"
 MERMAID_PACKAGE = "@mermaid-js/mermaid-cli"
 # The renderer pin: the engine keys its diagram cache by this version (`engine/diagrams.py`).
