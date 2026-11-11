@@ -148,7 +148,10 @@ def live_block(value: object) -> dict:
     if not isinstance(start, str) or not start.strip():
         raise Refusal("bad-value", "live.start: a non-empty command line is required")
     address = value.get("address")
-    parts = urlsplit(address) if isinstance(address, str) else None
+    try:
+        parts = urlsplit(address) if isinstance(address, str) else None
+    except ValueError:
+        parts = None
     if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
         raise Refusal("bad-value", f"live.address: {address!r} is not an http or https URL")
     ready = value.get("ready_seconds", LIVE_READY_SECONDS)

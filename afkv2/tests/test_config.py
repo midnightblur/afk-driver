@@ -258,6 +258,9 @@ def test_live_block_gets_its_defaults(tmp_path):
         ({"start": "serve", "address": "http://x", "needs": "TOKEN"}, "live.needs"),
         ({"start": "serve", "address": "http://x", "needs": ["TOKEN=secret"]}, "live.needs"),
         ({"start": "serve", "address": "http://x", "proven_head": 3}, "live.proven_head"),
+        ({"start": "serve", "address": "http://x", "proven_at": 3}, "live.proven_at"),
+        ({"start": "serve", "address": "http://x", "stop": 5}, "live.stop"),
+        ({"start": "serve", "address": "http://[::1"}, "live.address"),
         ({"start": "serve", "address": "http://x", "extra": 1}, "live.extra"),
     ],
 )

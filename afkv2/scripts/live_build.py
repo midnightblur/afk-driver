@@ -7,6 +7,7 @@ into `.afkv2/config.json`; `check` writes nothing. Exit 0 ok, 1 refused, 2 unrea
 from __future__ import annotations
 
 import argparse
+import ctypes
 import http.client
 import json
 import os
@@ -23,6 +24,9 @@ from datetime import date
 from pathlib import Path
 from typing import IO
 
+if sys.platform == "win32":
+    from ctypes import wintypes
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from afkv2_config import Refusal, exit_code, live_block, read_config  # noqa: E402
@@ -35,10 +39,18 @@ OUTPUT_TAIL = 800
 
 
 @dataclass
+class _Spawned:
+    """A shell command and every process it starts. On Windows a job object holds them all, so a process
+    the command detaches is stopped too; elsewhere the command leads its own session."""
+    process: subprocess.Popen
+    job: object = None
+
+
+@dataclass
 class LiveHandle:
     repo_root: Path
     live: dict
-    process: subprocess.Popen
+    spawned: _Spawned
     output: IO[bytes]
 
 
@@ -71,13 +83,16 @@ def start_live(repo_root, live: dict | None = None) -> LiveHandle:
     if _answers(block["address"]):
         raise Refusal("live-start-failed", f"{block['address']} already answers before the start: another server holds it")
     output = tempfile.TemporaryFile()
-    process = subprocess.Popen(block["start"], shell=True, cwd=root, stdin=subprocess.DEVNULL, stdout=output,
-                               stderr=subprocess.STDOUT, **_group())
-    handle = LiveHandle(root, block, process, output)
+    try:
+        spawned = _spawn(block["start"], root, output)
+    except OSError as error:
+        output.close()
+        raise Refusal("live-start-failed", f"the start did not run: {error}") from None
+    handle = LiveHandle(root, block, spawned, output)
     try:
         _wait_ready(handle)
     except BaseException:
-        _kill_tree(process)
+        _kill(spawned)
         output.close()
         raise
     return handle
@@ -87,29 +102,32 @@ def stop_live(handle: LiveHandle) -> None:
     """Stop what `start_live` began: the `stop` command, else the process tree. Any process left is then killed."""
     try:
         failure = _run_stop(handle) if handle.live["stop"] else None
-        _kill_tree(handle.process)
+        _kill(handle.spawned)
         if failure is None and not _gone(handle):
             failure = f"{handle.live['address']} still answers after the stop"
         if failure:
             raise Refusal("live-stop-failed", failure)
     finally:
-        _kill_tree(handle.process)
+        _kill(handle.spawned)
         handle.output.close()
 
 
 def _run_stop(handle: LiveHandle) -> str | None:
     """Run the stop command in its own process group. A run past STOP_SECONDS is killed with its tree."""
     with tempfile.TemporaryFile() as output:
-        stop = subprocess.Popen(handle.live["stop"], shell=True, cwd=handle.repo_root, stdin=subprocess.DEVNULL,
-                                stdout=output, stderr=subprocess.STDOUT, **_group())
         try:
-            code = stop.wait(timeout=STOP_SECONDS)
+            stop = _spawn(handle.live["stop"], handle.repo_root, output)
+        except OSError as error:
+            return f"the stop command did not run: {error}"
+        try:
+            code = stop.process.wait(timeout=STOP_SECONDS)
         except subprocess.TimeoutExpired:
-            _kill_tree(stop)
             return f"the stop command ran past {STOP_SECONDS} s"
+        finally:
+            _kill(stop)
         if code != 0:
             return f"the stop command exited {code}: {_read_tail(output)}"
-    _wait_exit(handle.process, STOP_SECONDS)
+    _wait_exit(handle.spawned.process, STOP_SECONDS)
     return None
 
 
@@ -133,7 +151,7 @@ def _wait_ready(handle: LiveHandle) -> None:
     while True:
         if _answers(handle.live["address"]):
             return
-        code = handle.process.poll()
+        code = handle.spawned.process.poll()
         if code is not None:
             raise Refusal("live-start-failed", f"the start exited {code} before an answer: {_read_tail(handle.output)}")
         if time.monotonic() >= deadline:
@@ -144,7 +162,7 @@ def _wait_ready(handle: LiveHandle) -> None:
 def _answers(address: str) -> bool:
     """Any HTTP answer, an error status too, counts. The probe skips proxies and does not check a certificate:
     it asks only whether the build serves."""
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect(),
                                          urllib.request.HTTPSHandler(context=ssl._create_unverified_context()))
     try:
         with opener.open(address, timeout=PROBE_SECONDS):
@@ -153,6 +171,13 @@ def _answers(address: str) -> bool:
         return True
     except (OSError, ValueError, http.client.HTTPException):
         return False
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A 3xx is the build's own answer: it comes back as an HTTPError and is not followed."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
 
 
 def _gone(handle: LiveHandle) -> bool:
@@ -164,25 +189,83 @@ def _gone(handle: LiveHandle) -> bool:
     return True
 
 
-def _group() -> dict:
-    if sys.platform == "win32":
-        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-    return {"start_new_session": True}
+def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
+    common = {"shell": True, "cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT}
+    if sys.platform != "win32":
+        return _Spawned(subprocess.Popen(command, start_new_session=True, **common))
+    job = _windows_job()
+    process = subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | _CREATE_SUSPENDED, **common)
+    kernel32, ntdll = _windows_dlls()
+    if not kernel32.AssignProcessToJobObject(job, int(process._handle)):
+        error = ctypes.WinError(ctypes.get_last_error())
+        ntdll.NtResumeProcess(int(process._handle))
+        kernel32.CloseHandle(job)
+        _kill(_Spawned(process))
+        raise error
+    ntdll.NtResumeProcess(int(process._handle))
+    return _Spawned(process, job)
 
 
-def _kill_tree(process: subprocess.Popen) -> None:
-    if sys.platform == "win32":
-        try:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
-                           stdin=subprocess.DEVNULL, timeout=STOP_SECONDS)
-        except subprocess.TimeoutExpired:
-            pass
+def _kill(spawned: _Spawned) -> None:
+    """Stop every process of the command. Repeat calls are harmless."""
+    if spawned.job is not None:
+        kernel32, _ = _windows_dlls()
+        kernel32.TerminateJobObject(spawned.job, 1)
+        kernel32.CloseHandle(spawned.job)
+        spawned.job = None
+    elif sys.platform == "win32":
+        if spawned.process.poll() is None:
+            spawned.process.kill()
     else:
         try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
+            os.killpg(spawned.process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
             pass
-    _wait_exit(process, STOP_SECONDS)
+    _wait_exit(spawned.process, STOP_SECONDS)
+
+
+_CREATE_SUSPENDED = 0x00000004
+_KILL_ON_JOB_CLOSE = 0x00002000
+_EXTENDED_LIMIT_INFORMATION = 9
+
+
+def _windows_dlls():
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+    kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+    ntdll = ctypes.WinDLL("ntdll")
+    ntdll.NtResumeProcess.argtypes = (wintypes.HANDLE,)
+    return kernel32, ntdll
+
+
+def _windows_job():
+    """A job that ends its processes when its last handle closes, so a crash of this script also stops the build."""
+
+    class _Basic(ctypes.Structure):
+        _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                    ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                    ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                    ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD), ("SchedulingClass", wintypes.DWORD)]
+
+    class _Extended(ctypes.Structure):
+        _fields_ = [("BasicLimitInformation", _Basic), ("IoInfo", ctypes.c_uint64 * 6),
+                    ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                    ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+    kernel32, _ = _windows_dlls()
+    job = kernel32.CreateJobObjectW(None, None)
+    if not job:
+        raise ctypes.WinError(ctypes.get_last_error())
+    info = _Extended()
+    info.BasicLimitInformation.LimitFlags = _KILL_ON_JOB_CLOSE
+    if not kernel32.SetInformationJobObject(job, _EXTENDED_LIMIT_INFORMATION, ctypes.byref(info), ctypes.sizeof(info)):
+        error = ctypes.WinError(ctypes.get_last_error())
+        kernel32.CloseHandle(job)
+        raise error
+    return job
 
 
 def _wait_exit(process: subprocess.Popen, seconds: float) -> None:

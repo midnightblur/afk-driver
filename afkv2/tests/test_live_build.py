@@ -28,6 +28,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.end_headers()
         if self.path == "/quit":
+            open(pid_file + ".quit", "w").write("quit")
             os._exit(0)
     def log_message(self, *args):
         pass
@@ -186,6 +187,7 @@ def test_a_stop_command_stops_the_build(repo):
     answer = live_build.prove(repo)
     assert answer["ok"] is True, answer
     assert read_raw(repo)["live"]["stop"] == block["stop"]
+    assert (repo.parent / "server.pid.quit").exists()
     assert not alive(server_pid(repo))
 
 
@@ -344,3 +346,64 @@ def test_the_write_keeps_non_ascii_text(repo):
     write_config(repo, server_block(repo), note="caf\u00e9")
     assert live_build.prove(repo)["ok"] is True
     assert "caf\u00e9" in (repo / ".afkv2" / "config.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="cmd start /b detaches a process on Windows")
+def test_a_detached_server_is_stopped_with_the_build(repo):
+    port = free_port()
+    pid_file = repo.parent / "detached.pid"
+    write_config(repo, {"start": f"start \"\" /b {PY} server.py {port} 200 \"{pid_file}\" & {PY} -c \"import time; time.sleep(60)\"",
+                        "address": f"http://127.0.0.1:{port}/", "ready_seconds": 20})
+    answer = live_build.check(repo)
+    assert answer["ok"] is True, answer
+    assert not alive(int(pid_file.read_text()))
+    assert not answers(f"http://127.0.0.1:{port}/")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="cmd start /b detaches a process on Windows")
+def test_a_start_that_detaches_and_exits_leaves_no_process(repo):
+    port = free_port()
+    pid_file = repo.parent / "orphan.pid"
+    sleeper = f"import os, time; open(r'{pid_file}', 'w').write(str(os.getpid())); time.sleep(60)"
+    write_config(repo, {"start": f"start \"\" /b {PY} -c \"{sleeper}\"", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 5})
+    answer = live_build.check(repo)
+    assert answer["ok"] is False
+    deadline = time.monotonic() + 5
+    while not pid_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if pid_file.exists():
+        assert not alive(int(pid_file.read_text()))
+
+
+REDIRECT = r"""
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "http://127.0.0.1:1/login")
+        self.end_headers()
+    def log_message(self, *args):
+        pass
+HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+"""
+
+
+def test_a_redirect_is_an_answer(repo):
+    (repo / "redirect.py").write_text(REDIRECT, encoding="utf-8")
+    port = free_port()
+    write_config(repo, {"start": f"{PY} redirect.py {port}", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 20})
+    answer = live_build.check(repo)
+    assert answer["ok"] is True, answer
+
+
+def test_prove_outside_git_refuses_and_writes_nothing(tmp_path):
+    root = tmp_path / "plain"
+    root.mkdir()
+    (root / "server.py").write_text(FAKE_SERVER, encoding="utf-8")
+    write_config(root, server_block(root))
+    (root / ".git").write_text("gitdir: nowhere", encoding="utf-8")
+    before = (root / ".afkv2" / "config.json").read_bytes()
+    answer = live_build.prove(root)
+    assert answer["error"]["code"] == "git-failed"
+    assert (root / ".afkv2" / "config.json").read_bytes() == before
