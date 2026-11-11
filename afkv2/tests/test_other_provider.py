@@ -220,3 +220,33 @@ def test_a_row_the_judge_left_out_fails(tmp_path):
     assert verdicts["VR-1"]["result"] == "pass"
     assert verdicts["VR-2"]["result"] == "fail"
     assert verdicts["VR-2"]["seen"] == []
+
+
+# ---------------------------------------------------------------- retry
+
+
+@pytest.mark.parametrize("first", ["timeout", (1, ""), (0, "not json")])
+def test_a_transport_failure_gets_1_retry(tmp_path, first):
+    fake = FakeCli(first, codex_answer(row_text()))
+    answer = judge(input_folder(tmp_path), fake)
+    assert answer["verdicts"]["VR-1"]["result"] == "pass"
+    assert len(fake.calls) == 2
+
+
+@pytest.mark.parametrize("answers, code", [
+    (("timeout", "timeout"), "judge-timeout"),
+    (((1, ""), (0, "not json")), "judge-unreadable"),
+    (((0, "not json"), "timeout"), "judge-timeout"),
+])
+def test_a_second_transport_failure_refuses(tmp_path, answers, code):
+    fake = FakeCli(*answers)
+    with pytest.raises(op.Refusal) as refused:
+        judge(input_folder(tmp_path), fake)
+    assert refused.value.code == code
+    assert len(fake.calls) == 2
+
+
+def test_a_fail_verdict_is_never_retried(tmp_path):
+    fake = FakeCli(codex_answer(row_text(result="fail")), codex_answer(row_text()))
+    assert judge(input_folder(tmp_path), fake)["verdicts"]["VR-1"]["result"] == "fail"
+    assert len(fake.calls) == 1

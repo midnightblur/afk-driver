@@ -26,6 +26,7 @@ JUDGE_KEY = "judge_{provider}"
 STATUS_SECONDS = 30
 STATUS_COMMAND = {"claude": ["auth", "status"], "codex": ["login", "status"]}
 CALL_SECONDS = 300
+ATTEMPTS = 2
 INPUT_ENTRIES = {"rows.json": "file", "evidence": "folder", "tests": "folder"}
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 CHECKS = ("VC-2", "VC-4", "VC-6", "VC-7", "level", "flaky")
@@ -189,7 +190,17 @@ def _command(judge_cli, folder: Path, schema_file: Path, images) -> list[str]:
 
 
 def _call(judge_cli, prompt, folder: Path, schema, images, runner):
-    """Run the CLI once; answer its object as (key, value) pairs in their order. Raises `Refusal`."""
+    """Run the CLI; a transport failure gets 1 retry, an answer never. Answers the object as (key, value) pairs
+    in their order. Raises `Refusal` after the second transport failure."""
+    for attempt in range(ATTEMPTS):
+        try:
+            return _call_once(judge_cli, prompt, folder, schema, images, runner)
+        except Refusal:
+            if attempt == ATTEMPTS - 1:
+                raise
+
+
+def _call_once(judge_cli, prompt, folder: Path, schema, images, runner):
     with tempfile.TemporaryDirectory(prefix="afkv2-judge-") as scratch:
         schema_file = Path(scratch) / "answer-schema.json"
         schema_file.write_text(json.dumps(schema), encoding="utf-8")
