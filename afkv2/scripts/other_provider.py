@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -29,6 +31,8 @@ CALL_SECONDS = 300
 ATTEMPTS = 2
 STDERR_TAIL = 500
 INLINE_CHARS = 2_000_000
+OUTPUT_BYTES = 20_000_000
+STOP_SECONDS = 15
 INPUT_ENTRIES = {"rows.json": "file", "evidence": "folder", "tests": "folder"}
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 CHECKS = ("VC-2", "VC-4", "VC-6", "VC-7", "level", "flaky")
@@ -123,13 +127,46 @@ class Ran:
 
 
 def run_cli(argv, *, stdin, cwd, timeout) -> Ran:
+    """Run 1 CLI call. Output goes to files, not pipes, so a child that outlives the CLI cannot hold the call
+    open; on a timeout the whole process tree stops. Each stream keeps its first OUTPUT_BYTES."""
+    with tempfile.TemporaryFile() as given, tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        given.write((stdin or "").encode("utf-8"))
+        given.seek(0)
+        try:
+            process = subprocess.Popen(argv, stdin=given, stdout=out, stderr=err, cwd=cwd, **_group())
+        except OSError as error:
+            return Ran(None, "", False, str(error))
+        try:
+            code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            _stop_tree(process)
+            return Ran(None, "", True)
+        return Ran(code, _read(out), False, _read(err))
+
+
+def _group() -> dict:
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _stop_tree(process) -> None:
     try:
-        done = subprocess.run(argv, input=(stdin or "").encode("utf-8"), cwd=cwd, capture_output=True, timeout=timeout)
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, timeout=STOP_SECONDS)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
+    except (OSError, subprocess.TimeoutExpired):
+        process.kill()
+    try:
+        process.wait(timeout=STOP_SECONDS)
     except subprocess.TimeoutExpired:
-        return Ran(None, "", True)
-    except OSError as error:
-        return Ran(None, "", False, str(error))
-    return Ran(done.returncode, done.stdout.decode("utf-8", "replace"), False, done.stderr.decode("utf-8", "replace"))
+        pass
+
+
+def _read(stream) -> str:
+    stream.seek(0)
+    return stream.read(OUTPUT_BYTES).decode("utf-8", "replace")
 
 
 # ---------------------------------------------------------------- which

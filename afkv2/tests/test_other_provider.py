@@ -486,3 +486,31 @@ def test_an_input_too_large_to_inline_is_refused(tmp_path, monkeypatch):
     with pytest.raises(op.Refusal) as refused:
         judge(input_folder(tmp_path), fake)
     assert refused.value.code == "bad-input"
+
+
+# ---------------------------------------------------------------- the real process runner
+
+GRANDCHILD = (
+    "import subprocess, sys, time\n"
+    "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+    "time.sleep(30)\n"
+)
+
+
+def test_a_timeout_stops_the_cli_with_its_children_inside_the_limit(tmp_path):
+    started = __import__("time").monotonic()
+    ran = op.run_cli([sys.executable, "-c", GRANDCHILD], stdin="", cwd=str(tmp_path), timeout=2)
+    assert ran.timed_out is True
+    assert __import__("time").monotonic() - started < 15
+
+
+def test_the_runner_passes_stdin_and_reads_stdout_and_stderr(tmp_path):
+    script = "import sys; data = sys.stdin.read(); print(data.upper()); print('note', file=sys.stderr)"
+    ran = op.run_cli([sys.executable, "-c", script], stdin="verdict", cwd=str(tmp_path), timeout=30)
+    assert (ran.exit, ran.stdout.strip(), ran.stderr.strip(), ran.timed_out) == (0, "VERDICT", "note", False)
+
+
+def test_an_answer_past_the_output_cap_is_cut(tmp_path, monkeypatch):
+    monkeypatch.setattr(op, "OUTPUT_BYTES", 100)
+    ran = op.run_cli([sys.executable, "-c", "print('x' * 5000)"], stdin="", cwd=str(tmp_path), timeout=30)
+    assert len(ran.stdout) == 100
