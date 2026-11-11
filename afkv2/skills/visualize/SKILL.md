@@ -101,6 +101,16 @@ Give a folded component an `id`: only then does an open fold stay open through a
 Give each item a `title` (at most 90 characters): the card heading shows it.
 One document that uses every component: `examples/all-components.json`.
 
+## Arrows between groups
+
+When arrows join boxes of different groups, draw all the boxes on one canvas, so that related boxes line up:
+
+- Use a `graph` with `groups`. It puts each group in a lane and each dependency step in a column (`direction: right`) or a row (`direction: down`). A box sits 1 step after the box it waits for, in every group.
+- Do not use a `map` with `groups` for this. A map draws each group on its own canvas, with its boxes from the top. Its arrows between groups become text lines under the groups.
+- Pick `direction: right` when 1 step holds many boxes of 1 group. With `down`, those boxes stand side by side, and the canvas grows wide.
+- Show a box of another group that blocks this group inside this group, as its own box, once per group that it blocks. Mark it with a word and a symbol, and with `you` when the human pushes it.
+- A map keeps its place on top: give it the summary nodes, and put the graph in its `children`.
+
 ## Picture before a critical-aspect question
 
 Before a card that asks a critical-aspect question, show the current state as a

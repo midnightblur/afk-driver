@@ -21,7 +21,9 @@ a name that the short label cannot hold.
 ## How it looks
 
 Boxes joined by arrows, drawn left to right or top down. A group draws as a
-labelled frame around its nodes. A graph fits inside a card and inside a table
+labelled frame around its nodes. All groups share 1 canvas: each group is a lane, and each dependency
+step is a column (`right`) or a row (`down`), so a box stands 1 step after the box it waits for, in every
+group. Use it when arrows join groups (SKILL.md, "Arrows between groups"). A graph fits inside a card and inside a table
 cell. A node with `you` has a YOU badge at its top right and an edge in the YOU
 colour, the same strong colour on the whole page. A node with a `tip` shows the
 pointer for help and shows its text on hover.
