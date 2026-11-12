@@ -671,7 +671,9 @@ def prove_attach(command: Mapping, name: str, env: Mapping[str, str], session=Mc
     try:
         broken, content = server.call("list_pages", {})
     except DriverError as exc:
-        return {**failed, "why": str(exc)[:300]}
+        hint = (f"; the browser can wait for you to allow the connection in the {name} window: allow it, then run this "
+                "step again") if str(exc).startswith("no answer") else ""
+        return {**failed, "why": str(exc)[:300] + hint}
     finally:
         server.close()
     if broken:

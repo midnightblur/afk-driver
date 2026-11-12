@@ -352,6 +352,25 @@ def test_a_failed_attach_names_the_server_answer(driver_env, places, repo, drive
     assert tools.ATTACH_ENTRY not in json.loads(places.claude_user_config.read_text(encoding="utf-8"))["mcpServers"]
 
 
+def test_attach_with_no_answer_names_the_permission_prompt_of_the_browser(
+        driver_env, places, repo, driver_system, capsys, tmp_path, debug_port, monkeypatch):
+    _harness_files(places)
+
+    real = FakeSession.call
+
+    def hang(self, tool, arguments):
+        if tool == "list_pages":
+            raise tools.DriverError("no answer to tools/call in 90 s")
+        return real(self, tool, arguments)
+
+    monkeypatch.setattr(FakeSession, "call", hang)
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", debug_port)
+    code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
+    attach = answer["attach"]
+    assert attach["ok"] is False and "no answer" in attach["why"]
+    assert "allow the connection in the edge window" in attach["why"]
+
+
 def test_attach_with_a_port_file_of_a_closed_debug_session_says_remote_debugging_is_off(
         driver_env, places, repo, driver_system, capsys, tmp_path):
     _harness_files(places)
