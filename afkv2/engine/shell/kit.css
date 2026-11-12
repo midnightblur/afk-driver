@@ -218,7 +218,13 @@ a { color: var(--accent); }
 
 /* --- what changed this round: the round mark at the edge of each changed element -- */
 
-[data-afkv2-fresh] { box-shadow: -6px 0 0 0 var(--open); }
+/* A card or a section shows the mark after its title (afkv2-changed); any other changed element keeps the edge. */
+[data-afkv2-fresh]:not(.afkv2-card):not(.afkv2-v2-section) { box-shadow: -6px 0 0 0 var(--open); }
+.afkv2-changed {
+  display: inline-block; padding: 0 .45rem; border: 1px solid var(--open); border-radius: 999px;
+  font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--open);
+}
+.afkv2-changed::before { content: "B2  "; }
 
 /* --- back after a jump: the rail holds the button; without a rail it floats at the top left --- */
 

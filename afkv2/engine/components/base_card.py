@@ -5,6 +5,7 @@ The page passes the card's notes and replies (`exchange`) and its earlier cards 
 `label`, given on a version 2 page, is the visible name of the card. Its presence switches the heading: with a
 label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
 card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
+`mark`, given by the page, is HTML that shows right after the title: the changed-this-round mark (PRD AC-047).
 """
 
 import re
@@ -93,15 +94,16 @@ def render_card(props, children):
     item_id = escape(item["id"])
     quiet = item["kind"] == "info" and state == "open"
     state_word = "" if quiet else f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
+    mark = props.get("mark", "")
     if "label" in props:
-        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(props["label"])}</span> '
+        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(props["label"])}</span>{mark} '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word}</h4>')
     elif item.get("title"):
-        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(item["title"])}</span> '
+        heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(item["title"])}</span>{mark} '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word} '
                    f'<span class="afkv2-card-id">{item_id}</span></h4>')
     else:
-        heading = f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id} {state_word}</h4>'
+        heading = f'<h4 class="afkv2-h">{chip}{KIND_WORDS[item["kind"]]}: {item_id}{mark} {state_word}</h4>'
     rail = props.get("rail") or RAIL_STATES.get(state, "open")
     return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="{item_id}" '
             f'data-afkv2-item="{item_id}" data-afkv2-element="{item_id}" '
@@ -116,7 +118,7 @@ register_component("card", {
     "properties": {"item": {"type": "object", "required": ["id", "kind", "body"]},
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
                    "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
-                   "rail": {"enum": ["open", "blocked", "settled"]},
+                   "rail": {"enum": ["open", "blocked", "settled"]}, "mark": {"type": "string"},
                    "label": {"description": "Present: the version 2 heading (module docstring).", "type": "string",
                              "minLength": 1}},
 }, render_card)
