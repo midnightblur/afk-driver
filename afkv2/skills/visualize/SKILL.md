@@ -99,7 +99,32 @@ Every component also takes `fold`, a label: the page shows the component closed
 under that label, and the human opens it.
 Give a folded component an `id`: only then does an open fold stay open through a reload.
 Give each item a `title` (at most 90 characters): the card heading shows it.
+The card body starts with that heading, so do not repeat the title as the first text of the body.
 One document that uses every component: `examples/all-components.json`.
+
+## Pictures
+
+Show information as pictures wherever a picture helps the human understand or
+decide: a flow, how a bug happens, now against proposed, options side by side.
+You pick the form and the count. A forms table of a page skill holds
+suggestions. A skill can set a floor of its own, such as 1 picture per design
+section.
+
+## Pictures in an artifact
+
+When you write an artifact from a page (PRD, SDD, ADR, `VERIFICATION.md`), carry
+each page picture that helps its reader. A picture to carry is a diagram text:
+the engine draws it as the same picture in the artifact. For each one, write its
+Mermaid text to a scratch file and run, from the repository root (`<python>`: the
+Python in the setup install record):
+
+```
+<python> "<this skill's folder>/../../engine/engine.py" export "<text file>" --dest "<spec folder>/pictures/<diagram id>.svg" --artifact "<artifact>"
+```
+
+Paste the `markdown` of the answer into the artifact where the picture goes: the
+picture, with its Mermaid source in a fold below it. `no-picture` names why the
+picture failed: fix the text, or have the setup skill install a missing renderer.
 
 ## Picture before a critical-aspect question
 
