@@ -565,11 +565,12 @@ class World:
     def __init__(self, root, prd=True, sdd=True, config=True, verification=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
-        for skill in ("to-subtasks", "propose-solution", "grill-requirements", "to-prd", "use-lavish"):
+        for skill in ("to-subtasks", "propose-solution", "propose-verification", "grill-requirements", "to-prd", "use-lavish", "autopilot"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
-        for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
+        shutil.copytree(PLUGIN / "ports", self.plugin / "ports", ignore=shutil.ignore_patterns("__pycache__"))
+        for source, target in ((FAKES / "fake_engine.py", "engine/engine.py"), (PLUGIN / "scripts" / "afkv2_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(FAKES / fake, self.plugin / target)
+            shutil.copy(source, self.plugin / target)
         new_repo(self.repo)
         if config:
             (self.repo / ".afkv2").mkdir()
@@ -1368,3 +1369,157 @@ def test_a_verification_table_with_no_tier_or_check_column_is_a_bad_contract(tmp
     replace_in(plan / "0001-a.md", "| Tier | Check (command or method) |", "| Level | Command |")
     assert any("Tier" in reason for reason in module.contract_failures(module.read_contract(plan, "0001-a")))
     assert "bad-contract" in codes_of(cp.check_plan(plan))
+
+
+# Rules 2: the plan rows of VERIFICATION.md and the Plan row column of the contracts (SDD §3 row "S-2"; design ADR-0002).
+
+RULES_2 = "> Rules: 2\n> App: http://localhost:8080"
+OLD_TABLE = f"| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|\n{STATIC_ROW}"
+API_CHECK = "`curl http://localhost/health`"
+
+
+def rules_2_contract(subtask, rows, **kwargs):
+    """A contract whose Verification table has the Plan row column; each row is (tier, plan row, check)."""
+    table = "\n".join(["| Tier | Plan row | Check | Proves |", "|------|----------|-------|--------|",
+                       *[f"| {tier} | {plan_row} | {cell} | it holds |" for tier, plan_row, cell in rows]])
+    return contract(subtask, **kwargs).replace(OLD_TABLE, table)
+
+
+def rules_2_plan(**changes):
+    plan = {"0001-a": rules_2_contract("0001-a", [("static", "—", "`git --version`"), ("unit", "VR-001", "`python -m pytest t -q`")]),
+            "0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`"), ("api", "VR-002", API_CHECK)], blocked=["0001-a"])}
+    return {**plan, **changes}
+
+
+def rules_2_check(tmp_path, contracts=None, rows=WORLD_ROWS, internal=(), criteria=("AC-001 It works.",), header=RULES_2, verification=True):
+    """The plan check in a repository whose spec folder holds the PRD and VERIFICATION.md."""
+    repo = new_repo(tmp_path / "repo")
+    spec = repo / "specs" / "PROJ-1"
+    spec.mkdir(parents=True)
+    (spec / "PRD.md").write_text("# PRD\n\n## Acceptance Criteria\n\n" + "".join(f"- [ ] {item}\n" for item in criteria), "utf-8")
+    if verification:
+        (spec / "VERIFICATION.md").write_text(verification_md(rows, internal), "utf-8")
+    return cp.check_plan(write_plan(repo / "plan", rules_2_plan() if contracts is None else contracts, header))
+
+
+def test_a_clean_rules_2_plan_passes(tmp_path):
+    answer = rules_2_check(tmp_path)
+    assert answer["ok"], failures_of(answer)
+
+
+def test_a_plan_row_that_is_not_in_verification_is_unknown(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001, VR-009", "`python -m pytest t -q`")])})
+    failures = failures_of(rules_2_check(tmp_path, plan))
+    assert [(item["code"], item["where"]) for item in failures] == [("row-unknown", "0001-a.md ## Verification")]
+    assert "VR-009" in failures[0]["reason"]
+
+
+def test_a_low_row_no_contract_names_is_unowned(tmp_path):
+    answer = rules_2_check(tmp_path, rows=(*WORLD_ROWS, ("VR-003", "AC-001", "integration", "active")))
+    assert codes_of(answer) == ["row-unowned"] and "VR-003" in failures_of(answer)[0]["reason"]
+
+
+def test_a_retired_row_needs_no_owner(tmp_path):
+    assert rules_2_check(tmp_path, rows=(*WORLD_ROWS, ("VR-003", "AC-001", "integration", "retired: merged into VR-001")))["ok"]
+
+
+def test_a_row_two_contracts_name_has_two_owners(tmp_path):
+    plan = rules_2_plan(**{"0003-c": rules_2_contract("0003-c", [("unit", "VR-001", "`python -m pytest t -q`")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["row-two-owners"] and "0001-a" in failures_of(answer)[0]["reason"]
+
+
+def test_a_high_row_no_contract_names_has_no_test_subtask(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`")], blocked=["0001-a"])})
+    assert codes_of(rules_2_check(tmp_path, plan)) == ["row-no-test-subtask"]
+
+
+def test_a_high_row_beside_low_rows_has_no_test_subtask_of_its_own(tmp_path):
+    plan = {"0001-a": rules_2_contract("0001-a", [("unit", "VR-001", "`python -m pytest t -q`"), ("api", "VR-002", API_CHECK)])}
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["row-no-test-subtask"] and "0001-a" in failures_of(answer)[0]["reason"]
+
+
+def test_a_user_visible_criterion_with_no_high_row_is_refused(tmp_path):
+    rows = (*WORLD_ROWS, ("VR-003", "AC-002", "unit", "active"))
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001, VR-003", "`python -m pytest t -q`")])})
+    answer = rules_2_check(tmp_path, plan, rows=rows, criteria=("AC-001 It works.", "AC-002 It stores."))
+    assert codes_of(answer) == ["ac-no-high-row"] and "AC-002" in failures_of(answer)[0]["reason"]
+    assert rules_2_check(tmp_path / "internal", plan, rows=rows, internal=["AC-002"], criteria=("AC-001 It works.", "AC-002 It stores."))["ok"]
+
+
+def test_a_live_row_on_a_retired_criterion_is_refused(tmp_path):
+    rows = (("VR-001", "AC-001, AC-002", "unit", "active"), WORLD_ROWS[1])
+    answer = rules_2_check(tmp_path, rows=rows, criteria=("AC-001 It works.", "AC-002 retired: merged into AC-001"))
+    assert codes_of(answer) == ["row-on-retired-ac"] and "AC-002" in failures_of(answer)[0]["reason"]
+
+
+def test_a_rules_2_contract_with_no_plan_row_column_is_refused(tmp_path):
+    plan = rules_2_plan(**{"0001-a": contract("0001-a", rows="| unit | `python -m pytest t -q` | VR-001 holds |")})
+    answer = rules_2_check(tmp_path, plan)
+    assert "contract-row-missing" in codes_of(answer)
+    assert [item["where"] for item in failures_of(answer) if item["code"] == "contract-row-missing"] == ["0001-a.md ## Verification"]
+
+
+def test_a_test_row_that_names_no_plan_row_is_refused(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001", "`python -m pytest t -q`"), ("unit", "—", "`python -m pytest u -q`")])})
+    assert codes_of(rules_2_check(tmp_path, plan)) == ["contract-row-missing"]
+
+
+def test_a_contract_tier_below_the_row_level_needs_the_developers_mark(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("unit", "VR-002", "`python -m pytest e -q`")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["lower-level-unmarked"] and "VR-002" in failures_of(answer)[0]["reason"]
+
+
+def test_a_lower_row_the_developer_accepted_passes_at_its_lower_level(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("unit", "VR-002", "`python -m pytest e -q`")], blocked=["0001-a"])})
+    rows = (WORLD_ROWS[0], ("VR-002", "AC-001", "unit", "lower: api to unit · card-7"))
+    answer = rules_2_check(tmp_path, plan, rows=rows)
+    assert answer["ok"], failures_of(answer)
+
+
+def test_a_rules_2_plan_with_no_verification_file_names_its_writer(tmp_path):
+    failures = failures_of(rules_2_check(tmp_path, verification=False))
+    assert [item["code"] for item in failures] == ["missing-input"] and "/afkv2:propose-verification" in failures[0]["reason"]
+
+
+def test_a_bad_rules_line_is_refused(tmp_path):
+    assert "bad-rules" in codes_of(rules_2_check(tmp_path, header="> Rules: 3\n> App: http://localhost:8080"))
+
+
+def test_a_plan_with_no_rules_line_keeps_todays_checks(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-009", "`python -m pytest t -q`")])})
+    assert rules_2_check(tmp_path, plan, header="> App: http://localhost:8080", verification=False)["ok"]
+
+
+def as_rules_2(path, plan_rows):
+    """Give a fixture contract the Plan row column; `plan_rows` maps each tier to its cell, and a tier it leaves out goes."""
+    lines = []
+    for line in path.read_text("utf-8").splitlines():
+        cells = cp.split_cells(line) if line.startswith("|") and "## Verification" not in line else None
+        if cells and cells[0] == "Tier":
+            line = "| Tier | Plan row | Check | Proves |"
+        elif cells and cp.SEPARATOR.fullmatch(cells[0]):
+            line = "|---|---|---|---|"
+        elif cells and len(cells) == 3 and cells[0] in ("static", "unit", "integration", "api"):
+            if cells[0] not in plan_rows:
+                continue
+            line = f"| {cells[0]} | {plan_rows[cells[0]]} | {cells[1]} | {cells[2]} |"
+        lines.append(line)
+    path.write_text("\n".join(lines) + "\n", "utf-8")
+
+
+def test_on_the_run_branch_a_rules_2_plan_reads_verification_from_the_feature_branch(world):
+    (world.spec / "VERIFICATION.md").write_text(verification_md((("VR-001", "AC-001", "unit", "active"), ("VR-002", "AC-001", "unit", "active")),
+                                                                internal=["AC-001"]), "utf-8")
+    commit_all(world.repo, "the verification plan")
+    started = world.start()
+    plan = world.cut(started)
+    replace_in(plan / "PLAN.md", "> App: none", "> App: none\n> Rules: 2")
+    as_rules_2(plan / "0001-export-rows.md", {"static": "—", "unit": "VR-001"})
+    as_rules_2(plan / "0002-export-endpoint.md", {"static": "—", "unit": "VR-002"})
+    answer = world.run("check", plan=started["plan"])
+    assert answer["ok"] and answer["base"] == f"refs/heads/{FEATURE}", answer
+    replace_in(plan / "0002-export-endpoint.md", "| unit | VR-002 |", "| unit | VR-009 |")
+    assert {"row-unknown", "row-unowned"} <= {item["code"] for item in world.run("check", expect=1, plan=started["plan"])["error"]["failures"]}
