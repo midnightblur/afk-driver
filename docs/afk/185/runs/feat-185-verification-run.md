@@ -67,3 +67,59 @@
 2026-11-12 00:44 | execute | 0013-page-pictures | reviewing — this subtask moves to reviewing
 2026-11-12 00:54 | execute | 0013-page-pictures | done — this subtask is finished and its work is on the Draft change
 2026-11-12 00:57 | autopilot | run | run end (6/13 done, 7 parked) — the walk of the plan has stopped
+2026-11-12 07:15 | developer | 0006-propose-verification | decision(D-23) — the run chose: A, by the developer in session on 2026-11-12, who will also test the page and the 2 proposers by hand before the change goes Ready
+2026-11-12 07:15 | developer | run | unparked(D-23) — the developer accepted the headless e2e run of 0006; 0006 to 0011 go back to pending
+2026-11-12 07:15 | autopilot | 0006-propose-verification | developing — a fresh helper starts work on this subtask
+2026-11-12 07:23 | execute | 0006-propose-verification | done — this subtask is finished and its work is on the Draft change
+2026-11-12 07:24 | autopilot | 0007-plan-rules | developing — a fresh helper starts work on this subtask
+2026-11-12 07:24 | autopilot | 0007-plan-rules | complexity complex — the size class of this subtask, for later estimates
+2026-11-12 07:47 | execute | 0007-plan-rules | decision(D-24) — the run chose: option 1
+2026-11-12 07:47 | execute | 0007-plan-rules | decision(D-25) — the run chose: option 1
+2026-11-12 07:47 | execute | 0007-plan-rules | decision(D-26) — the run chose: option 1
+2026-11-12 07:47 | execute | 0007-plan-rules | decision(D-27) — the run chose: option 1
+2026-11-12 07:55 | execute | 0007-plan-rules | verifying — this subtask moves to verifying
+2026-11-12 07:59 | execute | 0007-plan-rules | reviewing — this subtask moves to reviewing
+2026-11-12 08:05 | autopilot | 0007-plan-rules | decision(D-28) — the run settled a question about the plan: May 0007-plan-rules edit afkv2/skills/to-prd/INDEX-FORMAT.md line 28 to rename VERIFICATION-PLAN.md to VERIFICATION.md?
+2026-11-12 08:12 | execute | 0007-plan-rules | done — this subtask is finished and its work is on the Draft change
+2026-11-12 08:12 | autopilot | 0008-execute-rows | developing — a fresh helper starts work on this subtask
+2026-11-12 08:12 | autopilot | 0008-execute-rows | complexity standard — the size class of this subtask, for later estimates
+2026-11-12 08:13 | autopilot | 0008-execute-rows | decision(D-29) — the run settled a question about the plan: Who fixes walk.py start(): it calls start_gate.gate_failures with no rules and no shared live proof (0007 review finding on PR 191)?
+2026-11-12 08:33 | execute | 0008-execute-rows | decision(D-30) — the run chose: A: green reverts every code file to the red head, runs the test, puts every file back, and refuses passes-on-parent naming VC-1 when it passes
+2026-11-12 08:33 | execute | 0008-execute-rows | decision(D-31) — the run chose: A; a no-test entry with no row, as old calls make, keeps the check off as before
+2026-11-12 08:33 | execute | 0008-execute-rows | decision(D-32) — the run chose: A
+2026-11-12 08:33 | execute | 0008-execute-rows | decision(D-33) — the run chose: A; the level of a row is the contract tier, not the level key of the cycle
+2026-11-12 08:33 | execute | 0008-execute-rows | verifying — this subtask moves to verifying
+2026-11-12 08:37 | execute | 0008-execute-rows | reviewing — this subtask moves to reviewing
+2026-11-12 08:53 | execute | 0008-execute-rows | done — this subtask is finished and its work is on the Draft change
+2026-11-12 08:54 | autopilot | 0009-end-gate | developing — a fresh helper starts work on this subtask
+2026-11-12 08:54 | autopilot | 0009-end-gate | complexity complex — the size class of this subtask, for later estimates
+2026-11-12 09:07 | execute | 0009-end-gate | decision(D-34) — the run chose: A
+2026-11-12 09:07 | execute | 0009-end-gate | decision(D-35) — the run chose: A
+2026-11-12 09:07 | execute | 0009-end-gate | decision(D-36) — the run chose: A
+2026-11-12 09:09 | execute | 0009-end-gate | verifying — this subtask moves to verifying
+2026-11-12 09:09 | execute | 0009-end-gate | reviewing — this subtask moves to reviewing
+2026-11-12 09:48 | execute | 0009-end-gate | done — this subtask is finished and its work is on the Draft change
+2026-11-12 09:48 | autopilot | 0010-ship-proof | developing — a fresh helper starts work on this subtask
+2026-11-12 09:48 | autopilot | 0010-ship-proof | complexity complex — the size class of this subtask, for later estimates
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-37) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-38) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-39) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-40) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-41) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | decision(D-42) — the run chose: A
+2026-11-12 10:27 | execute | 0010-ship-proof | verifying — this subtask moves to verifying
+2026-11-12 10:44 | execute | 0010-ship-proof | reviewing — this subtask moves to reviewing
+2026-11-12 10:48 | autopilot | 0011-small-lane | decision(D-43) — the run settled a question about the plan: Who removes the process starts that endpoint security blocks: the suspended start in afkv2/scripts/live_build.py and the hidden cmd.exe (shell=True) in end_gate.py and tdd_log.py?
+2026-11-12 10:48 | autopilot | 0011-small-lane | decision(D-44) — the run settled a question about the plan: 0011's e2e check needs the developer's go mark on the small-lane page, and a new Claude session in a herdr pane; no human is in this run.
+2026-11-12 11:13 | autopilot | 0010-ship-proof | decision(D-45) — the run settled a question about the plan: Add afkv2/skills/to-prd/SKILL.md and afkv2/skills/autopilot/SKILL.md to the Scope of 0010 for review findings f1 and f2?
+2026-11-12 11:22 | execute | 0010-ship-proof | done — this subtask is finished and its work is on the Draft change
+2026-11-12 11:23 | autopilot | 0011-small-lane | developing — a fresh helper starts work on this subtask
+2026-11-12 11:23 | autopilot | 0011-small-lane | complexity complex — the size class of this subtask, for later estimates
+2026-11-12 11:43 | execute | 0011-small-lane | decision(D-46) — the run chose: A
+2026-11-12 11:43 | execute | 0011-small-lane | decision(D-47) — the run chose: A
+2026-11-12 11:43 | execute | 0011-small-lane | decision(D-48) — the run chose: A
+2026-11-12 11:43 | execute | 0011-small-lane | decision(D-49) — the run chose: A
+2026-11-12 11:50 | execute | 0011-small-lane | verifying — this subtask moves to verifying
+2026-11-12 11:50 | execute | 0011-small-lane | reviewing — this subtask moves to reviewing
+2026-11-12 12:22 | execute | 0011-small-lane | done — this subtask is finished and its work is on the Draft change
+2026-11-12 12:22 | autopilot | run | run end (12/13 done, 1 parked) — the walk of the plan has stopped
