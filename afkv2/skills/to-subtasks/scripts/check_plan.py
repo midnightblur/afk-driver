@@ -75,6 +75,7 @@ WILDCARD = re.compile(r"[*?]")
 NEXT_IS_NO_PATH = {">", ">>", "2>", "-m"}
 NO_ID = {"none", "(none)", "-", "—"}
 TRACKER_HEADING = "## Progress tracker"
+TIER_COLUMN, PLAN_ROW_COLUMN, CHECK_COLUMN, PROVES_COLUMN = "Tier", "Plan row", "Check", "Proves"
 
 
 def failure(code, where, reason, **extra):
@@ -174,6 +175,21 @@ class Subtask:
         """The globs of `## Scope`, without a backtick or the words after the glob."""
         cut = (bullet.split(" #")[0].split(" — ")[0].strip().strip("`") for bullet in self.bullets("Scope"))
         return [glob for glob in cut if glob and not glob.startswith("#")]
+
+
+def verification_rows(subtask):
+    """Each `## Verification` row as {tier, plan_row, check, proves}, read by header name; None when the table has
+    no `Tier` or `Check` column. The check column is the one whose header starts with `Check`."""
+    table = table_rows(subtask.sections.get("Verification", ""))
+    names = table[0] if table else []
+    tier = names.index(TIER_COLUMN) if TIER_COLUMN in names else None
+    check = next((index for index, name in enumerate(names) if name.startswith(CHECK_COLUMN)), None)
+    if tier is None or check is None:
+        return None
+    columns = {"tier": tier, "check": check, "plan_row": names.index(PLAN_ROW_COLUMN) if PLAN_ROW_COLUMN in names else None,
+               "proves": names.index(PROVES_COLUMN) if PROVES_COLUMN in names else None}
+    return [{field: row[index] if index is not None and index < len(row) else None for field, index in columns.items()}
+            for row in table[1:] if len(row) > max(tier, check)]
 
 
 def contract_paths(plan):
@@ -375,6 +391,8 @@ def _section_failures(subtasks):
         failures += [failure("bad-contract", where, f"no section `## {name}`") for name in required if name not in subtask.sections]
         failures += [failure("bad-contract", where, f"section `## {name}` is not in the contract format")
                      for name in subtask.sections if name not in required + optional]
+        if "Verification" in subtask.sections and verification_rows(subtask) is None:
+            failures.append(failure("bad-contract", where, f"`## Verification` has no table with the columns `{TIER_COLUMN}` and `{CHECK_COLUMN}`"))
     return failures
 
 
@@ -528,10 +546,9 @@ def _gate_failures(subtasks, plan_text, base):
         if subtask.id in finished:
             continue
         owners = [glob for item in _chain_of(subtask, by_id) for glob in item.scope]
-        for row in table_rows(subtask.sections.get("Verification", ""))[1:]:
-            if len(row) >= 2:
-                tier = row[0].strip("` ").lower()
-                failures += _row_failures(f"{subtask.id} tier {tier}", tier, row[1], app, owners, base)
+        for row in verification_rows(subtask) or []:
+            tier = row["tier"].strip("` ").lower()
+            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base)
     return failures
 
 

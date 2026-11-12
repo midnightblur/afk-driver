@@ -361,8 +361,8 @@ def _without_division_line(plan):
 
 def _gates_of(subtask):
     tiers = []
-    for row in cp.table_rows(subtask.sections.get("Verification", ""))[1:]:
-        tiers.append(f"{row[0]} (not applicable)" if len(row) > 1 and cp.is_not_applicable(row[1]) else row[0])
+    for row in cp.verification_rows(subtask) or []:
+        tiers.append(f"{row['tier']} (not applicable)" if cp.is_not_applicable(row["check"]) else row["tier"])
     return ", ".join(tiers)
 
 

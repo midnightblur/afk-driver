@@ -1311,3 +1311,42 @@ def test_the_division_document_passes_the_real_engine(world, tmp_path):
         done = subprocess.run([sys.executable, str(ENGINE), verb, started["doc"]], cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
                               env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
         assert done.returncode == 0, done.stdout + done.stderr
+
+
+# Rules 2 (design ADR-0003): the `> Rules: 2` header line selects the new rules; a plan with no line keeps today's.
+
+@pytest.mark.parametrize("header, rules", [("", 1), ("> Rules: 2", 2), ("> Rules: 1", 1), ("> Rules: two", None), ("> Rules: 3", None)])
+def test_rules_of_reads_the_rules_line_of_the_header(header, rules):
+    module = load_by_path(PLAN_CONTRACT)
+    assert module.rules_of(plan_text(["0001-a"], header)) == rules
+
+
+def test_a_rules_line_below_the_header_counts_for_nothing():
+    module = load_by_path(PLAN_CONTRACT)
+    assert module.rules_of(plan_text(["0001-a"]) + "\n> Rules: 2\n") == 1
+
+
+def test_plan_contract_reads_the_verification_table_by_header_name(tmp_path):
+    module = load_by_path(PLAN_CONTRACT)
+    rows = ("| Check | Proves | Plan row | Tier |\n|---|---|---|---|\n"
+            "| `git --version` | it runs | — | static |\n| `python -m pytest t -q` | it works | VR-001, VR-002 | unit |")
+    text = contract("0001-a").replace(f"| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|\n{STATIC_ROW}", rows)
+    (tmp_path / "0001-a.md").write_text(text, "utf-8")
+    read = module.read_contract(tmp_path, "0001-a")
+    assert [(row.tier, row.check, row.plan_row, row.proves) for row in read.rows] == [
+        ("static", "`git --version`", "—", "it runs"), ("unit", "`python -m pytest t -q`", "VR-001, VR-002", "it works")]
+    assert module.contract_failures(read) == []
+
+
+def test_plan_contract_reads_an_old_table_with_no_plan_row(tmp_path):
+    module = load_by_path(PLAN_CONTRACT)
+    (tmp_path / "0001-a.md").write_text(contract("0001-a"), "utf-8")
+    assert [(row.tier, row.check, row.plan_row) for row in module.read_contract(tmp_path, "0001-a").rows] == [("static", "`git --version`", None)]
+
+
+def test_a_verification_table_with_no_tier_or_check_column_is_a_bad_contract(tmp_path, clean):
+    module = load_by_path(PLAN_CONTRACT)
+    plan = write_plan(tmp_path / "plan", clean)
+    replace_in(plan / "0001-a.md", "| Tier | Check (command or method) |", "| Level | Command |")
+    assert any("Tier" in reason for reason in module.contract_failures(module.read_contract(plan, "0001-a")))
+    assert "bad-contract" in codes_of(cp.check_plan(plan))
