@@ -1258,6 +1258,35 @@ def test_each_gate_failure_refuses_ready_before_ci_and_posts_nothing(gated, repo
     assert gated["tracker"].calls == []
 
 
+def _small_gate(gated, repo, early_code):
+    """Turn the gate record into a small-lane record whose go follows a code commit when `early_code` is true."""
+    sys.path.insert(0, str(AFKV2 / "skills" / "small-change" / "scripts"))
+    import small_lane
+
+    small_lane.start({"repo": str(repo), "kind": "enhancement", "why": "1 file"})
+    lane = small_lane.read_lane(repo)
+    go_head = commit(repo, "early.py" if early_code else "test_early.py", "x = 1\n")
+    lane["go"] = {"card": "c-go", "head": go_head, "at": "2026-11-12T00:00:00+00:00"}
+    small_lane._save_lane(repo, lane)
+    gated["forge"].answers["change-view"] = {**VIEW, "head_sha": go_head}
+    _rewrite(gated["gate"], lambda data: data.update(lane="small", go=lane["go"]))
+
+
+def test_a_small_lane_go_after_a_code_commit_refuses_ready_code_before_go(gated, repo, capsys):
+    receipt = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    _small_gate(gated, repo, early_code=True)
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), ticket="ABC-12", receipt=receipt)
+    assert error["code"] == "code-before-go" and "early.py" in error["reason"]
+    assert "change-ready" not in gated["forge"].verbs() and gated["tracker"].calls == []
+
+
+def test_a_small_lane_go_after_only_a_test_commit_passes_the_go_check(gated, repo, capsys):
+    receipt = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    _small_gate(gated, repo, early_code=False)
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), ticket="ABC-12", receipt=receipt)
+    assert "code-before-go" not in [failure["code"] for failure in error["failures"]]
+
+
 @pytest.mark.parametrize("receipt", [None, "0" * 64])
 def test_ready_without_the_ship_mark_on_this_exact_comment_refuses_proof_not_posted(gated, capsys, receipt):
     payload = {"receipt": receipt} if receipt else {}

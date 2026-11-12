@@ -77,7 +77,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    | `live` | Do |
    |--------|----|
    | `block` true | run `live-check`. Green and `proven_here` true: done. Green and `proven_here` false: run `live-prove` with no `--live`. Red: 1 card with the refusal, and the fix you propose. |
-   | `block` false | propose `start`, `address`, `ready_seconds`, `stop` and `needs` (variable names only) from the code reading, on 1 card. After the developer settles it, run `live-prove` with that block. |
+   | `block` false | propose `start`, `address`, `ready_seconds`, `stop` and `needs` (variable names only) from the code reading, on 1 card. Write `start` and `stop` in POSIX shell syntax: they run in `/bin/sh`, and in Git Bash on Windows. After the developer settles it, run `live-prove` with that block. |
    | the build has no live app | 1 `confirm` card that says so and why. Only the developer's `accept` mark settles it; the plan then holds `app: {"none": "<card id>"}`. |
 
    ```sh step=live-check

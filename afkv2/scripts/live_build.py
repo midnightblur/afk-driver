@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import date
@@ -29,7 +30,7 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from afkv2_config import DATA_FOLDER_NAME, Refusal, exit_code, live_block, read_config  # noqa: E402
+from afkv2_config import Refusal, exit_code, live_block, read_config  # noqa: E402
 
 POLL_SECONDS = 0.25
 PROBE_SECONDS = 2
@@ -37,8 +38,8 @@ STOP_SECONDS = 15
 GIT_SECONDS = 60
 OUTPUT_TAIL = 800
 SYSTEM_SHELL = "/bin/sh"
-BASH_KEY = "bash"  # the line of the setup install record that names Git Bash
 NOT_GIT_BASH = ("system32", "windowsapps")  # folders of the WSL launcher
+LOOPBACK = ("localhost", "127.0.0.1", "::1", "0.0.0.0")  # hosts whose listener this machine may stop
 
 
 @dataclass
@@ -106,17 +107,23 @@ def start_live(repo_root, live: dict | None = None) -> LiveHandle:
 
 def stop_live(handle: LiveHandle) -> None:
     """Stop what `start_live` began: the `stop` command, else the process tree. Any process left is then killed.
-    A stop command is proven on its own: the address must stop answering before the process tree is killed."""
+    A stop command is proven on its own: the address must stop answering before the process tree is killed.
+    A server outside the process tree, such as one the start detached, is stopped by the port it listens on."""
+    address = handle.live["address"]
     try:
         failure = _run_stop(handle) if handle.live["stop"] else None
         if not handle.live["stop"]:
             _kill(handle.spawned)
+            if not _gone(handle):
+                _stop_listener(address)
         if failure is None and not _gone(handle):
-            failure = f"{handle.live['address']} still answers after the stop"
+            failure = f"{address} still answers after the stop"
         if failure:
             raise Refusal("live-stop-failed", failure)
     finally:
         _kill(handle.spawned)
+        if _answers(address):
+            _stop_listener(address)
         handle.output.close()
 
 
@@ -199,16 +206,12 @@ def _gone(handle: LiveHandle) -> bool:
 
 def named_shell(platform: str | None = None, environ=None) -> str:
     """The one shell that runs a command string of a contract or of the repository config: /bin/sh off Windows;
-    on Windows Git Bash: the `bash` line of the setup install record, a bash on the PATH that is not the WSL
-    launcher, the bin folder of the Git install of a git on the PATH, then Program Files. Never a hidden cmd.exe:
+    on Windows Git Bash: a bash on the PATH that is not the WSL launcher, the bin folder of the Git install of a git on the PATH, then Program Files. Never a hidden cmd.exe:
     endpoint security kills it. Raises `Refusal` `no-shell`."""
     platform = sys.platform if platform is None else platform
     environ = os.environ if environ is None else environ
     if platform != "win32":
         return SYSTEM_SHELL
-    recorded = _recorded_bash(environ)
-    if recorded:
-        return recorded
     folders = [Path(folder.strip('"')) for folder in environ.get("PATH", "").split(";") if folder.strip('"')]
     for folder in folders:
         candidate = folder / "bash.exe"
@@ -221,8 +224,8 @@ def named_shell(platform: str | None = None, environ=None) -> str:
         candidate = install / "bin" / "bash.exe"
         if candidate.is_file():
             return str(candidate)
-    raise Refusal("no-shell", "no Git Bash: not in the install record, on the PATH, next to git on the PATH or "
-                  "in Program Files; install Git for Windows")
+    raise Refusal("no-shell", "no Git Bash: not on the PATH, next to git on the PATH or in Program Files; "
+                  "install Git for Windows")
 
 
 def shell_argv(command: str) -> list[str]:
@@ -237,18 +240,6 @@ NO_PATH_CONVERSION = {"MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*"}
 def shell_env(extra: dict | None = None) -> dict:
     """The environment of a start through `shell_argv`: each argument reaches the program as the command states it."""
     return {**os.environ, **NO_PATH_CONVERSION, **(extra or {})}
-
-
-def _recorded_bash(environ) -> str | None:
-    base = environ.get("LOCALAPPDATA")
-    if not base:
-        return None
-    try:
-        lines = (Path(base) / DATA_FOLDER_NAME / "install.txt").read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return None
-    path = dict(line.partition(" ")[::2] for line in lines).get(BASH_KEY, "").strip()
-    return path if path and Path(path).is_file() else None
 
 
 def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
@@ -305,6 +296,53 @@ def _walk_kill(process: subprocess.Popen) -> None:
         pass
     if process.poll() is None:
         process.kill()
+
+
+def _stop_listener(address: str) -> None:
+    """Stop each process that listens on the port of a loopback address. `start_live` refused an address that
+    answered before the start, so the listener is the build's own. A remote host is never touched."""
+    parts = urllib.parse.urlsplit(address)
+    if (parts.hostname or "").lower() not in LOOPBACK:
+        return
+    port = parts.port or (443 if parts.scheme == "https" else 80)
+    for pid in _listener_pids(port):
+        if sys.platform == "win32":
+            _run_quiet(["taskkill", "/T", "/F", "/PID", str(pid)])
+        else:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+
+def _listener_pids(port: int) -> list[int]:
+    """The processes that listen on `port`: netstat on Windows, lsof elsewhere; none when the tool cannot run."""
+    if sys.platform == "win32":
+        return netstat_listeners(_run_quiet(["netstat", "-ano", "-p", "TCP"]) + _run_quiet(["netstat", "-ano", "-p", "TCPv6"]), port)
+    return sorted({int(word) for word in _run_quiet(["lsof", "-nP", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"]).split()
+                   if word.isdigit() and int(word) != os.getpid()})
+
+
+def netstat_listeners(text: str, port: int) -> list[int]:
+    """The process ids of `netstat -ano` lines that listen on `port`. A listening line has the foreign port 0;
+    the state word is not read, because Windows translates it."""
+    pids = set()
+    for line in text.splitlines():
+        words = line.split()
+        if len(words) < 5 or not words[0].upper().startswith("TCP") or not words[-1].isdigit():
+            continue
+        local, foreign, pid = words[1], words[2], int(words[-1])
+        if local.rpartition(":")[2] == str(port) and foreign.rpartition(":")[2] == "0" and pid not in (0, 4, os.getpid()):
+            pids.add(pid)
+    return sorted(pids)
+
+
+def _run_quiet(argv: list[str]) -> str:
+    try:
+        done = subprocess.run(argv, capture_output=True, stdin=subprocess.DEVNULL, timeout=STOP_SECONDS)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return done.stdout.decode("utf-8", "replace")
 
 
 _KILL_ON_JOB_CLOSE = 0x00002000
