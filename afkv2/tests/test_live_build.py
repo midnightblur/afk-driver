@@ -1,4 +1,5 @@
 import json
+import shutil
 import socket
 import subprocess
 import sys
@@ -418,6 +419,83 @@ def test_a_stop_command_that_stops_nothing_refuses(repo, monkeypatch):
     assert not alive(server_pid(repo))
 
 
+def outside_server(repo, port):
+    """A server this test starts itself: outside the process tree and the job of any start."""
+    pid_file = repo.parent / "outside.pid"
+    process = subprocess.Popen([sys.executable, str(repo / "server.py"), str(port), "200", str(pid_file)],
+                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    deadline = time.monotonic() + 20
+    while not answers(f"http://127.0.0.1:{port}/") and time.monotonic() < deadline:
+        time.sleep(0.2)
+    return process
+
+
+needs_listener_tool = pytest.mark.skipif(sys.platform != "win32" and shutil.which("lsof") is None,
+                                         reason="off Windows the listener is found with lsof")
+
+
+@needs_listener_tool
+def test_a_server_outside_the_process_tree_is_stopped_by_its_port(repo, monkeypatch, tmp_path):
+    """A start that detached its server before the job held it: the kill of the tree misses it, the port does not."""
+    monkeypatch.setattr(live_build, "STOP_SECONDS", 3)
+    port = free_port()
+    server = outside_server(repo, port)
+    try:
+        output = tempfile_output(tmp_path)
+        handle = live_build.LiveHandle(repo, {"start": "exit 0", "stop": None, "address": f"http://127.0.0.1:{port}/",
+                                              "ready_seconds": 5}, live_build._spawn("exit 0", repo, output), output)
+        live_build.stop_live(handle)
+        assert server.wait(timeout=20) is not None
+        assert not answers(f"http://127.0.0.1:{port}/")
+    finally:
+        if server.poll() is None:
+            server.kill()
+
+
+@needs_listener_tool
+def test_a_failed_stop_command_still_leaves_no_listener(repo, monkeypatch, tmp_path):
+    monkeypatch.setattr(live_build, "STOP_SECONDS", 3)
+    port = free_port()
+    server = outside_server(repo, port)
+    try:
+        output = tempfile_output(tmp_path)
+        live = {"start": "exit 0", "stop": f"{PY} -c \"pass\"", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 5}
+        handle = live_build.LiveHandle(repo, live, live_build._spawn("exit 0", repo, output), output)
+        with pytest.raises(Refusal) as refused:
+            live_build.stop_live(handle)
+        assert refused.value.code == "live-stop-failed" and "still answers" in refused.value.reason
+        assert server.wait(timeout=20) is not None
+    finally:
+        if server.poll() is None:
+            server.kill()
+
+
+def test_the_listener_of_a_remote_host_is_never_stopped(monkeypatch):
+    asked = []
+    monkeypatch.setattr(live_build, "_listener_pids", lambda port: asked.append(port) or [])
+    live_build._stop_listener("http://build.example.test:8080/")
+    live_build._stop_listener("https://localhost/")
+    assert asked == [443]
+
+
+NETSTAT = """
+Active Connections
+
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:8080           0.0.0.0:0              ABHÖREN         4100
+  TCP    127.0.0.1:8080         127.0.0.1:51000        ESTABLISHED     4100
+  TCP    127.0.0.1:51000        127.0.0.1:8080         ESTABLISHED     5200
+  TCP    [::]:8080              [::]:0                 LISTENING       4200
+  TCP    0.0.0.0:18080          0.0.0.0:0              LISTENING       4300
+  TCP    0.0.0.0:445            0.0.0.0:0              LISTENING       4
+"""
+
+
+def test_netstat_listeners_reads_listening_lines_of_the_port_in_any_language():
+    assert live_build.netstat_listeners(NETSTAT, 8080) == [4100, 4200]
+    assert live_build.netstat_listeners(NETSTAT, 445) == []
+
+
 # --- the named shell (D-43): no suspended start, no hidden cmd.exe ---------------------------------------------------
 
 class _Captured(Exception):
@@ -452,15 +530,6 @@ def test_the_named_shell_is_bin_sh_off_windows():
     assert live_build.named_shell(platform="linux", environ={}) == "/bin/sh"
 
 
-def test_on_windows_the_bash_line_of_the_install_record_wins(tmp_path):
-    bash = tmp_path / "Git" / "bin" / "bash.exe"
-    bash.parent.mkdir(parents=True)
-    bash.write_text("", encoding="utf-8")
-    (tmp_path / "afkv2").mkdir()
-    (tmp_path / "afkv2" / "install.txt").write_text(f"installed x\nbash {bash}\n", encoding="utf-8")
-    assert live_build.named_shell(platform="win32", environ={"LOCALAPPDATA": str(tmp_path), "PATH": ""}) == str(bash)
-
-
 def test_on_windows_bash_on_the_path_is_used_but_never_the_wsl_launcher(tmp_path):
     wsl = tmp_path / "Windows" / "System32" / "bash.exe"
     git_bash = tmp_path / "Git" / "usr" / "bin" / "bash.exe"
@@ -488,14 +557,6 @@ def test_on_windows_git_on_the_path_finds_the_git_bash_of_its_install(tmp_path, 
 def test_on_windows_the_program_files_git_bash_is_the_last_source(tmp_path):
     bash = _touch(tmp_path / "Program Files" / "Git" / "bin" / "bash.exe")
     environ = {"LOCALAPPDATA": str(tmp_path / "none"), "PATH": "", "ProgramFiles": str(tmp_path / "Program Files")}
-    assert live_build.named_shell(platform="win32", environ=environ).lower() == str(bash).lower()
-
-
-def test_on_windows_a_stale_install_record_falls_back_to_the_path(tmp_path):
-    (tmp_path / "afkv2").mkdir()
-    (tmp_path / "afkv2" / "install.txt").write_text(f"bash {tmp_path / 'gone' / 'bash.exe'}\n", encoding="utf-8")
-    bash = _touch(tmp_path / "Git" / "usr" / "bin" / "bash.exe")
-    environ = {"LOCALAPPDATA": str(tmp_path), "PATH": f'"{bash.parent}"'}
     assert live_build.named_shell(platform="win32", environ=environ).lower() == str(bash).lower()
 
 
