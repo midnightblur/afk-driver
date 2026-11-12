@@ -137,3 +137,36 @@ def test_a_chip_never_fades_out_of_sight():
     doc["notes"] = []
     found = chip_strengths(build(doc))
     assert min(value for values in found.values() for value in values) >= 0.4
+
+
+# --- AC-046: each card body starts with its heading
+
+CARD_OPEN = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*>')
+CARD_BODY = '<div class="afkv2-card-body"><h4 class="afkv2-h">'
+
+
+def test_each_card_body_starts_with_its_heading():
+    for doc in (changed_document(), document()):
+        html = build(doc)
+        cards = CARD_OPEN.findall(html)
+        assert cards
+        for match in CARD_OPEN.finditer(html):
+            assert html[match.end():].startswith(CARD_BODY), match.group(1)
+
+
+def test_the_card_body_holds_the_content_and_not_the_mark_radios():
+    html = build(changed_document())
+    own = element(html, "i-closed")
+    answer = own.index('<div class="afkv2-answer">')
+    start = own.index(CARD_BODY)
+    assert start < own.index('<div class="afkv2-body">') < answer
+    before_answer = own[start:answer]
+    assert before_answer.count("<div") == before_answer.count("</div>"), "the card body closes before the radios"
+
+
+def test_the_page_scripts_and_styles_find_the_heading_inside_the_card_body():
+    shell = ENGINE_DIR / "shell"
+    for script in ("tips.js", "runtime.js"):
+        assert "afkv2-card-body" in (shell / script).read_text("utf-8"), script
+    for sheet in ("tips.css", "kit.css"):
+        assert ".afkv2-card-body" in (shell / sheet).read_text("utf-8"), sheet

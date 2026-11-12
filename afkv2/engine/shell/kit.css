@@ -109,7 +109,7 @@ a { color: var(--accent); }
   background: var(--surface-2);
   padding: .85rem 1rem;
 }
-.afkv2-card > .afkv2-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+.afkv2-card-body > .afkv2-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
                      letter-spacing: normal; text-transform: none; color: var(--fg); }
 .afkv2-card--decided { border-left-color: var(--accent); }
 .afkv2-card--debate { border-left-color: var(--open); }
@@ -119,8 +119,9 @@ a { color: var(--accent); }
 .afkv2-card[data-afkv2-state="blocked"] { border-left-color: var(--blocked); }
 
 /* The session rail collapses a card by adding this class; only the heading,
- * which is always the first child, stays visible. */
-.afkv2-card.afkv2-collapsed > *:not(.afkv2-h) { display: none; }
+ * which is always the first child of the card body, stays visible. */
+.afkv2-card.afkv2-collapsed > *:not(.afkv2-card-body),
+.afkv2-card.afkv2-collapsed > .afkv2-card-body > *:not(.afkv2-h) { display: none; }
 
 .afkv2-fields { margin: .5rem 0 0; }
 .afkv2-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;

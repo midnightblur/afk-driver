@@ -193,8 +193,13 @@
       var s = el.getAttribute('data-afkv2-state');
       return s === 'current' || s === 'settled' || s === 'blocked' ? s : 'open';
     }
-    function label(el) {
+    // The heading is the first child of an item; a card holds it first in its card body.
+    function head(el) {
       var h = el.firstElementChild;
+      return h && h.classList && h.classList.contains('afkv2-card-body') ? h.firstElementChild : h;
+    }
+    function label(el) {
+      var h = head(el);
       var raw = (h && h.textContent) || el.getAttribute('data-afkv2-item') || '';
       var t = raw.replace(/\s+/g, ' ').trim();
       return t.length > 64 ? t.slice(0, 61) + '…' : t;
@@ -202,7 +207,7 @@
     function setCollapsed(el, on) {
       if (st(el) === 'current') on = false;
       el.classList.toggle('afkv2-collapsed', on);
-      var h = el.firstElementChild;
+      var h = head(el);
       if (h && st(el) !== 'current') { h.classList.add('afkv2-caret'); h.classList.toggle('afkv2-open', !on); }
     }
     function applyDefaults() {
@@ -215,7 +220,7 @@
         el.setAttribute('data-afkv2-nav-done', '1');
         var expanded = Object.prototype.hasOwnProperty.call(store, id) ? !!store[id] : s !== 'settled';
         setCollapsed(el, !expanded);
-        var h = el.firstElementChild;
+        var h = head(el);
         if (h) {
           h.setAttribute('data-lavish-action', 'afkv2-collapse');
           h.addEventListener('click', function () {

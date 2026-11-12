@@ -6,6 +6,8 @@ The page passes the card's notes and replies (`exchange`) and its earlier cards 
 label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
 card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
 `age`, given by the page, is the count of rounds since the card's round: its chip fades with age (`fade`).
+The card body comes first and starts with the heading, then the settled line, the notes and replies and the
+content (PRD AC-046): a note on the card body shows what it noted. The mark radios and the history follow it.
 `mark`, given by the page, is HTML that shows right after the title: the changed-this-round mark (PRD AC-047).
 """
 
@@ -120,8 +122,8 @@ def render_card(props, children):
     return (f'<article class="afkv2-card afkv2-card--{item["kind"]}" id="{item_id}" '
             f'data-afkv2-item="{item_id}" data-afkv2-element="{item_id}" '
             f'data-afkv2-state="{rail}" data-afkv2-point="{state}"{required} '
-            f'style="--afkv2-round: {escape(props["colour"])}">{heading}{_settled_line(item)}'
-            f'{props.get("exchange", "")}<div class="afkv2-body">{"".join(children)}</div>{answer}'
+            f'style="--afkv2-round: {escape(props["colour"])}"><div class="afkv2-card-body">{heading}{_settled_line(item)}'
+            f'{props.get("exchange", "")}<div class="afkv2-body">{"".join(children)}</div></div>{answer}'
             f'{props.get("history", "")}</article>')
 
 

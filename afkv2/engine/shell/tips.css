@@ -44,7 +44,8 @@
   .afkv2-nav-row.afkv2-cur { background: rgba(59,130,246,.25); }
   .afkv2-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; margin-right: 5px; vertical-align: 1px; }
   .afkv2-collapsed > *:not(:first-child) { display: none !important; }
-  .afkv2-card.afkv2-collapsed > .afkv2-settled { display: block !important; margin-bottom: 0; }
+  .afkv2-card.afkv2-collapsed > .afkv2-card-body > *:not(:first-child) { display: none !important; }
+  .afkv2-card.afkv2-collapsed > .afkv2-card-body > .afkv2-settled { display: block !important; margin-bottom: 0; }
   .afkv2-caret { cursor: pointer; }
   .afkv2-caret::after { content: "▸"; margin-left: 6px; opacity: .55; }
   .afkv2-caret.afkv2-open::after { content: "▾"; }
