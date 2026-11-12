@@ -36,6 +36,21 @@ import design_files  # noqa: E402
 from to_subtasks_v1_facts import V1_HEADER_MARK  # noqa: E402
 
 STATIC_ROW = "| static | `git --version` | the tool runs |"
+HIGH_LEVELS = {"api", "ui-e2e", "acceptance"}
+WORLD_ROWS = (("VR-001", "AC-001", "unit", "active"), ("VR-002", "AC-001", "api", "active"))
+
+
+def verification_md(rows=WORLD_ROWS, internal=()):
+    """A VERIFICATION.md in the written format; each row is (id, criteria, level, status)."""
+    lines = ["# Verification plan — PROJ-1", "", "> Parent PRD: PRD.md", "> Parent SDD: SDD.md", "> App: config · proven at abc on 2026-01-05",
+             "> Last updated: 2026-01-05", "", "## Plan rows", "",
+             "| Id | Criteria | Story | Given | When | Then | Level | Tier | Data | Environment | Status |",
+             "|----|----------|-------|-------|------|------|-------|------|------|-------------|--------|"]
+    lines += [f"| {rid} | {criteria or '—'} | — | a state | an act | a result | {level} | {'high' if level in HIGH_LEVELS else 'low'} | — | — | {status} |"
+              for rid, criteria, level, status in rows]
+    lines += ["", "## Criteria with no user-visible outcome", "", "| Criterion | Why |", "|-----------|-----|",
+              *[f"| {criterion} | no screen shows it |" for criterion in internal], ""]
+    return "\n".join(lines)
 
 
 def contract(subtask, scope="src/**", rows=STATIC_ROW, produces=None, consumes=(), blocked=()):
@@ -547,7 +562,7 @@ def commit_all(path, message="work"):
 class World:
     """A plugin tree with the fakes, and a feature branch that holds the code and the spec folder."""
 
-    def __init__(self, root, prd=True, sdd=True, config=True):
+    def __init__(self, root, prd=True, sdd=True, config=True, verification=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
         for skill in ("to-subtasks", "propose-solution", "grill-requirements", "to-prd", "use-lavish"):
@@ -569,6 +584,8 @@ class World:
         if sdd:
             shutil.copy(SPEC_FIXTURES / "design" / "SDD.md", self.spec / "SDD.md")
             shutil.copytree(SPEC_FIXTURES / "design" / "adr", self.spec / "adr" / "design")
+        if verification:
+            (self.spec / "VERIFICATION.md").write_text(verification_md(), "utf-8")
         (self.repo / "README.md").write_text("A repository.\n", "utf-8")
         commit_all(self.repo, "the feature branch")
         self.env = {"FAKE_CALL_LOG": str(self.calls), "FAKE_POLL_RAW": str(self.raw)}
@@ -714,6 +731,7 @@ def test_start_needs_no_grill_log(world):
 @pytest.mark.parametrize("kwargs, name, writer", [
     ({"prd": False}, "PRD.md", "/afkv2:to-prd"),
     ({"sdd": False}, "SDD.md", "/afkv2:propose-solution"),
+    ({"verification": False}, "VERIFICATION.md", "/afkv2:propose-verification"),
 ])
 def test_a_missing_input_stops_and_names_its_writer(tmp_path, kwargs, name, writer):
     error = error_of(World(tmp_path, **kwargs).start(expect=1))
@@ -780,7 +798,7 @@ def test_the_slice_of_a_fixture_passes_the_check(world):
     assert world.run("citations", plan=started["plan"], spec_dir=world.spec)["contracts"] == 2
 
 
-@pytest.mark.parametrize("name", ["PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "adr/design/0001-a.md", "pages/round.json"])
+@pytest.mark.parametrize("name", ["PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "VERIFICATION.md", "adr/design/0001-a.md", "pages/round.json"])
 def test_commit_refuses_a_spec_folder_file_in_the_plan(world, name):
     started = world.start()
     plan = world.cut(started)
