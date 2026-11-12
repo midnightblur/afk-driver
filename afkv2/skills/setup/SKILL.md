@@ -32,7 +32,8 @@ you ask in this session; the Jira token never passes through you.
    browser and the step. Ask the developer once whether the agent should drive
    their own signed-in Chrome or Edge. On yes, tell them to allow remote debugging
    at `chrome://inspect/#remote-debugging` or `edge://inspect/#remote-debugging`,
-   then run `setup.py browser-driver --attach chrome|edge`. An `attach` with `ok`
+   then run `setup.py browser-driver --attach chrome|edge` with a command time limit of
+   at least 5 minutes: the attach waits up to 4 minutes for the browser. An `attach` with `ok`
    false: tell the developer its `why`, and offer its `offer` items.
    A new harness session reads the new entries.
    Then the judge model: for each provider whose CLI is on the path, run
