@@ -392,3 +392,25 @@ def test_a_version_2_page_of_each_new_writer_passes_the_engine_check(tmp_path, s
     assert stored["skill"] == skill
     if step:
         assert stored["step"] == step
+
+
+# --- the verification proposers (SDD §8 row "proposer engine"; design ADR-0008) ---------------------------------------
+
+def test_the_verification_proposers_run_the_engine_with_their_own_adapter(tmp_path):
+    from test_proposers import BASE, FakeRunner
+    import verification_proposers as vp
+    runner = FakeRunner(tmp_path)
+    pages = tmp_path / "repo" / "docs" / "pages"
+    pages.mkdir(parents=True)
+    doc = pages / "propose-verification-s-1.json"
+    brief = tmp_path / "brief.md"
+    brief.write_text("Draft the verification plan.", encoding="utf-8")
+    assert vp.VERBS == vp.engine.VERBS and vp.FAILURES == vp.engine.FAILURES
+    assert vp.main(["plan", "--doc", str(doc)], runner=runner)["count"] == 2
+    assert (pages / "propose-verification-s-1.proposers.json").is_file()
+    answer = vp.main(["start", "--doc", str(doc), "--brief", str(brief), "--base", BASE], runner=runner)
+    assert [Path(entry["worktree"]).name for entry in answer["proposers"]] == [
+        "verifier-propose-verification-s-1-claude", "verifier-propose-verification-s-1-codex"]
+    with pytest.raises(Refusal) as caught:
+        vp.main(["start", "--doc", str(doc), "--brief", str(brief), "--base", BASE], runner=runner)
+    assert caught.value.code == "same-tool" and "verification proposers" in caught.value.reason
