@@ -40,6 +40,7 @@ holds a copy of the contract headings.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -86,6 +87,8 @@ PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
 SKIP_WORDS = {"", "-", "—", "n/a", "na", "none", "skip", "skipped"}
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
+APP_CONFIG = "config"
+CONFIG_FILE = ".afkv2/config.json"
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 FILE_NAME = re.compile(r"[A-Za-z_][\w-]*\.[a-z][a-z0-9]{0,4}")
 NOT_A_PATH = re.compile(r"^[-/~]|^[A-Za-z]:|^origin/|://|[\"'<>{}$%=|&]")
@@ -530,6 +533,20 @@ def _app_of(plan_text):
     return None
 
 
+def _unproven_live(app, base):
+    """For `> App: config`, why the repository config on the base holds no proven live block; else None."""
+    if app != APP_CONFIG:
+        return None
+    try:
+        live = json.loads(base.read(CONFIG_FILE) or "{}").get("live")
+    except (ValueError, AttributeError):
+        live = None
+    if isinstance(live, dict) and live.get("proven_head"):
+        return None
+    return (f"the `{APP_MARK} {APP_CONFIG}` line needs a proven live block (`live` with `proven_head`) in {CONFIG_FILE} "
+            f"on {base.name or 'the repository'}")
+
+
 def _chain_of(subtask, by_id):
     """The subtask and every subtask it waits on, directly or through another one."""
     chain, todo = {}, [subtask.id]
@@ -556,6 +573,9 @@ def _row_failures(where, tier, cell, app, owners, base, rules=1):
     if tier in LIVE_TIERS and not app:
         failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                 next=f"{fix}, or name the app in the `{APP_MARK}` line"))
+    unproven = _unproven_live(app, base) if tier in LIVE_TIERS else None
+    if unproven:
+        failures.append(failure("gate-cannot-run", where, unproven, next="prove the live build with `/afkv2:propose-verification`"))
     failures += [failure("gate-cannot-run", where, f"the command `{program}` is not on the PATH", next=fix)
                  for program in dict.fromkeys(_programs(cell)) if not shutil.which(program)]
     failures += [failure("check-path-unowned", where, f"no Scope in the chain of this subtask owns `{path}`, and it is not in {base.name or 'the repository'}",

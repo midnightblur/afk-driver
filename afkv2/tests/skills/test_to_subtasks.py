@@ -1586,3 +1586,58 @@ def test_check_start_reads_the_rules_of_the_plan(tmp_path, monkeypatch):
         monkeypatch.setattr(gate, name, lambda *args: [])
     monkeypatch.setattr(gate, "worktree_failures", lambda *args: [])
     assert "live-not-applicable" in {item["code"] for item in gate.check_start(plan, code=tmp_path / "repo")["error"]["failures"]}
+
+
+# `> App: config` reads the proven live block of the repository config (SDD §14 row "PLAN-FORMAT.md:11").
+
+APP_CONFIG = "> Rules: 2\n> App: config"
+
+
+def free_port():
+    import socket
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+def with_config(repo, live):
+    (repo / ".afkv2").mkdir(exist_ok=True)
+    (repo / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs", "tracker": {"kind": "jira"},
+                                                             **({"live": live} if live else {})}), "utf-8")
+
+
+def test_an_app_line_of_config_with_a_proven_live_block_passes_the_check(tmp_path):
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    with_config(tmp_path / "repo", {"start": "serve", "address": "http://127.0.0.1:9", "proven_at": "2026-01-05", "proven_head": "a" * 40})
+    answer = cp.check_plan(tmp_path / "repo" / "plan")
+    assert answer["ok"], failures_of(answer)
+
+
+@pytest.mark.parametrize("live", [None, {"start": "serve", "address": "http://127.0.0.1:9"}])
+def test_an_app_line_of_config_with_no_proven_live_block_cannot_run_a_live_tier(tmp_path, live):
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    with_config(tmp_path / "repo", live)
+    failures = failures_of(cp.check_plan(tmp_path / "repo" / "plan"))
+    assert [(item["code"], item["where"]) for item in failures] == [("gate-cannot-run", "0002-b tier api")]
+    assert "live block" in failures[0]["reason"]
+
+
+def test_the_start_gate_proves_the_live_block_of_an_app_line_of_config(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    repo, port = tmp_path / "repo", free_port()
+    with_config(repo, {"start": f'"{sys.executable}" -m http.server {port} --bind 127.0.0.1', "address": f"http://127.0.0.1:{port}/",
+                       "ready_seconds": 30, "proven_at": "2026-01-05", "proven_head": "a" * 40})
+    read = load_by_path(PLAN_CONTRACT).read_contract(repo / "plan", "0002-b")
+    assert gate.gate_failures(read, "config", rules=2, code=repo) == []
+
+
+def test_the_start_gate_refuses_an_app_line_of_config_whose_build_does_not_start(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    repo = tmp_path / "repo"
+    with_config(repo, {"start": f'"{sys.executable}" -c "raise SystemExit(3)"', "address": f"http://127.0.0.1:{free_port()}/", "ready_seconds": 10})
+    read = load_by_path(PLAN_CONTRACT).read_contract(repo / "plan", "0002-b")
+    failures = gate.gate_failures(read, "config", rules=2, code=repo)
+    assert [(item["code"], item["where"]) for item in failures] == [("app-unreachable", "0002-b tier api")]
+    assert "live-start-failed" in failures[0]["reason"]
