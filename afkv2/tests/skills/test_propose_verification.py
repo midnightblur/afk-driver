@@ -7,6 +7,7 @@ live build run here.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -414,3 +415,31 @@ def test_the_verification_proposers_run_the_engine_with_their_own_adapter(tmp_pa
     with pytest.raises(Refusal) as caught:
         vp.main(["start", "--doc", str(doc), "--brief", str(brief), "--base", BASE], runner=runner)
     assert caught.value.code == "same-tool" and "verification proposers" in caught.value.reason
+
+
+# --- the skill guide ---------------------------------------------------------------------------------------------------
+
+STEP_BLOCK = re.compile(r"```sh step=([\w-]+)\n(.*?)\n\s*```", re.S)
+COMMAND = re.compile(r'"<this skill\'s folder>/((?:\.\./)*[\w/.-]+\.py)" ([\w-]+)')
+
+
+def test_the_guide_names_the_skill_and_only_real_commands():
+    text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+    assert text.startswith("---\nname: propose-verification\n")
+    steps = dict(STEP_BLOCK.findall(text))
+    for name in ("start", "proposers-plan", "proposers-start", "proposers-wait", "proposers-critique",
+                 "proposers-cleanup", "live-check", "live-prove", "build", "present", "wait", "ingest",
+                 "apply-readings", "sync", "write", "end"):
+        assert name in steps, name
+    for name, command in steps.items():
+        found = COMMAND.search(command)
+        assert found, f"{name}: {command}"
+        script = (SKILL_DIR / found.group(1)).resolve()
+        assert script.is_file(), f"{name}: {script}"
+        if script.name == "verification_proposers.py":
+            import verification_proposers as vp
+            assert found.group(2) in vp.VERBS, name
+        else:
+            assert f'"{found.group(2)}"' in script.read_text(encoding="utf-8"), f"{name}: {found.group(2)}"
+    for link in re.findall(r"\]\(([^)#]+)", text):
+        assert (SKILL_DIR / link).resolve().is_file(), link

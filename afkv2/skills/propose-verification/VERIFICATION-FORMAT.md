@@ -34,7 +34,7 @@
 
 A row has no owner: the plan cut gives each row its subtask.
 
-The level of a row is its highest-value level: the cheapest level that sees the outcome for real (the PRD test levels table, TL-1 to TL-7). A row that repeats a cheaper row just as faithfully is a critique point.
+The level of a row is its highest-value level ([LEVELS.md](LEVELS.md)). A row that repeats a cheaper row just as faithfully is a critique point.
 
 `lower: <from> to <to> · <card id>`: the developer accepted the lower level `<to>` in place of `<from>`, by a mark on that card. `level` is `<to>`.
 
