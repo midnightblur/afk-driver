@@ -236,3 +236,64 @@ def test_another_system_refuses_not_windows_for_each_worktree_removal():
 def test_the_platform_check_reads_this_system_by_default():
     import os
     assert gc_checks.check_platform()["system"] == os.name
+
+
+# --- the proof comment of a run branch (SDD §3 S-16, §6 I-12)
+
+
+sys.path.insert(0, str(AFKV2 / "skills" / "create-change-request" / "scripts"))
+import ci_watch  # noqa: E402
+
+RECORD = "plan/gate/record.json"
+
+
+def _gate(repo, text='{"version": 1}\n'):
+    """Commit a gate record on the run branch; answer its bytes."""
+    repo.commit(repo.run, RECORD, text, "run: end gate passed")
+    return (repo.run / RECORD).read_bytes()
+
+
+def _posted(repo, record_bytes):
+    marker = ci_watch._proof_marker(repo.feature, record_bytes)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("{}", encoding="utf-8")
+
+
+def test_a_run_with_no_gate_record_is_not_checked(repo):
+    result = gc_checks.check_proof_posted(repo.main, repo.run, repo.run_branch)
+    assert result["refusal"] is None and result["checked"] is False
+
+
+def test_a_gate_record_with_no_posted_comment_refuses_proof_not_posted(repo):
+    _gate(repo)
+    result = gc_checks.check_proof_posted(repo.main, repo.run, repo.run_branch)
+    assert result["checked"] is True and result["refusal"]["code"] == "proof-not-posted"
+    assert RECORD in result["refusal"]["reason"]
+
+
+def test_a_posted_comment_of_this_exact_record_passes(repo):
+    _posted(repo, _gate(repo))
+    assert gc_checks.check_proof_posted(repo.main, repo.run, repo.run_branch)["refusal"] is None
+
+
+def test_a_comment_posted_for_an_older_record_does_not_cover_a_new_gate_run(repo):
+    _posted(repo, _gate(repo))
+    _gate(repo, '{"version": 1, "head": "new"}\n')
+    assert gc_checks.check_proof_posted(repo.main, repo.run, repo.run_branch)["refusal"]["code"] == "proof-not-posted"
+
+
+def test_with_the_run_worktree_gone_the_check_reads_the_record_on_the_run_branch(repo, tmp_path):
+    record = _gate(repo)
+    assert gc_checks.check_proof_posted(repo.main, tmp_path / "gone", repo.run_branch)["refusal"]["code"] == "proof-not-posted"
+    _posted(repo, record)
+    assert gc_checks.check_proof_posted(repo.main, tmp_path / "gone", repo.run_branch)["refusal"] is None
+
+
+def test_gc_list_names_proof_not_posted_on_the_run_items_and_a_yes_can_pass_it(repo, monkeypatch):
+    import cleanup
+    monkeypatch.setattr(gc_checks, "call_forge", Forge(listed(change(7, "merged", git(repo.main, "rev-parse", FEATURE)))))
+    _gate(repo)
+    refusals = cleanup.list_step(repo.feature)["refusals"]
+    assert [(item["code"], item["items"]) for item in refusals] == [
+        ("proof-not-posted", ["run worktree", "run branch", "remote run branch"])]
+    assert "proof-not-posted" in cleanup.PASSABLE

@@ -550,7 +550,9 @@ def _proof_marker(cwd, record_bytes):
     folder = done.stdout.decode("utf-8", "replace").strip()
     if done.returncode != 0 or not folder:
         raise Refusal("no-repository", f"{cwd} is not inside a git repository")
-    return Path(folder) / PROOF_FOLDER / f"{hashlib.sha256(record_bytes).hexdigest()}.json"
+    # Line ends do not count: git can check the committed record out with other line ends than the written file.
+    digest = hashlib.sha256(record_bytes.replace(b"\r\n", b"\n")).hexdigest()
+    return Path(folder) / PROOF_FOLDER / f"{digest}.json"
 
 
 def proof_posted(cwd, record_bytes):

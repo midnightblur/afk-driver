@@ -37,7 +37,8 @@ ITEMS = (("IT-1", "run worktree", "now"), ("IT-2", "run branch", "now"), ("IT-3"
          ("IT-4", "remote feature branch", "now"), ("IT-5", "feature worktree", "later"), ("IT-6", "feature branch", "later"))
 NOW = tuple(item for _, item, when in ITEMS if when == "now")
 LATER = tuple(item for _, item, when in ITEMS if when == "later")
-PASSABLE = ("not-merged", "forge-failed", "uncommitted", "outside-commits")
+PASSABLE = ("not-merged", "forge-failed", "uncommitted", "outside-commits", "proof-not-posted")
+RUN_ITEMS = ("run worktree", "run branch", "remote run branch")
 NEVER_PASSED = ("not-windows", "in-use", "in-use-or-no-right")
 PLAIN_NAME = re.compile(r"[A-Za-z0-9._/-]+")
 CHANGE_URL = re.compile(r"(?P<project>.+?)(?P<form>/-/merge_requests|/pull)/\d+/?")
@@ -99,9 +100,11 @@ def _listing(folder, branch, cwd=None):
     clean = {item: gc_checks.check_clean(names[item]) for item in WORKTREES}
     tip_refusal = tips["refusal"]
     refused = [entry["item"] for entry in tip_refusal["branches"]] if tip_refusal else []
+    proof = gc_checks.check_proof_posted(cwd, names["run worktree"], names["run branch"])["refusal"]
     refusals = []
     for refusal, items in ((forge["refusal"], []), *((clean[item]["refusal"], [item]) for item in WORKTREES),
-                           (tip_refusal, refused), (gc_checks.check_platform()["refusal"], list(WORKTREES))):
+                           (tip_refusal, refused), (proof, list(RUN_ITEMS)),
+                           (gc_checks.check_platform()["refusal"], list(WORKTREES))):
         if refusal:
             refusals.append({**refusal, "items": items})
     base = (change or {}).get("url") or (forge["refusal"] or {}).get("link")
