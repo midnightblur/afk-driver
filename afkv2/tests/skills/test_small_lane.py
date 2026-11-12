@@ -266,6 +266,27 @@ def test_a_failed_fix_fails_the_gate_and_no_judge_runs(repo, tmp_path):
     assert judge.folders == []
 
 
+def test_a_gate_again_at_the_same_head_keeps_the_cited_evidence_and_only_asks_the_judge(repo, tmp_path):
+    gone(repo, tmp_path, "enhancement")
+    commit(repo, "tests/check.py", "import sys, time\nfrom pathlib import Path\nprint(time.time_ns())\n"
+           "sys.exit(0 if 'VALUE = 2' in Path('src/app.py').read_text() else 1)\n", "a check with its time")
+    commit(repo, "src/app.py", "VALUE = 2\n", "the fix")
+
+    def no_judge(folder, session):
+        raise small_lane.afkv2_config.Refusal("no-provider", "no other provider")
+
+    first = gate(repo, no_judge)
+    assert first["ok"] and first["result"] == "pass" and first["judge"].startswith("judge: no-provider"), first
+    judge = FakeJudge()
+    again = gate(repo, judge)
+    assert again["ok"] and again["written"] is False and again["verdict"] == "pass" and again["judge"] is None
+    assert len(judge.folders) == 1
+    folder = Path(again["path"]).parent
+    (row,) = gate_record.read(again["path"])["rows"]
+    assert [gate_record._changed_file(folder, item) for item in gate_record._stored_files(row)] == \
+        [None] * len(gate_record._stored_files(row))
+
+
 def test_the_fix_proposers_run_the_engine_with_their_own_adapter():
     import small_proposers as sp
     assert sp.VERBS == sp.engine.VERBS and "plan" in sp.VERBS

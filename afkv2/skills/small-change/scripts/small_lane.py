@@ -340,15 +340,21 @@ def gate(payload, judge=None):
     head = _git(repo, "rev-parse", "HEAD")
     lane_dir = lane_folder(repo)
     path = lane_dir / GATE_FOLDER / gate_record_name()
-    folder = path.parent / head[:12]
-    shutil.rmtree(folder, ignore_errors=True)
-    folder.mkdir(parents=True)
-    before_log = Path(lane["before"]["log"]) if lane.get("before") else None
-    with _live(repo) as waiting:
-        runs = [] if waiting else _run_row(command, repo, folder, before_log)
-    row = {"row": ROW, "behavior": behavior, "level": level, "ran": command, "runs": runs, "waiting": waiting}
     try:
-        written = gate_record.write_run(path, lane="small", head=head, verification=lane_dir / TEST_PLAN, rows=[row], go=go)
+        if _kept(path, head, lane_dir / TEST_PLAN):
+            # The record keeps its runs at this head: running again would overwrite the evidence it cites.
+            written = gate_record.write_run(path, lane="small", head=head, verification=lane_dir / TEST_PLAN,
+                                            rows=[], go=go)
+        else:
+            folder = path.parent / head[:12]
+            shutil.rmtree(folder, ignore_errors=True)
+            folder.mkdir(parents=True)
+            before_log = Path(lane["before"]["log"]) if lane.get("before") else None
+            with _live(repo) as waiting:
+                runs = [] if waiting else _run_row(command, repo, folder, before_log)
+            row = {"row": ROW, "behavior": behavior, "level": level, "ran": command, "runs": runs, "waiting": waiting}
+            written = gate_record.write_run(path, lane="small", head=head, verification=lane_dir / TEST_PLAN,
+                                            rows=[row], go=go)
         record = gate_record.read(path)
     except afkv2_config.Refusal as error:
         raise Refusal(error.code, error.reason) from None
@@ -360,6 +366,15 @@ def gate(payload, judge=None):
     verdict = record["rows"][0]["verdict"]
     return ok(path=str(path), written=written["written"], result=result, judge=problem,
               verdict=verdict["result"] if verdict else None)
+
+
+def _kept(path, head, test_plan):
+    """True when the gate record keeps its rows at this head and test plan: no row waits."""
+    if not path.exists():
+        return False
+    record = gate_record.read(path)
+    return (record["head"] == head and record["verification_digest"] == gate_record.file_digest(test_plan)
+            and not any(row["result"] == "waiting" for row in record["rows"]))
 
 
 def _judge(record, payload, repo, path, session, judge):
