@@ -689,7 +689,7 @@ def _criteria_failures(spec, live, vf):
                        and not any(criterion in row["criteria"] and vf._covers_high(row) for row in live.values())]
 
 
-def _rules_2_failures(subtasks, base):
+def _plan_row_failures(subtasks, base):
     """The plan row rules of a `> Rules: 2` plan (SDD §3 row "S-2", §6 I-2 and I-3; design ADR-0002)."""
     spec, failures = _spec_inputs(subtasks, base)
     if spec is None:
@@ -705,7 +705,7 @@ def _rules_failures(plan_text, subtasks, base):
     rules = rules_of(plan_text)
     if rules is None:
         return [failure("bad-rules", "PLAN.md", "the header needs at most one `> Rules:` line, and it reads 1 or 2")]
-    return _rules_2_failures(subtasks, base) if rules == 2 else []
+    return _plan_row_failures(subtasks, base) if rules == 2 else []
 
 
 def check_plan(plan):
