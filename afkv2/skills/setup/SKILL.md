@@ -21,7 +21,7 @@ you ask in this session; the Jira token never passes through you.
    its `autoUpdatesChannel` and the Fable minimum, and runs `claude update` when it
    is older. `new_session` true: tell the developer to start a new session and run
    setup again, and stop. A refusal `update-required`: show its `reason` and
-   `commands`, and stop; `channel-too-old`: report its `reason`, and stop. A `warning`:
+   `commands`, and stop; `channel-too-old` or `no-version`: report its `reason`, and stop. A `warning`:
    report it, and continue.
 2. **Prepare.** `setup.py prepare` — checks Python 3 on the path, installs rg
    and puts it on the path of every shell, writes the install record. A red
@@ -62,11 +62,12 @@ you ask in this session; the Jira token never passes through you.
    credits. Then `setup.py advisor --answer yes` or `--answer no`; a no is recorded
    and never asked again. `advisor` is `consent`: ask nothing, and run
    `setup.py advisor --answer yes`. A refusal `advisor-blocked` or `proof-failed`:
-   report its `reason`. Report each `overrides` line. `consent` is a list: tell the
+   report its `reason`. Report each `overrides` line. `consent` is `done`: the step
+   is done. `consent` is a list: tell the
    developer to type each item in a Claude session, in order (in a Codex session,
    they start `claude` for it). Wait for their word that they did, then
    `setup.py advisor --consent-done`. A refusal `model-not-restored`: report its
-   `reason`, and run it again after they act. Tell the developer that a new Claude
+   `reason`, and run it again after they act; `no-advisor`: run `--answer yes` first. Tell the developer that a new Claude
    session shows `Advisor Tool (experimental) is on`; a notice that points to
    `/model fable` means the consent step is still open.
 5. **Jira values.** `jira.complete` false: ask the developer to run
@@ -139,4 +140,6 @@ must not run v1's publish, because v1 does not find afkv2's block. The diagram
 package and its config stay installed (`diagram_renderer: left-installed`); v1 does not read them. Switch-back
 removes the browser driver entries from both harnesses (`browser_driver`); the driver
 package stays installed. `advisor` `restored` puts back the developer's own advisor
-value; `kept-changed` means the developer changed it since, so it stays.
+value; `kept-changed` means the developer changed it since, so it stays; `no-backup`
+means setup never set it; `failed`: the backup is `advisor/settings.json` under
+`backup_dir`.
