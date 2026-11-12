@@ -174,16 +174,20 @@ def _run_once(row, folder, repo, n):
 
 
 def _argv(command):
-    """(args, shell) of a contract command: the shell runs it as the contract states it, as tdd_log does."""
-    return command, True
+    """The argument list of a contract command: the named shell of live_build runs it as the contract states it."""
+    return live_build.shell_argv(command)
 
 
 def _run_command(command, repo, output, evidence):
     """The exit code of 1 test command, in its own process group. Past TEST_LIMIT the whole tree stops and the
     code is -1."""
-    args, shell = _argv(command)
     try:
-        process = subprocess.Popen(args, shell=shell, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
+        args = _argv(command)
+    except afkv2_config.Refusal as error:
+        output.write(f"the test did not start: {error.code}: {error.reason}\n".encode("utf-8"))
+        return -1
+    try:
+        process = subprocess.Popen(args, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
                                    stdin=subprocess.DEVNULL, env={**os.environ, EVIDENCE_VARIABLE: str(evidence)},
                                    **other_provider._group())
     except OSError as error:

@@ -434,7 +434,7 @@ def test_a_row_past_its_time_limit_stops_with_its_whole_process_tree(tmp_path, m
     gate = make_gate(tmp_path, monkeypatch, rows, extra_files={"checks/hang.py": HANG})
     monkeypatch.setattr(end_gate, "TEST_LIMIT", 1)
     # no shell: a sleeper starts as Python with an argument list
-    monkeypatch.setattr(end_gate, "_argv", lambda command: ([sys.executable, "checks/hang.py", str(marker)], False))
+    monkeypatch.setattr(end_gate, "_argv", lambda command: [sys.executable, "checks/hang.py", str(marker)])
     gate.run()
     assert results(gate.record()) == {"VR-001": "fail"}
     import time
@@ -522,3 +522,40 @@ def test_back_keeps_the_test_first_entries_of_the_rows_that_did_not_fail(tmp_pat
     record = json.loads((review / "0002-b.tdd.json").read_text(encoding="utf-8"))
     assert record["cycles"] == [kept] and [entry["row"] for entry in record["no_test"]] == ["VR-008"]
     assert len(json.loads((review / "0002-b.tdd.back-1.json").read_text(encoding="utf-8"))["cycles"]) == 2
+
+
+# --- the named shell (D-43) -----------------------------------------------------------------------------------------
+
+class _Captured(Exception):
+    pass
+
+
+def test_a_row_command_runs_through_the_named_shell_never_a_hidden_cmd(tmp_path, monkeypatch):
+    """Fails when shell=True comes back. The fake start runs no process."""
+    seen = {}
+
+    def fake_popen(args, **kwargs):
+        seen.update(args=args, **kwargs)
+        raise OSError("captured")
+
+    import live_build
+    monkeypatch.setattr(live_build, "named_shell", lambda: "/the/shell")
+    monkeypatch.setattr(end_gate.subprocess, "Popen", fake_popen)
+    with open(tmp_path / "row.log", "wb") as output:
+        assert end_gate._run_command("pytest tests -q", tmp_path, output, tmp_path) == -1
+    assert seen["args"] == ["/the/shell", "-c", "pytest tests -q"]
+    assert not seen.get("shell")
+    source = (AFKV2 / "skills" / "autopilot" / "scripts" / "end_gate.py").read_text(encoding="utf-8")
+    assert "shell=True" not in source and "shell=shell" not in source
+
+
+def test_no_named_shell_fails_the_row_with_its_reason(tmp_path, monkeypatch):
+    import live_build
+
+    def no_shell():
+        raise afkv2_config.Refusal("no-shell", "no Git Bash")
+
+    monkeypatch.setattr(live_build, "named_shell", no_shell)
+    with open(tmp_path / "row.log", "wb") as output:
+        assert end_gate._run_command("pytest", tmp_path, output, tmp_path) == -1
+    assert "no Git Bash" in (tmp_path / "row.log").read_text(encoding="utf-8")
