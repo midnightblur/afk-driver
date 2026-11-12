@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import socket
 import tomllib
 from pathlib import Path
 
@@ -293,6 +294,26 @@ def test_a_console_without_the_click_message_fails_the_console_step(monkeypatch)
 
 # -------------------------------------------------------------------- attach
 
+@pytest.fixture
+def debug_port():
+    """A port on 127.0.0.1 that accepts connections, as a browser with remote debugging on."""
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        yield server.getsockname()[1]
+
+
+def _closed_port() -> int:
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        return server.getsockname()[1]
+
+
+def _active_port(profile: Path, port: int) -> None:
+    profile.mkdir(parents=True)
+    (profile / "DevToolsActivePort").write_text(f"{port}\n/devtools/browser/x\n", encoding="utf-8")
+
+
 def test_attach_with_remote_debugging_off_says_why_and_offers_the_fallbacks(
         driver_env, places, repo, driver_system, capsys, tmp_path):
     _harness_files(places)
@@ -307,11 +328,10 @@ def test_attach_with_remote_debugging_off_says_why_and_offers_the_fallbacks(
 
 
 def test_attach_to_a_debuggable_browser_registers_the_attach_entry(
-        driver_env, places, repo, driver_system, capsys, tmp_path):
+        driver_env, places, repo, driver_system, capsys, tmp_path, debug_port):
     _harness_files(places)
     profile = tmp_path / "local" / "Google" / "Chrome" / "User Data"
-    profile.mkdir(parents=True)
-    (profile / "DevToolsActivePort").write_text("9222\n/devtools/browser/x\n", encoding="utf-8")
+    _active_port(profile, debug_port)
     code, answer = _cli(["browser-driver", "--attach", "chrome"], driver_env, driver_system, repo, capsys, tmp_path)
     assert code == 0 and answer["attach"]["ok"] is True, answer
     argv = FakeSession.started[-1]
@@ -321,16 +341,25 @@ def test_attach_to_a_debuggable_browser_registers_the_attach_entry(
     assert tools.ATTACH_ENTRY in tomllib.loads(places.codex_config.read_text(encoding="utf-8"))["mcp_servers"]
 
 
-def test_a_failed_attach_names_the_server_answer(driver_env, places, repo, driver_system, capsys, tmp_path):
+def test_a_failed_attach_names_the_server_answer(driver_env, places, repo, driver_system, capsys, tmp_path,
+                                                 debug_port):
     _harness_files(places)
     FakeSession.attach_fails = True
-    profile = tmp_path / "local" / "Microsoft" / "Edge" / "User Data"
-    profile.mkdir(parents=True)
-    (profile / "DevToolsActivePort").write_text("9222\n/devtools/browser/x\n", encoding="utf-8")
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", debug_port)
     code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
     assert code == 0
     assert answer["attach"]["ok"] is False and "Could not connect" in answer["attach"]["why"]
     assert tools.ATTACH_ENTRY not in json.loads(places.claude_user_config.read_text(encoding="utf-8"))["mcpServers"]
+
+
+def test_attach_with_a_port_file_of_a_closed_debug_session_says_remote_debugging_is_off(
+        driver_env, places, repo, driver_system, capsys, tmp_path):
+    _harness_files(places)
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", _closed_port())
+    code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
+    assert code == 0
+    assert answer["attach"]["ok"] is False and "remote debugging is off" in answer["attach"]["why"]
+    assert not any("--autoConnect" in argv for argv in FakeSession.started)
 
 
 def test_switch_back_removes_the_driver_entries_and_keeps_the_rest(

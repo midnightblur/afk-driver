@@ -15,6 +15,7 @@ import os
 import queue
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -643,13 +644,23 @@ def browser_profile(name: str, env: Mapping[str, str]) -> Path | None:
     return Path(env["LOCALAPPDATA"], vendor, product, "User Data") if env.get("LOCALAPPDATA") else None
 
 
+def _debug_port_open(port_file: Path) -> bool:
+    """The browser writes its debug port to this file and keeps the file after the port closes."""
+    try:
+        port = int(port_file.read_text(encoding="utf-8").split()[0])
+        with socket.create_connection(("127.0.0.1", port), timeout=2):
+            return True
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def prove_attach(command: Mapping, name: str, env: Mapping[str, str], session=McpSession) -> dict:
     """Attach to the running, signed-in browser of the developer and list its pages.
 
     A failure says why and offers ATTACH_FALLBACKS (PRD AC-043)."""
     profile = browser_profile(name, env)
     failed = {"ok": False, "browser": name, "offer": list(ATTACH_FALLBACKS)}
-    if profile is None or not (profile / "DevToolsActivePort").is_file():
+    if profile is None or not _debug_port_open(profile / "DevToolsActivePort"):
         return {**failed, "why": f"remote debugging is off in {name}: open {INSPECT_PAGES[name]} in it, allow "
                                  "remote debugging, keep the browser open, then run this step again"}
     entry = attach_entry(command, profile)
