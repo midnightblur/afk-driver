@@ -161,17 +161,24 @@ def _run_once(row, folder, repo, n):
     name = f"{row['id']}-{n}"
     evidence, log = folder / name, folder / f"{name}.log"
     shutil.rmtree(evidence, ignore_errors=True)
-    evidence.mkdir(parents=True)
+    evidence.mkdir(parents=True, exist_ok=True)
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     clock = time.monotonic()
     with open(log, "wb") as output:
         try:
-            code = subprocess.run(row["command"], shell=True, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
-                                  stdin=subprocess.DEVNULL, timeout=TEST_LIMIT,
-                                  env={**os.environ, EVIDENCE_VARIABLE: str(evidence)}).returncode
-        except subprocess.TimeoutExpired:
-            output.write(f"\nthe end gate stopped the test after {TEST_LIMIT} s\n".encode("utf-8"))
+            process = subprocess.Popen(row["command"], shell=True, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
+                                       stdin=subprocess.DEVNULL, env={**os.environ, EVIDENCE_VARIABLE: str(evidence)},
+                                       **other_provider._group())
+        except OSError as error:
+            output.write(f"the test did not start: {error}\n".encode("utf-8"))
             code = -1
+        else:
+            try:
+                code = process.wait(timeout=TEST_LIMIT)
+            except subprocess.TimeoutExpired:
+                other_provider._stop_tree(process)  # the shell and every process the test started
+                output.write(f"\nthe end gate stopped the test after {TEST_LIMIT} s\n".encode("utf-8"))
+                code = -1
     files = sorted(str(path) for path in evidence.rglob("*") if path.is_file())
     if not files:
         shutil.rmtree(evidence, ignore_errors=True)
@@ -186,7 +193,7 @@ def _runs(row, folder, repo):
 def _gate_run(rows, path, head, verification, plan_text, repo):
     folder = path.parent / head[:12]
     shutil.rmtree(folder, ignore_errors=True)
-    folder.mkdir(parents=True)
+    folder.mkdir(parents=True, exist_ok=True)
     driver = _driver_proven()
     waiting = {row["id"]: _own_waiting(row, driver) for row in rows}
     entries = []
@@ -220,6 +227,21 @@ def _judge(plan, record, rows, path, session, repo, judge):
     written, or None."""
     folder = path.parent / f"{record['head'][:12]}-judge"
     shutil.rmtree(folder, ignore_errors=True)
+    try:
+        _judge_input(plan, record, rows, path, repo, folder)
+        judged = (judge or other_provider.judge)(folder, session)
+        gate_record.write_verdict(path, judged, head=record["head"])
+    except afkv2_config.Refusal as error:
+        return f"judge: {error.code}: {error.reason}"
+    except OSError as error:
+        return f"judge: the input folder could not be built: {error}"
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    return None
+
+
+def _judge_input(plan, record, rows, path, repo, folder):
+    """rows.json, the evidence of each row's last run under evidence/<row>/, and the row's test files under tests/."""
     (folder / "tests").mkdir(parents=True)
     (folder / "evidence").mkdir()
     by_id = {row["id"]: row for row in rows}
@@ -231,24 +253,18 @@ def _judge(plan, record, rows, path, session, repo, judge):
                                                            "data", "environment")},
                        "ran": stored["ran"], "runs": [{"n": item["n"], "exit": item["exit"]} for item in stored["runs"]]})
         target = folder / "evidence" / stored["row"]
-        target.mkdir()
         for item in ([run["log"]] if run["log"] else []) + run["evidence"]:
-            source = path.parent / item["path"]
-            shutil.copyfile(source, target / source.name)
+            stored_path = Path(item["path"])
+            source = path.parent / stored_path
+            relative = Path(*stored_path.parts[1:]) if len(stored_path.parts) > 1 else Path(source.name)
+            (target / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target / relative)
         for name in _tests_of(plan, row):
             source = repo / name
             if source.is_file():
                 (folder / "tests" / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, folder / "tests" / name)
     (folder / "rows.json").write_text(json.dumps(inputs, indent=1), encoding="utf-8")
-    try:
-        judged = (judge or other_provider.judge)(folder, session)
-        gate_record.write_verdict(path, judged, head=record["head"])
-    except afkv2_config.Refusal as error:
-        return f"judge: {error.code}: {error.reason}"
-    finally:
-        shutil.rmtree(folder, ignore_errors=True)
-    return None
 
 
 # ---------------------------------------------------------------- the outcome
@@ -345,9 +361,10 @@ def run_gate(plan, *, session, code=".", judge=None):
     verdicts = {row["row"]: row["verdict"] for row in record["rows"] if row["verdict"]}
     judged = next(iter(verdicts.values()), None)
     gate.update(result=result, head=head, failed=failed)
+    failed_runs = record["failed_runs"] + len(judge_failed)
     return _finish(plan, state, ok(
         result=result, path=str(path), head=head, ran=ran, failed=failed, waiting=waiting,
-        failed_runs=record["failed_runs"] + len(judge_failed), verdicts=verdicts,
+        failed_runs=failed_runs, cap_reached=result == "failed" and failed_runs >= FAILED_CAP, verdicts=verdicts,
         judge={key: judged[key] for key in ("provider", "model", "effort")} if judged else None))
 
 
@@ -358,6 +375,17 @@ def _finish(plan, state, answer):
                   f"the high-level tests ran against the live build; open: {rows}")
     walk._commit_run(plan, f"run: end gate {answer['result']}")
     return answer
+
+
+def _set_aside(plan, subtask):
+    """Move the finished review state and the test-first record of a reopened subtask aside, so its new attempt
+    gets a new review and needs a new red test. The kept copies are `<subtask>.<kind>.back-<n>.json`."""
+    review = Path(plan) / "review"
+    for kind in ("rounds", "tdd"):
+        current = review / f"{subtask}.{kind}.json"
+        if current.is_file():
+            number = 1 + sum(1 for _ in review.glob(f"{subtask}.{kind}.back-*.json"))
+            current.rename(review / f"{subtask}.{kind}.back-{number}.json")
 
 
 def send_back(plan, rows):
@@ -378,6 +406,7 @@ def send_back(plan, rows):
                 continue
             record = state["subtasks"].setdefault(subtask, {"attempts": 0})
             if subtask not in reopened:
+                _set_aside(plan, subtask)
                 record.pop("base", None)
                 record.update(attempts=0, back=[])
                 write_status(plan, subtask, "pending")

@@ -392,3 +392,77 @@ def test_the_autopilot_skill_names_the_end_gate_verbs_and_codes():
     source = (AFKV2 / "skills" / "autopilot" / "scripts" / "end_gate.py").read_text(encoding="utf-8")
     for code in re.findall(r'Refusal\("([a-z-]+)"', source):
         assert f"`{code}`" in text
+
+
+# --- review round 1 -------------------------------------------------------------------------------------------------
+
+HANG = ("import subprocess, sys, pathlib\n"
+        "marker = pathlib.Path(sys.argv[1])\n"
+        "code = 'import time, pathlib; time.sleep(4); pathlib.Path(r\"' + str(marker) + '\").write_text(\"alive\")'\n"
+        "subprocess.Popen([sys.executable, '-c', code]).wait()\n")
+
+
+def test_a_row_past_its_time_limit_stops_with_its_whole_process_tree(tmp_path, monkeypatch):
+    marker = tmp_path / "child-alive.txt"
+    rows = {"VR-001": {"owner": "0001-a", "level": "api", "check": check("hang.py", str(marker))}}
+    gate = make_gate(tmp_path, monkeypatch, rows, extra_files={"checks/hang.py": HANG})
+    monkeypatch.setattr(end_gate, "TEST_LIMIT", 1)
+    gate.run()
+    assert results(gate.record()) == {"VR-001": "fail"}
+    import time
+    time.sleep(6)
+    assert not marker.exists()
+
+
+def test_back_moves_the_old_review_and_test_first_records_aside(tmp_path, monkeypatch):
+    gate = make_gate(tmp_path, monkeypatch, THREE_ROWS)
+    review = gate.plan / "review"
+    review.mkdir(exist_ok=True)
+    (review / "0002-b.rounds.json").write_text('{"stopped_by": "clean"}', encoding="utf-8")
+    (review / "0002-b.tdd.json").write_text('{"cycles": [], "no_test": []}', encoding="utf-8")
+    git(gate.built.run, "add", "-A")
+    git(gate.built.run, "commit", "-qm", "records")
+    gate.run()
+    end_gate.send_back(gate.plan, ["VR-002"])
+    assert not (review / "0002-b.rounds.json").exists() and not (review / "0002-b.tdd.json").exists()
+    assert (review / "0002-b.rounds.back-1.json").is_file() and (review / "0002-b.tdd.back-1.json").is_file()
+    assert git(gate.built.run, "status", "--porcelain") == ""
+
+
+def test_judge_failed_runs_count_toward_the_cap_and_the_third_failed_run_says_so(tmp_path, monkeypatch):
+    gate = make_gate(tmp_path, monkeypatch, PASSING)
+    for number in range(3):
+        answer = gate.run(FakeJudge({"VR-002": "fail"}))
+        gate.new_head(f"src/judge{number}.py")
+    assert answer["cap_reached"] is True and answer["failed_runs"] == 3
+    with pytest.raises(Refusal) as caught:
+        gate.run(FakeJudge())
+    assert caught.value.code == "gate-cap-reached"
+
+
+def test_a_waiting_row_runs_again_at_the_same_head(tmp_path, monkeypatch):
+    rows = {"VR-001": {"owner": "0001-a", "level": "ui-e2e", "tier": "e2e", "check": check("pass.py")}}
+    gate = make_gate(tmp_path, monkeypatch, rows)
+    assert gate.run()["result"] == "waiting"
+    record = afkv2_config.data_folder() / "install.txt"
+    record.parent.mkdir(parents=True, exist_ok=True)
+    record.write_text("browser_driver 1.10.1 2026-11-11T00:00:00\n", encoding="utf-8")
+    again = gate.run()
+    assert again["ran"] is True and again["result"] == "passed"
+
+
+def test_the_real_commands_run_and_send_back_a_rules_2_plan(tmp_path, monkeypatch):
+    gate = make_gate(tmp_path, monkeypatch, THREE_ROWS)
+    script = AFKV2 / "skills" / "autopilot" / "scripts" / "end_gate.py"
+
+    def cli(verb, payload):
+        done = subprocess.run([sys.executable, str(script), verb], input=json.dumps(payload).encode("utf-8"),
+                              capture_output=True, timeout=300, cwd=gate.built.work)
+        return done.returncode, json.loads(done.stdout)
+
+    code, answer = cli("run", {"plan": str(gate.plan), "session": "claude"})
+    assert code == 0 and answer["result"] == "failed" and answer["cap_reached"] is False
+    code, back = cli("back", {"plan": str(gate.plan), "rows": ["VR-002"]})
+    assert code == 0 and back["reopened"] == ["0002-b"]
+    walk.VERBS["end"]({"plan": str(gate.plan)})
+    assert "VR-002" in walk.VERBS["end"]({"plan": str(gate.plan)})["gate"]

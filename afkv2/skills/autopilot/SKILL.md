@@ -35,6 +35,7 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
    | `passed`, `none` | step 5 |
    | `waiting` | step 5. Each row of `waiting` names what the gate could not reach: the developer meets it at ship |
    | `failed` | `back` with `plan` and `rows`, the `row` of each entry of `failed`. Then step 3 again; the next `run` runs every row |
+   | `failed` with `cap_reached: true` | step 5: 3 gate runs failed, and the run waits for the developer. No `back` |
 
    A refusal `gate-cap-reached` (3 failed gate runs) or `no-verification`: step 5, and tell the developer that the run waits for them. With a parked subtask, skip the end gate.
 5. **End.** `end`. Its answer lists `done`, `parked`, `waiting` and `rulings`. Then `archive`: it copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the linked worktree of the feature branch, never the main checkout, with each `/` of the branch name as `-`, and commits it on the feature branch when it changed. Its answer holds `path`, `committed`, `commit` (the newest commit of the copy) and `ship`. Then push the feature branch, also when `committed` is false. Only the `ship` of `archive` counts: `end` adds a journal line, so its own `ship` is false after a walk. A refusal: correct its cause and run `archive` again. A `## Parent PRD` outside the feature worktree refuses `no-spec-dir`.
@@ -77,6 +78,6 @@ You are the orchestrator, and the rule is yours: an executor never rules its own
 | `subtask-in-flight`, `blocked-by`, `parked`, `already-done` | this subtask cannot start now | `next` names the one that can |
 | `contract-mismatch`, `gate-cannot-run` | a consumed anchor is missing, or a gate cannot run | `park` |
 | `not-running`, `not-finished`, `change-differs` | an executor's verb went wrong | the executor reads them; see `/afkv2:execute` |
-| `not-finished` of `run` | a subtask is not done, or the feature worktree has uncommitted changes | step 3 |
+| `not-finished` of `run` | a failure with a `subtask` is not done; a failure with `subtask: null` names uncommitted changes in the feature worktree | a subtask: step 3. Uncommitted changes: step 5, and name the files to the developer |
 | `gate-cap-reached`, `no-verification` | 3 gate runs failed, or the spec folder has no VERIFICATION.md | step 5; the run waits for the developer |
 | `no-such-subtask`, `git-failed`, `bad-state`, `bad-payload` | `reason` names the fault | correct it, or report it to the developer |
