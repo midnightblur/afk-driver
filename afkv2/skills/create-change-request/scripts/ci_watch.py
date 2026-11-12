@@ -440,8 +440,12 @@ def _gate_path(payload, plan):
     """The gate record of the ship, or None for a plan of the old rules, which ships on the review check alone."""
     if payload.get("gate"):
         return Path(str(payload["gate"]))
-    if plan is not None and _rules(plan) != 2:
+    rules = _rules(plan) if plan is not None else None
+    if rules == 1:
         return None
+    if plan is not None and rules is None:
+        raise Refusal("no-gate", f"{plan_contract.plan_file(plan)} has an unknown or a doubled `> Rules:` line, so the "
+                                 "ship cannot tell whether it needs a gate record: pass `gate`, or correct the line")
     raise Refusal("no-gate", "no gate record: pass `gate`, the path that the end gate or the small lane answered")
 
 
@@ -481,11 +485,15 @@ def build_preview(payload, view, path, record):
     digest = hashlib.sha256(f"{where['kind']} {where['key']}\n".encode("utf-8"))
     digest.update(draft["body"].split("\n", 1)[1].encode("utf-8"))
     for picture in draft["pictures"]:
-        digest.update(gate_record.file_digest(picture).encode("ascii"))
+        try:
+            digest.update(gate_record.file_digest(picture).encode("ascii"))
+        except OSError as error:
+            raise Refusal("evidence-changed", f"the picture {Path(picture).name} cannot be read: {error}; run the gate again") from None
     receipt = digest.hexdigest()
     comment = gate_record.proof_comment(record, receipt=receipt, change=change, folder=path.parent)
     return {"receipt": receipt, "body": comment["body"], "pictures": comment["pictures"], "where": where, "post": post,
-            "notice": PUBLIC_NOTICE if github else "", "secrets": _scan(comment["body"])}
+            "notice": PUBLIC_NOTICE if github else "", "secrets": _scan(comment["body"]),
+            "proof_lines": gate_record.proof_lines(record)}
 
 
 def proof_preview(payload):
@@ -513,8 +521,15 @@ def _gate_failures(payload, view, path):
     for bug in kept["found"]:
         if not bug.get("pick"):
             failures.append({"code": "found-open", "row": None, "reason": f"found bug {bug['id']} ({bug['what']}) waits for the developer's pick"})
-    preview = build_preview(payload, view, path, record)
-    if payload.get("receipt") != preview["receipt"]:
+    try:
+        preview = build_preview(payload, view, path, record)
+    except Refusal as refusal:
+        if refusal.code != "evidence-changed":
+            raise
+        if not any(failure["code"] == refusal.code for failure in failures):
+            failures.append({"code": refusal.code, "row": None, "reason": refusal.reason})
+        preview = None
+    if preview is not None and payload.get("receipt") != preview["receipt"]:
         why = "has no ship mark" if not payload.get("receipt") else "changed after the developer's ship mark"
         failures.append({"code": "proof-not-posted", "row": None,
                          "reason": f"the proof comment {why}: show the comment of `proof-preview` and pass the receipt the developer marked"})
@@ -547,9 +562,8 @@ def _post(payload, view, preview):
 def _proof_marker(cwd, record_bytes):
     """The local mark that the proof comment of this exact gate record is posted, in the shared git folder of the
     repository: every worktree sees it, and gc reads it before it deletes a run branch (SDD §6 I-12)."""
-    done = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=cwd, capture_output=True,
-                          stdin=subprocess.DEVNULL, timeout=COMMAND_LIMIT)
-    folder = done.stdout.decode("utf-8", "replace").strip()
+    done = shell.run_tool("git", ["-C", str(cwd), "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout=COMMAND_LIMIT)
+    folder = done.stdout.strip()
     if done.returncode != 0 or not folder:
         raise Refusal("no-repository", f"{cwd} is not inside a git repository")
     # Line ends do not count: git can check the committed record out with other line ends than the written file.
@@ -563,7 +577,13 @@ def proof_posted(cwd, record_bytes):
 
 
 def _mark_posted(path, posted):
-    _write_record(_proof_marker(".", path.read_bytes()), {"gate": str(path), **posted})
+    """The comment is on the ticket; a mark that cannot be written refuses with its url, and the next mark posts nothing again."""
+    try:
+        _write_record(_proof_marker(".", path.read_bytes()), {"gate": str(path), **posted})
+    except (OSError, Refusal) as error:
+        reason = getattr(error, "reason", None) or str(error)
+        raise Refusal("mark-not-written", f"the proof comment is posted at {posted['url']}, but its local mark is not written: "
+                                          f"{reason}; mark again", comment=posted) from None
 
 
 def mark_ready_if_green(payload):

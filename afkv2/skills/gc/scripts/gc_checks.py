@@ -194,15 +194,23 @@ def _record_bytes(repo, run_worktree, run_branch):
     path = Path(run_worktree) / RECORD
     if path.is_file():
         return path.read_bytes()
-    done = subprocess.run(["git", "show", f"refs/heads/{run_branch}:{RECORD}"], cwd=repo, capture_output=True,
-                          stdin=subprocess.DEVNULL, timeout=GIT_LIMIT)
-    return done.stdout if done.returncode == 0 else None
+    if not _local_tip(repo, run_branch):
+        return None
+    ref = f"refs/heads/{run_branch}"
+    if not _git(repo, "ls-tree", "--name-only", ref, "--", RECORD).strip():
+        return None
+    return _git(repo, "show", f"{ref}:{RECORD}").encode("utf-8")
 
 
 def check_proof_posted(repo, run_worktree, run_branch):
     """A run branch with a gate record keeps its proof until mark-ready posted the proof comment of that exact
     record; else it refuses `proof-not-posted` (SDD §6 I-12). A run with no gate record, an old plan, is not checked."""
-    record = _record_bytes(repo, run_worktree, run_branch)
+    try:
+        record = _record_bytes(repo, run_worktree, run_branch)
+    except Refusal as failed:
+        return {"refusal": {"code": "proof-not-posted", "reason": f"the gate record of {run_branch} cannot be read, so "
+                                                                  f"its proof comment is unchecked: {failed.reason}"},
+                "checked": True}
     result = {"refusal": None, "checked": record is not None}
     if record is not None and not ci_watch.proof_posted(repo, record):
         result["refusal"] = {"code": "proof-not-posted",

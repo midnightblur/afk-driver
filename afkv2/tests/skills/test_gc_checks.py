@@ -297,3 +297,28 @@ def test_gc_list_names_proof_not_posted_on_the_run_items_and_a_yes_can_pass_it(r
     assert [(item["code"], item["items"]) for item in refusals] == [
         ("proof-not-posted", ["run worktree", "run branch", "remote run branch"])]
     assert "proof-not-posted" in cleanup.PASSABLE
+
+
+def test_a_marker_of_the_crlf_worktree_file_covers_the_lf_record_on_the_run_branch(repo, tmp_path):
+    record = _gate(repo, '{"version": 1, "rows": []}\n')
+    _posted(repo, record.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    assert gc_checks.check_proof_posted(repo.main, tmp_path / "gone", repo.run_branch)["refusal"] is None
+
+
+def test_a_git_failure_reading_the_run_branch_refuses_and_never_reads_as_no_record(repo, tmp_path, monkeypatch):
+    _gate(repo)
+    real = gc_checks._git
+
+    def failing(cwd, *args):
+        if args[0] in ("ls-tree", "show"):
+            raise gc_checks.Refusal("git-failed", "git ls-tree: fatal: bad object")
+        return real(cwd, *args)
+    monkeypatch.setattr(gc_checks, "_git", failing)
+    result = gc_checks.check_proof_posted(repo.main, tmp_path / "gone", repo.run_branch)
+    assert result["checked"] is True and result["refusal"]["code"] == "proof-not-posted"
+    assert "bad object" in result["refusal"]["reason"]
+
+
+def test_a_run_branch_that_is_gone_has_no_record_to_check(repo, tmp_path):
+    result = gc_checks.check_proof_posted(repo.main, tmp_path / "gone", "feat/none-run")
+    assert result == {"refusal": None, "checked": False}

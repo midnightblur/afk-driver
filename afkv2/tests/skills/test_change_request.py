@@ -165,7 +165,7 @@ def test_a_missing_part_stops_the_open_and_nothing_reaches_the_forge(repo, forge
 
 
 @pytest.mark.parametrize(("key", "value"), [
-    ("description", "   "), ("requests", []), ("proofs", []), ("mergeability", ""), ("self_critique", " "),
+    ("description", "   "), ("requests", []), ("mergeability", ""), ("self_critique", " "),
     ("requests", "ana"), ("proofs", "it works"),
 ])
 def test_a_blank_or_empty_part_stops_the_open(repo, forge, capsys, key, value):
@@ -222,6 +222,10 @@ def test_the_old_claim_and_evidence_proof_refuses_with_a_fix_hint(repo, forge, c
     assert forge.calls == []
 
 
+def test_a_change_with_no_user_visible_behavior_opens_with_no_proof_line():
+    assert "## Proofs\n\nNone.\n" in change_request.build_body(parts(proofs=[]))
+
+
 def test_a_proof_that_is_no_object_stops_the_open(repo, forge, capsys):
     assert "proofs" in unreadable(change_request, capsys, "open", **parts(proofs=["it works"]))["reason"]
 
@@ -251,6 +255,7 @@ def test_a_dropped_bug_shows_its_reason():
     {**BUG, "pick": "later", "by": "developer"}, {**BUG, "pick": "ticket"},
     {**BUG, "pick": "ticket", "by": "agent"}, {**BUG, "pick": "fix-now", "by": "autopilot"},
     {**BUG, "pick": "dropped", "by": "developer"}, {**BUG, "pick": "fix-in-place", "by": "agent"},
+    {**BUG, "pick": "fix-in-place", "reason": "it blocks a proof"},
 ])
 def test_a_found_bug_that_is_not_whole_stops_the_open(repo, forge, capsys, bug):
     error = unreadable(change_request, capsys, "open", **parts(found=[bug]))
@@ -1317,6 +1322,35 @@ def test_a_rules_2_plan_without_a_gate_record_refuses_no_gate(gated, capsys):
     (gated["plan"] / "PLAN.md").write_text("# Plan\n\n> Rules: 2\n\n## Solution map\n", encoding="utf-8")
     error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(gated["plan"]))
     assert error["code"] == "no-gate" and gated["reviewed"] == []
+
+
+def test_the_preview_answers_the_proof_lines_of_the_gate_record(gated, capsys):
+    lines = _preview(capsys, gated, ticket="ABC-12")["proof_lines"]
+    assert lines == gate_record.proof_lines(gate_record.read(gated["gate"]))
+    assert {key: lines[0][key] for key in ("row", "behavior", "level", "ran")} == {key: PROOF[key] for key in ("row", "behavior", "level", "ran")}
+
+
+def test_a_comment_text_changed_after_the_ship_mark_refuses_proof_not_posted(gated, capsys):
+    receipt = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    _rewrite(gated["gate"], lambda data: data["rows"][0]["verdict"].update(seen=["The page shows another file."]))
+    assert _preview(capsys, gated, ticket="ABC-12")["receipt"] != receipt
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), ticket="ABC-12", receipt=receipt)
+    assert error["code"] == "proof-not-posted" and gated["tracker"].calls == []
+
+
+@pytest.mark.parametrize("verb", ["mark-ready", "proof-preview"])
+def test_a_missing_picture_refuses_evidence_changed(gated, capsys, verb):
+    (gated["gate"].parent / "shot.png").unlink()
+    error = refused(ci_watch, capsys, verb, id="7", gate=str(gated["gate"]), ticket="ABC-12", receipt="0" * 64)
+    assert error["code"] == "evidence-changed" and "shot.png" in error["reason"]
+    assert "change-ready" not in gated["forge"].verbs() and gated["tracker"].calls == []
+
+
+@pytest.mark.parametrize("header", ["> Rules: 3", "> Rules: 2\n> Rules: 2"])
+def test_a_plan_with_an_unknown_rules_line_does_not_skip_the_gate(gated, capsys, header):
+    (gated["plan"] / "PLAN.md").write_text(f"# Plan\n\n{header}\n\n## Solution map\n", encoding="utf-8")
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(gated["plan"]))
+    assert error["code"] == "no-gate" and "Rules" in error["reason"] and gated["reviewed"] == []
 
 
 def _review_command(plan, verb, **payload):

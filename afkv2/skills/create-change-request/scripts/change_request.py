@@ -63,8 +63,11 @@ def _requests(parts):
 
 def _proofs(parts):
     """The proof lines: 1 per plan row or changed behavior, each with every field the ship check reads."""
+    value = parts.get("proofs")
+    if not isinstance(value, list):
+        raise _bad(f"`proofs` must be a list of {PROOF_SHAPE}; an empty list for a change with no user-visible behavior")
     proofs = []
-    for item in _entries(parts, "proofs"):
+    for item in value:
         if isinstance(item, dict) and "claim" in item:
             raise _bad(f"`proofs`: the old {{claim, evidence}} shape is gone; give each proof as {PROOF_SHAPE}, "
                        f"with `row` the plan row id, or a short name of the behavior with no plan row")
@@ -115,7 +118,7 @@ def build_body(parts):
     what, case, critique = (_text(parts, key) for _, key in SECTIONS)
     requests = "\n".join(f"- @{item['person']} ({item['role']}): {item['request'].strip()}" for item in _requests(parts))
     proofs = "\n".join(f"- {item['row']} ({item['level']}): {item['behavior']}. Ran: {item['ran']}. Evidence: {item['evidence']}"
-                       for item in _proofs(parts))
+                       for item in _proofs(parts)) or "None."
     found = "\n".join(_found_line(bug) for bug in _found(parts)) or "None."
     return "\n\n".join((f"## What changes\n\n{what}", f"## Requests\n\n{requests}", f"## Proofs\n\n{proofs}",
                         f"{FOUND_HEADING}\n\n{found}", f"## Why it can merge\n\n{case}", f"## Self-critique\n\n{critique}")) + "\n"
