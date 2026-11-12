@@ -12,7 +12,7 @@ characters: the point in plain words. Kinds:
 |------|----------|-----------|
 | `decided` | states a call you took, with its evidence | accepts it or reopens it |
 | `confirm` | states a reading you need confirmed | accepts it or corrects it |
-| `debate` | shows a fork: the options side by side and your recommendation | picks an option or writes one in |
+| `debate` | shows a fork: the question, the options side by side, then your recommendation | picks an option or writes one in |
 | `signoff` | states an aspect only a human may approve, with the exact wording | signs it or asks for changes |
 | `info` | shows context; it asks nothing | may annotate it |
 
@@ -51,7 +51,13 @@ the human now, and muted otherwise. The chip of the current round is fully stron
 more, down to a floor that stays readable. An open `info` card
 shows no state word. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
-option, each option cell with the id `<item id>-opt-<letter>`.
+option, each option cell with the id `<item id>-opt-<letter>`. The round input of a
+`debate` card holds its recommendation in `recommend: {option, why}`: `option` is
+the letter of an option column, or null for no recommendation, and `why` is 1
+sentence. The build writes it right after the options table, as 1 text block
+labelled "Recommended: <letter>" or "No recommendation", with `why` as its text.
+The build refuses a letter that names no option cell, and `recommend` on another
+kind (`bad-recommend`).
 
 A `decided` card shows its fields as labelled blocks, one `text` with a `label`
 each, in this order: "Decision" in bold, "Why this one", "Other options
@@ -73,7 +79,7 @@ listed in `degraded` in its result.
   "state": "open",
   "body": {
     "type": "text",
-    "props": {"text": "Which file format does the export write? Recommended: A."},
+    "props": {"text": "Which file format does the export write?"},
     "children": [
       {"type": "table", "id": "i-format-options", "props": {
         "columns": ["A — CSV", "B — JSON lines"],
@@ -81,7 +87,9 @@ listed in `degraded` in its result.
           {"type": "text", "id": "i-format-opt-a", "props": {"text": "Opens in a spreadsheet; flat rows only."}},
           {"type": "text", "id": "i-format-opt-b", "props": {"text": "Keeps nested fields; needs a reader tool."}}
         ]]
-      }}
+      }},
+      {"type": "text", "id": "i-format-recommend", "props": {"label": "Recommended: A",
+        "text": "Every reader of the export today is a spreadsheet."}}
     ]
   }
 }

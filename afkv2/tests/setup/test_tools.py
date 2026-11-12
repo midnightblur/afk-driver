@@ -65,7 +65,7 @@ def test_rg_missing_off_windows_is_reported(runner):
 
 def test_lavish_records_prior_then_installs_pin(places, runner):
     answer = tools.install_lavish_pin(places, runner, {})
-    assert answer["ok"] and answer["prior"] == "0.1.63" and runner.lavish == "0.1.80"
+    assert answer["ok"] and answer["prior"] == "0.1.63" and runner.lavish == "0.1.86"
     again = tools.install_lavish_pin(places, runner, {})
     assert again["action"] == "present"
     assert tools.lavish_record(places).read_text().strip() == "0.1.63"
@@ -135,7 +135,7 @@ def test_restore_with_npm_unavailable_keeps_the_record_and_the_package(places, r
     runner.npm_ls_fails = True
     answer = tools.restore_lavish(places, runner, {})
     assert not answer["ok"] and answer["error"]["code"] == "npm-unavailable"
-    assert tools.lavish_record(places).exists() and runner.lavish == "0.1.80"
+    assert tools.lavish_record(places).exists() and runner.lavish == "0.1.86"
 
 
 class _FakeWinreg:

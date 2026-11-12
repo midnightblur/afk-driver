@@ -7,6 +7,10 @@
   ticket  `ABC-123`, only for a project key in `projects`
   commit  7 to 40 hex characters after "commit" or "sha", and 40 hex characters alone
 
+`session.links.titles` maps a reference as the text writes it (`ABC-123`, `#123`, `!123`; `PR #123` takes the
+title of `!123` first) to its title: the
+link shows it on hover through the tooltip layer (`tips.js`). A reference with no title gets no hover text.
+
 A kind with no template stays text. Only text between tags changes, so ids and attributes keep their
 bytes. Text in a link, code, a script, a style, a form control, a fold label or an SVG stays text, and so
 does a URL written in text: `https://host/browse/ABC-123` keeps its key as text.
@@ -31,6 +35,8 @@ COMMIT_WORDS = r"(?i:\b(?:commits?|sha)\b:?\s+)"
 URL = re.compile(r"(https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s<>\"'])+)")
 LINK = ('<a class="afkv2-ref" href="{}" target="_blank" rel="noopener noreferrer" '
         'data-lavish-action="afkv2-ref">{}</a>')
+TITLED_LINK = ('<a class="afkv2-ref afkv2-tip" href="{}" target="_blank" rel="noopener noreferrer" '
+               'data-lavish-action="afkv2-ref" data-afkv2-tip="{}">{}</a>')
 CARD_LINK = '<a class="afkv2-card-link" href="#{0}" data-lavish-action="afkv2-card-link">{0}</a>'
 HEADINGS = {"h1", "h2", "h3", "h4", "title"}
 CARD_OPEN = re.compile(r'<article\b[^>]*\bdata-afkv2-item="([^"]+)"')
@@ -58,14 +64,24 @@ def _href(template: str, reference: str) -> str:
 
 
 def _replace(links: dict):
+    titles = links.get("titles") or {}
+
+    def anchor(kind: str, reference: str, title_key: str | None = None) -> str:
+        title = titles.get(title_key or reference)
+        if title:
+            return TITLED_LINK.format(_href(links[kind], reference), escape(title), reference)
+        return LINK.format(_href(links[kind], reference), reference)
+
     def link(match: re.Match) -> str:
         found = match.groupdict()
         if found.get("cr"):
-            return found["cw"] + LINK.format(_href(links["change"], found["cr"]), found["cr"])
+            # "MR #5" is change 5: its title is the one of `!5`, else of `#5` (one number space on GitHub).
+            number = found["cr"].lstrip("#!")
+            return found["cw"] + anchor("change", found["cr"], "!" + number if "!" + number in titles else None)
         for group, kind in (("c", "change"), ("i", "issue"), ("t", "ticket"), ("f", "commit")):
             if found.get(group):
-                return LINK.format(_href(links[kind], found[group]), found[group])
-        return found["kw"] + LINK.format(_href(links["commit"], found["k"]), found["k"])
+                return anchor(kind, found[group])
+        return found["kw"] + anchor("commit", found["k"])
     return link
 
 

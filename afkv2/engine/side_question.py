@@ -6,7 +6,7 @@ The agent session runs in a herdr pane: `HERDR_PANE_ID` names it, `HERDR_BIN_PAT
 PATH) runs herdr. A command the agent starts inherits both. `ask` types the harness's side-question
 command into that pane, reads the pane until the answer is complete, and closes the overlay.
 
-    Claude  `/btw <question>`; the overlay ends with a footer line `... to browse ... Esc to close`.
+    Claude  `/btw <question>`; the overlay ends with a footer line `... c to copy ... Esc to close` once the answer is complete.
     Codex   `/side <question>`; the answer is not read until a live check defines its markers.
 
 Esc goes to the pane only while the footer is visible: Esc at a working prompt interrupts the agent.
@@ -45,7 +45,9 @@ class Harness:
 
 
 HARNESSES = {
-    "claude": Harness("/btw", re.compile(r"to browse\b.*\bEsc to close")),
+    # A complete answer's footer offers `c to copy`; while it streams, the footer has no `c to copy`.
+    # With an empty history it starts `↑/↓ to scroll`, else `⇧←/→ to browse` (Claude Code 2.1.322).
+    "claude": Harness("/btw", re.compile(r"\bc to copy\b.*\bEsc to close\s*$")),
     "codex": Harness("/side", None),
 }
 

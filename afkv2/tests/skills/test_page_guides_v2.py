@@ -129,8 +129,8 @@ def test_the_round_pass_describes_the_readings_of_a_version_2_page():
 
 # --- the layout rules live in use-lavish (PRD AC-027)
 
-V2_ORDER = ("the banner", "the notes and replies", "the questions of the round", "the maps", "the sections",
-            "the worked examples", "the questions for others", "the settled points", "the earlier banners")
+V2_ORDER = ("the banner", "the notes and replies", "the maps", "the sections", "the worked examples",
+            "the questions for others", "the questions of the round", "the settled points", "the earlier banners")
 
 
 def test_use_lavish_holds_the_version_2_layout():

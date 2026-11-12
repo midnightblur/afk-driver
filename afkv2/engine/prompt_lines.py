@@ -19,7 +19,9 @@ to the side-question listener (`btw_listener.py`), and only a page rendered befo
 The page queues 1 answer per question for others as a prompt with the tag `afkv2-tick`, its first line the
 tick line; the last one of a question wins, and one with no option id sends nothing.
 Every other prompt is a native lavish annotation or message. An annotation names its
-element by the nearest ancestor HTML id in `selector`, and every page element id is an HTML id.
+element by the nearest ancestor HTML id in `selector`, and every page element id is an HTML id. An annotation
+on a part that the page names, such as a table row, keeps that name as its noted text: `row 3 (Login)`, or
+`row 3 (Login): <selected text>` for a selection in it.
 """
 
 from __future__ import annotations
@@ -66,6 +68,18 @@ def selector_target(selector: str, ids: dict, aliases: dict | None = None) -> st
     return None
 
 
+def selector_part(selector: str, ids: dict, labels: dict | None) -> str | None:
+    """The name of the part that a selector's first known `#id` segment draws, such as `row 3 (Login)`; None when
+    that segment is an element id or names no part."""
+    for match in ID_SEGMENT.finditer(selector or "") if labels else ():
+        identifier = css_unescape(match.group(1))
+        if identifier in ids:
+            return None
+        if identifier in labels:
+            return labels[identifier]
+    return None
+
+
 def _excerpt(text: str, limit: int = EXCERPT_LIMIT) -> str:
     words = " ".join(text.split())
     return words if len(words) <= limit else words[:limit - 1] + "…"
@@ -96,12 +110,12 @@ def split_side_questions(prompts: list[dict]) -> tuple[list[dict], list[str]]:
 
 
 def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None,
-                     page_format: str | None = None) -> str:
+                     page_format: str | None = None, labels: dict | None = None) -> str:
     """First line `[round R-n]` of the current round; then the lines of each element, in first-seen order.
 
     `aliases` maps an HTML id that is no element id, such as a row of the notes table, to its element.
     `page_format` is the schema value of the page file, by default the document's own: a format 0 page
-    keeps its format 0 grammar.
+    keeps its format 0 grammar. `labels` names the part that such an HTML id draws, such as a table row.
 
     Each annotation is one note. A selection, and an annotation on no known element, keeps the text it was
     on: format 0 as an excerpt inside the note, format 1 in the note's `on:` line. No prompt with words is
@@ -152,8 +166,12 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
         target = selector_target(selector, ids, aliases)
         note = text.strip()
         quote = None
+        limit = EXCERPT_LIMIT if old_grammar else QUOTE_LIMIT
         if seen.strip() and (tag == SELECTION_TAG or (target is None and selector and tag not in NO_EXCERPT_TAGS)):
-            quote = _excerpt(seen, EXCERPT_LIMIT if old_grammar else QUOTE_LIMIT)
+            quote = _excerpt(seen, limit)
+        part = selector_part(selector, ids, labels) if target else None
+        if part:
+            quote = _excerpt(f"{part}: {quote}" if quote else part, limit)
         if old_grammar and quote:
             note, quote = f'{note} (on: "{quote}")'.strip(), None
         if not note and not quote:

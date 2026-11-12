@@ -22,7 +22,7 @@ from html import escape
 from pathlib import Path
 
 import diagrams
-from registry import aliases, lookup, page_context, render_component, walk
+from registry import aliases, lookup, page_context, part_labels, render_component, walk
 from schema.note_rules import round_target
 from shell import parts_v2
 from shell.points import grouped
@@ -251,12 +251,24 @@ def targets(doc: dict) -> dict:
     """Each HTML id the page draws that is no element id, with the element id an annotation on it stands for:
     the ids that the components of the maps and cards draw, and the ids of the notes and replies rows."""
     found, doc = {}, _answers_read(doc)
-    for tree in [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]:
+    for tree in _trees(doc):
         found.update(aliases(tree))
     kind = lookup(NOTES_AND_REPLIES)
     if kind and kind.targets:
         found.update(kind.targets({"document": doc}))
     return found
+
+
+def labels(doc: dict) -> dict:
+    """Each HTML id of `targets` that names a part of its element, such as a table row, with those words."""
+    found, doc = {}, _answers_read(doc)
+    for tree in _trees(doc):
+        found.update(part_labels(tree))
+    return found
+
+
+def _trees(doc: dict) -> list[dict]:
+    return [*(doc.get("maps") or []), *(item["body"] for r in doc["rounds"] for item in r["items"])]
 
 
 def _read_highlight(name: str, bare: bool = False) -> str:
@@ -374,8 +386,8 @@ def _document(doc: dict, title: str, body: str, current: dict, btw: tuple[int, s
             f'<script>\n{_assets(".js", BASE_JS)}</script>\n{highlighter}</body>\n</html>\n')
 
 
-# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, the round's questions, maps,
-# sections, worked examples, questions for others; then the settled points and the earlier banners.
+# --- the version 2 layout (ADR-0003 design): title and banner, notes and replies, maps, sections, worked examples,
+# questions for others, the round's questions; then the settled points and the earlier banners.
 
 
 SECTION_LISTS = (("added", "Sections added"), ("changed", "Sections changed"), ("merged", "Sections merged"),
@@ -485,9 +497,9 @@ def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> 
     body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
             f'{_banner_v2(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
-            f'{_round_questions(doc, current, live)}'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{parts_v2.render_sections(doc, _changed_now(doc, current))}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{_round_questions(doc, current, live)}'
             f'{_settled_section(doc, settled, current)}'
             f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')
     return _document(doc, title, body, current, btw)

@@ -34,7 +34,7 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 
 1. **Topic.** With no topic, ask in chat what the page is about, and open no page. Done when you hold a topic.
 2. **Start.** Run `scripts/page_home.py start --topic "<topic>"`. Add `--ticket` when the work has a ticket. Add `--private` when the content is not for the repository's readers: customer data, personal notes, work context. Done when the result holds `doc`.
-3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Add `value_sets` for the value chips the round uses. Add `ticket_projects`, such as `["ABC"]`, for each Jira project whose tickets the page names and the config does not list, so that each key links to its ticket. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen the round: fix the named field in the round input, and run `build` again with `--replace`. `round-shown`: the human may be answering the round in the browser, so wait for it. On `show`, the page host is not available: show the round as Markdown in chat, with every card id, write the human's reply to `raw_file`, and go to step 5. Done when `present` succeeds and you reported its notices ("After each show").
+3. **Round 1.** Write the round input by the rules below: `short_title` (at most 40 characters; it never changes), `step` (the topic), `banner`, `items` and `maps`. Add `value_sets` for the value chips the round uses. Add `ticket_projects`, such as `["ABC"]`, for each Jira project whose tickets the page names and the config does not list, so that each key links to its ticket. Add `ticket_titles`, such as `{"ABC-12": "Fix the login", "#4": "Add a flag"}`, for each ticket, issue or change the page names whose title you read: its link shows the title on hover. A later round adds titles and keeps the earlier ones. Run `build` with the `doc` and `session` of `start`, the same `--ticket`, and `--private` when `start` had it. Then run `present`. A refusal holds the failed `verb`. On `check` or `render`, the human has not seen the round: fix the named field in the round input, and run `build` again with `--replace`. `round-shown`: the human may be answering the round in the browser, so wait for it. On `show`, the page host is not available: show the round as Markdown in chat, with every card id, write the human's reply to `raw_file`, and go to step 5. Done when `present` succeeds and you reported its notices ("After each show").
 4. **Wait.** Run `wait` as a background command the harness tracks; its exit tells you the round send is in `raw_file`. On a harness whose Stop hook waits for the page, end your turn after `present` instead, and write the raw response it hands back to `raw_file`, word for word. When the result lists side questions in `btw`, write one short Markdown answer for each to a reply file and run `scripts/page_round.py reply`. Then go to step 5, or run `wait` again when `raw_file` is null.
 5. **Answer.** Run `ingest`, read the round send by [ROUND-PASS.md](ROUND-PASS.md), and run `apply-readings`. Write the next round with a reply for every note, then `build` and `present`. Done when the human ends the session; then run `end`.
 
@@ -73,8 +73,8 @@ A session that resumes a page whose session ended takes it over before it writes
 | Id | Rule |
 |---|---|
 | PR-01 | A heading states the conclusion, with a number. |
-| PR-02 | A card opens with the verdict, then the evidence, then the detail, then risks and pushback. |
-| PR-03 | Put first what the human needs first: what changed and where the asks are, then the overview, then the detail. Open questions first, each with a recommendation. |
+| PR-02 | A `debate` card shows the question, then the options, then the recommendation with its reason (`recommend`, `card` page). Every other card opens with the verdict, then the evidence, then the detail, then risks and pushback. |
+| PR-03 | Put first what the human needs first: what changed and where the asks are, then the overview, then the detail. Each open question has a recommendation. |
 | PR-04 | Show the whole topic as a map, and tie each card to its node. |
 | PR-05 | Pick the form by the kind of fact (table K). |
 | PR-06 | Say how each number is known: measured, inferred or estimated, and from where. |
@@ -86,6 +86,7 @@ A session that resumes a page whose session ended takes it over before it writes
 | PR-12 | Avoid: round badges stacked in one heading; trace codes in prose; new cards that push the main section down. The same tooltip on every repeat of a term is allowed. |
 | PR-13 | Every diagram has a 1-line caption that says what to see. |
 | PR-14 | A scope map groups its parts by module or area and draws no flow arrows; an arrow only where one part must settle before another. |
+| PR-15 | Make a note the main answer: show the information first and the questions last. A card's question asks for the human's view; a mark is a shortcut, not the only answer. |
 
 ### Page layout
 
@@ -95,11 +96,11 @@ The engine lays out the page by its version: you write the content, and the engi
 
 1. the title and the banner of the current round: each section that the round added, changed, merged or removed, each other element that it changed, each as a link; then what settled, what it unlocks and what is parked;
 2. the notes and replies of the session;
-3. the questions of the round: its cards in 1 block;
-4. the maps;
-5. the sections, in the order of `sections`;
-6. the worked examples, each marked frequent, edge or risky, with the stories it covers;
-7. the questions for others;
+3. the maps;
+4. the sections, in the order of `sections`;
+5. the worked examples, each marked frequent, edge or risky, with the stories it covers;
+6. the questions for others;
+7. the questions of the round: its cards in 1 block (PR-15);
 8. the settled points, each folded to its heading and settled line;
 9. the earlier banners, closed.
 
@@ -123,7 +124,7 @@ The visible text holds no element id and no round code: a round reads "round 3".
 
 #### The questions block
 
-- The asking cards of the round show in 1 block, after the notes and replies and above the sections. Each card with `section` shows a link to its section.
+- The asking cards of the round show in 1 block, after the questions for others and above the settled points. Each card with `section` shows a link to its section.
 - The questions for others show as their own part, in the order of `questions`, with a filter by who to ask (`who`). A new question goes to the end; a follow-up goes right after the question it follows, by `after`; `after: null` puts a question first. A question that waits on another names it in `waits_on`, and the page links to it. A question with `choices` shows a tick for 1 option, or for several when `several` is true.
 
 #### What goes first on a version 0 or 1 page

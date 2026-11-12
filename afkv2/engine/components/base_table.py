@@ -1,7 +1,8 @@
 """Table (CMP-6): rows and cells; a cell is text or any component.
 
 A table with an id gives each body row an HTML id. lavish names an annotation by the nearest ancestor id
-within 5 elements, and a cell's table id is further away than that; `row_targets` maps a row to its table.
+within 5 elements, and a cell's table id is further away than that; `row_targets` maps a row to its table, and
+`row_labels` names the row, so a note on it keeps its row.
 """
 
 from html import escape
@@ -9,6 +10,7 @@ from html import escape
 from registry import register_component, render_component
 
 ROW_ID = "afkv2-tr-{}-{}"
+LABEL_LIMIT = 60
 
 
 def nested_cells(props):
@@ -46,6 +48,24 @@ def row_targets(props):
     return {row_id: props["id"] for row_id in _row_ids(props)}
 
 
+def _words(cell) -> str:
+    text = cell if isinstance(cell, str) else next(
+        (value for key in ("text", "label", "title") for value in [(cell.get("props") or {}).get(key)]
+         if isinstance(value, str)), "")
+    words = " ".join(text.split())
+    return words if len(words) <= LABEL_LIMIT else words[:LABEL_LIMIT - 1] + "…"
+
+
+def row_labels(props):
+    """Each body row as `row <n> (<words>)`, the words of its first cell that holds a letter: a cell of a number
+    only repeats the row number. `row <n>` when no cell holds a letter."""
+    found = {}
+    for n, (row_id, row) in enumerate(zip(_row_ids(props), props["rows"]), start=1):
+        first = next((words for words in map(_words, row) if any(c.isalpha() for c in words)), "")
+        found[row_id] = f"row {n} ({first})" if first else f"row {n}"
+    return found
+
+
 register_component("table", {
     "type": "object", "additionalProperties": False, "required": ["columns", "rows"],
     "properties": {
@@ -55,4 +75,4 @@ register_component("table", {
             "items": {"anyOf": [{"type": "string"}, {"type": "object", "required": ["type"]}]},
         }},
     },
-}, render_table, nested=nested_cells, check=check_rows, targets=row_targets, takes_id=True)
+}, render_table, nested=nested_cells, check=check_rows, targets=row_targets, takes_id=True, labels=row_labels)

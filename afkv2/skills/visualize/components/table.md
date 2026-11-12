@@ -18,7 +18,9 @@ values. Put a chip in a cell to mark a value as kept, removed, new or proposed.
 
 A grid with a heading row. Wide tables scroll inside their card; no cell text
 is cut off. Give the table an `id`: then a note on any cell lands on the table,
-and so on its card. Without an id, a note on a cell lands on no element.
+and so on its card, and keeps its row as its noted text: `row 3 (<words>)`, the
+words of the first cell that holds a letter. Put the words that name a row first. Without an id, a note on a cell
+lands on no element.
 
 ## Example
 

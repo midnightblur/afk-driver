@@ -292,12 +292,14 @@ def test_fork_card_shows_the_options_side_by_side():
     assert [cell["props"]["text"] for cell in cells] == ["Keeps every run.", "Keeps the last run."]
 
 
-def test_fork_card_states_the_recommendation_and_why_it_is_open():
+def test_fork_card_states_the_recommendation_after_the_options():
     item = fork_cards.build_fork_card("f", "Which?", OPTIONS, "A one-way door.", recommended="b")
-    texts = json.dumps(item["body"])
-    assert "Recommended: B." in texts and "A one-way door." in texts
+    assert item["body"]["props"]["text"] == "Which?"
+    children = item["body"]["children"]
+    assert [child["id"] for child in children] == ["f-options", "f-recommend"]
+    assert children[1]["props"] == {"label": "Recommended: B", "text": "A one-way door."}
     plain = fork_cards.build_fork_card("f", "Which?", OPTIONS, "A tie.")
-    assert "No recommendation." in json.dumps(plain["body"])
+    assert plain["body"]["children"][1]["props"] == {"label": "No recommendation", "text": "A tie."}
 
 
 def test_fork_card_with_a_picture_keeps_the_picture_as_root():

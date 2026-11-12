@@ -138,7 +138,7 @@
           "state": "open",
           "body": {
             "type": "text",
-            "props": {"text": "Which file format does the export write? Recommended: A."},
+            "props": {"text": "Which file format does the export write?"},
             "children": [
               {
                 "type": "table",
@@ -160,6 +160,11 @@
                     ]
                   ]
                 }
+              },
+              {
+                "type": "text",
+                "id": "i-format-recommend",
+                "props": {"label": "Recommended: A", "text": "Every reader of the export today is a spreadsheet."}
               }
             ]
           }
