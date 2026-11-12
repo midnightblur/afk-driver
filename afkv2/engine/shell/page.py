@@ -160,10 +160,16 @@ def _label(doc: dict, item: dict) -> dict:
     return {"label": parts_v2.visible_label(doc, "element", item["id"])} if doc["schema"] == V2 else {}
 
 
+def _age(doc: dict, round_: dict) -> int:
+    """The count of rounds from `round_` to the current round: the fade of its chips (`base_card.fade`)."""
+    return max(r["n"] for r in doc["rounds"]) - round_["n"]
+
+
 def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current,
+                  "age": _age(doc, round_),
                   "exchange": _exchange(doc, item), **_label(doc, item), **extra},
         "children": [item["body"]],
     })
@@ -445,7 +451,7 @@ def _card_v2(doc: dict, point, current_n: int, changed: set) -> str:
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_),
-                  "current": round_["n"] == current_n, "exchange": _section_link(doc, item) + _exchange(doc, item),
+                  "current": round_["n"] == current_n, "age": _age(doc, round_), "exchange": _section_link(doc, item) + _exchange(doc, item),
                   "history": _history(doc, point), **_label(doc, item), **_mark(item, changed)},
         "children": [item["body"]],
     })

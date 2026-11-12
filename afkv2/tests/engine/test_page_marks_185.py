@@ -104,3 +104,36 @@ def test_a_version_1_page_keeps_its_visible_text_and_shows_no_mark():
                                   "body": {"type": "text", "props": {"text": "c"}}}]}]}
     html = build(doc)
     assert 'data-afkv2-fresh="2"' in element(html, "i-b") and CHANGED not in html
+
+
+# --- AC-048: round chips fade by round age
+
+CHIP = re.compile(r'<span class="afkv2-round-chip[^"]*"(?: style="opacity: ([0-9.]+)")? title="Round (\d+)">')
+
+
+def chip_strengths(html):
+    """Each round number with the opacity of its chips; a chip with no opacity is fully strong."""
+    found = {}
+    for opacity, n in CHIP.findall(html):
+        found.setdefault(int(n), set()).add(float(opacity or 1))
+    return found
+
+
+def test_the_current_round_chip_is_strongest_and_older_rounds_fade():
+    found = chip_strengths(build(changed_document()))
+    assert set(found) == {1, 2, 3}
+    assert all(len(values) == 1 for values in found.values()), found
+    assert found[3] == {1.0}
+    assert found[3].pop() > found[2].pop() > found[1].pop()
+
+
+def test_a_chip_never_fades_out_of_sight():
+    doc = changed_document()
+    settled = doc["rounds"][0]
+    doc["rounds"] = [{**settled, "n": n, "items": [{**item, "id": f"{item['id']}-{n}"} for item in settled["items"]]}
+                     for n in range(1, 8)] + [{**doc["rounds"][2], "n": 8}]
+    for section in doc["sections"]:
+        section["changes"] = []
+    doc["notes"] = []
+    found = chip_strengths(build(doc))
+    assert min(value for values in found.values() for value in values) >= 0.4

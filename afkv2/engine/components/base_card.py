@@ -5,6 +5,7 @@ The page passes the card's notes and replies (`exchange`) and its earlier cards 
 `label`, given on a version 2 page, is the visible name of the card. Its presence switches the heading: with a
 label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
 card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
+`age`, given by the page, is the count of rounds since the card's round: its chip fades with age (`fade`).
 `mark`, given by the page, is HTML that shows right after the title: the changed-this-round mark (PRD AC-047).
 """
 
@@ -19,6 +20,7 @@ STATE_WORDS = {"open": "open", "blocked": "blocked", "needs_reading": "needs rea
                "settled_by_mark": "settled by mark", "settled_by_note": "settled by note"}
 RAIL_STATES = {"blocked": "blocked", "settled_by_mark": "settled", "settled_by_note": "settled"}
 WRITE_IN = "write-in"
+FADE_STEP, FADE_FLOOR = 0.2, 0.4
 FIXED_CONTROLS = {
     "decided": [("accept", "Accept"), ("reopen", "Reopen")],
     "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: annotate the card")],
@@ -77,11 +79,21 @@ def _settled_line(item):
             f'in round {settled["round"]} ({escape(settled["signal"])}){reading}</p>')
 
 
+def fade(age):
+    """The inline style of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each older
+    round fades by FADE_STEP down to FADE_FLOOR, so an old chip stays readable."""
+    if not age:
+        return ""
+    return f' style="opacity: {max(FADE_FLOOR, 1 - FADE_STEP * age):.1f}"'
+
+
 def _chip(props, needs_human):
-    """The round chip of the card's round: solid when the card needs the human now, muted otherwise."""
+    """The round chip of the card's round: solid when the card needs the human now, muted otherwise; it fades with
+    the age of its round."""
     muted = "" if needs_human else " afkv2-round-chip--past"
     words = f'Round {props["round"]}' if "label" in props else f'R-{props["round"]}'
-    return f'<span class="afkv2-round-chip{muted}" title="Round {props["round"]}">{words}</span> '
+    return (f'<span class="afkv2-round-chip{muted}"{fade(props.get("age", 0))} title="Round {props["round"]}">'
+            f'{words}</span> ')
 
 
 def render_card(props, children):
@@ -119,6 +131,7 @@ register_component("card", {
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
                    "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
                    "rail": {"enum": ["open", "blocked", "settled"]}, "mark": {"type": "string"},
+                   "age": {"type": "integer", "minimum": 0},
                    "label": {"description": "Present: the version 2 heading (module docstring).", "type": "string",
                              "minLength": 1}},
 }, render_card)
