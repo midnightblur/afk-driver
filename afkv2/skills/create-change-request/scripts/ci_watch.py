@@ -50,6 +50,7 @@ GITHUB_CHANGE = re.compile(r"https://github\.com/(?P<repo>[^/]+/[^/]+)/pull/(?P<
 PUBLIC_NOTICE = "This comment goes to GitHub: on a public repository anyone can open its pictures."
 RECEIPT_PLACEHOLDER = "0" * 64
 PROOF_FOLDER = "afkv2-proof"
+PARTS_FOLDER = "afkv2-change"
 SHIP_ORDER = (*gate_record.SHIP_CODES, "proof-not-posted")
 
 
@@ -138,7 +139,8 @@ def _record_path(change):
 
 def _parts_path(change):
     """The proof lines and found bugs that `open` wrote into the description of `change`, kept for the ship check."""
-    return _record_path(change).parent.parent / "afkv2-change" / f"{_NOT_A_FILE_NAME.sub('_', change)}.json"
+    file_name = _NOT_A_FILE_NAME.sub("_", change)
+    return _record_path(change).parent.parent / PARTS_FOLDER / f"{file_name}.json"
 
 
 def write_parts(change, proofs, found):
