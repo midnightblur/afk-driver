@@ -85,6 +85,7 @@ Each push during ship goes back to step 1.
 |---------|---------|-------------|
 | `no-gate`, `gate-unreadable`, `gate-version-unknown` | no gate record at `gate`, none given, or it cannot be read | pass the `path` that the end gate or the small lane answered; with none, the gate must run first |
 | `gate-not-passed`, `verdict-no-description`, `evidence-changed`, `gate-head-stale` | `failures` names each row: not passed, waiting, not judged, a verdict that does not describe what it saw, changed evidence, or commits after the gate head outside the spec folder | the gate runs again (`/afkv2:autopilot`); a waiting row needs the developer. Report each failure. The change stays Draft |
+| `code-before-go`, `no-lane` | a small-lane gate record: a commit before the developer's go changed code, or this worktree holds no small lane | the change cannot ship on this go: report it; the developer decides. Run `mark-ready` from the worktree of the lane |
 | `proof-missing`, `proof-field-missing` | a gate row has no proof line, or its line lacks a field; `failures` names the behavior or the field | add the line, run step 1, then mark again |
 | `found-open` | a found bug has no pick | show it on the ship page; write the developer's pick, run step 1, then mark again |
 | `proof-not-posted` | no receipt, or the comment changed after the developer's ship mark | go back to step 2 |

@@ -51,7 +51,8 @@ PUBLIC_NOTICE = "This comment goes to GitHub: on a public repository anyone can 
 RECEIPT_PLACEHOLDER = "0" * 64
 PROOF_FOLDER = "afkv2-proof"
 PARTS_FOLDER = "afkv2-change"
-SHIP_ORDER = (*gate_record.SHIP_CODES, "proof-not-posted")
+SHIP_ORDER = ("code-before-go", *gate_record.SHIP_CODES, "proof-not-posted")
+SMALL_LANE = PLUGIN / "skills" / "small-change" / "scripts"
 
 
 def _call(script, verb, payload, limit):
@@ -510,10 +511,16 @@ def _gate_failures(payload, view, path):
     kept = read_parts(str(view.get("id"))) or {"proofs": [], "found": []}
     record = _read_gate(path)
     config = _config()
+    repo = (config or {}).get("repo_root") or _git_line("rev-parse", "--show-toplevel") or "."
     failures = []
+    if record["lane"] == "small":
+        try:
+            _small_lane().check_go(repo, record["go"])
+        except Refusal as refusal:
+            failures.append({"code": refusal.code, "row": None, "reason": refusal.reason})
     try:
         gate_record.verify(path, kept["proofs"], _local_head(), spec_folder=(config or {}).get("spec_folder") or "",
-                           repo=(config or {}).get("repo_root") or _git_line("rev-parse", "--show-toplevel") or ".")
+                           repo=repo)
     except gate_record.GateRefusal as refusal:
         failures.extend(refusal.failures)
     except afkv2_config.Refusal as refusal:
@@ -536,6 +543,14 @@ def _gate_failures(payload, view, path):
     order = {code: n for n, code in enumerate(SHIP_ORDER)}
     failures.sort(key=lambda failure: order.get(failure["code"], len(order)))
     return failures, preview
+
+
+def _small_lane():
+    """The small-lane module, loaded only for a small-lane gate record."""
+    if str(SMALL_LANE) not in sys.path:
+        sys.path.insert(0, str(SMALL_LANE))
+    import small_lane
+    return small_lane
 
 
 def _first_line(text):

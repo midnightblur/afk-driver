@@ -186,9 +186,14 @@ def test_work_that_grows_stops_the_lane_and_proposes_the_medium_lane(repo, tmp_p
 
 def test_before_records_the_failing_high_level_test_before_the_fix(repo, tmp_path):
     gone(repo, tmp_path)
+    commit(repo, "tests/check.py", "import sys\nprint('VALUE is not 2')\nsys.exit(3)\n", "a check that says why")
+    head = git(repo, "rev-parse", "HEAD")
     answer = call("before", repo=str(repo), command=f"{PY} tests/check.py")
-    assert answer["ok"] and answer["exit"] != 0
-    assert Path(answer["log"]).is_file()
+    assert answer["ok"] and answer["exit"] == 3, answer
+    assert "VALUE is not 2" in Path(answer["log"]).read_text(encoding="utf-8") and "VALUE is not 2" in answer["output"]
+    before = small_lane.read_lane(repo)["before"]
+    assert before["command"] == f"{PY} tests/check.py" and before["exit"] == 3 and before["head"] == head
+    assert before["log"] == answer["log"] and before["at"]
 
 
 def test_before_refuses_a_test_that_passes_and_a_fix_already_made(repo, tmp_path):
@@ -196,6 +201,96 @@ def test_before_refuses_a_test_that_passes_and_a_fix_already_made(repo, tmp_path
     assert code_of(call("before", repo=str(repo), command=f"{PY} -c \"pass\"")) == "not-red"
     commit(repo, "src/app.py", "VALUE = 2\n", "the fix")
     assert code_of(call("before", repo=str(repo), command=f"{PY} tests/check.py")) == "fix-before-before"
+
+
+# --- the live build of the repository config ------------------------------------------------------------------------
+
+SERVER = """
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+    def log_message(self, *args):
+        pass
+HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+"""
+
+# Exit 0 only when the app answers and the fix is in; it writes what it saw to reached.txt.
+PROBE_CHECK = """
+import sys, urllib.request
+from pathlib import Path
+try:
+    urllib.request.urlopen(sys.argv[1], timeout=5)
+    reached = "reached"
+except OSError:
+    reached = "unreached"
+Path(sys.argv[2]).write_text(reached)
+sys.exit(0 if reached == "reached" and "VALUE = 2" in Path("src/app.py").read_text() else 1)
+"""
+
+
+def free_port():
+    import socket
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def answers(address):
+    import urllib.request
+    try:
+        urllib.request.urlopen(address, timeout=1)
+    except OSError:
+        return False
+    return True
+
+
+def with_live(repo, tmp_path, start=None):
+    """Commit a live block and its server before the lane starts; answer the address and the probe command."""
+    port = free_port()
+    address = f"http://127.0.0.1:{port}/"
+    commit(repo, "tests/server.py", SERVER, "the app")
+    commit(repo, "tests/probe.py", PROBE_CHECK, "the probe")
+    live = {"start": start or f"{PY} tests/server.py {port}", "address": address, "ready_seconds": 20}
+    commit(repo, ".afkv2/config.json", json.dumps({"spec_folder": "docs", "forge": "github", "live": live}), "config")
+    reached = tmp_path / "reached.txt"
+    return address, f'{PY} tests/probe.py {address} "{reached}"', reached
+
+
+def test_before_starts_the_live_build_for_the_test_and_stops_it_after(repo, tmp_path):
+    address, probe, reached = with_live(repo, tmp_path)
+    gone(repo, tmp_path)
+    answer = call("before", repo=str(repo), command=probe)
+    assert answer["ok"] and answer["exit"] == 1, answer
+    assert reached.read_text() == "reached"
+    assert not answers(address)
+
+
+def test_the_gate_starts_the_live_build_for_the_test_and_stops_it_after(repo, tmp_path):
+    address, probe, reached = with_live(repo, tmp_path)
+    gone(repo, tmp_path, "enhancement")
+    commit(repo, "src/app.py", "VALUE = 2\n", "the fix")
+    answer = gate(repo, FakeJudge(), command=probe)
+    assert answer["ok"] and answer["result"] == "pass", answer
+    assert reached.read_text() == "reached"
+    assert not answers(address)
+
+
+def test_a_live_build_that_cannot_start_refuses_before_and_leaves_the_gate_row_waiting(repo, tmp_path):
+    address, probe, reached = with_live(repo, tmp_path, start=f"{PY} -c \"import sys; sys.exit(1)\"")
+    gone(repo, tmp_path)
+    assert code_of(call("before", repo=str(repo), command=probe)) == "live-start-failed"
+    assert not reached.exists()
+    lane = small_lane.read_lane(repo)
+    lane["kind"] = "enhancement"
+    small_lane._save_lane(repo, lane)
+    answer = gate(repo, FakeJudge(), command=probe)
+    assert answer["ok"] and answer["result"] != "pass", answer
+    (row,) = gate_record.read(answer["path"])["rows"]
+    assert row["runs"] == [] and row["waiting"].startswith("live build: live-start-failed")
+    assert not reached.exists()
 
 
 class FakeJudge:

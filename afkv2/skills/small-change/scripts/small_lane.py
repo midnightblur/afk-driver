@@ -133,6 +133,14 @@ def _go_of(repo, lane):
     return go
 
 
+
+def check_go(repo, go):
+    """The ship check of invariant I-10: no code commit lies between the start of the lane and the go of the gate
+    record. Raises `Refusal` `code-before-go`, or `no-lane` when this worktree holds no lane."""
+    repo = Path(repo)
+    _go_of(repo, {**read_lane(repo), "go": go})
+
+
 # ---------------------------------------------------------------- start, diagnose, go, grow
 
 def start(payload):
