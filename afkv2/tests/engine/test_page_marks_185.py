@@ -2,21 +2,41 @@
 "engine diagrams"): the changed-this-round mark after a title, round chips that fade by round age, the heading first
 in each card body, and the export of a diagram picture into an artifact. Every renderer is an in-process stub."""
 
+import json
 import re
 import sys
 from pathlib import Path
+
+import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
 ENGINE_DIR = PLUGIN / "engine"
 for folder in (PLUGIN / "scripts", ENGINE_DIR, Path(__file__).resolve().parent):
     sys.path.insert(0, str(folder))
 
+import diagrams  # noqa: E402
 import engine  # noqa: E402
 from shell import page  # noqa: E402
+from test_diagram_text import FLOW, StubRenderer  # noqa: E402
 from test_page_parts_v2 import document  # noqa: E402
 
+# The marks of the page HTML, each on a line of its own (plugin_check: a marker is never matched by part).
 CHANGED = '<span class="afkv2-changed">Changed this round</span>'
-TITLE_END = re.compile(r'<(h4|h3) class="afkv2-(?:h|v2-h)">')
+CARD_TITLE = 'class="afkv2-card-title"'
+HISTORY = 'class="afkv2-history"'
+FRESH_2 = 'data-afkv2-fresh="2"'
+CHIP_CLASS = "afkv2-round-chip"
+CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'(?: [\w-]+)?"(?: style="opacity: ([0-9.]+)")? title="Round (\d+)">')
+CARD_OPEN = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*>')
+CARD_BODY = '<div class="afkv2-card-body"><h4 class="afkv2-h">'
+CARD_BODY_CLASS = "afkv2-card-body"
+CARD_BODY_RULE = ".afkv2-card-body"
+CONTENT = '<div class="afkv2-body">'
+ANSWER = '<div class="afkv2-answer">'
+LIGHT_THEME = 'afkv2-diagram-theme--light">'
+WHITE = "background-color: #ffffff"
+FOLD_START = "<details>\n<summary>Mermaid source</summary>\n\n```mermaid\n"
+FOLD_END = "```\n\n</details>\n"
 
 
 def build(doc):
@@ -50,7 +70,7 @@ def test_a_card_changed_in_the_current_round_shows_the_mark_after_its_title():
     html = build(changed_document())
     own = heading(html, "i-format")
     assert CHANGED in own
-    assert own.index('class="afkv2-card-title"') < own.index(CHANGED)
+    assert own.index(CARD_TITLE) < own.index(CHANGED)
 
 
 def test_a_card_the_current_round_did_not_change_shows_no_mark():
@@ -83,7 +103,7 @@ def test_a_card_in_a_history_shows_no_changed_mark():
     doc = changed_document()
     doc["rounds"][2]["items"][0]["carries"] = ["i-scope"]
     html = build(doc)
-    history = html[html.index('class="afkv2-history"'):]
+    history = html[html.index(HISTORY):]
     assert CHANGED not in history[:history.index("</details>")]
 
 
@@ -103,12 +123,10 @@ def test_a_version_1_page_keeps_its_visible_text_and_shows_no_mark():
                                  {"id": "i-c", "kind": "confirm", "title": "Third",
                                   "body": {"type": "text", "props": {"text": "c"}}}]}]}
     html = build(doc)
-    assert 'data-afkv2-fresh="2"' in element(html, "i-b") and CHANGED not in html
+    assert FRESH_2 in element(html, "i-b") and CHANGED not in html
 
 
 # --- AC-048: round chips fade by round age
-
-CHIP = re.compile(r'<span class="afkv2-round-chip[^"]*"(?: style="opacity: ([0-9.]+)")? title="Round (\d+)">')
 
 
 def chip_strengths(html):
@@ -141,15 +159,11 @@ def test_a_chip_never_fades_out_of_sight():
 
 # --- AC-046: each card body starts with its heading
 
-CARD_OPEN = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*>')
-CARD_BODY = '<div class="afkv2-card-body"><h4 class="afkv2-h">'
-
 
 def test_each_card_body_starts_with_its_heading():
     for doc in (changed_document(), document()):
         html = build(doc)
-        cards = CARD_OPEN.findall(html)
-        assert cards
+        assert CARD_OPEN.findall(html)
         for match in CARD_OPEN.finditer(html):
             assert html[match.end():].startswith(CARD_BODY), match.group(1)
 
@@ -157,9 +171,9 @@ def test_each_card_body_starts_with_its_heading():
 def test_the_card_body_holds_the_content_and_not_the_mark_radios():
     html = build(changed_document())
     own = element(html, "i-closed")
-    answer = own.index('<div class="afkv2-answer">')
+    answer = own.index(ANSWER)
     start = own.index(CARD_BODY)
-    assert start < own.index('<div class="afkv2-body">') < answer
+    assert start < own.index(CONTENT) < answer
     before_answer = own[start:answer]
     assert before_answer.count("<div") == before_answer.count("</div>"), "the card body closes before the radios"
 
@@ -167,20 +181,12 @@ def test_the_card_body_holds_the_content_and_not_the_mark_radios():
 def test_the_page_scripts_and_styles_find_the_heading_inside_the_card_body():
     shell = ENGINE_DIR / "shell"
     for script in ("tips.js", "runtime.js"):
-        assert "afkv2-card-body" in (shell / script).read_text("utf-8"), script
+        assert CARD_BODY_CLASS in (shell / script).read_text("utf-8"), script
     for sheet in ("tips.css", "kit.css"):
-        assert ".afkv2-card-body" in (shell / sheet).read_text("utf-8"), sheet
+        assert CARD_BODY_RULE in (shell / sheet).read_text("utf-8"), sheet
 
 
 # --- AC-049: export writes the picture the page showed into an artifact
-
-import json  # noqa: E402
-
-import diagrams  # noqa: E402
-import pytest  # noqa: E402
-from test_diagram_text import FLOW, StubRenderer  # noqa: E402
-
-WHITE = "background-color: #ffffff"
 
 
 @pytest.fixture
@@ -197,7 +203,7 @@ def renderer(monkeypatch):
 def light_picture_on_page(text):
     """The SVG of the light theme that the page shows for this diagram text, with its id."""
     html = diagrams.diagram_picture(text, "d-flow")
-    start = html.index('afkv2-diagram-theme--light">') + len('afkv2-diagram-theme--light">')
+    start = html.index(LIGHT_THEME) + len(LIGHT_THEME)
     return html[start:html.index("</svg>", start) + len("</svg>")]
 
 
@@ -222,8 +228,7 @@ def test_export_answers_the_picture_with_its_mermaid_source_in_a_fold_below_it(r
     markdown = diagrams.export(FLOW, tmp_path / "pictures" / "d-flow.svg", artifact)
     assert markdown.startswith("![d-flow](pictures/d-flow.svg)\n")
     fold = markdown[markdown.index("<details>"):]
-    assert fold.startswith("<details>\n<summary>Mermaid source</summary>\n\n```mermaid\n")
-    assert FLOW in fold and fold.rstrip().endswith("```\n\n</details>".rstrip())
+    assert fold.startswith(FOLD_START) and FLOW in fold and fold.endswith(FOLD_END)
 
 
 def test_export_with_no_renderer_refuses_and_writes_nothing(monkeypatch, tmp_path):
@@ -244,3 +249,25 @@ def test_the_engine_export_verb_writes_the_picture_and_answers_the_markdown(rend
     assert code == 0 and answer["ok"] is True
     assert answer["path"] == str(dest) and dest.is_file()
     assert answer["markdown"].startswith("![d-flow](pictures/d-flow.svg)")
+
+
+def test_export_paints_white_over_a_transparent_background_the_renderer_set(renderer, tmp_path, monkeypatch):
+    renderer_svg = '<svg id="{}" style="max-width: 10px; background-color: transparent;"><g></g></svg>'
+
+    def transparent(argv, timeout):
+        value = dict(zip(argv[1::2], argv[2::2]))
+        Path(value["-o"]).write_text(renderer_svg.format(value["-I"]), "utf-8")
+        return 0, ""
+
+    monkeypatch.setattr(diagrams, "call_renderer", transparent)
+    dest = tmp_path / "d-flow.svg"
+    diagrams.export(FLOW, dest)
+    style = re.search(r'^<svg[^>]*style="([^"]*)"', dest.read_text("utf-8")).group(1)
+    assert "transparent" not in style and style.rstrip("; ").endswith(WHITE)
+
+
+def test_export_of_a_text_file_with_a_last_newline_reuses_the_page_picture(renderer, tmp_path):
+    light_picture_on_page(FLOW)
+    calls = len(renderer.calls)
+    diagrams.export(FLOW + "\n", tmp_path / "d-flow.svg")
+    assert len(renderer.calls) == calls

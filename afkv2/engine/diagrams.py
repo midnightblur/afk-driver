@@ -52,7 +52,8 @@ NO_ID_BASE = "afkv2-diagram"
 WHY_LIMIT = 200
 LIGHT = dict(THEMES)["light"]
 WHITE = "background-color: #ffffff"
-ROOT_STYLE = re.compile(r'^(<svg\b[^>]*?\sstyle=")')
+ROOT_STYLE = re.compile(r'^(<svg\b[^>]*?\sstyle=")([^"]*)(")')
+BACKGROUND = re.compile(r"\s*background(?:-color)?\s*:[^;]*;?")
 FOLD = "\n<details>\n<summary>Mermaid source</summary>\n\n```mermaid\n{}\n```\n\n</details>\n"
 ID_ATTR = re.compile(r'(\sid=")([^"]+)(")')
 SAFE_ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
@@ -260,7 +261,10 @@ def diagram_picture(text: str, element: str | None = None) -> str:
 def _on_white(svg: str) -> str:
     """The SVG with a white background on its root element, so it reads the same on a dark viewer."""
     if ROOT_STYLE.match(svg):
-        return ROOT_STYLE.sub(lambda match: f"{match.group(1)}{WHITE}; ", svg, count=1)
+        def white(match: re.Match) -> str:
+            kept = BACKGROUND.sub("", match.group(2)).strip().rstrip(";")
+            return f"{match.group(1)}{kept + '; ' if kept else ''}{WHITE}{match.group(3)}"
+        return ROOT_STYLE.sub(white, svg, count=1)
     return svg.replace("<svg", f'<svg style="{WHITE}"', 1)
 
 
@@ -271,7 +275,11 @@ def export(text, dest, artifact=None):
     dest = Path(dest)
     with page_run():
         try:
-            svg, _ = _picture(text, LIGHT, *_tools(), _run)
+            cache, renderer, config = _tools()
+            # A text file often ends with a newline that the page text lacks: reuse the picture the page drew.
+            shown = next((candidate for candidate in (text, text.rstrip("\n"))
+                          if (cache / cache_name(LIGHT, candidate)).is_file()), text)
+            svg, _ = _picture(shown, LIGHT, cache, renderer, config, _run)
         except _NoPicture as why:
             raise Refusal("no-picture", f"the diagram has no picture: {why}") from None
     dest.parent.mkdir(parents=True, exist_ok=True)

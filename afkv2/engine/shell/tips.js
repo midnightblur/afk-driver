@@ -194,9 +194,10 @@
       return s === 'current' || s === 'settled' || s === 'blocked' ? s : 'open';
     }
     // The heading is the first child of an item; a card holds it first in its card body.
+    var CARD_BODY = 'afkv2-card-body';
     function head(el) {
       var h = el.firstElementChild;
-      return h && h.classList && h.classList.contains('afkv2-card-body') ? h.firstElementChild : h;
+      return h && h.classList && h.classList.contains(CARD_BODY) ? h.firstElementChild : h;
     }
     function label(el) {
       var h = head(el);
