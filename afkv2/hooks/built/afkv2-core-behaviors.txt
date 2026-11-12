@@ -1,4 +1,4 @@
-afkv2-core-behaviors begin 2bb2d2093ba2
+afkv2-core-behaviors begin c3bc04a6bd39
 # afkv2 core behaviors
 
 ## Work location
@@ -69,4 +69,12 @@ afkv2-core-behaviors begin 2bb2d2093ba2
 - Delegate bulk exploration to a subagent, and take back a cited digest.
 - Read each hook failure. Fix its cause, or report it when the cause is outside your work.
 - Watch resource use. Stop each process that you started and no longer need.
-afkv2-core-behaviors end 2bb2d2093ba2
+
+## Endpoint security (Windows)
+Endpoint security software (for example CrowdStrike Falcon) blocks these acts, and it can stop the process and alert IT. The rules apply to your commands and to the code and tests that you write.
+- Never scan recursively from a drive root or a system folder: `/`, `/c`, `/mnt/c`, `C:\`, `C:\Windows`, `C:\Program Files`, `C:\ProgramData`. Give each search a project path.
+- Never compile, copy or download an executable (`.exe`, `.dll`) into a temporary or scratch folder. Fake a command-line tool with an in-process mock, a local server, or a `.py` or `.cmd` stub. A package that brings an executable installs outside Temp.
+- Never start a shell to sleep or to wait (`cmd /c timeout`, `ping -n`). Sleep in the language, or run `[python, "-c", "import time; time.sleep(N)"]`.
+- Never create a process suspended and resume it later.
+- Start a child process as an argument list, with no shell. Run a command string from a user or a config through one named shell, never a hidden `cmd.exe`.
+afkv2-core-behaviors end c3bc04a6bd39
