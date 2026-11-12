@@ -216,6 +216,15 @@ def test_an_executable_in_the_package_refuses_driver_install_failed(
     assert "helper.exe" in answer["error"]["reason"]
 
 
+def test_a_global_folder_that_npm_masks_refuses_driver_install_failed(
+        driver_env, places, repo, driver_runner, driver_system, capsys, tmp_path):
+    driver_runner.driver = PIN
+    driver_runner.npm_root = Path("C:/Users/x/***/npm")
+    code, answer = _cli(["browser-driver"], driver_env, driver_system, repo, capsys, tmp_path)
+    assert (code, answer["error"]["code"]) == (1, "driver-install-failed")
+    assert answer["error"]["reason"].startswith("npm hid part of its global folder")
+
+
 def test_the_install_puts_nothing_in_a_temp_folder(driver_env, places, repo, driver_runner, driver_system, capsys,
                                                    tmp_path):
     assert _cli(["browser-driver"], driver_env, driver_system, repo, capsys, tmp_path)[0] == 0

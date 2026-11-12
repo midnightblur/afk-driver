@@ -428,7 +428,11 @@ def ensure_browser_driver(run: Runner, env: Mapping[str, str]) -> dict:
                 return _install_failed((got.err or got.out).strip() or f"npm installed {now}, not {DRIVER_VERSION}")
     except ValueError as exc:
         return _install_failed(str(exc))
-    folder = Path(run(["npm", "root", "-g"], env=env, timeout=120).out.strip(), DRIVER_PACKAGE)
+    root = run(["npm", "root", "-g"], env=env, timeout=120).out.strip()
+    if "***" in root:
+        # npm masks a path part it reads as a secret, such as a UUID-shaped folder name.
+        return _install_failed(f"npm hid part of its global folder: {root}; use a global folder without such a part")
+    folder = Path(root, DRIVER_PACKAGE)
     try:
         script = Path(folder, json.loads((folder / "package.json").read_text(encoding="utf-8"))["bin"][DRIVER_PACKAGE])
     except (OSError, ValueError, KeyError, TypeError) as exc:
