@@ -8,13 +8,14 @@ card's title, if any, its id, and its round as "R-3". The id stays in the attrib
 `age`, given by the page, is the count of rounds since the card's round: its chip fades with age (`fade`).
 The card body comes first and starts with the heading, then the settled line, the notes and replies and the
 content (PRD AC-046): a note on the card body shows what it noted. The mark radios and the history follow it.
-`mark`, given by the page, is HTML that shows right after the title: the changed-this-round mark (PRD AC-047).
+`changed`, given by the page, shows the changed-this-round mark right after the title (PRD AC-047).
 """
 
 import re
 from html import escape
 
 from registry import register_component, walk
+from shell.parts_v2 import CHANGED_MARK
 
 KIND_WORDS = {"decided": "Decided", "confirm": "Confirm", "debate": "Debate", "signoff": "Sign-off",
               "info": "For your information"}
@@ -108,7 +109,7 @@ def render_card(props, children):
     item_id = escape(item["id"])
     quiet = item["kind"] == "info" and state == "open"
     state_word = "" if quiet else f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
-    mark = props.get("mark", "")
+    mark = CHANGED_MARK if props.get("changed") else ""
     if "label" in props:
         heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(props["label"])}</span>{mark} '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word}</h4>')
@@ -132,7 +133,7 @@ register_component("card", {
     "properties": {"item": {"type": "object", "required": ["id", "kind", "body"]},
                    "round": {"type": "integer", "minimum": 1}, "colour": {"type": "string"},
                    "current": {"type": "boolean"}, "exchange": {"type": "string"}, "history": {"type": "string"},
-                   "rail": {"enum": ["open", "blocked", "settled"]}, "mark": {"type": "string"},
+                   "rail": {"enum": ["open", "blocked", "settled"]}, "changed": {"type": "boolean"},
                    "age": {"type": "integer", "minimum": 0},
                    "label": {"description": "Present: the version 2 heading (module docstring).", "type": "string",
                              "minLength": 1}},

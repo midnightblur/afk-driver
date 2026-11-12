@@ -199,8 +199,14 @@
       var h = el.firstElementChild;
       return h && h.classList && h.classList.contains(CARD_BODY) ? h.firstElementChild : h;
     }
+    // The changed words are a mark, not a name: the label leaves them out.
+    var MARK = '.afkv2-changed';
     function label(el) {
       var h = head(el);
+      if (h && h.querySelector && h.querySelector(MARK)) {
+        h = h.cloneNode(true);
+        h.querySelector(MARK).remove();
+      }
       var raw = (h && h.textContent) || el.getAttribute('data-afkv2-item') || '';
       var t = raw.replace(/\s+/g, ' ').trim();
       return t.length > 64 ? t.slice(0, 61) + '…' : t;

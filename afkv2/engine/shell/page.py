@@ -136,7 +136,7 @@ def _changed_now(doc: dict, round_: dict) -> set:
 
 
 def _mark(item: dict, changed: set) -> dict:
-    return {"mark": parts_v2.CHANGED_MARK} if item["id"] in changed else {}
+    return {"changed": True} if item["id"] in changed else {}
 
 
 def _round_marks(html: str, round_: dict) -> str:

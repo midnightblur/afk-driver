@@ -22,6 +22,7 @@ from test_page_parts_v2 import document  # noqa: E402
 
 # The marks of the page HTML, each on a line of its own (plugin_check: a marker is never matched by part).
 CHANGED = '<span class="afkv2-changed">Changed this round</span>'
+MARK_CLASS = "afkv2-changed"
 CARD_TITLE = 'class="afkv2-card-title"'
 HISTORY = 'class="afkv2-history"'
 FRESH_2 = 'data-afkv2-fresh="2"'
@@ -283,3 +284,38 @@ def test_the_changed_edge_skips_only_an_element_that_shows_the_words():
     css = (ENGINE_DIR / "shell" / "kit.css").read_text("utf-8")
     selectors = [match.strip() for match in FRESH_RULE.findall(css)]
     assert selectors == ["[data-afkv2-fresh]" + WORDS_MARK]
+
+
+# --- review round 1: the card takes no raw HTML, export answers every failure as a refusal
+
+
+def test_a_card_takes_a_changed_flag_and_no_raw_html():
+    import registry
+    props = {"item": {"id": "i-x", "kind": "info", "title": "X", "body": {"type": "text", "props": {"text": "x"}}},
+             "round": 1, "colour": "#fff", "current": True}
+    assert registry.validate({"type": "card", "props": {**props, "mark": "<img src=x>"}}) != []
+    html = registry.render_component({"type": "card", "props": {**props, "changed": True},
+                                      "children": [props["item"]["body"]]})
+    assert CHANGED in html
+
+
+def test_export_to_a_folder_refuses_unwritable(renderer, tmp_path):
+    with pytest.raises(diagrams.Refusal) as refused:
+        diagrams.export(FLOW, tmp_path)
+    assert refused.value.code == "unwritable"
+
+
+def test_export_refuses_a_link_it_cannot_make_relative(renderer, tmp_path, monkeypatch):
+    def no_relative(*_):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(diagrams.os.path, "relpath", no_relative)
+    with pytest.raises(diagrams.Refusal) as refused:
+        diagrams.export(FLOW, tmp_path / "d.svg", "D:/spec/SDD.md")
+    assert refused.value.code == "usage"
+
+
+def test_the_nav_label_leaves_out_the_changed_words():
+    script = (ENGINE_DIR / "shell" / "tips.js").read_text("utf-8")
+    label = script[script.index("var MARK = '." + MARK_CLASS + "';"):]
+    assert "querySelector(MARK).remove()" in label[:label.index("\n    }\n")]

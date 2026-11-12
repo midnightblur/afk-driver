@@ -273,6 +273,10 @@ def export(text, dest, artifact=None):
     relative to the folder of `artifact` (else by its file name), with the Mermaid source in a fold below it.
     Refuses `no-picture` with the why when no picture can be drawn; then it writes nothing."""
     dest = Path(dest)
+    try:
+        link = Path(os.path.relpath(dest, Path(artifact).parent) if artifact else dest.name).as_posix()
+    except ValueError as error:  # another drive: an absolute link would break for every other reader
+        raise Refusal("usage", f"the picture {dest} has no path relative to the artifact {artifact}: {error}") from None
     with page_run():
         try:
             cache, renderer, config = _tools()
@@ -282,10 +286,9 @@ def export(text, dest, artifact=None):
             svg, _ = _picture(shown, LIGHT, cache, renderer, config, _run)
         except _NoPicture as why:
             raise Refusal("no-picture", f"the diagram has no picture: {why}") from None
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(_on_white(svg.replace(TOKEN, svg_base(dest.stem))), encoding="utf-8", newline="\n")
     try:
-        link = os.path.relpath(dest, Path(artifact).parent) if artifact else dest.name
-    except ValueError:  # another drive: no relative path exists
-        link = str(dest.resolve())
-    return f"![{dest.stem}]({Path(link).as_posix()})\n" + FOLD.format(text.rstrip("\n"))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(_on_white(svg.replace(TOKEN, svg_base(dest.stem))), encoding="utf-8", newline="\n")
+    except OSError as error:
+        raise Refusal("unwritable", f"cannot write the picture {dest}: {error}") from None
+    return f"![{dest.stem}]({link})\n" + FOLD.format(text.rstrip("\n"))
