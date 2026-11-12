@@ -28,7 +28,6 @@ import os
 import re
 import shutil
 import sys
-import tomllib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -821,33 +820,23 @@ def judge(places: Places, system: System, env: Mapping[str, str], provider: str,
     cli = system.run.which(provider, env)
     if not cli or Path(cli).suffix.lower() in (".cmd", ".bat"):
         return _error("no-provider", f"no {provider} program on the path (a .cmd shim does not count)")
-    model = model or tools.JUDGE_MODELS.get(provider) or _codex_model(places)
-    if not model:
-        return _error("no-provider", f"name the {provider} judge model with --model")
+    model = model or tools.JUDGE_MODELS.get(provider) or other_provider.CLI_DEFAULT
     folder = places.data / "judge-proof"
     folder.mkdir(parents=True, exist_ok=True)
     called = {"provider": provider, "model": model, "effort": other_provider.EFFORT, "cli": cli}
     try:
-        answer, _ = other_provider._call(called, JUDGE_PROOF_PROMPT, folder, JUDGE_PROOF_SCHEMA, [],
+        answer, called = other_provider._call(called, JUDGE_PROOF_PROMPT, folder, JUDGE_PROOF_SCHEMA, [],
                                          system.judge_runner)
     except other_provider.Refusal as refusal:
         return _error("proof-failed", f"{provider} at {model}: {refusal.code}: {refusal.reason}")
     if dict(answer).get("ok") is not True:
         return _error("proof-failed", f"{provider} at {model} did not answer the proving call")
+    model = called["model"]
     record = read_install_record(places)
     record[other_provider.JUDGE_KEY.format(provider=provider)] = model
     _write_record(places, record)
     return {"ok": True, "provider": provider, "model": model, "effort": other_provider.EFFORT,
             "which": {session: _which(session, system, env) for session in PROVIDERS}}
-
-
-def _codex_model(places: Places) -> str | None:
-    """The model of the Codex config: the pick of the developer."""
-    try:
-        value = tomllib.loads(places.codex_config.read_text(encoding="utf-8")).get("model")
-    except (OSError, ValueError):
-        return None
-    return value if isinstance(value, str) and value else None
 
 
 def _which(session: str, system: System, env: Mapping[str, str]) -> dict:

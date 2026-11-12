@@ -410,7 +410,8 @@ class JudgeRunner:
                               "modelUsage": {"claude-fable-5": {}}})
         else:
             out = json.dumps({"ok": True})
-        return other_provider.Ran(self.exit_code, out if self.exit_code == 0 else "", False, "boom")
+        stderr = "model: gpt-luna\n" if "exec" in argv and "-m" not in argv else "boom"
+        return other_provider.Ran(self.exit_code, out if self.exit_code == 0 else "", False, stderr)
 
 
 @pytest.fixture
@@ -433,6 +434,16 @@ def test_judge_proves_the_model_with_1_call_and_writes_its_line(
     assert record["judge_claude"] == tools.JUDGE_MODELS["claude"] and record["python"] == "/py"
     assert answer["which"]["codex"]["provider"] == "claude"
     assert answer["which"]["codex"]["model"] == tools.JUDGE_MODELS["claude"]
+
+
+def test_judge_codex_with_no_model_records_the_model_the_cli_ran(env, places, repo, judge_system, capsys, tmp_path):
+    places.codex_config.parent.mkdir(parents=True)
+    places.codex_config.write_text('model = "not-for-this-account"\n', encoding="utf-8")
+    code, answer = _cli(["judge", "--provider", "codex"], env, judge_system, repo, capsys, tmp_path)
+    assert code == 0, answer
+    proving = [c for c in judge_system.judge_runner.calls if "exec" in c]
+    assert len(proving) == 1 and "-m" not in proving[0]
+    assert answer["model"] == "gpt-luna" and setup.read_install_record(places)["judge_codex"] == "gpt-luna"
 
 
 def test_judge_codex_takes_the_model_the_developer_names(env, places, repo, judge_system, capsys, tmp_path):

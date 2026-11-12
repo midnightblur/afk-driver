@@ -36,8 +36,8 @@ you ask in this session; the Jira token never passes through you.
    false: tell the developer its `why`, and offer its `offer` items.
    A new harness session reads the new entries.
    Then the judge model: for each provider whose CLI is on the path, run
-   `setup.py judge --provider <claude|codex>`. Codex needs `--model <name>` when its
-   config names no model. Report `model` and the `which` answer. A refusal
+   `setup.py judge --provider <claude|codex>`. Codex runs the default model of its CLI;
+   `--model <name>` picks another. Report `model` and the `which` answer. A refusal
    `no-provider` or `proof-failed`: report its `reason`.
    `status` field `gh` with `ok` false: tell the developer its `fix`.
 3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
