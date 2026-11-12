@@ -337,6 +337,9 @@ def gate(payload, judge=None):
     go = _go_of(repo, lane)
     if lane["kind"] == "bug" and not lane.get("before"):
         raise Refusal("no-before", "a bug needs its before evidence: run `before` before the fix")
+    if lane["kind"] == "bug" and command != lane["before"]["command"]:
+        raise Refusal("before-differs", f"the gate runs {command!r}, but the before evidence is of "
+                                        f"{lane['before']['command']!r}: run the same high-level test")
     head = _git(repo, "rev-parse", "HEAD")
     lane_dir = lane_folder(repo)
     path = lane_dir / GATE_FOLDER / gate_record_name()

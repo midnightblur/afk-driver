@@ -63,6 +63,7 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
 | `not-red` | the high-level test passes before the fix | correct the test |
 | `fix-before-before` | code changed after the go, before `before` ran | move the fix out, run `before`, then fix |
 | `no-before` | a bug reached the gate with no before evidence | `before` |
+| `before-differs` | a bug's gate runs another command than its `before` | run `gate` with the `before` command, or run `before` again before the fix |
 | `live-start-failed` | `before` could not start the live build of the repository config | fix the build, or its live block, and run `before` again |
 | `no-shell` | no Git Bash on Windows | install Git for Windows |
 | `git-failed` | `reason` names the fault | report it |

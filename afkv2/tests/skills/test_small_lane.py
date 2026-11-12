@@ -247,6 +247,13 @@ def test_the_small_gate_refuses_no_go_mark_and_code_before_go(repo, tmp_path):
     assert code_of(gate(repo, FakeJudge())) == "code-before-go"
 
 
+def test_a_bug_gate_runs_the_same_test_as_its_before(repo, tmp_path):
+    gone(repo, tmp_path)
+    assert call("before", repo=str(repo), command=f"{PY} -c \"import sys; sys.exit(1)\"")["ok"]
+    commit(repo, "src/app.py", "VALUE = 2\n", "the fix")
+    assert code_of(gate(repo, FakeJudge())) == "before-differs"
+
+
 def test_the_small_gate_takes_only_a_high_level_test(repo, tmp_path):
     gone(repo, tmp_path, "enhancement")
     assert code_of(gate(repo, FakeJudge(), level="unit")) == "bad-payload"
