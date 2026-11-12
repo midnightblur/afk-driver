@@ -29,19 +29,22 @@ if sys.platform == "win32":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from afkv2_config import Refusal, exit_code, live_block, read_config  # noqa: E402
+from afkv2_config import DATA_FOLDER_NAME, Refusal, exit_code, live_block, read_config  # noqa: E402
 
 POLL_SECONDS = 0.25
 PROBE_SECONDS = 2
 STOP_SECONDS = 15
 GIT_SECONDS = 60
 OUTPUT_TAIL = 800
+SYSTEM_SHELL = "/bin/sh"
+BASH_KEY = "bash"  # the line of the setup install record that names Git Bash
+NOT_GIT_BASH = ("system32", "windowsapps")  # folders of the WSL launcher
 
 
 @dataclass
 class _Spawned:
-    """A shell command and every process it starts. On Windows a job object holds them all, so a process
-    the command detaches is stopped too; elsewhere the command leads its own session."""
+    """A shell command and every process it starts. On Windows a job object, assigned right after the start,
+    holds them all, so a process the command detaches is stopped too; elsewhere the command leads its own session."""
     process: subprocess.Popen
     job: object = None
 
@@ -88,6 +91,9 @@ def start_live(repo_root, live: dict | None = None) -> LiveHandle:
     except OSError as error:
         output.close()
         raise Refusal("live-start-failed", f"the start did not run: {error}") from None
+    except Refusal:
+        output.close()
+        raise
     handle = LiveHandle(root, block, spawned, output)
     try:
         _wait_ready(handle)
@@ -119,7 +125,7 @@ def _run_stop(handle: LiveHandle) -> str | None:
     with tempfile.TemporaryFile() as output:
         try:
             stop = _spawn(handle.live["stop"], handle.repo_root, output)
-        except OSError as error:
+        except (OSError, Refusal) as error:
             return f"the stop command did not run: {error}"
         try:
             code = stop.process.wait(timeout=STOP_SECONDS)
@@ -191,37 +197,78 @@ def _gone(handle: LiveHandle) -> bool:
     return True
 
 
-def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
-    common = {"shell": True, "cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT}
-    if sys.platform != "win32":
-        return _Spawned(subprocess.Popen(command, start_new_session=True, **common))
-    job = _windows_job()
-    kernel32, ntdll = _windows_dlls()
+def named_shell(platform: str | None = None, environ=None) -> str:
+    """The one shell that runs a command string of a contract or of the repository config: /bin/sh off Windows;
+    on Windows Git Bash, from the `bash` line of the setup install record, else the first bash on the PATH that is
+    not the WSL launcher. Never a hidden cmd.exe: endpoint security kills it. Raises `Refusal` `no-shell`."""
+    platform = sys.platform if platform is None else platform
+    environ = os.environ if environ is None else environ
+    if platform != "win32":
+        return SYSTEM_SHELL
+    recorded = _recorded_bash(environ)
+    if recorded:
+        return recorded
+    for folder in environ.get("PATH", "").split(";"):
+        candidate = Path(folder.strip('"')) / "bash.exe"
+        if folder and Path(folder.strip('"')).name.lower() not in NOT_GIT_BASH and candidate.is_file():
+            return str(candidate)
+    raise Refusal("no-shell", "no Git Bash: the install record has no `bash` line and no bash.exe outside "
+                  "System32 is on the PATH; install Git for Windows")
+
+
+def shell_argv(command: str) -> list[str]:
+    """The argument list that runs `command` in the named shell, for a start with shell=False."""
+    return [named_shell(), "-c", command]
+
+
+def _recorded_bash(environ) -> str | None:
+    base = environ.get("LOCALAPPDATA")
+    if not base:
+        return None
     try:
-        process = subprocess.Popen(command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | _CREATE_SUSPENDED, **common)
+        lines = (Path(base) / DATA_FOLDER_NAME / "install.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    path = dict(line.partition(" ")[::2] for line in lines).get(BASH_KEY, "").strip()
+    return path if path and Path(path).is_file() else None
+
+
+def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
+    """Start the command normally, never suspended, then put it in a job. A process that ends before the job
+    takes it leaves nothing to hold; one still running outside the job is stopped with a child walk."""
+    args = shell_argv(command)
+    common = {"cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT}
+    if sys.platform != "win32":
+        return _Spawned(subprocess.Popen(args, start_new_session=True, **common))
+    job = _windows_job()
+    kernel32 = _windows_dlls()
+    try:
+        process = subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP, **common)
     except OSError:
         kernel32.CloseHandle(job)
         raise
-    if not kernel32.AssignProcessToJobObject(job, int(process._handle)):
-        error = ctypes.WinError(ctypes.get_last_error())
-        kernel32.CloseHandle(job)
-        process.kill()
-        _wait_exit(process, STOP_SECONDS)
-        raise error
-    ntdll.NtResumeProcess(int(process._handle))
-    return _Spawned(process, job)
+    if kernel32.AssignProcessToJobObject(job, int(process._handle)):
+        return _Spawned(process, job)
+    error = ctypes.WinError(ctypes.get_last_error())
+    kernel32.CloseHandle(job)
+    if process.poll() is not None:
+        return _Spawned(process)
+    _walk_kill(process)
+    _wait_exit(process, STOP_SECONDS)
+    raise error
 
 
 def _kill(spawned: _Spawned) -> None:
-    """Stop every process of the command. Repeat calls are harmless."""
-    if spawned.job is not None:
-        kernel32, _ = _windows_dlls()
-        kernel32.TerminateJobObject(spawned.job, 1)
-        kernel32.CloseHandle(spawned.job)
-        spawned.job = None
-    elif sys.platform == "win32":
+    """Stop every process of the command. Repeat calls are harmless. On Windows a child walk first stops a child
+    the shell started before the job took it; the job then stops every process it holds, a detached one too."""
+    if sys.platform == "win32":
         if spawned.process.poll() is None:
-            spawned.process.kill()
+            _walk_kill(spawned.process)
+        if spawned.job is not None:
+            kernel32 = _windows_dlls()
+            kernel32.TerminateJobObject(spawned.job, 1)
+            kernel32.CloseHandle(spawned.job)
+            spawned.job = None
     else:
         try:
             os.killpg(spawned.process.pid, signal.SIGKILL)
@@ -230,7 +277,17 @@ def _kill(spawned: _Spawned) -> None:
     _wait_exit(spawned.process, STOP_SECONDS)
 
 
-_CREATE_SUSPENDED = 0x00000004
+def _walk_kill(process: subprocess.Popen) -> None:
+    """The process and its children, by a child walk (taskkill /T); the process alone if the walk cannot run."""
+    try:
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
+                       stdin=subprocess.DEVNULL, timeout=STOP_SECONDS)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    if process.poll() is None:
+        process.kill()
+
+
 _KILL_ON_JOB_CLOSE = 0x00002000
 _EXTENDED_LIMIT_INFORMATION = 9
 
@@ -242,9 +299,7 @@ def _windows_dlls():
     kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
     kernel32.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
-    ntdll = ctypes.WinDLL("ntdll")
-    ntdll.NtResumeProcess.argtypes = (wintypes.HANDLE,)
-    return kernel32, ntdll
+    return kernel32
 
 
 def _windows_job():
@@ -261,7 +316,7 @@ def _windows_job():
                     ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
                     ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
 
-    kernel32, _ = _windows_dlls()
+    kernel32 = _windows_dlls()
     job = kernel32.CreateJobObjectW(None, None)
     if not job:
         raise ctypes.WinError(ctypes.get_last_error())

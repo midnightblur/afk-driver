@@ -348,11 +348,11 @@ def test_the_write_keeps_non_ascii_text(repo):
     assert "caf\u00e9" in (repo / ".afkv2" / "config.json").read_text(encoding="utf-8")
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="cmd start /b detaches a process on Windows")
+@pytest.mark.skipif(sys.platform != "win32", reason="the job object holds a detached process on Windows")
 def test_a_detached_server_is_stopped_with_the_build(repo):
     port = free_port()
     pid_file = repo.parent / "detached.pid"
-    write_config(repo, {"start": f"start \"\" /b {PY} server.py {port} 200 \"{pid_file}\" & {PY} -c \"import time; time.sleep(60)\"",
+    write_config(repo, {"start": f"{PY} server.py {port} 200 \"{pid_file}\" & {PY} -c \"import time; time.sleep(60)\"",
                         "address": f"http://127.0.0.1:{port}/", "ready_seconds": 20})
     answer = live_build.check(repo)
     assert answer["ok"] is True, answer
@@ -360,12 +360,12 @@ def test_a_detached_server_is_stopped_with_the_build(repo):
     assert not answers(f"http://127.0.0.1:{port}/")
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="cmd start /b detaches a process on Windows")
+@pytest.mark.skipif(sys.platform != "win32", reason="the job object holds a detached process on Windows")
 def test_a_start_that_detaches_and_exits_leaves_no_process(repo):
     port = free_port()
     pid_file = repo.parent / "orphan.pid"
     sleeper = f"import os, time; open(r'{pid_file}', 'w').write(str(os.getpid())); time.sleep(60)"
-    write_config(repo, {"start": f"start \"\" /b {PY} -c \"{sleeper}\"", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 5})
+    write_config(repo, {"start": f"{PY} -c \"{sleeper}\" &", "address": f"http://127.0.0.1:{port}/", "ready_seconds": 5})
     answer = live_build.check(repo)
     assert answer["ok"] is False
     deadline = time.monotonic() + 5
@@ -416,3 +416,62 @@ def test_a_stop_command_that_stops_nothing_refuses(repo, monkeypatch):
     assert answer["error"]["code"] == "live-stop-failed"
     assert "still answers" in answer["error"]["reason"]
     assert not alive(server_pid(repo))
+
+
+# --- the named shell (D-43): no suspended start, no hidden cmd.exe ---------------------------------------------------
+
+class _Captured(Exception):
+    pass
+
+
+def test_a_start_runs_through_the_named_shell_with_no_suspended_process(repo, monkeypatch, tmp_path):
+    """Fails when CREATE_SUSPENDED, a resume call or shell=True comes back. The fake start runs no process."""
+    seen = {}
+
+    def fake_popen(args, **kwargs):
+        seen.update(args=args, **kwargs)
+        raise _Captured()
+
+    monkeypatch.setattr(live_build, "named_shell", lambda: "/the/shell")
+    monkeypatch.setattr(live_build.subprocess, "Popen", fake_popen)
+    with pytest.raises(_Captured):
+        live_build._spawn("serve --port 1", repo, tempfile_output(tmp_path))
+    assert seen["args"] == ["/the/shell", "-c", "serve --port 1"]
+    assert not seen.get("shell")
+    assert not seen.get("creationflags", 0) & 0x00000004
+    source = (SCRIPTS / "live_build.py").read_text(encoding="utf-8")
+    for word in ("CREATE_SUSPENDED", "ResumeThread", "NtResumeProcess", "shell=True", '"shell": True'):
+        assert word not in source
+
+
+def tempfile_output(tmp_path):
+    return open(tmp_path / "output.log", "w+b")
+
+
+def test_the_named_shell_is_bin_sh_off_windows():
+    assert live_build.named_shell(platform="linux", environ={}) == "/bin/sh"
+
+
+def test_on_windows_the_bash_line_of_the_install_record_wins(tmp_path):
+    bash = tmp_path / "Git" / "bin" / "bash.exe"
+    bash.parent.mkdir(parents=True)
+    bash.write_text("", encoding="utf-8")
+    (tmp_path / "afkv2").mkdir()
+    (tmp_path / "afkv2" / "install.txt").write_text(f"installed x\nbash {bash}\n", encoding="utf-8")
+    assert live_build.named_shell(platform="win32", environ={"LOCALAPPDATA": str(tmp_path), "PATH": ""}) == str(bash)
+
+
+def test_on_windows_bash_on_the_path_is_used_but_never_the_wsl_launcher(tmp_path):
+    wsl = tmp_path / "Windows" / "System32" / "bash.exe"
+    git_bash = tmp_path / "Git" / "usr" / "bin" / "bash.exe"
+    for path in (wsl, git_bash):
+        path.parent.mkdir(parents=True)
+        path.write_text("", encoding="utf-8")
+    environ = {"LOCALAPPDATA": str(tmp_path / "none"), "PATH": f"{wsl.parent};{git_bash.parent}", "PATHEXT": ".EXE"}
+    assert live_build.named_shell(platform="win32", environ=environ).lower() == str(git_bash).lower()
+
+
+def test_on_windows_no_git_bash_refuses_no_shell(tmp_path):
+    with pytest.raises(Refusal) as refused:
+        live_build.named_shell(platform="win32", environ={"LOCALAPPDATA": str(tmp_path), "PATH": ""})
+    assert refused.value.code == "no-shell"
