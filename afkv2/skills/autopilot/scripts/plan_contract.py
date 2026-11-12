@@ -1,4 +1,8 @@
-"""The plan folder as data: the frozen contract sections, the progress tracker, the graph."""
+"""The plan folder as data: the frozen contract sections, the progress tracker, the graph, the rules switch.
+
+`rules_of(plan_text)` is the one switch between the rule sets (design ADR-0003): 2 for a `> Rules: 2` header
+line, 1 with no line, None for any other value. Every checker asks it.
+"""
 
 from __future__ import annotations
 
@@ -21,12 +25,17 @@ HEADING = re.compile(r"## (.+?)\s*")
 FENCE = re.compile(r"\s*(```|~~~)")
 SEPARATOR = re.compile(r":?-+:?")
 NO_ID = {"none", "(none)", "-", "—"}
+RULES_MARK = "> Rules:"
+RULE_SETS = {"1": 1, "2": 2}
+TIER_COLUMN, PLAN_ROW_COLUMN, CHECK_COLUMN, PROVES_COLUMN = "Tier", "Plan row", "Check", "Proves"
 
 
 @dataclass(frozen=True)
 class GateRow:
     tier: str
     check: str
+    plan_row: str | None = None
+    proves: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,8 +68,27 @@ class Contract:
 
     @property
     def rows(self):
+        """Each `## Verification` row, read by header name; [] when the table has no `Tier` or `Check` column."""
         cells = table_rows(self.sections.get("Verification", ""))
-        return [GateRow(row[0], row[1]) for row in cells[1:] if len(row) >= 2]
+        columns = verification_columns(cells[0] if cells else [])
+        if columns is None:
+            return []
+        return [GateRow(**{field: row[index] if index is not None and index < len(row) else None for field, index in columns.items()})
+                for row in cells[1:] if len(row) > max(columns["tier"], columns["check"])]
+
+
+def verification_columns(header):
+    """{field: column index} of a `## Verification` header, read by name; None without `Tier` or `Check`.
+
+    The check column is the one whose header starts with `Check`. `plan_row` and `proves` are None when absent.
+    """
+    names = [cell.strip() for cell in header]
+    tier = names.index(TIER_COLUMN) if TIER_COLUMN in names else None
+    check = next((index for index, name in enumerate(names) if name.startswith(CHECK_COLUMN)), None)
+    if tier is None or check is None:
+        return None
+    return {"tier": tier, "check": check, "plan_row": names.index(PLAN_ROW_COLUMN) if PLAN_ROW_COLUMN in names else None,
+            "proves": names.index(PROVES_COLUMN) if PROVES_COLUMN in names else None}
 
 
 def _anchor(text):
@@ -144,6 +172,14 @@ def header_of(text):
     return lines
 
 
+def rules_of(plan_text):
+    """The rule set of a plan: 2 for a `> Rules: 2` header line, 1 with no line, None for any other value."""
+    lines = [line for line in header_of(plan_text) if line.startswith(RULES_MARK)]
+    if not lines:
+        return 1
+    return RULE_SETS.get(lines[0][len(RULES_MARK):].strip()) if len(lines) == 1 else None
+
+
 def read_contract(plan, subtask):
     return Contract(subtask, sections_of(read_text(Path(plan) / f"{subtask}.md")))
 
@@ -152,8 +188,11 @@ def contract_failures(contract):
     """Each way this contract leaves the frozen section set."""
     missing = [name for name in REQUIRED_SECTIONS if name not in contract.sections]
     extra = [name for name in contract.sections if name not in REQUIRED_SECTIONS + OPTIONAL_SECTIONS]
+    table = table_rows(contract.sections.get("Verification", ""))
+    columns = [] if "Verification" in missing or verification_columns(table[0] if table else []) else [
+        f"`## Verification` has no table with the columns `{TIER_COLUMN}` and `{CHECK_COLUMN}`"]
     return ([f"no section `## {name}`" for name in missing]
-            + [f"section `## {name}` is not in the frozen contract" for name in extra])
+            + [f"section `## {name}` is not in the frozen contract" for name in extra] + columns)
 
 
 def _tracker_table(text):

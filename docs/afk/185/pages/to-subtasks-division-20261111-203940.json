@@ -1,0 +1,224 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Plan approval",
+    "private": false,
+    "takeovers": [],
+    "id": "division-20261111-203940",
+    "skill": "to-subtasks",
+    "feature": "185",
+    "ticket": "185",
+    "started": "2026-11-11T20:44:34Z"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-172124b7-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-172124b7-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates",
+                "Low days",
+                "Likely days",
+                "High days"
+              ],
+              "rows": [
+                [
+                  "0001-live-build",
+                  "A shared live build module that proves the repository's start, address and stop, and writes the proven `live` block into `.afkv2/config.json`; the config reader returns that block.",
+                  "The live build module is a shared producer: propose-verification, the end gate and the small lane all start the build through it, so it comes first.",
+                  "—",
+                  "static, unit, integration",
+                  "0.01",
+                  "0.01",
+                  "0.03"
+                ],
+                [
+                  "0002-other-provider",
+                  "A shared adapter that runs the judge and the grill's devil's-advocate pass as 1 headless call of the other provider's CLI, read-only, with the verdict schema (description before comparison), the fallback model and 1 transport retry.",
+                  "The judge adapter stands alone and is used by the gate record, the end gate, the small lane and setup; its integration check needs a real codex and claude call.",
+                  "—",
+                  "static, unit, integration",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0003-gate-record",
+                  "A shared module that writes and verifies the gate record: runs with hashed evidence, the verdict, found bugs, the go of the small lane, the failed-run count, the proof lines and the proof comment text.",
+                  "One reader and writer of the proof, shared by the end gate, the small lane and the ship step; it stores the verdict shape of 0002.",
+                  "0002-other-provider",
+                  "static, unit",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0004-tracker-comment",
+                  "A new tracker port verb that posts 1 comment with attached pictures, on Jira (attachments, then an ADF comment) and on GitHub issues (`gh issue comment --attach`), keyed by the preview receipt.",
+                  "A port verb with its own seam tests on 2 trackers; its live check needs gh 2.99.0 or later, and this machine has 2.92.0.",
+                  "—",
+                  "static, unit, integration",
+                  "0.01",
+                  "0.01",
+                  "0.03"
+                ],
+                [
+                  "0005-proposer-engine",
+                  "Move the generic draft, critique, reconcile engine out of propose-solution into a use-lavish proposer engine with a per-skill adapter; propose-solution becomes a thin caller with an unchanged CLI.",
+                  "A move of tested code, kept apart from the new skill so a regression in propose-solution shows on its own.",
+                  "—",
+                  "static, unit",
+                  "0.01",
+                  "0.01",
+                  "0.03"
+                ],
+                [
+                  "0006-propose-verification",
+                  "The new skill `/afkv2:propose-verification`: 2 providers draft and critique a verification plan, the developer steers it on the page, the live build is proven, and the skill writes VERIFICATION.md.",
+                  "The new skill writes VERIFICATION.md and owns its row format, which the plan rules then check.",
+                  "0001-live-build, 0005-proposer-engine",
+                  "static, unit, e2e",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0007-plan-rules",
+                  "The plan cut needs VERIFICATION.md, writes `> Rules: 2` and a Plan row column, and the plan check and start gate hold the row rules and the live-level rule for those plans only.",
+                  "All plan-cut and plan-check rules move together behind the Rules 2 header, so old plans stay untouched in one place.",
+                  "0006-propose-verification",
+                  "static, unit",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0008-execute-rows",
+                  "tdd_log takes the plan row, the test and the level per cycle; a no-test entry covers only its row; the done check refuses a subtask whose low-level rows are not green.",
+                  "The per-row test-first record and the done check are one change of the subtask loop; it reads the Rules switch of 0007.",
+                  "0007-plan-rules",
+                  "static, unit",
+                  "0.01",
+                  "0.01",
+                  "0.03"
+                ],
+                [
+                  "0009-end-gate",
+                  "A new autopilot step after the last subtask: start the live build, run each high-level row once (a fail once more), call the judge when every row passed, write the gate record, send failed rows back, and stop after 3 failed gate runs.",
+                  "The end gate joins the live build, the judge and the gate record after the subtask loop; it is the largest piece and stands alone.",
+                  "0001-live-build, 0002-other-provider, 0003-gate-record, 0008-execute-rows",
+                  "static, unit, integration",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0010-ship-proof",
+                  "create-change-request takes proofs per plan row and found bugs, mark-ready verifies the gate record before CI with or without a plan folder, the proof comment goes to the ticket after the developer's ship mark, and gc refuses a run branch whose comment is not posted.",
+                  "Every ship-time change: proof payload, mark-ready, found bugs, the proof comment and the gc check read the same gate record.",
+                  "0003-gate-record, 0004-tracker-comment, 0009-end-gate",
+                  "static, unit, integration",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0011-small-lane",
+                  "The new skill `/afkv2:small-change` for a bug or a small enhancement: lane line, diagnosis loop for a bug, 1 page round, no code before the go, test-first fix, 1 high-level proof with before and after, the judge, and a stop that proposes the medium lane when the work grows.",
+                  "The small lane reuses the engine, the gate record and the ship path, so it comes after them; it also carries the plain-chat trigger check.",
+                  "0003-gate-record, 0005-proposer-engine, 0010-ship-proof",
+                  "static, unit, e2e",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0012-setup-driver-judge",
+                  "Setup installs and proves Chrome DevTools MCP for both harnesses, names and proves the judge model per provider, and checks the gh floor when the tracker is GitHub.",
+                  "Setup installs and proves the driver and the judge model; its live proof closes the 2 open questions of SDD §13.",
+                  "0002-other-provider",
+                  "static, unit, e2e",
+                  "0.02",
+                  "0.03",
+                  "0.05"
+                ],
+                [
+                  "0013-page-pictures",
+                  "The page engine shows a changed-this-round mark, fades older round chips, starts each card body with its heading, and exports a page diagram as the same picture into artifacts; the page guide asks for pictures wherever they help.",
+                  "Page-engine changes touch no other subtask's files and can run at any point.",
+                  "—",
+                  "static, unit, e2e",
+                  "0.01",
+                  "0.01",
+                  "0.03"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-172124b7-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 13 subtasks, plan digest 172124b7, app: http://127.0.0.1:4387. Ask for changes to get another division."
+                }
+              },
+              {
+                "type": "text",
+                "id": "division-172124b7-1-estimate",
+                "props": {
+                  "text": "Agent run time in days, in total: low 0.21, likely 0.29, high 0.55. Basis: past run times from 1 earlier run."
+                }
+              }
+            ]
+          },
+          "title": "Approve the division into 13 subtasks",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-11T20:44:59Z",
+          "raw": "[round R-1]\ndivision-172124b7-1 sign",
+          "signals": [
+            {
+              "target": "division-172124b7-1",
+              "item": "division-172124b7-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "60541ca610c09603"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

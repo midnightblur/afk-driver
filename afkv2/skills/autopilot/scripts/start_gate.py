@@ -15,12 +15,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from plan_contract import PLUGIN, contract_failures, cycle_of, header_of, plan_file, read_contract, read_text, read_tracker  # noqa: E402
+from plan_contract import (PLUGIN, contract_failures, cycle_of, header_of, plan_file, read_contract, read_text,  # noqa: E402
+                           read_tracker, rules_of)
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
 from autopilot_v1_facts import V1_HEADER_MARK, V1_SEAM_MARK  # noqa: E402
 
 CHECK_PLAN = PLUGIN / "skills" / "to-subtasks" / "scripts" / "check_plan.py"
+APP_CONFIG = "config"
 FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 LIMIT = 120
 APP_LIMIT = 5
@@ -29,7 +31,7 @@ APPROVAL = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
 NOT_APPLICABLE = "not applicable:"
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
-LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e"}
+LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e", "acceptance"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
 V1_OPTIONS = ["finish on v1", "slice again with `/afkv2:to-subtasks`"]
@@ -176,13 +178,38 @@ def app_failure(where, app):
     return None
 
 
+def live_check(code):
+    """The answer of `live_build.check` in the repository at `code`: start the proven live block, wait for an answer, stop."""
+    sys.path.insert(0, str(PLUGIN / "scripts"))
+    import live_build
+    return live_build.check(code)
+
+
+def _app_problem(where, app, code, proved):
+    """Why the app cannot serve a live gate; None when it answers. `> App: config` proves the live block once per code."""
+    if app != APP_CONFIG:
+        return app_failure(where, app)
+    key = str(Path(code).resolve())
+    if key not in proved:
+        proved[key] = live_check(code)
+    answer = proved[key]
+    if answer.get("ok"):
+        return None
+    error = answer.get("error") or {}
+    return failure("app-unreachable", where, f"the live block of the repository config did not prove: {error.get('code')}: {error.get('reason')}")
+
+
 def is_not_applicable(row):
     return row.check.startswith(NOT_APPLICABLE) and bool(row.check[len(NOT_APPLICABLE):].strip())
 
 
-def gate_failures(contract, app=None):
-    """Each `## Verification` row of this contract that cannot run in this repository."""
-    failures = []
+def gate_failures(contract, app=None, rules=1, code=".", proved=None):
+    """Each `## Verification` row of this contract that cannot run in this repository.
+
+    `rules` is the answer of `rules_of`: on 2, `not applicable:` on a live tier refuses (PRD AC-029; SDD §6 I-4).
+    `app` `config` starts the proven live block of the repository at `code`; `proved` keeps that answer across calls.
+    """
+    failures, proved = [], {} if proved is None else proved
     fix = f"correct the plan: mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
     for row in contract.rows:
         tier = row.tier.strip("` ").lower()
@@ -190,13 +217,15 @@ def gate_failures(contract, app=None):
         if row.check.lower().startswith("not applicable"):
             if not is_not_applicable(row):
                 failures.append(failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason"))
+            elif rules == 2 and tier in LIVE_TIERS:
+                failures.append(failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md"))
             continue
         if tier in LIVE_TIERS:
             if not app:
                 failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                         next=f"{fix}, or name the app in the `{APP_MARK}` line"))
             else:
-                problem = app_failure(where, app)
+                problem = _app_problem(where, app, code, proved)
                 if problem:
                     failures.append(problem)
         for program in _programs(row.check):
@@ -251,10 +280,10 @@ def check_start(plan, code=".", app=None):
             failure("v1-plan", str(plan), "; ".join(signs), options=V1_OPTIONS)])
     rows, contracts, failures = contracts_of(plan)
     failures = [*plan_check_failures(plan), *approval_failures(text), *failures]
-    finished, app = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app)
+    finished, app, rules, proved = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app), rules_of(text), {}
     for contract in contracts:
         if contract.id not in finished:
-            failures.extend(gate_failures(contract, app))
+            failures.extend(gate_failures(contract, app, rules, code, proved))
     failures.extend(worktree_failures(code, run_branch_of(plan)))
     failures.extend(forge_failures(code))
     failures = _once(failures)

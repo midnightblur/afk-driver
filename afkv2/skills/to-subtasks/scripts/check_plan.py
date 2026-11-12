@@ -11,7 +11,20 @@ Rule codes:
   bad-contract, no-tracker, no-contract, unknown-blocker,     the shape of the plan, in the start gate's codes
   blocked-by-cycle, v1-plan, bad-approval
   gate-cannot-run, bad-not-applicable                         a gate the repository cannot run
+  live-not-applicable                                         on a `> Rules: 2` plan, `not applicable:` on a live tier
   check-path-unowned                                          a check path with no owner in the chain
+  bad-rules                                                   a `> Rules:` line that reads neither 1 nor 2
+
+On a `> Rules: 2` plan (design ADR-0003; `rules_of` of `plan_contract.py` is the one switch) the plan rows of
+VERIFICATION.md, beside the `## Parent PRD` of the contracts on the base, and the `Plan row` column of each contract:
+  missing-input, bad-verification                             VERIFICATION.md is absent or unreadable
+  row-unknown                                                 a contract names a plan row VERIFICATION.md does not hold
+  row-unowned, row-two-owners                                 a live low row has no owner, or a row has 2 or more
+  row-no-test-subtask                                         a live high row is not in 1 subtask that names only high rows
+  ac-no-high-row, row-on-retired-ac                           a user-visible criterion has no high row; a live row names a retired one
+  contract-row-missing                                        no `Plan row` column, or a test row (any tier but static) names none
+  lower-level-unmarked                                        a contract tier below the level of its plan row
+A live row is `active`, or `lower:` (the developer accepted the lower level).
 
 A plan without the division line passes: `division.approved` is false, and `/afkv2:autopilot` reads the line
 itself. `base` names what the anchors and the check paths were compared with: on a run branch that is the
@@ -27,10 +40,12 @@ holds a copy of the contract headings.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
@@ -44,6 +59,10 @@ from grill_common import EXIT_UNREADABLE, Parser, Refusal, serve  # noqa: E402
 sys.path.insert(0, str(SKILL / "scripts"))
 
 from to_subtasks_v1_facts import V1_HEADER_MARK  # noqa: E402
+
+sys.path.insert(0, str(SKILL.parent / "autopilot" / "scripts"))
+
+from plan_contract import rules_of  # noqa: E402
 
 FORMAT_FILE = SKILL / "SUBTASK-CONTRACT.md"
 TEMPLATE = re.compile(r"^```markdown contract-template\n(.*?)^```$", re.S | re.M)
@@ -62,12 +81,14 @@ APPROVAL_TEXT = "> Division: approved "
 APPROVAL = re.compile(re.escape(APPROVAL_TEXT) + r"(\d{4}-\d{2}-\d{2})\s*")
 GIT_LIMIT_S = 60
 NOT_APPLICABLE = "not applicable:"
-LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e"}
+LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e", "acceptance"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
 SKIP_WORDS = {"", "-", "—", "n/a", "na", "none", "skip", "skipped"}
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
+APP_CONFIG = "config"
+CONFIG_FILE = ".afkv2/config.json"
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 FILE_NAME = re.compile(r"[A-Za-z_][\w-]*\.[a-z][a-z0-9]{0,4}")
 NOT_A_PATH = re.compile(r"^[-/~]|^[A-Za-z]:|^origin/|://|[\"'<>{}$%=|&]")
@@ -75,6 +96,11 @@ WILDCARD = re.compile(r"[*?]")
 NEXT_IS_NO_PATH = {">", ">>", "2>", "-m"}
 NO_ID = {"none", "(none)", "-", "—"}
 TRACKER_HEADING = "## Progress tracker"
+TIER_COLUMN, PLAN_ROW_COLUMN, CHECK_COLUMN, PROVES_COLUMN = "Tier", "Plan row", "Check", "Proves"
+VERIFICATION = "VERIFICATION.md"
+VERIFY = "/afkv2:propose-verification"
+NO_PLAN_ROW_TIERS = {"static"}
+TIER_ALIASES = {"e2e": "ui-e2e", "browser": "ui-e2e", "e2e/browser": "ui-e2e"}
 
 
 def failure(code, where, reason, **extra):
@@ -174,6 +200,21 @@ class Subtask:
         """The globs of `## Scope`, without a backtick or the words after the glob."""
         cut = (bullet.split(" #")[0].split(" — ")[0].strip().strip("`") for bullet in self.bullets("Scope"))
         return [glob for glob in cut if glob and not glob.startswith("#")]
+
+
+def verification_rows(subtask):
+    """Each `## Verification` row as {tier, plan_row, check, proves}, read by header name; None when the table has
+    no `Tier` or `Check` column. The check column is the one whose header starts with `Check`."""
+    table = table_rows(subtask.sections.get("Verification", ""))
+    names = table[0] if table else []
+    tier = names.index(TIER_COLUMN) if TIER_COLUMN in names else None
+    check = next((index for index, name in enumerate(names) if name.startswith(CHECK_COLUMN)), None)
+    if tier is None or check is None:
+        return None
+    columns = {"tier": tier, "check": check, "plan_row": names.index(PLAN_ROW_COLUMN) if PLAN_ROW_COLUMN in names else None,
+               "proves": names.index(PROVES_COLUMN) if PROVES_COLUMN in names else None}
+    return [{field: row[index] if index is not None and index < len(row) else None for field, index in columns.items()}
+            for row in table[1:] if len(row) > max(tier, check)]
 
 
 def contract_paths(plan):
@@ -375,6 +416,8 @@ def _section_failures(subtasks):
         failures += [failure("bad-contract", where, f"no section `## {name}`") for name in required if name not in subtask.sections]
         failures += [failure("bad-contract", where, f"section `## {name}` is not in the contract format")
                      for name in subtask.sections if name not in required + optional]
+        if "Verification" in subtask.sections and verification_rows(subtask) is None:
+            failures.append(failure("bad-contract", where, f"`## Verification` has no table with the columns `{TIER_COLUMN}` and `{CHECK_COLUMN}`"))
     return failures
 
 
@@ -490,6 +533,20 @@ def _app_of(plan_text):
     return None
 
 
+def _unproven_live(app, base):
+    """For `> App: config`, why the repository config on the base holds no proven live block; else None."""
+    if app != APP_CONFIG:
+        return None
+    try:
+        live = json.loads(base.read(CONFIG_FILE) or "{}").get("live")
+    except (ValueError, AttributeError):
+        live = None
+    if isinstance(live, dict) and live.get("proven_head"):
+        return None
+    return (f"the `{APP_MARK} {APP_CONFIG}` line needs a proven live block (`live` with `proven_head`) in {CONFIG_FILE} "
+            f"on {base.name or 'the repository'}")
+
+
 def _chain_of(subtask, by_id):
     """The subtask and every subtask it waits on, directly or through another one."""
     chain, todo = {}, [subtask.id]
@@ -501,9 +558,14 @@ def _chain_of(subtask, by_id):
     return chain.values()
 
 
-def _row_failures(where, tier, cell, app, owners, base):
+def live_not_applicable(where):
+    """The refusal of `not applicable:` on a live tier of a `> Rules: 2` plan (PRD AC-029; SDD §6 I-4)."""
+    return failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md")
+
+
+def _row_failures(where, tier, cell, app, owners, base, rules=1):
     if is_not_applicable(cell):
-        return []
+        return [live_not_applicable(where)] if rules == 2 and tier in LIVE_TIERS else []
     if _means_not_applicable(cell):
         return [failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason")]
     fix = f"mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
@@ -511,6 +573,9 @@ def _row_failures(where, tier, cell, app, owners, base):
     if tier in LIVE_TIERS and not app:
         failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                 next=f"{fix}, or name the app in the `{APP_MARK}` line"))
+    unproven = _unproven_live(app, base) if tier in LIVE_TIERS else None
+    if unproven:
+        failures.append(failure("gate-cannot-run", where, unproven, next="prove the live build with `/afkv2:propose-verification`"))
     failures += [failure("gate-cannot-run", where, f"the command `{program}` is not on the PATH", next=fix)
                  for program in dict.fromkeys(_programs(cell)) if not shutil.which(program)]
     failures += [failure("check-path-unowned", where, f"no Scope in the chain of this subtask owns `{path}`, and it is not in {base.name or 'the repository'}",
@@ -521,18 +586,126 @@ def _row_failures(where, tier, cell, app, owners, base):
 
 
 def _gate_failures(subtasks, plan_text, base):
-    app, by_id = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}
+    app, by_id, rules = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}, rules_of(plan_text)
     finished = {subtask for subtask, status in read_rows(plan_text) or [] if status == "done"}
     failures = []
     for subtask in subtasks:
         if subtask.id in finished:
             continue
         owners = [glob for item in _chain_of(subtask, by_id) for glob in item.scope]
-        for row in table_rows(subtask.sections.get("Verification", ""))[1:]:
-            if len(row) >= 2:
-                tier = row[0].strip("` ").lower()
-                failures += _row_failures(f"{subtask.id} tier {tier}", tier, row[1], app, owners, base)
+        for row in verification_rows(subtask) or []:
+            tier = row["tier"].strip("` ").lower()
+            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base, rules)
     return failures
+
+
+def _verification_files():
+    """The VERIFICATION.md reader of propose-verification, imported only for a Rules 2 plan."""
+    sys.path.insert(0, str(SKILL.parent / "propose-verification" / "scripts"))
+    import verification_files
+    return verification_files
+
+
+def _spec_inputs(subtasks, base):
+    """({rows, internal, active, retired} of the spec folder on the base, failures); VERIFICATION.md sits beside the PRD."""
+    parent = next((cell for cell in (item.sections.get("Parent PRD", "").strip() for item in subtasks) if cell), None)
+    folder = parent.replace("\\", "/").rpartition("/")[0] if parent else None
+    verification = base.read(f"{folder}/{VERIFICATION}" if folder else VERIFICATION) if parent else None
+    if verification is None:
+        return None, [failure("missing-input", VERIFICATION, f"a `> Rules: 2` plan needs {VERIFICATION} beside the PRD on "
+                              f"{base.name or 'the repository'}; {VERIFY} writes it", writer=VERIFY)]
+    vf = _verification_files()
+    with tempfile.TemporaryDirectory() as scratch:
+        (Path(scratch) / VERIFICATION).write_text(verification, "utf-8")
+        (Path(scratch) / "PRD.md").write_text(base.read(parent) or "", "utf-8")
+        try:
+            read = vf.read_verification(Path(scratch) / VERIFICATION)
+        except Refusal as refusal:
+            return None, [failure("bad-verification", VERIFICATION, refusal.reason)]
+        active, retired = vf._criteria(Path(scratch) / "PRD.md")
+    return {**read, "active": active, "retired": retired}, []
+
+
+def _level_rank(vf, tier):
+    tier = TIER_ALIASES.get(tier, tier)
+    return vf.LEVELS.index(tier) if tier in vf.LEVELS else None
+
+
+def _claims(subtasks, rows, vf):
+    """({plan row id: [subtask ids that name it]}, subtasks that name a low row, failures of the contract cells)."""
+    owners, low, failures = {}, set(), []
+    for subtask in subtasks:
+        table, where = verification_rows(subtask), f"{subtask.id}.md ## Verification"
+        if not table:
+            continue
+        if all(row["plan_row"] is None for row in table):
+            failures.append(failure("contract-row-missing", where, f"a `> Rules: 2` contract needs the column `{PLAN_ROW_COLUMN}`"))
+            continue
+        for row in table:
+            tier, cell = row["tier"].strip("` ").lower(), (row["plan_row"] or "").strip()
+            if not cell or cell.lower() in NO_ID:
+                if tier not in NO_PLAN_ROW_TIERS:
+                    failures.append(failure("contract-row-missing", where,
+                                            f"the {tier} row names no plan row; only a {', '.join(sorted(NO_PLAN_ROW_TIERS))} row may read `—`"))
+                continue
+            for rid in dict.fromkeys(part.strip() for part in cell.split(",") if part.strip()):
+                if rid not in rows:
+                    failures.append(failure("row-unknown", where, f"the plan row {rid} is not in {VERIFICATION}"))
+                    continue
+                named = owners.setdefault(rid, [])
+                if subtask.id not in named:
+                    named.append(subtask.id)
+                level = rows[rid]["level"]
+                if vf.tier_of(level) == "low":
+                    low.add(subtask.id)
+                tier_rank, level_rank = _level_rank(vf, tier), _level_rank(vf, level)
+                if tier_rank is not None and level_rank is not None and tier_rank < level_rank:
+                    failures.append(failure("lower-level-unmarked", where, f"the {tier} row tests {rid} below its level {level}; only the developer "
+                                            f"accepts a lower level, as `lower: {level} to {tier} · <card>` in {VERIFICATION}"))
+    return owners, low, failures
+
+
+def _owner_failures(live, owners, low, vf):
+    failures = []
+    for rid, row in live.items():
+        named, high = owners.get(rid, []), vf.tier_of(row["level"]) == "high"
+        if len(named) > 1:
+            failures.append(failure("row-two-owners", rid, f"{rid} is named by {', '.join(named)}; a plan row has 1 owner"))
+        elif not named:
+            failures.append(failure("row-no-test-subtask" if high else "row-unowned", rid,
+                                    f"no contract names {rid}" + ("; a high row needs a test-writing subtask" if high else "")))
+        elif high and named[0] in low:
+            failures.append(failure("row-no-test-subtask", rid, f"{rid} sits in {named[0]}, which also owns low rows; "
+                                    "a high row goes in a test-writing subtask of its own"))
+    return failures
+
+
+def _criteria_failures(spec, live, vf):
+    failures = [failure("row-on-retired-ac", rid, f"{rid} names the retired criterion {criterion}")
+                for rid, row in live.items() for criterion in row["criteria"] if criterion in spec["retired"]]
+    internal = {entry["criterion"] for entry in spec["internal"]}
+    return failures + [failure("ac-no-high-row", criterion, f"the user-visible criterion {criterion} has no live high-level row in {VERIFICATION}")
+                       for criterion in spec["active"] if criterion not in internal
+                       and not any(criterion in row["criteria"] and vf._covers_high(row) for row in live.values())]
+
+
+def _plan_row_failures(subtasks, base):
+    """The plan row rules of a `> Rules: 2` plan (SDD §3 row "S-2", §6 I-2 and I-3; design ADR-0002)."""
+    spec, failures = _spec_inputs(subtasks, base)
+    if spec is None:
+        return failures
+    vf = _verification_files()
+    rows = {row["id"]: row for row in spec["rows"]}
+    live = {rid: row for rid, row in rows.items() if row["status"] == "active" or vf.LOWER.fullmatch(row["status"] or "")}
+    owners, low, failures = _claims(subtasks, rows, vf)
+    return failures + _owner_failures(live, owners, low, vf) + _criteria_failures(spec, live, vf)
+
+
+def _rules_failures(plan_text, subtasks, base):
+    rules = rules_of(plan_text)
+    if rules is None:
+        return [failure("bad-rules", "PLAN.md", "the header needs at most one `> Rules:` line, and it reads 1 or 2")]
+    return _plan_row_failures(subtasks, base) if rules == 2 else []
 
 
 def check_plan(plan):
@@ -544,7 +717,8 @@ def check_plan(plan):
     subtasks, base = read_subtasks(plan), Base(plan)
     division, failures = division_of(plan_text)
     failures += (_v1_failures(plan, plan_text) + _section_failures(subtasks) + _tracker_failures(plan_text, subtasks)
-                 + _cycle_failures(subtasks) + _graph_failures(subtasks, base) + _gate_failures(subtasks, plan_text, base))
+                 + _cycle_failures(subtasks) + _graph_failures(subtasks, base) + _gate_failures(subtasks, plan_text, base)
+                 + _rules_failures(plan_text, subtasks, base))
     if failures:
         return {"ok": False, "error": {"code": "plan-check-failed", "reason": f"{len(failures)} failures in this plan", "failures": failures}}
     return {"ok": True, "subtasks": [subtask.id for subtask in subtasks], "division": division, "base": base.name}

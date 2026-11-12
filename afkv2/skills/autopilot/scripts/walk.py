@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "execute" / "script
 
 import start_gate  # noqa: E402
 import tdd_log  # noqa: E402
-from plan_contract import PLUGIN, dependents, plan_file, read_contract, read_text, read_tracker, write_atomic, write_status  # noqa: E402
+from plan_contract import PLUGIN, dependents, plan_file, read_contract, read_text, read_tracker, rules_of, write_atomic, write_status  # noqa: E402
 from start_gate import RUN_SUFFIX, git_line, run_branch_of  # noqa: E402
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
@@ -144,6 +144,9 @@ def _brief(plan, subtask, record, change, rulings, resume):
              "No human reads a page in this run: open no page, and park a question for the human."]
     if resume:
         lines.append(f"An earlier subagent worked on this subtask. Read `git log {record['base']}..HEAD`, read `{plan / 'review'}`, and go on from there.")
+    if record.get("back"):
+        lines.append("The end gate sent this subtask back. Make each of these high-level rows pass, with a new commit:")
+        lines.extend(f"- {item['row']} ({_one_line(item['behavior'])}): {_one_line(item['why'])}" for item in record["back"])
     if rulings:
         lines.append("Rulings of the orchestrator. Each one binds over the contract:")
         lines.extend(f"- {item['id']}: {_one_line(item['question'])} Ruling: {_one_line(item['ruling'])}" for item in rulings)
@@ -203,6 +206,20 @@ def _tally(statuses):
             "waiting": [item for item, status in statuses.items() if status == "pending"]}
 
 
+def _gate_failures(plan, state, contract, app):
+    """The start gate of one subtask, under the plan's rules. A proven live block of `> App: config` is kept in run.json,
+    so the live build starts once per run, not at each start; a failed proof is not kept."""
+    text = read_text(plan_file(plan))
+    proved = dict(state.get("live") or {})
+    failures = start_gate.gate_failures(contract, start_gate.plan_app(text, app), rules_of(text), ".", proved)
+    kept = {key: answer for key, answer in proved.items() if answer.get("ok")}
+    if kept != (state.get("live") or {}):
+        state["live"] = kept
+        _save(plan, state)
+        _commit_run(plan, "run: live build proven")
+    return failures
+
+
 def start(payload):
     plan, subtask = _plan(payload), str(need(payload, "subtask"))
     state, statuses = _load(plan), _statuses(plan)
@@ -223,7 +240,7 @@ def start(payload):
     for producer, path, anchor in contract.consumes:
         if not _holds(path, anchor):
             raise Refusal("contract-mismatch", f"{path} has no `{anchor}`, which {producer} must produce", producer=producer)
-    failures = start_gate.gate_failures(contract, start_gate.plan_app(read_text(plan_file(plan)), payload.get("app")))
+    failures = _gate_failures(plan, state, contract, payload.get("app"))
     if failures:
         raise Refusal("gate-cannot-run", f"{subtask} has a gate that cannot run in this repository", failures=failures)
     record = state["subtasks"].setdefault(subtask, {"attempts": 0})
@@ -406,6 +423,27 @@ def _own_commits(subtask, base):
     return [line.split("\t")[0] for line in lines if line.split("\t", 1)[-1].startswith(f"[{subtask}]")]
 
 
+def _row_failures(subtask, contract, record):
+    """The done row checks of a `> Rules: 2` plan: each plan row of the contract has a test or a no-test entry of
+    its own, each low row a green, and each test a plan row of the contract (PRD AC-008, AC-023; SDD §6 I-5)."""
+    rows, cycles = tdd_log.plan_rows(contract), record["cycles"]
+    covered = {entry.get("row") for entry in record["no_test"]}
+    failures = []
+    for row, level in rows.items():
+        own = [cycle for cycle in cycles if cycle.get("row") == row]
+        if row in covered:
+            continue
+        if not own:
+            failures.append({"code": "row-no-test", "row": row, "reason": f"VC-5: plan row {row} of {subtask} has no test and no no-test entry"})
+        elif level == "low" and not any(cycle["green"] for cycle in own):
+            failures.append({"code": "row-not-green", "row": row, "reason": f"low-level plan row {row} has no green test"})
+    for cycle in cycles:
+        if cycle.get("row") not in rows:
+            failures.append({"code": "test-no-row", "row": cycle.get("row"),
+                             "reason": f"VC-5: the test of {cycle['behavior']} names {cycle.get('row') or 'no plan row'}, which is no plan row of {subtask}"})
+    return failures
+
+
 def _finish_failures(plan, subtask, record, change):
     base = record["base"]
     failures = []
@@ -415,6 +453,8 @@ def _finish_failures(plan, subtask, record, change):
     if not commits:
         failures.append({"code": "no-own-commits", "reason": f"no commit from {base} to HEAD starts with `[{subtask}]`"})
     failures.extend(tdd_log.verdict(plan, subtask, base))
+    if rules_of(read_text(plan_file(plan))) == 2:
+        failures.extend(_row_failures(subtask, read_contract(plan, subtask), tdd_log.record(plan, subtask)))
     branch = _git(".", "rev-parse", "--abbrev-ref", "HEAD")
     if git_line(".", "rev-parse", f"origin/{branch}") != _git(".", "rev-parse", "HEAD"):
         failures.append({"code": "not-pushed", "reason": f"HEAD is not the head of origin/{branch}"})
@@ -457,10 +497,16 @@ def _journal_digest(plan):
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 
 
+def _gate_blocker(plan):
+    """Why the gate record stops the ship, or None (end_gate.py imports this module, so it loads here)."""
+    import end_gate
+    return end_gate.ship_blocker(plan)
+
+
 def _ships(plan, state, tally, statuses):
-    """Every subtask is done, and `archive` copied the journal as it is now."""
+    """Every subtask is done, the gate record passed or waits for the developer, and `archive` copied the journal as it is now."""
     archived = state.get("archived") is not None and state["archived"] == _journal_digest(plan)
-    return archived and len(tally["done"]) == len(statuses)
+    return archived and len(tally["done"]) == len(statuses) and _gate_blocker(plan) is None
 
 
 def end(payload):
@@ -471,7 +517,8 @@ def end(payload):
     _journal(plan, "autopilot", "run", f"run end ({len(tally['done'])}/{len(statuses)} done, {len(tally['parked'])} parked)",
              "the walk of the plan has stopped")
     _commit_run(plan, "run: end")
-    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses))
+    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses),
+              gate=_gate_blocker(plan))
 
 
 def _worktree_of(porcelain, branch):
@@ -540,7 +587,8 @@ def archive(payload):
     state["archived"] = _journal_digest(plan)
     _save(plan, state)
     _commit_run(plan, "run: journal copied to the feature branch")
-    return ok(path=str(target), committed=committed, commit=commit, ship=_ships(plan, state, _tally(statuses), statuses))
+    return ok(path=str(target), committed=committed, commit=commit, ship=_ships(plan, state, _tally(statuses), statuses),
+              gate=_gate_blocker(plan))
 
 
 VERBS = {"locate": locate, "next": next_subtask, "start": start, "status": set_status, "set-change": set_change,

@@ -10,7 +10,7 @@ import textwrap
 import pytest
 
 from port_fakes import PORTS, FakeResp
-from tracker import cli, jira, settings
+from tracker import cli, github_issues, jira, settings
 
 CLI = PORTS / "tracker" / "cli.py"
 
@@ -41,19 +41,39 @@ def reader(tmp_path, monkeypatch):
 
 def test_the_verb_set_is_exactly_the_contract():
     assert set(cli.VERBS) == {"issue-get", "issue-search", "md-to-adf", "attachment-list",
-                              "attachment-put", "attachment-delete", "description-put"}
+                              "attachment-put", "attachment-delete", "description-put", "comment-put"}
 
 
 @pytest.mark.parametrize("verb", ["create", "transition", "comment", "tracker_create", "tracker_transition",
                                   "tracker_comment", "issue-create", "issue-transition", "issue-comment"])
-def test_there_is_no_create_transition_or_comment_verb(capsys, verb):
+def test_there_is_no_create_or_transition_verb_and_comment_put_is_the_one_comment_verb(capsys, verb):
     code, answer = call(capsys, verb, "{}")
     assert code == 2 and answer["error"]["code"] == "unknown-verb"
+    assert [name for name in cli.VERBS if "comment" in name] == ["comment-put"]
 
 
-def test_no_write_function_for_create_transition_or_comment_exists():
+def test_no_write_function_for_create_or_transition_exists_and_comment_put_is_the_one_comment_write():
     for name in ("add_comment", "issue_create", "issue_transition", "issue_comment", "_op_create", "_op_comment", "_op_transition"):
-        assert not hasattr(jira, name) and not hasattr(jira.Jira, name)
+        for owner in (jira, jira.Jira, github_issues):
+            assert not hasattr(owner, name)
+    assert [name for name in dir(jira) if "comment" in name and callable(getattr(jira, name))
+            and not name.startswith("_")] == ["comment_put"]
+
+
+@pytest.mark.parametrize("kind, module", [("jira", jira), ("github-issues", github_issues)])
+def test_comment_put_goes_to_the_tracker_of_the_kind(capsys, monkeypatch, kind, module):
+    seen = []
+    monkeypatch.setattr(module, "comment_put", lambda payload: seen.append(payload) or {"ok": True, "comment_id": "1"})
+    code, answer = call(capsys, "comment-put", json.dumps({"key": "7", "tracker": kind}))
+    assert code == 0 and answer["comment_id"] == "1" and seen[0]["key"] == "7"
+
+
+def test_comment_put_takes_the_kind_and_repo_from_the_config(capsys, monkeypatch, reader):
+    reader({"ok": True, "tracker": {"kind": "github-issues", "repo": "o/r"}})
+    seen = []
+    monkeypatch.setattr(github_issues, "comment_put", lambda payload: seen.append(payload) or {"ok": True})
+    code, _ = call(capsys, "comment-put", '{"key":"7"}')
+    assert code == 0 and seen[0]["repo"] == "o/r"
 
 
 @pytest.mark.parametrize("payload", ["{bad", "[1, 2]"])

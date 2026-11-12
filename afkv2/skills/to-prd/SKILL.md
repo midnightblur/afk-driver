@@ -5,7 +5,7 @@ description: /afkv2:to-prd — turns a settled grill into PRD.md, requirement AD
 
 # /afkv2:to-prd
 
-Write what the grill settled, then show the developer exactly what the ticket will hold. Nothing goes to the ticket before the developer's yes. This is the only skill that writes to Jira.
+Write what the grill settled, then show the developer exactly what the ticket will hold. Nothing goes to the ticket before the developer's yes. This skill makes the first ticket write. The second is the ship proof comment, which `/afkv2:create-change-request` posts at ship.
 
 ## Input
 

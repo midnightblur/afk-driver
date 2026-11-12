@@ -64,8 +64,8 @@
       "required": ["id", "skill", "feature", "started", "step"],
       "properties": {
         "id": {"description": "As format 0. Unique per pages folder.", "type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
-        "skill": {"description": "A page writer's name: grill, propose-solution, to-subtasks, use-lavish. Was 1 of 3 names.",
-                  "enum": ["grill", "propose-solution", "to-subtasks", "use-lavish"]},
+        "skill": {"description": "A page writer's name: grill, propose-solution, propose-verification, small-change, to-subtasks, use-lavish. Was 1 of 3 names.",
+                  "enum": ["grill", "propose-solution", "propose-verification", "small-change", "to-subtasks", "use-lavish"]},
         "feature": {"description": "As format 0.", "type": "string", "minLength": 1},
         "ticket": {"description": "The ticket key; none on an ad-hoc page with no ticket. Was required.",
                    "type": ["string", "null"], "minLength": 1},
