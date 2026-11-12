@@ -10,7 +10,9 @@
 
 `--target` names the branch the feature merges into; by default the first of origin/HEAD, origin/main,
 origin/master, main and master that exists. A commit of this feature is HEAD, or a commit of HEAD that the target
-does not hold.
+does not hold. A proof at the branch point counts only when the first commit of the feature wrote it, or the feature
+has no commit yet (decision D-15).
+`read_verification(path)` reads every section of VERIFICATION.md; `read_rows(path)` reads only the plan rows.
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from round_document import session_notes  # noqa: E402
 
 SKILL_NAME = "propose-verification"
 DOC_PREFIX = f"{SKILL_NAME}-"
+PROPOSERS_SUFFIX = ".proposers.json"
 SECTION = "## Verification plan"
 WRITTEN = "- Settled: verification written"
 NOTE_ROW = re.compile(r"^- Note: (\S+) · ")
@@ -77,18 +80,32 @@ def _git(repo_root, *args):
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def _feature_commits(repo_root, target):
-    """HEAD and each commit of HEAD that the target does not hold."""
-    head = _git(repo_root, "rev-parse", "HEAD")
-    if head is None:
-        raise Refusal("git-failed", f"{repo_root}: git rev-parse HEAD failed")
+def _target_ref(repo_root, target):
     refs = [target] if target else list(TARGETS)
     ref = next((name for name in refs if _git(repo_root, "rev-parse", "--verify", "--quiet", f"{name}^{{commit}}")), None)
     if ref is None:
         raise Refusal("no-target", f"none of {', '.join(refs)} names a commit; pass --target with the branch the "
                                    f"feature merges into")
+    return ref
+
+
+def _feature_commits(repo_root, ref):
+    """HEAD and each commit of HEAD that the target does not hold."""
+    head = _git(repo_root, "rev-parse", "HEAD")
+    if head is None:
+        raise Refusal("git-failed", f"{repo_root}: git rev-parse HEAD failed")
     listed = _git(repo_root, "rev-list", f"{ref}..HEAD") or ""
     return {head, *listed.split()}
+
+
+def _proven_head_at(repo_root, commit):
+    """The proven_head of the live block in the config that `commit` holds, or None."""
+    text = _git(repo_root, "show", f"{commit}:{afkv2_config.CONFIG_DIR}/{afkv2_config.CONFIG_FILE}")
+    try:
+        live = json.loads(text).get("live") if text else None
+    except (ValueError, AttributeError):
+        return None
+    return live.get("proven_head") if isinstance(live, dict) else None
 
 
 def _config(repo_root):
@@ -99,13 +116,23 @@ def _config(repo_root):
 
 
 def live_state(repo_root, target=None):
-    """{block, proven_here}: the config holds a live block, and its proof ran at a commit of this feature."""
+    """{block, proven_here}: the config holds a live block, and its proof ran at a commit of this feature. A proof at
+    the branch point counts only on a branch whose first commit wrote it, or that has no commit yet."""
     live = _config(repo_root).get("live")
     if live is None:
         return {"block": False, "proven_here": False}
     head = live.get("proven_head")
     full = _git(repo_root, "rev-parse", "--verify", "--quiet", f"{head}^{{commit}}") if head else None
-    return {"block": True, "proven_here": full is not None and full in _feature_commits(repo_root, target)}
+    if full is None:
+        return {"block": True, "proven_here": False}
+    ref = _target_ref(repo_root, target)
+    if full in _feature_commits(repo_root, ref):
+        return {"block": True, "proven_here": True}
+    base = _git(repo_root, "merge-base", ref, "HEAD")
+    if full != base or _proven_head_at(repo_root, base) == head:
+        return {"block": True, "proven_here": False}
+    own = (_git(repo_root, "rev-list", "--reverse", "--first-parent", f"{base}..HEAD") or "").split()
+    return {"block": True, "proven_here": not own or _proven_head_at(repo_root, own[0]) == head}
 
 
 # --- start and sync -----------------------------------------------------------------------------------------------
@@ -137,10 +164,17 @@ def _written(log, session):
     return any(line.startswith(WRITTEN) and line.endswith(f"· session {session}") for line in _section_parts(log)[1])
 
 
+def _sessions(pages):
+    """The sessions with a page document or a proposers state file, oldest first."""
+    stems = {path.stem for path in page_documents(pages, DOC_PREFIX)}
+    stems |= {path.name[:-len(PROPOSERS_SUFFIX)] for path in Path(pages).glob(f"{DOC_PREFIX}*{PROPOSERS_SUFFIX}")}
+    return sorted(stem[len(DOC_PREFIX):] for stem in stems if "." not in stem)
+
+
 def _new_session(pages):
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     session, attempt = f"s-{stamp}", 1
-    while (pages / f"{DOC_PREFIX}{session}.json").exists():
+    while any((pages / f"{DOC_PREFIX}{session}{suffix}").exists() for suffix in (".json", PROPOSERS_SUFFIX)):
         attempt += 1
         session = f"s-{stamp}-{attempt}"
     return session
@@ -162,7 +196,7 @@ def start(argv):
                           writer=writer)
     log, pages = spec_dir / "GRILL-LOG.md", spec_dir / "pages"
     _ensure_section(log)
-    sessions = sorted(path.stem[len(DOC_PREFIX):] for path in page_documents(pages, DOC_PREFIX))
+    sessions = _sessions(pages)
     resumed = sessions[-1] if sessions and not _written(log, sessions[-1]) else None
     session = resumed or _new_session(pages)
     doc, raw_file = pages / f"{DOC_PREFIX}{session}.json", pages / f"{DOC_PREFIX}{session}.raw.txt"
@@ -201,9 +235,10 @@ def _text(value):
 
 
 def _marked(doc, card):
-    """True when a card of the page is settled by the developer's mark."""
+    """True when a card of the page is settled by the developer's accept mark; an option letter accepts nothing."""
     return any(item.get("id") == card and item.get("state") == "settled_by_mark"
                and (item.get("settled") or {}).get("by") == "mark"
+               and (item.get("settled") or {}).get("signal") == "accept"
                for rnd in (doc or {}).get("rounds") or [] for item in rnd.get("items") or [])
 
 
@@ -222,6 +257,8 @@ def _check_row(raw, doc):
     for field in TEXT_FIELDS:
         if not _text(raw.get(field)):
             raise Refusal("bad-row", f"{where}: {field} is 1 sentence")
+    if isinstance(raw.get("story"), int) and not isinstance(raw["story"], bool):
+        raw = {**raw, "story": str(raw["story"])}
     for field in OPTIONAL_FIELDS:
         if raw.get(field) is not None and not _text(raw[field]):
             raise Refusal("bad-row", f"{where}: {field} is text or null")
@@ -243,6 +280,11 @@ def _check_row(raw, doc):
     return {"id": raw["id"], "criteria": list(criteria), "story": raw.get("story"), "given": raw["given"].strip(),
             "when": raw["when"].strip(), "then": raw["then"].strip(), "level": level, "tier": tier_of(level),
             "data": raw.get("data"), "environment": raw.get("environment"), "status": status}
+
+
+def _live(entry):
+    """An active row, or a `lower:` row the developer accepted."""
+    return entry["status"] == "active" or bool(LOWER.fullmatch(entry["status"]))
 
 
 def _covers_high(entry):
@@ -267,7 +309,8 @@ def _check_internal(internal, known):
         raise Refusal("bad-payload", "internal is a list of {criterion, why}")
     exempt = {}
     for entry in internal:
-        if not isinstance(entry, dict) or set(entry) != {"criterion", "why"} or not _text(entry.get("why")):
+        if (not isinstance(entry, dict) or set(entry) != {"criterion", "why"} or not _text(entry.get("why"))
+                or not isinstance(entry.get("criterion"), str)):
             raise Refusal("bad-payload", f"internal entry {entry!r}: {{criterion, why}}")
         if entry["criterion"] not in known:
             raise Refusal("criterion-unknown", f"internal names {entry['criterion']}, which the PRD does not hold")
@@ -285,10 +328,12 @@ def _check_boundaries(boundaries, rows):
                 or not _text(entry.get("boundary")) or not isinstance(entry.get("contract"), bool)
                 or not isinstance(entry.get("rows"), list)):
             raise Refusal("bad-payload", f"boundary {entry!r}: {{boundary, contract, rows, ticket}}")
+        if not all(isinstance(rid, str) for rid in entry["rows"]):
+            raise Refusal("bad-payload", f"boundary {entry['boundary']}: rows is a list of row ids")
         named = [by_id.get(rid) for rid in entry["rows"]]
         if None in named:
             raise Refusal("boundary-uncovered", f"boundary {entry['boundary']}: rows {entry['rows']} name an unknown row")
-        active = [row for row in named if row["status"] == "active"]
+        active = [row for row in named if _live(row)]
         if entry["contract"] and not any(row["level"] == "contract" for row in active):
             raise Refusal("boundary-uncovered", f"boundary {entry['boundary']}: it has contract tests, so it needs an "
                                                 f"active contract row")
@@ -404,13 +449,41 @@ def _section_table(markdown, heading):
     return _cells(lines[0]), [_cells(line) for line in lines[2:]]
 
 
-def read_rows(path):
-    """The plan rows of VERIFICATION.md, read by header name: one dict per row with the keys of FIELDS."""
+def _optional_table(markdown, heading, columns):
+    """The rows of an optional section as dicts by column name; [] without the section."""
+    table = _section_table(markdown, heading)
+    if not table:
+        return []
+    header, body = table
+    return [{name: (None if values.get(name, EMPTY) == EMPTY else values.get(name)) for name in columns}
+            for values in (dict(zip(header, cells)) for cells in body)]
+
+
+def read_verification(path):
+    """Every part of VERIFICATION.md: {rows, internal, boundaries, app}, in the shapes of the plan file, and `app` as
+    the text after `> App: `, or None."""
     path = Path(path)
     try:
         markdown = path.read_text("utf-8").replace("\r\n", "\n")
     except (OSError, UnicodeDecodeError) as error:
         raise Refusal("unreadable", f"{path}: {error}") from error
+    internal = [{"criterion": entry["Criterion"], "why": entry["Why"]}
+                for entry in _optional_table(markdown, INTERNAL_HEADING, ("Criterion", "Why"))]
+    boundaries = [{"boundary": entry["Boundary"], "contract": entry["Contract test"] == "yes",
+                   "rows": [rid.strip() for rid in (entry["Rows"] or "").split(",") if rid.strip()],
+                   "ticket": entry["Ticket"]}
+                  for entry in _optional_table(markdown, BOUNDARIES_HEADING, ("Boundary", "Contract test", "Rows", "Ticket"))]
+    app = re.search(r"^> App: (.+)$", markdown, re.M)
+    return {"rows": _read_rows(path, markdown), "internal": internal, "boundaries": boundaries,
+            "app": app.group(1).strip() if app else None}
+
+
+def read_rows(path):
+    """The plan rows of VERIFICATION.md, read by header name: one dict per row with the keys of FIELDS."""
+    return read_verification(path)["rows"]
+
+
+def _read_rows(path, markdown):
     table = _section_table(markdown, ROWS_HEADING)
     if table is None:
         raise Refusal("bad-verification", f"{path} has no `## {ROWS_HEADING}` section")

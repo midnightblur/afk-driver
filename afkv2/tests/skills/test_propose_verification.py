@@ -438,3 +438,105 @@ def test_the_guide_names_the_skill_and_only_real_commands():
             assert f'"{found.group(2)}"' in script.read_text(encoding="utf-8"), f"{name}: {found.group(2)}"
     for link in re.findall(r"\]\(([^)#]+)", text):
         assert (SKILL_DIR / link).resolve().is_file(), link
+
+
+# --- review round 1 ------------------------------------------------------------------------------------------------
+
+def test_only_an_accept_mark_settles_a_lower_level_or_no_app(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [row("VR-001", ["AC-001"], "api", status="lower: ui-e2e to api · c-low"), row("VR-002", ["AC-002"], "api")]
+    picked = doc_with("c-low")
+    picked["rounds"][0]["items"][0]["settled"]["signal"] = "a"
+    refused("lower-level-unmarked", repo, plan(rows=rows), picked)
+    picked["rounds"][0]["items"][0]["id"] = "c-none"
+    refused("live-unproven", repo, plan(app={"none": "c-none"}), picked)
+
+
+def test_a_marked_lower_row_at_the_api_level_is_a_boundary_floor(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [row("VR-001", ["AC-001"], "ui-e2e"), row("VR-002", ["AC-002"], "api", status="lower: ui-e2e to api · c-low")]
+    boundary = {"boundary": "orders API to the portal", "contract": False, "rows": ["VR-002"], "ticket": "a contract test"}
+    write(repo, plan(rows=rows, boundaries=[boundary]), doc_with("c-low"))
+
+
+def test_a_retired_row_covers_no_boundary(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [*plan()["rows"], row("VR-005", ["AC-002"], "contract", status="retired: moved"),
+            row("VR-006", ["AC-002"], "api", status="retired: moved")]
+    contract = {"boundary": "orders API to the portal", "contract": True, "rows": ["VR-005"], "ticket": None}
+    refused("boundary-uncovered", repo, plan(rows=rows, boundaries=[contract]))
+    floor = {**contract, "contract": False, "rows": ["VR-006"], "ticket": "a contract test"}
+    refused("boundary-uncovered", repo, plan(rows=rows, boundaries=[floor]))
+
+
+def test_a_lower_row_from_a_low_level_covers_no_criterion(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [row("VR-001", ["AC-001"], "unit", status="lower: integration to unit · c-low"), row("VR-002", ["AC-002"], "api")]
+    refused("ac-no-high-row", repo, plan(rows=rows), doc_with("c-low"))
+
+
+def test_a_lower_row_holds_its_to_level():
+    with pytest.raises(Refusal) as caught:
+        vf._check_row(row("VR-001", ["AC-001"], "ui-e2e", status="lower: acceptance to api · c-low"), doc_with("c-low"))
+    assert caught.value.code == "bad-row"
+
+
+def test_a_retired_row_may_name_a_retired_criterion(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [*plan()["rows"], row("VR-005", ["AC-003"], "unit", status="retired: merged into AC-001")]
+    write(repo, plan(rows=rows))
+
+
+def test_a_refusal_writes_no_file(repo):
+    refused("live-unproven", repo, plan())
+    assert not (repo / "docs" / TICKET / "VERIFICATION.md").exists()
+
+
+@pytest.mark.parametrize("extra", [{"internal": [{"criterion": ["AC-004"], "why": "x"}]},
+                                   {"boundaries": [{"boundary": "b", "contract": True, "rows": [["VR-002"]],
+                                                    "ticket": None}]}])
+def test_a_wrong_type_refuses_bad_payload(repo, extra):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    refused("bad-payload", repo, plan(**extra))
+
+
+def test_a_story_number_is_text(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    rows = [row("VR-001", ["AC-001"], "ui-e2e", story=1), row("VR-002", ["AC-002"], "api")]
+    write(repo, plan(rows=rows))
+    assert vf.read_rows(repo / "docs" / TICKET / "VERIFICATION.md")[0]["story"] == "1"
+
+
+def test_a_block_proven_at_the_branch_point_passes_once_the_feature_wrote_it(repo):
+    config = (repo / ".afkv2" / "config.json").read_text(encoding="utf-8")
+    git(repo, "checkout", "-q", "-b", "feat/fresh", "main")
+    (repo / ".afkv2").mkdir(exist_ok=True)
+    (repo / ".afkv2" / "config.json").write_text(config, encoding="utf-8")
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    assert vf.live_state(repo, "main") == {"block": True, "proven_here": True}
+    git(repo, "add", ".afkv2/config.json")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "live block")
+    assert vf.live_state(repo, "main") == {"block": True, "proven_here": True}
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--ff-only", "feat/fresh")
+    git(repo, "checkout", "-q", "-b", "feat/next")
+    assert vf.live_state(repo, "main")["proven_here"] is False
+
+
+def test_start_resumes_a_session_that_stopped_in_the_proposers(repo, monkeypatch):
+    monkeypatch.chdir(repo)
+    first = vf.start(["--ticket", TICKET])
+    Path(first["doc"]).with_suffix(".proposers.json").write_text("{}", encoding="utf-8")
+    again = vf.start(["--ticket", TICKET])
+    assert again["resume"] is True and again["session"] == first["session"]
+
+
+def test_read_verification_reads_every_section(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    boundary = {"boundary": "orders API to the portal", "contract": False, "rows": ["VR-002"], "ticket": "a contract test"}
+    write(repo, plan(boundaries=[boundary]))
+    read = vf.read_verification(repo / "docs" / TICKET / "VERIFICATION.md")
+    assert [entry["id"] for entry in read["rows"]] == ["VR-001", "VR-002", "VR-003", "VR-004"]
+    assert read["internal"] == [{"criterion": "AC-004", "why": "a storage detail no user sees"}]
+    assert read["boundaries"] == [{**boundary}]
+    assert read["app"].startswith("config · proven at ")

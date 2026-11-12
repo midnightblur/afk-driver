@@ -22,4 +22,4 @@ Write what you would change in the other plan, and why, 1 point each. Flag at le
 
 ## The reconcile
 
-A point that both critiques accept goes into the plan. Each other difference is 1 `debate` card with both sides. A row at a lower level than its highest-value level needs a card that the developer settles with a mark; its status is then `lower: <from> to <to> · <card id>`.
+A point that both critiques accept goes into the plan. Each other difference is 1 fork card (a `debate` item) with both sides. A row at a lower level than its highest-value level needs a `confirm` card that the developer settles with an `accept` mark; its status is then `lower: <from> to <to> · <card id>`.

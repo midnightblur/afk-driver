@@ -15,7 +15,7 @@
 }
 ```
 
-- `app`: `"config"`, the proven live block of the repository config, or `{"none": "<card id>"}`, a card that the developer settled with a mark.
+- `app`: `"config"`, the proven live block of the repository config, or `{"none": "<card id>"}`, a card that the developer settled with an `accept` mark.
 - `internal`: each acceptance criterion with no user-visible outcome, with why. Every other active criterion of the PRD is user-visible.
 - `boundaries`: each service boundary that the change crosses. `contract` true: the repository has contract tests there.
 
@@ -25,7 +25,7 @@
 |-------|-------|
 | `id` | `VR-NNN`, 3 digits. Never change or reuse an id. Retire a row in place. |
 | `criteria` | a list of PRD ids `AC-NNN`. Empty only on a low-level row with no user-visible outcome. |
-| `story` | the story number or the journey name, or null |
+| `story` | the story number or the journey name, or null; a number is written as text |
 | `given`, `when`, `then` | 1 sentence each. `then` is what you should see; the judge compares to it. |
 | `level` | `static`, `unit`, `integration`, `contract` (tier low); `api`, `ui-e2e`, `acceptance` (tier high) |
 | `tier` | optional; derived from `level`. A mismatch refuses. |
@@ -36,7 +36,7 @@ A row has no owner: the plan cut gives each row its subtask.
 
 The level of a row is its highest-value level ([LEVELS.md](LEVELS.md)). A row that repeats a cheaper row just as faithfully is a critique point.
 
-`lower: <from> to <to> · <card id>`: the developer accepted the lower level `<to>` in place of `<from>`, by a mark on that card. `level` is `<to>`.
+`lower: <from> to <to> · <card id>`: the developer accepted the lower level `<to>` in place of `<from>`, by an `accept` mark on that card; an option letter accepts nothing. `level` is `<to>`. A `lower:` row counts as live, as an `active` row does.
 
 ## The written file
 
@@ -78,5 +78,7 @@ The level of a row is its highest-value level ([LEVELS.md](LEVELS.md)). A row th
 | `criterion-retired` | an active row names a retired criterion |
 | `ac-no-high-row` | a user-visible criterion has no active high-level row; a `lower:` row from a high level counts |
 | `lower-level-unmarked` | a `lower:` card is not settled by the developer's mark |
-| `boundary-uncovered` | a boundary with a contract test has no active contract row; one with none has no ticket or no active high-level row (the API level is the floor) |
-| `live-unproven` | `app` is `config` and the live block was not proven at a commit of this feature, or `app` is `none` and its card has no developer's mark |
+| `boundary-uncovered` | a boundary with a contract test has no live contract row; one with none has no ticket or no live high-level row (the API level is the floor) |
+| `live-unproven` | `app` is `config` and the live block was not proven at a commit of this feature, or `app` is `none` and its card has no `accept` mark of the developer |
+| `no-target` | no default target branch exists: pass `--target` with the branch the feature merges into |
+| `git-failed`, `unreadable`, `bad-verification` | git failed, or the current VERIFICATION.md cannot be read or has no plan rows table: report the reason |
