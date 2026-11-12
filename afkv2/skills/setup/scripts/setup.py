@@ -7,6 +7,9 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
   herdr --answer yes|no                    the developer's answer: yes runs the official installer
   diagram-renderer                         the diagram command, and its config that names the installed Edge
   browser-driver [--attach chrome|edge]    Chrome DevTools MCP for Claude and Codex, proved live; attach is opt-in
+  claude-cli                               the Claude CLI against its release channel; older: claude update
+  advisor (--answer yes|no | --consent-done)
+                                           Fable as the Claude advisor, proved with 1 call; then the consent step
   judge --provider claude|codex [--model M]
                                            1 proving call, then the judge model line of the install record
   secrets                                  the developer's own terminal only: Jira values
@@ -36,6 +39,7 @@ from typing import Callable, Mapping
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(1, str(Path(__file__).resolve().parents[3] / "scripts"))
 
+import claude_cli  # noqa: E402
 import jira_values  # noqa: E402
 import mcp_entries  # noqa: E402
 import other_provider  # noqa: E402
@@ -639,6 +643,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
             "user_environment": jira_values.restore_user_env(places, user_env)}
     lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
     driver = mcp_entries.unregister(places, (tools.DRIVER_ENTRY, tools.ATTACH_ENTRY))
+    advisor = claude_cli.restore(places)
     one_on = _leave_v1_only(places, live, run)
     not_switched = {c["repo"] for c in one_on["claude"] if not c["ok"]}
     for saved, answer in zip(saved_dirs, settings):
@@ -657,7 +662,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         if failed:
             answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])
     ok = (lavish["ok"] and one_on["ok"] and codex != "failed" and codex_rules != "failed"
-          and "failed" not in driver.values()
+          and "failed" not in driver.values() and advisor != "failed"
           and not any(step["action"] == "failed" for step in jira.values())
           and not any(b["action"] == "failed" for b in blocks)
           and not any(h["action"] in ("conflict", "failed") for h in hooks)
@@ -666,7 +671,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
             "codex_config": codex, "codex_rules": codex_rules, "jira_values": jira, "lavish": lavish, "plugins": one_on,
-            "browser_driver": driver,
+            "browser_driver": driver, "advisor": advisor,
             "diagram_renderer": "left-installed",
             "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
@@ -698,6 +703,7 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "ok": True,
         "repo": str(repo),
         "install_record": read_install_record(places),
+        "advisor": claude_cli.status(places, repo, system.run, env),
         "herdr": tools.herdr_status(system.run, {"herdr": read_herdr_answer(places)},
                                     system.fresh_env() if system.fresh_env else env),
         "fired": {p: places.fired_record(p).exists() for p in PROVIDERS},
@@ -876,7 +882,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     system = system or default_system()
     parser = argparse.ArgumentParser(prog="setup.py", description=__doc__.splitlines()[0])
     parser.add_argument("verb", choices=("status", "prepare", "herdr", "diagram-renderer", "browser-driver", "judge",
-                                         "secrets", "copy-config", "ownership", "takeover", "switch-back"))
+                                         "claude-cli", "advisor", "secrets", "copy-config", "ownership", "takeover", "switch-back"))
     parser.add_argument("--repo")
     parser.add_argument("--provider", choices=PROVIDERS)
     parser.add_argument("--end-marker", default="")
@@ -888,6 +894,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     parser.add_argument("--answer", choices=("yes", "no"))
     parser.add_argument("--attach", choices=tuple(tools.BROWSERS))
     parser.add_argument("--model")
+    parser.add_argument("--consent-done", action="store_true")
     try:
         args = parser.parse_args(argv)
     except SystemExit:
@@ -895,13 +902,17 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         return 2
     places = Places.from_env(env)
     repo = None
-    if args.verb not in ("prepare", "herdr", "diagram-renderer", "browser-driver", "judge", "secrets", "switch-back"):
+    if args.verb not in ("prepare", "herdr", "diagram-renderer", "browser-driver", "judge", "claude-cli", "secrets",
+                         "switch-back"):
         repo = repo_top(system.run, Path(args.repo) if args.repo else (cwd or Path.cwd()))
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
             return 2
     if args.verb in ("takeover", "judge") and not args.provider:
         print(json.dumps(_error("bad-arguments", f"{args.verb} needs --provider")))
+        return 2
+    if args.verb == "advisor" and not (args.answer or args.consent_done):
+        print(json.dumps(_error("bad-arguments", "advisor needs --answer yes|no from the developer, or --consent-done")))
         return 2
     if args.verb == "herdr" and not args.answer:
         print(json.dumps(_error("bad-arguments", "herdr needs --answer yes or --answer no from the developer")))
@@ -919,6 +930,11 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
             answer = browser_driver(places, system, env, args.attach)
         elif args.verb == "judge":
             answer = judge(places, system, env, args.provider, args.model)
+        elif args.verb == "claude-cli":
+            answer = claude_cli.check_version(places, system.run, env)
+        elif args.verb == "advisor":
+            answer = (claude_cli.consent_done(places) if args.consent_done
+                      else claude_cli.set_advisor(places, repo, system.run, env, args.answer))
         elif args.verb == "secrets":
             answer = secrets(places, system, env)
         elif args.verb == "copy-config":
