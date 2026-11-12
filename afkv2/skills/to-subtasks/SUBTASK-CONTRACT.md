@@ -38,12 +38,12 @@
 - <producer id> <file>#<grep anchor> — <what this subtask expects>
 
 ## Verification
-<one row per tier; `static` is always present>
-| Tier | Check (command or method) | Proves |
-|------|---------------------------|--------|
-| static | `<compile or lint command>`; grep each `## Produces` anchor | the code builds; the declared symbols exist |
-| unit | `<test command>` | <behavior> |
-| api | not applicable: <why the repository cannot run this gate> | <what a run would prove> |
+<one row per test; `static` is always present>
+| Tier | Plan row | Check | Proves |
+|------|----------|-------|--------|
+| static | — | `<compile or lint command>`; grep each `## Produces` anchor | the code builds; the declared symbols exist |
+| unit | VR-NNN | `<test command>` | <behavior> |
+| api | VR-NNN | `<test command>` | <what the user sees> |
 
 ## Context excerpts
 <word-for-word quotes the executor works from, each with its citation>
@@ -70,8 +70,11 @@ If a binding decision in the SDD or an ADR is wrong, cannot be built or contradi
 |-------|------|------------|
 | `Produces`, `Consumes` | A `Consumes` line names a `Produces` bullet of a subtask with a lower number, word for word. Two subtasks never produce one anchor. | `check_plan.py` (a) |
 | grep anchor | At least 12 characters, not a bare keyword, and at most 1 match in its file. | `check_plan.py` (b) |
-| `Verification` check cell | A command in a code span, a method, or `not applicable: <reason>`. | `check_plan.py` |
-| a gate the repository cannot run | Write its check cell as `not applicable: <reason>`, with these exact words and a reason. `/afkv2:execute` does not run that row. A live tier (`api`, `e2e`, `browser`, `e2e/browser`, `ui-e2e`) cannot run when the `> App:` line of PLAN.md reads `none`. A command cannot run when its program is not on the PATH. | `check_plan.py`; lockstep copy of `NOT_APPLICABLE` and `LIVE_TIERS` in `start_gate.py` of `/afkv2:autopilot` |
+| `Verification` columns | Readers read the columns by header name: `Tier`, `Plan row`, `Check`, `Proves`. A plan with no `> Rules: 2` line may keep the old table without `Plan row`. | `check_plan.py`; `plan_contract.py` of `/afkv2:autopilot` |
+| `Plan row` cell | The `VR-NNN` ids of VERIFICATION.md that the row tests, separated by `,`. Only a `static` row may read `—`. The tier is the level of the row; a lower tier needs a `lower:` row of VERIFICATION.md, which only the developer accepts. | `check_plan.py` on a `> Rules: 2` plan |
+| plan row owner | Each live low-level row (`static`, `unit`, `integration`, `contract`) has 1 subtask. Each live high-level row (`api`, `ui-e2e`, `acceptance`) has 1 test-writing subtask, which names no low-level row. Each user-visible criterion of the PRD has a live high-level row. | `check_plan.py` on a `> Rules: 2` plan |
+| `Verification` check cell | A command in a code span, a method, or `not applicable: <reason>`. A command is POSIX shell syntax: it runs in `/bin/sh`, and in Git Bash on Windows. | `check_plan.py` |
+| a gate the repository cannot run | Write its check cell as `not applicable: <reason>`, with these exact words and a reason. `/afkv2:execute` does not run that row. A live tier (`api`, `e2e`, `browser`, `e2e/browser`, `ui-e2e`, `acceptance`) cannot run when the `> App:` line of PLAN.md reads `none`. On a `> Rules: 2` plan a live tier never reads `not applicable:`. A command cannot run when its program is not on the PATH. | `check_plan.py`; lockstep copy of `NOT_APPLICABLE` and `LIVE_TIERS` in `start_gate.py` of `/afkv2:autopilot` |
 | a path in a check cell | The Scope of this subtask or of a subtask it waits on owns the path, or the file is already on the feature branch. | `check_plan.py` |
 | `Acceptance` citation | Each bullet ends with a citation that resolves: `PRD §<id>`, `SDD §<N>` with optional `row "<text>"`, `ADR-NNNN design` or `ADR-NNNN requirements`. Parts are separated by `;`. `PLAN.md decision <id>` may stand beside one of these. | `plan_files.py citations` |
 | `Context excerpts` | Quotes only, selected while the sources are open. | you |

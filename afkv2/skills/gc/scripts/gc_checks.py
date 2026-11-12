@@ -16,13 +16,18 @@ sys.path.insert(0, str(PLUGIN / "ports"))
 from tracker.envelope import Refusal  # noqa: E402
 
 sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
+from end_gate import GATE_FOLDER, RECORD_FILE  # noqa: E402
 from start_gate import RUN_SUFFIX  # noqa: E402
+
+sys.path.insert(0, str(PLUGIN / "skills" / "create-change-request" / "scripts"))
+import ci_watch  # noqa: E402
 
 FORGE_LIMIT = 120
 PASSED_ON = ("forge", "repo")
 HEX40 = re.compile(r"[0-9a-f]{40}")
 GIT_LIMIT = 60
 IGNORED_SHOWN = 5
+RECORD = f"plan/{GATE_FOLDER}/{RECORD_FILE}"  # the gate record, in the plan folder at the root of the run branch
 
 
 def call_forge(verb, payload, cwd):
@@ -181,3 +186,35 @@ def check_platform(system=None):
     return {"refusal": {"code": "not-windows", "reason": f"afkv2 runs on Windows only; this system is {system}, "
                                                          "so no worktree folder is removed"},
             "system": system}
+
+
+def _record_bytes(repo, run_worktree, run_branch):
+    """The gate record of the run: the file in the run worktree, else the committed file on the run branch; None
+    when the run has none."""
+    path = Path(run_worktree) / RECORD
+    if path.is_file():
+        return path.read_bytes()
+    if not _local_tip(repo, run_branch):
+        return None
+    ref = f"refs/heads/{run_branch}"
+    if not _git(repo, "ls-tree", "--name-only", ref, "--", RECORD).strip():
+        return None
+    return _git(repo, "show", f"{ref}:{RECORD}").encode("utf-8")
+
+
+def check_proof_posted(repo, run_worktree, run_branch):
+    """A run branch with a gate record keeps its proof until mark-ready posted the proof comment of that exact
+    record; else it refuses `proof-not-posted` (SDD §6 I-12). A run with no gate record, an old plan, is not checked."""
+    try:
+        record = _record_bytes(repo, run_worktree, run_branch)
+    except Refusal as failed:
+        return {"refusal": {"code": "proof-not-posted", "reason": f"the gate record of {run_branch} cannot be read, so "
+                                                                  f"its proof comment is unchecked: {failed.reason}"},
+                "checked": True}
+    result = {"refusal": None, "checked": record is not None}
+    if record is not None and not ci_watch.proof_posted(repo, record):
+        result["refusal"] = {"code": "proof-not-posted",
+                             "reason": f"the run branch {run_branch} holds a gate record ({RECORD}) whose proof comment "
+                                       "is not posted: run the Ship section of /afkv2:create-change-request first, or the "
+                                       "proof goes with the run branch"}
+    return result

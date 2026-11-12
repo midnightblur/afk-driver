@@ -41,17 +41,22 @@
 - Before a database write, show the exact statement and its target, and get explicit consent. Run read-only queries without a permission turn.
 
 ## Truth
-- Mark every unverified claim as unverified. Label each inference as an inference.
+- Put accuracy and completeness first, ahead of speed. Do not give the human work that your tools can do.
+- Before you answer, verify each claim that you can check: read the source, run the command or fetch the document. Stop only when more checks cannot change the answer.
+- Mark a claim as unverified only when you cannot check it, and name the blocker. Label each inference as an inference.
+- Cover the whole question. List every candidate, check each one, and state what you did not cover.
+- Before you give an answer, search for the evidence that would disprove it.
 - Cite where you saw a claim: a path and line, a command and its output, or a document and its section.
 - State an absence claim ("X does not exist") only after you enumerate every place X could be. State what you enumerated.
 - Verify a version or specification claim against a primary source before you act on it.
-- Verify a premise before a plan depends on it. If you cannot verify it, give the human the options and the trade-offs.
+- Verify each premise before a plan or an answer depends on it. If you cannot, name the conclusions that depend on it, and give the human the options and the trade-offs.
+- When you find that an earlier claim of yours was wrong, correct it in the open.
 
 ## Verification
 - Completion requires evidence. Run the changed behavior through its real entry point.
 - Check your own claims to the same bar as the claims of others.
 - Before a fix, prove the caller, the input and the failing path. A nearby failure is not proof.
-- Answer a code question only after you follow each caller and boundary that it crosses, and search for what would disprove your answer.
+- Answer a code question only after you follow each caller and boundary that it crosses.
 - Name and prove a reachable consumer for each artifact you change. If the consumer comes later, record the plan step that adds it.
 
 ## Writing
@@ -63,3 +68,11 @@
 - Delegate bulk exploration to a subagent, and take back a cited digest.
 - Read each hook failure. Fix its cause, or report it when the cause is outside your work.
 - Watch resource use. Stop each process that you started and no longer need.
+
+## Endpoint security (Windows)
+Endpoint security software (for example CrowdStrike Falcon) blocks these acts, and it can stop the process and alert IT. The rules apply to your commands and to the code and tests that you write.
+- Never scan recursively from a drive root or a system folder: `/`, `/c`, `/mnt/c`, `C:\`, `C:\Windows`, `C:\Program Files`, `C:\ProgramData`. Give each search a project path.
+- Never compile, copy or download an executable (`.exe`, `.dll`) into a temporary or scratch folder. Fake a command-line tool with an in-process mock, a local server, or a `.py` or `.cmd` stub. A package that brings an executable installs outside Temp.
+- Never start a shell to sleep or to wait (`cmd /c timeout`, `ping -n`). Sleep in the language, or run `[python, "-c", "import time; time.sleep(N)"]`.
+- Never create a process suspended and resume it later.
+- Start a child process as an argument list, with no shell. Run a command string from a user or a config through one named shell, never a hidden `cmd.exe`.

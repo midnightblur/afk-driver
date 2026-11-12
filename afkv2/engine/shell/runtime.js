@@ -390,8 +390,8 @@
   Object.keys(cards).forEach(function (node) {
     var box = document.getElementById(node), target = document.getElementById(cards[node][0]);
     if (!box || !target) return;
-    /* The heading is the card's first child; a card in its history holds headings of its own. */
-    var heading = target.firstElementChild;
+    /* The heading is the first child of the card body; a card in its history holds headings of its own. */
+    var heading = target.querySelector(':scope > .afkv2-card-body > .afkv2-h');
     var title = heading && heading.querySelector('.afkv2-card-title');
     var stateWord = heading && heading.querySelector('.afkv2-state');
     var name = title ? title.textContent.trim() : cards[node][0];

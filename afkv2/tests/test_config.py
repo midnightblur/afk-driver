@@ -211,3 +211,61 @@ def test_every_usage_error_answers_json_with_exit_2(tmp_path, args):
     assert set(answer["error"]) == {"code", "reason"}
     assert answer["error"]["code"] == "usage"
     assert isinstance(answer["error"]["reason"], str) and answer["error"]["reason"]
+
+
+LIVE = {
+    "start": "python -m http.server 4387",
+    "address": "http://127.0.0.1:4387",
+    "ready_seconds": 30,
+    "stop": None,
+    "needs": ["API_TOKEN"],
+    "proven_at": "2026-11-11",
+    "proven_head": "a" * 40,
+}
+
+
+def test_live_block_is_left_out_when_absent(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, FULL))
+    assert answer["ok"] is True
+    assert "live" not in answer
+
+
+def test_live_block_is_returned_when_present(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "live": LIVE}))
+    assert answer["ok"] is True
+    assert answer["live"] == LIVE
+
+
+def test_live_block_gets_its_defaults(tmp_path):
+    block = {"start": "serve", "address": "https://localhost:8443/app"}
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "live": block}))
+    assert answer["live"] == {**block, "ready_seconds": 120, "stop": None, "needs": [], "proven_at": None, "proven_head": None}
+
+
+@pytest.mark.parametrize(
+    "block, field",
+    [
+        ("serve", "live"),
+        ({"address": "http://x"}, "live.start"),
+        ({"start": "", "address": "http://x"}, "live.start"),
+        ({"start": "serve"}, "live.address"),
+        ({"start": "serve", "address": "ftp://x"}, "live.address"),
+        ({"start": "serve", "address": "http://"}, "live.address"),
+        ({"start": "serve", "address": "http://x", "ready_seconds": 0}, "live.ready_seconds"),
+        ({"start": "serve", "address": "http://x", "ready_seconds": "5"}, "live.ready_seconds"),
+        ({"start": "serve", "address": "http://x", "ready_seconds": True}, "live.ready_seconds"),
+        ({"start": "serve", "address": "http://x", "stop": ""}, "live.stop"),
+        ({"start": "serve", "address": "http://x", "needs": "TOKEN"}, "live.needs"),
+        ({"start": "serve", "address": "http://x", "needs": ["TOKEN=secret"]}, "live.needs"),
+        ({"start": "serve", "address": "http://x", "proven_head": 3}, "live.proven_head"),
+        ({"start": "serve", "address": "http://x", "proven_at": 3}, "live.proven_at"),
+        ({"start": "serve", "address": "http://x", "stop": 5}, "live.stop"),
+        ({"start": "serve", "address": "http://[::1"}, "live.address"),
+        ({"start": "serve", "address": "http://x", "extra": 1}, "live.extra"),
+    ],
+)
+def test_bad_live_values_are_refused_and_named(tmp_path, block, field):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "live": block}))
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "bad-value"
+    assert field in answer["error"]["reason"]

@@ -8,7 +8,7 @@
     {
       "name": "afkv2",
       "source": "./afkv2",
-      "version": "2.0.0-beta.17",
+      "version": "2.0.0-beta.20",
       "description": "AFK 2.0 beta: a ticket-to-change workflow for Claude Code and Codex CLI, with the core behaviors loaded by a session-start hook."
     },
     {

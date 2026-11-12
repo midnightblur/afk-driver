@@ -16,7 +16,7 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
 
 ## The commands
 
-`<python> <this skill's folder>/scripts/start_gate.py check` and `<python> <this skill's folder>/scripts/walk.py <verb>`, with one JSON object on stdin, from the worktree of the feature branch. `<python>` is the Python in the setup install record (line `python`). Every answer is one JSON object; exit 0 is ok, 1 is refused, 2 is unreadable input. Every `walk.py` payload except that of `locate` holds `plan`.
+`<python> <this skill's folder>/scripts/start_gate.py check`, `<python> <this skill's folder>/scripts/walk.py <verb>` and `<python> <this skill's folder>/scripts/end_gate.py <verb>`, with one JSON object on stdin, from the worktree of the feature branch. `<python>` is the Python in the setup install record (line `python`). Every answer is one JSON object; exit 0 is ok, 1 is refused, 2 is unreadable input. Every `walk.py` payload except that of `locate` holds `plan`.
 
 ## Steps
 
@@ -28,9 +28,19 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
    3. `start` with `subtask` and optional `app`. A refusal `contract-mismatch` or `gate-cannot-run`: `park` with `by: "autopilot"`, and name the failure in `reason`.
    4. Start one fresh subagent with `brief` as its whole prompt. It runs `/afkv2:execute`.
    5. Read its last lines, and route them by the table below. Read the tracker through `next`: the report does not move the walk.
-4. **End.** `end`. Its answer lists `done`, `parked`, `waiting` and `rulings`. Then `archive`: it copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the linked worktree of the feature branch, never the main checkout, with each `/` of the branch name as `-`, and commits it on the feature branch when it changed. Its answer holds `path`, `committed`, `commit` (the newest commit of the copy) and `ship`. Then push the feature branch, also when `committed` is false. Only the `ship` of `archive` counts: `end` adds a journal line, so its own `ship` is false after a walk. A refusal: correct its cause and run `archive` again. A `## Parent PRD` outside the feature worktree refuses `no-spec-dir`.
-5. **Report to the developer.** One line per ruling: its id, the question and the ruling. One line per park: the subtask, why, and the ledger id.
-6. **Ship.** `ship: true` from `archive`: run the "Ship" section of `/afkv2:create-change-request` with `id` and `plan`, and list the `commit` of `archive` in its proofs. `ship: false`: stop. The change stays Draft.
+4. **End gate.** When `next` answers `finished: true` and every subtask is done, `run` of `end_gate.py` with `plan` and `session` (`claude` or `codex`, the provider of this session). Start it in the background and wait for it to exit: a run takes up to 3600 s before its last row starts, plus 2 runs of 1800 s at most for that row. It runs each high-level row once against the live build, calls the judge when every row passed, and writes the gate record. Route its `result`:
+
+   | `result` | Next action |
+   |----------|-------------|
+   | `passed`, `none` | step 5 |
+   | `waiting` | step 5. Each row of `waiting` names what the gate could not reach: the developer meets it at ship |
+   | `failed` | `back` with `plan` and `rows`, the `row` of each entry of `failed`. Then step 3 again; the next `run` runs every row |
+   | `failed` with `cap_reached: true` | step 5: 3 gate runs failed, and the run waits for the developer. No `back` |
+
+   A refusal `gate-cap-reached` (3 failed gate runs) or `no-verification`: step 5, and tell the developer that the run waits for them. With a parked subtask, skip the end gate.
+5. **End.** `end`. Its answer lists `done`, `parked`, `waiting` and `rulings`. Then `archive`: it copies `plan/JOURNAL.md` to `<spec dir>/runs/<run branch>.md` in the linked worktree of the feature branch, never the main checkout, with each `/` of the branch name as `-`, and commits it on the feature branch when it changed. Its answer holds `path`, `committed`, `commit` (the newest commit of the copy) and `ship`. Then push the feature branch, also when `committed` is false. Only the `ship` of `archive` counts: `end` adds a journal line, so its own `ship` is false after a walk. A refusal: correct its cause and run `archive` again. A `## Parent PRD` outside the feature worktree refuses `no-spec-dir`.
+6. **Report to the developer.** One line per ruling: its id, the question and the ruling. One line per park: the subtask, why, and the ledger id. One line per failed or waiting gate row: its journey, its subtasks and why.
+7. **Ship.** `ship: true` from `archive`: run the "Ship" section of `/afkv2:create-change-request` with `id`, `plan`, `gate` (the `path` of `run`) and `ticket` (the `> Parent ticket:` line of `PLAN.md`). Name the `commit` of `archive` in its `description`, not in `proofs`: it was pushed after the reviews stopped. `ship: false`: stop; `gate` of `archive` names a gate record that stops it. The change stays Draft.
 
 | Last lines of the subagent | Next action |
 |----------------------------|-------------|
@@ -54,7 +64,7 @@ You are the orchestrator, and the rule is yours: an executor never rules its own
 | `one-way` | a one-way door or a tie | parks |
 | `cost` | a cost trade-off | parks |
 
-`rule` with `subtask`, `kinds`, `question`, `options`, `reversible`, `inside_goal`, `ruling`, `evidence`, `reverse` and optional `supersedes`. `inside_goal` is false when the ruling changes what the plan's acceptance criteria promise. A call with a parking kind, or with `reversible` or `inside_goal` false, parks with its dependents; so does a 4th call on one subtask. The answer holds `ruled`. The ruling reaches the executor in `brief`, and the developer in step 5.
+`rule` with `subtask`, `kinds`, `question`, `options`, `reversible`, `inside_goal`, `ruling`, `evidence`, `reverse` and optional `supersedes`. `inside_goal` is false when the ruling changes what the plan's acceptance criteria promise. A call with a parking kind, or with `reversible` or `inside_goal` false, parks with its dependents; so does a 4th call on one subtask. The answer holds `ruled`. The ruling reaches the executor in `brief`, and the developer in step 6.
 
 ## Refusals
 
@@ -68,4 +78,6 @@ You are the orchestrator, and the rule is yours: an executor never rules its own
 | `subtask-in-flight`, `blocked-by`, `parked`, `already-done` | this subtask cannot start now | `next` names the one that can |
 | `contract-mismatch`, `gate-cannot-run` | a consumed anchor is missing, or a gate cannot run | `park` |
 | `not-running`, `not-finished`, `change-differs` | an executor's verb went wrong | the executor reads them; see `/afkv2:execute` |
+| `not-finished` of `run` | a failure with a `subtask` is not done; a failure with `subtask: null` names uncommitted changes in the feature worktree | a subtask: step 3. Uncommitted changes: step 5, and name the files to the developer |
+| `gate-cap-reached`, `no-verification` | 3 gate runs failed, or the spec folder has no VERIFICATION.md | step 5; the run waits for the developer |
 | `no-such-subtask`, `git-failed`, `bad-state`, `bad-payload` | `reason` names the fault | correct it, or report it to the developer |

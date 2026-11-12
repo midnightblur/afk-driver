@@ -25,7 +25,7 @@ Each skill writes only its own rows, with `prd_files.set_row`. A row for an arti
 | SDD | SDD.md | — |
 | Design ADRs | adr/design/ | — |
 | Design brief | DESIGN-BRIEF.md | — |
-| Verification plan | VERIFICATION-PLAN.md | — |
+| Verification plan | VERIFICATION.md | — |
 | Plan | plan/PLAN.md | — |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |

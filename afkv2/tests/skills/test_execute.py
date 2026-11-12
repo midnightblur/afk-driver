@@ -189,6 +189,198 @@ def test_verdict_names_each_break_of_the_order(run):
     assert [item["code"] for item in tdd_log.verdict(run.plan, "0001-a", base)] == ["red-open", "code-before-red"]
 
 
+@pytest.fixture
+def rows_run(tmp_path, monkeypatch):
+    """A `> Rules: 2` plan of 1 subtask with a Plan row column."""
+    built = plan_fixture.build(tmp_path, {"0001-a": rows_contract("0001-a")}, header_extra="> Rules: 2")
+    monkeypatch.chdir(built.work)
+    monkeypatch.setattr(walk, "ci_state", lambda change: "watching")
+    return built
+
+
+OLD_HEADER = "| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|"
+ROW_HEADER = "| Tier | Plan row | Check (command or method) | Proves |\n|------|----------|---------------------------|--------|"
+PLAN_ROWS = ("| static | — | `git --version` | it builds |\n| unit | VR-001 | `git status --short` | the first rule |\n"
+             "| unit | VR-002, VR-003 | `git status --short` | the second rule |\n| api | VR-004 | `git --version` | the answer |")
+
+
+def rows_contract(subtask, rows=PLAN_ROWS):
+    return contract_text(subtask, rows=rows).replace(OLD_HEADER, ROW_HEADER)
+
+
+def record_of(built, subtask="0001-a"):
+    return json.loads((built.plan / "review" / f"{subtask}.tdd.json").read_text(encoding="utf-8"))
+
+
+def test_red_and_no_test_record_the_plan_row_the_test_and_the_level(rows_run):
+    """SDD §3 row "S-4"; SDD §4: `cycles[].row`, `test`, `level`, and `no_test[].row`."""
+    plan = str(rows_run.plan)
+    assert log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", test="tests/test_a.py::test_b")["ok"]
+    assert log("red", plan=plan, subtask="0001-a", behavior="h", command=FAIL, row="VR-004", test="tests/test_h.py::test_h", level="high")["ok"]
+    assert log("no-test", plan=plan, subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    record = record_of(rows_run)
+    assert [(item["row"], item["test"], item["level"]) for item in record["cycles"]] == [
+        ("VR-001", "tests/test_a.py::test_b", "low"), ("VR-004", "tests/test_h.py::test_h", "high")]
+    assert record["no_test"][0]["row"] == "VR-002" and record["no_test"][0]["why"] == "prose only"
+
+
+def test_a_rules_2_plan_refuses_a_red_or_a_no_test_with_no_row(rows_run):
+    plan = str(rows_run.plan)
+    assert code_of(log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL)) == "bad-payload"
+    assert code_of(log("no-test", plan=plan, subtask="0001-a", why="prose only")) == "bad-payload"
+    assert code_of(log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", level="middle")) == "bad-payload"
+    assert not (rows_run.plan / "review" / "0001-a.tdd.json").exists()
+
+
+def test_an_old_call_with_no_row_still_works_on_a_plan_with_no_rules_line(run):
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    assert log("no-test", plan=str(run.plan), subtask="0001-a", why="prose only")["ok"]
+    assert record_of(run)["cycles"][0]["row"] is None
+
+
+def reads(path, text):
+    """A test command that passes when `path` holds `text`."""
+    script = f"import sys; sys.exit(0 if open('{path}').read() == '{text}' else 1)"
+    return f'"{sys.executable}" -c "{script}"'
+
+
+def test_with_no_mutation_tool_green_runs_the_test_on_the_parent_commit_where_it_must_fail(rows_run):
+    """PRD §AC-021; PLAN.md D-1: a test that also passes without the code change proves nothing, naming VC-1."""
+    flag = rows_run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("tests/flag.txt", "ok"), row="VR-001")["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    answer = log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")
+    assert code_of(answer) == "passes-on-parent" and "VC-1" in answer["error"]["reason"]
+    assert record_of(rows_run)["cycles"][0]["green"] is None
+
+
+def test_the_parent_run_puts_back_every_code_change(rows_run):
+    rows_run.commit_code("src/old.py", "old", "[0001-a] start")
+    (rows_run.work / "src" / "gone.py").write_text("x", encoding="utf-8")
+    git(rows_run.work, "add", "src/gone.py")
+    git(rows_run.work, "commit", "-qm", "[0001-a] gone")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("src/old.py", "new"), row="VR-001")["ok"]
+    (rows_run.work / "src" / "old.py").write_text("new", encoding="utf-8")
+    (rows_run.work / "src" / "new.py").write_text("added", encoding="utf-8")
+    (rows_run.work / "src" / "gone.py").unlink()
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")["ok"]
+    assert (rows_run.work / "src" / "old.py").read_text(encoding="utf-8") == "new"
+    assert (rows_run.work / "src" / "new.py").read_text(encoding="utf-8") == "added"
+    assert not (rows_run.work / "src" / "gone.py").exists()
+    assert record_of(rows_run)["cycles"][0]["green"]["exit"] == 0
+
+
+def test_on_a_rules_2_plan_the_level_of_a_cycle_is_the_tier_of_its_contract_row(rows_run):
+    """Review f1: a low row sent as `high` would skip the parent-commit run."""
+    plan = str(rows_run.plan)
+    answer = log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", level="high")
+    assert code_of(answer) == "bad-payload" and "low" in answer["error"]["reason"]
+    assert log("red", plan=plan, subtask="0001-a", behavior="h", command=FAIL, row="VR-004")["ok"]
+    assert record_of(rows_run)["cycles"][0]["level"] == "high"
+
+
+def test_a_killed_parent_run_leaves_a_backup_that_the_next_call_puts_back(rows_run, monkeypatch):
+    """Review f2: the uncommitted code is never only in the memory of the process."""
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("src/new.py", "added"), row="VR-001")["ok"]
+    (rows_run.work / "src").mkdir()
+    (rows_run.work / "src" / "new.py").write_text("added", encoding="utf-8")
+
+    put_back = tdd_log._put_back
+    monkeypatch.setattr(tdd_log, "_put_back", lambda: [])
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")["ok"]
+    monkeypatch.setattr(tdd_log, "_put_back", put_back)
+    assert not (rows_run.work / "src" / "new.py").exists()
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose", row="VR-002")["ok"]
+    assert (rows_run.work / "src" / "new.py").read_text(encoding="utf-8") == "added"
+
+
+def test_a_high_cycle_of_a_rules_2_plan_has_no_parent_run(rows_run):
+    flag = rows_run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="h", command=reads("tests/flag.txt", "ok"), row="VR-004")["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="h")["ok"]
+
+
+def test_a_high_cycle_needs_a_green_on_a_plan_with_no_rules_line(run):
+    """Review f3: no end gate runs a high test of a plan with no Rules line."""
+    base = git(run.work, "rev-parse", "HEAD")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="h", command=FAIL, level="high")["ok"]
+    assert verdict_codes(run, base) == ["red-open"]
+
+
+def test_a_red_head_off_the_line_still_checks_code_before_the_first_red(run):
+    """Review f4: an amended red commit keeps the old check."""
+    base = git(run.work, "rev-parse", "HEAD")
+    run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    git(run.work, "commit", "-q", "--amend", "-m", "[0001-a] code first, amended")
+    assert verdict_codes(run, base) == ["red-open", "code-before-red"]
+
+
+def test_the_refusals_of_a_test_with_no_red_name_vc_1(run):
+    """Review f8; PRD §AC-020."""
+    assert "VC-1" in log("green", plan=str(run.plan), subtask="0001-a", behavior="b")["error"]["reason"]
+    (run.work / "src").mkdir()
+    (run.work / "src" / "a.py").write_text("x", encoding="utf-8")
+    assert "VC-1" in log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["error"]["reason"]
+
+
+def test_a_plan_with_no_rules_line_keeps_the_old_green(run):
+    flag = run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=reads("tests/flag.txt", "ok"))["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    assert log("green", plan=str(run.plan), subtask="0001-a", behavior="b")["ok"]
+
+
+def verdict_codes(built, base, subtask="0001-a"):
+    return [item["code"] for item in tdd_log.verdict(built.plan, subtask, base)]
+
+
+def test_a_no_test_entry_covers_only_its_row_and_not_code_written_before_the_first_red(rows_run):
+    """PRD §AC-020; SDD §6 row "I-6": 1 no-test entry no longer turns off the code-before-red check."""
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    rows_run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    failures = tdd_log.verdict(rows_run.plan, "0001-a", base)
+    early = [item for item in failures if item["code"] == "code-before-red"]
+    assert len(early) == 1 and "VC-1" in early[0]["reason"] and "src/first.py" in early[0]["reason"]
+
+
+def test_work_after_its_no_test_entry_is_covered(rows_run):
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    rows_run.commit_code("docs/note.md", "text\n", "[0001-a] note")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert "code-before-red" not in verdict_codes(rows_run, base)
+
+
+def test_an_old_record_reads_as_before(run):
+    """SDD §4: old records read null, null, low; an old no-test entry keeps the check off."""
+    base = git(run.work, "rev-parse", "HEAD")
+    head = run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    old = {"cycles": [{"behavior": "b", "green": {"head": head, "exit": 0}, "command": FAIL, "red": {"head": head, "exit": 1}}],
+           "no_test": [{"why": "prose only"}]}
+    (run.plan / "review").mkdir()
+    (run.plan / "review" / "0001-a.tdd.json").write_text(json.dumps(old), encoding="utf-8")
+    assert tdd_log.verdict(run.plan, "0001-a", base) == []
+
+
+def test_a_high_level_cycle_needs_no_green_in_its_subtask(rows_run):
+    """SDD §4: its green comes at the end gate."""
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="h", command=FAIL, row="VR-004", level="high")["ok"]
+    assert verdict_codes(rows_run, base) == []
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert verdict_codes(rows_run, base) == ["red-open"]
+
+
 def test_a_subtask_with_no_behavior_says_why(run):
     base = git(run.work, "rev-parse", "HEAD")
     run.commit_code("docs/note.md", "text\n", "[0001-a] note")
@@ -259,6 +451,55 @@ def test_done_sets_the_row_and_commits_only_on_the_run_branch(run):
     assert "0001-a" in git(run.run, "log", "-1", "--format=%s")
 
 
+def cycle(row, green=True, level="low"):
+    return {"behavior": row, "row": row, "test": "tests/t.py::t", "level": level, "command": FAIL,
+            "red": {"head": "h", "exit": 1}, "green": {"head": "h", "exit": 0} if green else None}
+
+
+def row_codes(record):
+    contract = plan_contract.Contract("0001-a", plan_contract.sections_of(rows_contract("0001-a")))
+    return sorted(((item["code"], item["row"]) for item in walk._row_failures("0001-a", contract, record)), key=str)
+
+
+def test_done_row_checks_on_a_rules_2_plan():
+    """PRD §AC-008, §AC-023; SDD §3 row "S-5": each low row green, each plan row a test, each test a plan row."""
+    green_all = {"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-004", green=False, level="high")], "no_test": [{"why": "w", "row": "VR-003"}]}
+    assert row_codes(green_all) == []
+    assert row_codes({"cycles": [cycle("VR-001", green=False), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high")], "no_test": []}) == [
+        ("row-not-green", "VR-001")]
+    assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-004", level="high")], "no_test": [{"why": "w", "row": "VR-002"}]}) == [
+        ("row-no-test", "VR-003")]
+    assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high"), cycle("VR-009"), cycle(None)],
+                      "no_test": []}) == [("test-no-row", "VR-009"), ("test-no-row", None)]
+
+
+def test_the_plan_rows_skip_a_not_applicable_row_and_keep_low_for_an_id_a_low_row_names():
+    rows = "| unit | VR-001 | `git status --short` | a |\n| api | VR-001 | `git --version` | b |\n| unit | VR-005 | not applicable: hypothetical | c |"
+    contract = plan_contract.Contract("0001-a", plan_contract.sections_of(rows_contract("0001-a", rows)))
+    assert tdd_log.plan_rows(contract) == {"VR-001": "low"}
+
+
+def test_a_low_row_with_a_cycle_marked_high_still_needs_green():
+    assert row_codes({"cycles": [cycle("VR-001", green=False, level="high"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high")],
+                      "no_test": []}) == [("row-not-green", "VR-001")]
+
+
+def test_done_refuses_the_row_gaps_of_a_rules_2_plan(tmp_path, monkeypatch):
+    built = plan_fixture.build(tmp_path, {"0001-a": rows_contract("0001-a")}, header_extra="> Rules: 2\n> App: http://127.0.0.1:9")
+    monkeypatch.chdir(built.work)
+    monkeypatch.setattr(walk.start_gate, "app_failure", lambda where, app: None)
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert log("red", plan=str(built.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    codes = {(item["code"], item.get("row")) for item in call("done", plan=str(built.plan), subtask="0001-a")["error"]["failures"]}
+    assert {("row-not-green", "VR-001"), ("row-no-test", "VR-002"), ("row-no-test", "VR-003"), ("row-no-test", "VR-004")} <= codes
+
+
+def test_done_has_no_row_checks_on_a_plan_with_no_rules_line(run):
+    assert call("start", plan=str(run.plan), subtask="0001-a")["ok"]
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    assert not {"row-not-green", "row-no-test", "test-no-row"} & done_codes(call("done", plan=str(run.plan), subtask="0001-a"))
+
+
 def test_the_run_has_one_change(run):
     assert call("set-change", plan=str(run.plan), change="7")["ok"]
     assert call("set-change", plan=str(run.plan), change="7")["ok"]
@@ -279,6 +520,51 @@ def test_a_gate_that_cannot_run_refuses_the_start_of_that_subtask(tmp_path, monk
     monkeypatch.chdir(built.work)
     assert code_of(call("start", plan=str(built.plan), subtask="0001-a")) == "gate-cannot-run"
     assert built.status_of("0001-a") == "pending"
+
+
+def test_a_rules_2_plan_refuses_a_live_row_marked_not_applicable_at_the_subtask_start(tmp_path, monkeypatch):
+    """D-29; SDD §3 row "S-3": the start of a subtask asks the rules switch, as the run's start gate does."""
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | not applicable: no screen | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)}, header_extra="> Rules: 2")
+    monkeypatch.chdir(built.work)
+    answer = call("start", plan=str(built.plan), subtask="0001-a")
+    assert code_of(answer) == "gate-cannot-run"
+    assert [item["code"] for item in answer["error"]["failures"]] == ["live-not-applicable"]
+    assert built.status_of("0001-a") == "pending"
+
+
+def test_a_rules_1_plan_still_skips_a_live_row_marked_not_applicable(tmp_path, monkeypatch):
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | not applicable: no screen | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)})
+    monkeypatch.chdir(built.work)
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+
+
+def test_app_config_proves_the_live_build_once_per_run_and_not_at_each_subtask_start(tmp_path, monkeypatch):
+    """D-29; SDD: the live check runs once per run. Each start is a process of its own, so the proof lives in run.json."""
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | `git --version` | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows), "0002-b": contract_text("0002-b", rows=rows)},
+                               header_extra="> App: config")
+    monkeypatch.chdir(built.work)
+    proofs = []
+    monkeypatch.setattr(walk.start_gate, "live_check", lambda code: proofs.append(code) or envelope.ok(address="http://127.0.0.1:1"))
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert call("park", plan=str(built.plan), subtask="0001-a", reason="r", fork="f", options="o", recommendation="r")["ok"]
+    assert call("start", plan=str(built.plan), subtask="0002-b")["ok"]
+    assert len(proofs) == 1
+    assert git(built.run, "status", "--porcelain") == ""
+
+
+def test_a_failed_live_proof_is_not_kept_so_the_next_start_proves_again(tmp_path, monkeypatch):
+    rows = "| e2e | `git --version` | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)}, header_extra="> App: config")
+    monkeypatch.chdir(built.work)
+    answers = [envelope.fail("live-no-answer", "no answer"), envelope.ok(address="http://127.0.0.1:1")]
+    monkeypatch.setattr(walk.start_gate, "live_check", lambda code: answers.pop(0))
+    answer = call("start", plan=str(built.plan), subtask="0001-a")
+    assert code_of(answer) == "gate-cannot-run" and answer["error"]["failures"][0]["code"] == "app-unreachable"
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert answers == []
 
 
 # --- two-way doors ----------------------------------------------------------------------------------------------------
@@ -446,3 +732,45 @@ def test_the_command_answers_one_object_and_the_exit_code(run, capsys, monkeypat
     assert walk.main(["next", json.dumps({"plan": str(run.plan)})]) == 0
     assert json.loads(capsys.readouterr().out)["subtask"] == "0001-a"
     assert tdd_log.main(["nothing"]) == 2
+
+
+# --- the named shell (D-43) -----------------------------------------------------------------------------------------
+
+def test_a_test_command_runs_through_the_named_shell_never_a_hidden_cmd(monkeypatch):
+    """Fails when shell=True comes back. The fake run starts no process."""
+    seen = {}
+
+    def fake_run(args, **kwargs):
+        seen.update(args=args, **kwargs)
+        return subprocess.CompletedProcess(args, 1, b"out\n", b"")
+
+    import live_build
+    monkeypatch.setattr(live_build, "named_shell", lambda: "/the/shell")
+    monkeypatch.setattr(tdd_log.subprocess, "run", fake_run)
+    assert tdd_log._run("pytest tests -q") == (1, "out")
+    assert seen["args"] == ["/the/shell", "-c", "pytest tests -q"]
+    assert not seen.get("shell")
+    source = (AFKV2 / "skills" / "execute" / "scripts" / "tdd_log.py").read_text(encoding="utf-8")
+    assert "shell=True" not in source
+
+
+def test_no_named_shell_refuses_no_shell(monkeypatch):
+    import afkv2_config
+    import live_build
+
+    def no_shell():
+        raise afkv2_config.Refusal("no-shell", "no Git Bash")
+
+    monkeypatch.setattr(live_build, "named_shell", no_shell)
+    with pytest.raises(Refusal) as refused:
+        tdd_log._run("pytest")
+    assert refused.value.code == "no-shell"
+
+
+PROBE = f'"{Path(sys.executable).as_posix()}" -c "import sys; print(sys.argv[1:])" /api/orders --path=/v1/x'
+UNCHANGED = "['/api/orders', '--path=/v1/x']"
+
+
+def test_a_tdd_command_gets_its_posix_path_arguments_unchanged():
+    code, tail = tdd_log._run(PROBE)
+    assert code == 0 and UNCHANGED in tail

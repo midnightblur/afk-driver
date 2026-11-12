@@ -324,3 +324,21 @@ A term whose meaning is specific to one page's feature; the page document carrie
 
 **Page id tip**:
 A page-document mapping from one page identifier to the title of the thing it names; each visible occurrence can show that title on hover.
+
+**Highest-value level**:
+The lowest test level where a behavior's outcome exists with fidelity. Each behavior has one authoritative test there; cheaper tests below add cases; a few tests above cover wiring, configuration, the browser or a journey. A test that repeats a cheaper test just as faithfully is dropped.
+
+**Testable at a level**:
+The agent can reach that test level here and now: the app starts, a browser tool exists, the credentials exist. When the highest level is out of reach, the agent names what is missing, fixes what it safely can, and else asks the developer to supply it or to accept a lower level; a hands-off executor parks.
+
+**Proof**:
+The result of one high-level test (API, UI end to end or acceptance) of a changed behavior where the user meets it, with its evidence. High-level tests run once, at the end of the chain, as the ship gate. Low-level tests (unit, integration, contract) gate each subtask and are not proofs.
+
+**Proof line**:
+One line on the change request per proof: the behavior, the level, what ran, and the evidence link.
+
+**Judged proof**:
+A proof whose evidence needs reading, such as a screenshot or an answer, rather than a pass or fail result.
+
+**Plan row**:
+One row of VERIFICATION.md: given, when, what you should see, and the level.

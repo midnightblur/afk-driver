@@ -36,6 +36,21 @@ import design_files  # noqa: E402
 from to_subtasks_v1_facts import V1_HEADER_MARK  # noqa: E402
 
 STATIC_ROW = "| static | `git --version` | the tool runs |"
+HIGH_LEVELS = {"api", "ui-e2e", "acceptance"}
+WORLD_ROWS = (("VR-001", "AC-001", "unit", "active"), ("VR-002", "AC-001", "api", "active"))
+
+
+def verification_md(rows=WORLD_ROWS, internal=()):
+    """A VERIFICATION.md in the written format; each row is (id, criteria, level, status)."""
+    lines = ["# Verification plan — PROJ-1", "", "> Parent PRD: PRD.md", "> Parent SDD: SDD.md", "> App: config · proven at abc on 2026-01-05",
+             "> Last updated: 2026-01-05", "", "## Plan rows", "",
+             "| Id | Criteria | Story | Given | When | Then | Level | Tier | Data | Environment | Status |",
+             "|----|----------|-------|-------|------|------|-------|------|------|-------------|--------|"]
+    lines += [f"| {rid} | {criteria or '—'} | — | a state | an act | a result | {level} | {'high' if level in HIGH_LEVELS else 'low'} | — | — | {status} |"
+              for rid, criteria, level, status in rows]
+    lines += ["", "## Criteria with no user-visible outcome", "", "| Criterion | Why |", "|-----------|-----|",
+              *[f"| {criterion} | no screen shows it |" for criterion in internal], ""]
+    return "\n".join(lines)
 
 
 def contract(subtask, scope="src/**", rows=STATIC_ROW, produces=None, consumes=(), blocked=()):
@@ -547,14 +562,15 @@ def commit_all(path, message="work"):
 class World:
     """A plugin tree with the fakes, and a feature branch that holds the code and the spec folder."""
 
-    def __init__(self, root, prd=True, sdd=True, config=True):
+    def __init__(self, root, prd=True, sdd=True, config=True, verification=True):
         self.root, self.plugin, self.repo = root, root / "plugin", root / "repo"
         self.calls, self.raw = root / "calls.log", root / "raw-response.txt"
-        for skill in ("to-subtasks", "propose-solution", "grill-requirements", "to-prd", "use-lavish"):
+        for skill in ("to-subtasks", "propose-solution", "propose-verification", "grill-requirements", "to-prd", "use-lavish", "autopilot"):
             shutil.copytree(SKILLS / skill, self.plugin / "skills" / skill, ignore=shutil.ignore_patterns("__pycache__"))
-        for fake, target in (("fake_engine.py", "engine/engine.py"), ("fake_config.py", "scripts/afkv2_config.py")):
+        shutil.copytree(PLUGIN / "ports", self.plugin / "ports", ignore=shutil.ignore_patterns("__pycache__"))
+        for source, target in ((FAKES / "fake_engine.py", "engine/engine.py"), (PLUGIN / "scripts" / "afkv2_config.py", "scripts/afkv2_config.py")):
             (self.plugin / target).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(FAKES / fake, self.plugin / target)
+            shutil.copy(source, self.plugin / target)
         new_repo(self.repo)
         if config:
             (self.repo / ".afkv2").mkdir()
@@ -569,6 +585,8 @@ class World:
         if sdd:
             shutil.copy(SPEC_FIXTURES / "design" / "SDD.md", self.spec / "SDD.md")
             shutil.copytree(SPEC_FIXTURES / "design" / "adr", self.spec / "adr" / "design")
+        if verification:
+            (self.spec / "VERIFICATION.md").write_text(verification_md(), "utf-8")
         (self.repo / "README.md").write_text("A repository.\n", "utf-8")
         commit_all(self.repo, "the feature branch")
         self.env = {"FAKE_CALL_LOG": str(self.calls), "FAKE_POLL_RAW": str(self.raw)}
@@ -714,6 +732,7 @@ def test_start_needs_no_grill_log(world):
 @pytest.mark.parametrize("kwargs, name, writer", [
     ({"prd": False}, "PRD.md", "/afkv2:to-prd"),
     ({"sdd": False}, "SDD.md", "/afkv2:propose-solution"),
+    ({"verification": False}, "VERIFICATION.md", "/afkv2:propose-verification"),
 ])
 def test_a_missing_input_stops_and_names_its_writer(tmp_path, kwargs, name, writer):
     error = error_of(World(tmp_path, **kwargs).start(expect=1))
@@ -780,7 +799,7 @@ def test_the_slice_of_a_fixture_passes_the_check(world):
     assert world.run("citations", plan=started["plan"], spec_dir=world.spec)["contracts"] == 2
 
 
-@pytest.mark.parametrize("name", ["PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "adr/design/0001-a.md", "pages/round.json"])
+@pytest.mark.parametrize("name", ["PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "VERIFICATION.md", "adr/design/0001-a.md", "pages/round.json"])
 def test_commit_refuses_a_spec_folder_file_in_the_plan(world, name):
     started = world.start()
     plan = world.cut(started)
@@ -1311,3 +1330,321 @@ def test_the_division_document_passes_the_real_engine(world, tmp_path):
         done = subprocess.run([sys.executable, str(ENGINE), verb, started["doc"]], cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
                               env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
         assert done.returncode == 0, done.stdout + done.stderr
+
+
+# Rules 2 (design ADR-0003): the `> Rules: 2` header line selects the new rules; a plan with no line keeps today's.
+
+@pytest.mark.parametrize("header, rules", [("", 1), ("> Rules: 2", 2), ("> Rules: 1", 1), ("> Rules: two", None), ("> Rules: 3", None)])
+def test_rules_of_reads_the_rules_line_of_the_header(header, rules):
+    module = load_by_path(PLAN_CONTRACT)
+    assert module.rules_of(plan_text(["0001-a"], header)) == rules
+
+
+def test_a_rules_line_below_the_header_counts_for_nothing():
+    module = load_by_path(PLAN_CONTRACT)
+    assert module.rules_of(plan_text(["0001-a"]) + "\n> Rules: 2\n") == 1
+
+
+def test_plan_contract_reads_the_verification_table_by_header_name(tmp_path):
+    module = load_by_path(PLAN_CONTRACT)
+    rows = ("| Check | Proves | Plan row | Tier |\n|---|---|---|---|\n"
+            "| `git --version` | it runs | — | static |\n| `python -m pytest t -q` | it works | VR-001, VR-002 | unit |")
+    text = contract("0001-a").replace(f"| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|\n{STATIC_ROW}", rows)
+    (tmp_path / "0001-a.md").write_text(text, "utf-8")
+    read = module.read_contract(tmp_path, "0001-a")
+    assert [(row.tier, row.check, row.plan_row, row.proves) for row in read.rows] == [
+        ("static", "`git --version`", "—", "it runs"), ("unit", "`python -m pytest t -q`", "VR-001, VR-002", "it works")]
+    assert module.contract_failures(read) == []
+
+
+def test_plan_contract_reads_an_old_table_with_no_plan_row(tmp_path):
+    module = load_by_path(PLAN_CONTRACT)
+    (tmp_path / "0001-a.md").write_text(contract("0001-a"), "utf-8")
+    assert [(row.tier, row.check, row.plan_row) for row in module.read_contract(tmp_path, "0001-a").rows] == [("static", "`git --version`", None)]
+
+
+def test_a_verification_table_with_no_tier_or_check_column_is_a_bad_contract(tmp_path, clean):
+    module = load_by_path(PLAN_CONTRACT)
+    plan = write_plan(tmp_path / "plan", clean)
+    replace_in(plan / "0001-a.md", "| Tier | Check (command or method) |", "| Level | Command |")
+    assert any("Tier" in reason for reason in module.contract_failures(module.read_contract(plan, "0001-a")))
+    assert "bad-contract" in codes_of(cp.check_plan(plan))
+
+
+# Rules 2: the plan rows of VERIFICATION.md and the Plan row column of the contracts (SDD §3 row "S-2"; design ADR-0002).
+
+RULES_2 = "> Rules: 2\n> App: http://localhost:8080"
+OLD_TABLE = f"| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|\n{STATIC_ROW}"
+API_CHECK = "`curl http://localhost/health`"
+
+
+def rules_2_contract(subtask, rows, **kwargs):
+    """A contract whose Verification table has the Plan row column; each row is (tier, plan row, check)."""
+    table = "\n".join(["| Tier | Plan row | Check | Proves |", "|------|----------|-------|--------|",
+                       *[f"| {tier} | {plan_row} | {cell} | it holds |" for tier, plan_row, cell in rows]])
+    return contract(subtask, **kwargs).replace(OLD_TABLE, table)
+
+
+def rules_2_plan(**changes):
+    plan = {"0001-a": rules_2_contract("0001-a", [("static", "—", "`git --version`"), ("unit", "VR-001", "`python -m pytest t -q`")]),
+            "0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`"), ("api", "VR-002", API_CHECK)], blocked=["0001-a"])}
+    return {**plan, **changes}
+
+
+def rules_2_check(tmp_path, contracts=None, rows=WORLD_ROWS, internal=(), criteria=("AC-001 It works.",), header=RULES_2, verification=True):
+    """The plan check in a repository whose spec folder holds the PRD and VERIFICATION.md."""
+    repo = new_repo(tmp_path / "repo")
+    spec = repo / "specs" / "PROJ-1"
+    spec.mkdir(parents=True)
+    (spec / "PRD.md").write_text("# PRD\n\n## Acceptance Criteria\n\n" + "".join(f"- [ ] {item}\n" for item in criteria), "utf-8")
+    if verification:
+        (spec / "VERIFICATION.md").write_text(verification_md(rows, internal), "utf-8")
+    return cp.check_plan(write_plan(repo / "plan", rules_2_plan() if contracts is None else contracts, header))
+
+
+def test_a_clean_rules_2_plan_passes(tmp_path):
+    answer = rules_2_check(tmp_path)
+    assert answer["ok"], failures_of(answer)
+
+
+def test_a_plan_row_that_is_not_in_verification_is_unknown(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001, VR-009", "`python -m pytest t -q`")])})
+    failures = failures_of(rules_2_check(tmp_path, plan))
+    assert [(item["code"], item["where"]) for item in failures] == [("row-unknown", "0001-a.md ## Verification")]
+    assert "VR-009" in failures[0]["reason"]
+
+
+def test_a_low_row_no_contract_names_is_unowned(tmp_path):
+    answer = rules_2_check(tmp_path, rows=(*WORLD_ROWS, ("VR-003", "AC-001", "integration", "active")))
+    assert codes_of(answer) == ["row-unowned"] and "VR-003" in failures_of(answer)[0]["reason"]
+
+
+def test_a_retired_row_needs_no_owner(tmp_path):
+    assert rules_2_check(tmp_path, rows=(*WORLD_ROWS, ("VR-003", "AC-001", "integration", "retired: merged into VR-001")))["ok"]
+
+
+def test_a_row_two_contracts_name_has_two_owners(tmp_path):
+    plan = rules_2_plan(**{"0003-c": rules_2_contract("0003-c", [("unit", "VR-001", "`python -m pytest t -q`")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["row-two-owners"] and "0001-a" in failures_of(answer)[0]["reason"]
+
+
+def test_a_high_row_no_contract_names_has_no_test_subtask(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`")], blocked=["0001-a"])})
+    assert codes_of(rules_2_check(tmp_path, plan)) == ["row-no-test-subtask"]
+
+
+def test_a_high_row_beside_low_rows_has_no_test_subtask_of_its_own(tmp_path):
+    plan = {"0001-a": rules_2_contract("0001-a", [("unit", "VR-001", "`python -m pytest t -q`"), ("api", "VR-002", API_CHECK)])}
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["row-no-test-subtask"] and "0001-a" in failures_of(answer)[0]["reason"]
+
+
+def test_a_user_visible_criterion_with_no_high_row_is_refused(tmp_path):
+    rows = (*WORLD_ROWS, ("VR-003", "AC-002", "unit", "active"))
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001, VR-003", "`python -m pytest t -q`")])})
+    answer = rules_2_check(tmp_path, plan, rows=rows, criteria=("AC-001 It works.", "AC-002 It stores."))
+    assert codes_of(answer) == ["ac-no-high-row"] and "AC-002" in failures_of(answer)[0]["reason"]
+    assert rules_2_check(tmp_path / "internal", plan, rows=rows, internal=["AC-002"], criteria=("AC-001 It works.", "AC-002 It stores."))["ok"]
+
+
+def test_a_live_row_on_a_retired_criterion_is_refused(tmp_path):
+    rows = (("VR-001", "AC-001, AC-002", "unit", "active"), WORLD_ROWS[1])
+    answer = rules_2_check(tmp_path, rows=rows, criteria=("AC-001 It works.", "AC-002 retired: merged into AC-001"))
+    assert codes_of(answer) == ["row-on-retired-ac"] and "AC-002" in failures_of(answer)[0]["reason"]
+
+
+def test_a_rules_2_contract_with_no_plan_row_column_is_refused(tmp_path):
+    plan = rules_2_plan(**{"0001-a": contract("0001-a", rows="| unit | `python -m pytest t -q` | VR-001 holds |")})
+    answer = rules_2_check(tmp_path, plan)
+    assert "contract-row-missing" in codes_of(answer)
+    assert [item["where"] for item in failures_of(answer) if item["code"] == "contract-row-missing"] == ["0001-a.md ## Verification"]
+
+
+def test_a_test_row_that_names_no_plan_row_is_refused(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-001", "`python -m pytest t -q`"), ("unit", "—", "`python -m pytest u -q`")])})
+    assert codes_of(rules_2_check(tmp_path, plan)) == ["contract-row-missing"]
+
+
+def test_a_contract_tier_below_the_row_level_needs_the_developers_mark(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("unit", "VR-002", "`python -m pytest e -q`")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan)
+    assert codes_of(answer) == ["lower-level-unmarked"] and "VR-002" in failures_of(answer)[0]["reason"]
+
+
+def test_a_lower_row_the_developer_accepted_passes_at_its_lower_level(tmp_path):
+    plan = rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("unit", "VR-002", "`python -m pytest e -q`")], blocked=["0001-a"])})
+    rows = (WORLD_ROWS[0], ("VR-002", "AC-001", "unit", "lower: api to unit · card-7"))
+    answer = rules_2_check(tmp_path, plan, rows=rows)
+    assert answer["ok"], failures_of(answer)
+
+
+def test_a_rules_2_plan_with_no_verification_file_names_its_writer(tmp_path):
+    failures = failures_of(rules_2_check(tmp_path, verification=False))
+    assert [item["code"] for item in failures] == ["missing-input"] and "/afkv2:propose-verification" in failures[0]["reason"]
+
+
+def test_a_bad_rules_line_is_refused(tmp_path):
+    assert "bad-rules" in codes_of(rules_2_check(tmp_path, header="> Rules: 3\n> App: http://localhost:8080"))
+
+
+def test_a_plan_with_no_rules_line_keeps_todays_checks(tmp_path):
+    plan = rules_2_plan(**{"0001-a": rules_2_contract("0001-a", [("unit", "VR-009", "`python -m pytest t -q`")])})
+    assert rules_2_check(tmp_path, plan, header="> App: http://localhost:8080", verification=False)["ok"]
+
+
+def as_rules_2(path, plan_rows):
+    """Give a fixture contract the Plan row column; `plan_rows` maps each tier to its cell, and a tier it leaves out goes."""
+    lines = []
+    for line in path.read_text("utf-8").splitlines():
+        cells = cp.split_cells(line) if line.startswith("|") and "## Verification" not in line else None
+        if cells and cells[0] == "Tier":
+            line = "| Tier | Plan row | Check | Proves |"
+        elif cells and cp.SEPARATOR.fullmatch(cells[0]):
+            line = "|---|---|---|---|"
+        elif cells and len(cells) == 3 and cells[0] in ("static", "unit", "integration", "api"):
+            if cells[0] not in plan_rows:
+                continue
+            line = f"| {cells[0]} | {plan_rows[cells[0]]} | {cells[1]} | {cells[2]} |"
+        lines.append(line)
+    path.write_text("\n".join(lines) + "\n", "utf-8")
+
+
+def test_on_the_run_branch_a_rules_2_plan_reads_verification_from_the_feature_branch(world):
+    (world.spec / "VERIFICATION.md").write_text(verification_md((("VR-001", "AC-001", "unit", "active"), ("VR-002", "AC-001", "unit", "active")),
+                                                                internal=["AC-001"]), "utf-8")
+    commit_all(world.repo, "the verification plan")
+    started = world.start()
+    plan = world.cut(started)
+    replace_in(plan / "PLAN.md", "> App: none", "> App: none\n> Rules: 2")
+    as_rules_2(plan / "0001-export-rows.md", {"static": "—", "unit": "VR-001"})
+    as_rules_2(plan / "0002-export-endpoint.md", {"static": "—", "unit": "VR-002"})
+    answer = world.run("check", plan=started["plan"])
+    assert answer["ok"] and answer["base"] == f"refs/heads/{FEATURE}", answer
+    replace_in(plan / "0002-export-endpoint.md", "| unit | VR-002 |", "| unit | VR-009 |")
+    assert {"row-unknown", "row-unowned"} <= {item["code"] for item in world.run("check", expect=1, plan=started["plan"])["error"]["failures"]}
+
+
+# Rules 2: `not applicable:` never skips a live level (PRD §AC-029; SDD §6 I-4).
+
+def na_plan(tier="api"):
+    return rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`"),
+                                                                 (tier, "VR-002", "not applicable: this repository has no running app")],
+                                                      blocked=["0001-a"])})
+
+
+def test_a_rules_2_live_row_marked_not_applicable_is_refused(tmp_path):
+    failures = failures_of(rules_2_check(tmp_path, na_plan()))
+    assert [(item["code"], item["where"]) for item in failures] == [("live-not-applicable", "0002-b tier api")]
+
+
+def test_a_plan_with_no_rules_line_may_still_mark_a_live_row_not_applicable(tmp_path):
+    assert rules_2_check(tmp_path, na_plan(), header="> App: none", verification=False)["ok"]
+
+
+def test_a_rules_2_low_row_marked_not_applicable_passes(tmp_path):
+    rows = (WORLD_ROWS[0], ("VR-002", "AC-001", "api", "active"), ("VR-003", "AC-001", "integration", "active"))
+    plan = rules_2_plan(**{"0003-c": rules_2_contract("0003-c", [("integration", "VR-003", "not applicable: no database here")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan, rows=rows)
+    assert answer["ok"], failures_of(answer)
+
+
+@pytest.mark.parametrize("tier", ["acceptance"])
+def test_the_acceptance_level_is_a_live_tier(tmp_path, tier):
+    rows = f"{STATIC_ROW}\n| {tier} | the flow runs in a browser | the flow |"
+    assert codes_of(check(tmp_path, {"0001-a": contract("0001-a", rows=rows)})) == ["gate-cannot-run"]
+
+
+def gate_contract(tmp_path, text):
+    gate = load_by_path(START_GATE)
+    (tmp_path / "0002-b.md").write_text(text, "utf-8")
+    return gate, load_by_path(PLAN_CONTRACT).read_contract(tmp_path, "0002-b")
+
+
+def test_the_start_gate_refuses_a_rules_2_live_row_marked_not_applicable(tmp_path):
+    gate, read = gate_contract(tmp_path, na_plan()["0002-b"])
+    failures = gate.gate_failures(read, "http://localhost:8080", rules=2)
+    assert [(item["code"], item["where"]) for item in failures] == [("live-not-applicable", "0002-b tier api")]
+    assert gate.gate_failures(read, None) == []
+
+
+def test_the_start_gate_and_the_check_give_one_live_not_applicable_failure(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, na_plan())
+    plan = tmp_path / "repo" / "plan"
+    read = load_by_path(PLAN_CONTRACT).read_contract(plan, "0002-b")
+    ours = gate.gate_failures(read, None, rules=2)
+    theirs = [item for item in failures_of(cp.check_plan(plan)) if item["code"] == "live-not-applicable"]
+    assert [(item["code"], item["where"], item["reason"]) for item in ours] == [(item["code"], item["where"], item["reason"]) for item in theirs]
+
+
+def test_check_start_reads_the_rules_of_the_plan(tmp_path, monkeypatch):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, na_plan())
+    plan = tmp_path / "repo" / "plan"
+    for name in ("_v1_signs", "plan_check_failures", "approval_failures", "forge_failures"):
+        monkeypatch.setattr(gate, name, lambda *args: [])
+    monkeypatch.setattr(gate, "worktree_failures", lambda *args: [])
+    assert "live-not-applicable" in {item["code"] for item in gate.check_start(plan, code=tmp_path / "repo")["error"]["failures"]}
+
+
+# `> App: config` reads the proven live block of the repository config (SDD §14 row "PLAN-FORMAT.md:11").
+
+APP_CONFIG = "> Rules: 2\n> App: config"
+
+
+def free_port():
+    import socket
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+def with_config(repo, live):
+    (repo / ".afkv2").mkdir(exist_ok=True)
+    (repo / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs", "tracker": {"kind": "jira"},
+                                                             **({"live": live} if live else {})}), "utf-8")
+
+
+def test_an_app_line_of_config_with_a_proven_live_block_passes_the_check(tmp_path):
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    with_config(tmp_path / "repo", {"start": "serve", "address": "http://127.0.0.1:9", "proven_at": "2026-01-05", "proven_head": "a" * 40})
+    answer = cp.check_plan(tmp_path / "repo" / "plan")
+    assert answer["ok"], failures_of(answer)
+
+
+@pytest.mark.parametrize("live", [None, {"start": "serve", "address": "http://127.0.0.1:9"}])
+def test_an_app_line_of_config_with_no_proven_live_block_cannot_run_a_live_tier(tmp_path, live):
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    with_config(tmp_path / "repo", live)
+    failures = failures_of(cp.check_plan(tmp_path / "repo" / "plan"))
+    assert [(item["code"], item["where"]) for item in failures] == [("gate-cannot-run", "0002-b tier api")]
+    assert "live block" in failures[0]["reason"]
+
+
+def test_the_start_gate_proves_the_live_block_of_an_app_line_of_config(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    repo, port = tmp_path / "repo", free_port()
+    with_config(repo, {"start": f'"{sys.executable}" -m http.server {port} --bind 127.0.0.1', "address": f"http://127.0.0.1:{port}/",
+                       "ready_seconds": 30, "proven_at": "2026-01-05", "proven_head": "a" * 40})
+    read = load_by_path(PLAN_CONTRACT).read_contract(repo / "plan", "0002-b")
+    assert gate.gate_failures(read, "config", rules=2, code=repo) == []
+
+
+def test_the_start_gate_refuses_an_app_line_of_config_whose_build_does_not_start(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, header=APP_CONFIG)
+    repo = tmp_path / "repo"
+    with_config(repo, {"start": f'"{sys.executable}" -c "raise SystemExit(3)"', "address": f"http://127.0.0.1:{free_port()}/", "ready_seconds": 10})
+    read = load_by_path(PLAN_CONTRACT).read_contract(repo / "plan", "0002-b")
+    failures = gate.gate_failures(read, "config", rules=2, code=repo)
+    assert [(item["code"], item["where"]) for item in failures] == [("app-unreachable", "0002-b tier api")]
+    assert "live-start-failed" in failures[0]["reason"]
+
+
+def test_the_index_format_names_the_spec_file_of_spec_files():
+    index_format = (SKILLS / "to-prd" / "INDEX-FORMAT.md").read_text(encoding="utf-8")
+    assert plan_files.VERIFICATION == "VERIFICATION.md" and plan_files.VERIFICATION in plan_files.SPEC_FILES
+    assert f"| Verification plan | {plan_files.VERIFICATION} |" in index_format
+    assert "VERIFICATION-PLAN.md" not in index_format

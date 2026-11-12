@@ -13,7 +13,9 @@ The skill ends at Ready and the offer of gc. A human merges the change.
 |-------|--------|
 | target branch | the invocation; else the base branch in the repository config |
 | change id | the invocation; else the `id` in the answer of `open`. Give the same form in each command: a url and a number read as 2 watches |
-| plan folder, which holds the subtask contracts | the invocation, with the full path in the worktree of the run branch. Ship needs it |
+| plan folder, which holds the subtask contracts | the invocation, with the full path in the worktree of the run branch. A change with no plan has none |
+| gate record | the invocation: the `path` that the end gate or the small lane answered. Ship needs it, except for a plan with no `> Rules: 2` line |
+| ticket key | the invocation; else the parent ticket of the plan. None: the proof comment goes on the change |
 
 ## The commands
 
@@ -31,13 +33,22 @@ Run this when the branch has its first commits, and again at ship.
    |-------|-------|
    | `description` | what changes and why, for this reader |
    | `requests` | a list of `{person, role, request}`: one entry per person, `person` a forge login with no @, `role` `assignee` or `reviewer`. `request` names the one thing this person must do or read |
-   | `proofs` | a list of `{claim, evidence}`: each claim the change makes, with the command and result, link or file that shows it |
+   | `proofs` | a list of `{row, behavior, level, ran, evidence}`: 1 proof line per changed user-visible behavior. `row` is the plan row id, or a short name when the behavior has no plan row. `level` is `static`, `unit`, `integration`, `contract`, `api`, `ui-e2e` or `acceptance`. `ran` is the command or method. `evidence` is the result, link or file. With a gate record, take `proof_lines` of `proof-preview`: 1 per row. A change with no user-visible behavior gives an empty list |
+   | `found` | optional: a list of `{what, where, how}`, each bug seen along the way (below), with `pick`, `by` and `reason` once picked |
    | `mergeability` | the case that this change can merge now: the merge facts, what it can break, and how to undo it |
    | `self_critique` | one pass, one text: read `git diff <target>...HEAD` and the parts as the reviewer. Name the weakest point. Fix what costs little, and write what stays |
 
 4. **Open.** `open` with the parts; for a new change also `title` and `target`. Done when the answer holds `id`. `created: true` is a new Draft change. `created: false` wrote the description of the branch's open change; `draft: false` before ship means a change is open for review too early: report it to the developer.
 
-`open` replaces the whole description. A person's note goes in a comment. The title, the target, the assignee and the reviewers are set only when the change is created.
+`open` replaces the whole description. A person's note goes in a comment. The title, the target, the assignee and the reviewers are set only when the change is created. `open` keeps the proof lines and found bugs it wrote in the git folder: `mark-ready` checks those.
+
+### Found along the way
+
+A bug you see outside your task: change no code for it. Add it to `found` at the next `open`: `what`, `where` (the file or the page) and `how` you saw it. A hands-off run adds to the same list.
+
+A found bug that blocks a planned proof, or corrupts data or the running app: fix it in place, as its own task with its own test first and its own proof line. Give it `pick: fix-in-place`, `by` your name and the `reason`.
+
+Every other pick is the developer's: `fix-now`, `ticket`, or `dropped` with a `reason`, and `by: developer`. Write a pick only from the developer's mark on the ship page, or from the developer's own message in chat; quote that message in `reason`.
 
 ## After each push
 
@@ -60,17 +71,26 @@ A red CI does not stop work on the branch. Report it to the developer in one lin
 
 ## Ship
 
-Ship needs each subtask's review finished, with no delta check owed or parked. `mark-ready` runs the review's `finish` for each subtask contract in the plan folder once the change and its head pass, so a review that owes no more work stops here. A commit pushed after a review stopped gets no review round: list each such commit in `proofs`, so that the developer sees it.
+Ship needs a gate record that passed and was judged, a proof line per row, a pick for each found bug, and the developer's ship mark on the exact proof comment. A plan folder also needs each subtask's review finished, with no delta check owed or parked: `mark-ready` runs the review's `finish` for each subtask contract once the gate record passes, so a review that owes no more work stops here. A commit pushed after a review stopped gets no review round: name each such commit in `description`, so that the developer sees it. A plan with no `> Rules: 2` line ships with no gate record, on the review check alone.
 
 Each push during ship goes back to step 1.
 
-1. **Update.** Run "Open or update the change" with the final proofs.
-2. **Wait.** Run `watch` with `id` as a background shell of the harness: its exit wakes you. A harness with no background shell: end the turn and say that CI runs.
-3. **Mark.** `mark-ready` with `id` and `plan`. Done when the answer holds `draft: false`. `marked: false` means the change was already Ready.
-4. **Check the merge.** Run "End of ship" in "After the merge".
+1. **Update.** Run "Open or update the change" with the final proofs and found bugs.
+2. **Show the ship page.** `proof-preview` with `id`, `gate` and `ticket` answers `body`, `pictures`, `where`, `receipt`, `notice`, `secrets` and `proof_lines`. Show the developer, on one page card (`/afkv2:visualize`): the exact `body`, each picture, `where` it goes, `notice` when it is not empty, each `secrets` hit, and each found bug with the picks fix now, ticket and drop with a reason. The developer's ship mark on that card is the yes to post. End the turn. When the developer answers, write the picks into `found` and run step 1 again. In chat with no page, the developer's own message after the preview is the mark.
+3. **Wait.** Run `watch` with `id` as a background shell of the harness: its exit wakes you. A harness with no background shell: end the turn and say that CI runs.
+4. **Mark.** `mark-ready` with `id`, `gate`, `ticket`, the `receipt` the developer marked, and `plan` when there is one. It verifies the gate record, then the reviews, then CI. Then it posts the proof comment with the tracker's `comment-put` (with no ticket: on the change), and marks the change Ready. A failed post leaves the change Draft. Done when the answer holds `draft: false`; `comment` names the posted comment, and `comment.posted: false` means it was on the ticket already. `marked: false` means the change was already Ready.
+5. **Check the merge.** Run "End of ship" in "After the merge".
 
 | Refusal | Meaning | Next action |
 |---------|---------|-------------|
+| `no-gate`, `gate-unreadable`, `gate-version-unknown` | no gate record at `gate`, none given, or it cannot be read | pass the `path` that the end gate or the small lane answered; with none, the gate must run first |
+| `gate-not-passed`, `verdict-no-description`, `evidence-changed`, `gate-head-stale` | `failures` names each row: not passed, waiting, not judged, a verdict that does not describe what it saw, changed evidence, or commits after the gate head outside the spec folder | the gate runs again (`/afkv2:autopilot`); a waiting row needs the developer. Report each failure. The change stays Draft |
+| `code-before-go`, `no-lane` | a small-lane gate record: a commit before the developer's go changed code, or this worktree holds no small lane | the change cannot ship on this go: report it; the developer decides. Run `mark-ready` from the worktree of the lane |
+| `proof-missing`, `proof-field-missing` | a gate row has no proof line, or its line lacks a field; `failures` names the behavior or the field | add the line, run step 1, then mark again |
+| `found-open` | a found bug has no pick | show it on the ship page; write the developer's pick, run step 1, then mark again |
+| `proof-not-posted` | no receipt, or the comment changed after the developer's ship mark | go back to step 2 |
+| any error of the tracker's `comment-put` (`bad-receipt`, `too-large`, `gh-too-old`, `no-push-access`, `not-supported`, a setup or transport code) | the tracker refused the comment; nothing is Ready | its Comment, Setup and Transport codes in `afkv2/ports/tracker/CONTRACT.md`; report `reason` |
+| `mark-not-written` | the comment is posted, but the local mark that gc reads is not written | mark again: the post finds the comment and posts nothing |
 | `review-open` | `reviews` names each subtask, why, and `next` | `next: run-review`: run that subtask's review to its stop, then mark again. `next: mark-again`: a post failed, or the review command crashed, and the next mark tries it again: mark once more, and report it when it stays. `next: developer`: this review cannot clear by a run: it has stopped, or it gave no report. Report `why`. The change stays Draft |
 | `head-differs` | the local head is not the head of the change | push and go back to step 1, or run from the branch of the change |
 | `ci-running` | checks still run, or wait for a human | run `watch` as in step 2, then mark again. When `watch` ends `no-verdict` with `status: running`, report that a check may wait for a human, and stop. The change stays Draft |
