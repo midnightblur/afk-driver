@@ -28,7 +28,7 @@ Starting this skill authorizes commits and pushes on the feature branch, commits
    3. `start` with `subtask` and optional `app`. A refusal `contract-mismatch` or `gate-cannot-run`: `park` with `by: "autopilot"`, and name the failure in `reason`.
    4. Start one fresh subagent with `brief` as its whole prompt. It runs `/afkv2:execute`.
    5. Read its last lines, and route them by the table below. Read the tracker through `next`: the report does not move the walk.
-4. **End gate.** When `next` answers `finished: true` and every subtask is done, `run` of `end_gate.py` with `plan` and `session` (`claude` or `codex`, the provider of this session). It runs each high-level row once against the live build, calls the judge when every row passed, and writes the gate record. Route its `result`:
+4. **End gate.** When `next` answers `finished: true` and every subtask is done, `run` of `end_gate.py` with `plan` and `session` (`claude` or `codex`, the provider of this session). Start it in the background and wait for it to exit: a run takes up to 3600 s before its last row starts, plus 2 runs of 1800 s at most for that row. It runs each high-level row once against the live build, calls the judge when every row passed, and writes the gate record. Route its `result`:
 
    | `result` | Next action |
    |----------|-------------|

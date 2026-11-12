@@ -39,6 +39,7 @@ RECORD_FILE = "record.json"
 VERIFICATION = "VERIFICATION.md"
 FAILED_CAP = 3
 TEST_LIMIT = 1800
+GATE_LIMIT = 3600  # no row starts after this many seconds of a gate run; a started row runs to TEST_LIMIT, twice
 EVIDENCE_VARIABLE = "AFKV2_EVIDENCE"
 DRIVER_LEVELS = ("ui-e2e",)
 DRIVER_KEY = "browser_driver"
@@ -165,24 +166,35 @@ def _run_once(row, folder, repo, n):
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     clock = time.monotonic()
     with open(log, "wb") as output:
-        try:
-            process = subprocess.Popen(row["command"], shell=True, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
-                                       stdin=subprocess.DEVNULL, env={**os.environ, EVIDENCE_VARIABLE: str(evidence)},
-                                       **other_provider._group())
-        except OSError as error:
-            output.write(f"the test did not start: {error}\n".encode("utf-8"))
-            code = -1
-        else:
-            try:
-                code = process.wait(timeout=TEST_LIMIT)
-            except subprocess.TimeoutExpired:
-                other_provider._stop_tree(process)  # the shell and every process the test started
-                output.write(f"\nthe end gate stopped the test after {TEST_LIMIT} s\n".encode("utf-8"))
-                code = -1
+        code = _run_command(row["command"], repo, output, evidence)
     files = sorted(str(path) for path in evidence.rglob("*") if path.is_file())
     if not files:
         shutil.rmtree(evidence, ignore_errors=True)
     return {"exit": code, "started": started, "seconds": round(time.monotonic() - clock, 3), "log": str(log), "evidence": files}
+
+
+def _argv(command):
+    """(args, shell) of a contract command: the shell runs it as the contract states it, as tdd_log does."""
+    return command, True
+
+
+def _run_command(command, repo, output, evidence):
+    """The exit code of 1 test command, in its own process group. Past TEST_LIMIT the whole tree stops and the
+    code is -1."""
+    args, shell = _argv(command)
+    try:
+        process = subprocess.Popen(args, shell=shell, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
+                                   stdin=subprocess.DEVNULL, env={**os.environ, EVIDENCE_VARIABLE: str(evidence)},
+                                   **other_provider._group())
+    except OSError as error:
+        output.write(f"the test did not start: {error}\n".encode("utf-8"))
+        return -1
+    try:
+        return process.wait(timeout=TEST_LIMIT)
+    except subprocess.TimeoutExpired:
+        other_provider._stop_tree(process)  # the shell and every process the test started
+        output.write(f"\nthe end gate stopped the test after {TEST_LIMIT} s\n".encode("utf-8"))
+        return -1
 
 
 def _runs(row, folder, repo):
@@ -196,10 +208,11 @@ def _gate_run(rows, path, head, verification, plan_text, repo):
     folder.mkdir(parents=True, exist_ok=True)
     driver = _driver_proven()
     waiting = {row["id"]: _own_waiting(row, driver) for row in rows}
-    entries = []
+    entries, deadline = [], time.monotonic() + GATE_LIMIT
     with _app(plan_text, repo, needed=not all(waiting.values())) as unreachable:
         for row in rows:
-            reason = waiting[row["id"]] or unreachable
+            late = time.monotonic() >= deadline and f"the gate deadline of {GATE_LIMIT} s passed before this row started"
+            reason = waiting[row["id"]] or unreachable or late
             entry = {"row": row["id"], "behavior": row["behavior"], "level": row["level"],
                      "ran": row["command"] or row["check"] or "nothing ran", "lower": row["lower"]}
             entries.append({**entry, "waiting": reason, "runs": []} if reason else {**entry, "runs": _runs(row, folder, repo)})
@@ -233,8 +246,8 @@ def _judge(plan, record, rows, path, session, repo, judge):
         gate_record.write_verdict(path, judged, head=record["head"])
     except afkv2_config.Refusal as error:
         return f"judge: {error.code}: {error.reason}"
-    except OSError as error:
-        return f"judge: the input folder could not be built: {error}"
+    except (OSError, Refusal) as error:
+        return f"judge: the input folder could not be built: {getattr(error, 'reason', error)}"
     finally:
         shutil.rmtree(folder, ignore_errors=True)
     return None
@@ -260,10 +273,12 @@ def _judge_input(plan, record, rows, path, repo, folder):
             (target / relative).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target / relative)
         for name in _tests_of(plan, row):
-            source = repo / name
-            if source.is_file():
-                (folder / "tests" / name).parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(source, folder / "tests" / name)
+            source = (repo / name).resolve()
+            if not source.is_relative_to(repo.resolve()) or not source.is_file():
+                continue  # a test outside the repository is not judge input
+            relative = source.relative_to(repo.resolve())
+            (folder / "tests" / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, folder / "tests" / relative)
     (folder / "rows.json").write_text(json.dumps(inputs, indent=1), encoding="utf-8")
 
 
@@ -377,15 +392,23 @@ def _finish(plan, state, answer):
     return answer
 
 
-def _set_aside(plan, subtask):
+def _set_aside(plan, subtask, rows):
     """Move the finished review state and the test-first record of a reopened subtask aside, so its new attempt
-    gets a new review and needs a new red test. The kept copies are `<subtask>.<kind>.back-<n>.json`."""
+    gets a new review and needs a new red test for each row in `rows`. The kept copies are
+    `<subtask>.<kind>.back-<n>.json`; the entries of the other rows go on in a new test-first record."""
     review = Path(plan) / "review"
     for kind in ("rounds", "tdd"):
         current = review / f"{subtask}.{kind}.json"
-        if current.is_file():
-            number = 1 + sum(1 for _ in review.glob(f"{subtask}.{kind}.back-*.json"))
-            current.rename(review / f"{subtask}.{kind}.back-{number}.json")
+        if not current.is_file():
+            continue
+        number = 1 + sum(1 for _ in review.glob(f"{subtask}.{kind}.back-*.json"))
+        kept = review / f"{subtask}.{kind}.back-{number}.json"
+        current.replace(kept)
+        if kind == "tdd":
+            old = walk.tdd_log._load(kept)
+            carried = {key: [entry for entry in old[key] if entry.get("row") not in rows] for key in ("cycles", "no_test")}
+            if carried["cycles"] or carried["no_test"]:
+                walk.tdd_log._save(current, carried)
 
 
 def send_back(plan, rows):
@@ -399,21 +422,22 @@ def send_back(plan, rows):
     unknown = [row for row in rows if row not in failed]
     if unknown:
         raise Refusal("bad-payload", f"no failed row {', '.join(map(str, unknown))} in the last gate run")
-    statuses, reopened = walk._statuses(plan), []
+    statuses, sent = walk._statuses(plan), {}
     for row in rows:
         for subtask in failed[row]["subtasks"]:
-            if statuses.get(subtask) != "done":
-                continue
-            record = state["subtasks"].setdefault(subtask, {"attempts": 0})
-            if subtask not in reopened:
-                _set_aside(plan, subtask)
-                record.pop("base", None)
-                record.update(attempts=0, back=[])
-                write_status(plan, subtask, "pending")
-                reopened.append(subtask)
-            record["back"].append({"row": row, "why": failed[row]["why"], "behavior": failed[row]["behavior"]})
+            if statuses.get(subtask) == "done":
+                sent.setdefault(subtask, []).append(row)
+    for subtask, own in sent.items():
+        record = state["subtasks"].setdefault(subtask, {"attempts": 0})
+        record.pop("base", None)
+        record.update(attempts=0, back=[{"row": row, "why": failed[row]["why"], "behavior": failed[row]["behavior"]} for row in own])
+    walk._save(plan, state)  # first: a later failure leaves the run state that a second `back` needs
+    reopened = list(sent)
+    for subtask, own in sent.items():
+        _set_aside(plan, subtask, own)
+        write_status(plan, subtask, "pending")
+        for row in own:
             walk._journal(plan, "autopilot", subtask, f"back({row})", f"the end gate sent this subtask back: {row} {failed[row]['why']}")
-    walk._save(plan, state)
     walk._commit_run(plan, f"run: end gate sent back {', '.join(reopened) or 'nothing'}")
     return ok(reopened=reopened, rows=rows)
 

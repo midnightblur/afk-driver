@@ -335,17 +335,43 @@ def answers(address):
         return False
 
 
+class Server:
+    """start_live and stop_live of a real local http.server, started as an argument list with no suspended process."""
+
+    def __init__(self, port):
+        self.port, self.process, self.starts, self.stops = port, None, 0, 0
+
+    def start(self, repo):
+        import time
+        self.starts += 1
+        self.process = subprocess.Popen([sys.executable, "-m", "http.server", str(self.port), "--bind", "127.0.0.1"],
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(100):
+            if answers(f"http://127.0.0.1:{self.port}/"):
+                return self
+            time.sleep(0.1)
+        raise AssertionError("the server did not answer")
+
+    def stop(self, handle):
+        self.stops += 1
+        self.process.kill()
+        self.process.wait(timeout=15)
+
+
 def test_the_gate_starts_the_live_build_when_it_is_not_up_and_stops_it_after(tmp_path, monkeypatch):
     port = free_port()
     address = f"http://127.0.0.1:{port}/"
-    live = {"start": f"{PY} -m http.server {port} --bind 127.0.0.1", "address": address, "ready_seconds": 30}
+    server = Server(port)
+    monkeypatch.setattr(end_gate.live_build, "start_live", server.start)
+    monkeypatch.setattr(end_gate.live_build, "stop_live", server.stop)
+    live = {"start": "the server of the test", "address": address, "ready_seconds": 30}
     rows = {"VR-001": {"owner": "0001-a", "level": "api", "check": check("fetch.py", address)},
             "VR-002": {"owner": "0002-b", "level": "api", "check": check("flaky.py")},
             "VR-003": {"owner": "0003-c", "level": "api", "check": check("fail.py")}}
     gate = make_gate(tmp_path, monkeypatch, rows, app="config", live=live)
     answer = gate.run()
     assert results(gate.record()) == {"VR-001": "pass", "VR-002": "flaky", "VR-003": "fail"}
-    assert answer["result"] == "failed" and not answers(address)
+    assert answer["result"] == "failed" and not answers(address) and (server.starts, server.stops) == (1, 1)
 
 
 # --- ship -----------------------------------------------------------------------------------------------------------
@@ -407,6 +433,8 @@ def test_a_row_past_its_time_limit_stops_with_its_whole_process_tree(tmp_path, m
     rows = {"VR-001": {"owner": "0001-a", "level": "api", "check": check("hang.py", str(marker))}}
     gate = make_gate(tmp_path, monkeypatch, rows, extra_files={"checks/hang.py": HANG})
     monkeypatch.setattr(end_gate, "TEST_LIMIT", 1)
+    # no shell: a sleeper starts as Python with an argument list
+    monkeypatch.setattr(end_gate, "_argv", lambda command: ([sys.executable, "checks/hang.py", str(marker)], False))
     gate.run()
     assert results(gate.record()) == {"VR-001": "fail"}
     import time
@@ -466,3 +494,31 @@ def test_the_real_commands_run_and_send_back_a_rules_2_plan(tmp_path, monkeypatc
     assert code == 0 and back["reopened"] == ["0002-b"]
     walk.VERBS["end"]({"plan": str(gate.plan)})
     assert "VR-002" in walk.VERBS["end"]({"plan": str(gate.plan)})["gate"]
+
+
+# --- review round 2 -------------------------------------------------------------------------------------------------
+
+
+def test_rows_past_the_gate_deadline_wait_instead_of_running(tmp_path, monkeypatch):
+    gate = make_gate(tmp_path, monkeypatch, PASSING)
+    monkeypatch.setattr(end_gate, "GATE_LIMIT", 0)
+    answer = gate.run()
+    assert set(results(gate.record()).values()) == {"waiting"}
+    assert all("deadline" in item["why"] for item in answer["waiting"])
+
+
+def test_back_keeps_the_test_first_entries_of_the_rows_that_did_not_fail(tmp_path, monkeypatch):
+    gate = make_gate(tmp_path, monkeypatch, THREE_ROWS)
+    review = gate.plan / "review"
+    review.mkdir(exist_ok=True)
+    kept = {"behavior": "other", "row": "VR-009", "green": {"exit": 0}}
+    dropped = {"behavior": "failed one", "row": "VR-002", "green": None}
+    (review / "0002-b.tdd.json").write_text(json.dumps({"cycles": [kept, dropped], "no_test": [{"row": "VR-008", "why": "x", "head": "h"}]}),
+                                            encoding="utf-8")
+    git(gate.built.run, "add", "-A")
+    git(gate.built.run, "commit", "-qm", "records")
+    gate.run()
+    end_gate.send_back(gate.plan, ["VR-002"])
+    record = json.loads((review / "0002-b.tdd.json").read_text(encoding="utf-8"))
+    assert record["cycles"] == [kept] and [entry["row"] for entry in record["no_test"]] == ["VR-008"]
+    assert len(json.loads((review / "0002-b.tdd.back-1.json").read_text(encoding="utf-8"))["cycles"]) == 2
