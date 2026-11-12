@@ -1641,3 +1641,10 @@ def test_the_start_gate_refuses_an_app_line_of_config_whose_build_does_not_start
     failures = gate.gate_failures(read, "config", rules=2, code=repo)
     assert [(item["code"], item["where"]) for item in failures] == [("app-unreachable", "0002-b tier api")]
     assert "live-start-failed" in failures[0]["reason"]
+
+
+def test_the_index_format_names_the_spec_file_of_spec_files():
+    index_format = (SKILLS / "to-prd" / "INDEX-FORMAT.md").read_text(encoding="utf-8")
+    assert plan_files.VERIFICATION == "VERIFICATION.md" and plan_files.VERIFICATION in plan_files.SPEC_FILES
+    assert f"| Verification plan | {plan_files.VERIFICATION} |" in index_format
+    assert "VERIFICATION-PLAN.md" not in index_format
