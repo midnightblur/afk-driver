@@ -35,7 +35,7 @@ import grill_common  # noqa: E402
 import other_provider  # noqa: E402
 import page_home  # noqa: E402
 import round_document  # noqa: E402
-from tdd_log import is_test_file  # noqa: E402
+from tdd_log import _uncommitted, is_test_file  # noqa: E402
 
 LANE_FOLDER = "afkv2-small"
 PAGE_SKILL = "small-change"
@@ -98,11 +98,20 @@ def _line(text, key):
 
 
 def _code_changes(repo, since):
-    """The code files that commits after `since` or uncommitted changes touch; test files are no code."""
+    """The code files that commits after `since` or uncommitted changes touch."""
     names = _git(repo, "diff", "--name-only", since, "HEAD").splitlines()
-    status = _git(repo, "status", "--porcelain", "-z", "--untracked-files=all").split("\0")
-    names += [entry[3:] for entry in status if len(entry) > 3]
-    return sorted({name for name in names if name and not is_test_file(name)})
+    names += _uncommitted(repo)
+    return _code_of(repo, names)
+
+
+def _code_of(repo, names):
+    """The code files among `names`: a test file, or a file of the spec folder such as a page round, is no code."""
+    config = afkv2_config.read_config(repo, with_live=False)
+    spec = None
+    if config.get("ok"):
+        spec = Path(config["spec_folder"]).resolve().relative_to(Path(config["repo_root"]).resolve()).as_posix() + "/"
+    return sorted({name for name in names
+                   if name and not is_test_file(name) and not (spec and name.startswith(spec))})
 
 
 def _open_lane(repo):
@@ -118,8 +127,7 @@ def _go_of(repo, lane):
     go = lane.get("go")
     if not go:
         raise Refusal("no-go-mark", "no go mark of the developer is on record: run `go` after the developer's sign mark")
-    early = [name for name in _git(repo, "diff", "--name-only", lane["base"], go["head"]).splitlines()
-             if name and not is_test_file(name)]
+    early = _code_of(repo, _git(repo, "diff", "--name-only", lane["base"], go["head"]).splitlines())
     if early:
         raise Refusal("code-before-go", f"commits before the developer's go changed code: {', '.join(early)}")
     return go

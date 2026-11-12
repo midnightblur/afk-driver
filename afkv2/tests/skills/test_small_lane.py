@@ -157,6 +157,15 @@ def test_a_test_file_before_the_go_is_no_code(repo, tmp_path):
     assert call("go", repo=str(repo), doc=str(page(tmp_path, "c-go")), card="c-go", test_plan="api")["ok"]
 
 
+def test_a_page_file_of_the_spec_folder_is_no_code(repo, tmp_path):
+    commit(repo, ".afkv2/config.json", json.dumps({"spec_folder": "docs/afk", "forge": "github"}), "config")
+    started(repo, "enhancement")
+    commit(repo, "docs/afk/1/pages/small-change-s-1.json", "{}", "the page round")
+    (repo / "docs" / "afk" / "1" / "pages" / "small-change-s-1.raw.txt").write_text("x", encoding="utf-8")
+    assert call("go", repo=str(repo), doc=str(page(tmp_path, "c-go")), card="c-go", test_plan="api")["ok"]
+    assert small_lane._code_changes(repo, small_lane.read_lane(repo)["base"]) == []
+
+
 def test_the_go_mark_function_is_record_go(repo, tmp_path):
     started(repo, "enhancement")
     go = small_lane.record_go(repo, page(tmp_path, "c-go"), "c-go", "api")
