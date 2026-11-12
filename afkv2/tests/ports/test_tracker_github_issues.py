@@ -29,7 +29,8 @@ def test_text_that_is_not_json_raises():
 def test_issue_get_keeps_the_gh_fields_inside_the_envelope(tools):
     tools.on("gh", "issue", "view", answer={"number": 7, "title": "t", "comments": [{"body": "c"}]})
     answer = github_issues.issue_get({"key": "#7", "repo": "o/r"})
-    assert answer == {"ok": True, "key": "7", "number": 7, "title": "t", "comments": [{"body": "c"}]}
+    assert answer == {"ok": True, "key": "7", "number": 7, "title": "t", "comments": [{"body": "c"}],
+                      "description_hash": github_issues.body_hash(""), "block": None, "length_without_block": 0}
     args = tools.calls[0][1]
     assert args[:3] == ["issue", "view", "7"] and ["--repo", "o/r"] == args[3:5]
     assert "comments" in args[args.index("--json") + 1]

@@ -329,7 +329,7 @@ def _content_of(description):
     return content if isinstance(content, list) else []
 
 
-def _preview_for(payload, key):
+def preview_for(payload, key):
     """The preview the receipt names. Any miss is `bad-receipt`: the human saw no such preview."""
     receipt = payload.get("receipt")
     if not isinstance(receipt, str) or not _RECEIPT.fullmatch(receipt):
@@ -445,7 +445,7 @@ def attachment_list(payload):
 @_rest
 def attachment_put(payload):
     key, png = need(payload, "key"), need(payload, "png")
-    preview = _preview_for(payload, key)
+    preview = preview_for(payload, key)
     path, tag = Path(png), payload["receipt"][:8]
     expected = re.compile(rf"afkv2-fig-{tag}-\d+\.png")
     if not expected.fullmatch(path.name):
@@ -485,7 +485,7 @@ def attachment_delete(payload):
 @_rest
 def description_put(payload):
     key, value, expect_hash = need(payload, "key"), need(payload, "adf"), need(payload, "expect_hash")
-    preview = _preview_for(payload, key)
+    preview = preview_for(payload, key)
     if preview.get("description_hash") != expect_hash:
         raise Refusal("bad-receipt", "`expect_hash` is not the description hash the preview showed")
     nodes = _new_nodes(value)

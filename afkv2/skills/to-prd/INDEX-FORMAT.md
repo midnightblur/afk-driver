@@ -42,4 +42,4 @@ Each skill writes only its own rows, with `prd_files.set_row`. A row for an arti
 6. plan/review/INDEX.md: what the quality checks found.
 ```
 
-State values: `PRD` is `draft` or `published to Jira <date>`. `Requirement ADRs` is `<n> records`.
+State values: `PRD` is `draft`, `published to Jira <date>` or `published to GitHub <date>`. `Requirement ADRs` is `<n> records`.
