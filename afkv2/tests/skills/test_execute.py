@@ -238,6 +238,49 @@ def test_an_old_call_with_no_row_still_works_on_a_plan_with_no_rules_line(run):
     assert record_of(run)["cycles"][0]["row"] is None
 
 
+def verdict_codes(built, base, subtask="0001-a"):
+    return [item["code"] for item in tdd_log.verdict(built.plan, subtask, base)]
+
+
+def test_a_no_test_entry_covers_only_its_row_and_not_code_written_before_the_first_red(rows_run):
+    """PRD §AC-020; SDD §6 row "I-6": 1 no-test entry no longer turns off the code-before-red check."""
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    rows_run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    failures = tdd_log.verdict(rows_run.plan, "0001-a", base)
+    early = [item for item in failures if item["code"] == "code-before-red"]
+    assert len(early) == 1 and "VC-1" in early[0]["reason"] and "src/first.py" in early[0]["reason"]
+
+
+def test_work_after_its_no_test_entry_is_covered(rows_run):
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    rows_run.commit_code("docs/note.md", "text\n", "[0001-a] note")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert "code-before-red" not in verdict_codes(rows_run, base)
+
+
+def test_an_old_record_reads_as_before(run):
+    """SDD §4: old records read null, null, low; an old no-test entry keeps the check off."""
+    base = git(run.work, "rev-parse", "HEAD")
+    head = run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    old = {"cycles": [{"behavior": "b", "green": {"head": head, "exit": 0}, "command": FAIL, "red": {"head": head, "exit": 1}}],
+           "no_test": [{"why": "prose only"}]}
+    (run.plan / "review").mkdir()
+    (run.plan / "review" / "0001-a.tdd.json").write_text(json.dumps(old), encoding="utf-8")
+    assert tdd_log.verdict(run.plan, "0001-a", base) == []
+
+
+def test_a_high_level_cycle_needs_no_green_in_its_subtask(rows_run):
+    """SDD §4: its green comes at the end gate."""
+    base = git(rows_run.work, "rev-parse", "HEAD")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="h", command=FAIL, row="VR-004", level="high")["ok"]
+    assert verdict_codes(rows_run, base) == []
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    assert verdict_codes(rows_run, base) == ["red-open"]
+
+
 def test_a_subtask_with_no_behavior_says_why(run):
     base = git(run.work, "rev-parse", "HEAD")
     run.commit_code("docs/note.md", "text\n", "[0001-a] note")

@@ -146,19 +146,34 @@ def no_test(payload):
     return ok(recorded=len(state["no_test"]))
 
 
+def _first_head(heads, base, cwd):
+    """The oldest of these heads on the first-parent line from `base` to HEAD; None when none is on it."""
+    order = [base, *reversed(_git(cwd, "rev-list", "--first-parent", f"{base}..HEAD").split())]
+    known = [head for head in heads if head in order]
+    return min(known, key=order.index) if known else None
+
+
 def verdict(plan, subtask, base, cwd="."):
-    """Each way this subtask's record breaks the test-first order; empty when it holds."""
+    """Each way this subtask's record breaks the test-first order; empty when it holds.
+
+    A high-level cycle needs no green here: its green comes at the end gate. Code may change only after the first
+    `red` or `no-test` entry; a no-test entry of a row covers the work after it, not the work before it. A no-test
+    entry with no row, as old calls make, keeps the check off as before.
+    """
     state = _load(Path(plan) / "review" / f"{subtask}.tdd.json")
     if not state["cycles"] and not state["no_test"]:
         return [{"code": "no-tdd-record", "reason": "no `red` and no `no-test` is on record"}]
     failures = [{"code": "red-open", "reason": f"no `green` is on record for {cycle['behavior']}"}
-                for cycle in state["cycles"] if cycle["green"] is None]
-    if state["cycles"] and not state["no_test"]:
-        first_red = state["cycles"][0]["red"]["head"]
-        names = _git(cwd, "log", "--first-parent", "--no-merges", "--name-only", "--format=", f"{base}..{first_red}").splitlines()
+                for cycle in state["cycles"] if cycle["green"] is None and (cycle.get("level") or "low") != "high"]
+    if any(entry.get("row") is None for entry in state["no_test"]):
+        return failures
+    heads = [cycle["red"]["head"] for cycle in state["cycles"]] + [entry["head"] for entry in state["no_test"]]
+    first = _first_head(heads, base, cwd)
+    if first is not None:
+        names = _git(cwd, "log", "--first-parent", "--no-merges", "--name-only", "--format=", f"{base}..{first}").splitlines()
         early = _code_files(names)
         if early:
-            failures.append({"code": "code-before-red", "reason": f"commits before the first failing test changed code: {', '.join(early)}"})
+            failures.append({"code": "code-before-red", "reason": f"VC-1: commits before the first failing test or no-test entry changed code: {', '.join(early)}"})
     return failures
 
 
