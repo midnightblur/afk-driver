@@ -117,7 +117,7 @@ def _config(repo_root):
 
 def live_state(repo_root, target=None):
     """{block, proven_here}: the config holds a live block, and its proof ran at a commit of this feature. A proof at
-    the branch point counts only on a branch whose first commit wrote it, or that has no commit yet."""
+    the branch point counts when the first commit of the feature's first-parent line wrote it (decision D-15)."""
     live = _config(repo_root).get("live")
     if live is None:
         return {"block": False, "proven_here": False}
@@ -128,11 +128,10 @@ def live_state(repo_root, target=None):
     ref = _target_ref(repo_root, target)
     if full in _feature_commits(repo_root, ref):
         return {"block": True, "proven_here": True}
-    base = _git(repo_root, "merge-base", ref, "HEAD")
-    if full != base or _proven_head_at(repo_root, base) == head:
-        return {"block": True, "proven_here": False}
-    own = (_git(repo_root, "rev-list", "--reverse", "--first-parent", f"{base}..HEAD") or "").split()
-    return {"block": True, "proven_here": not own or _proven_head_at(repo_root, own[0]) == head}
+    own = (_git(repo_root, "rev-list", "--reverse", "--first-parent", f"{ref}..HEAD") or "").split()
+    first = own[0] if own else None
+    return {"block": True, "proven_here": first is not None and _git(repo_root, "rev-parse", f"{first}^") == full
+            and _proven_head_at(repo_root, first) == head}
 
 
 # --- start and sync -----------------------------------------------------------------------------------------------
@@ -419,8 +418,10 @@ def write_verification(spec_dir, plan, doc, *, repo_root=None, target=None, sess
     boundaries = _check_boundaries(plan.get("boundaries", []), rows)
     root = Path(repo_root) if repo_root else Path(_config(spec_dir)["repo_root"])
     app_line = _app_line(plan.get("app"), doc, root, target)
-    write_text(path, _render(plan["ticket"].strip(), app_line, rows, exempt, boundaries))
     index = spec_dir / "INDEX.md"
+    if index.is_file() and not any(line.startswith("|") for line in index.read_text("utf-8").splitlines()):
+        raise Refusal("bad-index", f"{index} has no artifact table")
+    write_text(path, _render(plan["ticket"].strip(), app_line, rows, exempt, boundaries))
     if index.is_file():
         prd_files.set_row(index, INDEX_ROW, FILE_NAME, "draft")
     session = session or ((doc or {}).get("session") or {}).get("id")

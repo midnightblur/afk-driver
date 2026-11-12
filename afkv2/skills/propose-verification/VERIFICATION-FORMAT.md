@@ -80,5 +80,6 @@ The level of a row is its highest-value level ([LEVELS.md](LEVELS.md)). A row th
 | `lower-level-unmarked` | a `lower:` card is not settled by the developer's mark |
 | `boundary-uncovered` | a boundary with a contract test has no live contract row; one with none has no ticket or no live high-level row (the API level is the floor) |
 | `live-unproven` | `app` is `config` and the live block was not proven at a commit of this feature, or `app` is `none` and its card has no `accept` mark of the developer |
+| `bad-index` | `INDEX.md` exists and has no artifact table: `/afkv2:to-prd` writes it |
 | `no-target` | no default target branch exists: pass `--target` with the branch the feature merges into |
 | `git-failed`, `unreadable`, `bad-verification` | git failed, or the current VERIFICATION.md cannot be read or has no plan rows table: report the reason |

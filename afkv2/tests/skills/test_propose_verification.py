@@ -540,3 +540,65 @@ def test_read_verification_reads_every_section(repo):
     assert read["internal"] == [{"criterion": "AC-004", "why": "a storage detail no user sees"}]
     assert read["boundaries"] == [{**boundary}]
     assert read["app"].startswith("config · proven at ")
+
+
+# --- review round 2 ------------------------------------------------------------------------------------------------
+
+def test_a_branch_point_proof_still_counts_after_the_target_is_merged_in(repo):
+    config = (repo / ".afkv2" / "config.json").read_text(encoding="utf-8")
+    git(repo, "checkout", "-q", "-b", "feat/fresh", "main")
+    (repo / ".afkv2").mkdir(exist_ok=True)
+    (repo / ".afkv2" / "config.json").write_text(config, encoding="utf-8")
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    git(repo, "add", ".afkv2/config.json")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "live block")
+    git(repo, "checkout", "-q", "main")
+    commit(repo, "later-on-main.txt")
+    git(repo, "checkout", "-q", "feat/fresh")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-edit", "main")
+    assert vf.live_state(repo, "main") == {"block": True, "proven_here": True}
+
+
+def test_an_index_with_no_table_refuses_before_any_write(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    (repo / "docs" / TICKET / "INDEX.md").write_text("# PROJ-7\n", encoding="utf-8")
+    refused("bad-index", repo, plan())
+    assert not (repo / "docs" / TICKET / "VERIFICATION.md").exists()
+
+
+def test_the_write_command_takes_the_session_from_the_page(repo, tmp_path, monkeypatch):
+    monkeypatch.chdir(repo)
+    started = vf.start(["--ticket", TICKET])
+    doc = {**doc_with("c-1"), "session": {"id": started["session"]}}
+    Path(started["doc"]).write_text(json.dumps(doc), encoding="utf-8")
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    payload_file = tmp_path / "plan.json"
+    payload_file.write_text(json.dumps(plan()), encoding="utf-8")
+    vf.write(["--spec-dir", str(repo / "docs" / TICKET), "--plan", str(payload_file), "--doc", started["doc"],
+              "--target", "main"])
+    log = (repo / "docs" / TICKET / "GRILL-LOG.md").read_text(encoding="utf-8")
+    assert f"· session {started['session']}" in log
+    assert vf.start(["--ticket", TICKET])["resume"] is False
+
+
+def test_an_unknown_target_refuses_no_target(repo):
+    set_live(repo, git(repo, "rev-parse", "HEAD"))
+    with pytest.raises(Refusal) as caught:
+        vf.write_verification(repo / "docs" / TICKET, plan(), doc_with("c-1"), repo_root=repo, target="nosuch")
+    assert caught.value.code == "no-target"
+
+
+def test_a_file_that_is_not_utf8_refuses_unreadable(tmp_path):
+    path = tmp_path / "VERIFICATION.md"
+    path.write_bytes(b"\xff\xfe\x00bad")
+    with pytest.raises(Refusal) as caught:
+        vf.read_rows(path)
+    assert caught.value.code == "unreadable"
+
+
+def test_the_written_file_has_the_fixed_header_and_app_line(repo):
+    proven = git(repo, "rev-parse", "HEAD")
+    set_live(repo, proven)
+    text = Path(write(repo, plan())["verification"]).read_text(encoding="utf-8")
+    assert "| Id | Criteria | Story | Given | When | Then | Level | Tier | Data | Environment | Status |" in text
+    assert f"> App: config · proven at {proven} on 2026-11-11" in text
