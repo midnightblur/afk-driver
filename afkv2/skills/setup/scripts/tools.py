@@ -1,4 +1,5 @@
-"""Machine tools setup checks or installs: Python 3, rg, the lavish host, herdr and the diagram renderer.
+"""Machine tools setup checks or installs: Python 3, rg, the lavish host, herdr, the diagram renderer,
+the browser driver and the gh floor.
 
 Every outside command goes through a `Runner`, so a test replaces it with an
 in-process fake.
@@ -6,11 +7,18 @@ in-process fake.
 
 from __future__ import annotations
 
+import base64
+import contextlib
+import http.server
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
+import sys
+import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Callable, Mapping, Sequence
@@ -29,6 +37,25 @@ EDGE_ROOTS = ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")
 HERDR_INSTALL_PS1 = "https://herdr.dev/install.ps1"
 HERDR_INSTALL_SH = "https://herdr.dev/install.sh"
 HERDR_INSTALL_TIMEOUT = 300
+# Chrome DevTools MCP (requirement ADR-0004). The pin is the newest release at least 30 days old on 2026-11-11.
+DRIVER_PACKAGE = "chrome-devtools-mcp"
+DRIVER_VERSION = "1.10.1"
+DRIVER_ENTRY = "chrome-devtools"
+ATTACH_ENTRY = "chrome-devtools-attach"
+DRIVER_FLAGS = ("--no-usage-statistics",)
+NOT_ON_DISK = (".exe", ".dll", ".node")
+BROWSERS = {"chrome": ("Google", "Chrome", "chrome.exe"), "edge": ("Microsoft", "Edge", "msedge.exe")}
+INSPECT_PAGES = {"chrome": "chrome://inspect/#remote-debugging", "edge": "edge://inspect/#remote-debugging"}
+ATTACH_FALLBACKS = ("watch the developer run the steps", "reproduce the steps on a local app")
+PROOF_MESSAGE = "afkv2-proof-clicked"
+PROOF_PAGE = ("<!doctype html><title>afkv2 proof</title><button onclick=\"console.log('" + PROOF_MESSAGE
+              + "');this.textContent='clicked'\">Prove</button>").encode("utf-8")
+MCP_PROTOCOL = "2025-06-18"
+MCP_SECONDS = 90
+STOP_SECONDS = 15
+GH_FLOOR = (2, 99, 0)
+# The judge model setup names when the developer names none: a higher tier of that provider (PRD AC-019).
+JUDGE_MODELS = {"claude": "fable"}
 
 
 @dataclass
@@ -359,3 +386,294 @@ def ensure_diagram_renderer(places: Places, run: Runner, env: Mapping[str, str])
     write_atomic(places.puppeteer_config, json.dumps({"executablePath": str(edge)}, indent=2).encode("utf-8") + b"\n")
     return {"ok": True, "action": "present" if prior == MERMAID_VERSION else "installed", "version": version, "edge": str(edge),
             "config": str(places.puppeteer_config)}
+
+
+# ------------------------------------------------------------ browser driver
+
+class DriverError(Exception):
+    """The driver server did not start, exited, or gave no answer in time."""
+
+
+def find_browsers(env: Mapping[str, str]) -> dict[str, Path]:
+    """Chrome and Edge at their known install paths. No lookup on the path, and no download."""
+    found = {}
+    for name, (vendor, product, exe) in BROWSERS.items():
+        for root in EDGE_ROOTS:
+            path = Path(env[root], vendor, product, "Application", exe) if env.get(root) else None
+            if path and path.is_file():
+                found[name] = path
+                break
+    return found
+
+
+def _install_failed(reason: str) -> dict:
+    return {"ok": False, "error": {"code": "driver-install-failed", "reason": reason[:300]}}
+
+
+def ensure_browser_driver(run: Runner, env: Mapping[str, str]) -> dict:
+    """The driver package at the pin, in the npm global folder, with the browser download off.
+
+    Answers `node` and `script`, which each harness entry starts. The package is JavaScript only: a file
+    with a suffix of NOT_ON_DISK in it refuses, so no program file lands anywhere (PRD AC-044)."""
+    node = run.which("node", env)
+    if not node:
+        return _install_failed("node is not on the path: install Node.js, then run this step again")
+    try:
+        prior = global_version(run, env, DRIVER_PACKAGE)
+        if prior != DRIVER_VERSION:
+            got = run(["npm", "install", "-g", f"{DRIVER_PACKAGE}@{DRIVER_VERSION}"],
+                      env={**env, **NO_BROWSER_DOWNLOAD}, timeout=600)
+            now = global_version(run, env, DRIVER_PACKAGE)
+            if got.code != 0 or now != DRIVER_VERSION:
+                return _install_failed((got.err or got.out).strip() or f"npm installed {now}, not {DRIVER_VERSION}")
+    except ValueError as exc:
+        return _install_failed(str(exc))
+    folder = Path(run(["npm", "root", "-g"], env=env, timeout=120).out.strip(), DRIVER_PACKAGE)
+    try:
+        script = Path(folder, json.loads((folder / "package.json").read_text(encoding="utf-8"))["bin"][DRIVER_PACKAGE])
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return _install_failed(f"cannot read the start script of the driver in {folder}: {exc}")
+    programs = sorted(p.name for p in folder.rglob("*") if p.suffix.lower() in NOT_ON_DISK)
+    if programs:
+        return _install_failed(f"the driver package holds program files: {', '.join(programs[:5])}")
+    if not script.is_file():
+        return _install_failed(f"the start script {script} of the driver is missing")
+    return {"ok": True, "action": "present" if prior == DRIVER_VERSION else "installed", "version": DRIVER_VERSION,
+            "node": node, "script": str(script)}
+
+
+def driver_command(install: Mapping[str, str]) -> dict:
+    """The server command with usage statistics off; an entry or a proof adds the browser flags."""
+    return {"command": install["node"], "args": [install["script"], *DRIVER_FLAGS]}
+
+
+def launch_entry(command: Mapping, browser: Path) -> dict:
+    """The entry that starts its own browser, with a fresh profile per session."""
+    return {"command": command["command"], "args": [*command["args"], "--isolated", "--executablePath", str(browser)]}
+
+
+def attach_entry(command: Mapping, user_data: Path) -> dict:
+    """The entry that attaches to the running browser of the developer's profile."""
+    return {"command": command["command"], "args": [*command["args"], "--autoConnect", "--userDataDir", str(user_data)]}
+
+
+class McpSession:
+    """1 MCP server over stdio: newline-delimited JSON-RPC (modelcontextprotocol.io, Transports, stdio)."""
+
+    def __init__(self, argv: Sequence[str], seconds: float = MCP_SECONDS):
+        self._seconds, self._next = seconds, 0
+        self._err = tempfile.TemporaryFile()
+        try:
+            self._process = subprocess.Popen(list(argv), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._err,
+                                             text=True, encoding="utf-8", **_process_group())
+        except OSError as exc:
+            self._err.close()
+            raise DriverError(f"the server did not start: {exc}") from None
+        self._lines: queue.Queue = queue.Queue()
+        threading.Thread(target=self._read, daemon=True).start()
+        try:
+            self._request("initialize", {"protocolVersion": MCP_PROTOCOL, "capabilities": {},
+                                         "clientInfo": {"name": "afkv2-setup", "version": "1"}})
+            self._send({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
+        except DriverError:
+            self.close()
+            raise
+
+    def _read(self) -> None:
+        for line in self._process.stdout:
+            self._lines.put(line)
+        self._lines.put(None)
+
+    def _send(self, message: dict) -> None:
+        try:
+            self._process.stdin.write(json.dumps(message) + "\n")
+            self._process.stdin.flush()
+        except OSError:
+            raise DriverError(f"the server exited: {self._stderr()}") from None
+
+    def _stderr(self) -> str:
+        self._err.seek(0)
+        return self._err.read().decode("utf-8", "replace").strip()[-300:]
+
+    def _request(self, method: str, params: dict) -> dict:
+        self._next += 1
+        self._send({"jsonrpc": "2.0", "id": self._next, "method": method, "params": params})
+        while True:
+            try:
+                line = self._lines.get(timeout=self._seconds)
+            except queue.Empty:
+                raise DriverError(f"no answer to {method} in {self._seconds:.0f} s") from None
+            if line is None:
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    self._process.wait(STOP_SECONDS)
+                raise DriverError(f"the server exited: {self._stderr()}")
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(message, dict) and message.get("id") == self._next:
+                if "error" in message:
+                    raise DriverError(f"{method}: {(message['error'] or {}).get('message')}")
+                return message.get("result") or {}
+
+    def call(self, tool: str, arguments: dict) -> tuple[bool, list]:
+        """(is_error, the content list) of 1 tool call."""
+        result = self._request("tools/call", {"name": tool, "arguments": arguments})
+        return bool(result.get("isError")), result.get("content") or []
+
+    def close(self) -> None:
+        """Closing stdin stops the server, and the server closes the browser it started."""
+        with contextlib.suppress(OSError):
+            self._process.stdin.close()
+        try:
+            self._process.wait(STOP_SECONDS)
+        except subprocess.TimeoutExpired:
+            _stop_tree(self._process)
+        self._err.close()
+
+
+def _process_group() -> dict:
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _stop_tree(process) -> None:
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, timeout=STOP_SECONDS)
+        else:
+            os.killpg(process.pid, 9)
+    with contextlib.suppress(subprocess.SubprocessError):
+        process.wait(STOP_SECONDS)
+
+
+def _text(content) -> str:
+    if isinstance(content, str):
+        return content
+    return "\n".join(str(part.get("text", "")) for part in content if isinstance(part, dict) and part.get("type") == "text")
+
+
+def _png(content) -> bool:
+    for part in content if isinstance(content, list) else []:
+        if isinstance(part, dict) and part.get("type") == "image":
+            with contextlib.suppress(ValueError, TypeError):
+                return base64.b64decode(part.get("data", ""), validate=True).startswith(b"\x89PNG")
+    return False
+
+
+@contextlib.contextmanager
+def proof_page():
+    """The test page on 127.0.0.1 for the length of the block: a button that logs PROOF_MESSAGE."""
+    class Page(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(PROOF_PAGE)
+
+        def log_message(self, *_args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Page)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def prove_driver(command: Mapping, browser: Path, headless: bool, session=McpSession, url: str | None = None) -> dict:
+    """The live proof in 1 browser: open the test page, click its button, take a screenshot, read the console.
+
+    Answers each step green, or `failed` with the step (`start`, `open`, `click`, `screenshot`, `console`) and
+    the answer of the server. `session` starts the server from an argv list; a test passes a fake."""
+    if url is None:
+        with proof_page() as page:
+            return prove_driver(command, browser, headless, session, page)
+    argv = [command["command"], *launch_entry(command, browser)["args"], *(["--headless"] if headless else [])]
+    steps: dict[str, str] = {}
+    step = "start"
+    try:
+        server = session(argv)
+    except DriverError as exc:
+        return {"ok": False, "steps": steps, "failed": step, "reason": str(exc)[:300]}
+    try:
+        step = "open"
+        broken, content = server.call("new_page", {"url": url})
+        found = re.search(r"(\d+): [^\n]*\[selected\]", _text(content))
+        if broken or url not in _text(content) or not found:
+            raise DriverError(_text(content) or "the page did not open")
+        page = {"pageId": int(found.group(1))}
+        steps[step] = "green"
+        step = "click"
+        broken, content = server.call("take_snapshot", page)
+        button = re.search(r'uid=(\S+) button "Prove"', _text(content))
+        if broken or not button:
+            raise DriverError(_text(content) or "the snapshot shows no button")
+        broken, content = server.call("click", {**page, "uid": button.group(1)})
+        if broken:
+            raise DriverError(_text(content))
+        steps[step] = "green"
+        step = "screenshot"
+        broken, content = server.call("take_screenshot", page)
+        if broken or not _png(content):
+            raise DriverError(_text(content) or "the answer holds no PNG picture")
+        steps[step] = "green"
+        step = "console"
+        broken, content = server.call("list_console_messages", page)
+        if broken or PROOF_MESSAGE not in _text(content):
+            raise DriverError(_text(content) or "the console holds no message of the click")
+        steps[step] = "green"
+    except DriverError as exc:
+        return {"ok": False, "steps": steps, "failed": step, "reason": str(exc)[:300]}
+    finally:
+        server.close()
+    return {"ok": True, "steps": steps}
+
+
+def browser_profile(name: str, env: Mapping[str, str]) -> Path | None:
+    """The default user data folder of the developer's Chrome or Edge on Windows."""
+    vendor, product, _exe = BROWSERS[name]
+    return Path(env["LOCALAPPDATA"], vendor, product, "User Data") if env.get("LOCALAPPDATA") else None
+
+
+def prove_attach(command: Mapping, name: str, env: Mapping[str, str], session=McpSession) -> dict:
+    """Attach to the running, signed-in browser of the developer and list its pages.
+
+    A failure says why and offers ATTACH_FALLBACKS (PRD AC-043)."""
+    profile = browser_profile(name, env)
+    failed = {"ok": False, "browser": name, "offer": list(ATTACH_FALLBACKS)}
+    if profile is None or not (profile / "DevToolsActivePort").is_file():
+        return {**failed, "why": f"remote debugging is off in {name}: open {INSPECT_PAGES[name]} in it, allow "
+                                 "remote debugging, keep the browser open, then run this step again"}
+    entry = attach_entry(command, profile)
+    try:
+        server = session([entry["command"], *entry["args"]])
+    except DriverError as exc:
+        return {**failed, "why": str(exc)[:300]}
+    try:
+        broken, content = server.call("list_pages", {})
+    except DriverError as exc:
+        return {**failed, "why": str(exc)[:300]}
+    finally:
+        server.close()
+    if broken:
+        return {**failed, "why": _text(content)[:300]}
+    return {"ok": True, "browser": name, "entry": entry, "pages": _text(content)[:300]}
+
+
+# ------------------------------------------------------------------- gh floor
+
+def check_gh(run: Runner, env: Mapping[str, str], windows: bool = os.name == "nt") -> dict:
+    """gh at GH_FLOOR or later: the proof comment of the tracker port runs `gh issue comment --attach`."""
+    got = run(["gh", "--version"], env=env, timeout=60)
+    found = re.search(r"gh version (\d+)\.(\d+)\.(\d+)", got.out) if got.code == 0 else None
+    version = tuple(int(part) for part in found.groups()) if found else None
+    answer = {"needed": True, "version": ".".join(map(str, version)) if version else None,
+              "ok": bool(version) and version >= GH_FLOOR}
+    if not answer["ok"]:
+        how = "run `winget upgrade --id GitHub.cli -e`" if windows else "upgrade gh with the system package manager"
+        answer["fix"] = f"the proof comment needs gh {'.'.join(map(str, GH_FLOOR))} or later: {how}, then open a new terminal"
+    return answer
