@@ -1075,6 +1075,250 @@ def test_a_failed_ready_call_stays_a_refusal(ship, capsys):
     assert refused(ci_watch, capsys, "mark-ready", id="7", plan=str(ship["plan"]))["code"] == "forbidden"
 
 
+# --- the gate record at ship: proof lines, found bugs, the proof comment
+
+
+import gate_record  # noqa: E402
+
+VERDICT = {"provider": "codex", "model": "gpt-x", "effort": "medium", "seen": ["The page shows the downloaded file. It has 3 rows."],
+           "compare": ["The file matches the behavior."], "checks": [], "result": "pass"}
+GATE_ROW = {"row": "VR-1", "behavior": "the export downloads a file", "level": "ui-e2e", "ran": "pytest tests/e2e/test_export.py",
+            "runs": [{"exit": 0, "started": "2026-11-12T00:00:00Z", "seconds": 1.5, "log": "run.log", "evidence": ["shot.png"]}]}
+
+
+class Tracker:
+    """Stands in for the tracker port command: records each call and answers by verb."""
+
+    def __init__(self):
+        self.calls = []
+        self.answers = {"comment-put": {"ok": True, "comment_id": "c1", "url": "https://t.test/c1", "attached": [], "posted": True}}
+
+    def __call__(self, verb, payload):
+        self.calls.append((verb, payload))
+        answer = self.answers[verb]
+        return answer(payload) if callable(answer) else answer
+
+
+def _commit_config(repo, tracker=None):
+    config = {"spec_folder": "docs", **({"tracker": tracker} if tracker else {})}
+    (repo / ".afkv2").mkdir(exist_ok=True)
+    return commit(repo, ".afkv2/config.json", json.dumps(config), "config")
+
+
+@pytest.fixture
+def gated(ship, repo, tmp_path, monkeypatch):
+    """A passed and judged gate record at the head of the change, its proof line kept by `open`, and a tracker."""
+    head = _commit_config(repo, {"kind": "jira"})
+    ship["forge"].answers["change-view"] = {**VIEW, "head_sha": head}
+    folder = tmp_path / "run" / "plan" / "gate"
+    folder.mkdir(parents=True)
+    (folder / "shot.png").write_bytes(b"picture")
+    (folder / "run.log").write_text("1 passed\n", encoding="utf-8")
+    verification = tmp_path / "VERIFICATION.md"
+    verification.write_text("# rows\n", encoding="utf-8")
+    record = folder / "record.json"
+    gate_record.write_run(record, lane="medium", head=head, verification=verification, rows=[GATE_ROW])
+    gate_record.write_verdict(record, {"verdicts": {"VR-1": VERDICT}}, head=head)
+    ci_watch.write_parts("7", [PROOF], [])
+    tracker = Tracker()
+    monkeypatch.setattr(ci_watch, "call_tracker", tracker)
+    reviewed = []
+    monkeypatch.setattr(ci_watch, "call_review", lambda _plan, subtask: reviewed.append(subtask) or SETTLED)
+    return {**ship, "gate": record, "tracker": tracker, "reviewed": reviewed, "head": head}
+
+
+def _preview(capsys, gated, **payload):
+    code, answer = run(ci_watch, capsys, "proof-preview", id="7", gate=str(gated["gate"]), **payload)
+    assert code == 0, answer
+    return answer
+
+
+def _mark(capsys, gated, **payload):
+    receipt = payload.pop("receipt", None) or _preview(capsys, gated, **{k: v for k, v in payload.items() if k == "ticket"})["receipt"]
+    return run(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), receipt=receipt, **payload)
+
+
+def _rewrite(record, change):
+    data = json.loads(record.read_text(encoding="utf-8"))
+    change(data)
+    record.write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_the_preview_shows_the_exact_comment_its_pictures_and_its_receipt(gated, capsys):
+    answer = _preview(capsys, gated, ticket="ABC-12")
+    first, *rest = answer["body"].split("\n")
+    assert first == f"afkv2 proof v1 {answer['receipt']}" and len(answer["receipt"]) == 64
+    assert rest[0] == "VR-1 · the export downloads a file · ui-e2e · pass · The page shows the downloaded file."
+    assert answer["pictures"] == [str(gated["gate"].parent / "shot.png")]
+    assert answer["where"] == {"kind": "ticket", "key": "ABC-12"} and answer["notice"] == "" and answer["secrets"] == []
+
+
+def test_the_receipt_changes_with_the_place_the_text_and_the_pictures(gated, capsys):
+    first = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    assert _preview(capsys, gated, ticket="ABC-13")["receipt"] != first
+    (gated["gate"].parent / "shot.png").write_bytes(b"another picture")
+    assert _preview(capsys, gated, ticket="ABC-12")["receipt"] != first
+
+
+def test_a_github_ticket_warns_that_a_public_repository_shows_the_pictures(gated, repo, capsys):
+    head = _commit_config(repo, {"kind": "github-issues", "repo": "acme/widget"})
+    gated["forge"].answers["change-view"] = {**VIEW, "head_sha": head}
+    assert "public" in _preview(capsys, gated, ticket="12")["notice"]
+
+
+def test_the_preview_names_a_secret_in_the_comment(gated, capsys):
+    _rewrite(gated["gate"], lambda data: data["rows"][0]["verdict"].update(seen=["The page shows ghp_" + "a" * 30 + "."]))
+    assert [hit["shape"] for hit in _preview(capsys, gated, ticket="ABC-12")["secrets"]] == ["github-token"]
+
+
+def test_without_a_plan_folder_the_gate_and_the_mark_post_the_comment_then_ready(gated, repo, capsys):
+    code, answer = _mark(capsys, gated, ticket="ABC-12")
+    assert code == 0 and answer["marked"] is True and answer["comment"]["url"] == "https://t.test/c1"
+    verb, sent = gated["tracker"].calls[-1]
+    assert verb == "comment-put" and sent["key"] == "ABC-12" and sent["receipt"] == answer["comment"]["receipt"]
+    assert sent["body"].startswith(f"afkv2 proof v1 {sent['receipt']}") and sent["pictures"] == [str(gated["gate"].parent / "shot.png")]
+    assert gated["forge"].verbs()[-1] == "change-ready" and gated["reviewed"] == []
+    assert ci_watch.proof_posted(repo, gated["gate"].read_bytes()) is True
+
+
+def test_a_plan_folder_keeps_the_review_check_next_to_the_gate(gated, capsys):
+    code, answer = _mark(capsys, gated, ticket="ABC-12", plan=str(gated["plan"]))
+    assert code == 0 and answer["marked"] is True and gated["reviewed"] == ["0001-a", "0002-b"]
+
+
+def test_the_gate_is_verified_before_the_reviews_and_ci_and_the_comment_goes_before_ready(gated, capsys, monkeypatch):
+    order = []
+    original = gate_record.verify
+    monkeypatch.setattr(gate_record, "verify", lambda *a, **k: order.append("gate") or original(*a, **k))
+    monkeypatch.setattr(ci_watch, "call_review", lambda _plan, _subtask: order.append("review") or SETTLED)
+    gated["forge"].answers["ci-status"] = lambda _payload: order.append("ci") or {"ok": True, "status": "success", "url": "u"}
+    gated["tracker"].answers["comment-put"] = lambda _payload: order.append("comment") or {"ok": True, "comment_id": "c", "url": "u", "posted": True}
+    gated["forge"].answers["change-ready"] = lambda _payload: order.append("ready") or {"ok": True}
+    receipt = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    order.clear()
+    assert _mark(capsys, gated, ticket="ABC-12", plan=str(gated["plan"]), receipt=receipt)[0] == 0
+    assert order == ["gate", "review", "review", "ci", "comment", "ready"]
+
+
+def _no_proof(gated):
+    ci_watch.write_parts("7", [], [])
+
+
+def _proof_without_evidence(gated):
+    ci_watch.write_parts("7", [{**PROOF, "evidence": " "}], [])
+
+
+def _open_bug(gated):
+    ci_watch.write_parts("7", [PROOF], [{"id": "FB-01", "what": "a bug", "where": "x", "how": "y", "pick": None, "by": None, "reason": None}])
+
+
+def _failed_row(gated):
+    _rewrite(gated["gate"], lambda data: data["rows"][0]["verdict"].update(result="fail"))
+
+
+def _waiting_row(gated):
+    _rewrite(gated["gate"], lambda data: data["rows"][0].update(result="waiting", waiting="no browser driver"))
+
+
+def _silent_verdict(gated):
+    _rewrite(gated["gate"], lambda data: data["rows"][0]["verdict"].update(seen=[]))
+
+
+def _changed_evidence(gated):
+    (gated["gate"].parent / "shot.png").write_bytes(b"changed")
+
+
+def _stale_head(gated):
+    head = commit(gated["repo"], "src.txt", "late\n")
+    gated["forge"].answers["change-view"] = {**VIEW, "head_sha": head}
+
+
+@pytest.mark.parametrize(("damage", "code", "named"), [
+    (_no_proof, "proof-missing", "the export downloads a file"),
+    (_proof_without_evidence, "proof-field-missing", "evidence"),
+    (_open_bug, "found-open", "FB-01"),
+    (_failed_row, "gate-not-passed", "VR-1"),
+    (_waiting_row, "gate-not-passed", "no browser driver"),
+    (_silent_verdict, "verdict-no-description", "VR-1"),
+    (_changed_evidence, "evidence-changed", "shot.png"),
+    (_stale_head, "gate-head-stale", "src.txt"),
+])
+def test_each_gate_failure_refuses_ready_before_ci_and_posts_nothing(gated, repo, capsys, damage, code, named):
+    receipt = _preview(capsys, gated, ticket="ABC-12")["receipt"]
+    damage({**gated, "repo": repo})
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), ticket="ABC-12", receipt=receipt)
+    assert code in [failure["code"] for failure in error["failures"]] and named in error["reason"]
+    assert error["code"] == error["failures"][0]["code"]
+    assert "ci-status" not in gated["forge"].verbs() and "change-ready" not in gated["forge"].verbs()
+    assert gated["tracker"].calls == []
+
+
+@pytest.mark.parametrize("receipt", [None, "0" * 64])
+def test_ready_without_the_ship_mark_on_this_exact_comment_refuses_proof_not_posted(gated, capsys, receipt):
+    payload = {"receipt": receipt} if receipt else {}
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(gated["gate"]), ticket="ABC-12", **payload)
+    assert error["code"] == "proof-not-posted" and "proof-preview" in error["reason"]
+    assert gated["tracker"].calls == [] and "change-ready" not in gated["forge"].verbs()
+
+
+def test_a_failed_post_leaves_the_change_draft(gated, repo, capsys):
+    gated["tracker"].answers["comment-put"] = {"ok": False, "error": {"code": "gh-too-old", "reason": "gh 2.92.0"}}
+    code, answer = _mark(capsys, gated, ticket="ABC-12")
+    assert code == 1 and answer["error"]["code"] == "gh-too-old"
+    assert "change-ready" not in gated["forge"].verbs() and ci_watch.proof_posted(repo, gated["gate"].read_bytes()) is False
+
+
+def test_a_red_ci_posts_no_comment(gated, capsys):
+    gated["forge"].answers["ci-status"] = {"ok": True, "status": "failed", "url": "u"}
+    assert _mark(capsys, gated, ticket="ABC-12")[1]["error"]["code"] == "ci-red"
+    assert gated["tracker"].calls == []
+
+
+def test_a_comment_posted_before_is_not_posted_again_and_ready_goes_on(gated, repo, capsys):
+    gated["tracker"].answers["comment-put"] = {"ok": True, "comment_id": "c0", "url": "https://t.test/c0", "attached": [], "posted": False}
+    code, answer = _mark(capsys, gated, ticket="ABC-12")
+    assert code == 0 and answer["comment"]["posted"] is False and ci_watch.proof_posted(repo, gated["gate"].read_bytes()) is True
+
+
+def test_without_a_ticket_a_github_change_gets_the_comment_with_its_pictures(gated, capsys):
+    gated["forge"].answers["change-view"] = {**VIEW, "url": "https://github.com/acme/widget/pull/7", "head_sha": gated["head"]}
+    preview = _preview(capsys, gated)
+    assert preview["where"] == {"kind": "change", "key": "7"} and "public" in preview["notice"]
+    code, _answer = _mark(capsys, gated, receipt=preview["receipt"])
+    assert code == 0
+    verb, sent = gated["tracker"].calls[-1]
+    assert (verb, sent["tracker"], sent["repo"], sent["key"]) == ("comment-put", "github-issues", "acme/widget", "7")
+
+
+def test_without_a_ticket_another_forge_gets_the_comment_as_a_note_once(gated, capsys):
+    preview = _preview(capsys, gated)
+    gated["forge"].answers["note-list"] = {"ok": True, "notes": [], "count": 0}
+    gated["forge"].answers["change-comment"] = {"ok": True, "url": "https://f.test/7#note-1"}
+    assert _mark(capsys, gated, receipt=preview["receipt"])[0] == 0
+    sent = [payload for verb, payload in gated["forge"].calls if verb == "change-comment"]
+    assert sent == [{"id": "7", "text": preview["body"]}] and gated["tracker"].calls == []
+    gated["forge"].calls.clear()
+    gated["forge"].answers["note-list"] = {"ok": True, "notes": [{"id": 1, "body": preview["body"]}], "count": 1}
+    assert _mark(capsys, gated, receipt=preview["receipt"])[0] == 0
+    assert "change-comment" not in gated["forge"].verbs()
+
+
+def test_without_a_plan_or_a_gate_record_ready_refuses_no_gate(gated, capsys):
+    error = refused(ci_watch, capsys, "mark-ready", id="7")
+    assert error["code"] == "no-gate" and "change-ready" not in gated["forge"].verbs()
+
+
+def test_a_gate_record_that_is_not_there_refuses_no_gate(gated, tmp_path, capsys):
+    error = refused(ci_watch, capsys, "mark-ready", id="7", gate=str(tmp_path / "none.json"), receipt="0" * 64)
+    assert error["code"] == "no-gate"
+
+
+def test_a_rules_2_plan_without_a_gate_record_refuses_no_gate(gated, capsys):
+    (gated["plan"] / "PLAN.md").write_text("# Plan\n\n> Rules: 2\n\n## Solution map\n", encoding="utf-8")
+    error = refused(ci_watch, capsys, "mark-ready", id="7", plan=str(gated["plan"]))
+    assert error["code"] == "no-gate" and gated["reviewed"] == []
+
+
 def _review_command(plan, verb, **payload):
     done = subprocess.run([sys.executable, str(ci_watch.REVIEW), verb], input=json.dumps({"plan": str(plan), "subtask": "0001-a", **payload}).encode("utf-8"),
                           capture_output=True, timeout=60)
@@ -1177,7 +1421,8 @@ def test_no_merge_command_and_no_forge_tool_is_reachable_from_the_scripts(script
     assert not re.search(r"""["'](merge|change-merge)["']|\b(pr|mr) merge\b|--auto\b|automerge""", source)
     assert not re.search(r"""["'](gh|glab)["']""", source)
     named = set(re.findall(r"""(?:call_forge|forge_answer)\(\s*["']([a-z-]+)["']""", source))
-    assert named and named <= {"change-view", "change-create-draft", "change-update-body", "change-ready", "ci-status", "ci-wait"}
+    assert named and named <= {"change-view", "change-create-draft", "change-update-body", "change-ready", "ci-status", "ci-wait",
+                              "note-list", "change-comment"}
 
 
 class Tools:
