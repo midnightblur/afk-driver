@@ -36,6 +36,7 @@ CLASSES = ("mechanical", "standard", "complex")  # copy of the enum in to-subtas
 JOURNAL_HEADER = "# Journal: append-only event log, one line per event. Newest last.\n"
 LEDGER_HEADER = "# Decisions: taken hands-off, each one reversible on the record. Newest last.\n"
 LEDGER_ID = re.compile(r"^## D-(\d+) ", re.MULTILINE)
+NO_ROW = {"", "-", "—", "none"}
 
 
 def _bad(reason):
@@ -420,6 +421,40 @@ def _own_commits(subtask, base):
     return [line.split("\t")[0] for line in lines if line.split("\t", 1)[-1].startswith(f"[{subtask}]")]
 
 
+def _plan_rows(contract):
+    """{VR id: level} of each `## Verification` row that runs and names plan rows. A live tier is `high`, else `low`."""
+    rows = {}
+    for row in contract.rows:
+        if row.plan_row is None or row.check.lower().startswith("not applicable"):
+            continue
+        level = "high" if row.tier.strip("` ").lower() in start_gate.LIVE_TIERS else "low"
+        for item in (part.strip().strip("`") for part in row.plan_row.split(",")):
+            if item.lower() not in NO_ROW:
+                rows[item] = "low" if "low" in (level, rows.get(item)) else level
+    return rows
+
+
+def _row_failures(subtask, contract, record):
+    """The done row checks of a `> Rules: 2` plan: each plan row of the contract has a test or a no-test entry of
+    its own, each low row a green, and each test a plan row of the contract (PRD AC-008, AC-023; SDD §6 I-5)."""
+    rows, cycles = _plan_rows(contract), record["cycles"]
+    covered = {entry.get("row") for entry in record["no_test"]}
+    failures = []
+    for row, level in rows.items():
+        own = [cycle for cycle in cycles if cycle.get("row") == row]
+        if row in covered:
+            continue
+        if not own:
+            failures.append({"code": "row-no-test", "row": row, "reason": f"VC-5: plan row {row} of {subtask} has no test and no no-test entry"})
+        elif level == "low" and not any(cycle["green"] for cycle in own):
+            failures.append({"code": "row-not-green", "row": row, "reason": f"low-level plan row {row} has no green test"})
+    for cycle in cycles:
+        if cycle.get("row") not in rows:
+            failures.append({"code": "test-no-row", "row": cycle.get("row"),
+                             "reason": f"VC-5: the test of {cycle['behavior']} names {cycle.get('row') or 'no plan row'}, which is no plan row of {subtask}"})
+    return failures
+
+
 def _finish_failures(plan, subtask, record, change):
     base = record["base"]
     failures = []
@@ -429,6 +464,8 @@ def _finish_failures(plan, subtask, record, change):
     if not commits:
         failures.append({"code": "no-own-commits", "reason": f"no commit from {base} to HEAD starts with `[{subtask}]`"})
     failures.extend(tdd_log.verdict(plan, subtask, base))
+    if rules_of(read_text(plan_file(plan))) == 2:
+        failures.extend(_row_failures(subtask, read_contract(plan, subtask), tdd_log.record(plan, subtask)))
     branch = _git(".", "rev-parse", "--abbrev-ref", "HEAD")
     if git_line(".", "rev-parse", f"origin/{branch}") != _git(".", "rev-parse", "HEAD"):
         failures.append({"code": "not-pushed", "reason": f"HEAD is not the head of origin/{branch}"})

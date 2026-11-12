@@ -401,7 +401,7 @@ def cycle(row, green=True, level="low"):
 
 def row_codes(record):
     contract = plan_contract.Contract("0001-a", plan_contract.sections_of(rows_contract("0001-a")))
-    return sorted((item["code"], item["row"]) for item in walk._row_failures("0001-a", contract, record))
+    return sorted(((item["code"], item["row"]) for item in walk._row_failures("0001-a", contract, record)), key=str)
 
 
 def test_done_row_checks_on_a_rules_2_plan():
@@ -413,7 +413,7 @@ def test_done_row_checks_on_a_rules_2_plan():
     assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-004", level="high")], "no_test": [{"why": "w", "row": "VR-002"}]}) == [
         ("row-no-test", "VR-003")]
     assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high"), cycle("VR-009"), cycle(None)],
-                      "no_test": []}) == [("test-no-row", None), ("test-no-row", "VR-009")]
+                      "no_test": []}) == [("test-no-row", "VR-009"), ("test-no-row", None)]
 
 
 def test_a_low_row_with_a_cycle_marked_high_still_needs_green():

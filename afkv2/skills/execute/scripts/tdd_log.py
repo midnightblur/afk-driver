@@ -191,6 +191,11 @@ def _first_head(heads, base, cwd):
     return min(known, key=order.index) if known else None
 
 
+def record(plan, subtask):
+    """The test-first record of a subtask: {"cycles": [...], "no_test": [...]}."""
+    return _load(Path(plan) / "review" / f"{subtask}.tdd.json")
+
+
 def verdict(plan, subtask, base, cwd="."):
     """Each way this subtask's record breaks the test-first order; empty when it holds.
 
