@@ -125,6 +125,20 @@ def _node_cards(doc: dict) -> str:
     return f'<script type="application/json" id="{NODE_CARDS_ID}">{data}</script>'
 
 
+def _changed_now(doc: dict, round_: dict) -> set:
+    """The elements that show the changed-this-round mark (PRD AC-047): after round 1, each element that the
+    current round's changed lists name, and each section with an added or changed line of that round, on a version 2
+    page. Round 1 changes nothing; a version 0 or 1 page keeps its visible text (ADR-0003 design)."""
+    if round_["n"] == 1 or doc["schema"] != V2:
+        return set()
+    touched = _section_changes(doc, round_["n"])
+    return {*_changed_ids(round_), *touched["added"], *touched["changed"]}
+
+
+def _mark(item: dict, changed: set) -> dict:
+    return {"changed": True} if item["id"] in changed else {}
+
+
 def _round_marks(html: str, round_: dict) -> str:
     """A mark on each element that the current round or its answers changed; no other element has one."""
     for element in _changed_ids(round_):
@@ -146,10 +160,16 @@ def _label(doc: dict, item: dict) -> dict:
     return {"label": parts_v2.visible_label(doc, "element", item["id"])} if doc["schema"] == V2 else {}
 
 
+def _age(doc: dict, round_: dict) -> int:
+    """The count of rounds from `round_` to the current round: the fade of its chips (`base_card.fade`)."""
+    return max(r["n"] for r in doc["rounds"]) - round_["n"]
+
+
 def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_), "current": current,
+                  "age": _age(doc, round_),
                   "exchange": _exchange(doc, item), **_label(doc, item), **extra},
         "children": [item["body"]],
     })
@@ -171,9 +191,9 @@ def _history(doc: dict, point) -> str:
             f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
 
 
-def _point(doc: dict, point, current_n: int, settled: bool = False) -> str:
+def _point(doc: dict, point, current_n: int, changed: set, settled: bool = False) -> str:
     """A settled point folds to its heading and settled line on the rail, an info card of an earlier round too."""
-    extra = {"history": _history(doc, point), **({"rail": "settled"} if settled else {})}
+    extra = {"history": _history(doc, point), **({"rail": "settled"} if settled else {}), **_mark(point.head, changed)}
     return _card(doc, point.head, point.round, point.round["n"] == current_n, **extra)
 
 
@@ -191,7 +211,8 @@ def _answerable(item: dict) -> bool:
 def _current_section(doc: dict, round_: dict, points: list) -> str:
     """The mark runtime reads the session and the round here: they key each queued mark."""
     n = round_["n"]
-    cards = "".join(_point(doc, point, n) for point in points)
+    changed = _changed_now(doc, round_)
+    cards = "".join(_point(doc, point, n, changed) for point in points)
     live = any(_answerable(item) for item in round_["items"])
     return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
             f'data-afkv2-round="{n}" data-afkv2-session="{escape(doc["session"]["id"])}" '
@@ -200,10 +221,11 @@ def _current_section(doc: dict, round_: dict, points: list) -> str:
             f'{COPY_BAR if live else ""}</section>')
 
 
-def _settled_section(doc: dict, points: list, current_n: int) -> str:
+def _settled_section(doc: dict, points: list, current: dict) -> str:
     if not points:
         return ""
-    cards = "".join(_point(doc, point, current_n, settled=True) for point in points)
+    changed = _changed_now(doc, current)
+    cards = "".join(_point(doc, point, current["n"], changed, settled=True) for point in points)
     return (f'<section class="afkv2-settled-points" id="afkv2-settled">'
             f'<h2 class="afkv2-section-h">Settled by earlier rounds ({len(points)})</h2>'
             '<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
@@ -347,7 +369,7 @@ def _build(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
             f'{_current_section(doc, current, live)}'
-            f'{_settled_section(doc, settled, current["n"])}'
+            f'{_settled_section(doc, settled, current)}'
             f'{_earlier_banners(doc)}{_node_cards(doc)}')
     return _document(doc, title, body, current, btw)
 
@@ -436,13 +458,13 @@ def _section_link(doc: dict, item: dict) -> str:
     return f'<p class="afkv2-v2-card-section">Section: {parts_v2.link(doc, target)}</p>'
 
 
-def _card_v2(doc: dict, point, current_n: int) -> str:
+def _card_v2(doc: dict, point, current_n: int, changed: set) -> str:
     item, round_ = point.head, point.round
     return render_component({
         "type": "card",
         "props": {"item": item, "round": round_["n"], "colour": round_colour(round_),
-                  "current": round_["n"] == current_n, "exchange": _section_link(doc, item) + _exchange(doc, item),
-                  "history": _history(doc, point), **_label(doc, item)},
+                  "current": round_["n"] == current_n, "age": _age(doc, round_), "exchange": _section_link(doc, item) + _exchange(doc, item),
+                  "history": _history(doc, point), **_label(doc, item), **_mark(item, changed)},
         "children": [item["body"]],
     })
 
@@ -451,7 +473,8 @@ def _round_questions(doc: dict, round_: dict, points: list) -> str:
     """The round's questions in 1 block, each card with a link to its section. The mark runtime reads the
     session and the round here, as on the earlier layout."""
     n = round_["n"]
-    cards = "".join(_card_v2(doc, point, n) for point in points)
+    changed = _changed_now(doc, round_)
+    cards = "".join(_card_v2(doc, point, n, changed) for point in points)
     live = any(_answerable(item) for item in round_["items"])
     return (f'<section class="afkv2-round" id="afkv2-r-{n}" data-afkv2-item="R-{n}" data-afkv2-state="current" '
             f'data-afkv2-round="{n}" data-afkv2-session="{escape(doc["session"]["id"])}" '
@@ -475,8 +498,8 @@ def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> 
             f'{_banner_v2(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
-            f'{parts_v2.render_sections(doc)}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{parts_v2.render_sections(doc, _changed_now(doc, current))}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
             f'{_round_questions(doc, current, live)}'
-            f'{_settled_section(doc, settled, current["n"])}'
+            f'{_settled_section(doc, settled, current)}'
             f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')
     return _document(doc, title, body, current, btw)

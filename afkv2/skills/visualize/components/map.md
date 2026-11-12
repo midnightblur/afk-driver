@@ -32,6 +32,8 @@ pointer for help and shows its text on hover. A map with groups draws each group
 as its own labelled box, side by side, and stacks them on a narrow window; the
 nodes in no group come last. An arrow inside a group is drawn. An arrow between
 2 groups is a line under the groups: "<from> settles before <to>".
+Each group canvas starts its boxes at the top, so boxes in 2 groups do not line up. When arrows join
+boxes of different groups, put a `graph` with groups in the map's `children`: SKILL.md, "Arrows between groups".
 
 ## Example
 

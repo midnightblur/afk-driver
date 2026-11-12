@@ -11,6 +11,7 @@ import json
 import re
 import shutil
 import sys
+from dataclasses import fields
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -18,9 +19,12 @@ import pytest
 
 PLUGIN = Path(__file__).resolve().parents[2]
 SCRIPTS = PLUGIN / "skills" / "propose-solution" / "scripts"
+ENGINE = PLUGIN / "skills" / "use-lavish" / "scripts"
+sys.path.insert(0, str(ENGINE))
 sys.path.insert(0, str(SCRIPTS))
 
 import design_round as dr  # noqa: E402
+import proposer_engine as engine  # noqa: E402
 import proposers  # noqa: E402
 from grill_common import Refusal  # noqa: E402
 
@@ -122,7 +126,7 @@ class FakeRunner:
             self.panes[pane] = {"cwd": args[args.index("--cwd") + 1], "status": "idle"}
             return 0, _json({"id": "cli:pane:split", "result": {"pane": {"pane_id": pane}}}), ""
         if verb == ["agent", "start"]:
-            if not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", args[2]):
+            if not re.fullmatch(engine.AGENT_NAME_RULE, args[2]):
                 return _error("invalid_agent_name")
             self.agents[args[2]] = args[args.index("--pane") + 1]
             return 0, _json({"result": {}}), ""
@@ -309,9 +313,9 @@ def _b64(text):
     (_codex_requirements, "bypass-forbidden"),
     (_file(CLAUDE_LINUX, "{not json"), "bypass-forbidden"),
     (_file(CLAUDE_LINUX, "[1]"), "bypass-forbidden"),
-    (_file(CLAUDE_LINUX, proposers.UNREADABLE), "bypass-forbidden"),
+    (_file(CLAUDE_LINUX, engine.UNREADABLE), "bypass-forbidden"),
     (_file(CODEX_LINUX, "allowed_sandbox_modes = ["), "bypass-forbidden"),
-    (_file(CODEX_LINUX, proposers.UNREADABLE), "bypass-forbidden"),
+    (_file(CODEX_LINUX, engine.UNREADABLE), "bypass-forbidden"),
     (_file(CODEX_LINUX, 'allowed_sandbox_modes = "read-only"\n'), "bypass-forbidden"),
     (_file(CODEX_LINUX, 'allowed_approval_policies = ["untrusted", "on-request"]\n'), "bypass-forbidden"),
     (_file(CODEX_LINUX, '[allowed_permission_profiles]\n":workspace" = true\n'), "bypass-forbidden"),
@@ -469,15 +473,15 @@ def test_a_stalled_prompt_gets_one_enter_when_the_brief_is_still_in_the_input_li
 
 def test_a_stalled_prompt_gets_no_enter_when_the_brief_left_the_input_line(runner, doc, phase, brief):
     _stalled(runner)
-    runner.screen = f"> {proposers.DRAFT_PROMPT}\n\nWorking on the draft\n\n> \n"
+    runner.screen = f"> {engine.DRAFT_PROMPT}\n\nWorking on the draft\n\n> \n"
 
     answer = started(runner, doc, brief)
 
     assert all(entry["submitted"] for entry in answer["proposers"])
     assert runner.commands("pane", "send-keys") == []
     confirms = [c for c in runner.commands("agent", "wait") if "working" in c]
-    assert [c[2] for c in confirms] == [proposers._agent_name(doc.stem, tool) for tool in ("claude", "codex")]
-    assert all(c[c.index("--timeout") + 1] == proposers.ENTER_MS for c in confirms)
+    assert [c[2] for c in confirms] == [engine.agent_name("proposer", doc.stem, tool) for tool in ("claude", "codex")]
+    assert all(c[c.index("--timeout") + 1] == engine.ENTER_MS for c in confirms)
 
 
 def test_a_stalled_prompt_behind_a_start_up_dialog_refuses_not_submitted(runner, doc, phase, brief):
@@ -524,34 +528,34 @@ def _boxed(text, width):
 
 @pytest.mark.parametrize("width", [40, 60, 80])
 def test_a_stalled_prompt_wrapped_in_a_narrow_input_box_still_gets_its_enter(width):
-    text = proposers.CRITIQUE_PROMPT.format(other=r"C:\work\repo-worktrees\proposer-s-1-codex\DRAFT.md",
-                                            brief=proposers.BRIEF, critique=proposers.CRITIQUE)
+    text = engine.CRITIQUE_PROMPT.format(other=r"C:\work\repo-worktrees\proposer-s-1-codex\DRAFT.md",
+                                            brief=engine.BRIEF, critique=engine.CRITIQUE)
 
-    assert proposers._in_input_line(_boxed(text, width), text)
-    assert proposers._in_input_line(_boxed(proposers.DRAFT_PROMPT, width), proposers.DRAFT_PROMPT)
+    assert engine._in_input_line(_boxed(text, width), text)
+    assert engine._in_input_line(_boxed(engine.DRAFT_PROMPT, width), engine.DRAFT_PROMPT)
 
 
 def test_a_brief_above_an_empty_input_line_counts_as_submitted():
-    screen = "\n".join([f"> {proposers.DRAFT_PROMPT}", "", "Reading BRIEF.md", *(f"line {n}" for n in range(8)),
+    screen = "\n".join([f"> {engine.DRAFT_PROMPT}", "", "Reading BRIEF.md", *(f"line {n}" for n in range(8)),
                         _boxed("", 60)])
 
-    assert not proposers._in_input_line(screen, proposers.DRAFT_PROMPT)
+    assert not engine._in_input_line(screen, engine.DRAFT_PROMPT)
 
 
 def test_a_screen_with_no_prompt_marker_reads_its_last_lines_as_the_input_line():
-    text = proposers.DRAFT_PROMPT
-    near = "\n".join(["output", text, *(f"line {n}" for n in range(proposers.INPUT_LINES - 1))])
-    far = "\n".join([text, *(f"line {n}" for n in range(proposers.INPUT_LINES))])
+    text = engine.DRAFT_PROMPT
+    near = "\n".join(["output", text, *(f"line {n}" for n in range(engine.INPUT_LINES - 1))])
+    far = "\n".join([text, *(f"line {n}" for n in range(engine.INPUT_LINES))])
 
-    assert proposers._in_input_line(near, text)
-    assert not proposers._in_input_line(far, text)
+    assert engine._in_input_line(near, text)
+    assert not engine._in_input_line(far, text)
 
 
 def test_a_shared_short_prefix_is_not_the_prompt():
-    assert proposers.PREFIX == 40
-    text = proposers.DRAFT_PROMPT
+    assert engine.PREFIX == 40
+    text = engine.DRAFT_PROMPT
 
-    assert not proposers._in_input_line(f"> {text[:12]} something else entirely", text)
+    assert not engine._in_input_line(f"> {text[:12]} something else entirely", text)
 
 
 def test_start_splits_the_current_pane_without_focus_when_herdr_names_no_pane(runner, doc, phase, brief):
@@ -971,7 +975,7 @@ def test_cleanup_after_a_one_proposer_plan_records_cleaned(runner, doc, phase):
 # The Runner and the slot it replaces (PRD AC-017; SDD §14 row "second-provider slot").
 
 def test_only_the_runner_starts_a_process():
-    tree = ast.parse((SCRIPTS / "proposers.py").read_text("utf-8"))
+    tree = ast.parse((ENGINE / "proposer_engine.py").read_text("utf-8"))
     runner_class = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "HerdrRunner")
     inside = {id(node) for node in ast.walk(runner_class)}
     outside = [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Attribute)
@@ -984,12 +988,66 @@ def test_the_second_provider_slot_is_gone():
     assert not (SCRIPTS / "second_provider.py").exists()
 
 
+# The engine and its adapter (SDD §8 row "proposer engine"; design ADR-0008).
+
+def test_the_skill_adapter_has_state_path_ready_noun_and_prefix():
+    assert [field.name for field in fields(engine.SkillAdapter)] == ["state_path", "ready", "noun", "prefix"]
+
+
+def test_the_engine_imports_nothing_from_propose_solution():
+    tree = ast.parse((ENGINE / "proposer_engine.py").read_text("utf-8"))
+    imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import)
+                for alias in node.names}
+    imported |= {(node.module or "").split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
+    own = {path.stem for path in SCRIPTS.glob("*.py")}
+    assert imported & own == set()
+    assert "propose-solution" not in (ENGINE / "proposer_engine.py").read_text("utf-8")
+
+
+def test_the_engine_exposes_the_verbs():
+    assert all(callable(getattr(engine, name)) for name in ("plan_proposers", "start", "wait", "critique", "cleanup"))
+
+
+def test_another_adapter_keeps_its_own_state_file_ready_check_noun_and_worktree_prefix(runner, tmp_path, brief):
+    doc = tmp_path / "repo" / "docs" / "pages" / "other-s-1.json"
+    doc.parent.mkdir(parents=True)
+    held = {"ready": False}
+
+    def ready(doc_path, current):
+        if not held["ready"]:
+            raise Refusal("not-ready", "the other skill is not ready")
+
+    adapter = engine.SkillAdapter(state_path=lambda doc_path: Path(doc_path).with_suffix(".other.json"), ready=ready,
+                                  noun="plan", prefix="drafter")
+    with pytest.raises(Refusal) as caught:
+        engine.plan_proposers(adapter, doc, runner)
+    assert caught.value.code == "not-ready" and not doc.with_suffix(".other.json").exists()
+
+    held["ready"] = True
+    assert engine.plan_proposers(adapter, doc, runner) == {"count": 2, "tools": ["claude", "codex"], "reason": None}
+    answer = engine.start(adapter, doc, brief, BASE, runner)
+
+    assert [Path(entry["worktree"]).name for entry in answer["proposers"]] == [
+        f"drafter-other-s-1-{tool}" for tool in ("claude", "codex")]
+    assert json.loads(doc.with_suffix(".other.json").read_text("utf-8"))["stage"] == "drafting"
+    assert not doc.with_suffix(".proposers.json").exists()
+    with pytest.raises(Refusal) as caught:
+        engine.start(adapter, doc, brief, BASE, runner)
+    assert caught.value.code == "same-tool" and "plan proposers" in caught.value.reason
+
+
 def test_start_names_each_agent_within_the_herdr_name_rule_for_a_long_session_stem(runner, doc, phase, brief):
     long_doc = doc.with_name("propose-solution-s-20261111-182535.json")
     answer = started(runner, long_doc, brief)
 
     names = [s[2] for s in runner.commands("agent", "start")]
     assert len(names) == 2 and len(set(names)) == 2
-    assert all(re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", name) for name in names)
+    assert all(re.fullmatch(engine.AGENT_NAME_RULE, name) for name in names)
     assert all(entry["submitted"] is True for entry in answer["proposers"])
 
+
+def test_each_adapter_prefix_keeps_the_agent_name_within_the_herdr_name_rule():
+    stem = "propose-verification-s-20261111-182535"
+    for prefix in ("proposer", "verifier", "small", "drafter"):
+        for tool in ("claude", "codex"):
+            assert re.fullmatch(engine.AGENT_NAME_RULE, engine.agent_name(prefix, stem, tool))

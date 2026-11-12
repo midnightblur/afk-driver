@@ -15,6 +15,7 @@ The plan is `plan/` at the root of the run branch `<feature branch>-run`: `PLAN.
 | `.afkv2/config.json`, with a tracker kind | written by `/afkv2:setup` | stop and name the file and `/afkv2:setup` |
 | `PRD.md` and the requirement ADRs | written by `/afkv2:to-prd` | stop and name the file and `/afkv2:to-prd` |
 | `SDD.md` and the design ADRs | written by `/afkv2:propose-solution` | stop and name the file and `/afkv2:propose-solution` |
+| `VERIFICATION.md` | written by `/afkv2:propose-verification` | stop and name the file and `/afkv2:propose-verification` |
 
 Read only these files and the code. A requirement or a design point they leave out is a gap of the skill that writes them: name it, and send the human there.
 
@@ -32,7 +33,7 @@ Run each command from the worktree of the feature branch, at the repository root
 
    `missing-input`: stop and show `missing` and `writer`. `sdd-not-ready`: stop and show `problems` and `writer`. `not-feature-branch`: run from the worktree of the feature branch. The answer holds `spec_dir`, `prd`, `sdd`, `parent_prd`, `parent_sdd`, `requirement_adrs`, `design_adrs`, `run_branch`, `worktree`, `plan`, `plan_exists`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. It creates the run branch and its worktree when they do not exist. `raw_pending` true: an answer waits in `raw_file`, so go to step 9. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)); this skill keeps no log, so it writes no row. Read `doc`, honour every steer in it, and continue at the first unfinished step.
 
-2. **Read the sources.** Read `prd`, `sdd` and each file in `requirement_adrs` and `design_adrs`, in a background subagent that returns the ids and the sections you can cite. Done when you hold the list of PRD ids, SDD sections and ADRs.
+2. **Read the sources.** Read `prd`, `sdd`, `VERIFICATION.md` in `spec_dir` and each file in `requirement_adrs` and `design_adrs`, in a background subagent that returns the ids and the sections you can cite. Done when you hold the list of PRD ids, SDD sections, ADRs and plan rows.
 
 3. **Cut the plan.** Follow [SLICING.md](SLICING.md). Write `<plan>/PLAN.md` by [PLAN-FORMAT.md](PLAN-FORMAT.md) and one `<plan>/NNNN-<slug>.md` per subtask by [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md). Done when each settled requirement has a subtask and each subtask has its contract.
 

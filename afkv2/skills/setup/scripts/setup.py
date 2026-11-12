@@ -6,6 +6,9 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
   prepare                                  Python 3, rg on every shell, install record
   herdr --answer yes|no                    the developer's answer: yes runs the official installer
   diagram-renderer                         the diagram command, and its config that names the installed Edge
+  browser-driver [--attach chrome|edge]    Chrome DevTools MCP for Claude and Codex, proved live; attach is opt-in
+  judge --provider claude|codex [--model M]
+                                           1 proving call, then the judge model line of the install record
   secrets                                  the developer's own terminal only: Jira values
   copy-config [--spec-folder PATH] [--no-v1-values]
                                            write .afkv2/config.json once, with its spec_folder
@@ -31,8 +34,11 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(1, str(Path(__file__).resolve().parents[3] / "scripts"))
 
 import jira_values  # noqa: E402
+import mcp_entries  # noqa: E402
+import other_provider  # noqa: E402
 import plugins  # noqa: E402
 import repo_config  # noqa: E402
 import tools  # noqa: E402
@@ -64,6 +70,8 @@ class System:
     ask: Callable[[str], str] = input
     ask_secret: Callable[[str], str] = getpass.getpass
     is_terminal: Callable[[], bool] = lambda: sys.stdin.isatty()
+    mcp_session: Callable = tools.McpSession
+    judge_runner: Callable = other_provider.run_cli
 
 
 def _now() -> datetime:
@@ -630,6 +638,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
     jira = {"claude_user_config": jira_values.restore_claude_user_config(places),
             "user_environment": jira_values.restore_user_env(places, user_env)}
     lavish = _attempt(lambda: tools.restore_lavish(places, run, env))
+    driver = mcp_entries.unregister(places, (tools.DRIVER_ENTRY, tools.ATTACH_ENTRY))
     one_on = _leave_v1_only(places, live, run)
     not_switched = {c["repo"] for c in one_on["claude"] if not c["ok"]}
     for saved, answer in zip(saved_dirs, settings):
@@ -648,6 +657,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         if failed:
             answer.update(settings="failed", reason=failed["reason"], backup=failed["backup"])
     ok = (lavish["ok"] and one_on["ok"] and codex != "failed" and codex_rules != "failed"
+          and "failed" not in driver.values()
           and not any(step["action"] == "failed" for step in jira.values())
           and not any(b["action"] == "failed" for b in blocks)
           and not any(h["action"] in ("conflict", "failed") for h in hooks)
@@ -656,6 +666,7 @@ def switch_back(places: Places, run: tools.Runner, env: Mapping[str, str],
         places.install_record.unlink(missing_ok=True)
     return {"ok": ok, "blocks": blocks, "git_hooks": hooks, "claude_settings": settings,
             "codex_config": codex, "codex_rules": codex_rules, "jira_values": jira, "lavish": lavish, "plugins": one_on,
+            "browser_driver": driver,
             "diagram_renderer": "left-installed",
             "backup_dir": str(places.backup), "published_tickets": published_tickets(places)}
 
@@ -700,7 +711,19 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "claude_plugins": plugins.claude_effective(places.claude_user_settings, repo),
         "codex_plugins": codex_state, "codex_listed_by": codex_source,
         "takeover_backups": places.backup.exists() and any(places.backup.iterdir()),
+        "gh": tools.check_gh(system.run, env, system.windows) if _tracker_kind(repo) == "github-issues"
+        else {"needed": False},
     }
+
+
+def _tracker_kind(repo: Path) -> str | None:
+    """The tracker kind of `.afkv2/config.json`; None when the file is absent or unreadable."""
+    try:
+        data = json.loads(repo_config.afkv2_config(repo).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    tracker = data.get("tracker") if isinstance(data, dict) else None
+    return tracker.get("kind") if isinstance(tracker, dict) else None
 
 
 def _check_plugin_inputs(places: Places, repo: Path) -> dict:
@@ -735,6 +758,96 @@ def takeover(places: Places, repo: Path, system: System, env: Mapping[str, str],
     return {"ok": True, **steps}
 
 
+def browser_driver(places: Places, system: System, env: Mapping[str, str], attach: str | None) -> dict:
+    """Install the driver, register it for both harnesses, prove it in each browser headless and visible,
+    and record the green proof. With `attach`, also try the running browser of the developer."""
+    browsers = tools.find_browsers(env)
+    if not browsers:
+        return _error("no-browser", "no Chrome or Edge at their known install paths; install one, then run this "
+                      "step again. Setup downloads no browser")
+    install = tools.ensure_browser_driver(system.run, env)
+    if not install["ok"]:
+        return install
+    command = tools.driver_command(install)
+
+    def lock(folder: Path) -> None:
+        tools.lock_to_current_user(folder, system.run, system.windows, env)
+
+    first = browsers.get("chrome") or browsers["edge"]
+    register = mcp_entries.register(places, {tools.DRIVER_ENTRY: tools.launch_entry(command, first)}, lock)
+    if not register["ok"]:
+        return {"ok": False, "install": install, "register": register, "error": register["error"]}
+    proofs = []
+    with tools.proof_page() as url:
+        for name, path in browsers.items():
+            for headless in (True, False):
+                proof = tools.prove_driver(command, path, headless, system.mcp_session, url)
+                proofs.append({"browser": name, "headless": headless, **proof})
+    answer = {"install": install, "register": register, "proofs": proofs}
+    failed = [p for p in proofs if not p["ok"]]
+    if failed:
+        reason = "; ".join(f"{p['browser']} {'headless' if p['headless'] else 'visible'}: the {p['failed']} step "
+                           f"failed: {p['reason']}" for p in failed)
+        return {"ok": False, **answer, "error": {"code": "proof-failed", "reason": reason[:600]}}
+    record = read_install_record(places)
+    record["browser_driver"] = f"{install['version']} {_now().isoformat()}"
+    _write_record(places, record)
+    if attach:
+        answer["attach"] = _attach(places, system, env, command, attach, lock)
+    return {"ok": True, **answer}
+
+
+def _attach(places: Places, system: System, env: Mapping[str, str], command: dict, name: str,
+            lock: Callable[[Path], None]) -> dict:
+    proof = tools.prove_attach(command, name, env, system.mcp_session)
+    if not proof["ok"]:
+        return proof
+    register = mcp_entries.register(places, {tools.ATTACH_ENTRY: proof.pop("entry")}, lock)
+    if not register["ok"]:
+        return {"ok": False, "browser": name, "offer": list(tools.ATTACH_FALLBACKS),
+                "why": register["error"]["reason"]}
+    return {**proof, "register": register}
+
+
+JUDGE_PROOF_PROMPT = 'Answer only the JSON object {"ok": true}.'
+JUDGE_PROOF_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["ok"],
+                      "properties": {"ok": {"type": "boolean"}}}
+
+
+def judge(places: Places, system: System, env: Mapping[str, str], provider: str, model: str | None) -> dict:
+    """1 small proving call of `provider` at `model` and medium effort, through the command the judge runs;
+    then the judge model line of the install record (decision D-2), and the judge each session gets."""
+    cli = system.run.which(provider, env)
+    if not cli or Path(cli).suffix.lower() in (".cmd", ".bat"):
+        return _error("no-provider", f"no {provider} program on the path (a .cmd shim does not count)")
+    model = model or tools.JUDGE_MODELS.get(provider) or other_provider.CLI_DEFAULT
+    folder = places.data / "judge-proof"
+    folder.mkdir(parents=True, exist_ok=True)
+    called = {"provider": provider, "model": model, "effort": other_provider.EFFORT, "cli": cli}
+    try:
+        answer, called = other_provider._call(called, JUDGE_PROOF_PROMPT, folder, JUDGE_PROOF_SCHEMA, [],
+                                         system.judge_runner)
+    except other_provider.Refusal as refusal:
+        return _error("proof-failed", f"{provider} at {model}: {refusal.code}: {refusal.reason}")
+    if dict(answer).get("ok") is not True:
+        return _error("proof-failed", f"{provider} at {model} did not answer the proving call")
+    model = called["model"]
+    record = read_install_record(places)
+    record[other_provider.JUDGE_KEY.format(provider=provider)] = model
+    _write_record(places, record)
+    return {"ok": True, "provider": provider, "model": model, "effort": other_provider.EFFORT,
+            "which": {session: _which(session, system, env) for session in PROVIDERS}}
+
+
+def _which(session: str, system: System, env: Mapping[str, str]) -> dict:
+    try:
+        found = other_provider.which(session, lookup=lambda name: system.run.which(name, env),
+                                     runner=system.judge_runner)
+    except other_provider.Refusal as refusal:
+        return {"error": {"code": refusal.code, "reason": refusal.reason}}
+    return {key: found[key] for key in ("provider", "model", "effort")}
+
+
 def secrets(places: Places, system: System, env: Mapping[str, str]) -> dict:
     if env.get("CLAUDECODE") or not system.is_terminal():
         return _error("not-a-terminal", "run `setup.py secrets` in your own terminal, "
@@ -762,8 +875,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     env = os.environ if env is None else env
     system = system or default_system()
     parser = argparse.ArgumentParser(prog="setup.py", description=__doc__.splitlines()[0])
-    parser.add_argument("verb", choices=("status", "prepare", "herdr", "diagram-renderer", "secrets", "copy-config",
-                                         "ownership", "takeover", "switch-back"))
+    parser.add_argument("verb", choices=("status", "prepare", "herdr", "diagram-renderer", "browser-driver", "judge",
+                                         "secrets", "copy-config", "ownership", "takeover", "switch-back"))
     parser.add_argument("--repo")
     parser.add_argument("--provider", choices=PROVIDERS)
     parser.add_argument("--end-marker", default="")
@@ -773,6 +886,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     parser.add_argument("--spec-folder")
     parser.add_argument("--no-v1-values", action="store_true")
     parser.add_argument("--answer", choices=("yes", "no"))
+    parser.add_argument("--attach", choices=tuple(tools.BROWSERS))
+    parser.add_argument("--model")
     try:
         args = parser.parse_args(argv)
     except SystemExit:
@@ -780,13 +895,13 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         return 2
     places = Places.from_env(env)
     repo = None
-    if args.verb not in ("prepare", "herdr", "diagram-renderer", "secrets", "switch-back"):
+    if args.verb not in ("prepare", "herdr", "diagram-renderer", "browser-driver", "judge", "secrets", "switch-back"):
         repo = repo_top(system.run, Path(args.repo) if args.repo else (cwd or Path.cwd()))
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
             return 2
-    if args.verb == "takeover" and not args.provider:
-        print(json.dumps(_error("bad-arguments", "takeover needs --provider")))
+    if args.verb in ("takeover", "judge") and not args.provider:
+        print(json.dumps(_error("bad-arguments", f"{args.verb} needs --provider")))
         return 2
     if args.verb == "herdr" and not args.answer:
         print(json.dumps(_error("bad-arguments", "herdr needs --answer yes or --answer no from the developer")))
@@ -800,6 +915,10 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
             answer = herdr(places, system, args.answer, env)
         elif args.verb == "diagram-renderer":
             answer = tools.ensure_diagram_renderer(places, system.run, env)
+        elif args.verb == "browser-driver":
+            answer = browser_driver(places, system, env, args.attach)
+        elif args.verb == "judge":
+            answer = judge(places, system, env, args.provider, args.model)
         elif args.verb == "secrets":
             answer = secrets(places, system, env)
         elif args.verb == "copy-config":

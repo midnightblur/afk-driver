@@ -7,6 +7,7 @@
     engine.py reply DOC --reply-file FILE
     engine.py end DOC
     engine.py ingest DOC --raw-file FILE
+    engine.py export TEXT_FILE --dest SVG [--artifact FILE]
 
 Show opens a browser tab only when no tab shows the page: a tab that show opened stays the page's tab
 until a poll answers that the session ended or the browser left, or end runs. The host reloads that tab
@@ -22,6 +23,10 @@ Render answers `diagrams`: the count of the page's diagrams rendered, cached and
 Render with `--notices` reads the page's git state and scans the page and each `--scan` file for secrets
 (`notices.py`); it answers `git_state`, `git_reason` and `secrets`, and keeps them in `page-notices/` of the data
 folder, so a later render (show renders too) keeps them in the page header. Neither refuses anything.
+
+Export writes the light picture of the Mermaid text in TEXT_FILE to SVG, on white, the same picture the page showed;
+it answers `path` and `markdown`: the picture, linked from the folder of `--artifact`, with its Mermaid source in a
+fold below it (`diagrams.export`). With no picture it refuses `no-picture`.
 
 Answer: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, the reason naming the
 item and the field. Exit 0 ok, 1 refused, 2 unreadable input.
@@ -706,6 +711,15 @@ def _ingest(args) -> dict:
     return answer
 
 
+def cmd_export(args) -> dict:
+    try:
+        text = Path(args.document).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise Refusal("unreadable", f"cannot read the diagram text {args.document}: {error}") from None
+    markdown = diagrams.export(text, args.dest, args.artifact)
+    return {"ok": True, "path": str(args.dest), "markdown": markdown}
+
+
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         raise Refusal("usage", message)
@@ -715,7 +729,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="engine.py", add_help=False)
     verbs = parser.add_subparsers(dest="verb", required=True, parser_class=_Parser)
     for verb, handler in (("check", cmd_check), ("render", cmd_render), ("show", cmd_show), ("poll", cmd_poll),
-                          ("reply", cmd_reply), ("end", cmd_end), ("ingest", _ingest)):
+                          ("reply", cmd_reply), ("end", cmd_end), ("ingest", _ingest), ("export", cmd_export)):
         sub = verbs.add_parser(verb, add_help=False)
         sub.add_argument("document")
         sub.set_defaults(handler=handler)
@@ -728,6 +742,9 @@ def _parser() -> argparse.ArgumentParser:
             sub.add_argument("--scan", action="append")
         if verb == "ingest":
             sub.add_argument("--raw-file", required=True)
+        if verb == "export":
+            sub.add_argument("--dest", required=True)
+            sub.add_argument("--artifact")
         if verb in ("poll", "reply"):
             sub.add_argument("--reply-file", required=verb == "reply")
     return parser
