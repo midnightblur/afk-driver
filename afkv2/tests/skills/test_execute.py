@@ -189,6 +189,55 @@ def test_verdict_names_each_break_of_the_order(run):
     assert [item["code"] for item in tdd_log.verdict(run.plan, "0001-a", base)] == ["red-open", "code-before-red"]
 
 
+@pytest.fixture
+def rows_run(tmp_path, monkeypatch):
+    """A `> Rules: 2` plan of 1 subtask with a Plan row column."""
+    built = plan_fixture.build(tmp_path, {"0001-a": rows_contract("0001-a")}, header_extra="> Rules: 2")
+    monkeypatch.chdir(built.work)
+    monkeypatch.setattr(walk, "ci_state", lambda change: "watching")
+    return built
+
+
+OLD_HEADER = "| Tier | Check (command or method) | Proves |\n|------|---------------------------|--------|"
+ROW_HEADER = "| Tier | Plan row | Check (command or method) | Proves |\n|------|----------|---------------------------|--------|"
+PLAN_ROWS = ("| static | — | `git --version` | it builds |\n| unit | VR-001 | `git status --short` | the first rule |\n"
+             "| unit | VR-002, VR-003 | `git status --short` | the second rule |\n| api | VR-004 | `git --version` | the answer |")
+
+
+def rows_contract(subtask, rows=PLAN_ROWS):
+    return contract_text(subtask, rows=rows).replace(OLD_HEADER, ROW_HEADER)
+
+
+def record_of(built, subtask="0001-a"):
+    return json.loads((built.plan / "review" / f"{subtask}.tdd.json").read_text(encoding="utf-8"))
+
+
+def test_red_and_no_test_record_the_plan_row_the_test_and_the_level(rows_run):
+    """SDD §3 row "S-4"; SDD §4: `cycles[].row`, `test`, `level`, and `no_test[].row`."""
+    plan = str(rows_run.plan)
+    assert log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", test="tests/test_a.py::test_b")["ok"]
+    assert log("red", plan=plan, subtask="0001-a", behavior="h", command=FAIL, row="VR-004", test="tests/test_h.py::test_h", level="high")["ok"]
+    assert log("no-test", plan=plan, subtask="0001-a", why="prose only", row="VR-002")["ok"]
+    record = record_of(rows_run)
+    assert [(item["row"], item["test"], item["level"]) for item in record["cycles"]] == [
+        ("VR-001", "tests/test_a.py::test_b", "low"), ("VR-004", "tests/test_h.py::test_h", "high")]
+    assert record["no_test"][0]["row"] == "VR-002" and record["no_test"][0]["why"] == "prose only"
+
+
+def test_a_rules_2_plan_refuses_a_red_or_a_no_test_with_no_row(rows_run):
+    plan = str(rows_run.plan)
+    assert code_of(log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL)) == "bad-payload"
+    assert code_of(log("no-test", plan=plan, subtask="0001-a", why="prose only")) == "bad-payload"
+    assert code_of(log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", level="middle")) == "bad-payload"
+    assert not (rows_run.plan / "review" / "0001-a.tdd.json").exists()
+
+
+def test_an_old_call_with_no_row_still_works_on_a_plan_with_no_rules_line(run):
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    assert log("no-test", plan=str(run.plan), subtask="0001-a", why="prose only")["ok"]
+    assert record_of(run)["cycles"][0]["row"] is None
+
+
 def test_a_subtask_with_no_behavior_says_why(run):
     base = git(run.work, "rev-parse", "HEAD")
     run.commit_code("docs/note.md", "text\n", "[0001-a] note")

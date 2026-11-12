@@ -11,13 +11,16 @@ from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN / "ports"))
+sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
 
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
+from plan_contract import plan_file, read_text, rules_of  # noqa: E402
 
 TEST_LIMIT = 1800
 GIT_LIMIT = 120
 TAIL_LINES = 20
+LEVELS = ("low", "high")
 TEST_FILE = re.compile(r"(^|/)(tests?|specs?|__tests__|fixtures|fakes)/|(^|/)test_[^/]+$|_test\.[^/]+$|\.(test|spec)\.[^/]+$|Tests?\.[^/]+$")
 
 
@@ -26,6 +29,22 @@ def _path(payload):
     if not plan.is_dir():
         raise Refusal("bad-payload", f"no plan folder at {plan}")
     return plan / "review" / f"{subtask}.tdd.json"
+
+
+def _rules(payload):
+    """The rule set of the plan; 1 when the folder has no PLAN.md."""
+    path = plan_file(Path(str(payload["plan"])))
+    return rules_of(read_text(path)) if path.is_file() else 1
+
+
+def _row_of(payload, rules):
+    """The plan row of a cycle or a no-test entry: `row` (VR-NNN), `test` (file::name), `level`. A `> Rules: 2` plan needs `row`."""
+    row, level = payload.get("row"), payload.get("level") or "low"
+    if rules == 2 and not row:
+        raise Refusal("bad-payload", "a `> Rules: 2` plan needs `row`: the VR-NNN id of the plan row this work is for")
+    if level not in LEVELS:
+        raise Refusal("bad-payload", f"`level` must be one of {', '.join(LEVELS)}, not {level}")
+    return {"row": str(row) if row else None, "test": str(payload["test"]) if payload.get("test") else None, "level": level}
 
 
 def _load(path):
@@ -87,6 +106,7 @@ def _uncommitted(cwd):
 
 def red(payload):
     path, behavior, command = _path(payload), str(need(payload, "behavior")), str(need(payload, "command"))
+    row = _row_of(payload, _rules(payload))
     state = _load(path)
     code = _code_files(_uncommitted("."))
     if code:
@@ -98,7 +118,7 @@ def red(payload):
     if cycle is None:
         cycle = {"behavior": behavior, "green": None}
         state["cycles"].append(cycle)
-    cycle.update(command=command, red={"head": _git(".", "rev-parse", "HEAD").strip(), "exit": exit_code})
+    cycle.update(**row, command=command, red={"head": _git(".", "rev-parse", "HEAD").strip(), "exit": exit_code})
     _save(path, state)
     return ok(behavior=behavior, exit=exit_code, output=tail)
 
@@ -119,8 +139,9 @@ def green(payload):
 
 def no_test(payload):
     path, why = _path(payload), str(need(payload, "why"))
+    row = _row_of(payload, _rules(payload))
     state = _load(path)
-    state["no_test"].append({"why": why})
+    state["no_test"].append({"why": why, **row, "head": _git(".", "rev-parse", "HEAD").strip()})
     _save(path, state)
     return ok(recorded=len(state["no_test"]))
 
