@@ -471,6 +471,41 @@ def test_on_windows_bash_on_the_path_is_used_but_never_the_wsl_launcher(tmp_path
     assert live_build.named_shell(platform="win32", environ=environ).lower() == str(git_bash).lower()
 
 
+def _touch(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("", encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("git_folder", [("Git", "cmd"), ("Git", "mingw64", "bin")])
+def test_on_windows_git_on_the_path_finds_the_git_bash_of_its_install(tmp_path, git_folder):
+    git = _touch(tmp_path.joinpath(*git_folder) / "git.exe")
+    bash = _touch(tmp_path / "Git" / "bin" / "bash.exe")
+    environ = {"LOCALAPPDATA": str(tmp_path / "none"), "PATH": str(git.parent)}
+    assert live_build.named_shell(platform="win32", environ=environ).lower() == str(bash).lower()
+
+
+def test_on_windows_the_program_files_git_bash_is_the_last_source(tmp_path):
+    bash = _touch(tmp_path / "Program Files" / "Git" / "bin" / "bash.exe")
+    environ = {"LOCALAPPDATA": str(tmp_path / "none"), "PATH": "", "ProgramFiles": str(tmp_path / "Program Files")}
+    assert live_build.named_shell(platform="win32", environ=environ).lower() == str(bash).lower()
+
+
+def test_on_windows_a_stale_install_record_falls_back_to_the_path(tmp_path):
+    (tmp_path / "afkv2").mkdir()
+    (tmp_path / "afkv2" / "install.txt").write_text(f"bash {tmp_path / 'gone' / 'bash.exe'}\n", encoding="utf-8")
+    bash = _touch(tmp_path / "Git" / "usr" / "bin" / "bash.exe")
+    environ = {"LOCALAPPDATA": str(tmp_path), "PATH": f'"{bash.parent}"'}
+    assert live_build.named_shell(platform="win32", environ=environ).lower() == str(bash).lower()
+
+
+def test_on_windows_the_windowsapps_bash_is_never_used(tmp_path):
+    _touch(tmp_path / "Microsoft" / "WindowsApps" / "bash.exe")
+    environ = {"LOCALAPPDATA": str(tmp_path / "none"), "PATH": str(tmp_path / "Microsoft" / "WindowsApps")}
+    with pytest.raises(Refusal):
+        live_build.named_shell(platform="win32", environ=environ)
+
+
 def test_on_windows_no_git_bash_refuses_no_shell(tmp_path):
     with pytest.raises(Refusal) as refused:
         live_build.named_shell(platform="win32", environ={"LOCALAPPDATA": str(tmp_path), "PATH": ""})

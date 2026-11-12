@@ -199,8 +199,9 @@ def _gone(handle: LiveHandle) -> bool:
 
 def named_shell(platform: str | None = None, environ=None) -> str:
     """The one shell that runs a command string of a contract or of the repository config: /bin/sh off Windows;
-    on Windows Git Bash, from the `bash` line of the setup install record, else the first bash on the PATH that is
-    not the WSL launcher. Never a hidden cmd.exe: endpoint security kills it. Raises `Refusal` `no-shell`."""
+    on Windows Git Bash: the `bash` line of the setup install record, a bash on the PATH that is not the WSL
+    launcher, the bin folder of the Git install of a git on the PATH, then Program Files. Never a hidden cmd.exe:
+    endpoint security kills it. Raises `Refusal` `no-shell`."""
     platform = sys.platform if platform is None else platform
     environ = os.environ if environ is None else environ
     if platform != "win32":
@@ -208,12 +209,20 @@ def named_shell(platform: str | None = None, environ=None) -> str:
     recorded = _recorded_bash(environ)
     if recorded:
         return recorded
-    for folder in environ.get("PATH", "").split(";"):
-        candidate = Path(folder.strip('"')) / "bash.exe"
-        if folder and Path(folder.strip('"')).name.lower() not in NOT_GIT_BASH and candidate.is_file():
+    folders = [Path(folder.strip('"')) for folder in environ.get("PATH", "").split(";") if folder.strip('"')]
+    for folder in folders:
+        candidate = folder / "bash.exe"
+        if folder.name.lower() not in NOT_GIT_BASH and candidate.is_file():
             return str(candidate)
-    raise Refusal("no-shell", "no Git Bash: the install record has no `bash` line and no bash.exe outside "
-                  "System32 is on the PATH; install Git for Windows")
+    # The Git installer puts only Git\cmd on the PATH by default: Git Bash sits in the bin folder of that install.
+    installs = [ancestor for folder in folders if (folder / "git.exe").is_file() for ancestor in folder.parents[:2]]
+    installs += [Path(environ[key]) / "Git" for key in ("ProgramW6432", "ProgramFiles") if environ.get(key)]
+    for install in installs:
+        candidate = install / "bin" / "bash.exe"
+        if candidate.is_file():
+            return str(candidate)
+    raise Refusal("no-shell", "no Git Bash: not in the install record, on the PATH, next to git on the PATH or "
+                  "in Program Files; install Git for Windows")
 
 
 def shell_argv(command: str) -> list[str]:
