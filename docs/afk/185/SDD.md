@@ -29,7 +29,7 @@ This SDD and its accepted ADRs are binding on implementing agents and reviewers.
 | Aspect | Section | Status | Signed by / date | Approved wording |
 |--------|---------|--------|------------------|------------------|
 | HL-1 Persistence and entity design | §4 | signed | developer / 2026-11-11 | sign mark on card sign-hl-1, round 4, on the 6 records and their fields as written in §4; no note |
-| HL-2 API surface | §3 | signed | developer / 2026-11-11 | sign mark on card sign-hl-2, round 4, on surfaces S-1 to S-16 and their refusal codes as written in §3; no note |
+| HL-2 API surface | §3 | signed | developer / 2026-11-11 | sign mark on card sign-hl-2, round 4, on surfaces S-1 to S-16 and their refusal codes as written in §3; no note. 2026-11-12, developer in chat: added S-17 `proof-preview` and the S-10 inputs `receipt` and `ticket` |
 | HL-3 Authorization and data scoping | §5 | signed | developer / 2026-11-11 | sign mark on card sign-hl-3, round 4, on the 5 developer-only acts and their 2 guards as written in §5; no note |
 | HL-4 Life cycle and invariants | §6 | signed | developer / 2026-11-11 | sign mark on card sign-hl-4, round 4, on the proof life cycle and invariants I-1 to I-14 as written in §6; no note |
 | HL-5 Irreversible and outward side effects | §7 | signed | developer / 2026-11-11 | sign mark on card sign-hl-5, round 4, on the 6 outward effects as written in §7; no note |
@@ -139,13 +139,14 @@ sequenceDiagram
 | S-7 | `end_gate.py back` (new) | plan, failed rows | the reopened subtasks | none new | none |
 | S-8 | `small_lane.py start`, `go`, `gate` (new) | the small-lane record | record path | `no-go-mark`, `code-before-go` | none |
 | S-9 | `change_request.py open` | proofs `{row, behavior, level, ran, evidence}`; found `{what, where, how}` | as today | `bad-payload` naming the field | the old `{claim, evidence}` refuses with a fix hint |
-| S-10 | `ci_watch.py mark-ready` | plan optional; gate record required | as today | `no-gate`, `gate-not-passed`, `proof-missing`, `proof-field-missing`, `evidence-changed`, `verdict-no-description`, `gate-head-stale`, `found-open`, `proof-not-posted` | plan-folder plans keep the review check |
+| S-10 | `ci_watch.py mark-ready` | plan optional; gate record required; + `receipt` (of the `proof-preview` the developer marked), `ticket` (optional; else the change request) | as today, + `posted`, `url`, `receipt` of the proof comment | `no-gate`, `gate-not-passed`, `proof-missing`, `proof-field-missing`, `evidence-changed`, `verdict-no-description`, `gate-head-stale`, `found-open`, `proof-not-posted` | plan-folder plans keep the review check |
 | S-11 | `other_provider.py judge`, `attack` (new) | input folder or log | verdict JSON | `no-provider`, `judge-timeout`, `judge-unreadable` | none |
 | S-12 | `setup.py browser-driver`, `judge` (new verbs) | none | the driver proof, the judge model per provider | `no-browser`, `driver-install-failed`, `register-failed`, `proof-failed`, `no-provider` | the install record keeps its other lines |
 | S-13 | page schema `session.skill` | + `propose-verification`, `small-change` | — | none | every stored page stays valid |
 | S-14 | `live_build.py prove`, `check` (new) | repository | prove: start, wait for an HTTP answer, stop, then write the block; check: the same with no write | `live-undefined`, `live-start-failed`, `live-no-answer`, `live-stop-failed` | none |
 | S-15 | tracker port `comment-put` (new) | `{key, body, pictures[], receipt}` | `{comment_id, url, attached[]}` | `bad-receipt`, `too-large`, `gh-too-old`, `no-push-access`, `not-supported` (GitHub Enterprise Server) | the port's other verbs do not change |
 | S-16 | `gc list` | as today | as today | `proof-not-posted` for a run branch whose proof comment is not on the ticket | a run with no gate record (an old plan) is not checked |
+| S-17 | `ci_watch.py proof-preview` (new) | `id`, `gate`, `ticket` (optional) | `body`, `pictures`, `where`, `receipt`, `notice`, `secrets`, `proof_lines`: the exact proof comment the ship page shows | `evidence-changed` when a picture cannot be read | writes nothing; the same gate record and target give the same receipt |
 
 The forge port does not change. The CLI flags of S-11 were checked on 2026-11-11: `codex exec` takes `-m`, `-s`, `-i`, `-C`, `--output-schema`; `claude -p` takes `--model`, `--effort`, `--output-format`. The tracker limits behind S-15 were checked in the vendor documents on 2026-11-11 (design ADR-0005).
 
