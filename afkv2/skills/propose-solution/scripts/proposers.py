@@ -33,6 +33,9 @@ def _ready(doc, state):
         raise Refusal("aspects-open", "the solution proposers start after every critical aspect settles")
 
 
+# The command verbs, and the refusal codes that record a proposer failure; the skill guide names both.
+VERBS, FAILURES = engine.VERBS, engine.FAILURES
+
 ADAPTER = engine.SkillAdapter(state_path=dr.proposers_state_path, ready=_ready, noun="solution", prefix="proposer")
 
 

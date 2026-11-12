@@ -318,6 +318,7 @@ def _save(adapter, doc, state):
 
 LIVE = ("drafting", "drafted", "critiquing", "critiqued")
 FAILURES = {"no-herdr", "worktree-failed", "herdr-failed", "not-submitted", "pane-gone", "no-draft"}
+VERBS = ("cleanup", "critique", "plan", "start", "wait")
 
 
 def _recording(verb):
@@ -579,7 +580,7 @@ def cleanup(adapter, doc, runner):
 def cli(adapter, argv, runner=None):
     """`plan|start|wait|critique|cleanup --doc D [--brief F --base REF]`; `start` needs `--brief` and `--base`."""
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=["cleanup", "critique", "plan", "start", "wait"])
+    parser.add_argument("verb", choices=VERBS)
     parser.add_argument("--doc", required=True)
     parser.add_argument("--brief")
     parser.add_argument("--base")
