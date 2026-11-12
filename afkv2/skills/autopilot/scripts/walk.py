@@ -144,6 +144,9 @@ def _brief(plan, subtask, record, change, rulings, resume):
              "No human reads a page in this run: open no page, and park a question for the human."]
     if resume:
         lines.append(f"An earlier subagent worked on this subtask. Read `git log {record['base']}..HEAD`, read `{plan / 'review'}`, and go on from there.")
+    if record.get("back"):
+        lines.append("The end gate sent this subtask back. Make each of these high-level rows pass, with a new commit:")
+        lines.extend(f"- {item['row']} ({_one_line(item['behavior'])}): {_one_line(item['why'])}" for item in record["back"])
     if rulings:
         lines.append("Rulings of the orchestrator. Each one binds over the contract:")
         lines.extend(f"- {item['id']}: {_one_line(item['question'])} Ruling: {_one_line(item['ruling'])}" for item in rulings)
@@ -494,10 +497,16 @@ def _journal_digest(plan):
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 
 
+def _gate_blocker(plan):
+    """Why the gate record stops the ship, or None (end_gate.py imports this module, so it loads here)."""
+    import end_gate
+    return end_gate.ship_blocker(plan)
+
+
 def _ships(plan, state, tally, statuses):
-    """Every subtask is done, and `archive` copied the journal as it is now."""
+    """Every subtask is done, the gate record passed or waits for the developer, and `archive` copied the journal as it is now."""
     archived = state.get("archived") is not None and state["archived"] == _journal_digest(plan)
-    return archived and len(tally["done"]) == len(statuses)
+    return archived and len(tally["done"]) == len(statuses) and _gate_blocker(plan) is None
 
 
 def end(payload):
@@ -508,7 +517,8 @@ def end(payload):
     _journal(plan, "autopilot", "run", f"run end ({len(tally['done'])}/{len(statuses)} done, {len(tally['parked'])} parked)",
              "the walk of the plan has stopped")
     _commit_run(plan, "run: end")
-    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses))
+    return ok(**tally, rulings=state["rulings"], change=state["change"], ship=_ships(plan, state, tally, statuses),
+              gate=_gate_blocker(plan))
 
 
 def _worktree_of(porcelain, branch):
@@ -577,7 +587,8 @@ def archive(payload):
     state["archived"] = _journal_digest(plan)
     _save(plan, state)
     _commit_run(plan, "run: journal copied to the feature branch")
-    return ok(path=str(target), committed=committed, commit=commit, ship=_ships(plan, state, _tally(statuses), statuses))
+    return ok(path=str(target), committed=committed, commit=commit, ship=_ships(plan, state, _tally(statuses), statuses),
+              gate=_gate_blocker(plan))
 
 
 VERBS = {"locate": locate, "next": next_subtask, "start": start, "status": set_status, "set-change": set_change,
