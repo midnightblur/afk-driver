@@ -74,8 +74,7 @@ def _installed(run: tools.Runner, cli: str, env: Mapping[str, str]) -> tuple[int
     return _version(got.out) if got.code == 0 else None
 
 
-def check_version(places: Places, run: tools.Runner, env: Mapping[str, str], fetch: Fetch = fetch_text,
-                  update: bool = True) -> dict:
+def check_version(places: Places, run: tools.Runner, env: Mapping[str, str], fetch: Fetch = fetch_text) -> dict:
     """Compare the installed CLI with the newest release of its own channel; when it is older, run
     `claude update` once. The session that runs setup keeps the old version until a new session starts."""
     cli = run.which("claude", env)
@@ -101,8 +100,6 @@ def check_version(places: Places, run: tools.Runner, env: Mapping[str, str], fet
         return _error("channel-too-old", f"the stable channel serves {_text(newest)}, and Fable as the advisor needs "
                       f"{_text(FABLE_MIN_VERSION)}: set autoUpdatesChannel to latest with /config, then run setup "
                       "again", **answer)
-    if not update:
-        return _error("update-required", f"Claude Code {_text(installed)} is older than {_text(target)}", **answer)
     got = run([cli, "update"], env=env, timeout=600)
     after = _installed(run, cli, env)
     answer["update_output"] = (got.out or got.err).strip()[-300:]
@@ -169,8 +166,9 @@ def status(places: Places, repo: Path | None, run: tools.Runner, env: Mapping[st
 
 
 def probe(run: tools.Runner, cli: str, env: Mapping[str, str]) -> dict:
-    """1 print-mode call with the Fable advisor. Claude Code refuses an advisor it cannot use, with an exit
-    code or a line about the advisor; the reply itself does not consult the advisor."""
+    """1 print-mode call with the Fable advisor: a launch check. Claude Code refuses at launch, with an exit code
+    or a line about the advisor, an advisor it cannot use. An API refusal later drops the advisor without a
+    message, so a pass does not prove that a session consults Fable."""
     got = run([cli, "-p", "--model", PROBE_MAIN_MODEL, "--advisor", ADVISOR, "--max-turns", "1", PROBE_PROMPT],
               env=env, timeout=300)
     said = "\n".join(line for line in (got.out + "\n" + got.err).splitlines() if "advis" in line.lower())
@@ -180,8 +178,9 @@ def probe(run: tools.Runner, cli: str, env: Mapping[str, str]) -> dict:
 
 
 def set_advisor(places: Places, repo: Path | None, run: tools.Runner, env: Mapping[str, str], answer: str) -> dict:
-    """Act on the developer's answer. Yes: back up the user settings once, set `advisorModel` to Fable, prove it
-    with 1 call, and return the consent steps the developer types in a Claude session."""
+    """Act on the developer's answer. Yes: run the launch check, then back up the user settings once, set
+    `advisorModel` to Fable, and return the consent steps the developer types in a Claude session. A re-run
+    asks nothing new and keeps the main model recorded first."""
     cli = run.which("claude", env)
     if not cli:
         return {"ok": True, "action": "not-used", "reason": "no claude program on the path"}
@@ -191,6 +190,9 @@ def set_advisor(places: Places, repo: Path | None, run: tools.Runner, env: Mappi
     found = blockers(places, env)
     if found:
         return _error("advisor-blocked", "; ".join(found) + ". Remove it, then run this step again")
+    proof = probe(run, cli, env)
+    if not proof["ok"]:
+        return _error("proof-failed", proof["reason"])
     settings_path = places.claude_user_settings
     settings = _settings(settings_path)
     action = "already-set"
@@ -199,15 +201,15 @@ def set_advisor(places: Places, repo: Path | None, run: tools.Runner, env: Mappi
         settings["advisorModel"] = ADVISOR
         write_atomic(settings_path, (json.dumps(settings, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         action = "set"
-    proof = probe(run, cli, env)
-    if not proof["ok"]:
-        return _error("proof-failed", proof["reason"], action=action)
-    previous = settings.get("model")
-    done = (read_answer(places) or "").startswith("consent-done")
-    if not done:
-        _record(places, f"consent-open {previous or ''}".strip())
-    return {"ok": True, "action": action, "proof": proof, "overrides": overrides(repo),
-            "consent": "done" if done else consent_steps(previous)}
+    record = read_answer(places) or ""
+    if record.startswith("consent-done"):
+        consent = "done"
+    else:
+        if not record.startswith("consent-open"):
+            record = f"consent-open {settings.get('model') or ''}".strip()
+            _record(places, record)
+        consent = consent_steps(record.partition(" ")[2] or None)
+    return {"ok": True, "action": action, "launch_check": proof, "overrides": overrides(repo), "consent": consent}
 
 
 def consent_steps(previous: str | None) -> list[str]:
@@ -223,7 +225,7 @@ def consent_done(places: Places) -> dict:
         return _error("no-advisor", "set the advisor first: setup.py advisor --answer yes")
     previous = answer.partition(" ")[2] or None
     model = _settings(places.claude_user_settings).get("model")
-    if model != previous and str(model or "").startswith("fable") and not str(previous or "").startswith("fable"):
+    if model != previous and "fable" in str(model or "") and "fable" not in str(previous or ""):
         return _error("model-not-restored", f"the main model is still {model!r}; type "
                       f"{consent_steps(previous)[-1]} in the Claude session, then run this step again")
     _record(places, f"consent-done {previous or ''}".strip())

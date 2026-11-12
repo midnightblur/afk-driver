@@ -97,8 +97,6 @@ def test_an_unreadable_release_pointer_checks_only_the_fable_minimum(places, cla
         raise OSError("no network")
     answer = claude_cli.check_version(places, claude, env, offline)
     assert answer["ok"] and "warning" in answer
-    claude.version = "2.1.300"
-    assert claude_cli.check_version(places, claude, env, offline, update=False)["error"]["code"] == "update-required"
 
 
 def test_no_claude_program_needs_nothing(places, claude, env):
@@ -137,8 +135,21 @@ def test_no_is_recorded_and_writes_no_setting(places, claude, env, repo):
                                    tools.Result(0, '"fable" cannot advise this model. The advisor will not be used\nok')])
 def test_a_refused_advisor_fails_the_proof(places, claude, env, repo, probe):
     claude.probe = probe
+    write_settings(places, advisorModel="opus")
+    before = places.claude_user_settings.read_bytes()
     answer = claude_cli.set_advisor(places, repo, claude, env, "yes")
     assert answer["error"]["code"] == "proof-failed"
+    assert places.claude_user_settings.read_bytes() == before
+    assert claude_cli.status(places, repo, claude, env) == "ask"
+
+
+def test_a_re_run_keeps_the_main_model_recorded_first(places, claude, env, repo):
+    write_settings(places, model="opus[1m]")
+    claude_cli.set_advisor(places, repo, claude, env, "yes")
+    places.claude_user_settings.write_text(json.dumps(settings(places) | {"model": "claude-fable-5-2"}),
+                                           encoding="utf-8")
+    assert claude_cli.set_advisor(places, repo, claude, env, "yes")["consent"][-1] == "/model opus[1m]"
+    assert claude_cli.consent_done(places)["error"]["code"] == "model-not-restored"
 
 
 def test_an_environment_blocker_writes_nothing(places, claude, env, repo):

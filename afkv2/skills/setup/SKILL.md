@@ -55,16 +55,20 @@ you ask in this session; the Jira token never passes through you.
    `setup.py herdr --answer yes` or `setup.py herdr --answer no`. A no is recorded
    and never asked again, also after `switch-back`. A refusal `install-failed`: report its `reason`; the
    developer can install herdr by hand.
-4. **Fable advisor.** Codex: no step. `advisor` is `not-used`, `declined` or `done`:
-   ask nothing. `advisor` is `ask`: ask the developer once in this session whether
+4. **Fable advisor.** For the Claude advisor only; this step runs in either harness
+   and writes nothing for Codex. `advisor` is `not-used`, `declined` or `done`: ask
+   nothing. `advisor` is `ask`: ask the developer once in this session whether
    Claude should consult Fable as its advisor; on some plans Fable bills to usage
    credits. Then `setup.py advisor --answer yes` or `--answer no`; a no is recorded
-   and never asked again. A refusal `advisor-blocked` or `proof-failed`: report its
-   `reason`. Report each `overrides` line. `consent` is a list, or `advisor` is
-   `consent`: tell the developer to type each `consent` item in a Claude session,
-   in order (in a Codex session, they start `claude` for it). Wait for their word
-   that they did, then `setup.py advisor --consent-done`. A refusal
-   `model-not-restored`: report its `reason`, and run it again after they act.
+   and never asked again. `advisor` is `consent`: ask nothing, and run
+   `setup.py advisor --answer yes`. A refusal `advisor-blocked` or `proof-failed`:
+   report its `reason`. Report each `overrides` line. `consent` is a list: tell the
+   developer to type each item in a Claude session, in order (in a Codex session,
+   they start `claude` for it). Wait for their word that they did, then
+   `setup.py advisor --consent-done`. A refusal `model-not-restored`: report its
+   `reason`, and run it again after they act. Tell the developer that a new Claude
+   session shows `Advisor Tool (experimental) is on`; a notice that points to
+   `/model fable` means the consent step is still open.
 5. **Jira values.** `jira.complete` false: ask the developer to run
    `python <this skill's folder>/scripts/setup.py secrets` in their own terminal
    (it asks for `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` and stores them
