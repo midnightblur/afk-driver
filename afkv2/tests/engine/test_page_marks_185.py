@@ -170,3 +170,77 @@ def test_the_page_scripts_and_styles_find_the_heading_inside_the_card_body():
         assert "afkv2-card-body" in (shell / script).read_text("utf-8"), script
     for sheet in ("tips.css", "kit.css"):
         assert ".afkv2-card-body" in (shell / sheet).read_text("utf-8"), sheet
+
+
+# --- AC-049: export writes the picture the page showed into an artifact
+
+import json  # noqa: E402
+
+import diagrams  # noqa: E402
+import pytest  # noqa: E402
+from test_diagram_text import FLOW, StubRenderer  # noqa: E402
+
+WHITE = "background-color: #ffffff"
+
+
+@pytest.fixture
+def renderer(monkeypatch):
+    stub = StubRenderer()
+    config = engine.data_folder() / diagrams.CONFIG_FILE
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("{}", "utf-8")
+    monkeypatch.setattr(diagrams, "find_renderer", lambda: "mmdc")
+    monkeypatch.setattr(diagrams, "call_renderer", stub)
+    return stub
+
+
+def light_picture_on_page(text):
+    """The SVG of the light theme that the page shows for this diagram text, with its id."""
+    html = diagrams.diagram_picture(text, "d-flow")
+    start = html.index('afkv2-diagram-theme--light">') + len('afkv2-diagram-theme--light">')
+    return html[start:html.index("</svg>", start) + len("</svg>")]
+
+
+def test_export_writes_the_light_picture_of_the_page_on_white(renderer, tmp_path):
+    shown = light_picture_on_page(FLOW)
+    dest = tmp_path / "pictures" / "d-flow.svg"
+    diagrams.export(FLOW, dest)
+    written = dest.read_text("utf-8")
+    assert WHITE in written[:written.index(">")]
+    assert written.replace(f' style="{WHITE}"', "") == shown.replace("d-flow--light", "d-flow")
+
+
+def test_export_reuses_the_picture_the_page_rendered(renderer, tmp_path):
+    light_picture_on_page(FLOW)
+    calls = len(renderer.calls)
+    diagrams.export(FLOW, tmp_path / "d-flow.svg")
+    assert len(renderer.calls) == calls
+
+
+def test_export_answers_the_picture_with_its_mermaid_source_in_a_fold_below_it(renderer, tmp_path):
+    artifact = tmp_path / "SDD.md"
+    markdown = diagrams.export(FLOW, tmp_path / "pictures" / "d-flow.svg", artifact)
+    assert markdown.startswith("![d-flow](pictures/d-flow.svg)\n")
+    fold = markdown[markdown.index("<details>"):]
+    assert fold.startswith("<details>\n<summary>Mermaid source</summary>\n\n```mermaid\n")
+    assert FLOW in fold and fold.rstrip().endswith("```\n\n</details>".rstrip())
+
+
+def test_export_with_no_renderer_refuses_and_writes_nothing(monkeypatch, tmp_path):
+    monkeypatch.setattr(diagrams, "find_renderer", lambda: None)
+    dest = tmp_path / "d-flow.svg"
+    with pytest.raises(diagrams.Refusal) as refused:
+        diagrams.export(FLOW, dest)
+    assert refused.value.code == "no-picture" and "/afkv2:setup" in refused.value.reason
+    assert not dest.exists()
+
+
+def test_the_engine_export_verb_writes_the_picture_and_answers_the_markdown(renderer, tmp_path, capsys):
+    source = tmp_path / "flow.mmd"
+    source.write_text(FLOW, "utf-8")
+    dest = tmp_path / "pictures" / "d-flow.svg"
+    code = engine.main(["export", str(source), "--dest", str(dest), "--artifact", str(tmp_path / "PRD.md")])
+    answer = json.loads(capsys.readouterr().out)
+    assert code == 0 and answer["ok"] is True
+    assert answer["path"] == str(dest) and dest.is_file()
+    assert answer["markdown"].startswith("![d-flow](pictures/d-flow.svg)")

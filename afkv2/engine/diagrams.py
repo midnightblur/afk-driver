@@ -13,6 +13,10 @@ with no id, with a number when the id repeats on the page. An element id that is
 `afkv2-diagram-<hash>` instead (`svg_base`). Every other id inside a picture starts with
 that SVG id; an id that nothing in the picture names is dropped, so a note on the picture lands on its
 diagram. A page build counts each diagram as rendered, cached or shown as text (`page_run`).
+
+`export` writes the light picture that the page shows into an artifact's pictures folder, on a white background, and
+answers the Markdown that shows it with its Mermaid source in a fold below it (PRD AC-049). It takes the picture
+from the cache when the page rendered it, so the artifact holds the same picture.
 """
 
 from __future__ import annotations
@@ -46,6 +50,10 @@ THEMES = (("dark", "dark"), ("light", "default"))
 TOKEN = "afkv2svgtoken"
 NO_ID_BASE = "afkv2-diagram"
 WHY_LIMIT = 200
+LIGHT = dict(THEMES)["light"]
+WHITE = "background-color: #ffffff"
+ROOT_STYLE = re.compile(r'^(<svg\b[^>]*?\sstyle=")')
+FOLD = "\n<details>\n<summary>Mermaid source</summary>\n\n```mermaid\n{}\n```\n\n</details>\n"
 ID_ATTR = re.compile(r'(\sid=")([^"]+)(")')
 SAFE_ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 HASH_CHARS = 12
@@ -185,7 +193,8 @@ def _picture(text: str, theme: str, cache: Path | None, renderer: str, config: P
     return svg, True
 
 
-def _pictures(text: str, run: dict) -> tuple[list[tuple[str, str]], bool]:
+def _tools() -> tuple[Path, str, Path]:
+    """(the cache folder, the renderer, its browser config); `_NoPicture` when setup left one out."""
     data = _data()
     renderer = find_renderer()
     if not renderer:
@@ -193,7 +202,11 @@ def _pictures(text: str, run: dict) -> tuple[list[tuple[str, str]], bool]:
     config = data / CONFIG_FILE if data else None
     if not config or not config.is_file():
         raise _NoPicture(f"the diagram renderer has no browser config {CONFIG_FILE} in the data folder; run {SETUP}")
-    cache = data / CACHE_FOLDER
+    return data / CACHE_FOLDER, renderer, config
+
+
+def _pictures(text: str, run: dict) -> tuple[list[tuple[str, str]], bool]:
+    cache, renderer, config = _tools()
     found, ran = [], False
     for page_theme, renderer_theme in THEMES:
         svg, new = _picture(text, renderer_theme, cache, renderer, config, run)
@@ -242,3 +255,29 @@ def diagram_picture(text: str, element: str | None = None) -> str:
         drawn = "".join(f'<div class="afkv2-diagram-theme afkv2-diagram-theme--{page_theme}">'
                         f'{svg.replace(TOKEN, svg_id(base, page_theme))}</div>' for page_theme, svg in pictures)
         return f'<div class="afkv2-diagram-picture">{drawn}</div>'
+
+
+def _on_white(svg: str) -> str:
+    """The SVG with a white background on its root element, so it reads the same on a dark viewer."""
+    if ROOT_STYLE.match(svg):
+        return ROOT_STYLE.sub(lambda match: f"{match.group(1)}{WHITE}; ", svg, count=1)
+    return svg.replace("<svg", f'<svg style="{WHITE}"', 1)
+
+
+def export(text, dest, artifact=None):
+    """Write the light picture of a diagram text to `dest`, on white; answer its Markdown: the picture, linked
+    relative to the folder of `artifact` (else by its file name), with the Mermaid source in a fold below it.
+    Refuses `no-picture` with the why when no picture can be drawn; then it writes nothing."""
+    dest = Path(dest)
+    with page_run():
+        try:
+            svg, _ = _picture(text, LIGHT, *_tools(), _run)
+        except _NoPicture as why:
+            raise Refusal("no-picture", f"the diagram has no picture: {why}") from None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(_on_white(svg.replace(TOKEN, svg_base(dest.stem))), encoding="utf-8", newline="\n")
+    try:
+        link = os.path.relpath(dest, Path(artifact).parent) if artifact else dest.name
+    except ValueError:  # another drive: no relative path exists
+        link = str(dest.resolve())
+    return f"![{dest.stem}]({Path(link).as_posix()})\n" + FOLD.format(text.rstrip("\n"))
