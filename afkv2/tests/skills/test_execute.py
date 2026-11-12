@@ -238,6 +238,49 @@ def test_an_old_call_with_no_row_still_works_on_a_plan_with_no_rules_line(run):
     assert record_of(run)["cycles"][0]["row"] is None
 
 
+def reads(path, text):
+    """A test command that passes when `path` holds `text`."""
+    script = f"import sys; sys.exit(0 if open('{path}').read() == '{text}' else 1)"
+    return f'"{sys.executable}" -c "{script}"'
+
+
+def test_with_no_mutation_tool_green_runs_the_test_on_the_parent_commit_where_it_must_fail(rows_run):
+    """PRD §AC-021; PLAN.md D-1: a test that also passes without the code change proves nothing, naming VC-1."""
+    flag = rows_run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("tests/flag.txt", "ok"), row="VR-001")["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    answer = log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")
+    assert code_of(answer) == "passes-on-parent" and "VC-1" in answer["error"]["reason"]
+    assert record_of(rows_run)["cycles"][0]["green"] is None
+
+
+def test_the_parent_run_puts_back_every_code_change(rows_run):
+    rows_run.commit_code("src/old.py", "old", "[0001-a] start")
+    (rows_run.work / "src" / "gone.py").write_text("x", encoding="utf-8")
+    git(rows_run.work, "add", "src/gone.py")
+    git(rows_run.work, "commit", "-qm", "[0001-a] gone")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("src/old.py", "new"), row="VR-001")["ok"]
+    (rows_run.work / "src" / "old.py").write_text("new", encoding="utf-8")
+    (rows_run.work / "src" / "new.py").write_text("added", encoding="utf-8")
+    (rows_run.work / "src" / "gone.py").unlink()
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")["ok"]
+    assert (rows_run.work / "src" / "old.py").read_text(encoding="utf-8") == "new"
+    assert (rows_run.work / "src" / "new.py").read_text(encoding="utf-8") == "added"
+    assert not (rows_run.work / "src" / "gone.py").exists()
+    assert record_of(rows_run)["cycles"][0]["green"]["exit"] == 0
+
+
+def test_a_plan_with_no_rules_line_keeps_the_old_green(run):
+    flag = run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=reads("tests/flag.txt", "ok"))["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    assert log("green", plan=str(run.plan), subtask="0001-a", behavior="b")["ok"]
+
+
 def verdict_codes(built, base, subtask="0001-a"):
     return [item["code"] for item in tdd_log.verdict(built.plan, subtask, base)]
 
@@ -349,6 +392,49 @@ def test_done_sets_the_row_and_commits_only_on_the_run_branch(run):
     assert git(run.work, "rev-parse", "HEAD") == feature_before
     assert git(run.run, "status", "--porcelain") == ""
     assert "0001-a" in git(run.run, "log", "-1", "--format=%s")
+
+
+def cycle(row, green=True, level="low"):
+    return {"behavior": row, "row": row, "test": "tests/t.py::t", "level": level, "command": FAIL,
+            "red": {"head": "h", "exit": 1}, "green": {"head": "h", "exit": 0} if green else None}
+
+
+def row_codes(record):
+    contract = plan_contract.Contract("0001-a", plan_contract.sections_of(rows_contract("0001-a")))
+    return sorted((item["code"], item["row"]) for item in walk._row_failures("0001-a", contract, record))
+
+
+def test_done_row_checks_on_a_rules_2_plan():
+    """PRD §AC-008, §AC-023; SDD §3 row "S-5": each low row green, each plan row a test, each test a plan row."""
+    green_all = {"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-004", green=False, level="high")], "no_test": [{"why": "w", "row": "VR-003"}]}
+    assert row_codes(green_all) == []
+    assert row_codes({"cycles": [cycle("VR-001", green=False), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high")], "no_test": []}) == [
+        ("row-not-green", "VR-001")]
+    assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-004", level="high")], "no_test": [{"why": "w", "row": "VR-002"}]}) == [
+        ("row-no-test", "VR-003")]
+    assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high"), cycle("VR-009"), cycle(None)],
+                      "no_test": []}) == [("test-no-row", None), ("test-no-row", "VR-009")]
+
+
+def test_a_low_row_with_a_cycle_marked_high_still_needs_green():
+    assert row_codes({"cycles": [cycle("VR-001", green=False, level="high"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high")],
+                      "no_test": []}) == [("row-not-green", "VR-001")]
+
+
+def test_done_refuses_the_row_gaps_of_a_rules_2_plan(tmp_path, monkeypatch):
+    built = plan_fixture.build(tmp_path, {"0001-a": rows_contract("0001-a")}, header_extra="> Rules: 2\n> App: http://127.0.0.1:9")
+    monkeypatch.chdir(built.work)
+    monkeypatch.setattr(walk.start_gate, "app_failure", lambda where, app: None)
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert log("red", plan=str(built.plan), subtask="0001-a", behavior="b", command=FAIL, row="VR-001")["ok"]
+    codes = {(item["code"], item.get("row")) for item in call("done", plan=str(built.plan), subtask="0001-a")["error"]["failures"]}
+    assert {("row-not-green", "VR-001"), ("row-no-test", "VR-002"), ("row-no-test", "VR-003"), ("row-no-test", "VR-004")} <= codes
+
+
+def test_done_has_no_row_checks_on_a_plan_with_no_rules_line(run):
+    assert call("start", plan=str(run.plan), subtask="0001-a")["ok"]
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    assert not {"row-not-green", "row-no-test", "test-no-row"} & done_codes(call("done", plan=str(run.plan), subtask="0001-a"))
 
 
 def test_the_run_has_one_change(run):

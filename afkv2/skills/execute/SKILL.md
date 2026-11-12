@@ -16,11 +16,11 @@ You run in a fresh subagent, from the worktree of the feature branch. The brief 
 1. **Read.** Read the contract and `<plan>/DECISIONS.md`. `## Context excerpts` is your spec: open the parent PRD and SDD only for a question the excerpts leave open. A ruling in the brief binds over the contract. A decision entry binds over the passage it quotes.
 2. **Read the ground.** Read each symbol that `## Seams` and `## Consumes` name. Read the module's `AGENTS.md` and the rules that match the files ahead.
 3. **Build, test first.** For each behavior:
-   1. Write the test. `red` with `behavior` and `command`: the test must fail, and only test files may have changed.
-   2. Write the code. `green` with `behavior`: the same command must pass.
+   1. Write the test. `red` with `behavior` and `command`: the test must fail, and only test files may have changed. On a plan with `> Rules: 2`, also give `row` (the `VR-NNN` of the contract's `Plan row` cell), `test` (`<file>::<name>`) and `level` (`low`, or `high` for a test of a live tier).
+   2. Write the code. `green` with `behavior`: the same command must pass. On a `> Rules: 2` plan, `green` also runs a `low` test on the code of the red commit, where it must fail. A `high` test needs no `green`: the end gate runs it.
    3. Commit. Each subject starts `[<subtask>]`. Commit each time a behavior is green. Stay inside `## Scope`.
 
-   Work with no behavior to test, such as prose or a config value: `no-test` with `why`.
+   Work with no behavior to test, such as prose or a config value: `no-test` with `why`, and `row` on a `> Rules: 2` plan, before you change the files. The entry covers only its row.
 4. **Open the change.** After the first commits, push. Never force-push. `change: none` in the brief: run "Open or update the change" of `/afkv2:create-change-request`, then `set-change` with `change`. After each push, run its "After each push" step: `start` of `ci_watch.py`.
 5. **Verify.** `status` with `status: "verifying"`. Run each row of `## Verification`, in order. A row whose check cell starts `not applicable:` does not run. Each other row must pass. Grep each `## Produces` anchor. A row stays red after one targeted fix: `park`.
 6. **Review.** `status` with `status: "reviewing"`. Run `/afkv2:code-review` with `subtask`, `plan`, `change` and `base`. Its `left.blocking` or `delta.parked` is not empty: `park` with the findings in `reason`. Each code fix there returns to step 5 for the rows it touches, and gets a push.
@@ -67,6 +67,7 @@ CALL: {"kinds": ["scope"], "question": "...", "options": "...", "recommendation"
 | `code-before-red` | code files changed before the test failed | commit finished work; move the rest out and write the test first |
 | `no-red` | no failing test is on record for this behavior | `red` |
 | `not-green` | the test still fails | fix the code |
+| `passes-on-parent` | the test also passes without the code change | correct the test so that it fails without the change |
 | `timed-out` | the test command ran past its limit | narrow the command |
 | `not-finished` | the list of gaps of `done` | close each gap |
 | `not-running` | the row is not running | report it |

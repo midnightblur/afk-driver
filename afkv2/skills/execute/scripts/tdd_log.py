@@ -123,6 +123,40 @@ def red(payload):
     return ok(behavior=behavior, exit=exit_code, output=tail)
 
 
+def _show(top, head, name):
+    """The bytes of `name` at `head`; None when `head` has no such file."""
+    done = subprocess.run(["git", "show", f"{head}:{name}"], cwd=top, capture_output=True, stdin=subprocess.DEVNULL, timeout=GIT_LIMIT)
+    return done.stdout if done.returncode == 0 else None
+
+
+def _on_parent(cycle):
+    """Run the cycle's test with every code file as it was at the red head; the test files stay. Every file is put back.
+
+    The served repository's CI runs mutation where it has a tool (PLAN.md D-1); this is the check without one (PRD AC-021).
+    """
+    top, head = _git(".", "rev-parse", "--show-toplevel").strip(), cycle["red"]["head"]
+    names = _git(top, "diff", "--no-renames", "--name-only", "-z", head).split("\0")
+    names += _git(top, "ls-files", "--others", "--exclude-standard", "-z").split("\0")
+    paths = [Path(top) / name for name in _code_files(names)]
+    kept = {path: path.read_bytes() if path.is_file() else None for path in paths}
+    try:
+        for path in paths:
+            old = _show(top, head, path.relative_to(top).as_posix())
+            if old is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(old)
+        return _run(cycle["command"])
+    finally:
+        for path, data in kept.items():
+            if data is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+
+
 def green(payload):
     path, behavior = _path(payload), str(need(payload, "behavior"))
     state = _load(path)
@@ -132,6 +166,10 @@ def green(payload):
     exit_code, tail = _run(cycle["command"])
     if exit_code != 0:
         raise Refusal("not-green", "the test still fails", exit=exit_code, output=tail)
+    if (cycle.get("level") or "low") == "low" and _rules(payload) == 2:
+        exit_code, tail = _on_parent(cycle)
+        if exit_code == 0:
+            raise Refusal("passes-on-parent", "VC-1: the test also passes on the code of the commit its red ran on, so it does not fail without the change", output=tail)
     cycle["green"] = {"head": _git(".", "rev-parse", "HEAD").strip(), "exit": 0}
     _save(path, state)
     return ok(behavior=behavior)
