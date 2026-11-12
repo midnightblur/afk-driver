@@ -194,6 +194,31 @@ def test_a_harness_that_is_not_installed_gets_no_entry(driver_env, places, repo,
     assert tools.DRIVER_ENTRY in json.loads(places.claude_user_config.read_text(encoding="utf-8"))["mcpServers"]
 
 
+def test_an_entry_of_the_same_name_setup_did_not_write_refuses_register_failed(
+        driver_env, places, repo, driver_system, capsys, tmp_path):
+    _harness_files(places)
+    data = json.loads(places.claude_user_config.read_text(encoding="utf-8"))
+    data["mcpServers"][tools.DRIVER_ENTRY] = {"command": "npx", "args": ["chrome-devtools-mcp@latest"]}
+    places.claude_user_config.write_text(json.dumps(data), encoding="utf-8")
+    before = {p: p.read_bytes() for p in (places.claude_user_config, places.codex_config)}
+    code, answer = _cli(["browser-driver"], driver_env, driver_system, repo, capsys, tmp_path)
+    assert code == 1 and answer["error"]["code"] == "register-failed"
+    assert tools.DRIVER_ENTRY in answer["error"]["reason"]
+    assert {p: p.read_bytes() for p in before} == before
+
+
+def test_switch_back_keeps_an_entry_setup_did_not_write(driver_env, places, repo, driver_system, capsys, tmp_path):
+    _harness_files(places)
+    assert _cli(["browser-driver"], driver_env, driver_system, repo, capsys, tmp_path)[0] == 0
+    data = json.loads(places.claude_user_config.read_text(encoding="utf-8"))
+    mine = {"command": "npx", "args": ["chrome-devtools-mcp@latest", "--autoConnect"]}
+    data["mcpServers"][tools.ATTACH_ENTRY] = mine
+    places.claude_user_config.write_text(json.dumps(data), encoding="utf-8")
+    _cli(["switch-back"], driver_env, driver_system, repo, capsys, tmp_path)
+    claude = json.loads(places.claude_user_config.read_text(encoding="utf-8"))
+    assert claude["mcpServers"] == {"other": {"command": "x"}, tools.ATTACH_ENTRY: mine}
+
+
 def test_no_browser_refuses_and_installs_nothing(env, places, repo, driver_runner, driver_system, capsys, tmp_path):
     code, answer = _cli(["browser-driver"], {**env, "ProgramFiles": str(tmp_path / "none")}, driver_system, repo,
                         capsys, tmp_path)

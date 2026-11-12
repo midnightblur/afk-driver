@@ -30,6 +30,16 @@ def backup_folder(places: Places) -> Path:
     return places.backup / "mcp"
 
 
+def _owned_file(places: Places, provider: str) -> Path:
+    return backup_folder(places) / provider / "owned.txt"
+
+
+def _owned(places: Places, provider: str) -> set[str]:
+    """The entry names setup wrote into the harness file of `provider`."""
+    path = _owned_file(places, provider)
+    return set(path.read_text(encoding="utf-8").split()) if path.exists() else set()
+
+
 # ----------------------------------------------------------------- Claude
 
 def _claude_servers(text: str) -> dict:
@@ -54,6 +64,10 @@ def _claude_drop(text: str, names) -> str:
     for name in names:
         data.get("mcpServers", {}).pop(name, None)
     return json.dumps(data, indent=2) + "\n"
+
+
+def _claude_names(text: str) -> set[str]:
+    return set(_claude_servers(text).get("mcpServers", {}))
 
 
 def _claude_has(text: str, entries: Mapping[str, Mapping]) -> bool:
@@ -97,7 +111,12 @@ def _codex_has(text: str, entries: Mapping[str, Mapping]) -> bool:
     return all(servers.get(name) == {"command": e["command"], "args": list(e["args"])} for name, e in entries.items())
 
 
-EDITS = {"claude": (_claude_put, _claude_has, _claude_drop), "codex": (_codex_put, _codex_has, _codex_drop)}
+def _codex_names(text: str) -> set[str]:
+    return set(tomllib.loads(text).get("mcp_servers", {}))
+
+
+EDITS = {"claude": (_claude_put, _claude_has, _claude_drop, _claude_names),
+         "codex": (_codex_put, _codex_has, _codex_drop, _codex_names)}
 
 
 # ------------------------------------------------------------------ verbs
@@ -105,6 +124,7 @@ EDITS = {"claude": (_claude_put, _claude_has, _claude_drop), "codex": (_codex_pu
 def register(places: Places, entries: Mapping[str, Mapping], lock: Callable[[Path], None]) -> dict:
     """Write `entries` for each installed harness. Each file is copied to the backup folder before its write;
     an entry the harness file does not read back after the write restores that copy (`register-failed`).
+    An entry of the same name that setup did not write refuses `register-failed`, with nothing written.
     `lock` limits the backup folder to the current user first: both files can hold the Jira token."""
     done: dict = {}
     locked = False
@@ -113,13 +133,17 @@ def register(places: Places, entries: Mapping[str, Mapping], lock: Callable[[Pat
         if not _installed(places, provider):
             done[provider] = {"action": "not-installed"}
             continue
-        put, has, _drop = EDITS[provider]
+        put, has, _drop, names = EDITS[provider]
         before = path.read_bytes() if path.exists() else None
         text = before.decode("utf-8") if before is not None else ""
         try:
             if before is not None and has(text, entries):
                 done[provider] = {"action": "present", "file": str(path)}
                 continue
+            foreign = sorted((names(text) & set(entries)) - _owned(places, provider))
+            if foreign:
+                return _failed(done, provider, f"{path} has an entry {', '.join(foreign)} that setup did not write; "
+                                               "rename or remove it, then run this step again; nothing was written")
             after = put(text, entries)
         except (ValueError, tomllib.TOMLDecodeError) as exc:
             return _failed(done, provider, f"{path}: {exc}; nothing was written")
@@ -141,6 +165,8 @@ def register(places: Places, entries: Mapping[str, Mapping], lock: Callable[[Pat
         if not read_back:
             _restore(path, before)
             return _failed(done, provider, f"{path}: {why}; the backup was restored")
+        write_atomic(_owned_file(places, provider),
+                     "\n".join(sorted(_owned(places, provider) | set(entries))).encode("utf-8") + b"\n")
         done[provider] = {"action": "written", "file": str(path), "backup": str(saved)}
     return {"ok": True, **done}
 
@@ -158,14 +184,15 @@ def _failed(done: dict, provider: str, reason: str) -> dict:
 
 
 def unregister(places: Places, names) -> dict[str, str]:
-    """Remove the entries setup wrote; every other line the harnesses wrote since stays."""
+    """Remove the entries of `names` that setup wrote; every other line the harnesses wrote since stays."""
     done = {}
     for provider in PROVIDERS:
         path = _file(places, provider)
-        _put, _has, drop = EDITS[provider]
+        drop = EDITS[provider][2]
+        mine = sorted(set(names) & _owned(places, provider))
         try:
             text = path.read_bytes().decode("utf-8") if path.exists() else ""
-            after = drop(text, names) if text else text
+            after = drop(text, mine) if text and mine else text
             if after == text or (provider == "claude" and _claude_servers(after) == _claude_servers(text)):
                 done[provider] = "absent"
                 continue
