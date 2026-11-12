@@ -281,6 +281,51 @@ def test_a_gate_that_cannot_run_refuses_the_start_of_that_subtask(tmp_path, monk
     assert built.status_of("0001-a") == "pending"
 
 
+def test_a_rules_2_plan_refuses_a_live_row_marked_not_applicable_at_the_subtask_start(tmp_path, monkeypatch):
+    """D-29; SDD §3 row "S-3": the start of a subtask asks the rules switch, as the run's start gate does."""
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | not applicable: no screen | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)}, header_extra="> Rules: 2")
+    monkeypatch.chdir(built.work)
+    answer = call("start", plan=str(built.plan), subtask="0001-a")
+    assert code_of(answer) == "gate-cannot-run"
+    assert [item["code"] for item in answer["error"]["failures"]] == ["live-not-applicable"]
+    assert built.status_of("0001-a") == "pending"
+
+
+def test_a_rules_1_plan_still_skips_a_live_row_marked_not_applicable(tmp_path, monkeypatch):
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | not applicable: no screen | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)})
+    monkeypatch.chdir(built.work)
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+
+
+def test_app_config_proves_the_live_build_once_per_run_and_not_at_each_subtask_start(tmp_path, monkeypatch):
+    """D-29; SDD: the live check runs once per run. Each start is a process of its own, so the proof lives in run.json."""
+    rows = "| unit | `git status --short` | the tests run |\n| e2e | `git --version` | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows), "0002-b": contract_text("0002-b", rows=rows)},
+                               header_extra="> App: config")
+    monkeypatch.chdir(built.work)
+    proofs = []
+    monkeypatch.setattr(walk.start_gate, "live_check", lambda code: proofs.append(code) or envelope.ok(address="http://127.0.0.1:1"))
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert call("park", plan=str(built.plan), subtask="0001-a", reason="r", fork="f", options="o", recommendation="r")["ok"]
+    assert call("start", plan=str(built.plan), subtask="0002-b")["ok"]
+    assert len(proofs) == 1
+    assert git(built.run, "status", "--porcelain") == ""
+
+
+def test_a_failed_live_proof_is_not_kept_so_the_next_start_proves_again(tmp_path, monkeypatch):
+    rows = "| e2e | `git --version` | the browser run |"
+    built = plan_fixture.build(tmp_path, {"0001-a": contract_text("0001-a", rows=rows)}, header_extra="> App: config")
+    monkeypatch.chdir(built.work)
+    answers = [envelope.fail("live-no-answer", "no answer"), envelope.ok(address="http://127.0.0.1:1")]
+    monkeypatch.setattr(walk.start_gate, "live_check", lambda code: answers.pop(0))
+    answer = call("start", plan=str(built.plan), subtask="0001-a")
+    assert code_of(answer) == "gate-cannot-run" and answer["error"]["failures"][0]["code"] == "app-unreachable"
+    assert call("start", plan=str(built.plan), subtask="0001-a")["ok"]
+    assert answers == []
+
+
 # --- two-way doors ----------------------------------------------------------------------------------------------------
 
 

@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "execute" / "script
 
 import start_gate  # noqa: E402
 import tdd_log  # noqa: E402
-from plan_contract import PLUGIN, dependents, plan_file, read_contract, read_text, read_tracker, write_atomic, write_status  # noqa: E402
+from plan_contract import PLUGIN, dependents, plan_file, read_contract, read_text, read_tracker, rules_of, write_atomic, write_status  # noqa: E402
 from start_gate import RUN_SUFFIX, git_line, run_branch_of  # noqa: E402
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
@@ -203,6 +203,20 @@ def _tally(statuses):
             "waiting": [item for item, status in statuses.items() if status == "pending"]}
 
 
+def _gate_failures(plan, state, contract, app):
+    """The start gate of one subtask, under the plan's rules. A proven live block of `> App: config` is kept in run.json,
+    so the live build starts once per run, not at each start; a failed proof is not kept."""
+    text = read_text(plan_file(plan))
+    proved = dict(state.get("live") or {})
+    failures = start_gate.gate_failures(contract, start_gate.plan_app(text, app), rules_of(text), ".", proved)
+    kept = {key: answer for key, answer in proved.items() if answer.get("ok")}
+    if kept != (state.get("live") or {}):
+        state["live"] = kept
+        _save(plan, state)
+        _commit_run(plan, "run: live build proven")
+    return failures
+
+
 def start(payload):
     plan, subtask = _plan(payload), str(need(payload, "subtask"))
     state, statuses = _load(plan), _statuses(plan)
@@ -223,7 +237,7 @@ def start(payload):
     for producer, path, anchor in contract.consumes:
         if not _holds(path, anchor):
             raise Refusal("contract-mismatch", f"{path} has no `{anchor}`, which {producer} must produce", producer=producer)
-    failures = start_gate.gate_failures(contract, start_gate.plan_app(read_text(plan_file(plan)), payload.get("app")))
+    failures = _gate_failures(plan, state, contract, payload.get("app"))
     if failures:
         raise Refusal("gate-cannot-run", f"{subtask} has a gate that cannot run in this repository", failures=failures)
     record = state["subtasks"].setdefault(subtask, {"attempts": 0})
