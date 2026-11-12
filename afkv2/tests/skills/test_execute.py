@@ -732,3 +732,36 @@ def test_the_command_answers_one_object_and_the_exit_code(run, capsys, monkeypat
     assert walk.main(["next", json.dumps({"plan": str(run.plan)})]) == 0
     assert json.loads(capsys.readouterr().out)["subtask"] == "0001-a"
     assert tdd_log.main(["nothing"]) == 2
+
+
+# --- the named shell (D-43) -----------------------------------------------------------------------------------------
+
+def test_a_test_command_runs_through_the_named_shell_never_a_hidden_cmd(monkeypatch):
+    """Fails when shell=True comes back. The fake run starts no process."""
+    seen = {}
+
+    def fake_run(args, **kwargs):
+        seen.update(args=args, **kwargs)
+        return subprocess.CompletedProcess(args, 1, b"out\n", b"")
+
+    import live_build
+    monkeypatch.setattr(live_build, "named_shell", lambda: "/the/shell")
+    monkeypatch.setattr(tdd_log.subprocess, "run", fake_run)
+    assert tdd_log._run("pytest tests -q") == (1, "out")
+    assert seen["args"] == ["/the/shell", "-c", "pytest tests -q"]
+    assert not seen.get("shell")
+    source = (AFKV2 / "skills" / "execute" / "scripts" / "tdd_log.py").read_text(encoding="utf-8")
+    assert "shell=True" not in source
+
+
+def test_no_named_shell_refuses_no_shell(monkeypatch):
+    import afkv2_config
+    import live_build
+
+    def no_shell():
+        raise afkv2_config.Refusal("no-shell", "no Git Bash")
+
+    monkeypatch.setattr(live_build, "named_shell", no_shell)
+    with pytest.raises(Refusal) as refused:
+        tdd_log._run("pytest")
+    assert refused.value.code == "no-shell"

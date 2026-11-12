@@ -13,11 +13,14 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN / "ports"))
 sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
+sys.path.insert(0, str(PLUGIN / "scripts"))
 
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
 from plan_contract import plan_file, read_contract, read_text, rules_of  # noqa: E402
 from start_gate import LIVE_TIERS  # noqa: E402
+import afkv2_config  # noqa: E402
+import live_build  # noqa: E402
 
 TEST_LIMIT = 1800
 GIT_LIMIT = 120
@@ -97,9 +100,14 @@ def _git(cwd, *args):
 
 
 def _run(command):
-    """(exit code, last lines of the output). The shell runs the command as the contract states it."""
+    """(exit code, last lines of the output). The named shell of live_build runs the command as the contract
+    states it, as an argument list: never a hidden cmd.exe."""
     try:
-        done = subprocess.run(command, shell=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=TEST_LIMIT)
+        args = live_build.shell_argv(command)
+    except afkv2_config.Refusal as error:
+        raise Refusal(error.code, error.reason) from None
+    try:
+        done = subprocess.run(args, capture_output=True, stdin=subprocess.DEVNULL, timeout=TEST_LIMIT)
     except subprocess.TimeoutExpired:
         raise Refusal("timed-out", f"the test command ran past {TEST_LIMIT} s") from None
     text = (done.stdout + done.stderr).decode("utf-8", "replace")
