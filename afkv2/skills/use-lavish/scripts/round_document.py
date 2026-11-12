@@ -29,7 +29,8 @@ from page_links import links_for, project_keys
 SCHEMA = "afkv2.page/1"
 FORMAT_0 = "afkv2.page/0"
 # The step of a page by its writer, until the round input names one (SDD §4 Session).
-STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design", "to-subtasks": "Plan approval"}
+STEPS = {"grill": "Requirements grill", "propose-solution": "Solution design",
+         "propose-verification": "Verification plan", "to-subtasks": "Plan approval"}
 KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 ASKING = KINDS - {"info"}
 NEW_STATES = {"open", "blocked"}

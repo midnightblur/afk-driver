@@ -369,3 +369,26 @@ def test_the_write_command_answers_one_json_object(repo, tmp_path):
     assert done.returncode == 0, done.stdout
     answer = json.loads(done.stdout)
     assert answer["ok"] is True and answer["rows"] == 4
+
+
+# --- the page session (SDD §3 row S-13) ------------------------------------------------------------------------------
+
+ROUND = {"banner": {"settled": [], "unlocks": [], "parked": []},
+         "items": [{"id": "c-1", "kind": "confirm", "body": {"type": "text", "id": "c-1-body", "props": {"text": "x"}}}]}
+
+
+@pytest.mark.parametrize("skill, step", [("propose-verification", "Verification plan"), ("small-change", None)])
+def test_a_version_2_page_of_each_new_writer_passes_the_engine_check(tmp_path, skill, step):
+    sys.path.insert(0, str(PLUGIN / "skills" / "use-lavish" / "scripts"))
+    import round_document as rd
+    doc_path = tmp_path / f"{skill}-s-1.json"
+    session = {"id": "s-1", "skill": rd._skill_of(doc_path, "s-1"), "feature": TICKET, "ticket": TICKET}
+    if skill == "propose-verification":
+        assert session["skill"] == skill
+    else:
+        session["skill"] = skill
+    rd.build_round_document(doc_path, session, ROUND)
+    stored = json.loads(doc_path.read_text(encoding="utf-8"))["session"]
+    assert stored["skill"] == skill
+    if step:
+        assert stored["step"] == step
