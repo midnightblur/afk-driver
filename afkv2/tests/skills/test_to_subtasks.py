@@ -1523,3 +1523,66 @@ def test_on_the_run_branch_a_rules_2_plan_reads_verification_from_the_feature_br
     assert answer["ok"] and answer["base"] == f"refs/heads/{FEATURE}", answer
     replace_in(plan / "0002-export-endpoint.md", "| unit | VR-002 |", "| unit | VR-009 |")
     assert {"row-unknown", "row-unowned"} <= {item["code"] for item in world.run("check", expect=1, plan=started["plan"])["error"]["failures"]}
+
+
+# Rules 2: `not applicable:` never skips a live level (PRD §AC-029; SDD §6 I-4).
+
+def na_plan(tier="api"):
+    return rules_2_plan(**{"0002-b": rules_2_contract("0002-b", [("static", "—", "`git --version`"),
+                                                                 (tier, "VR-002", "not applicable: this repository has no running app")],
+                                                      blocked=["0001-a"])})
+
+
+def test_a_rules_2_live_row_marked_not_applicable_is_refused(tmp_path):
+    failures = failures_of(rules_2_check(tmp_path, na_plan()))
+    assert [(item["code"], item["where"]) for item in failures] == [("live-not-applicable", "0002-b tier api")]
+
+
+def test_a_plan_with_no_rules_line_may_still_mark_a_live_row_not_applicable(tmp_path):
+    assert rules_2_check(tmp_path, na_plan(), header="> App: none", verification=False)["ok"]
+
+
+def test_a_rules_2_low_row_marked_not_applicable_passes(tmp_path):
+    rows = (WORLD_ROWS[0], ("VR-002", "AC-001", "api", "active"), ("VR-003", "AC-001", "integration", "active"))
+    plan = rules_2_plan(**{"0003-c": rules_2_contract("0003-c", [("integration", "VR-003", "not applicable: no database here")], blocked=["0001-a"])})
+    answer = rules_2_check(tmp_path, plan, rows=rows)
+    assert answer["ok"], failures_of(answer)
+
+
+@pytest.mark.parametrize("tier", ["acceptance"])
+def test_the_acceptance_level_is_a_live_tier(tmp_path, tier):
+    rows = f"{STATIC_ROW}\n| {tier} | the flow runs in a browser | the flow |"
+    assert codes_of(check(tmp_path, {"0001-a": contract("0001-a", rows=rows)})) == ["gate-cannot-run"]
+
+
+def gate_contract(tmp_path, text):
+    gate = load_by_path(START_GATE)
+    (tmp_path / "0002-b.md").write_text(text, "utf-8")
+    return gate, load_by_path(PLAN_CONTRACT).read_contract(tmp_path, "0002-b")
+
+
+def test_the_start_gate_refuses_a_rules_2_live_row_marked_not_applicable(tmp_path):
+    gate, read = gate_contract(tmp_path, na_plan()["0002-b"])
+    failures = gate.gate_failures(read, "http://localhost:8080", rules=2)
+    assert [(item["code"], item["where"]) for item in failures] == [("live-not-applicable", "0002-b tier api")]
+    assert gate.gate_failures(read, None) == []
+
+
+def test_the_start_gate_and_the_check_give_one_live_not_applicable_failure(tmp_path):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, na_plan())
+    plan = tmp_path / "repo" / "plan"
+    read = load_by_path(PLAN_CONTRACT).read_contract(plan, "0002-b")
+    ours = gate.gate_failures(read, None, rules=2)
+    theirs = [item for item in failures_of(cp.check_plan(plan)) if item["code"] == "live-not-applicable"]
+    assert [(item["code"], item["where"], item["reason"]) for item in ours] == [(item["code"], item["where"], item["reason"]) for item in theirs]
+
+
+def test_check_start_reads_the_rules_of_the_plan(tmp_path, monkeypatch):
+    gate = load_by_path(START_GATE)
+    rules_2_check(tmp_path, na_plan())
+    plan = tmp_path / "repo" / "plan"
+    for name in ("_v1_signs", "plan_check_failures", "approval_failures", "forge_failures"):
+        monkeypatch.setattr(gate, name, lambda *args: [])
+    monkeypatch.setattr(gate, "worktree_failures", lambda *args: [])
+    assert "live-not-applicable" in {item["code"] for item in gate.check_start(plan, code=tmp_path / "repo")["error"]["failures"]}

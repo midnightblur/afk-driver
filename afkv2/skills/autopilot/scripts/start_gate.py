@@ -15,7 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from plan_contract import PLUGIN, contract_failures, cycle_of, header_of, plan_file, read_contract, read_text, read_tracker  # noqa: E402
+from plan_contract import (PLUGIN, contract_failures, cycle_of, header_of, plan_file, read_contract, read_text,  # noqa: E402
+                           read_tracker, rules_of)
 from tracker import envelope  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
 from autopilot_v1_facts import V1_HEADER_MARK, V1_SEAM_MARK  # noqa: E402
@@ -29,7 +30,7 @@ APPROVAL = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
 NOT_APPLICABLE = "not applicable:"
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
-LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e"}
+LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e", "acceptance"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
 V1_OPTIONS = ["finish on v1", "slice again with `/afkv2:to-subtasks`"]
@@ -180,8 +181,11 @@ def is_not_applicable(row):
     return row.check.startswith(NOT_APPLICABLE) and bool(row.check[len(NOT_APPLICABLE):].strip())
 
 
-def gate_failures(contract, app=None):
-    """Each `## Verification` row of this contract that cannot run in this repository."""
+def gate_failures(contract, app=None, rules=1):
+    """Each `## Verification` row of this contract that cannot run in this repository.
+
+    `rules` is the answer of `rules_of`: on 2, `not applicable:` on a live tier refuses (PRD AC-029; SDD §6 I-4).
+    """
     failures = []
     fix = f"correct the plan: mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
     for row in contract.rows:
@@ -190,6 +194,8 @@ def gate_failures(contract, app=None):
         if row.check.lower().startswith("not applicable"):
             if not is_not_applicable(row):
                 failures.append(failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason"))
+            elif rules == 2 and tier in LIVE_TIERS:
+                failures.append(failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md"))
             continue
         if tier in LIVE_TIERS:
             if not app:
@@ -251,10 +257,10 @@ def check_start(plan, code=".", app=None):
             failure("v1-plan", str(plan), "; ".join(signs), options=V1_OPTIONS)])
     rows, contracts, failures = contracts_of(plan)
     failures = [*plan_check_failures(plan), *approval_failures(text), *failures]
-    finished, app = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app)
+    finished, app, rules = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app), rules_of(text)
     for contract in contracts:
         if contract.id not in finished:
-            failures.extend(gate_failures(contract, app))
+            failures.extend(gate_failures(contract, app, rules))
     failures.extend(worktree_failures(code, run_branch_of(plan)))
     failures.extend(forge_failures(code))
     failures = _once(failures)

@@ -11,6 +11,7 @@ Rule codes:
   bad-contract, no-tracker, no-contract, unknown-blocker,     the shape of the plan, in the start gate's codes
   blocked-by-cycle, v1-plan, bad-approval
   gate-cannot-run, bad-not-applicable                         a gate the repository cannot run
+  live-not-applicable                                         on a `> Rules: 2` plan, `not applicable:` on a live tier
   check-path-unowned                                          a check path with no owner in the chain
   bad-rules                                                   a `> Rules:` line that reads neither 1 nor 2
 
@@ -79,7 +80,7 @@ APPROVAL_TEXT = "> Division: approved "
 APPROVAL = re.compile(re.escape(APPROVAL_TEXT) + r"(\d{4}-\d{2}-\d{2})\s*")
 GIT_LIMIT_S = 60
 NOT_APPLICABLE = "not applicable:"
-LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e"}
+LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e", "acceptance"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
 SKIP_WORDS = {"", "-", "—", "n/a", "na", "none", "skip", "skipped"}
@@ -540,9 +541,14 @@ def _chain_of(subtask, by_id):
     return chain.values()
 
 
-def _row_failures(where, tier, cell, app, owners, base):
+def live_not_applicable(where):
+    """The refusal of `not applicable:` on a live tier of a `> Rules: 2` plan (PRD AC-029; SDD §6 I-4)."""
+    return failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md")
+
+
+def _row_failures(where, tier, cell, app, owners, base, rules=1):
     if is_not_applicable(cell):
-        return []
+        return [live_not_applicable(where)] if rules == 2 and tier in LIVE_TIERS else []
     if _means_not_applicable(cell):
         return [failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason")]
     fix = f"mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
@@ -560,7 +566,7 @@ def _row_failures(where, tier, cell, app, owners, base):
 
 
 def _gate_failures(subtasks, plan_text, base):
-    app, by_id = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}
+    app, by_id, rules = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}, rules_of(plan_text)
     finished = {subtask for subtask, status in read_rows(plan_text) or [] if status == "done"}
     failures = []
     for subtask in subtasks:
@@ -569,7 +575,7 @@ def _gate_failures(subtasks, plan_text, base):
         owners = [glob for item in _chain_of(subtask, by_id) for glob in item.scope]
         for row in verification_rows(subtask) or []:
             tier = row["tier"].strip("` ").lower()
-            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base)
+            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base, rules)
     return failures
 
 
