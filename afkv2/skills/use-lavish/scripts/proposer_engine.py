@@ -92,12 +92,21 @@ class SkillAdapter:
     state_path(doc) -> the state file of the session of page document `doc`.
     ready(doc, state) -> None, or raises a Refusal while the session may not plan or start its proposers.
     noun: the word before "proposers" in a refusal reason.
-    prefix: the start of each worktree folder name, `<prefix>-<doc stem>-<tool>`."""
+    prefix: the start of each worktree folder name, `<prefix>-<doc stem>-<tool>`, and of each herdr agent name."""
 
     state_path: Callable[[Path], Path]
     ready: Callable[[Path, dict | None], None]
     noun: str
     prefix: str
+
+
+# herdr refuses an agent name outside this rule; a session stem alone can pass 32 characters.
+AGENT_NAME_RULE = r"[a-z][a-z0-9_-]{0,31}"
+
+
+def agent_name(prefix: str, stem: str, tool: str) -> str:
+    """The herdr agent name of one proposer: short, and unique per session and tool."""
+    return f"{prefix}-{hashlib.sha256(stem.encode('utf-8')).hexdigest()[:8]}-{tool}"
 
 
 class HerdrRunner:
@@ -445,7 +454,7 @@ def start(adapter, doc, brief_path, base, runner):
         worktree = main.parent / f"{main.name}-worktrees" / f"{adapter.prefix}-{stem}-{tool}"
         if worktree.exists():
             raise Refusal("worktree-failed", f"{tool}: {worktree} already exists; start leaves it as it is")
-        entry = {"tool": tool, "agent": f"{stem}-{tool}", "pane": None, "worktree": str(worktree), "created": False}
+        entry = {"tool": tool, "agent": agent_name(adapter.prefix, stem, tool), "pane": None, "worktree": str(worktree), "created": False}
         state["proposers"].append(entry)
         _save(adapter, doc, state)
         code, _, err = _git(runner, "worktree", "add", "--detach", str(worktree), base)

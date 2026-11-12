@@ -8,6 +8,7 @@ worktree starts.
 import ast
 import base64
 import json
+import re
 import shutil
 import sys
 from dataclasses import fields
@@ -125,6 +126,8 @@ class FakeRunner:
             self.panes[pane] = {"cwd": args[args.index("--cwd") + 1], "status": "idle"}
             return 0, _json({"id": "cli:pane:split", "result": {"pane": {"pane_id": pane}}}), ""
         if verb == ["agent", "start"]:
+            if not re.fullmatch(engine.AGENT_NAME_RULE, args[2]):
+                return _error("invalid_agent_name")
             self.agents[args[2]] = args[args.index("--pane") + 1]
             return 0, _json({"result": {}}), ""
         if verb == ["agent", "prompt"]:
@@ -477,7 +480,7 @@ def test_a_stalled_prompt_gets_no_enter_when_the_brief_left_the_input_line(runne
     assert all(entry["submitted"] for entry in answer["proposers"])
     assert runner.commands("pane", "send-keys") == []
     confirms = [c for c in runner.commands("agent", "wait") if "working" in c]
-    assert [c[2] for c in confirms] == [f"propose-solution-s-1-{tool}" for tool in ("claude", "codex")]
+    assert [c[2] for c in confirms] == [engine.agent_name("proposer", doc.stem, tool) for tool in ("claude", "codex")]
     assert all(c[c.index("--timeout") + 1] == engine.ENTER_MS for c in confirms)
 
 
@@ -1031,3 +1034,20 @@ def test_another_adapter_keeps_its_own_state_file_ready_check_noun_and_worktree_
     with pytest.raises(Refusal) as caught:
         engine.start(adapter, doc, brief, BASE, runner)
     assert caught.value.code == "same-tool" and "plan proposers" in caught.value.reason
+
+
+def test_start_names_each_agent_within_the_herdr_name_rule_for_a_long_session_stem(runner, doc, phase, brief):
+    long_doc = doc.with_name("propose-solution-s-20261111-182535.json")
+    answer = started(runner, long_doc, brief)
+
+    names = [s[2] for s in runner.commands("agent", "start")]
+    assert len(names) == 2 and len(set(names)) == 2
+    assert all(re.fullmatch(engine.AGENT_NAME_RULE, name) for name in names)
+    assert all(entry["submitted"] is True for entry in answer["proposers"])
+
+
+def test_each_adapter_prefix_keeps_the_agent_name_within_the_herdr_name_rule():
+    stem = "propose-verification-s-20261111-182535"
+    for prefix in ("proposer", "verifier", "small", "drafter"):
+        for tool in ("claude", "codex"):
+            assert re.fullmatch(engine.AGENT_NAME_RULE, engine.agent_name(prefix, stem, tool))
