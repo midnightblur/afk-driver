@@ -378,21 +378,16 @@ ROUND = {"banner": {"settled": [], "unlocks": [], "parked": []},
          "items": [{"id": "c-1", "kind": "confirm", "body": {"type": "text", "id": "c-1-body", "props": {"text": "x"}}}]}
 
 
-@pytest.mark.parametrize("skill, step", [("propose-verification", "Verification plan"), ("small-change", None)])
+@pytest.mark.parametrize("skill, step", [("propose-verification", "Verification plan"), ("small-change", "Small change")])
 def test_a_version_2_page_of_each_new_writer_passes_the_engine_check(tmp_path, skill, step):
     sys.path.insert(0, str(PLUGIN / "skills" / "use-lavish" / "scripts"))
     import round_document as rd
     doc_path = tmp_path / f"{skill}-s-1.json"
     session = {"id": "s-1", "skill": rd._skill_of(doc_path, "s-1"), "feature": TICKET, "ticket": TICKET}
-    if skill == "propose-verification":
-        assert session["skill"] == skill
-    else:
-        session["skill"] = skill
+    assert session["skill"] == skill
     rd.build_round_document(doc_path, session, ROUND)
     stored = json.loads(doc_path.read_text(encoding="utf-8"))["session"]
-    assert stored["skill"] == skill
-    if step:
-        assert stored["step"] == step
+    assert (stored["skill"], stored["step"]) == (skill, step)
 
 
 # --- the verification proposers (SDD §8 row "proposer engine"; design ADR-0008) ---------------------------------------
