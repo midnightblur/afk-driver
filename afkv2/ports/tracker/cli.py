@@ -35,6 +35,11 @@ def _issue_search(payload):
     return KINDS[kind].issue_search(payload)
 
 
+def _comment_put(payload):
+    kind, payload = _kind_and_repo(payload)
+    return KINDS[kind].comment_put(payload)
+
+
 VERBS = {
     "issue-get": _issue_get,
     "issue-search": _issue_search,
@@ -43,6 +48,7 @@ VERBS = {
     "attachment-put": jira.attachment_put,
     "attachment-delete": jira.attachment_delete,
     "description-put": jira.description_put,
+    "comment-put": _comment_put,
 }
 
 

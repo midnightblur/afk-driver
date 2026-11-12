@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -14,10 +16,18 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parents[3]
 FORGE = PLUGIN / "ports" / "forge" / "forge_cli.py"
 REVIEW = PLUGIN / "skills" / "code-review" / "scripts" / "review_rounds.py"
+TRACKER = PLUGIN / "ports" / "tracker" / "cli.py"
 sys.path.insert(0, str(PLUGIN / "ports"))
 
 from tracker import envelope, shell  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
+
+sys.path.insert(0, str(PLUGIN / "scripts"))
+import afkv2_config  # noqa: E402
+import gate_record  # noqa: E402
+
+sys.path.insert(0, str(PLUGIN / "skills" / "autopilot" / "scripts"))
+import plan_contract  # noqa: E402
 
 COMMAND_LIMIT = 300
 REVIEW_LIMIT = 900
@@ -35,6 +45,13 @@ REVIEW_CAN_RETRY = {"command-failed"}
 FILE_TRIES, FILE_PAUSE = 20, 0.1
 SUBTASK_FILE = re.compile(r"[0-9]{4}-.+\.md")
 _NOT_A_FILE_NAME = re.compile(r"[^0-9A-Za-z._-]")
+GITHUB_TRACKER = "github-issues"
+GITHUB_CHANGE = re.compile(r"https://github\.com/(?P<repo>[^/]+/[^/]+)/pull/(?P<number>[0-9]+)/?")
+PUBLIC_NOTICE = "This comment goes to GitHub: on a public repository anyone can open its pictures."
+RECEIPT_PLACEHOLDER = "0" * 64
+PROOF_FOLDER = "afkv2-proof"
+PARTS_FOLDER = "afkv2-change"
+SHIP_ORDER = (*gate_record.SHIP_CODES, "proof-not-posted")
 
 
 def _call(script, verb, payload, limit):
@@ -118,6 +135,30 @@ def _record_path(change):
         raise Refusal("no-repository", "the CI watch runs inside a git repository")
     file_name = _NOT_A_FILE_NAME.sub("_", change)
     return Path(folder) / "afkv2-ci" / f"{file_name}.json"
+
+
+def _parts_path(change):
+    """The proof lines and found bugs that `open` wrote into the description of `change`, kept for the ship check."""
+    file_name = _NOT_A_FILE_NAME.sub("_", change)
+    return _record_path(change).parent.parent / PARTS_FOLDER / f"{file_name}.json"
+
+
+def write_parts(change, proofs, found):
+    _write_record(_parts_path(change), {"id": change, "proofs": proofs, "found": found})
+
+
+def read_parts(change):
+    """`{id, proofs, found}` of the last `open` of `change`, or None when `open` never ran here."""
+    path = _parts_path(change)
+    try:
+        kept = json.loads(_with_retries(lambda: path.read_text(encoding="utf-8")))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        raise Refusal("bad-record", f"the kept parts {path} are unreadable: {error}; run `open` again") from None
+    if not isinstance(kept, dict) or not isinstance(kept.get("proofs"), list) or not isinstance(kept.get("found"), list):
+        raise Refusal("bad-record", f"{path} holds no kept parts; run `open` again")
+    return kept
 
 
 def _with_retries(action):
@@ -376,28 +417,212 @@ def _refuse_unless_green(payload, change):
         raise Refusal(CI_REFUSALS.get(word, "ci-none"), f"CI on change {change} is not green: {word or 'no checks'}", status=word, url=ci.get("url") or "")
 
 
-def mark_ready_if_green(payload):
-    """Mark the change Ready on the local head of an open change, settled reviews and green CI. The CI answer names no commit.
+# ---------------------------------------------------------------- the gate record at ship
 
-    `finish` stops a review, so a wrong change or head refuses first. The reviews can take minutes, so the change and its head are read again, and CI last.
+
+def call_tracker(verb, payload):
+    return _call(TRACKER, verb, payload, COMMAND_LIMIT)
+
+
+def _config():
+    """The repository config, or None when this repository has none."""
+    answer = afkv2_config.read_config()
+    return answer if answer.get("ok") else None
+
+
+def _rules(plan):
+    """The rule set of the plan; a folder with no PLAN.md has no `> Rules: 2` line, so it keeps the old rules."""
+    path = plan_contract.plan_file(plan)
+    return plan_contract.rules_of(plan_contract.read_text(path)) if path.is_file() else 1
+
+
+def _gate_path(payload, plan):
+    """The gate record of the ship, or None for a plan of the old rules, which ships on the review check alone."""
+    if payload.get("gate"):
+        return Path(str(payload["gate"]))
+    rules = _rules(plan) if plan is not None else None
+    if rules == 1:
+        return None
+    if plan is not None and rules is None:
+        raise Refusal("no-gate", f"{plan_contract.plan_file(plan)} has an unknown or a doubled `> Rules:` line, so the "
+                                 "ship cannot tell whether it needs a gate record: pass `gate`, or correct the line")
+    raise Refusal("no-gate", "no gate record: pass `gate`, the path that the end gate or the small lane answered")
+
+
+def _read_gate(path):
+    try:
+        return gate_record.read(path)
+    except afkv2_config.Refusal as refusal:
+        raise Refusal(refusal.code, refusal.reason) from None
+
+
+def _where(payload, view):
+    """Where the proof comment goes, and the tracker payload that posts it; None for a change on another forge."""
+    ticket = payload.get("ticket")
+    if ticket:
+        tracker = ((_config() or {}).get("tracker") or {}).get("kind")
+        return {"kind": "ticket", "key": str(ticket)}, {"key": str(ticket)}, tracker == GITHUB_TRACKER
+    match = GITHUB_CHANGE.fullmatch(view.get("url") or "")
+    if match:
+        return ({"kind": "change", "key": match["number"]},
+                {"tracker": GITHUB_TRACKER, "repo": match["repo"], "key": match["number"]}, True)
+    return {"kind": "change", "key": str(view.get("id"))}, None, False
+
+
+def _scan(text):
+    spec = importlib.util.spec_from_file_location("afkv2_engine_notices", PLUGIN / "engine" / "notices.py")
+    notices = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(notices)
+    return [{"line": line, "shape": shape} for line, shape in notices.scan_text(text)]
+
+
+def build_preview(payload, view, path, record):
+    """The exact proof comment (SDD §4 "Proof comment"), where it goes and its receipt. The receipt is the sha256 of
+    the place, the comment after its first line and the bytes of each picture: the developer's ship mark names it."""
+    where, post, github = _where(payload, view)
+    change = view.get("url") or str(view.get("id"))
+    draft = gate_record.proof_comment(record, receipt=RECEIPT_PLACEHOLDER, change=change, folder=path.parent)
+    digest = hashlib.sha256(f"{where['kind']} {where['key']}\n".encode("utf-8"))
+    digest.update(draft["body"].split("\n", 1)[1].encode("utf-8"))
+    for picture in draft["pictures"]:
+        try:
+            digest.update(gate_record.file_digest(picture).encode("ascii"))
+        except OSError as error:
+            raise Refusal("evidence-changed", f"the picture {Path(picture).name} cannot be read: {error}; run the gate again") from None
+    receipt = digest.hexdigest()
+    comment = gate_record.proof_comment(record, receipt=receipt, change=change, folder=path.parent)
+    return {"receipt": receipt, "body": comment["body"], "pictures": comment["pictures"], "where": where, "post": post,
+            "notice": PUBLIC_NOTICE if github else "", "secrets": _scan(comment["body"]),
+            "proof_lines": gate_record.proof_lines(record)}
+
+
+def proof_preview(payload):
+    """The proof comment that mark-ready posts, for the ship page. Posts nothing."""
+    change = change_ref(payload)
+    view = forge_answer("change-view", payload, id=change)
+    path = Path(str(need(payload, "gate")))
+    preview = build_preview(payload, view, path, _read_gate(path))
+    return ok(**{key: value for key, value in preview.items() if key != "post"})
+
+
+def _gate_failures(payload, view, path):
+    """Each S-10 failure of the gate record at the local head (SDD §3 S-10), and the preview of the proof comment."""
+    kept = read_parts(str(view.get("id"))) or {"proofs": [], "found": []}
+    record = _read_gate(path)
+    config = _config()
+    failures = []
+    try:
+        gate_record.verify(path, kept["proofs"], _local_head(), spec_folder=(config or {}).get("spec_folder") or "",
+                           repo=(config or {}).get("repo_root") or _git_line("rev-parse", "--show-toplevel") or ".")
+    except gate_record.GateRefusal as refusal:
+        failures.extend(refusal.failures)
+    except afkv2_config.Refusal as refusal:
+        failures.append({"code": refusal.code, "row": None, "reason": refusal.reason})
+    for bug in kept["found"]:
+        if not bug.get("pick"):
+            failures.append({"code": "found-open", "row": None, "reason": f"found bug {bug['id']} ({bug['what']}) waits for the developer's pick"})
+    try:
+        preview = build_preview(payload, view, path, record)
+    except Refusal as refusal:
+        if refusal.code != "evidence-changed":
+            raise
+        if not any(failure["code"] == refusal.code for failure in failures):
+            failures.append({"code": refusal.code, "row": None, "reason": refusal.reason})
+        preview = None
+    if preview is not None and payload.get("receipt") != preview["receipt"]:
+        why = "has no ship mark" if not payload.get("receipt") else "changed after the developer's ship mark"
+        failures.append({"code": "proof-not-posted", "row": None,
+                         "reason": f"the proof comment {why}: show the comment of `proof-preview` and pass the receipt the developer marked"})
+    order = {code: n for n, code in enumerate(SHIP_ORDER)}
+    failures.sort(key=lambda failure: order.get(failure["code"], len(order)))
+    return failures, preview
+
+
+def _first_line(text):
+    return str(text or "").split("\n", 1)[0].strip()
+
+
+def _post(payload, view, preview):
+    """Post the proof comment once: the tracker port, or a note of a change on a forge it cannot reach."""
+    body = preview["body"]
+    if preview["post"] is not None:
+        answer = call_tracker("comment-put", {**preview["post"], "body": body, "pictures": preview["pictures"], "receipt": preview["receipt"]})
+        if not answer.get("ok"):
+            raise refusal_of(answer, "tracker comment-put")
+        return {"posted": bool(answer.get("posted")), "url": answer.get("url") or "", "receipt": preview["receipt"]}
+    change = str(view.get("id"))
+    notes = forge_answer("note-list", payload, id=change).get("notes") or []
+    same = next((note for note in notes if isinstance(note, dict) and _first_line(note.get("body")) == _first_line(body)), None)
+    if same is not None:
+        return {"posted": False, "url": same.get("url") or "", "receipt": preview["receipt"]}
+    answer = forge_answer("change-comment", payload, id=change, text=body)
+    return {"posted": True, "url": answer.get("url") or "", "receipt": preview["receipt"]}
+
+
+def _proof_marker(cwd, record_bytes):
+    """The local mark that the proof comment of this exact gate record is posted, in the shared git folder of the
+    repository: every worktree sees it, and gc reads it before it deletes a run branch (SDD §6 I-12)."""
+    done = shell.run_tool("git", ["-C", str(cwd), "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout=COMMAND_LIMIT)
+    folder = done.stdout.strip()
+    if done.returncode != 0 or not folder:
+        raise Refusal("no-repository", f"{cwd} is not inside a git repository")
+    # Line ends do not count: git can check the committed record out with other line ends than the written file.
+    digest = hashlib.sha256(record_bytes.replace(b"\r\n", b"\n")).hexdigest()
+    return Path(folder) / PROOF_FOLDER / f"{digest}.json"
+
+
+def proof_posted(cwd, record_bytes):
+    """True when mark-ready posted the proof comment of the gate record whose file holds `record_bytes`."""
+    return _proof_marker(cwd, record_bytes).is_file()
+
+
+def _mark_posted(path, posted):
+    """The comment is on the ticket; a mark that cannot be written refuses with its url, and the next mark posts nothing again."""
+    try:
+        _write_record(_proof_marker(".", path.read_bytes()), {"gate": str(path), **posted})
+    except (OSError, Refusal) as error:
+        reason = getattr(error, "reason", None) or str(error)
+        raise Refusal("mark-not-written", f"the proof comment is posted at {posted['url']}, but its local mark is not written: "
+                                          f"{reason}; mark again", comment=posted) from None
+
+
+def mark_ready_if_green(payload):
+    """Mark the change Ready on the local head of an open change, a verified gate record, settled reviews and green
+    CI; the proof comment goes out just before Ready. The CI answer names no commit.
+
+    The gate record is verified first, so a ship that cannot pass stops before the reviews. `finish` stops a review,
+    so a wrong change or head refuses first. The reviews can take minutes, so the change and its head are read again,
+    and CI last. A plan of the old rules ships with no gate record, on the review check alone.
     """
     change = change_ref(payload)
-    plan = Path(str(need(payload, "plan")))
-    if not plan.is_dir():
+    plan = Path(str(payload["plan"])) if payload.get("plan") else None
+    if plan is not None and not plan.is_dir():
         raise _bad(f"no plan folder at {plan}")
     view = _head_view(payload, change)
-    open_reviews = _open_reviews(plan, {change, str(view.get("id")), view.get("url")})
-    if open_reviews:
-        raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
-    view = _head_view(payload, change)
+    path = _gate_path(payload, plan)
+    preview = None
+    if path is not None:
+        failures, preview = _gate_failures(payload, view, path)
+        if failures:
+            raise Refusal(failures[0]["code"], "; ".join(failure["reason"] for failure in failures), failures=failures)
+    if plan is not None:
+        open_reviews = _open_reviews(plan, {change, str(view.get("id")), view.get("url")})
+        if open_reviews:
+            raise Refusal("review-open", f"{len(open_reviews)} review(s) are not settled", reviews=open_reviews)
+        view = _head_view(payload, change)
     _refuse_unless_green(payload, change)
+    fields = {}
+    if preview is not None:
+        posted = _post(payload, view, preview)
+        _mark_posted(path, posted)
+        fields["comment"] = posted
     if not view.get("draft"):
-        return ok(id=change, draft=False, marked=False, url=view.get("url") or "")
+        return ok(id=change, draft=False, marked=False, url=view.get("url") or "", **fields)
     forge_answer("change-ready", payload, id=change)
-    return ok(id=change, draft=False, marked=True, url=view.get("url") or "")
+    return ok(id=change, draft=False, marked=True, url=view.get("url") or "", **fields)
 
 
-VERBS = {"start": start_watch, "watch": watch_ci, "status": status, "mark-ready": mark_ready_if_green}
+VERBS = {"start": start_watch, "watch": watch_ci, "status": status, "proof-preview": proof_preview, "mark-ready": mark_ready_if_green}
 
 
 def main(argv=None):

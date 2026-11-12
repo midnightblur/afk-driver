@@ -24,6 +24,23 @@ you ask in this session; the Jira token never passes through you.
    Then `setup.py diagram-renderer` — installs the diagram command with the browser
    download off, and writes `puppeteer-config.json` that names the installed Edge.
    A refusal `no-edge` installs nothing and downloads nothing: report its `reason`.
+   Then `setup.py browser-driver` — installs Chrome DevTools MCP at its pin, registers
+   it for Claude and Codex with usage statistics off and a backup first, and proves
+   it in Chrome and Edge, headless and visible: open a test page, click, screenshot,
+   read the console. Report each proof. A refusal (`no-browser`, `driver-install-failed`,
+   `register-failed`, `proof-failed`): report its `reason`; `proof-failed` names the
+   browser and the step. Ask the developer once whether the agent should drive
+   their own signed-in Chrome or Edge. On yes, tell them to allow remote debugging
+   at `chrome://inspect/#remote-debugging` or `edge://inspect/#remote-debugging`,
+   then run `setup.py browser-driver --attach chrome|edge` with a command time limit of
+   at least 5 minutes: the attach waits up to 4 minutes for the browser. An `attach` with `ok`
+   false: tell the developer its `why`, and offer its `offer` items.
+   A new harness session reads the new entries.
+   Then the judge model: for each provider whose CLI is on the path, run
+   `setup.py judge --provider <claude|codex>`. Codex runs the default model of its CLI;
+   `--model <name>` picks another. Report `model` and the `which` answer. A refusal
+   `no-provider` or `proof-failed`: report its `reason`.
+   `status` field `gh` with `ok` false: tell the developer its `fix`.
 3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
    `installed`: ask nothing; tell the developer to open a new terminal and
    harness, so that herdr is on the path. `herdr` is `ask`:
@@ -99,4 +116,6 @@ token in plain text under `backup_dir`: never open or print it. Restored user
 environment values reach a new terminal, not a running one. Report the
 `published_tickets` list: on those tickets the developer
 must not run v1's publish, because v1 does not find afkv2's block. The diagram
-package and its config stay installed (`diagram_renderer: left-installed`); v1 does not read them.
+package and its config stay installed (`diagram_renderer: left-installed`); v1 does not read them. Switch-back
+removes the browser driver entries from both harnesses (`browser_driver`); the driver
+package stays installed.

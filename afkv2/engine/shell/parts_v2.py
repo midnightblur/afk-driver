@@ -31,6 +31,8 @@ MERGE_LIMIT = 64
 EVERYONE = "everyone"
 LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
 OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
+# The changed-this-round mark (PRD AC-047), after the title of a card or a section.
+CHANGED_MARK = ' <span class="afkv2-changed">Changed this round</span>'
 
 
 def _build_index(doc: dict) -> dict:
@@ -185,7 +187,7 @@ def _article(entry: dict, css: str, inner: str, raw: str = "", **attrs) -> str:
             f'{extra}{raw}>{inner}</article>')
 
 
-def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
+def _section(doc: dict, section: dict, sections: dict, counts: dict, changed: set) -> str:
     title, state = escape(section["title"]), section["state"]
     if state == "merged":
         into = link(doc, current_target(sections, section["merged_into"]))
@@ -199,20 +201,22 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict) -> str:
     links = LINKS.format("Linked sections", _links(doc, targets)) if targets else ""
     reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
                if state == "not_reached" else "")
-    head = f'<h3 class="afkv2-v2-h">{title}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
+    mark = CHANGED_MARK if section["id"] in changed else ""
+    head = f'<h3 class="afkv2-v2-h">{title}{mark}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
     inner = f'{head}{render_component(section["body"])}{links}{render_changes(doc, section["changes"])}'
     return _article(section, "afkv2-v2-section", inner, state=state)
 
 
 @_one_index
-def render_sections(doc: dict) -> str:
-    """The sections block, in page order; a page with no section gets none."""
+def render_sections(doc: dict, changed: set = frozenset()) -> str:
+    """The sections block, in page order; a page with no section gets none. A section in `changed` shows the
+    changed-this-round mark after its title."""
     entries = doc.get("sections") or []
     if not entries:
         return ""
     sections = {entry["id"]: entry for entry in entries}
     counts = _open_counts(doc, sections)
-    body = "".join(_section(doc, section, sections, counts) for section in entries)
+    body = "".join(_section(doc, section, sections, counts, changed) for section in entries)
     return (f'<section class="afkv2-v2-sections" id="afkv2-sections"><h2 class="afkv2-section-h">Sections</h2>'
             f'{body}</section>')
 

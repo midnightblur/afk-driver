@@ -32,6 +32,8 @@ from grill_common import EXIT_UNREADABLE, Parser, Refusal, page_documents, read_
 
 TO_PRD = "/afkv2:to-prd"
 PROPOSE = "/afkv2:propose-solution"
+VERIFY = "/afkv2:propose-verification"
+VERIFICATION = "VERIFICATION.md"
 ADR_WRITERS = {"requirements": TO_PRD, "design": PROPOSE}
 ADR_LINK = re.compile(r"adr/(requirements|design)/[\w.-]+\.md")
 PAGE_SKILL = "to-subtasks"
@@ -39,7 +41,7 @@ SESSION_PREFIX = "division-"
 DOC_PREFIX = f"{PAGE_SKILL}-"
 CARD_PREFIX = "division-"
 RUN_FOLDER = "plan"
-SPEC_FILES = {"PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", "VERIFICATION-PLAN.md", "DESIGN-BRIEF.md"}
+SPEC_FILES = {"PRD.md", "SDD.md", "GRILL-LOG.md", "INDEX.md", VERIFICATION, "DESIGN-BRIEF.md"}
 SPEC_FOLDERS = {"adr", "pages"}
 UNSTAMPED_LINES = (cp.DIVISION_MARK, "> Last updated:")
 GIT_LIMIT_S = 120
@@ -78,11 +80,11 @@ def _missing(missing, writer):
 
 
 def _check_inputs(spec_dir):
+    """Every input of a plan cut; the small lane cuts no plan, so each cut is a medium plan and needs VERIFICATION.md."""
     prd, sdd = spec_dir / "PRD.md", spec_dir / design_files.SDD_NAME
-    if not prd.is_file():
-        raise _missing(prd, TO_PRD)
-    if not sdd.is_file():
-        raise _missing(sdd, PROPOSE)
+    for path, writer in ((prd, TO_PRD), (sdd, PROPOSE), (spec_dir / VERIFICATION, VERIFY)):
+        if not path.is_file():
+            raise _missing(path, writer)
     prd_text, sdd_text = cp.read_text(prd), cp.read_text(sdd)
     for found in ADR_LINK.finditer(prd_text + "\n" + sdd_text):
         if not (spec_dir / found.group(0)).is_file():
@@ -361,8 +363,8 @@ def _without_division_line(plan):
 
 def _gates_of(subtask):
     tiers = []
-    for row in cp.table_rows(subtask.sections.get("Verification", ""))[1:]:
-        tiers.append(f"{row[0]} (not applicable)" if len(row) > 1 and cp.is_not_applicable(row[1]) else row[0])
+    for row in cp.verification_rows(subtask) or []:
+        tiers.append(f"{row['tier']} (not applicable)" if cp.is_not_applicable(row["check"]) else row["tier"])
     return ", ".join(tiers)
 
 
