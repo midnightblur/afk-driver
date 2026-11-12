@@ -10,6 +10,7 @@ from port_fakes import FakeResp, http_error
 from tracker import envelope, github_issues, jira
 
 RECEIPT = "ab" * 32
+SHORT = RECEIPT[:8]
 UUID = "0123abcd-4567-89ab-cdef-0123456789ab"
 BODY = f"afkv2 proof v1 {RECEIPT}\nVR-001 · login · high · pass · The page showed the name.\nHead abc"
 META = ("GET", "/rest/api/3/attachment/meta")
@@ -59,7 +60,7 @@ def refused(call, payload):
 def test_jira_attaches_the_pictures_then_posts_one_adf_comment_that_links_them(fake_jira, picture):
     client = fake_jira(jira_routes())
     answer = jira.comment_put({"key": "PROJ-1", "body": BODY, "pictures": [picture()], "receipt": RECEIPT})
-    name = f"afkv2-proof-{RECEIPT[:8]}-1.png"
+    name = f"afkv2-proof-{SHORT}-1.png"
     assert answer == {"ok": True, "comment_id": "10500", "url": "https://n.test/browse/PROJ-1?focusedCommentId=10500",
                       "attached": [name], "posted": True}
     writes = client.writes()
@@ -80,7 +81,7 @@ def test_jira_with_a_comment_that_holds_the_receipt_posts_nothing_and_names_it(f
 
 def test_jira_reuses_a_picture_a_failed_post_already_attached(fake_jira, picture):
     path = picture()
-    name = f"afkv2-proof-{RECEIPT[:8]}-1.png"
+    name = f"afkv2-proof-{SHORT}-1.png"
     routes = jira_routes(attachments=[{"id": "9001", "filename": name, "size": len(b"\x89PNG one")}])
     client = fake_jira(routes)
     answer = jira.comment_put({"key": "PROJ-1", "body": BODY, "pictures": [path], "receipt": RECEIPT})

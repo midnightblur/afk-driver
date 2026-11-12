@@ -525,9 +525,9 @@ def _attach_pictures(jira, key, paths, receipt):
     """The media id of each picture. A picture a failed post already attached, same name and size, is used again."""
     present = {item.get("filename"): item for item in
                (jira.get_issue(key, "attachment").get("fields") or {}).get("attachment") or []}
-    names, media_ids = [], []
+    names, media_ids, short = [], [], receipt[:8]
     for n, path in enumerate(paths, start=1):
-        name = f"afkv2-proof-{receipt[:8]}-{n}{path.suffix.lower()}"
+        name = f"afkv2-proof-{short}-{n}{path.suffix.lower()}"
         kept = present.get(name)
         if kept and kept.get("id") and kept.get("size") == path.stat().st_size:
             attachment_id = kept["id"]
