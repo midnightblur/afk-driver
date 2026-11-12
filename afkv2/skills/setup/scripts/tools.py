@@ -53,6 +53,12 @@ PROOF_PAGE = ("<!doctype html><title>afkv2 proof</title><button onclick=\"consol
               + "');this.textContent='clicked'\">Prove</button>").encode("utf-8")
 MCP_PROTOCOL = "2025-06-18"
 MCP_SECONDS = 90
+# Chrome DevTools MCP gives up on a browser call after its own protocol timeout; the attach waits past it,
+# so the answer names the real fault (developer run 2026-11-12: Network.enable timed out at 180 s).
+DRIVER_PROTOCOL_SECONDS = 180
+ATTACH_SECONDS = DRIVER_PROTOCOL_SECONDS + 60
+PROTOCOL_TIMEOUT_HINT = ("; a tab of the browser did not answer: wake or close sleeping tabs, or restart the browser, "
+                         "then run this step again")
 STOP_SECONDS = 15
 GH_FLOOR = (2, 99, 0)
 # The judge model setup names when the developer names none: a higher tier of that provider (PRD AC-019).
@@ -665,7 +671,7 @@ def prove_attach(command: Mapping, name: str, env: Mapping[str, str], session=Mc
                                  "remote debugging, keep the browser open, then run this step again"}
     entry = attach_entry(command, profile)
     try:
-        server = session([entry["command"], *entry["args"]])
+        server = session([entry["command"], *entry["args"]], seconds=ATTACH_SECONDS)
     except DriverError as exc:
         return {**failed, "why": str(exc)[:300]}
     try:
@@ -673,12 +679,19 @@ def prove_attach(command: Mapping, name: str, env: Mapping[str, str], session=Mc
     except DriverError as exc:
         hint = (f"; the browser can wait for you to allow the connection in the {name} window: allow it, then run this "
                 "step again") if str(exc).startswith("no answer") else ""
-        return {**failed, "why": str(exc)[:300] + hint}
+        return {**failed, "why": _attach_why(str(exc), hint)}
     finally:
         server.close()
     if broken:
-        return {**failed, "why": _text(content)[:300]}
+        return {**failed, "why": _attach_why(_text(content))}
     return {"ok": True, "browser": name, "entry": entry, "pages": _text(content)[:300]}
+
+
+def _attach_why(answer: str, hint: str = "") -> str:
+    """The driver's answer, with the sleeping-tab hint when it names a protocol timeout."""
+    if re.search(r"protocolTimeout|protocol timeout|\btimed out\b", answer, re.IGNORECASE):
+        hint = PROTOCOL_TIMEOUT_HINT
+    return answer[:300] + hint
 
 
 # ------------------------------------------------------------------- gh floor

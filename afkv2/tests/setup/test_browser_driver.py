@@ -66,11 +66,13 @@ class FakeSession:
     """An MCP server over stdio: each tool answers what Chrome DevTools MCP answers, unless broken."""
 
     started: list[list[str]] = []
+    waits: list[float | None] = []
     broken: str | None = None
     attach_fails = False
 
-    def __init__(self, argv):
+    def __init__(self, argv, seconds=None):
         FakeSession.started.append(list(argv))
+        FakeSession.waits.append(seconds)
         self.argv = list(argv)
         if FakeSession.broken == "start":
             raise tools.DriverError("the server exited: node: bad option")
@@ -96,7 +98,7 @@ class FakeSession:
 
 @pytest.fixture(autouse=True)
 def fresh_session():
-    FakeSession.started, FakeSession.broken, FakeSession.attach_fails = [], None, False
+    FakeSession.started, FakeSession.waits, FakeSession.broken, FakeSession.attach_fails = [], [], None, False
 
 
 @pytest.fixture
@@ -394,6 +396,53 @@ def test_attach_with_no_answer_names_the_permission_prompt_of_the_browser(
     attach = answer["attach"]
     assert attach["ok"] is False and "no answer" in attach["why"]
     assert "allow the connection in the edge window" in attach["why"]
+
+
+def test_attach_waits_longer_than_the_protocol_timeout_of_the_driver(
+        driver_env, places, repo, driver_system, capsys, tmp_path, debug_port):
+    _harness_files(places)
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", debug_port)
+    code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
+    assert code == 0 and answer["attach"]["ok"] is True, answer
+    attach_wait = FakeSession.waits[FakeSession.started.index(next(a for a in FakeSession.started if "--autoConnect" in a))]
+    assert attach_wait is not None and attach_wait > tools.DRIVER_PROTOCOL_SECONDS >= 180
+
+
+PROTOCOL_TIMEOUT = ("Network.enable timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a "
+                    "higher timeout if needed.")
+
+
+@pytest.mark.parametrize("how", ["tool-error", "rpc-error"])
+def test_an_attach_protocol_timeout_is_the_why_with_a_hint_to_wake_tabs(
+        driver_env, places, repo, driver_system, capsys, tmp_path, debug_port, monkeypatch, how):
+    _harness_files(places)
+    real = FakeSession.call
+
+    def timed_out(self, tool, arguments):
+        if tool != "list_pages":
+            return real(self, tool, arguments)
+        if how == "rpc-error":
+            raise tools.DriverError(f"tools/call: {PROTOCOL_TIMEOUT}")
+        return True, [{"type": "text", "text": PROTOCOL_TIMEOUT}]
+
+    monkeypatch.setattr(FakeSession, "call", timed_out)
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", debug_port)
+    code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
+    why = answer["attach"]["why"]
+    assert code == 0 and answer["attach"]["ok"] is False
+    assert "Network.enable timed out" in why
+    assert "allow the connection" not in why
+    assert "sleeping tabs" in why and "restart" in why
+    assert answer["attach"]["offer"] == list(tools.ATTACH_FALLBACKS)
+
+
+def test_an_attach_error_without_a_timeout_carries_no_tab_hint(
+        driver_env, places, repo, driver_system, capsys, tmp_path, debug_port):
+    _harness_files(places)
+    FakeSession.attach_fails = True
+    _active_port(tmp_path / "local" / "Microsoft" / "Edge" / "User Data", debug_port)
+    code, answer = _cli(["browser-driver", "--attach", "edge"], driver_env, driver_system, repo, capsys, tmp_path)
+    assert answer["attach"]["why"] == "Could not connect to Chrome"
 
 
 def test_attach_with_a_port_file_of_a_closed_debug_session_says_remote_debugging_is_off(
