@@ -271,3 +271,15 @@ def test_export_of_a_text_file_with_a_last_newline_reuses_the_page_picture(rende
     calls = len(renderer.calls)
     diagrams.export(FLOW + "\n", tmp_path / "d-flow.svg")
     assert len(renderer.calls) == calls
+
+
+# --- the changed edge stays where no words mark the change (a version 0 or 1 page, any other element)
+
+FRESH_RULE = re.compile(r"^(\[data-afkv2-fresh\][^{]*)\{[^}]*box-shadow", re.M)
+WORDS_MARK = ":not(:has(.afkv2-changed))"
+
+
+def test_the_changed_edge_skips_only_an_element_that_shows_the_words():
+    css = (ENGINE_DIR / "shell" / "kit.css").read_text("utf-8")
+    selectors = [match.strip() for match in FRESH_RULE.findall(css)]
+    assert selectors == ["[data-afkv2-fresh]" + WORDS_MARK]
