@@ -272,6 +272,63 @@ def test_the_parent_run_puts_back_every_code_change(rows_run):
     assert record_of(rows_run)["cycles"][0]["green"]["exit"] == 0
 
 
+def test_on_a_rules_2_plan_the_level_of_a_cycle_is_the_tier_of_its_contract_row(rows_run):
+    """Review f1: a low row sent as `high` would skip the parent-commit run."""
+    plan = str(rows_run.plan)
+    answer = log("red", plan=plan, subtask="0001-a", behavior="b", command=FAIL, row="VR-001", level="high")
+    assert code_of(answer) == "bad-payload" and "low" in answer["error"]["reason"]
+    assert log("red", plan=plan, subtask="0001-a", behavior="h", command=FAIL, row="VR-004")["ok"]
+    assert record_of(rows_run)["cycles"][0]["level"] == "high"
+
+
+def test_a_killed_parent_run_leaves_a_backup_that_the_next_call_puts_back(rows_run, monkeypatch):
+    """Review f2: the uncommitted code is never only in the memory of the process."""
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="b", command=reads("src/new.py", "added"), row="VR-001")["ok"]
+    (rows_run.work / "src").mkdir()
+    (rows_run.work / "src" / "new.py").write_text("added", encoding="utf-8")
+
+    put_back = tdd_log._put_back
+    monkeypatch.setattr(tdd_log, "_put_back", lambda: [])
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="b")["ok"]
+    monkeypatch.setattr(tdd_log, "_put_back", put_back)
+    assert not (rows_run.work / "src" / "new.py").exists()
+    assert log("no-test", plan=str(rows_run.plan), subtask="0001-a", why="prose", row="VR-002")["ok"]
+    assert (rows_run.work / "src" / "new.py").read_text(encoding="utf-8") == "added"
+
+
+def test_a_high_cycle_of_a_rules_2_plan_has_no_parent_run(rows_run):
+    flag = rows_run.work / "tests" / "flag.txt"
+    flag.parent.mkdir()
+    flag.write_text("no", encoding="utf-8")
+    assert log("red", plan=str(rows_run.plan), subtask="0001-a", behavior="h", command=reads("tests/flag.txt", "ok"), row="VR-004")["ok"]
+    flag.write_text("ok", encoding="utf-8")
+    assert log("green", plan=str(rows_run.plan), subtask="0001-a", behavior="h")["ok"]
+
+
+def test_a_high_cycle_needs_a_green_on_a_plan_with_no_rules_line(run):
+    """Review f3: no end gate runs a high test of a plan with no Rules line."""
+    base = git(run.work, "rev-parse", "HEAD")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="h", command=FAIL, level="high")["ok"]
+    assert verdict_codes(run, base) == ["red-open"]
+
+
+def test_a_red_head_off_the_line_still_checks_code_before_the_first_red(run):
+    """Review f4: an amended red commit keeps the old check."""
+    base = git(run.work, "rev-parse", "HEAD")
+    run.commit_code("src/first.py", "x = 1\n", "[0001-a] code first")
+    assert log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["ok"]
+    git(run.work, "commit", "-q", "--amend", "-m", "[0001-a] code first, amended")
+    assert verdict_codes(run, base) == ["red-open", "code-before-red"]
+
+
+def test_the_refusals_of_a_test_with_no_red_name_vc_1(run):
+    """Review f8; PRD §AC-020."""
+    assert "VC-1" in log("green", plan=str(run.plan), subtask="0001-a", behavior="b")["error"]["reason"]
+    (run.work / "src").mkdir()
+    (run.work / "src" / "a.py").write_text("x", encoding="utf-8")
+    assert "VC-1" in log("red", plan=str(run.plan), subtask="0001-a", behavior="b", command=FAIL)["error"]["reason"]
+
+
 def test_a_plan_with_no_rules_line_keeps_the_old_green(run):
     flag = run.work / "tests" / "flag.txt"
     flag.parent.mkdir()
@@ -414,6 +471,12 @@ def test_done_row_checks_on_a_rules_2_plan():
         ("row-no-test", "VR-003")]
     assert row_codes({"cycles": [cycle("VR-001"), cycle("VR-002"), cycle("VR-003"), cycle("VR-004", level="high"), cycle("VR-009"), cycle(None)],
                       "no_test": []}) == [("test-no-row", "VR-009"), ("test-no-row", None)]
+
+
+def test_the_plan_rows_skip_a_not_applicable_row_and_keep_low_for_an_id_a_low_row_names():
+    rows = "| unit | VR-001 | `git status --short` | a |\n| api | VR-001 | `git --version` | b |\n| unit | VR-005 | not applicable: hypothetical | c |"
+    contract = plan_contract.Contract("0001-a", plan_contract.sections_of(rows_contract("0001-a", rows)))
+    assert tdd_log.plan_rows(contract) == {"VR-001": "low"}
 
 
 def test_a_low_row_with_a_cycle_marked_high_still_needs_green():

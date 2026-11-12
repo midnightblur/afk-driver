@@ -16,8 +16,8 @@ You run in a fresh subagent, from the worktree of the feature branch. The brief 
 1. **Read.** Read the contract and `<plan>/DECISIONS.md`. `## Context excerpts` is your spec: open the parent PRD and SDD only for a question the excerpts leave open. A ruling in the brief binds over the contract. A decision entry binds over the passage it quotes.
 2. **Read the ground.** Read each symbol that `## Seams` and `## Consumes` name. Read the module's `AGENTS.md` and the rules that match the files ahead.
 3. **Build, test first.** For each behavior:
-   1. Write the test. `red` with `behavior` and `command`: the test must fail, and only test files may have changed. On a plan with `> Rules: 2`, also give `row` (the `VR-NNN` of the contract's `Plan row` cell), `test` (`<file>::<name>`) and `level` (`low`, or `high` for a test of a live tier).
-   2. Write the code. `green` with `behavior`: the same command must pass. On a `> Rules: 2` plan, `green` also runs a `low` test on the code of the red commit, where it must fail. A `high` test needs no `green`: the end gate runs it.
+   1. Write the test. `red` with `behavior` and `command`: the test must fail, and only test files may have changed. On a plan with `> Rules: 2`, also give `row` (the `VR-NNN` of the contract's `Plan row` cell) and `test` (`<file>::<name>`). The tier of the row sets `level`: `high` for a live tier, else `low`.
+   2. Write the code. `green` with `behavior`: the same command must pass. On a `> Rules: 2` plan, `green` also runs a `low` test on the code of the red commit, where it must fail. A `high` test needs no `green`: the end gate runs it. A killed `green` leaves the code files in the git folder; the next verb puts them back.
    3. Commit. Each subject starts `[<subtask>]`. Commit each time a behavior is green. Stay inside `## Scope`.
 
    Work with no behavior to test, such as prose or a config value: `no-test` with `why`, and `row` on a `> Rules: 2` plan, before you change the files. The entry covers only its row.
