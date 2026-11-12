@@ -123,3 +123,10 @@
 2026-11-12 11:50 | execute | 0011-small-lane | reviewing — this subtask moves to reviewing
 2026-11-12 12:22 | execute | 0011-small-lane | done — this subtask is finished and its work is on the Draft change
 2026-11-12 12:22 | autopilot | run | run end (12/13 done, 1 parked) — the walk of the plan has stopped
+2026-11-12 14:24 | autopilot | 0012-setup-driver-judge | decision(D-50) — the run settled a question about the plan: D-20 answered by the developer (option A); how does 0012 close its e2e row, and what about the attach wait that cut off the driver?
+2026-11-12 14:24 | developer | 0012-setup-driver-judge | unparked(D-20 answered A) — the developer ran the real install and the signed-in attach; the subtask goes back to pending
+2026-11-12 14:25 | autopilot | 0012-setup-driver-judge | developing — a fresh helper starts work on this subtask
+2026-11-12 14:27 | execute | 0012-setup-driver-judge | verifying — this subtask moves to verifying
+2026-11-12 14:32 | execute | 0012-setup-driver-judge | reviewing — this subtask moves to reviewing
+2026-11-12 14:32 | execute | 0012-setup-driver-judge | done — this subtask is finished and its work is on the Draft change
+2026-11-12 14:32 | autopilot | run | run end (13/13 done, 0 parked) — the walk of the plan has stopped
