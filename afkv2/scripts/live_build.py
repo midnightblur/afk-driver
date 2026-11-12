@@ -230,6 +230,15 @@ def shell_argv(command: str) -> list[str]:
     return [named_shell(), "-c", command]
 
 
+# Git Bash rewrites an argument that looks like a POSIX path, such as /api/x, before a Windows program gets it.
+NO_PATH_CONVERSION = {"MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*"}
+
+
+def shell_env(extra: dict | None = None) -> dict:
+    """The environment of a start through `shell_argv`: each argument reaches the program as the command states it."""
+    return {**os.environ, **NO_PATH_CONVERSION, **(extra or {})}
+
+
 def _recorded_bash(environ) -> str | None:
     base = environ.get("LOCALAPPDATA")
     if not base:
@@ -246,7 +255,8 @@ def _spawn(command: str, cwd: Path, output: IO[bytes]) -> _Spawned:
     """Start the command normally, never suspended, then put it in a job. A process that ends before the job
     takes it leaves nothing to hold; one still running outside the job is stopped with a child walk."""
     args = shell_argv(command)
-    common = {"cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT}
+    common = {"cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": output, "stderr": subprocess.STDOUT,
+              "env": shell_env()}
     if sys.platform != "win32":
         return _Spawned(subprocess.Popen(args, start_new_session=True, **common))
     job = _windows_job()

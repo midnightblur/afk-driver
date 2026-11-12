@@ -765,3 +765,12 @@ def test_no_named_shell_refuses_no_shell(monkeypatch):
     with pytest.raises(Refusal) as refused:
         tdd_log._run("pytest")
     assert refused.value.code == "no-shell"
+
+
+PROBE = f'"{Path(sys.executable).as_posix()}" -c "import sys; print(sys.argv[1:])" /api/orders --path=/v1/x'
+UNCHANGED = "['/api/orders', '--path=/v1/x']"
+
+
+def test_a_tdd_command_gets_its_posix_path_arguments_unchanged():
+    code, tail = tdd_log._run(PROBE)
+    assert code == 0 and UNCHANGED in tail

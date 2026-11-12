@@ -188,7 +188,7 @@ def _run_command(command, repo, output, evidence):
         return -1
     try:
         process = subprocess.Popen(args, cwd=repo, stdout=output, stderr=subprocess.STDOUT,
-                                   stdin=subprocess.DEVNULL, env={**os.environ, EVIDENCE_VARIABLE: str(evidence)},
+                                   stdin=subprocess.DEVNULL, env=live_build.shell_env({EVIDENCE_VARIABLE: str(evidence)}),
                                    **other_provider._group())
     except OSError as error:
         output.write(f"the test did not start: {error}\n".encode("utf-8"))

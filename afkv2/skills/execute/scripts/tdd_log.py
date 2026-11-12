@@ -107,7 +107,8 @@ def _run(command):
     except afkv2_config.Refusal as error:
         raise Refusal(error.code, error.reason) from None
     try:
-        done = subprocess.run(args, capture_output=True, stdin=subprocess.DEVNULL, timeout=TEST_LIMIT)
+        done = subprocess.run(args, capture_output=True, stdin=subprocess.DEVNULL, env=live_build.shell_env(),
+                              timeout=TEST_LIMIT)
     except subprocess.TimeoutExpired:
         raise Refusal("timed-out", f"the test command ran past {TEST_LIMIT} s") from None
     text = (done.stdout + done.stderr).decode("utf-8", "replace")

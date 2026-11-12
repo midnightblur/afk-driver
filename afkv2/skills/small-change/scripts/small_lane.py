@@ -222,7 +222,7 @@ def _run(command, repo, output, evidence=None):
         args = live_build.shell_argv(command)
     except afkv2_config.Refusal as error:
         raise Refusal(error.code, error.reason) from None
-    env = {**os.environ, **({EVIDENCE_VARIABLE: str(evidence)} if evidence else {})}
+    env = live_build.shell_env({EVIDENCE_VARIABLE: str(evidence)} if evidence else None)
     try:
         process = subprocess.Popen(args, cwd=repo, stdout=output, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                    env=env, **other_provider._group())

@@ -289,3 +289,14 @@ def test_the_skill_names_each_verb_and_refusal_code():
         assert f"`{verb}`" in text
     for code in re.findall(r'Refusal\("([a-z-]+)"', source):
         assert f"`{code}`" in text
+
+
+PROBE = f'"{Path(sys.executable).as_posix()}" -c "import sys; print(sys.argv[1:])" /api/orders --path=/v1/x'
+UNCHANGED = "['/api/orders', '--path=/v1/x']"
+
+
+def test_a_small_lane_command_gets_its_posix_path_arguments_unchanged(tmp_path):
+    out = tmp_path / "out.log"
+    with out.open("wb") as output:
+        assert small_lane._run(PROBE, tmp_path, output) == 0
+    assert UNCHANGED in out.read_text(encoding="utf-8")

@@ -559,3 +559,14 @@ def test_no_named_shell_fails_the_row_with_its_reason(tmp_path, monkeypatch):
     with open(tmp_path / "row.log", "wb") as output:
         assert end_gate._run_command("pytest", tmp_path, output, tmp_path) == -1
     assert "no Git Bash" in (tmp_path / "row.log").read_text(encoding="utf-8")
+
+
+PROBE = f'"{Path(sys.executable).as_posix()}" -c "import sys; print(sys.argv[1:])" /api/orders --path=/v1/x'
+UNCHANGED = "['/api/orders', '--path=/v1/x']"
+
+
+def test_a_row_command_gets_its_posix_path_arguments_unchanged(tmp_path):
+    out = tmp_path / "out.log"
+    with out.open("wb") as output:
+        assert end_gate._run_command(PROBE, tmp_path, output, tmp_path) == 0
+    assert UNCHANGED in out.read_text(encoding="utf-8")

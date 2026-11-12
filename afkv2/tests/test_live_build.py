@@ -510,3 +510,15 @@ def test_on_windows_no_git_bash_refuses_no_shell(tmp_path):
     with pytest.raises(Refusal) as refused:
         live_build.named_shell(platform="win32", environ={"LOCALAPPDATA": str(tmp_path), "PATH": ""})
     assert refused.value.code == "no-shell"
+
+
+PROBE = f'"{Path(sys.executable).as_posix()}" -c "import sys; print(sys.argv[1:])" /api/orders --path=/v1/x'
+UNCHANGED = "['/api/orders', '--path=/v1/x']"
+
+
+def test_the_named_shell_passes_a_posix_path_argument_unchanged(tmp_path):
+    out = tmp_path / "out.log"
+    with out.open("wb") as output:
+        spawned = live_build._spawn(PROBE, tmp_path, output)
+        spawned.process.wait(timeout=60)
+    assert UNCHANGED in out.read_text(encoding="utf-8")
