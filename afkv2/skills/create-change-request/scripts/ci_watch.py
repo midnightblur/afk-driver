@@ -19,6 +19,9 @@ sys.path.insert(0, str(PLUGIN / "ports"))
 from tracker import envelope, shell  # noqa: E402
 from tracker.envelope import Refusal, need, ok  # noqa: E402
 
+sys.path.insert(0, str(PLUGIN / "scripts"))
+import gate_record  # noqa: E402
+
 COMMAND_LIMIT = 300
 REVIEW_LIMIT = 900
 READ_MARGIN = 300
@@ -118,6 +121,29 @@ def _record_path(change):
         raise Refusal("no-repository", "the CI watch runs inside a git repository")
     file_name = _NOT_A_FILE_NAME.sub("_", change)
     return Path(folder) / "afkv2-ci" / f"{file_name}.json"
+
+
+def _parts_path(change):
+    """The proof lines and found bugs that `open` wrote into the description of `change`, kept for the ship check."""
+    return _record_path(change).parent.parent / "afkv2-change" / f"{_NOT_A_FILE_NAME.sub('_', change)}.json"
+
+
+def write_parts(change, proofs, found):
+    _write_record(_parts_path(change), {"id": change, "proofs": proofs, "found": found})
+
+
+def read_parts(change):
+    """`{id, proofs, found}` of the last `open` of `change`, or None when `open` never ran here."""
+    path = _parts_path(change)
+    try:
+        kept = json.loads(_with_retries(lambda: path.read_text(encoding="utf-8")))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        raise Refusal("bad-record", f"the kept parts {path} are unreadable: {error}; run `open` again") from None
+    if not isinstance(kept, dict) or not isinstance(kept.get("proofs"), list) or not isinstance(kept.get("found"), list):
+        raise Refusal("bad-record", f"{path} holds no kept parts; run `open` again")
+    return kept
 
 
 def _with_retries(action):

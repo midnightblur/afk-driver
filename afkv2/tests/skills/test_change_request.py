@@ -112,7 +112,8 @@ PARTS = {
     "description": "Adds the widget export.",
     "requests": [{"person": "ana", "role": "assignee", "request": "merge after the demo"},
                  {"person": "bo", "role": "reviewer", "request": "read the retry loop in export.py"}],
-    "proofs": [{"claim": "the export works", "evidence": "pytest tests/test_export.py: 12 passed"}],
+    "proofs": [{"row": "VR-1", "behavior": "the export downloads a file", "level": "ui-e2e",
+                "ran": "pytest tests/e2e/test_export.py", "evidence": "export.png (sha256 0123456789ab)"}],
     "mergeability": "The target is merged in and the merge has no conflict.",
     "self_critique": "The retry loop has no test for a slow server.",
 }
@@ -141,7 +142,11 @@ Adds the widget export.
 
 ## Proofs
 
-- the export works: pytest tests/test_export.py: 12 passed
+- VR-1 (ui-e2e): the export downloads a file. Ran: pytest tests/e2e/test_export.py. Evidence: export.png (sha256 0123456789ab)
+
+## Found along the way
+
+None.
 
 ## Why it can merge
 
@@ -194,10 +199,82 @@ def test_a_request_that_is_not_whole_stops_the_open(repo, forge, capsys, entry):
     assert "requests" in error["reason"] and forge.calls == []
 
 
-@pytest.mark.parametrize("proof", [{"claim": "x"}, {"evidence": "y"}, {"claim": " ", "evidence": "y"}, "x"])
-def test_a_proof_with_no_evidence_stops_the_open(repo, forge, capsys, proof):
+PROOF = PARTS["proofs"][0]
+
+
+@pytest.mark.parametrize("field", ["row", "behavior", "level", "ran", "evidence"])
+@pytest.mark.parametrize("value", [None, "  "])
+def test_a_proof_line_with_a_missing_field_stops_the_open_and_names_the_field(repo, forge, capsys, field, value):
+    proof = {key: item for key, item in PROOF.items() if key != field} if value is None else {**PROOF, field: value}
     error = unreadable(change_request, capsys, "open", **parts(proofs=[proof]))
-    assert "proofs" in error["reason"] and forge.calls == []
+    assert "proofs" in error["reason"] and f"`{field}`" in error["reason"] and forge.calls == []
+
+
+def test_a_proof_line_at_a_level_the_gate_does_not_know_stops_the_open(repo, forge, capsys):
+    error = unreadable(change_request, capsys, "open", **parts(proofs=[{**PROOF, "level": "manual"}]))
+    assert "level" in error["reason"] and "ui-e2e" in error["reason"]
+
+
+@pytest.mark.parametrize("proof", [{"claim": "the export works", "evidence": "pytest: 12 passed"}, {"claim": "x"}])
+def test_the_old_claim_and_evidence_proof_refuses_with_a_fix_hint(repo, forge, capsys, proof):
+    error = unreadable(change_request, capsys, "open", **parts(proofs=[proof]))
+    assert "claim" in error["reason"] and "{row, behavior, level, ran, evidence}" in error["reason"]
+    assert forge.calls == []
+
+
+def test_a_proof_that_is_no_object_stops_the_open(repo, forge, capsys):
+    assert "proofs" in unreadable(change_request, capsys, "open", **parts(proofs=["it works"]))["reason"]
+
+
+# --- found along the way
+
+
+BUG = {"what": "the fold header shows its id", "where": "engine/page.py", "how": "seen while adding a section"}
+
+
+def test_found_bugs_go_to_their_own_section_with_what_where_and_how():
+    body = change_request.build_body(parts(found=[BUG, {**BUG, "what": "a second bug", "pick": "ticket", "by": "developer"}]))
+    section = body.split(change_request.FOUND_HEADING, 1)[1].split("\n## ", 1)[0]
+    assert section.strip().splitlines() == [
+        "- FB-01: the fold header shows its id. Where: engine/page.py. Seen: seen while adding a section. Pick: waits for the developer",
+        "- FB-02: a second bug. Where: engine/page.py. Seen: seen while adding a section. Pick: ticket, by developer",
+    ]
+
+
+def test_a_dropped_bug_shows_its_reason():
+    body = change_request.build_body(parts(found=[{**BUG, "pick": "dropped", "by": "developer", "reason": "not reproducible"}]))
+    assert "Pick: dropped, by developer: not reproducible" in body
+
+
+@pytest.mark.parametrize("bug", [
+    {"where": "x", "how": "y"}, {"what": "x", "how": "y"}, {"what": "x", "where": "y"}, {**BUG, "how": " "}, "a bug",
+    {**BUG, "pick": "later", "by": "developer"}, {**BUG, "pick": "ticket"},
+    {**BUG, "pick": "ticket", "by": "agent"}, {**BUG, "pick": "fix-now", "by": "autopilot"},
+    {**BUG, "pick": "dropped", "by": "developer"}, {**BUG, "pick": "fix-in-place", "by": "agent"},
+])
+def test_a_found_bug_that_is_not_whole_stops_the_open(repo, forge, capsys, bug):
+    error = unreadable(change_request, capsys, "open", **parts(found=[bug]))
+    assert "found" in error["reason"] and forge.calls == []
+
+
+def test_an_agent_may_pick_fix_in_place_with_the_reason_it_blocks_a_proof():
+    bug = {**BUG, "pick": "fix-in-place", "by": "agent", "reason": "it blocks the export proof"}
+    assert "Pick: fix-in-place, by agent: it blocks the export proof" in change_request.build_body(parts(found=[bug]))
+
+
+def test_found_must_be_a_list(repo, forge, capsys):
+    assert "found" in unreadable(change_request, capsys, "open", **parts(found=BUG))["reason"]
+
+
+def test_open_keeps_the_proofs_and_found_bugs_of_the_change_for_the_ship_check(repo, forge, capsys):
+    forge.answers = {"change-view": VIEW, "change-update-body": {"ok": True, "id": "7"}}
+    run(change_request, capsys, "open", **parts(found=[BUG]))
+    kept = ci_watch.read_parts("7")
+    assert kept["proofs"] == PARTS["proofs"] and kept["found"][0]["id"] == "FB-01" and kept["found"][0]["pick"] is None
+
+
+def test_a_change_with_no_open_has_no_kept_parts(repo):
+    assert ci_watch.read_parts("7") is None
 
 
 # --- open: create or update, one change per branch
