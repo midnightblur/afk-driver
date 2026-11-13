@@ -27,6 +27,7 @@ from schema.note_rules import round_target
 from shell import parts_v2
 from shell.points import grouped
 from shell.references import link_cards, linkify
+from shell.rounds import round_colour, round_context
 
 HERE = Path(__file__).resolve().parent
 V1, V2 = "afkv2.page/1", "afkv2.page/2"
@@ -34,7 +35,6 @@ BASE_CSS, BASE_JS = "kit.css", "runtime.js"
 TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
 CARD_NOTES = "card-notes"
-GOLDEN_ANGLE = 137.5
 NODE_CARDS_ID = "afkv2-node-cards"
 HIGHLIGHT = HERE / "highlight"
 HIGHLIGHTED = {"code", "diff"}
@@ -42,11 +42,6 @@ LIGHT_THEME = ':root[data-theme="light"]{{{}}}'
 COMMENT = re.compile(r"/\*.*?\*/", re.S)
 
 ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
-
-
-def round_colour(round_: dict) -> str:
-    """The round's own colour; a hue step keeps every round number apart from its neighbours."""
-    return round_.get("colour") or f"hsl({(round_['n'] * GOLDEN_ANGLE) % 360:.1f}, 72%, 68%)"
 
 
 def _assets(suffix: str, first: str) -> str:
@@ -355,7 +350,7 @@ def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = 
     has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices.
     Each component renders in the context of the document's named value sets, in one diagram run: the SVG ids of
     the page's diagrams start afresh, so the same document builds the same bytes."""
-    with page_context(doc.get("value_sets")), diagrams.page_run():
+    with page_context(doc.get("value_sets")), round_context(doc["rounds"]), diagrams.page_run():
         return (_build_v2 if doc["schema"] == V2 else _build)(_answers_read(doc), btw, notices)
 
 

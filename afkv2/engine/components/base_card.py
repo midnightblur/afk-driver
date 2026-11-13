@@ -16,6 +16,7 @@ from html import escape
 
 from registry import register_component, walk
 from shell.parts_v2 import CHANGED_MARK
+from shell.rounds import round_chip
 
 KIND_WORDS = {"decided": "Decided", "confirm": "Confirm", "debate": "Debate", "signoff": "Sign-off",
               "info": "For your information"}
@@ -23,6 +24,7 @@ STATE_WORDS = {"open": "open", "blocked": "blocked", "needs_reading": "needs rea
                "settled_by_mark": "settled by mark", "settled_by_note": "settled by note"}
 RAIL_STATES = {"blocked": "blocked", "settled_by_mark": "settled", "settled_by_note": "settled"}
 WRITE_IN = "write-in"
+PAST_CHIP = "afkv2-round-chip--past"
 FADE_STEP, FADE_FLOOR = 0.2, 0.4
 FIXED_CONTROLS = {
     "decided": [("accept", "Accept"), ("reopen", "Reopen")],
@@ -83,20 +85,20 @@ def _settled_line(item):
 
 
 def fade(age):
-    """The inline style of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each older
-    round fades by FADE_STEP down to FADE_FLOOR, so an old chip stays readable."""
+    """The CSS declaration of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each
+    older round fades by FADE_STEP down to FADE_FLOOR, so an old chip stays readable."""
     if not age:
         return ""
-    return f' style="opacity: {max(FADE_FLOOR, 1 - FADE_STEP * age):.1f}"'
+    return f"opacity: {max(FADE_FLOOR, 1 - FADE_STEP * age):.1f}"
 
 
 def _chip(props, needs_human):
-    """The round chip of the card's round: solid when the card needs the human now, muted otherwise; it fades with
-    the age of its round."""
-    muted = "" if needs_human else " afkv2-round-chip--past"
-    words = f'Round {props["round"]}' if "label" in props else f'R-{props["round"]}'
-    return (f'<span class="afkv2-round-chip{muted}"{fade(props.get("age", 0))} title="Round {props["round"]}">'
-            f'{words}</span> ')
+    """The round chip of the card's round, in its round's colour: bold when the card needs the human now, regular
+    otherwise; it fades with the age of its round."""
+    n = props["round"]
+    words = f"Round {n}" if "label" in props else f"R-{n}"
+    return round_chip(n, words, "" if needs_human else PAST_CHIP, fade(props.get("age", 0)),
+                      f' title="Round {n}"', props["colour"]) + " "
 
 
 def render_card(props, children):

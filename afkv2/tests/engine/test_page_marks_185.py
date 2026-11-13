@@ -27,7 +27,8 @@ CARD_TITLE = 'class="afkv2-card-title"'
 HISTORY = 'class="afkv2-history"'
 FRESH_2 = 'data-afkv2-fresh="2"'
 CHIP_CLASS = "afkv2-round-chip"
-CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'(?: [\w-]+)?"(?: style="opacity: ([0-9.]+)")? title="Round (\d+)">')
+CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'(?: [\w-]+)?" style="--afkv2-round: [^;"]+(?:; opacity: ([0-9.]+))?" '
+                  r'title="Round (\d+)">')
 CARD_OPEN = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*>')
 CARD_BODY = '<div class="afkv2-card-body"><h4 class="afkv2-h">'
 CARD_BODY_CLASS = "afkv2-card-body"

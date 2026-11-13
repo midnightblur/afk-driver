@@ -316,7 +316,8 @@ body > #afkv2-back {
 
 /* --- points: one card per point, its notes on top, its history folded --- */
 
-.afkv2-round-chip--past { background: transparent; color: var(--fg-dim); border: 1px solid var(--afkv2-round, var(--line)); }
+/* A muted chip keeps the fill of its round, so every chip of a round shows the same colour; only its weight drops. */
+.afkv2-round-chip--past { font-weight: 400; }
 .afkv2-nr-table.afkv2-nr-table--card { margin: 0 0 .75rem; }
 .afkv2-nr-table--card th:nth-child(2) { width: 18%; }
 .afkv2-nr-table--card th:nth-child(3) { width: 36%; }

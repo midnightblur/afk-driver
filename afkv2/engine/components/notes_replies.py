@@ -21,6 +21,7 @@ from registry import register_component, walk
 from schema.note_rules import round_target
 from shell import parts_v2
 from shell.page import V2, round_colour
+from shell.rounds import round_chip
 
 ROW_PREFIX = "afkv2-nr-"
 SESSION_PREFIX = "afkv2-ns-"
@@ -311,8 +312,8 @@ def _count_line(round_: dict, rows: list[Row], plain: bool) -> str:
     if answers:
         words.append(_count(answers, "answer") + " from me")
     if plain:
-        return f'<span class="afkv2-round-chip">Round {n}</span> — {", ".join(words)}'
-    return f'<span class="afkv2-round-chip">R-{n}</span> Round {n} — {", ".join(words)}'
+        return f'{round_chip(n, f"Round {n}", colour=round_colour(round_))} — {", ".join(words)}'
+    return f'{round_chip(n, f"R-{n}", colour=round_colour(round_))} Round {n} — {", ".join(words)}'
 
 
 def _session_rows(round_: dict, rows: list[Row]) -> str:

@@ -46,8 +46,8 @@ the heading is the kind and the id. The heading is the first line of the card bo
 notes and replies and the content; the mark radios and the history follow the body. On a version 2 page, a
 card that the current round changed (its id is in a `changed` list of the round) shows "Changed this round"
 after its title; a section with a change line of the current round shows it after its title too. Round 1 shows
-none. Every card has the chip of its round, in the colour of its round. The chip is solid when the card needs
-the human now, and muted otherwise. The chip of the current round is fully strong; each older round fades
+none. Every card has the chip of its round, filled with the colour of its round, as is every other chip of
+that round on the page. The chip text is bold when the card needs the human now, and regular otherwise. The chip of the current round is fully strong; each older round fades
 more, down to a floor that stays readable. An open `info` card
 shows no state word. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
