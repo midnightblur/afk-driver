@@ -2,13 +2,17 @@
  *
  * A mark radio queues one prompt `<card id> <token>` with the lavish bridge.
  * Its queue key names the session, the round and the card, so a new mark
- * replaces the unsent mark of the same card. A note is a native lavish
+ * replaces the unsent mark of the same card. A write-in queues its typed words
+ * on the lines after `<card id> write-in`; with no words it queues the bare line
+ * with `words: ''` in its data, which the engine's poll drops: a write-in with no
+ * words is never sent, and it replaces an earlier mark of the card. A note is a native lavish
  * annotation. The human sends marks and annotations with lavish's own Send.
  * A question for others queues 1 tick line `<question id> tick <option id> ...` in tick order, replaced on
  * each change (ADR-0004 design); with no tick left, the line names no option and sends nothing.
  *
  * Without lavish, "Copy the response" composes the response grammar from the
- * marks: first line [round R-n], then one line <id> <token> per marked card, then each tick line.
+ * marks: first line [round R-n], then one line <id> <token> per marked card, a write-in's words as its
+ * note 1, then each tick line.
  */
 
 /* Open folds survive a re-render. lavish restores the scroll offset after a live
@@ -61,6 +65,9 @@
   var MARK_TAG = 'afkv2-mark';
   /* A question id names its ticks in the draft; a card id names its mark. */
   var TICK_KEY = 'tick:';
+  /* A card id names its write-in words in the draft. */
+  var WORDS_KEY = 'words:';
+  var WRITE_IN = 'write-in';
 
   /* Two stores, because the first one is not always there. A host may load this
    * page in a sandboxed frame with an opaque origin, where every `localStorage`
@@ -114,8 +121,20 @@
     return picked ? picked.value : '';
   }
 
+  function wordsBox(el) {
+    return el.querySelector('[data-afkv2-input="' + WRITE_IN + '"]');
+  }
+
+  function wordsOf(el) {
+    var box = wordsBox(el);
+    return box ? String(box.value || '').replace(/\r\n/g, '\n').replace(/\s+$/, '').replace(/^\s*\n/, '') : '';
+  }
+
   function restore(el) {
-    var saved = store[el.getAttribute('data-afkv2-item')];
+    var id = el.getAttribute('data-afkv2-item');
+    var box = wordsBox(el);
+    if (box && !box.value && store[WORDS_KEY + id]) box.value = store[WORDS_KEY + id];
+    var saved = store[id];
     if (!saved) return;
     var radios = el.querySelectorAll('[data-afkv2-input="choice"] input[type="radio"]');
     for (var i = 0; i < radios.length; i++) {
@@ -188,13 +207,26 @@
   function queue(el, id, token) {
     var bridge = window.lavish;
     if (!bridge || typeof bridge.queuePrompt !== 'function') return false;
-    bridge.queuePrompt(id + ' ' + token, {
+    var data = { item: id, mark: token };
+    var words = '';
+    if (token === WRITE_IN) {
+      words = wordsOf(el);
+      data.words = words;
+    }
+    bridge.queuePrompt(id + ' ' + token + (words ? '\n' + words : ''), {
       tag: MARK_TAG,
       queueKey: 'afkv2:' + session + ':' + round + ':' + id,
       element: el,
-      data: { item: id, mark: token }
+      data: data
     });
     return true;
+  }
+
+  function queued(el, id, token) {
+    if (!queue(el, id, token)) return 'No lavish session: use Copy the response.';
+    if (token === WRITE_IN && !wordsOf(el)) return 'Type your words for ' + id + ': a write-in with no words is not sent.';
+    return 'Queued ' + id + ' ' + token + (token === WRITE_IN ? ' with your words' : '') +
+      '. Send it with the rest in the lavish panel.';
   }
 
   function queueTicks(group, id, ticks) {
@@ -212,8 +244,13 @@
   function compose() {
     var lines = ['[round R-' + round + ']'];
     cards().forEach(function (el) {
-      var token = choiceOf(el);
-      if (token) lines.push(el.getAttribute('data-afkv2-item') + ' ' + token);
+      var token = choiceOf(el), id = el.getAttribute('data-afkv2-item');
+      if (!token) return;
+      if (token !== WRITE_IN) { lines.push(id + ' ' + token); return; }
+      var words = wordsOf(el);
+      if (!words) return;
+      lines.push(id + ' ' + token, id + ' note 1');
+      words.split('\n').forEach(function (line) { lines.push('  ' + line); });
     });
     tickGroups().forEach(function (group) {
       var ticks = ticksOf(group);
@@ -254,9 +291,15 @@
       var token = choiceOf(el);
       store[id] = token;
       save();
-      say(queue(el, id, token)
-        ? 'Queued ' + id + ' ' + token + '. Send it with the rest in the lavish panel.'
-        : 'No lavish session: use Copy the response.');
+      say(queued(el, id, token));
+    });
+    /* Each typed change re-queues the write-in on the same key, so the last words win. */
+    el.addEventListener('input', function (event) {
+      if (!event.target.matches('[data-afkv2-input="' + WRITE_IN + '"]')) return;
+      var id = el.getAttribute('data-afkv2-item');
+      store[WORDS_KEY + id] = wordsOf(el);
+      save();
+      if (choiceOf(el) === WRITE_IN) say(queued(el, id, WRITE_IN));
     });
   });
 

@@ -318,6 +318,14 @@ body > #afkv2-back {
 
 /* A muted chip keeps the fill of its round, so every chip of a round shows the same colour; only its weight drops. */
 .afkv2-round-chip--past { font-weight: 400; }
+/* The write-in box shows only while the write-in radio is picked. */
+.afkv2-writein { display: none; margin: .5rem 0 0; }
+.afkv2-choice:has(input[value="write-in"]:checked) .afkv2-writein { display: block; }
+.afkv2-writein > span { display: block; color: var(--fg-dim); font-size: .85rem; margin-bottom: .25rem; }
+.afkv2-writein > textarea {
+  box-sizing: border-box; width: 100%; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--bg); color: var(--fg); font: inherit; resize: vertical;
+}
 .afkv2-nr-table.afkv2-nr-table--card { margin: 0 0 .75rem; }
 .afkv2-nr-table--card th:nth-child(2) { width: 18%; }
 .afkv2-nr-table--card th:nth-child(3) { width: 36%; }

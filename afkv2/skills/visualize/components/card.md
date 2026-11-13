@@ -33,7 +33,9 @@ notes and replies of that card. At the end, a closed "History (R-1 i-x, …)"
 holds the earlier cards of the point, newest first, each with its chip, state
 and body. An annotation on an earlier card stays on that card.
 
-A mark goes to the lavish queue at once. The human writes a note as a lavish
+A mark goes to the lavish queue at once. The write-in mark opens a box for the
+human's words; the page queues the write-in with its words, which reach the agent
+as the card's first note, and never sends a write-in with no words. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
 lavish's Send to Agent. Until the send, lavish keeps the picked marks, the
 queue and an annotation being typed on an element (not on selected text) in

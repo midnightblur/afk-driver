@@ -128,6 +128,8 @@ MD_CLASS = "afkv2-md"
 COPY_BUTTON = 'id="afkv2-copy-go"'
 ITEM_MARKER = 'data-afkv2-item="{}"'
 COLOUR_RULE = "--afkv2-round: {}"
+WRITE_IN_TOKEN = "write-in"
+WRITE_IN_BOX = 'data-afkv2-input="write-in"'
 
 
 def item_markers(ids):
@@ -597,12 +599,15 @@ def test_a_card_has_the_controls_of_its_kind(kind, tokens):
     for token in tokens:
         assert f'value="{token}"' in html
     assert html.count('type="radio"') == len(tokens)
-    assert holds(html, 'data-afkv2-required="1"') and lacks(html, "<textarea", 'data-afkv2-input="note"')
+    assert holds(html, 'data-afkv2-required="1"') and lacks(html, 'data-afkv2-input="note"')
+    assert html.count("<textarea") == (WRITE_IN_TOKEN in tokens)
 
 
-def test_the_correct_and_write_in_options_point_at_the_annotation():
-    assert holds(card_html(item("i-a", "confirm")), "Correct it: annotate the card")
-    assert holds(card_html(item("i-f", "debate")), "Something else: annotate the card")
+def test_the_correct_and_write_in_options_ask_for_typed_words():
+    for point, label in ((item("i-a", "confirm"), "Correct it: type your correction"),
+                         (item("i-f", "debate"), "Something else: type your answer")):
+        html = card_html(point)
+        assert holds(html, label, WRITE_IN_BOX) and html.count("<textarea") == 1
 
 
 def test_an_info_card_has_no_mark_and_no_note_field():
@@ -905,7 +910,8 @@ def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     html = build(two_rounds())
     assert holds(html, COPY_BUTTON, "Copy the response", "Send to Agent in the lavish panel",
                  'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
-    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
+    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note")
+    assert html.count("<textarea") == html.count(WRITE_IN_BOX), "a text box that is no write-in box"
     assert lacks(RUNTIME, "sendQueuedPrompts")
     assert not (ENGINE_DIR / "shell" / "notes.js").exists()
 
@@ -917,9 +923,9 @@ def test_the_copy_hint_gives_the_format_1_note_entry():
 
 
 def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
-    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token, {", "tag: MARK_TAG,",
+    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token + (words ? ", "tag: MARK_TAG,",
                  "queueKey: 'afkv2:' + session + ':' + round + ':' + id,", "element: el,",
-                 "data: { item: id, mark: token }")
+                 "var data = { item: id, mark: token };")
     assert f"var MARK_TAG = '{prompt_lines.MARK_TAG}';" in RUNTIME
 
 

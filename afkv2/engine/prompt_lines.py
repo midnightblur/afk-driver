@@ -14,7 +14,9 @@ Format 2 (SDD §3): the format 1 lines, + 1 tick line per ticked question for ot
 `<question id> tick <option id> <option id> ...`, the ticked option ids in tick order (ADR-0004 design).
 
 A prompt is `{uid, prompt, selector, tag, text}`. The page queues a mark as a prompt with the tag
-`afkv2-mark`. A prompt with the tag `afkv2-btw` is a side question: the btw? panel posts its questions
+`afkv2-mark`. A write-in mark holds its words on the lines after `<card id> write-in`; they become the first
+note of the card, so ingest gives the write-in signal those words. A write-in whose data says it has no words
+(`words` empty) sends nothing; a bare write-in from a page without that field keeps its line. A prompt with the tag `afkv2-btw` is a side question: the btw? panel posts its questions
 to the side-question listener (`btw_listener.py`), and only a page rendered before that queues one.
 The page queues 1 answer per question for others as a prompt with the tag `afkv2-tick`, its first line the
 tick line; the last one of a question wins, and one with no option id sends nothing.
@@ -26,6 +28,7 @@ on a part that the page names, such as a table row, keeps that name as its noted
 
 from __future__ import annotations
 
+import json
 import re
 
 from schema.note_rules import round_target
@@ -43,6 +46,8 @@ TICK_TAG = "afkv2-tick"
 TICK_WORD = "tick"
 BTW_TAG = "afkv2-btw"
 CONTEXT_DATA = "\n\nContext data:\n"
+WRITE_IN = "write-in"
+WORDS_FIELD = "words"
 OLD_FORM = "[round R-"
 SELECTION_TAG = "text"
 NO_EXCERPT_TAGS = {"whiteboard"}
@@ -109,6 +114,19 @@ def split_side_questions(prompts: list[dict]) -> tuple[list[dict], list[str]]:
     return round_prompts, questions
 
 
+def _mark_parts(text: str) -> tuple[str, dict]:
+    """(the mark prompt's own text, its data). The bridge appends the data as JSON after the last
+    `CONTEXT_DATA`; typed words cannot hold that marker inside the JSON, which escapes their line breaks."""
+    body, marker, tail = text.rpartition(CONTEXT_DATA)
+    if not marker:
+        return text, {}
+    try:
+        data = json.loads(tail)
+    except ValueError:
+        return text, {}
+    return (body, data) if isinstance(data, dict) else (text, {})
+
+
 def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | None = None,
                      page_format: str | None = None, labels: dict | None = None) -> str:
     """First line `[round R-n]` of the current round; then the lines of each element, in first-seen order.
@@ -125,6 +143,7 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
     n = next(r for r in doc["rounds"] if r["state"] == "current")["n"]
     order: list[tuple[str, str]] = []
     marks: dict[str, str] = {}
+    write_ins: dict[str, str] = {}
     ticks: dict[str, list[str]] = {}
     notes: dict[str, list[str]] = {}
 
@@ -142,13 +161,23 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
             order.extend(("line", line) for line in text.split("\n")[1:])
             continue
         if tag == MARK_TAG:
-            line = text.split("\n", 1)[0].strip()
-            target, _, token = line.rpartition(" ")
-            if target and token:
-                entry(target)
-                marks[target] = token
+            body, data = _mark_parts(text)
+            line, _, rest = body.partition("\n")
+            target, _, token = line.strip().rpartition(" ")
+            if not (target and token):
+                order.append(("line", line.strip()))
+                continue
+            typed = rest.strip("\n").rstrip() if token == WRITE_IN else ""
+            if token == WRITE_IN and not typed and WORDS_FIELD in data:
+                marks.pop(target, None)
+                write_ins.pop(target, None)
+                continue
+            entry(target)
+            marks[target] = token
+            if typed:
+                write_ins[target] = typed
             else:
-                order.append(("line", line))
+                write_ins.pop(target, None)
             continue
         if tag == TICK_TAG and not old_grammar:
             line = text.split("\n", 1)[0].strip()
@@ -188,13 +217,13 @@ def raw_from_prompts(doc: dict, prompts: list[dict], ids: dict, aliases: dict | 
         if kind == "line":
             lines.append(value)
         elif old_grammar:
-            first, *more = [note for note, _ in notes[value]] or [None]
+            first, *more = [*([write_ins[value]] if value in write_ins else []), *(note for note, _ in notes[value])] or [None]
             lines.append(f"{value} {marks.get(value, NO_CHOICE)}" + (NOTE_SEPARATOR + first if first else ""))
             lines += [f"{value} {NO_CHOICE}{NOTE_SEPARATOR}{note}" for note in more]
         else:
             lines += [f"{value} {marks[value]}"] if value in marks else []
             lines += [" ".join([value, TICK_WORD, *ticks[value]])] if value in ticks else []
-            lines += note_entry(value, notes[value])
+            lines += note_entry(value, [*([(write_ins[value], None)] if value in write_ins else []), *notes[value]])
     return "\n".join(lines)
 
 

@@ -25,10 +25,11 @@ STATE_WORDS = {"open": "open", "blocked": "blocked", "needs_reading": "needs rea
 RAIL_STATES = {"blocked": "blocked", "settled_by_mark": "settled", "settled_by_note": "settled"}
 WRITE_IN = "write-in"
 PAST_CHIP = "afkv2-round-chip--past"
+WORDS_HINT = "Type your answer. A write-in with no words is not sent."
 FADE_STEP, FADE_FLOOR = 0.2, 0.4
 FIXED_CONTROLS = {
     "decided": [("accept", "Accept"), ("reopen", "Reopen")],
-    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: annotate the card")],
+    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: type your correction")],
     "signoff": [("sign", "Sign"), ("changes", "Ask for changes")],
 }
 
@@ -54,17 +55,24 @@ def debate_options(item):
         match = pattern.fullmatch(component.get("id") or "")
         if match:
             options.append((match.group(1), titles.get(component["id"], f"Option {match.group(1).upper()}")))
-    return [*options, (WRITE_IN, "Something else: annotate the card")]
+    return [*options, (WRITE_IN, "Something else: type your answer")]
+
+
+def _words(item_id):
+    """The write-in box: shown while the write-in radio is picked. The page sends a write-in only with its words."""
+    return (f'<label class="afkv2-writein"><span>Your words</span><textarea name="words:{escape(item_id)}" '
+            f'data-afkv2-input="{WRITE_IN}" rows="3" placeholder="{WORDS_HINT}"></textarea></label>')
 
 
 def _choice(item_id, options):
-    """`data-lavish-question` makes lavish keep the picked radio in its tab store and set it again after a
-    reload, beside the queued mark, which lavish keeps in the same store."""
+    """`data-lavish-question` makes lavish keep the picked radio and the typed write-in words in its tab store and
+    set them again after a reload, beside the queued mark, which lavish keeps in the same store."""
     rows = "".join(
         f'<label class="afkv2-opt"><input type="radio" name="choice:{escape(item_id)}" value="{escape(token)}">'
         f"<span>{escape(label)}</span></label>" for token, label in options)
+    words = _words(item_id) if any(token == WRITE_IN for token, _ in options) else ""
     return (f'<fieldset class="afkv2-choice" data-afkv2-input="choice" data-lavish-question="{escape(item_id)}">'
-            f'<legend>Your mark</legend>{rows}</fieldset>')
+            f'<legend>Your mark</legend>{rows}{words}</fieldset>')
 
 
 def _answer(item, state):

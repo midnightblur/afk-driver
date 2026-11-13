@@ -22,9 +22,11 @@ and no `item`: leave it out when you read the signals, because it settles nothin
   new card asks the human to sign. A note on an `info` card is not a
   clear note: it answers nothing, so it gets a reply only. A `reopen` or `changes`
   mark always disagrees.
-- `needs_reading` in any other case: set `state` to `open`. A write-in has no note
-  id, so it cannot settle by note: the new card for that point is a `confirm` card
-  that states the write-in as your reading.
+- `needs_reading` in any other case: set `state` to `open`. A write-in never
+  settles by note: its words arrive as the signal's `text` and as the first note of
+  its card, and the new card for that point is a `confirm` card that states the
+  write-in as your reading. A write-in with no `text` came from an older page: take
+  its words from the other notes on its card, or ask again.
 - `blocked` with the point it waits on now settled: set `state` to `open`.
 
 Then mark the round `settled` and append the next round. Make one new card for
