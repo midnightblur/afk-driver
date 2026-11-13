@@ -27,7 +27,7 @@ from schema.note_rules import round_target
 from shell import parts_v2
 from shell.points import grouped
 from shell.references import link_cards, linkify
-from shell.rounds import round_colour, round_context
+from shell.rounds import round_chip, round_colour, round_context
 
 HERE = Path(__file__).resolve().parent
 V1, V2 = "afkv2.page/1", "afkv2.page/2"
@@ -171,9 +171,11 @@ def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
 
 
 def _history_name(doc: dict, item: dict, round_: dict) -> str:
+    """The name of an earlier card in its point's history summary, as HTML: its round chip, then its name."""
+    n = round_["n"]
     if doc["schema"] == V2:
-        return f'{parts_v2.visible_label(doc, "round", round_["n"])}: {_label(doc, item)["label"]}'
-    return f'R-{round_["n"]} {item["id"]}'
+        return f'{round_chip(n, parts_v2.visible_label(doc, "round", n))}: {escape(_label(doc, item)["label"])}'
+    return f'{round_chip(n, f"R-{n}")} {escape(item["id"])}'
 
 
 def _history(doc: dict, point) -> str:
@@ -183,7 +185,7 @@ def _history(doc: dict, point) -> str:
     names = ", ".join(_history_name(doc, item, round_) for item, round_ in point.history)
     cards = "".join(_card(doc, item, round_, False) for item, round_ in point.history)
     return (f'<details class="afkv2-history" data-afkv2-fold="history-{escape(point.head["id"])}">'
-            f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
+            f'<summary>History ({names})</summary><div class="afkv2-cards">{cards}</div></details>')
 
 
 def _point(doc: dict, point, current_n: int, changed: set, settled: bool = False) -> str:

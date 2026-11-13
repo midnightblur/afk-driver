@@ -94,10 +94,11 @@ def _settled_line(item):
 
 def fade(age):
     """The CSS declaration of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each
-    older round fades by FADE_STEP down to FADE_FLOOR, so an old chip stays readable."""
+    older round loses saturation by FADE_STEP down to FADE_FLOOR. The chip stays opaque, so its text keeps its
+    contrast in both themes (shell/rounds.py)."""
     if not age:
         return ""
-    return f"opacity: {max(FADE_FLOOR, 1 - FADE_STEP * age):.1f}"
+    return f"filter: saturate({max(FADE_FLOOR, 1 - FADE_STEP * age):.1f})"
 
 
 def _chip(props, needs_human):

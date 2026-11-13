@@ -379,10 +379,8 @@ body > #afkv2-back {
   font-size: .85rem; color: var(--fg-dim);
 }
 .afkv2-v2-change { margin: .15rem 0; }
-.afkv2-v2-change-round {
-  display: inline-block; padding: 0 .4rem; border: 1px solid var(--line); border-radius: 999px;
-  font: .75rem/1.5 ui-monospace, monospace; color: var(--fg);
-}
+/* A change line's round is the round chip (shell/rounds.py), in the regular weight of a past round. */
+.afkv2-v2-change-round { font-weight: 400; }
 .afkv2-v2-change-cause { font-weight: 600; }
 .afkv2-v2-change[data-afkv2-cause="note"] .afkv2-v2-change-cause,
 .afkv2-v2-change[data-afkv2-cause="answer"] .afkv2-v2-change-cause { color: var(--afkv2-you); }

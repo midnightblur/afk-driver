@@ -49,8 +49,9 @@ notes and replies and the content; the mark radios and the history follow the bo
 card that the current round changed (its id is in a `changed` list of the round) shows "Changed this round"
 after its title; a section with a change line of the current round shows it after its title too. Round 1 shows
 none. Every card has the chip of its round, filled with the colour of its round, as is every other chip of
-that round on the page. The chip text is bold when the card needs the human now, and regular otherwise. The chip of the current round is fully strong; each older round fades
-more, down to a floor that stays readable. An open `info` card
+that round on the page: a history summary, a change line, a notes row and a map box. The chip text is bold
+when the card needs the human now, and regular otherwise. The chip of the current round is fully strong; each
+older round loses more saturation, down to a floor that stays readable. An open `info` card
 shows no state word. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`. The round input of a

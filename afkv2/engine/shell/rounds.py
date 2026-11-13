@@ -3,7 +3,8 @@
 the notes table or a map box.
 
 A round's colour is its own `colour`, else a hue a golden-angle step from its neighbours at a fixed saturation and
-lightness. The chip text is near-black on that fill: its contrast is at least 4.5:1 for every hue, in both themes.
+lightness. The chip text is near-black on that fill: its contrast is at least 4.5:1 for every hue, also at the
+fade floor of an old round (a saturation fade on an opaque chip), so it is the same in both themes.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ _colours: dict[int, str] = {}
 
 def round_colour(round_: dict) -> str:
     """The round's own colour; a hue step keeps every round number apart from its neighbours."""
-    return round_.get("colour") or f"hsl({(round_['n'] * GOLDEN_ANGLE) % 360:.1f}, 72%, 68%)"
+    return round_.get("colour") or f"hsl({(round_['n'] * GOLDEN_ANGLE) % 360:.1f}, 72%, 70%)"
 
 
 @contextmanager

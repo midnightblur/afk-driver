@@ -7,6 +7,7 @@ to run the live seam test. It uses its own port and state folder and never stops
 import copy
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -98,6 +99,11 @@ def repo(tmp_path, data_home):
     (root / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "specs"}), "utf-8")
     (root / "specs" / "feature" / "pages").mkdir(parents=True)
     return root
+
+
+def summaries(html):
+    """The visible text of each summary line, in page order: a history summary holds round chips."""
+    return [re.sub(r"<[^>]+>", "", found) for found in re.findall(r"<summary>(.*?)</summary>", html, re.S)]
 
 
 def holds(text, *parts):
@@ -843,7 +849,7 @@ def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
     assert html.count(ITEM_MARKER.format("i-new")) == 1
     head = html[position(html, 'id="i-3"'):]
     assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
-    assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
+    assert summaries(head)[0] == "History (R-2 i-new)" and holds(head, 'data-afkv2-fold="history-i-3"')
     assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
     assert holds(html[:position(html, MAPS_SECTION)], SESSION_COPY_OF_NEW, "Say who runs it.")
 
@@ -853,11 +859,11 @@ def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_w
     doc["rounds"][1]["items"][0]["carries"] = ["i-old"]
     html = build(doc)
     head = html[position(html, 'id="i-3"'):]
-    assert holds(head, "History (R-2 i-new, R-1 i-old)")
+    assert summaries(head)[0] == "History (R-2 i-new, R-1 i-old)"
     assert position(head, 'data-afkv2-item="i-new"') < position(head, 'data-afkv2-item="i-old"')
     doc["rounds"][2]["items"].append(item("i-3b", carries=["i-old"]))
     html = build(doc)
-    assert holds(html, "History (R-2 i-new)</summary>", "History (R-1 i-old)</summary>")
+    assert {"History (R-2 i-new)", "History (R-1 i-old)"} <= set(summaries(html))
     assert html.count(ITEM_MARKER.format("i-old")) == 1
 
 
