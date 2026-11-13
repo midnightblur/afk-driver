@@ -158,8 +158,14 @@ input.actions.forEach(function (a) {
     fire(box, 'change');
   } else if (a.do === 'mark') {
     const radio = root.querySelector('input[name="choice:' + a.card + '"][value="' + a.token + '"]');
+    // A browser unchecks the other radios of the group.
+    all(root, 'input[name="choice:' + a.card + '"]').forEach(function (r) { r.checked = false; });
     radio.checked = true;
     fire(radio, 'change');
+  } else if (a.do === 'words') {
+    const box = root.querySelector('textarea[name="words:' + a.card + '"]');
+    box.value = a.text;
+    fire(box, 'input');
   } else if (a.do === 'filter') {
     const select = root.querySelector('#afkv2-who-filter');
     select.value = a.value;

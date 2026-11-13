@@ -27,6 +27,7 @@ from schema.note_rules import round_target
 from shell import parts_v2
 from shell.points import grouped
 from shell.references import link_cards, linkify
+from shell.rounds import round_chip, round_colour, round_context
 
 HERE = Path(__file__).resolve().parent
 V1, V2 = "afkv2.page/1", "afkv2.page/2"
@@ -34,7 +35,6 @@ BASE_CSS, BASE_JS = "kit.css", "runtime.js"
 TIPS_ASSETS = {"tips.css", "tips.js"}
 NOTES_AND_REPLIES = "notes-and-replies"
 CARD_NOTES = "card-notes"
-GOLDEN_ANGLE = 137.5
 NODE_CARDS_ID = "afkv2-node-cards"
 HIGHLIGHT = HERE / "highlight"
 HIGHLIGHTED = {"code", "diff"}
@@ -42,11 +42,6 @@ LIGHT_THEME = ':root[data-theme="light"]{{{}}}'
 COMMENT = re.compile(r"/\*.*?\*/", re.S)
 
 ELEMENT_ATTR, FRESH_ATTR = 'data-afkv2-element="{}"', ' data-afkv2-fresh="{}"'
-
-
-def round_colour(round_: dict) -> str:
-    """The round's own colour; a hue step keeps every round number apart from its neighbours."""
-    return round_.get("colour") or f"hsl({(round_['n'] * GOLDEN_ANGLE) % 360:.1f}, 72%, 68%)"
 
 
 def _assets(suffix: str, first: str) -> str:
@@ -176,9 +171,11 @@ def _card(doc: dict, item: dict, round_: dict, current: bool, **extra) -> str:
 
 
 def _history_name(doc: dict, item: dict, round_: dict) -> str:
+    """The name of an earlier card in its point's history summary, as HTML: its round chip, then its name."""
+    n = round_["n"]
     if doc["schema"] == V2:
-        return f'{parts_v2.visible_label(doc, "round", round_["n"])}: {_label(doc, item)["label"]}'
-    return f'R-{round_["n"]} {item["id"]}'
+        return f'{round_chip(n, parts_v2.visible_label(doc, "round", n))}: {escape(_label(doc, item)["label"])}'
+    return f'{round_chip(n, f"R-{n}")} {escape(item["id"])}'
 
 
 def _history(doc: dict, point) -> str:
@@ -188,7 +185,7 @@ def _history(doc: dict, point) -> str:
     names = ", ".join(_history_name(doc, item, round_) for item, round_ in point.history)
     cards = "".join(_card(doc, item, round_, False) for item, round_ in point.history)
     return (f'<details class="afkv2-history" data-afkv2-fold="history-{escape(point.head["id"])}">'
-            f'<summary>History ({escape(names)})</summary><div class="afkv2-cards">{cards}</div></details>')
+            f'<summary>History ({names})</summary><div class="afkv2-cards">{cards}</div></details>')
 
 
 def _point(doc: dict, point, current_n: int, changed: set, settled: bool = False) -> str:
@@ -355,7 +352,7 @@ def build(doc: dict, btw: tuple[int, str] | None = None, notices: dict | None = 
     has no btw? panel. `notices` is `{git_state, git_reason, secrets}`; with None the page has no notices.
     Each component renders in the context of the document's named value sets, in one diagram run: the SVG ids of
     the page's diagrams start afresh, so the same document builds the same bytes."""
-    with page_context(doc.get("value_sets")), diagrams.page_run():
+    with page_context(doc.get("value_sets")), round_context(doc["rounds"]), diagrams.page_run():
         return (_build_v2 if doc["schema"] == V2 else _build)(_answers_read(doc), btw, notices)
 
 

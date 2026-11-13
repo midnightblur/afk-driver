@@ -15,6 +15,7 @@ from html import escape
 
 from registry import render_component
 from shell.points import ASKING, SETTLED, lineages
+from shell.rounds import round_chip
 
 STATES = {"not_reached": "not reached yet", "current": "current", "merged": "merged", "removed": "removed",
           "open": "open", "answered": "answered", "dropped": "dropped", "assumed": "assumed"}
@@ -33,6 +34,8 @@ LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
 OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
 # The changed-this-round mark (PRD AC-047), after the title of a card or a section.
 CHANGED_MARK = ' <span class="afkv2-changed">Changed this round</span>'
+
+CHANGE_ROUND = "afkv2-v2-change-round"
 
 
 def _build_index(doc: dict) -> dict:
@@ -146,7 +149,7 @@ def render_changes(doc: dict, changes: list) -> str:
         return ""
     lines = "".join(
         f'<li class="afkv2-v2-change" data-afkv2-cause="{escape(line["cause"])}">'
-        f'<span class="afkv2-v2-change-round">{escape(visible_label(doc, "round", line["round"]))}</span> · '
+        f'{round_chip(line["round"], visible_label(doc, "round", line["round"]), CHANGE_ROUND)} · '
         f'<span class="afkv2-v2-change-cause">{_change_cause(doc, line)}</span>: {escape(line["text"])}</li>'
         for line in sorted(changes, key=lambda line: -line["round"]))
     return f'<ol class="afkv2-v2-changes">{lines}</ol>'

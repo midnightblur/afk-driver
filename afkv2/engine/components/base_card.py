@@ -16,6 +16,7 @@ from html import escape
 
 from registry import register_component, walk
 from shell.parts_v2 import CHANGED_MARK
+from shell.rounds import round_chip
 
 KIND_WORDS = {"decided": "Decided", "confirm": "Confirm", "debate": "Debate", "signoff": "Sign-off",
               "info": "For your information"}
@@ -23,10 +24,12 @@ STATE_WORDS = {"open": "open", "blocked": "blocked", "needs_reading": "needs rea
                "settled_by_mark": "settled by mark", "settled_by_note": "settled by note"}
 RAIL_STATES = {"blocked": "blocked", "settled_by_mark": "settled", "settled_by_note": "settled"}
 WRITE_IN = "write-in"
+PAST_CHIP = "afkv2-round-chip--past"
+WORDS_HINT = "Type your answer. A write-in with no words is not sent."
 FADE_STEP, FADE_FLOOR = 0.2, 0.4
 FIXED_CONTROLS = {
     "decided": [("accept", "Accept"), ("reopen", "Reopen")],
-    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: annotate the card")],
+    "confirm": [("accept", "Accept"), (WRITE_IN, "Correct it: type your correction")],
     "signoff": [("sign", "Sign"), ("changes", "Ask for changes")],
 }
 
@@ -52,17 +55,24 @@ def debate_options(item):
         match = pattern.fullmatch(component.get("id") or "")
         if match:
             options.append((match.group(1), titles.get(component["id"], f"Option {match.group(1).upper()}")))
-    return [*options, (WRITE_IN, "Something else: annotate the card")]
+    return [*options, (WRITE_IN, "Something else: type your answer")]
+
+
+def _words(item_id):
+    """The write-in box: shown while the write-in radio is picked. The page sends a write-in only with its words."""
+    return (f'<label class="afkv2-writein"><span>Your words</span><textarea name="words:{escape(item_id)}" '
+            f'data-afkv2-input="{WRITE_IN}" rows="3" placeholder="{WORDS_HINT}"></textarea></label>')
 
 
 def _choice(item_id, options):
-    """`data-lavish-question` makes lavish keep the picked radio in its tab store and set it again after a
-    reload, beside the queued mark, which lavish keeps in the same store."""
+    """`data-lavish-question` makes lavish keep the picked radio and the typed write-in words in its tab store and
+    set them again after a reload, beside the queued mark, which lavish keeps in the same store."""
     rows = "".join(
         f'<label class="afkv2-opt"><input type="radio" name="choice:{escape(item_id)}" value="{escape(token)}">'
         f"<span>{escape(label)}</span></label>" for token, label in options)
+    words = _words(item_id) if any(token == WRITE_IN for token, _ in options) else ""
     return (f'<fieldset class="afkv2-choice" data-afkv2-input="choice" data-lavish-question="{escape(item_id)}">'
-            f'<legend>Your mark</legend>{rows}</fieldset>')
+            f'<legend>Your mark</legend>{rows}{words}</fieldset>')
 
 
 def _answer(item, state):
@@ -83,20 +93,21 @@ def _settled_line(item):
 
 
 def fade(age):
-    """The inline style of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each older
-    round fades by FADE_STEP down to FADE_FLOOR, so an old chip stays readable."""
+    """The CSS declaration of a round chip `age` rounds old (PRD AC-048): the current round is fully strong, each
+    older round loses saturation by FADE_STEP down to FADE_FLOOR. The chip stays opaque, so its text keeps its
+    contrast in both themes (shell/rounds.py)."""
     if not age:
         return ""
-    return f' style="opacity: {max(FADE_FLOOR, 1 - FADE_STEP * age):.1f}"'
+    return f"filter: saturate({max(FADE_FLOOR, 1 - FADE_STEP * age):.1f})"
 
 
 def _chip(props, needs_human):
-    """The round chip of the card's round: solid when the card needs the human now, muted otherwise; it fades with
-    the age of its round."""
-    muted = "" if needs_human else " afkv2-round-chip--past"
-    words = f'Round {props["round"]}' if "label" in props else f'R-{props["round"]}'
-    return (f'<span class="afkv2-round-chip{muted}"{fade(props.get("age", 0))} title="Round {props["round"]}">'
-            f'{words}</span> ')
+    """The round chip of the card's round, in its round's colour: bold when the card needs the human now, regular
+    otherwise; it fades with the age of its round."""
+    n = props["round"]
+    words = f"Round {n}" if "label" in props else f"R-{n}"
+    return round_chip(n, words, "" if needs_human else PAST_CHIP, fade(props.get("age", 0)),
+                      f' title="Round {n}"', props["colour"]) + " "
 
 
 def render_card(props, children):

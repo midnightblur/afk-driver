@@ -11,15 +11,17 @@ from components.diagram_marks import MARK_FIELDS, marks
 from registry import register_component
 from shell.diagram_boxes import boxes_schema, check_boxes, draw_boxes, nested_labels
 from shell.diagram_parts import figure
+from shell.rounds import round_chip
 
 STATE_WORDS = {"settled": "settled", "open": "open", "focus": "current focus"}
 HEAD_HEIGHT = 22
+NODE_ROUND = "afkv2-node-round"
 
 
 def _node_parts(node):
-    state = node["state"]
+    state, n = node["state"], node["round"]
     above = (f'<span class="afkv2-node-head"><span class="afkv2-node-state">{STATE_WORDS[state]}</span> '
-             f'<span class="afkv2-node-round">R-{node["round"]}</span></span>')
+             f'{round_chip(n, f"R-{n}", NODE_ROUND)}</span>')
     css, attrs = marks(node)
     return (f"afkv2-node--{state}{css}", f' id="{escape(node["id"])}" data-afkv2-element="{escape(node["id"])}"{attrs}',
             above)

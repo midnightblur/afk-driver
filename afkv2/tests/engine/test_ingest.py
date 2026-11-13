@@ -973,9 +973,13 @@ def test_long_text_and_a_note_wrap():
 # --- notes come from lavish annotations: the page has no note controls of its own
 
 
+WRITE_IN_BOX = 'data-afkv2-input="write-in"'
+
+
 def test_the_page_has_no_note_controls():
     html = build(one_round(card("i-a")))
-    assert "+ note" not in html and "Your unsent notes" not in html and "<textarea" not in html
+    assert "+ note" not in html and "Your unsent notes" not in html
+    assert html.count("<textarea") == html.count(WRITE_IN_BOX), "a note box beside the write-in box"
     assert lacks_note_action(html)
 
 

@@ -7,6 +7,7 @@ to run the live seam test. It uses its own port and state folder and never stops
 import copy
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -100,6 +101,11 @@ def repo(tmp_path, data_home):
     return root
 
 
+def summaries(html):
+    """The visible text of each summary line, in page order: a history summary holds round chips."""
+    return [re.sub(r"<[^>]+>", "", found) for found in re.findall(r"<summary>(.*?)</summary>", html, re.S)]
+
+
 def holds(text, *parts):
     return all(part in text for part in parts)
 
@@ -128,6 +134,8 @@ MD_CLASS = "afkv2-md"
 COPY_BUTTON = 'id="afkv2-copy-go"'
 ITEM_MARKER = 'data-afkv2-item="{}"'
 COLOUR_RULE = "--afkv2-round: {}"
+WRITE_IN_TOKEN = "write-in"
+WRITE_IN_BOX = 'data-afkv2-input="write-in"'
 
 
 def item_markers(ids):
@@ -597,12 +605,15 @@ def test_a_card_has_the_controls_of_its_kind(kind, tokens):
     for token in tokens:
         assert f'value="{token}"' in html
     assert html.count('type="radio"') == len(tokens)
-    assert holds(html, 'data-afkv2-required="1"') and lacks(html, "<textarea", 'data-afkv2-input="note"')
+    assert holds(html, 'data-afkv2-required="1"') and lacks(html, 'data-afkv2-input="note"')
+    assert html.count("<textarea") == (WRITE_IN_TOKEN in tokens)
 
 
-def test_the_correct_and_write_in_options_point_at_the_annotation():
-    assert holds(card_html(item("i-a", "confirm")), "Correct it: annotate the card")
-    assert holds(card_html(item("i-f", "debate")), "Something else: annotate the card")
+def test_the_correct_and_write_in_options_ask_for_typed_words():
+    for point, label in ((item("i-a", "confirm"), "Correct it: type your correction"),
+                         (item("i-f", "debate"), "Something else: type your answer")):
+        html = card_html(point)
+        assert holds(html, label, WRITE_IN_BOX) and html.count("<textarea") == 1
 
 
 def test_an_info_card_has_no_mark_and_no_note_field():
@@ -838,7 +849,7 @@ def test_a_point_shows_once_as_its_newest_card_with_its_history(legacy):
     assert html.count(ITEM_MARKER.format("i-new")) == 1
     head = html[position(html, 'id="i-3"'):]
     assert position(head, HISTORY_OPEN) < position(head, 'data-afkv2-item="i-new"')
-    assert holds(head, "<summary>History (R-2 i-new)</summary>", 'data-afkv2-fold="history-i-3"')
+    assert summaries(head)[0] == "History (R-2 i-new)" and holds(head, 'data-afkv2-fold="history-i-3"')
     assert holds(card_in(html, "i-new"), PAST_CHIP, 'id="afkv2-nr-N-2-i-new"', "Say who runs it.")
     assert holds(html[:position(html, MAPS_SECTION)], SESSION_COPY_OF_NEW, "Say who runs it.")
 
@@ -848,11 +859,11 @@ def test_a_history_holds_the_whole_lineage_newest_first_and_the_newest_carrier_w
     doc["rounds"][1]["items"][0]["carries"] = ["i-old"]
     html = build(doc)
     head = html[position(html, 'id="i-3"'):]
-    assert holds(head, "History (R-2 i-new, R-1 i-old)")
+    assert summaries(head)[0] == "History (R-2 i-new, R-1 i-old)"
     assert position(head, 'data-afkv2-item="i-new"') < position(head, 'data-afkv2-item="i-old"')
     doc["rounds"][2]["items"].append(item("i-3b", carries=["i-old"]))
     html = build(doc)
-    assert holds(html, "History (R-2 i-new)</summary>", "History (R-1 i-old)</summary>")
+    assert {"History (R-2 i-new)", "History (R-1 i-old)"} <= set(summaries(html))
     assert html.count(ITEM_MARKER.format("i-old")) == 1
 
 
@@ -905,7 +916,8 @@ def test_the_page_has_no_send_of_its_own_and_a_copy_fallback():
     html = build(two_rounds())
     assert holds(html, COPY_BUTTON, "Copy the response", "Send to Agent in the lavish panel",
                  'data-afkv2-round="2" data-afkv2-session="s1"', "display: flow-root")
-    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note", "<textarea")
+    assert lacks(html, "Send my answers", "Go to first unmarked", "<form", "+ note")
+    assert html.count("<textarea") == html.count(WRITE_IN_BOX), "a text box that is no write-in box"
     assert lacks(RUNTIME, "sendQueuedPrompts")
     assert not (ENGINE_DIR / "shell" / "notes.js").exists()
 
@@ -917,9 +929,9 @@ def test_the_copy_hint_gives_the_format_1_note_entry():
 
 
 def test_a_mark_queues_one_prompt_keyed_by_session_round_and_card():
-    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token, {", "tag: MARK_TAG,",
+    assert holds(RUNTIME, "bridge.queuePrompt(id + ' ' + token + (words ? ", "tag: MARK_TAG,",
                  "queueKey: 'afkv2:' + session + ':' + round + ':' + id,", "element: el,",
-                 "data: { item: id, mark: token }")
+                 "var data = { item: id, mark: token };")
     assert f"var MARK_TAG = '{prompt_lines.MARK_TAG}';" in RUNTIME
 
 

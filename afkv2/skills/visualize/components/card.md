@@ -33,7 +33,9 @@ notes and replies of that card. At the end, a closed "History (R-1 i-x, …)"
 holds the earlier cards of the point, newest first, each with its chip, state
 and body. An annotation on an earlier card stays on that card.
 
-A mark goes to the lavish queue at once. The human writes a note as a lavish
+A mark goes to the lavish queue at once. The write-in mark opens a box for the
+human's words; the page queues the write-in with its words, which reach the agent
+as the card's first note, and never sends a write-in with no words. The human writes a note as a lavish
 annotation on the card or on any part of it, and sends marks and notes with
 lavish's Send to Agent. Until the send, lavish keeps the picked marks, the
 queue and an annotation being typed on an element (not on selected text) in
@@ -46,9 +48,10 @@ the heading is the kind and the id. The heading is the first line of the card bo
 notes and replies and the content; the mark radios and the history follow the body. On a version 2 page, a
 card that the current round changed (its id is in a `changed` list of the round) shows "Changed this round"
 after its title; a section with a change line of the current round shows it after its title too. Round 1 shows
-none. Every card has the chip of its round, in the colour of its round. The chip is solid when the card needs
-the human now, and muted otherwise. The chip of the current round is fully strong; each older round fades
-more, down to a floor that stays readable. An open `info` card
+none. Every card has the chip of its round, filled with the colour of its round, as is every other chip of
+that round on the page: a history summary, a change line, a notes row and a map box. The chip text is bold
+when the card needs the human now, and regular otherwise. The chip of the current round is fully strong; each
+older round loses more saturation, down to a floor that stays readable. An open `info` card
 shows no state word. A note-settled card shows "settled by note", which differs from "settled
 by mark". For a `debate` card, put the options in a `table`, one column per
 option, each option cell with the id `<item id>-opt-<letter>`. The round input of a

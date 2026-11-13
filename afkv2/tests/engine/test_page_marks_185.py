@@ -27,7 +27,8 @@ CARD_TITLE = 'class="afkv2-card-title"'
 HISTORY = 'class="afkv2-history"'
 FRESH_2 = 'data-afkv2-fresh="2"'
 CHIP_CLASS = "afkv2-round-chip"
-CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'(?: [\w-]+)?"(?: style="opacity: ([0-9.]+)")? title="Round (\d+)">')
+CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'(?: [\w-]+)?" style="--afkv2-round: [^;"]+(?:; filter: saturate\(([0-9.]+)\))?" '
+                  r'title="Round (\d+)">')
 CARD_OPEN = re.compile(r'<article class="afkv2-card[^"]*" id="([^"]+)"[^>]*>')
 CARD_BODY = '<div class="afkv2-card-body"><h4 class="afkv2-h">'
 CARD_BODY_CLASS = "afkv2-card-body"
@@ -131,7 +132,7 @@ def test_a_version_1_page_keeps_its_visible_text_and_shows_no_mark():
 
 
 def chip_strengths(html):
-    """Each round number with the opacity of its chips; a chip with no opacity is fully strong."""
+    """Each round number with the saturation of its chips; a chip with no fade is fully strong."""
     found = {}
     for opacity, n in CHIP.findall(html):
         found.setdefault(int(n), set()).add(float(opacity or 1))

@@ -7,6 +7,7 @@ has no changed list (round 1).
 from html import escape
 
 from registry import register_component
+from shell.rounds import round_chip
 
 LISTS = (("settled", "What settled"), ("unlocks", "What it unlocks"), ("parked", "Parked"))
 LIST_CLASS, CHANGED_CLASS = "afkv2-banner-list", "afkv2-banner-changed"
@@ -33,7 +34,7 @@ def render_round_banner(props, children):
                     for key, title in LISTS)
     return (f'<header class="afkv2-banner" data-afkv2-banner="{n}" '
             f'style="--afkv2-round: {escape(props["colour"])}">'
-            f'<h2><span class="afkv2-round-chip">R-{n}</span> Round {n}: {state}</h2>'
+            f'<h2>{round_chip(n, f"R-{n}", colour=props["colour"])} Round {n}: {state}</h2>'
             f'<div class="afkv2-banner-lists">{_changed(props.get("changed"))}{lists}</div></header>'
             + "".join(children))
 
