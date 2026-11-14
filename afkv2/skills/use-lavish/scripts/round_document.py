@@ -482,6 +482,23 @@ def unanswered_note_warnings(doc, round_n):
             and not _answers(doc, note)]
 
 
+LONG_TEXT_SENTENCES = 4
+SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+
+
+def long_text_warnings(items):
+    """A warning for each plain `text` part of more than LONG_TEXT_SENTENCES sentences; the round still
+    builds. Such a part reads better as a `markdown: true` list (visualize guide, "Chip and styled text").
+    The ticket card holds the tracker's words, not the agent's, so it gets no warning."""
+    return [{"code": "long-text", "item": item["id"], "component": component.get("id"),
+             "reason": f"item {item['id']}: a text of {count} sentences; write it as a `markdown: true` list, "
+                       f"1 point per bullet, sub-points indented 2 spaces"}
+            for item in items if item["id"] != TICKET_CARD for component in _components(item["body"])
+            if component.get("type") == "text" and not (component.get("props") or {}).get("markdown")
+            for count in [len(SENTENCE_END.findall(str((component.get("props") or {}).get("text", ""))))]
+            if count > LONG_TEXT_SENTENCES]
+
+
 def _session_text(session, round_input, n):
     """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
     if round_input.get("step") is not None:
@@ -712,7 +729,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if version_2 and unanswered:
         raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
                                          f"{', '.join(warning['note'] for warning in unanswered)}")
-    warnings += unanswered
+    warnings += unanswered + long_text_warnings(items)
     if version_2:
         check_version_2(doc)
     write_json(doc_path, doc)

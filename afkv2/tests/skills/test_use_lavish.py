@@ -590,3 +590,38 @@ def test_one_term_for_the_json_a_command_prints():
     assert "Every result is one JSON object" in head
     for gone in ("Every answer is one JSON object", "answers `doc`", "answers ok", "the answer holds"):
         assert gone not in head, gone
+
+
+# ---- a plain text of more than 4 sentences is warned: it reads better as a list (visualize "Chip and styled text")
+
+LONG = "One. Two. Three. Four. Five."
+
+
+def a_text_card(item_id, text, **props):
+    return {"id": item_id, "kind": "confirm",
+            "body": {"type": "text", "id": f"{item_id}-body", "props": {"text": text, **props}}}
+
+
+def test_a_plain_text_of_more_than_4_sentences_is_warned_and_the_round_still_builds(tmp_path):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    built = {**round_input(), "items": [a_text_card("i-a", LONG), a_text_card("i-b", "One. Two. Three. Four.")]}
+    answer = rd.build_round_document(path, SESSION, built)
+    assert answer["round"] == 1 and len(read(path)["rounds"]) == 1
+    assert [(w["code"], w["item"], w["component"]) for w in answer["warnings"]] == [("long-text", "i-a", "i-a-body")]
+    assert "5 sentences" in answer["warnings"][0]["reason"]
+
+
+def test_a_markdown_text_or_a_long_child_text_is_read_the_same_way(tmp_path):
+    card = a_text_card("i-a", "Short.")
+    card["body"]["children"] = [{"type": "text", "id": "i-a-long", "props": {"text": LONG}},
+                                {"type": "text", "id": "i-a-list", "props": {"text": LONG, "markdown": True}}]
+    answer = rd.build_round_document(tmp_path / "pages" / "grill-s-1.json", SESSION,
+                                     {**round_input(), "items": [card]})
+    assert [w["component"] for w in answer["warnings"]] == ["i-a-long"]
+
+
+def test_the_build_command_and_the_guide_name_the_long_text_warning():
+    assert "a `long-text` part" in SKILL_MD.read_text("utf-8")
+    guide = " ".join((SKILLS / "visualize" / "components" / "chip-and-text.md").read_text("utf-8").split())
+    assert "The build warns `long-text` on a plain text over 4 sentences." in guide
+    assert rd.LONG_TEXT_SENTENCES == 4

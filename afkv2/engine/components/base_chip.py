@@ -50,8 +50,35 @@ def _inline(text):
                    for i, part in enumerate(parts))
 
 
+def _indent(line):
+    """The indent width of `line`; a tab counts as 4 spaces."""
+    return len(line[:len(line) - len(line.lstrip(" \t"))].replace("\t", "    "))
+
+
+def _list(items):
+    """Nested `<ul>` from (indent, words) pairs: an item indented 2 or more spaces past the item above it
+    nests under that item; the first item sets the left edge, so a list indented as a whole stays flat."""
+    html, open_levels = [], []
+    for indent, words in items:
+        if not open_levels:
+            html.append("<ul>")
+            open_levels.append(indent)
+        elif indent >= open_levels[-1] + 2:
+            html.append("<ul>")
+            open_levels.append(indent)
+        else:
+            html.append("</li>")
+            while len(open_levels) > 1 and indent < open_levels[-1]:
+                open_levels.pop()
+                html.append("</ul></li>")
+        html.append(f"<li>{_inline(words)}")
+    html.append("</li>" + "</ul></li>" * (len(open_levels) - 1) + "</ul>")
+    return "".join(html)
+
+
 def markdown(text):
-    """Blank-line paragraphs, `- ` lists, `#` headings as bold lines, and the inline subset of `_inline`."""
+    """Blank-line paragraphs, `- ` lists nested by indent, `#` headings as bold lines, and the inline subset
+    of `_inline`."""
     out, para, items = [], [], []
 
     def flush():
@@ -59,7 +86,7 @@ def markdown(text):
             out.append(f"<p>{_inline(' '.join(para))}</p>")
             para.clear()
         if items:
-            out.append("<ul>" + "".join(f"<li>{_inline(item)}</li>" for item in items) + "</ul>")
+            out.append(_list(items))
             items.clear()
 
     for line in text.replace("\r\n", "\n").split("\n"):
@@ -70,12 +97,12 @@ def markdown(text):
         elif listed:
             if para:
                 flush()
-            items.append(listed.group(1).strip())
+            items.append((_indent(line), listed.group(1).strip()))
         elif heading:
             flush()
             out.append(f'<p class="afkv2-md-h"><strong>{_inline(heading.group(1))}</strong></p>')
         elif items and line[:1] in (" ", "\t"):
-            items[-1] += " " + stripped
+            items[-1] = (items[-1][0], items[-1][1] + " " + stripped)
         else:
             if items:
                 flush()
