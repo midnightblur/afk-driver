@@ -1,6 +1,5 @@
 """A `markdown: true` text nests a list by indent; the kit styles the nested list in both themes."""
 
-import re
 import sys
 from pathlib import Path
 
@@ -8,8 +7,11 @@ import pytest
 
 ENGINE_DIR = Path(__file__).resolve().parents[2] / "engine"
 sys.path.insert(0, str(ENGINE_DIR))
+sys.path.insert(0, str(ENGINE_DIR.parent / "scripts"))
 
 import registry  # noqa: E402
+
+registry.load_components()
 
 KIT = (ENGINE_DIR / "shell" / "kit.css").read_text(encoding="utf-8")
 
@@ -47,4 +49,5 @@ def test_a_nested_point_keeps_the_inline_subset_and_escapes_html():
 
 
 def test_the_kit_indents_a_nested_list():
-    assert re.search(r"\.afkv2-md li > ul \{[^}]*padding-left: 1\.2rem", KIT)
+    nested = [line for line in KIT.splitlines() if line.endswith(" li > ul { margin: .2rem 0 0; padding-left: 1.2rem; }")]
+    assert nested == [".afkv2-md li > ul { margin: .2rem 0 0; padding-left: 1.2rem; }"]
