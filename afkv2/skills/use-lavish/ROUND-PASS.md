@@ -44,6 +44,24 @@ for example both the mark and the note. A carried
 `blocked` card names the current card id of the point it waits on. An `info` card
 stays in its round. The old card stays as it is.
 
+## Check each settled decision
+
+A decision of the human is unverified until you check it. Check each point that
+the human settled in this send: a lone mark that the engine settled, a pick
+against your recommendation, and a decision in a note or a write-in. Check that
+the decision:
+
+- can be built in the code as it is;
+- leaves no gap: each case, state and error that it implies has an answer;
+- fits the settled points, the staples and the standards of the repository.
+
+A check that finds a problem: the settled card stays as it is. Make 1 new
+`debate` card in the next round, with `carries` that names the settled card. Its
+body names the decision, the problem, the evidence (a path and line, a command
+and its output, or a document and its section) and the options. Build nothing on
+that decision until the human answers the new card. A check that finds no
+problem: say so in the next round, with the evidence you checked.
+
 ## Read the notes
 
 Every round that follows input from the human: the notes of the last round, or

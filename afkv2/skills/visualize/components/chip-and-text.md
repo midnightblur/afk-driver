@@ -5,7 +5,8 @@
 A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone or a set (below); for text the tone is
 optional. A chip also takes a tone of state or certainty (second table). A `text` takes `markdown: true` to render a safe subset: blank-line
-paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
+paragraphs, `**bold**`, `` `code` ``, `- ` lists (a line indented 2 spaces more
+than the line above nests under it), `#` headings as bold lines and
 http(s) links. The engine escapes all HTML first. A `text` also takes `label`
 (at most 60 characters), a small line above its words that names what the words
 are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
@@ -62,7 +63,10 @@ on hover.
 
 A value, step or element must show whether it stays, goes, is new or is only
 proposed. Use `markdown: true` for text that comes as Markdown, such as a
-ticket description. Use `label` when a card holds several fields, so each block
+ticket description. Use a `markdown: true` list for a text that lists points
+or runs over 4 sentences: 1 point per `- ` line, and each sub-point on its own
+line, indented 2 spaces under its point. The build warns `long-text` on a plain
+text over 4 sentences. Use `label` when a card holds several fields, so each block
 says what it is. Use a state chip for the state of a point or a part, and a
 certainty chip for how sure a value is: `measured`, `inferred`, `estimated` or
 `unverified`. Write the meaning in the chip's text too, for example "blocked: waits
@@ -102,6 +106,16 @@ component with a `tip` shows the help cursor, and the tip shows on hover.
     {"type": "chip", "props": {"text": "blocked: waits on the format", "tone": "blocked"}},
     {"type": "text", "props": {"text": "Archive after 7 days", "tone": "proposed"}}
   ]
+}
+```
+
+A text that lists points, with sub-points nested:
+
+```json fragment=component
+{
+  "type": "text",
+  "props": {"label": "What ships", "markdown": true,
+            "text": "- The export menu\n- 2 job types:\n  - Export orders\n  - Archive orders\n- Orders only; the job never deletes an order"}
 }
 ```
 

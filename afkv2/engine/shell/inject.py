@@ -44,29 +44,62 @@ def clean(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+CONNECTORS = frozenset({"a", "an", "and", "for", "in", "of", "on", "or", "the", "to"})
+COMMON_WORD = re.compile(r"[a-z]+")
+
+
+def _initials(words: list[str]) -> set[str]:
+    """The initialisms of `words`: every word, and every word but the connectors."""
+    content = [w for w in words if w.lower() not in CONNECTORS]
+    return {"".join(w[0] for w in group).upper() for group in (words, content) if group}
+
+
+def _alias(inner: str, base: str) -> bool:
+    """A `(token)` is an alias of its term when it is code (backticks) or the initialism of the base words.
+
+    Any other `(token)` is a qualifier, such as `Enrich (action)` or `Currency (GL)`: it narrows the
+    meaning and is no name of the term, so it gives no key.
+    """
+    token = inner.replace("`", "").strip()
+    if not re.fullmatch(r"[\w.\-]+", token):
+        return False
+    if inner.startswith("`") and inner.endswith("`"):
+        return True
+    words = [w for w in re.split(r"[\s\-]+", base) if w]
+    return len(words) > 1 and re.sub(r"(?<=[A-Z])s$", "", token).upper() in _initials(words)
+
+
 def keys_for(term: str) -> list[str]:
-    """Dictionary keys of a term: each `a / b` part, its bare pre-dash head, a `(token)` inside it.
+    """Dictionary keys of a term: each `a / b` part, its bare pre-dash head, and a `(token)` alias.
 
     Title-Case words lower so page-case usage matches; ALL-CAPS and mixed-case words keep their case.
+    A term with a qualifier `(token)` (see `_alias`) gives no key for a bare common word, such as
+    `open` from `Open (workspace)`: that word on a page rarely carries the qualified meaning.
     """
-    raw = term.replace("`", "").strip()
+    stripped = term.strip()
+    raw = stripped.replace("`", "")
     out: dict[str, None] = {}
+    base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+    inners = [m.group(1).strip() for m in re.finditer(r"\(([^)]*)\)", stripped)]
+    qualified = any(not _alias(inner, base) for inner in inners)
 
     def add(part: str) -> None:
         part = part.strip()
-        if part:
-            out.setdefault(" ".join(w.lower() if len(w) > 1 and w[1:].islower() else w for w in part.split()))
+        if not part:
+            return
+        key = " ".join(w.lower() if len(w) > 1 and w[1:].islower() else w for w in part.split())
+        if qualified and COMMON_WORD.fullmatch(key):
+            return
+        out.setdefault(key)
 
-    base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
     for part in re.split(r"\s*/\s*", base):
         add(part)
         head = re.split(r"\s+—\s+", part)[0]
         if head.strip() != part.strip():
             add(head)
-    for match in re.finditer(r"\(([^)]*)\)", raw):
-        inner = match.group(1).strip()
-        if re.fullmatch(r"[\w.\-]+", inner):
-            out.setdefault(inner)
+    for inner in inners:
+        if _alias(inner, base):
+            out.setdefault(inner.replace("`", "").strip())
     return list(out)
 
 

@@ -260,6 +260,8 @@ body > #afkv2-back {
 .afkv2-body > * + *, .afkv2-children > * + *, .afkv2-fold-body > * + * { margin-top: .75rem; }
 .afkv2-md > p, .afkv2-md > ul { margin: 0 0 .6rem; overflow-wrap: anywhere; }
 .afkv2-md > ul { padding-left: 1.2rem; }
+.afkv2-md li > ul { margin: .2rem 0 0; padding-left: 1.2rem; }
+.afkv2-md li + li { margin-top: .2rem; }
 .afkv2-md > :last-child { margin-bottom: 0; }
 .afkv2-fold > summary { cursor: pointer; color: var(--accent); }
 .afkv2-fold[open] > summary { margin-bottom: .5rem; }
