@@ -107,7 +107,7 @@ The engine lays out the page by its version: you write the content, and the engi
 
 The visible text holds no element id and no round code: a round reads "round 3".
 
-The sections block, each section, each question for others, each worked example, their blocks, the settled block and each card fold to their heading by a button. After round 1, a section, question or example that the round did not change starts folded, and an element that changed shows the chip "changed in round N" (`components/card.md` of `/afkv2:visualize`). The page keeps each fold per viewer for the round.
+The sections block, each section, each question for others, each worked example, their blocks, the settled block and each card fold to their heading by a button. Every fold starts open, every round. An element that changed shows the chip "changed in round N" (`components/card.md` of `/afkv2:visualize`). The page keeps each fold per viewer for the round.
 
 #### Sections and change lines
 

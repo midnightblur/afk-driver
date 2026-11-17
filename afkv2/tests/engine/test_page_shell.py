@@ -332,7 +332,7 @@ NODE_CARDS = '<script type="application/json" id="afkv2-node-cards">'
 NAV_RULE, JUMP_RULE, WITH_NAV_RULE = "#afkv2-nav", "#afkv2-jump", "body.afkv2-with-nav"
 MIN_LIST_RULE = "#afkv2-nav.afkv2-min #afkv2-nav-list"
 TOOLS_HOLD_JUMP = "nav.querySelector('#afkv2-nav-tools').appendChild(jump);"
-NAV_KEY = "'afkv2-nav:' + session"
+NAV_KEY = "'afkv2-nav:v2:' + session"
 BACK_KEY = "'afkv2-back:' + holder.getAttribute('data-afkv2-session')"
 NODE_CARDS_READ = "getElementById('afkv2-node-cards')"
 

@@ -53,12 +53,12 @@
 
 /* Folds of blocks, sections, questions and examples. Each button names the HTML id of its element; a click
  * folds the element to its head, and aria-expanded says the state. The state is kept per viewer, session and
- * round in window.name and in localStorage, and a new round starts from the page's start states: an element
- * that changed starts open. A page without the script, or without storage, shows every element open. */
+ * round in window.name and in localStorage; every element starts open, and a new round starts open again.
+ * A page without the script, or without storage, shows every element open. */
 (function () {
   var holder = document.querySelector('[data-afkv2-session][data-afkv2-round]');
   var SHUT = 'afkv2-shut', START = 'data-afkv2-start', KEY_ATTR = 'data-afkv2-fold-key';
-  var KEY = holder ? 'afkv2-fold:' + holder.getAttribute('data-afkv2-session') : '';
+  var KEY = holder ? 'afkv2-fold:v2:' + holder.getAttribute('data-afkv2-session') : '';
   var round = holder ? holder.getAttribute('data-afkv2-round') : '';
 
   function read() {

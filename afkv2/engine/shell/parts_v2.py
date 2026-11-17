@@ -43,8 +43,8 @@ CHANGE_ROUND = "afkv2-v2-change-round"
 
 # A fold (PRD steer of round 5): a block, a section, a question or an example folds to its head by a button that
 # names its state in aria-expanded. The page script binds it and keeps it per viewer; without the script all stays
-# open. `data-afkv2-start` is the start state of the round: after round 1, an element that did not change starts
-# closed.
+# open. Every fold starts open (`data-afkv2-start`), every round: the changed-this-round mark, not a fold, tells
+# what changed.
 FOLD_BUTTON = ('<button type="button" class="afkv2-fold-btn" aria-expanded="true" aria-controls="{key}" '
                'data-afkv2-fold-key="{key}" data-lavish-action="afkv2-fold" aria-label="Fold or open: {label}"></button>')
 FOLD_ATTRS = ' data-afkv2-foldable="{}" data-afkv2-start="{}"'
@@ -58,10 +58,6 @@ def fold_button(key: str, label: str) -> str:
 def fold_attrs(key: str, start_open: bool) -> str:
     """The attributes that make the element with the HTML id `key` fold, and its start state."""
     return FOLD_ATTRS.format(escape(key), "open" if start_open else "closed")
-
-
-def _starts_open(doc: dict, element: str, changed: set) -> bool:
-    return _current_n(doc) == 1 or element in changed
 
 
 def fold_block(key: str, css: str, heading: str, inner: str) -> str:
@@ -258,7 +254,7 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict, changed: se
                                f'{_chip(counts.get(section["id"], 0))}', section["title"])
     inner = f'{head}{render_component(section["body"])}{links}{render_changes(doc, section["changes"])}'
     return _article(section, "afkv2-v2-section", inner, state=state, foldable=True,
-                    start=_starts_open(doc, section["id"], changed))
+                    start=True)
 
 
 @_one_index
@@ -345,7 +341,7 @@ def _question(doc: dict, question: dict, sections: dict, changed: set) -> str:
     parts += [_outcome(doc, question), _ticks(question), render_changes(doc, question["changes"])]
     return _article(question, "afkv2-v2-question", "".join(parts), raw=_who_attr(question),
                     question=question["id"], state=question["state"], foldable=True,
-                    start=_starts_open(doc, question["id"], changed))
+                    start=True)
 
 
 def _filter(questions: list) -> str:
@@ -382,7 +378,7 @@ def _example(doc: dict, example: dict, changed: set) -> str:
     inner = (f'{head}{render_component(example["body"])}'
              f'{_part("Stories it covers", f"<ul>{stories}</ul>")}{render_changes(doc, example["changes"])}')
     return _article(example, "afkv2-v2-example", inner, kind=example["kind"], foldable=True,
-                    start=_starts_open(doc, example["id"], changed))
+                    start=True)
 
 
 @_one_index
