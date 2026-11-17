@@ -194,7 +194,7 @@ def _history(doc: dict, point) -> str:
 
 
 def _point(doc: dict, point, current_n: int, changed: set, settled: bool = False) -> str:
-    """A settled point folds to its heading and settled line on the rail, an info card of an earlier round too."""
+    """A settled point, or an info card of an earlier round: it starts open and folds to its heading."""
     extra = {"history": _history(doc, point), **({"rail": "settled"} if settled else {}), **_mark(point.head, changed)}
     return _card(doc, point.head, point.round, point.round["n"] == current_n, **extra)
 

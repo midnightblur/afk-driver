@@ -102,7 +102,7 @@ The engine lays out the page by its version: you write the content, and the engi
 5. the worked examples, each marked frequent, edge or risky, with the stories it covers;
 6. the questions for others;
 7. the questions of the round: its cards in 1 block (PR-15);
-8. the settled points, each folded to its heading and settled line;
+8. the settled points, each open and folding to its heading and settled line;
 9. the earlier banners, closed.
 
 The visible text holds no element id and no round code: a round reads "round 3".
@@ -136,7 +136,7 @@ The sections block, each section, each question for others, each worked example,
 2. "Notes on the whole session": every note of the session, card notes included, with its reply, in one fold per round;
 3. the maps;
 4. the points of the current round, one card per point, in kind order (`debate`, `confirm`, `decided`, `signoff`, `info`), then the copy bar; an asking card of an earlier round that is still open stays here too;
-5. "Settled by earlier rounds": the other points, newest round first, each folded to its heading and settled line;
+5. "Settled by earlier rounds": the other points, newest round first, each open and folding to its heading and settled line;
 6. "Earlier banners", closed.
 
 A point is the newest card and the cards it `carries`. A part drops out when it is empty or repeats an earlier part.

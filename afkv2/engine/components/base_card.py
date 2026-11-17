@@ -1,7 +1,7 @@
 """Card (CMP-4): one point the human reads or answers, with the controls of its kind.
 
 The page passes the card's notes and replies (`exchange`) and its earlier cards (`history`) as HTML.
-`rail` sets the state that the page rail reads: `settled` folds the card to its heading and settled line.
+`rail` sets the state that the page rail reads: `settled` lets the card fold to its heading and settled line; it starts open.
 `label`, given on a version 2 page, is the visible name of the card. Its presence switches the heading: with a
 label, the heading shows the label, no raw card id, and its round as "Round 3"; without one, the heading shows the
 card's title, if any, its id, and its round as "R-3". The id stays in the attributes either way. A label is never empty.
