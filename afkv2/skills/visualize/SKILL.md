@@ -153,6 +153,13 @@ The caption rule and the picture types: `../propose-solution/DRAFT.md`,
 section "Sections". A caption child looks like this:
 `{"type": "text", "props": {"label": "What to see", "text": "One export request, from the button to the file link."}}`.
 
+## Session sections
+
+A section of a version 2 page shows its structure as a picture: a table for
+facts side by side, a sequence for a flow, a `markdown: true` list for points.
+Write a prose paragraph only for 1 or 2 sentences. Mark the words of each text by
+the emphasis rules of `components/chip-and-text.md`. The build warns `prose-section` on a section body that is 1 plain text over 2 sentences.
+
 ## Design sections
 
 A design page shows the design in sections. The section ids, their order and

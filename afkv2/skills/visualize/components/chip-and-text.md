@@ -5,7 +5,7 @@
 A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone or a set (below); for text the tone is
 optional. A chip also takes a tone of state or certainty (second table). A `text` takes `markdown: true` to render a safe subset: blank-line
-paragraphs, `**bold**`, `` `code` ``, `- ` lists (a line indented 2 spaces more
+paragraphs, `**bold**`, `` `code` ``, `*italic*`, `==highlight==`, `- ` lists (a line indented 2 spaces more
 than the line above nests under it), `#` headings as bold lines and
 http(s) links. The engine escapes all HTML first. A `text` also takes `label`
 (at most 60 characters), a small line above its words that names what the words
@@ -58,6 +58,22 @@ A reference inside a URL stays text. Plain text, a table cell among it, renders 
 Markdown: write the bare key `ABC-123`, not `[ABC-123](https://...)`, which shows
 its brackets and its URL. A reference in `session.links.titles` shows its title
 on hover.
+
+## Emphasis rules
+
+Each mark has 1 meaning on every page. Use a mark only for its meaning:
+
+| Mark | Means | Example |
+|------|-------|---------|
+| `**bold**` | a decision, a settled value, or the 1 thing the human must read or act on | **Each job copies the profile.** |
+| `` `code` `` | a code name: a class, a method, a file, a path, a field, a config key, a command, a status or a transition id | `BaseJob.java:34`, `POSTED` |
+| `*italic*` | an inference, an assumption or a claim no one checked; say so in words too | *about 5,000 invoices* |
+| `==highlight==` | new or changed words in this round, inside a text that otherwise stays | ==now 30 minutes== |
+
+A mark renders only in a `markdown: true` text: a plain `text` and a table cell show
+the signs as typed. To mark a table cell, put a `markdown: true` text in it. Mark at most
+a few words per sentence: a text that is all bold marks nothing. A certainty chip
+(below) still says how a number is known; italic is for words inside a sentence.
 
 ## Use it when
 

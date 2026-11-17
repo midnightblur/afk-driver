@@ -21,7 +21,7 @@ Run each command from the repository root: `<python> "<this skill's folder>/<com
 |---------|------|
 | `scripts/page_home.py start --topic T [--ticket K] [--private]` | gives a new ad-hoc page its `doc`, `session`, `raw_file` and `home` by the home rule; writes nothing |
 | `scripts/page_home.py track --doc D --ticket K` | moves a page and its side files into the ticket's spec folder; its result holds `doc` and `moved` |
-| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document; each entry of `warnings` in its result names a note of the last round with no reply, a short title it ignored, or a `long-text` part: reply to that note, or write that part as a list by the visualize guide's "Chip and styled text", and run `build` again with `--replace` |
+| `scripts/round_document.py build --doc D --session S [--ticket K] --round-input F [--ticket-file T] [--replace] [--private]` | writes the round into the page document; each entry of `warnings` in its result names a note of the last round with no reply, a short title it ignored, a `long-text` part, or a `prose-section` section: reply to that note, write that part as a list by the visualize guide's "Chip and styled text", or show that section's structure by its "Session sections", and run `build` again with `--replace` |
 | `scripts/page_round.py present --doc D [--scan F]... [--no-show]` | checks, renders and shows the round; scans the page and each F (a file the skill writes beside the page, such as its log) for secrets; `--no-show` does not show it, for a round asked in chat |
 | `scripts/page_round.py wait --doc D --raw-file F` | waits for the human's round send and writes it to F |
 | `scripts/page_round.py reply --doc D --reply-file F` | shows the Markdown in F on the page |
@@ -87,6 +87,7 @@ A session that resumes a page whose session ended takes it over before it writes
 | PR-13 | Every diagram has a 1-line caption that says what to see. |
 | PR-14 | A scope map groups its parts by module or area and draws no flow arrows; an arrow only where one part must settle before another. |
 | PR-15 | Make a note the main answer: show the information first and the questions last. A card's question asks for the human's view; a mark is a shortcut, not the only answer. |
+| PR-16 | Mark words by the emphasis rules of the visualize guide's `components/chip-and-text.md`: 1 meaning per mark, in a `markdown: true` text. |
 
 ### Page layout
 

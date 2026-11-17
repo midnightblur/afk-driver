@@ -27,7 +27,7 @@ A simple ticket folds several groups into one round. An item waits for a later r
 
 ## The session's content
 
-The page document holds the whole topic, with or without a page shown. Each round sends only the entries that changed, by "Sections and change lines" of `/afkv2:use-lavish`.
+The page document holds the whole topic, with or without a page shown. Each round sends only the entries that changed, by "Sections and change lines" of `/afkv2:use-lavish`. Write each section and card text by "Session sections" and the emphasis rules of `/afkv2:visualize`.
 
 | List | Holds |
 |------|-------|

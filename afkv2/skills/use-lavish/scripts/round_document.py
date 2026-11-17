@@ -499,6 +499,27 @@ def long_text_warnings(items):
             if count > LONG_TEXT_SENTENCES]
 
 
+PROSE_SECTION_SENTENCES = 2
+
+
+def prose_section_warnings(sections):
+    """A warning for each sent section whose body is 1 plain `text`, with no children, of more than
+    PROSE_SECTION_SENTENCES sentences; the round still builds. A section with structure shows it as a table, a
+    sequence or a `markdown: true` list (visualize guide, "Chip and styled text")."""
+    found = []
+    for section in sections if isinstance(sections, list) else []:
+        body = section.get("body") if isinstance(section, dict) else None
+        props = (body or {}).get("props") or {}
+        if not isinstance(body, dict) or body.get("type") != "text" or props.get("markdown") or body.get("children"):
+            continue
+        count = len(SENTENCE_END.findall(str(props.get("text", ""))))
+        if count > PROSE_SECTION_SENTENCES:
+            found.append({"code": "prose-section", "section": section.get("id"),
+                          "reason": f"section {section.get('id')}: its body is 1 plain text of {count} sentences; "
+                                    f"show its structure as a table, a sequence or a `markdown: true` list"})
+    return found
+
+
 def _session_text(session, round_input, n):
     """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
     if round_input.get("step") is not None:
@@ -730,6 +751,8 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
         raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
                                          f"{', '.join(warning['note'] for warning in unanswered)}")
     warnings += unanswered + long_text_warnings(items)
+    if version_2:
+        warnings += prose_section_warnings(round_input.get("sections"))
     if version_2:
         check_version_2(doc)
     write_json(doc_path, doc)

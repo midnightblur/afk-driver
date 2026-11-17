@@ -676,3 +676,25 @@ def test_the_round_input_adds_value_sets_by_name_and_keeps_the_others(tmp_path):
     with pytest.raises(Refusal) as refused:
         build_round_document(path, session, {**first, "value_sets": ["risk"]}, replace=True)
     assert refused.value.code == "bad-round"
+
+
+# ---- a section body that is 1 plain text over 2 sentences is warned: it shows its structure (visualize guide)
+
+PROSE = "One. Two. Three."
+
+
+def test_a_section_body_of_1_plain_text_over_2_sentences_is_warned_and_the_round_still_builds(path):
+    answer = rd.build_round_document(path, SESSION, round_input("i-a", sections=[
+        {"change": FINDING, **section("s-long", PROSE)}, {"change": FINDING, **section("s-short", "One. Two.")},
+        {"change": FINDING, **section("s-list", PROSE, body={"type": "text", "props": {"text": PROSE, "markdown": True}})}]))
+    assert answer["round"] == 1
+    assert [(w["code"], w["section"]) for w in answer["warnings"]] == [("prose-section", "s-long")]
+    assert "3 sentences" in answer["warnings"][0]["reason"]
+
+
+def test_the_build_command_and_the_guide_name_the_prose_section_warning():
+    skill = (Path(rd.__file__).resolve().parents[1] / "SKILL.md").read_text("utf-8")
+    guide = " ".join((Path(rd.__file__).resolve().parents[2] / "visualize" / "SKILL.md").read_text("utf-8").split())
+    assert "a `prose-section` section" in skill
+    assert "The build warns `prose-section` on a section body that is 1 plain text over 2 sentences." in guide
+    assert rd.PROSE_SECTION_SENTENCES == 2

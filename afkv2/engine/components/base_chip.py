@@ -26,6 +26,10 @@ CODE = re.compile(r"`([^`]+)`")
 URL = r"https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s)])+"
 LINK = re.compile(rf"\[([^\]]+)\]\(({URL})\)|({URL})")
 BOLD = re.compile(r"\*\*(.+?)\*\*")
+# A single star pair: no space inside either star, no word sign or star outside, so `a * b`, `2*3` and a glob stay.
+ITALIC = re.compile(r"(?<![\w*])\*(?![\s*])([^*]+?)(?<![\s*])\*(?![\w*])")
+HIGHLIGHT_TAG = r'<mark class="afkv2-md-mark">\1</mark>'
+HIGHLIGHT = re.compile(r"(?<![=\w])==(?![\s=])(.+?)(?<![\s=])==(?![=\w])")
 URL_TAIL = ".,;:!?"
 
 
@@ -43,11 +47,26 @@ def _link(match):
     return f'<a href="{url}" {NEW_TAB}>{url}</a>{tail}'
 
 
+def _marks(text):
+    """**bold**, then *italic*, then ==highlight==, in escaped text that holds no code span and no link."""
+    text = BOLD.sub(r"<strong>\1</strong>", text)
+    text = ITALIC.sub(r"<em>\1</em>", text)
+    return HIGHLIGHT.sub(HIGHLIGHT_TAG, text)
+
+
+def _plain(part):
+    """Links, and the marks of `_marks` on the text between links: a mark never reads inside a URL."""
+    out, at = [], 0
+    for match in LINK.finditer(part):
+        out += [_marks(part[at:match.start()]), _link(match)]
+        at = match.end()
+    return "".join(out + [_marks(part[at:])])
+
+
 def _inline(text):
-    """Escape first, then `code`, links and **bold**; nothing inside a code span is read."""
+    """Escape first, then `code`, links and the marks of `_marks`; nothing inside a code span is read."""
     parts = CODE.split(escape(text))
-    return "".join(f"<code>{part}</code>" if i % 2 else BOLD.sub(r"<strong>\1</strong>", LINK.sub(_link, part))
-                   for i, part in enumerate(parts))
+    return "".join(f"<code>{part}</code>" if i % 2 else _plain(part) for i, part in enumerate(parts))
 
 
 def _indent(line):

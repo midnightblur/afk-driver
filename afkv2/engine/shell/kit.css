@@ -228,6 +228,15 @@ a { color: var(--accent); }
   font-size: .7rem; letter-spacing: .03em; text-transform: uppercase;
 }
 
+/* --- emphasis in Markdown text: one meaning per mark (visualize guide, "Chip and styled text") --- */
+
+.afkv2-md strong { font-weight: 700; color: var(--fg); }
+.afkv2-md em { font-style: italic; color: var(--fg-dim); }
+.afkv2-md code { padding: 0 .25rem; border-radius: 3px; background: var(--surface-2);
+                 font: .88em ui-monospace, SFMono-Regular, Consolas, monospace; }
+.afkv2-md-mark { padding: 0 .2rem; border-radius: 3px; color: var(--fg);
+                 background: color-mix(in srgb, var(--open) 28%, transparent); }
+
 /* --- folds: a button before a heading folds its block, section, question, example or card to the heading --- */
 
 .afkv2-fold-btn {
