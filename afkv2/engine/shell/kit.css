@@ -221,9 +221,11 @@ a { color: var(--accent); }
 
 /* An element that shows the words after its title (afkv2-changed) needs no edge; any other changed element keeps it. */
 [data-afkv2-fresh]:not(:has(.afkv2-changed)) { box-shadow: -6px 0 0 0 var(--open); }
-.afkv2-changed {
-  display: inline-block; padding: 0 .45rem; border: 1px solid var(--open); border-radius: 999px;
-  font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--open);
+/* The changed mark is the round chip of the current round (shell/rounds.py fills it); a ring of the open colour
+ * sets it apart from the card's own round chip. */
+.afkv2-round-chip.afkv2-changed {
+  margin-left: .35rem; vertical-align: middle; box-shadow: 0 0 0 2px var(--open);
+  font-size: .7rem; letter-spacing: .03em; text-transform: uppercase;
 }
 
 /* --- back after a jump: the rail holds the button; without a rail it floats at the top left --- */

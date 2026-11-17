@@ -89,7 +89,7 @@ A claim is any statement of how something works now: behaviour, a constraint, an
 | `decided` | you decided, and the human audits it |
 | `info` | context the human needs; it asks nothing |
 
-In doubt, use `debate`. Silence never accepts: an unmarked card stays open and returns next round. A card that depends on an open `debate` card says "holds if <id> = <option>" and is derived again when the answer differs.
+In doubt, use `debate`. Silence never accepts: an unmarked card stays open and returns next round. A returning card says why it returns in the part that the visualize guide's `card.md` names, and changes nothing else that did not change: the page marks only a changed card. A card that depends on an open `debate` card says "holds if <id> = <option>" and is derived again when the answer differs.
 
 ## The decide rule
 

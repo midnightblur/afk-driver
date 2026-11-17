@@ -32,10 +32,22 @@ MERGE_LIMIT = 64
 EVERYONE = "everyone"
 LINKS = '<div class="afkv2-v2-links">{}: {}</div>'
 OUTCOME = '<p class="afkv2-v2-outcome">{}</p>'
-# The changed-this-round mark (PRD AC-047), after the title of a card or a section.
-CHANGED_MARK = ' <span class="afkv2-changed">Changed this round</span>'
+# The changed-this-round mark (PRD AC-047), after the title of a card, a section, a question or an example: the
+# chip of the current round, so the human sees which round asks to read it again.
+CHANGED_CLASS = "afkv2-changed"
+CHANGED_WORDS = "changed in round {}"
+CHANGED_TIP = ' data-afkv2-tip="New or changed since the last round: read it again. No chip: no change."'
 
 CHANGE_ROUND = "afkv2-v2-change-round"
+
+
+def changed_mark(n: int) -> str:
+    """The changed-this-round mark of round `n`, with the space before it."""
+    return " " + round_chip(n, CHANGED_WORDS.format(n), CHANGED_CLASS, attrs=CHANGED_TIP)
+
+
+def _current_n(doc: dict) -> int:
+    return max(round_["n"] for round_ in doc["rounds"])
 
 
 def _build_index(doc: dict) -> dict:
@@ -204,7 +216,7 @@ def _section(doc: dict, section: dict, sections: dict, counts: dict, changed: se
     links = LINKS.format("Linked sections", _links(doc, targets)) if targets else ""
     reached = (f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", state))}</span>'
                if state == "not_reached" else "")
-    mark = CHANGED_MARK if section["id"] in changed else ""
+    mark = changed_mark(_current_n(doc)) if section["id"] in changed else ""
     head = f'<h3 class="afkv2-v2-h">{title}{mark}</h3>{reached}{_chip(counts.get(section["id"], 0))}'
     inner = f'{head}{render_component(section["body"])}{links}{render_changes(doc, section["changes"])}'
     return _article(section, "afkv2-v2-section", inner, state=state)
@@ -274,8 +286,9 @@ def _outcome(doc: dict, question: dict) -> str:
     return "".join(OUTCOME.format(escape(line)) for line in lines)
 
 
-def _question(doc: dict, question: dict, sections: dict) -> str:
-    parts = [f'<h3 class="afkv2-v2-h">{escape(question["question"])}</h3>'
+def _question(doc: dict, question: dict, sections: dict, changed: set) -> str:
+    mark = changed_mark(_current_n(doc)) if question["id"] in changed else ""
+    parts = [f'<h3 class="afkv2-v2-h">{escape(question["question"])}{mark}</h3>'
              f'<span class="afkv2-chip afkv2-v2-state">{escape(visible_label(doc, "state", question["state"]))}</span>',
              f'<p class="afkv2-v2-who">Who to ask: {escape(", ".join(question["who"]))}</p>',
              _part("Context", _markdown(question["context"])), _part("Why it matters", _markdown(question["why"]))]
@@ -308,32 +321,35 @@ def _filter(questions: list) -> str:
 
 
 @_one_index
-def render_questions(doc: dict) -> str:
-    """The questions-for-others block, in list order, with its role filter; a page with none gets no block."""
+def render_questions(doc: dict, changed: set = frozenset()) -> str:
+    """The questions-for-others block, in list order, with its role filter; a page with none gets no block. A
+    question in `changed` shows the changed-this-round mark after its words."""
     questions = doc.get("questions") or []
     if not questions:
         return ""
     sections = {entry["id"]: entry for entry in doc.get("sections") or []}
-    body = "".join(_question(doc, question, sections) for question in questions)
+    body = "".join(_question(doc, question, sections, changed) for question in questions)
     return (f'<section class="afkv2-v2-questions" id="afkv2-questions">'
             f'<h2 class="afkv2-section-h">Questions for others</h2>{_filter(questions)}{body}</section>')
 
 
-def _example(doc: dict, example: dict) -> str:
+def _example(doc: dict, example: dict, changed: set) -> str:
     stories = "".join(f"<li>{escape(visible_label(doc, 'element', story))}</li>" for story in example["stories"])
     kind = escape(visible_label(doc, "kind", example["kind"]))
-    inner = (f'<h3 class="afkv2-v2-h">{escape(example["title"])}</h3>'
+    mark = changed_mark(_current_n(doc)) if example["id"] in changed else ""
+    inner = (f'<h3 class="afkv2-v2-h">{escape(example["title"])}{mark}</h3>'
              f'<span class="afkv2-chip afkv2-v2-kind">{kind}</span>{render_component(example["body"])}'
              f'{_part("Stories it covers", f"<ul>{stories}</ul>")}{render_changes(doc, example["changes"])}')
     return _article(example, "afkv2-v2-example", inner, kind=example["kind"])
 
 
 @_one_index
-def render_examples(doc: dict) -> str:
-    """The worked-examples block, each marked frequent, edge or risky; a page with none gets no block."""
+def render_examples(doc: dict, changed: set = frozenset()) -> str:
+    """The worked-examples block, each marked frequent, edge or risky; a page with none gets no block. An example
+    in `changed` shows the changed-this-round mark after its title."""
     examples = doc.get("examples") or []
     if not examples:
         return ""
-    body = "".join(_example(doc, example) for example in examples)
+    body = "".join(_example(doc, example, changed) for example in examples)
     return (f'<section class="afkv2-v2-examples" id="afkv2-examples">'
             f'<h2 class="afkv2-section-h">Worked examples</h2>{body}</section>')

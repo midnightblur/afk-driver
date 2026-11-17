@@ -8,14 +8,15 @@ card's title, if any, its id, and its round as "R-3". The id stays in the attrib
 `age`, given by the page, is the count of rounds since the card's round: its chip fades with age (`fade`).
 The card body comes first and starts with the heading, then the settled line, the notes and replies and the
 content (PRD AC-046): a note on the card body shows what it noted. The mark radios and the history follow it.
-`changed`, given by the page, shows the changed-this-round mark right after the title (PRD AC-047).
+`changed`, given by the page, shows the changed-this-round mark right after the title (PRD AC-047): the chip of
+the current round, the card's round plus its `age`.
 """
 
 import re
 from html import escape
 
 from registry import register_component, walk
-from shell.parts_v2 import CHANGED_MARK
+from shell.parts_v2 import changed_mark
 from shell.rounds import round_chip
 
 KIND_WORDS = {"decided": "Decided", "confirm": "Confirm", "debate": "Debate", "signoff": "Sign-off",
@@ -120,7 +121,7 @@ def render_card(props, children):
     item_id = escape(item["id"])
     quiet = item["kind"] == "info" and state == "open"
     state_word = "" if quiet else f'<span class="afkv2-state afkv2-state--{state}">{STATE_WORDS[state]}</span>'
-    mark = CHANGED_MARK if props.get("changed") else ""
+    mark = changed_mark(props["round"] + props.get("age", 0)) if props.get("changed") else ""
     if "label" in props:
         heading = (f'<h4 class="afkv2-h">{chip}<span class="afkv2-card-title">{escape(props["label"])}</span>{mark} '
                    f'<span class="afkv2-kind">{KIND_WORDS[item["kind"]]}</span> {state_word}</h4>')

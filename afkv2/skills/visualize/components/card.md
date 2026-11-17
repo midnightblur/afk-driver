@@ -45,10 +45,14 @@ host. A closed tab loses them. After the send, the host keeps the send on
 disk, and the engine keeps it beside the document until ingest. The heading shows the `title`, then the kind as a small
 label, the state, and the card id small and muted at the end. With no `title`,
 the heading is the kind and the id. The heading is the first line of the card body, which holds the
-notes and replies and the content; the mark radios and the history follow the body. On a version 2 page, a
-card that the current round changed (its id is in a `changed` list of the round) shows "Changed this round"
-after its title; a section with a change line of the current round shows it after its title too. Round 1 shows
-none. Every card has the chip of its round, filled with the colour of its round, as is every other chip of
+notes and replies and the content; the mark radios and the history follow the body. On a version 2 page, an
+element that changed in the current round shows the chip "changed in round N" after its title, in the colour of
+the current round; an element with no such chip did not change, so the human can skip it. Changed means: a card
+of the current round that carries no earlier card, or whose kind, title or body differs from the newest card it
+carries; a card named in a `changed` list of the round; a section with a change line of the round; a question or a
+worked example with a change line of the round. Round 1 shows none. A returning card says why it returns in a
+`text` part with the `label` "Why it returns"; the compare leaves that part out, so a card that returns with no
+other change shows no chip. Put every other change in the content. Every card has the chip of its round, filled with the colour of its round, as is every other chip of
 that round on the page: a history summary, a change line, a notes row and a map box. The chip text is bold
 when the card needs the human now, and regular otherwise. The chip of the current round is fully strong; each
 older round loses more saturation, down to a floor that stays readable. An open `info` card
