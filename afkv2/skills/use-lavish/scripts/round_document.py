@@ -502,11 +502,11 @@ def long_text_warnings(items):
 
 def code_name_warnings(items):
     """A warning for each plain `text` part that holds a code name (a backtick span, a file reference or a
-    snake_case id, by the engine's `components/text_inline.py`): a plain text shows it in body font. The round
+    snake_case id, by the engine's `code_names`): a plain text shows it in body font. The round
     still builds. A `markdown: true` text and a table cell show it in code font (visualize guide, "Chip and
-    styled text"). The ticket card holds the tracker's words, so it gets no warning."""
-    page_engine()
-    from components.text_inline import code_names
+    styled text"). The ticket card holds the tracker's words, so it gets no warning. A version 2 page only: a
+    version 0 or 1 page asks the engine nothing."""
+    code_names = page_engine().code_names
     found = []
     for item in items:
         if item["id"] == TICKET_CARD:
@@ -773,9 +773,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if version_2 and unanswered:
         raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
                                          f"{', '.join(warning['note'] for warning in unanswered)}")
-    warnings += unanswered + long_text_warnings(items) + code_name_warnings(items)
+    warnings += unanswered + long_text_warnings(items)
     if version_2:
-        warnings += prose_section_warnings(round_input.get("sections"))
+        warnings += code_name_warnings(items) + prose_section_warnings(round_input.get("sections"))
     if version_2:
         check_version_2(doc)
     write_json(doc_path, doc)

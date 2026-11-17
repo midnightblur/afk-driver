@@ -15,7 +15,7 @@ The raw response grammar here is the fake's own: one line per signal.
   <map node id>: note: <text>     a steer: a note that names no card
 The grill passes raw text through and never parses it. The fake reads and writes page format 1 and 2: every
 note goes into the session list, as the engine writes it. The round builder imports the fake as the engine
-module and calls `check_in_memory` on a format 2 page.
+module and calls `check_in_memory` on a format 2 page, and `code_names`, which finds none here.
 """
 
 import json
@@ -29,6 +29,10 @@ KINDS = {"decided", "confirm", "debate", "signoff", "info"}
 STATES = {"open", "blocked", "needs_reading", "settled_by_mark", "settled_by_note"}
 LONE_MARKS = ("accept", "sign", "option:")
 SETTLED = ("settled_by_mark", "settled_by_note")
+
+
+def code_names(text):
+    return []
 
 
 def answer(obj, code=0):
