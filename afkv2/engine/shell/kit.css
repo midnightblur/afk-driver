@@ -228,6 +228,22 @@ a { color: var(--accent); }
   font-size: .7rem; letter-spacing: .03em; text-transform: uppercase;
 }
 
+/* --- folds: a button before a heading folds its block, section, question, example or card to the heading --- */
+
+.afkv2-fold-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem;
+  margin: 0 .45rem 0 0; padding: 0; vertical-align: middle; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--fg);
+  font: 700 .8rem/1 system-ui, sans-serif;
+}
+.afkv2-fold-btn::before { content: "\25BE"; }
+.afkv2-fold-btn[aria-expanded="false"]::before { content: "\25B8"; }
+.afkv2-fold-btn:hover { border-color: var(--accent); }
+.afkv2-fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.afkv2-fold-head { display: block; }
+.afkv2-shut > :not(.afkv2-fold-head) { display: none !important; }
+.afkv2-shut > .afkv2-fold-head > .afkv2-v2-h { margin-bottom: 0; }
+
 /* --- back after a jump: the rail holds the button; without a rail it floats at the top left --- */
 
 body > #afkv2-back {

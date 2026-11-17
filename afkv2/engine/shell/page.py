@@ -228,10 +228,13 @@ def _settled_section(doc: dict, points: list, current: dict) -> str:
         return ""
     changed = _changed_now(doc, current)
     cards = "".join(_point(doc, point, current["n"], changed, settled=True) for point in points)
+    heading = f"Settled by earlier rounds ({len(points)})"
+    inner = ('<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
+             f'its history. A note on a settled card opens it again.</p><div class="afkv2-cards">{cards}</div>')
+    if doc["schema"] == V2:
+        return parts_v2.fold_block("afkv2-settled", "afkv2-settled-points", heading, inner)
     return (f'<section class="afkv2-settled-points" id="afkv2-settled">'
-            f'<h2 class="afkv2-section-h">Settled by earlier rounds ({len(points)})</h2>'
-            '<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
-            f'its history. A note on a settled card opens it again.</p><div class="afkv2-cards">{cards}</div></section>')
+            f'<h2 class="afkv2-section-h">{escape(heading)}</h2>{inner}</section>')
 
 
 def _earlier_banners(doc: dict) -> str:

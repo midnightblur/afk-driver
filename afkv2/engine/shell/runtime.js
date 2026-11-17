@@ -51,6 +51,65 @@
   });
 })();
 
+/* Folds of blocks, sections, questions and examples. Each button names the HTML id of its element; a click
+ * folds the element to its head, and aria-expanded says the state. The state is kept per viewer, session and
+ * round in window.name and in localStorage, and a new round starts from the page's start states: an element
+ * that changed starts open. A page without the script, or without storage, shows every element open. */
+(function () {
+  var holder = document.querySelector('[data-afkv2-session][data-afkv2-round]');
+  var SHUT = 'afkv2-shut', START = 'data-afkv2-start', KEY_ATTR = 'data-afkv2-fold-key';
+  var KEY = holder ? 'afkv2-fold:' + holder.getAttribute('data-afkv2-session') : '';
+  var round = holder ? holder.getAttribute('data-afkv2-round') : '';
+
+  function read() {
+    var held = null;
+    try { held = (JSON.parse(window.name || '{}') || {})[KEY] || null; } catch (e) {}
+    if (!held) { try { held = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {} }
+    return held && held.round === round && held.open ? held.open : {};
+  }
+  var open = KEY ? read() : {};
+
+  function write() {
+    if (!KEY) return;
+    var record = { round: round, open: open };
+    try {
+      var held = JSON.parse(window.name || '{}') || {};
+      held[KEY] = record;
+      window.name = JSON.stringify(held);
+    } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify(record)); } catch (e) {}
+  }
+
+  function set(el, on, button) {
+    if (on) el.classList.remove(SHUT); else el.classList.add(SHUT);
+    if (button) button.setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+
+  var buttons = {};
+  [].slice.call(document.querySelectorAll('button[' + KEY_ATTR + ']')).forEach(function (button) {
+    var key = button.getAttribute(KEY_ATTR), el = document.getElementById(key);
+    if (!el) return;
+    buttons[key] = button;
+    set(el, Object.prototype.hasOwnProperty.call(open, key) ? !!open[key] : el.getAttribute(START) !== 'closed', button);
+    button.addEventListener('click', function () {
+      var on = el.classList.contains(SHUT);
+      set(el, on, button);
+      open[key] = on ? 1 : 0;
+      write();
+    });
+  });
+
+  /* An element that a link, a map box or the rail opens: no fold above it stays closed. */
+  window.afkv2Unfold = function (el) {
+    var key = el.getAttribute && el.getAttribute('id');
+    if (key && buttons[key] && el.classList.contains(SHUT)) {
+      set(el, true, buttons[key]);
+      open[key] = 1;
+      write();
+    }
+  };
+})();
+
 (function () {
   var section = document.querySelector('[data-afkv2-session][data-afkv2-round]');
   if (!section) return;
@@ -382,7 +441,12 @@
   function reveal(el) {
     for (var up = el; up; up = up.parentElement) {
       if (up.tagName === 'DETAILS') up.open = true;
-      if (up.classList && up.classList.contains(COLLAPSED)) up.classList.remove(COLLAPSED);
+      if (up.classList && up.classList.contains(COLLAPSED)) {
+        up.classList.remove(COLLAPSED);
+        var button = up.querySelector && up.querySelector('.afkv2-card-body .afkv2-fold-btn');
+        if (button) button.setAttribute('aria-expanded', 'true');
+      }
+      if (window.afkv2Unfold && up.hasAttribute && up.hasAttribute('data-afkv2-foldable')) window.afkv2Unfold(up);
     }
   }
 

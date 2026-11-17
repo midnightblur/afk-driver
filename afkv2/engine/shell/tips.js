@@ -212,11 +212,27 @@
       var t = raw.replace(/\s+/g, ' ').trim();
       return t.length > 64 ? t.slice(0, 61) + '…' : t;
     }
+    // The fold button of a card heading: the page's fold look, its state in aria-expanded.
+    function foldButton(h) {
+      var b = h.querySelector('.afkv2-fold-btn');
+      if (b) return b;
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'afkv2-fold-btn';
+      b.setAttribute('data-lavish-action', 'afkv2-collapse');
+      b.setAttribute('aria-label', 'Fold or open this card');
+      h.insertBefore(b, h.firstChild);
+      return b;
+    }
     function setCollapsed(el, on) {
       if (st(el) === 'current') on = false;
       el.classList.toggle('afkv2-collapsed', on);
       var h = head(el);
-      if (h && st(el) !== 'current') { h.classList.add('afkv2-caret'); h.classList.toggle('afkv2-open', !on); }
+      if (h && st(el) !== 'current') {
+        h.classList.add('afkv2-caret');
+        h.classList.toggle('afkv2-open', !on);
+        foldButton(h).setAttribute('aria-expanded', on ? 'false' : 'true');
+      }
     }
     function applyDefaults() {
       items().forEach(function (el) {
@@ -231,6 +247,7 @@
         var h = head(el);
         if (h) {
           h.setAttribute('data-lavish-action', 'afkv2-collapse');
+          // The button takes the keyboard; a click anywhere on the heading folds too, once.
           h.addEventListener('click', function () {
             var wasCollapsed = el.classList.contains(COLLAPSED);
             setCollapsed(el, !wasCollapsed);
