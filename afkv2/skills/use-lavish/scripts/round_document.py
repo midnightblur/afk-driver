@@ -499,6 +499,29 @@ def long_text_warnings(items):
             if count > LONG_TEXT_SENTENCES]
 
 
+
+def code_name_warnings(items):
+    """A warning for each plain `text` part that holds a code name (a backtick span, a file reference or a
+    snake_case id, by the engine's `components/text_inline.py`): a plain text shows it in body font. The round
+    still builds. A `markdown: true` text and a table cell show it in code font (visualize guide, "Chip and
+    styled text"). The ticket card holds the tracker's words, so it gets no warning."""
+    page_engine()
+    from components.text_inline import code_names
+    found = []
+    for item in items:
+        if item["id"] == TICKET_CARD:
+            continue
+        for component in _components(item["body"]):
+            props = component.get("props") or {}
+            if component.get("type") != "text" or props.get("markdown"):
+                continue
+            names = code_names(str(props.get("text", "")))
+            if names:
+                found.append({"code": "bare-code-name", "item": item["id"], "component": component.get("id"),
+                              "reason": f"item {item['id']}: a plain text holds {', '.join(names)}; set "
+                                        f"`markdown: true` and mark each code name as `code`"})
+    return found
+
 PROSE_SECTION_SENTENCES = 2
 
 
@@ -750,7 +773,7 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if version_2 and unanswered:
         raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
                                          f"{', '.join(warning['note'] for warning in unanswered)}")
-    warnings += unanswered + long_text_warnings(items)
+    warnings += unanswered + long_text_warnings(items) + code_name_warnings(items)
     if version_2:
         warnings += prose_section_warnings(round_input.get("sections"))
     if version_2:

@@ -133,11 +133,20 @@ def test_a_reference_inside_a_url_stays_text(text):
     assert linkify(f"<p>{text}</p>", LINKS) == f"<p>{text}</p>"
 
 
-def test_a_markdown_link_in_a_plain_cell_links_its_key_once_and_keeps_its_url_as_text():
-    """A plain cell is plain text: the brackets show, the key links, the key inside the URL does not."""
+def test_a_markdown_link_in_plain_text_links_its_key_once_and_keeps_its_url_as_text():
+    """In plain text the brackets show, the key links, the key inside the URL does not."""
     url = "https://acme.atlassian.net/browse/ABC-748"
-    assert linkify(f"<td>[ABC-748]({url})</td>", LINKS) == (
-        f"<td>[{anchor(url, 'ABC-748')}]({url})</td>")
+    assert linkify(f"<p>[ABC-748]({url})</p>", LINKS) == (
+        f"<p>[{anchor(url, 'ABC-748')}]({url})</p>")
+
+
+def test_a_markdown_link_in_a_plain_cell_is_1_link_with_no_brackets():
+    """A plain cell takes the inline marks of a markdown text: its link renders, and the key in it links once."""
+    url = "https://acme.atlassian.net/browse/ABC-748"
+    from registry import render_component
+    cell = render_component({"type": "table", "props": {"columns": ["a"], "rows": [[f"[ABC-748]({url})"]]}})
+    html = linkify(cell, LINKS)
+    assert html.count("<a ") == 1 and f'href="{url}"' in html and "[" not in html
 
 
 @pytest.mark.parametrize("fixture", ["v0-page-with-notes.json", "v0-sdd-pass.json"])

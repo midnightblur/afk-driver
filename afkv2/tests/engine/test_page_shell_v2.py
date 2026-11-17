@@ -419,11 +419,12 @@ def test_a_version_2_page_carries_its_tooltip_catalog():
 
 
 # The visible text of each stored page, rendered at the base of the version 2 layout (commit c72cee14), with the
-# write-in labels that ask for typed words and a round chip in each history summary.
+# write-in labels that ask for typed words and a round chip in each history summary. A code name in a plain table
+# cell shows in code font: the reader below splits the words at each code tag, so the page with notes hashes anew.
 BEFORE = {
-    "v0-page-with-notes.json": "f7b5826330b21e148f2932634c4cd23dca4a2da645fb4565c9dbe8e9727839b7",
+    "v0-page-with-notes.json": "637aa122aaf4b6e821075e13a9541c244894002c456fad09d7f83c8fadc281ed",
     "v0-sdd-pass.json": "0e7d35fd596eb36be92e2b3a53034016f2957543a160f542ac57a3c1d7960918",
-    "v0-page-with-notes.json as version 1": "fe17bec98eed1b77a741b71074a807e7ea7399088302c114aa77cec14e2b7d70",
+    "v0-page-with-notes.json as version 1": "21aa72423b38990dc7a45a343b22f18d1b47494b6fb5eeccea1e0caca5c2514e",
     "v0-sdd-pass.json as version 1": "95222e7e7bfa96c4db91c48d9c0ec3636ab0e3d8aa199b5932b94eaff1757235",
     "two rounds, version 1": "0ffc4f6e0f9e5a50bc6cc52494f07af754f1fca63f7173f1e4b34a199745a2a1",
     "changed rounds, version 1": "1a344f707ea6f500e7ac0a8be54f3552c771c01169f76be610c9e4ad57acbd81",

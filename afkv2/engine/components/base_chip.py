@@ -6,6 +6,7 @@ drawn with its own symbol beside its colour (PR-07: never colour alone). A value
 import re
 from html import escape
 
+from components.text_inline import inline as _inline
 from registry import register_component, value_set
 
 TONES = ["removed", "kept", "new", "proposed"]
@@ -21,52 +22,6 @@ SCALE = "var(--afkv2-scale)"
 MARK_SPAN = '<span class="afkv2-chip-mark" aria-hidden="true">{}</span>'
 LIST_ITEM = re.compile(r"\s*[-*] (.*)")
 HEADING = re.compile(r"#{1,6}\s+(.*)")
-CODE = re.compile(r"`([^`]+)`")
-# Links are read in escaped text: a URL ends at an escaped quote or angle bracket.
-URL = r"https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s)])+"
-LINK = re.compile(rf"\[([^\]]+)\]\(({URL})\)|({URL})")
-BOLD = re.compile(r"\*\*(.+?)\*\*")
-# A single star pair: no space inside either star, no word sign or star outside, so `a * b`, `2*3` and a glob stay.
-ITALIC = re.compile(r"(?<![\w*])\*(?![\s*])([^*]+?)(?<![\s*])\*(?![\w*])")
-HIGHLIGHT_TAG = r'<mark class="afkv2-md-mark">\1</mark>'
-HIGHLIGHT = re.compile(r"(?<![=\w])==(?![\s=])(.+?)(?<![\s=])==(?![=\w])")
-URL_TAIL = ".,;:!?"
-
-
-# lavish's note mode lets a click through only inside `[data-lavish-action]`; without it a link never opens.
-NEW_TAB = 'target="_blank" rel="noopener noreferrer" data-lavish-action="afkv2-link"'
-
-
-def _link(match):
-    if match.group(2):
-        return f'<a href="{match.group(2)}" {NEW_TAB}>{match.group(1)}</a>'
-    url = match.group(3)
-    tail = ""
-    while url and url[-1] in URL_TAIL and not url.endswith("&amp;"):
-        url, tail = url[:-1], url[-1] + tail
-    return f'<a href="{url}" {NEW_TAB}>{url}</a>{tail}'
-
-
-def _marks(text):
-    """**bold**, then *italic*, then ==highlight==, in escaped text that holds no code span and no link."""
-    text = BOLD.sub(r"<strong>\1</strong>", text)
-    text = ITALIC.sub(r"<em>\1</em>", text)
-    return HIGHLIGHT.sub(HIGHLIGHT_TAG, text)
-
-
-def _plain(part):
-    """Links, and the marks of `_marks` on the text between links: a mark never reads inside a URL."""
-    out, at = [], 0
-    for match in LINK.finditer(part):
-        out += [_marks(part[at:match.start()]), _link(match)]
-        at = match.end()
-    return "".join(out + [_marks(part[at:])])
-
-
-def _inline(text):
-    """Escape first, then `code`, links and the marks of `_marks`; nothing inside a code span is read."""
-    parts = CODE.split(escape(text))
-    return "".join(f"<code>{part}</code>" if i % 2 else _plain(part) for i, part in enumerate(parts))
 
 
 def _indent(line):

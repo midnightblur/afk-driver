@@ -54,10 +54,9 @@ Each opens in a new tab. A kind links only when `session.links` has its template
 otherwise it stays text. Write the reference in that form, for example `#159`,
 not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hover
 tip holds no link: write a reference the human must open in a label or a text.
-A reference inside a URL stays text. Plain text, a table cell among it, renders no
-Markdown: write the bare key `ABC-123`, not `[ABC-123](https://...)`, which shows
-its brackets and its URL. A reference in `session.links.titles` shows its title
-on hover.
+A reference inside a URL stays text. A plain `text` renders no Markdown: write the
+bare key `ABC-123`, not `[ABC-123](https://...)`, which shows its brackets and its
+URL. A reference in `session.links.titles` shows its title on hover.
 
 ## Emphasis rules
 
@@ -70,8 +69,13 @@ Each mark has 1 meaning on every page. Use a mark only for its meaning:
 | `*italic*` | an inference, an assumption or a claim no one checked; say so in words too | *about 5,000 invoices* |
 | `==highlight==` | new or changed words in this round, inside a text that otherwise stays | ==now 30 minutes== |
 
-A mark renders only in a `markdown: true` text: a plain `text` and a table cell show
-the signs as typed. To mark a table cell, put a `markdown: true` text in it. Mark at most
+A mark renders in a `markdown: true` text and in a table cell given as a string; a
+plain `text` shows the signs as typed. In those 2 places a code name with no mark
+also shows in code font: a file reference such as `Job.java:34` or
+`src/a/b.py:12-34`, and a snake_case id such as `inv_rework`. Mark a class, method,
+field or status name with no extension or underscore, such as `POSTED`, as `code`
+yourself. The build warns `bare-code-name` on a plain text that holds a code name.
+Mark at most
 a few words per sentence: a text that is all bold marks nothing. A certainty chip
 (below) still says how a number is known; italic is for words inside a sentence.
 

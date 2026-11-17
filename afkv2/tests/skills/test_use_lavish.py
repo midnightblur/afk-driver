@@ -627,6 +627,28 @@ def test_the_build_command_and_the_guide_name_the_long_text_warning():
     assert rd.LONG_TEXT_SENTENCES == 4
 
 
+
+def test_a_plain_text_that_holds_a_code_name_is_warned_and_the_round_still_builds(tmp_path):
+    """A plain text shows a backtick span or a file reference as body text; a markdown text or a cell does not."""
+    card = a_text_card("i-a", "Transitions: `PayableTransition.java:30-57`.")
+    card["body"]["children"] = [{"type": "text", "id": "i-a-ref", "props": {"text": "See Job.java:12 and inv_rework."}},
+                                {"type": "text", "id": "i-a-md", "props": {"text": "See `Job.java`.", "markdown": True}},
+                                {"type": "text", "id": "i-a-prose", "props": {"text": "e.g. a closed period, v1.2."}},
+                                {"type": "table", "props": {"columns": ["a"], "rows": [["Job.java:12"]]}}]
+    path = tmp_path / "pages" / "grill-s-1.json"
+    answer = rd.build_round_document(path, SESSION, {**round_input(), "items": [card]})
+    assert answer["round"] == 1 and len(read(path)["rounds"]) == 1
+    found = [(w["code"], w["item"], w["component"]) for w in answer["warnings"]]
+    assert found == [("bare-code-name", "i-a", "i-a-body"), ("bare-code-name", "i-a", "i-a-ref")]
+    assert "PayableTransition.java:30-57" in answer["warnings"][0]["reason"]
+    assert "Job.java:12, inv_rework" in answer["warnings"][1]["reason"]
+
+
+def test_the_build_command_and_the_guide_name_the_bare_code_name_warning():
+    assert "a `bare-code-name` text" in SKILL_MD.read_text("utf-8")
+    guide = " ".join((SKILLS / "visualize" / "components" / "chip-and-text.md").read_text("utf-8").split())
+    assert "The build warns `bare-code-name` on a plain text that holds a code name." in guide
+
 # ---- the round pass checks each decision the human settled (core behaviors, Decisions)
 
 def test_the_round_pass_checks_each_settled_decision():
