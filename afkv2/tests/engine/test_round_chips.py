@@ -23,7 +23,7 @@ from shell import page, rounds  # noqa: E402
 from test_page_parts_v2 import document  # noqa: E402
 
 CHIP_CLASS = "afkv2-round-chip"
-CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'([^"]*)"( style="[^"]*")?[^>]*>(?:R-|[Rr]ound )(\d+)</span>')
+CHIP = re.compile(r'<span class="' + CHIP_CLASS + r'([^"]*)"( style="[^"]*")?[^>]*>(?:changed in )?(?:R-|[Rr]ound )(\d+)</span>')
 COLOUR = re.compile(r"--afkv2-round: ([^;\"]+)")
 HSL = re.compile(r"hsl\(([0-9.]+), ([0-9.]+)%, ([0-9.]+)%\)")
 CHIP_TEXT = "#111418"

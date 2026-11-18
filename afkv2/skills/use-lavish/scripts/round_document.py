@@ -482,6 +482,67 @@ def unanswered_note_warnings(doc, round_n):
             and not _answers(doc, note)]
 
 
+LONG_TEXT_SENTENCES = 4
+SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+
+
+def long_text_warnings(items):
+    """A warning for each plain `text` part of more than LONG_TEXT_SENTENCES sentences; the round still
+    builds. Such a part reads better as a `markdown: true` list (visualize guide, "Chip and styled text").
+    The ticket card holds the tracker's words, not the agent's, so it gets no warning."""
+    return [{"code": "long-text", "item": item["id"], "component": component.get("id"),
+             "reason": f"item {item['id']}: a text of {count} sentences; write it as a `markdown: true` list, "
+                       f"1 point per bullet, sub-points indented 2 spaces"}
+            for item in items if item["id"] != TICKET_CARD for component in _components(item["body"])
+            if component.get("type") == "text" and not (component.get("props") or {}).get("markdown")
+            for count in [len(SENTENCE_END.findall(str((component.get("props") or {}).get("text", ""))))]
+            if count > LONG_TEXT_SENTENCES]
+
+
+
+def code_name_warnings(items):
+    """A warning for each plain `text` part that holds a code name (a backtick span, a file reference or a
+    snake_case id, by the engine's `code_names`): a plain text shows it in body font. The round
+    still builds. A `markdown: true` text and a table cell show it in code font (visualize guide, "Chip and
+    styled text"). The ticket card holds the tracker's words, so it gets no warning. A version 2 page only: a
+    version 0 or 1 page asks the engine nothing."""
+    code_names = page_engine().code_names
+    found = []
+    for item in items:
+        if item["id"] == TICKET_CARD:
+            continue
+        for component in _components(item["body"]):
+            props = component.get("props") or {}
+            if component.get("type") != "text" or props.get("markdown"):
+                continue
+            names = code_names(str(props.get("text", "")))
+            if names:
+                found.append({"code": "bare-code-name", "item": item["id"], "component": component.get("id"),
+                              "reason": f"item {item['id']}: a plain text holds {', '.join(names)}; set "
+                                        f"`markdown: true` and mark each code name as `code`"})
+    return found
+
+PROSE_SECTION_SENTENCES = 2
+
+
+def prose_section_warnings(sections):
+    """A warning for each sent section whose body is 1 plain `text`, with no children, of more than
+    PROSE_SECTION_SENTENCES sentences; the round still builds. A section with structure shows it as a table, a
+    sequence or a `markdown: true` list (visualize guide, "Chip and styled text")."""
+    found = []
+    for section in sections if isinstance(sections, list) else []:
+        body = section.get("body") if isinstance(section, dict) else None
+        props = (body or {}).get("props") or {}
+        if not isinstance(body, dict) or body.get("type") != "text" or props.get("markdown") or body.get("children"):
+            continue
+        count = len(SENTENCE_END.findall(str(props.get("text", ""))))
+        if count > PROSE_SECTION_SENTENCES:
+            found.append({"code": "prose-section", "section": section.get("id"),
+                          "reason": f"section {section.get('id')}: its body is 1 plain text of {count} sentences; "
+                                    f"show its structure as a table, a sequence or a `markdown: true` list"})
+    return found
+
+
 def _session_text(session, round_input, n):
     """Write the step, and the short title in round 1 only; answer the warning for a later title (SDD §6)."""
     if round_input.get("step") is not None:
@@ -712,7 +773,9 @@ def build_round_document(doc_path, session, round_input, ticket=None, replace=Fa
     if version_2 and unanswered:
         raise Refusal("unanswered-note", f"each note gets its own reply before round {n}; these have none: "
                                          f"{', '.join(warning['note'] for warning in unanswered)}")
-    warnings += unanswered
+    warnings += unanswered + long_text_warnings(items)
+    if version_2:
+        warnings += code_name_warnings(items) + prose_section_warnings(round_input.get("sections"))
     if version_2:
         check_version_2(doc)
     write_json(doc_path, doc)

@@ -5,7 +5,8 @@
 A short label (type `chip`) or a run of text (type `text`), with a semantic
 tone. Props: `text` and `tone`. A chip needs a tone or a set (below); for text the tone is
 optional. A chip also takes a tone of state or certainty (second table). A `text` takes `markdown: true` to render a safe subset: blank-line
-paragraphs, `**bold**`, `` `code` ``, `- ` lists, `#` headings as bold lines and
+paragraphs, `**bold**`, `` `code` ``, `*italic*`, `==highlight==`, `- ` lists (a line indented 2 spaces more
+than the line above nests under it), `#` headings as bold lines and
 http(s) links. The engine escapes all HTML first. A `text` also takes `label`
 (at most 60 characters), a small line above its words that names what the words
 are, and `badge` (at most 30 characters), a neutral chip on that line. Tones:
@@ -53,16 +54,39 @@ Each opens in a new tab. A kind links only when `session.links` has its template
 otherwise it stays text. Write the reference in that form, for example `#159`,
 not `issue 159`, and a ticket with its project key, `ABC-123`, not `123`. A hover
 tip holds no link: write a reference the human must open in a label or a text.
-A reference inside a URL stays text. Plain text, a table cell among it, renders no
-Markdown: write the bare key `ABC-123`, not `[ABC-123](https://...)`, which shows
-its brackets and its URL. A reference in `session.links.titles` shows its title
-on hover.
+A reference inside a URL stays text. A plain `text` renders no Markdown: write the
+bare key `ABC-123`, not `[ABC-123](https://...)`, which shows its brackets and its
+URL. A reference in `session.links.titles` shows its title on hover.
+
+## Emphasis rules
+
+Each mark has 1 meaning on every page. Use a mark only for its meaning:
+
+| Mark | Means | Example |
+|------|-------|---------|
+| `**bold**` | a decision, a settled value, or the 1 thing the human must read or act on | **Each job copies the profile.** |
+| `` `code` `` | a code name: a class, a method, a file, a path, a field, a config key, a command, a status or a transition id | `BaseJob.java:34`, `POSTED` |
+| `*italic*` | an inference, an assumption or a claim no one checked; say so in words too | *about 5,000 invoices* |
+| `==highlight==` | new or changed words in this round, inside a text that otherwise stays | ==now 30 minutes== |
+
+A mark renders in a `markdown: true` text and in a table cell given as a string; a
+plain `text` shows the signs as typed. In those 2 places a code name with no mark
+also shows in code font: a file reference such as `Job.java:34` or
+`src/a/b.py:12-34`, and a snake_case id such as `inv_rework`. Mark a class, method,
+field or status name with no extension or underscore, such as `POSTED`, as `code`
+yourself. The build warns `bare-code-name` on a plain text that holds a code name.
+Mark at most
+a few words per sentence: a text that is all bold marks nothing. A certainty chip
+(below) still says how a number is known; italic is for words inside a sentence.
 
 ## Use it when
 
 A value, step or element must show whether it stays, goes, is new or is only
 proposed. Use `markdown: true` for text that comes as Markdown, such as a
-ticket description. Use `label` when a card holds several fields, so each block
+ticket description. Use a `markdown: true` list for a text that lists points
+or runs over 4 sentences: 1 point per `- ` line, and each sub-point on its own
+line, indented 2 spaces under its point. The build warns `long-text` on a plain
+text over 4 sentences. Use `label` when a card holds several fields, so each block
 says what it is. Use a state chip for the state of a point or a part, and a
 certainty chip for how sure a value is: `measured`, `inferred`, `estimated` or
 `unverified`. Write the meaning in the chip's text too, for example "blocked: waits
@@ -102,6 +126,16 @@ component with a `tip` shows the help cursor, and the tip shows on hover.
     {"type": "chip", "props": {"text": "blocked: waits on the format", "tone": "blocked"}},
     {"type": "text", "props": {"text": "Archive after 7 days", "tone": "proposed"}}
   ]
+}
+```
+
+A text that lists points, with sub-points nested:
+
+```json fragment=component
+{
+  "type": "text",
+  "props": {"label": "What ships", "markdown": true,
+            "text": "- The export menu\n- 2 job types:\n  - Export orders\n  - Archive orders\n- Orders only; the job never deletes an order"}
 }
 ```
 

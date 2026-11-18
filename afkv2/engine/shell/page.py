@@ -25,7 +25,7 @@ import diagrams
 from registry import aliases, lookup, page_context, part_labels, render_component, walk
 from schema.note_rules import round_target
 from shell import parts_v2
-from shell.points import grouped
+from shell.points import fresh_cards, grouped
 from shell.references import link_cards, linkify
 from shell.rounds import round_chip, round_colour, round_context
 
@@ -121,13 +121,18 @@ def _node_cards(doc: dict) -> str:
 
 
 def _changed_now(doc: dict, round_: dict) -> set:
-    """The elements that show the changed-this-round mark (PRD AC-047): after round 1, each element that the
-    current round's changed lists name, and each section with an added or changed line of that round, on a version 2
-    page. Round 1 changes nothing; a version 0 or 1 page keeps its visible text (ADR-0003 design)."""
-    if round_["n"] == 1 or doc["schema"] != V2:
+    """The elements that show the changed-this-round mark (PRD AC-047), after round 1, on a version 2 page:
+    each element that the current round's changed lists name; each card of the round that carries no earlier card,
+    or whose content differs from the card it carries (`points.fresh_cards`); each section with an added or changed
+    line of the round; and each question and worked example with a change line of the round. Round 1 changes
+    nothing; a version 0 or 1 page keeps its visible text (ADR-0003 design)."""
+    n = round_["n"]
+    if n == 1 or doc["schema"] != V2:
         return set()
-    touched = _section_changes(doc, round_["n"])
-    return {*_changed_ids(round_), *touched["added"], *touched["changed"]}
+    touched = _section_changes(doc, n)
+    entries = {entry["id"] for kind in ("questions", "examples") for entry in doc.get(kind) or []
+               if any(line["round"] == n for line in entry.get("changes") or [])}
+    return {*_changed_ids(round_), *fresh_cards(doc, n), *touched["added"], *touched["changed"], *entries}
 
 
 def _mark(item: dict, changed: set) -> dict:
@@ -189,7 +194,7 @@ def _history(doc: dict, point) -> str:
 
 
 def _point(doc: dict, point, current_n: int, changed: set, settled: bool = False) -> str:
-    """A settled point folds to its heading and settled line on the rail, an info card of an earlier round too."""
+    """A settled point, or an info card of an earlier round: it starts open and folds to its heading."""
     extra = {"history": _history(doc, point), **({"rail": "settled"} if settled else {}), **_mark(point.head, changed)}
     return _card(doc, point.head, point.round, point.round["n"] == current_n, **extra)
 
@@ -223,10 +228,13 @@ def _settled_section(doc: dict, points: list, current: dict) -> str:
         return ""
     changed = _changed_now(doc, current)
     cards = "".join(_point(doc, point, current["n"], changed, settled=True) for point in points)
+    heading = f"Settled by earlier rounds ({len(points)})"
+    inner = ('<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
+             f'its history. A note on a settled card opens it again.</p><div class="afkv2-cards">{cards}</div>')
+    if doc["schema"] == V2:
+        return parts_v2.fold_block("afkv2-settled", "afkv2-settled-points", heading, inner)
     return (f'<section class="afkv2-settled-points" id="afkv2-settled">'
-            f'<h2 class="afkv2-section-h">Settled by earlier rounds ({len(points)})</h2>'
-            '<p class="afkv2-nr-intro">Each point shows how it settled. Open one to read the card, its notes and '
-            f'its history. A note on a settled card opens it again.</p><div class="afkv2-cards">{cards}</div></section>')
+            f'<h2 class="afkv2-section-h">{escape(heading)}</h2>{inner}</section>')
 
 
 def _earlier_banners(doc: dict) -> str:
@@ -489,13 +497,15 @@ def _build_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> s
 def _layout_v2(doc: dict, btw: tuple[int, str] | None, notices: dict | None) -> str:
     current = next(r for r in doc["rounds"] if r["state"] == "current")
     live, settled = grouped(doc)
+    changed = _changed_now(doc, current)
     maps = "".join(render_component(m) for m in doc.get("maps") or [])
     title = escape(stable_title(doc))
     body = (f'<h1 class="afkv2-title">{title}</h1>{_notices(notices)}'
             f'{_banner_v2(doc, current, True)}'
             f'<section class="afkv2-notes-replies" id="afkv2-notes-replies">{_notes_and_replies(doc)}</section>'
             f'<section class="afkv2-maps" id="afkv2-maps">{maps}</section>'
-            f'{parts_v2.render_sections(doc, _changed_now(doc, current))}{parts_v2.render_examples(doc)}{parts_v2.render_questions(doc)}'
+            f'{parts_v2.render_sections(doc, changed)}{parts_v2.render_examples(doc, changed)}'
+            f'{parts_v2.render_questions(doc, changed)}'
             f'{_round_questions(doc, current, live)}'
             f'{_settled_section(doc, settled, current)}'
             f'{_earlier_banners_v2(doc)}{_node_cards(doc)}')

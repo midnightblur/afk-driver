@@ -419,11 +419,14 @@ def test_a_version_2_page_carries_its_tooltip_catalog():
 
 
 # The visible text of each stored page, rendered at the base of the version 2 layout (commit c72cee14), with the
-# write-in labels that ask for typed words and a round chip in each history summary.
+# write-in labels that ask for typed words and a round chip in each history summary. A code name in a plain table
+# cell shows in code font: the reader below splits the words at each code tag, so the page with notes hashes anew.
+# A note with no selected text shows a muted `on: <first words>` reminder in Noted text: the page with notes hashes
+# anew again, with only those reminders added.
 BEFORE = {
-    "v0-page-with-notes.json": "f7b5826330b21e148f2932634c4cd23dca4a2da645fb4565c9dbe8e9727839b7",
+    "v0-page-with-notes.json": "3ed981919809086f2a0508703ece5a6c03c61ed8fd531e4a042ff786d814cafd",
     "v0-sdd-pass.json": "0e7d35fd596eb36be92e2b3a53034016f2957543a160f542ac57a3c1d7960918",
-    "v0-page-with-notes.json as version 1": "fe17bec98eed1b77a741b71074a807e7ea7399088302c114aa77cec14e2b7d70",
+    "v0-page-with-notes.json as version 1": "9533ef1a36d077fdfbc9becc6699be5ce0690e23d4f993d293400d2ee5b03823",
     "v0-sdd-pass.json as version 1": "95222e7e7bfa96c4db91c48d9c0ec3636ab0e3d8aa199b5932b94eaff1757235",
     "two rounds, version 1": "0ffc4f6e0f9e5a50bc6cc52494f07af754f1fca63f7173f1e4b34a199745a2a1",
     "changed rounds, version 1": "1a344f707ea6f500e7ac0a8be54f3552c771c01169f76be610c9e4ad57acbd81",
@@ -448,3 +451,20 @@ def test_a_version_0_or_1_page_shows_the_same_visible_text_as_before(name):
     doc = copy.deepcopy(old_pages()[name])
     assert doc["schema"] in ("afkv2.page/0", "afkv2.page/1")
     assert hashlib.sha256(visible(build(doc)).encode("utf-8")).hexdigest() == BEFORE[name]
+
+
+# --- a note with no selected text: a muted reminder with no raw id (round 8 note on a whole card)
+
+REMINDER_SPAN = 'class="afkv2-nr-dim afkv2-nr-reminder"'
+CLOSED_NOTE_ROW = re.compile(r'id="afkv2-ns-N-3-i-closed-1".*?</tr>', re.S)
+
+
+def test_a_version_2_note_on_a_whole_card_or_a_section_shows_its_title_as_a_reminder_and_no_raw_id():
+    doc = raw_id_document()
+    doc["notes"].append({**parts_case.note("N-3-i-closed-1", 3, "i-closed"), "quote": None})
+    notes = block(build(doc), 'id="afkv2-notes-replies"')
+    card_row = CLOSED_NOTE_ROW.search(notes).group(0)
+    section_row = SCOPE_NOTE_ROW.search(notes).group(0)
+    assert REMINDER_SPAN in card_row and "on card: Is the closed part right?" in visible(card_row)
+    assert "on section: What the export covers" in visible(section_row)
+    assert not raw_words(visible(notes), doc)

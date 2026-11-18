@@ -32,7 +32,11 @@ the notes. The engine writes `notes`.
 One row per note, with the human's words quoted: `# | Where you wrote it | Noted
 text | Your note | My answer / what changed`. Noted text holds the text the human
 selected, when the note is on a selection; Your note holds only the human's
-words. A deleted note has no row.
+words. A note with no selected text shows a muted reminder in Noted text: `on
+card: <title>` for a whole card, `on section: <title>` (or story, example,
+question, option) for a page part, else `on: <first 80 characters>` of the
+element. A note on a round banner, a map or a map node shows none. The reminder
+is display only: `quote` stays the selected text. A deleted note has no row.
 
 A note on a card, or on a part of a card, is a row under the heading of that
 card, newest round first. A history card shows its own rows.

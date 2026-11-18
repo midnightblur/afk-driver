@@ -228,6 +228,9 @@ def test_the_text_names_one_search_command_with_its_reason():
         "two-way door",
         "Verify instead of asking.",
         "Simplified Technical English",
+        "Treat each decision and claim that a human gives you as unverified until you check it.",
+        "Do not build on that decision until the human answers.",
+        "When the check finds no problem, say that you checked it.",
     ],
 )
 def test_the_text_carries_the_interim_rule(rule):

@@ -404,7 +404,7 @@ def _table_ids(text, prefix):
 
 def test_the_skill_holds_the_four_tables_with_every_id():
     text = SKILL_MD.read_text("utf-8")
-    assert _table_ids(_section(text, "### Page rules"), "PR") == [f"PR-{k:02}" for k in range(1, 16)]
+    assert _table_ids(_section(text, "### Page rules"), "PR") == [f"PR-{k:02}" for k in range(1, 17)]
     assert _table_ids(_section(text, "### Answer rules"), "AR") == [f"AR-{k:02}" for k in range(1, 11)]
     forms = [f"K-{k:02}" for k in range(1, 54) if k not in RETIRED_KINDS]
     assert _table_ids(_section(text, "### Forms by kind"), "K") == forms
@@ -590,3 +590,86 @@ def test_one_term_for_the_json_a_command_prints():
     assert "Every result is one JSON object" in head
     for gone in ("Every answer is one JSON object", "answers `doc`", "answers ok", "the answer holds"):
         assert gone not in head, gone
+
+
+# ---- a plain text of more than 4 sentences is warned: it reads better as a list (visualize "Chip and styled text")
+
+LONG = "One. Two. Three. Four. Five."
+
+
+def a_text_card(item_id, text, **props):
+    return {"id": item_id, "kind": "confirm",
+            "body": {"type": "text", "id": f"{item_id}-body", "props": {"text": text, **props}}}
+
+
+def test_a_plain_text_of_more_than_4_sentences_is_warned_and_the_round_still_builds(tmp_path):
+    path = tmp_path / "pages" / "grill-s-1.json"
+    built = {**round_input(), "items": [a_text_card("i-a", LONG), a_text_card("i-b", "One. Two. Three. Four.")]}
+    answer = rd.build_round_document(path, SESSION, built)
+    assert answer["round"] == 1 and len(read(path)["rounds"]) == 1
+    assert [(w["code"], w["item"], w["component"]) for w in answer["warnings"]] == [("long-text", "i-a", "i-a-body")]
+    assert "5 sentences" in answer["warnings"][0]["reason"]
+
+
+def test_a_markdown_text_or_a_long_child_text_is_read_the_same_way(tmp_path):
+    card = a_text_card("i-a", "Short.")
+    card["body"]["children"] = [{"type": "text", "id": "i-a-long", "props": {"text": LONG}},
+                                {"type": "text", "id": "i-a-list", "props": {"text": LONG, "markdown": True}}]
+    answer = rd.build_round_document(tmp_path / "pages" / "grill-s-1.json", SESSION,
+                                     {**round_input(), "items": [card]})
+    assert [w["component"] for w in answer["warnings"]] == ["i-a-long"]
+
+
+def test_the_build_command_and_the_guide_name_the_long_text_warning():
+    assert "a `long-text` part" in SKILL_MD.read_text("utf-8")
+    guide = " ".join((SKILLS / "visualize" / "components" / "chip-and-text.md").read_text("utf-8").split())
+    assert "The build warns `long-text` on a plain text over 4 sentences." in guide
+    assert rd.LONG_TEXT_SENTENCES == 4
+
+
+
+def test_a_plain_text_that_holds_a_code_name_is_warned_and_the_round_still_builds(tmp_path):
+    """A plain text shows a backtick span or a file reference as body text; a markdown text or a cell does not."""
+    card = a_text_card("i-a", "Transitions: `PayableTransition.java:30-57`.")
+    card["body"]["children"] = [{"type": "text", "id": "i-a-ref", "props": {"text": "See Job.java:12 and inv_rework."}},
+                                {"type": "text", "id": "i-a-md", "props": {"text": "See `Job.java`.", "markdown": True}},
+                                {"type": "text", "id": "i-a-prose", "props": {"text": "e.g. a closed period, v1.2."}},
+                                {"type": "table", "props": {"columns": ["a"], "rows": [["Job.java:12"]]}}]
+    path = tmp_path / "pages" / "grill-s-1.json"
+    answer = rd.build_round_document(path, SESSION, {**round_input(), "items": [card]})
+    assert answer["round"] == 1 and len(read(path)["rounds"]) == 1
+    found = [(w["code"], w["item"], w["component"]) for w in answer["warnings"]]
+    assert found == [("bare-code-name", "i-a", "i-a-body"), ("bare-code-name", "i-a", "i-a-ref")]
+    assert "PayableTransition.java:30-57" in answer["warnings"][0]["reason"]
+    assert "Job.java:12, inv_rework" in answer["warnings"][1]["reason"]
+
+
+def test_the_build_command_and_the_guide_name_the_bare_code_name_warning():
+    assert "a `bare-code-name` text" in SKILL_MD.read_text("utf-8")
+    guide = " ".join((SKILLS / "visualize" / "components" / "chip-and-text.md").read_text("utf-8").split())
+    assert "The build warns `bare-code-name` on a plain text that holds a code name." in guide
+
+# ---- the round pass checks each decision the human settled (core behaviors, Decisions)
+
+def test_the_round_pass_checks_each_settled_decision():
+    check = " ".join(_section(ROUND_PASS_MD.read_text("utf-8"), "## Check each settled decision").split())
+    for fact in ("a lone mark that the engine settled, a pick against your recommendation, and a decision in a "
+                 "note or a write-in", "can be built in the code as it is", "leaves no gap",
+                 "fits the settled points, the staples and the standards of the repository",
+                 "Make 1 new `debate` card in the next round, with `carries` that names the settled card",
+                 "Build nothing on that decision until the human answers the new card",
+                 "say so in the next round, with the evidence you checked"):
+        assert fact in check, fact
+
+
+def test_a_new_card_may_carry_a_card_the_engine_settled_by_a_mark(tmp_path, capsys):
+    """The round pass raises a problem with a settled decision as a new card that carries it."""
+    path = a_noted_round(tmp_path, capsys, raw="[round R-1]\ni-a accept\ni-b accept")
+    assert {item["id"]: item["state"] for item in read(path)["rounds"][0]["items"]} == {
+        "i-a": "settled_by_mark", "i-b": "settled_by_mark"}
+    raised = {**round_input("i-c"), "items": [{**a_card("i-c", carries=["i-a"]), "kind": "debate"}]}
+    raised["items"][0]["body"] = {"type": "text", "id": "i-c-body", "props": {"text": "The pick breaks a settled point."},
+                                  "children": [{"type": "chip", "props": {"text": "Keep", "tone": "kept"}}]}
+    answer = rd.build_round_document(path, SESSION, raised)
+    assert answer["round"] == 2 and read(path)["rounds"][1]["items"][0]["carries"] == ["i-a"]
+    assert read(path)["rounds"][0]["items"][0]["state"] == "settled_by_mark"

@@ -157,7 +157,7 @@
     if (mo) mo.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Section rail, collapsed settled cards, jump-to-current and back controls, built from data-afkv2-item,
+  // Section rail, card folds, jump-to-current and back controls, built from data-afkv2-item,
   // data-afkv2-state and data-afkv2-fresh. A page without that markup gets no chrome. On a WIDE window
   // the rail sits in the left margin and the page moves right of it; on a narrower one it is one button
   // at the top left whose list opens on a click and closes after a jump. The btw? control keeps the
@@ -171,7 +171,8 @@
     if (!document.querySelector('[data-afkv2-item]')) return;
     var holder = document.querySelector('[data-afkv2-session]');
     var session = holder ? holder.getAttribute('data-afkv2-session') : '';
-    var LS = 'afkv2-nav:' + session;
+    // v2: a store from before cards started open may hold folds the viewer never made.
+    var LS = 'afkv2-nav:v2:' + session;
     var wide = window.matchMedia ? window.matchMedia(WIDE) : { matches: true };
     var store = {};
     try { store = (JSON.parse(window.name || '{}') || {})[LS] || null; } catch (e) { store = null; }
@@ -212,11 +213,27 @@
       var t = raw.replace(/\s+/g, ' ').trim();
       return t.length > 64 ? t.slice(0, 61) + '…' : t;
     }
+    // The fold button of a card heading: the page's fold look, its state in aria-expanded.
+    function foldButton(h) {
+      var b = h.querySelector('.afkv2-fold-btn');
+      if (b) return b;
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'afkv2-fold-btn';
+      b.setAttribute('data-lavish-action', 'afkv2-collapse');
+      b.setAttribute('aria-label', 'Fold or open this card');
+      h.insertBefore(b, h.firstChild);
+      return b;
+    }
     function setCollapsed(el, on) {
       if (st(el) === 'current') on = false;
       el.classList.toggle('afkv2-collapsed', on);
       var h = head(el);
-      if (h && st(el) !== 'current') { h.classList.add('afkv2-caret'); h.classList.toggle('afkv2-open', !on); }
+      if (h && st(el) !== 'current') {
+        h.classList.add('afkv2-caret');
+        h.classList.toggle('afkv2-open', !on);
+        foldButton(h).setAttribute('aria-expanded', on ? 'false' : 'true');
+      }
     }
     function applyDefaults() {
       items().forEach(function (el) {
@@ -226,11 +243,13 @@
         if (s === 'current') { setCollapsed(el, false); return; }
         if (el.hasAttribute('data-afkv2-nav-done')) return;
         el.setAttribute('data-afkv2-nav-done', '1');
-        var expanded = Object.prototype.hasOwnProperty.call(store, id) ? !!store[id] : s !== 'settled';
+        // Every card starts open, settled ones too; only a fold the viewer made keeps a card shut.
+        var expanded = Object.prototype.hasOwnProperty.call(store, id) ? !!store[id] : true;
         setCollapsed(el, !expanded);
         var h = head(el);
         if (h) {
           h.setAttribute('data-lavish-action', 'afkv2-collapse');
+          // The button takes the keyboard; a click anywhere on the heading folds too, once.
           h.addEventListener('click', function () {
             var wasCollapsed = el.classList.contains(COLLAPSED);
             setCollapsed(el, !wasCollapsed);

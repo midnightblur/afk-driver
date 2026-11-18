@@ -21,7 +21,11 @@ from test_diagram_text import FLOW, StubRenderer  # noqa: E402
 from test_page_parts_v2 import document  # noqa: E402
 
 # The marks of the page HTML, each on a line of its own (plugin_check: a marker is never matched by part).
-CHANGED = '<span class="afkv2-changed">Changed this round</span>'
+CHANGED = '<span class="afkv2-round-chip afkv2-changed"'
+CHANGED_WORDS = r"changed in round (\d+)</span>"
+CHANGED_CHIP = re.compile(r'<span class="afkv2-round-chip afkv2-changed" style="--afkv2-round: ([^"]+)" '
+                          r'data-afkv2-tip="[^"]+">' + CHANGED_WORDS)
+WHY_IT_RETURNS = "Why it returns"
 MARK_CLASS = "afkv2-changed"
 CARD_TITLE = 'class="afkv2-card-title"'
 HISTORY = 'class="afkv2-history"'
@@ -58,10 +62,18 @@ def heading(html, element_id):
 
 
 def changed_document():
-    """Round 3 is current: it changed the card i-format; the sections sec-scope and sec-format have a change line of
+    """Round 3 is current: it changed the card i-format; the card i-closed returns the round 2 card i-rows with the
+    same content and a part that says why it returns; the sections sec-scope and sec-format have a change line of
     round 3."""
     doc = document()
     doc["rounds"][2]["changed"] = ["i-format"]
+    rows = doc["rounds"][1]["items"][1]
+    closed = doc["rounds"][2]["items"][1]
+    closed.update(carries=["i-rows"], title=rows["title"],
+                  body={**rows["body"], "id": "i-closed-b",
+                        "children": [{"type": "text", "id": "i-closed-why",
+                                      "props": {"label": WHY_IT_RETURNS, "text": "No answer in round 2."}}]})
+    rows["body"] = {**rows["body"], "id": "i-rows-b", "children": []}
     return doc
 
 
@@ -78,6 +90,48 @@ def test_a_card_changed_in_the_current_round_shows_the_mark_after_its_title():
 def test_a_card_the_current_round_did_not_change_shows_no_mark():
     html = build(changed_document())
     assert CHANGED not in element(html, "i-closed")
+
+
+def test_the_mark_is_the_chip_of_the_current_round_in_its_colour():
+    doc = changed_document()
+    doc["rounds"][2]["colour"] = "#abcdef"
+    found = CHANGED_CHIP.search(heading(build(doc), "i-format"))
+    assert found and found.groups() == ("#abcdef", "3")
+
+
+def test_a_new_card_of_the_current_round_shows_the_mark():
+    doc = changed_document()
+    doc["rounds"][2]["changed"] = []
+    assert CHANGED in heading(build(doc), "i-format")
+
+
+def test_a_returning_card_whose_content_changed_shows_the_mark():
+    doc = changed_document()
+    doc["rounds"][2]["items"][1]["body"]["props"] = {"text": "Confirm the new part."}
+    assert CHANGED in heading(build(doc), "i-closed")
+
+
+def test_a_returning_card_with_a_new_title_shows_the_mark():
+    doc = changed_document()
+    doc["rounds"][2]["items"][1]["title"] = "Is the closed part right now?"
+    assert CHANGED in heading(build(doc), "i-closed")
+
+
+def test_a_card_of_an_earlier_round_that_the_round_names_shows_the_chip_of_the_current_round():
+    doc = changed_document()
+    doc["rounds"][2]["changed"] = ["i-rows"]
+    doc["rounds"][1]["items"][1].pop("section")
+    doc["rounds"][2]["items"][1].pop("carries")
+    found = CHANGED_CHIP.search(heading(build(doc), "i-rows"))
+    assert found and found.group(2) == "3"
+
+
+def test_a_question_or_an_example_with_a_change_line_of_the_current_round_shows_the_mark():
+    doc = changed_document()
+    doc["questions"][1]["changes"].append({"round": 3, "cause": "finding", "text": "Asked again."})
+    html = build(doc)
+    assert CHANGED in heading(html, "q-size") and CHANGED in heading(html, "ex-bad")
+    assert CHANGED not in element(html, "q-cols") and CHANGED not in element(html, "ex-plain")
 
 
 def test_a_section_with_a_change_line_of_the_current_round_shows_the_mark_after_its_title():

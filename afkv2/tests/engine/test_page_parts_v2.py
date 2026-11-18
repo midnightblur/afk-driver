@@ -26,7 +26,7 @@ FILTER = re.compile(r'<select id="afkv2-who-filter"[^>]*>(.*?)</select>', re.S)
 TICK_GROUP = re.compile(r'<fieldset [^>]*data-afkv2-input="tick"[^>]*>')
 TICK_ATTR = 'data-afkv2-input="tick"'
 SEVERAL = 'data-afkv2-several="{}"'
-EXAMPLES_HEADING = '<h2 class="afkv2-section-h">Worked examples</h2>'
+EXAMPLES_HEADING = "Worked examples</h2>"
 TIP_ATTR = "data-afkv2-tip="
 CHIP = "afkv2-chip"
 CAUSE = re.compile(r'data-afkv2-cause="([^"]+)"')

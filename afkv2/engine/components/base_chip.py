@@ -6,6 +6,7 @@ drawn with its own symbol beside its colour (PR-07: never colour alone). A value
 import re
 from html import escape
 
+from components.text_inline import inline as _inline
 from registry import register_component, value_set
 
 TONES = ["removed", "kept", "new", "proposed"]
@@ -21,37 +22,37 @@ SCALE = "var(--afkv2-scale)"
 MARK_SPAN = '<span class="afkv2-chip-mark" aria-hidden="true">{}</span>'
 LIST_ITEM = re.compile(r"\s*[-*] (.*)")
 HEADING = re.compile(r"#{1,6}\s+(.*)")
-CODE = re.compile(r"`([^`]+)`")
-# Links are read in escaped text: a URL ends at an escaped quote or angle bracket.
-URL = r"https?://(?:(?!&quot;|&#x27;|&lt;|&gt;)[^\s)])+"
-LINK = re.compile(rf"\[([^\]]+)\]\(({URL})\)|({URL})")
-BOLD = re.compile(r"\*\*(.+?)\*\*")
-URL_TAIL = ".,;:!?"
 
 
-# lavish's note mode lets a click through only inside `[data-lavish-action]`; without it a link never opens.
-NEW_TAB = 'target="_blank" rel="noopener noreferrer" data-lavish-action="afkv2-link"'
+def _indent(line):
+    """The indent width of `line`; a tab counts as 4 spaces."""
+    return len(line[:len(line) - len(line.lstrip(" \t"))].replace("\t", "    "))
 
 
-def _link(match):
-    if match.group(2):
-        return f'<a href="{match.group(2)}" {NEW_TAB}>{match.group(1)}</a>'
-    url = match.group(3)
-    tail = ""
-    while url and url[-1] in URL_TAIL and not url.endswith("&amp;"):
-        url, tail = url[:-1], url[-1] + tail
-    return f'<a href="{url}" {NEW_TAB}>{url}</a>{tail}'
-
-
-def _inline(text):
-    """Escape first, then `code`, links and **bold**; nothing inside a code span is read."""
-    parts = CODE.split(escape(text))
-    return "".join(f"<code>{part}</code>" if i % 2 else BOLD.sub(r"<strong>\1</strong>", LINK.sub(_link, part))
-                   for i, part in enumerate(parts))
+def _list(items):
+    """Nested `<ul>` from (indent, words) pairs: an item indented 2 or more spaces past the item above it
+    nests under that item; the first item sets the left edge, so a list indented as a whole stays flat."""
+    html, open_levels = [], []
+    for indent, words in items:
+        if not open_levels:
+            html.append("<ul>")
+            open_levels.append(indent)
+        elif indent >= open_levels[-1] + 2:
+            html.append("<ul>")
+            open_levels.append(indent)
+        else:
+            html.append("</li>")
+            while len(open_levels) > 1 and indent < open_levels[-1]:
+                open_levels.pop()
+                html.append("</ul></li>")
+        html.append(f"<li>{_inline(words)}")
+    html.append("</li>" + "</ul></li>" * (len(open_levels) - 1) + "</ul>")
+    return "".join(html)
 
 
 def markdown(text):
-    """Blank-line paragraphs, `- ` lists, `#` headings as bold lines, and the inline subset of `_inline`."""
+    """Blank-line paragraphs, `- ` lists nested by indent, `#` headings as bold lines, and the inline subset
+    of `_inline`."""
     out, para, items = [], [], []
 
     def flush():
@@ -59,7 +60,7 @@ def markdown(text):
             out.append(f"<p>{_inline(' '.join(para))}</p>")
             para.clear()
         if items:
-            out.append("<ul>" + "".join(f"<li>{_inline(item)}</li>" for item in items) + "</ul>")
+            out.append(_list(items))
             items.clear()
 
     for line in text.replace("\r\n", "\n").split("\n"):
@@ -70,12 +71,12 @@ def markdown(text):
         elif listed:
             if para:
                 flush()
-            items.append(listed.group(1).strip())
+            items.append((_indent(line), listed.group(1).strip()))
         elif heading:
             flush()
             out.append(f'<p class="afkv2-md-h"><strong>{_inline(heading.group(1))}</strong></p>')
         elif items and line[:1] in (" ", "\t"):
-            items[-1] += " " + stripped
+            items[-1] = (items[-1][0], items[-1][1] + " " + stripped)
         else:
             if items:
                 flush()

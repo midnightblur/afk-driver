@@ -61,6 +61,7 @@ import side_question  # noqa: E402
 from schema import invariants, note_rules  # noqa: E402
 from schema.validate import problems  # noqa: E402
 from shell import inject, page  # noqa: E402
+from components.text_inline import code_names  # noqa: E402,F401  (the round builder's bare-code-name warning)
 
 SCHEMA_V0 = "afkv2.page/0"
 SCHEMA_V1 = "afkv2.page/1"

@@ -2,11 +2,13 @@
 
 A table with an id gives each body row an HTML id. lavish names an annotation by the nearest ancestor id
 within 5 elements, and a cell's table id is further away than that; `row_targets` maps a row to its table, and
-`row_labels` names the row, so a note on it keeps its row.
+`row_labels` names the row, so a note on it keeps its row. A cell given as a string takes the inline marks of
+a `markdown: true` text, and its code names show in code font (`components/text_inline.py`).
 """
 
 from html import escape
 
+from components.text_inline import inline
 from registry import register_component, render_component
 
 ROW_ID = "afkv2-tr-{}-{}"
@@ -26,7 +28,7 @@ def check_rows(props):
 
 
 def _cell(cell):
-    return escape(cell) if isinstance(cell, str) else render_component(cell)
+    return inline(cell) if isinstance(cell, str) else render_component(cell)
 
 
 def _row_ids(props):

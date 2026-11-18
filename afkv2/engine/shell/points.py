@@ -7,6 +7,7 @@ cards carry it, the newest one keeps it.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 
@@ -17,6 +18,9 @@ ASKING = {"decided", "confirm", "debate", "signoff"}
 SETTLED = ("settled_by_mark", "settled_by_note")
 LEGACY_CARRIES = "{}-carries"
 WORD = re.compile(r"[\w-]+")
+# The label of the text part that says why a point returns: the visualize guide, card.md. It is not content, so
+# a returning card that adds only this part has not changed.
+RETURN_LABEL = "Why it returns"
 
 
 @dataclass
@@ -36,6 +40,38 @@ def carried(item: dict, earlier: set) -> list[str]:
             words = WORD.findall((component.get("props") or {}).get("text") or "")
             return [word for word in words if word in earlier]
     return []
+
+
+def _content(item: dict) -> str:
+    """The kind, the title and the body of a card, without the parts that say why it returns and with its own id
+    read as `@`: the content that a carried card compares."""
+    def keep(component: dict) -> dict:
+        if "children" not in component:
+            return component
+        return {**component, "children": [keep(child) for child in component["children"]
+                                          if (child.get("props") or {}).get("label") != RETURN_LABEL]}
+    found = {"kind": item["kind"], "title": item.get("title"), "body": keep(item["body"])}
+    return json.dumps(found, sort_keys=True, ensure_ascii=False).replace(item["id"], "@")
+
+
+def fresh_cards(doc: dict, n: int) -> set[str]:
+    """The cards of round `n` whose content is new in it: a card that carries no earlier card, or whose kind,
+    title or body (`_content`) differs from the newest card it carries."""
+    earlier = {item["id"]: (round_["n"], item) for round_ in doc["rounds"] if round_["n"] < n
+               for item in round_["items"]}
+    found = set()
+    for round_ in doc["rounds"]:
+        if round_["n"] != n:
+            continue
+        for item in round_["items"]:
+            older = carried(item, set(earlier))
+            if not older:
+                found.add(item["id"])
+                continue
+            newest = max(older, key=lambda card_id: earlier[card_id][0])
+            if _content(item) != _content(earlier[newest][1]):
+                found.add(item["id"])
+    return found
 
 
 def lineages(doc: dict) -> list[Point]:

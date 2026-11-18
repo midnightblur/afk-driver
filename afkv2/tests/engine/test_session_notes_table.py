@@ -333,3 +333,46 @@ def test_a_second_build_of_a_document_changed_in_place_shows_the_new_note():
     doc["notes"].append(note("N-1-i-b", 1, "i-b", item="i-b", words="a later note"))
     html = page.build(doc)
     assert "a later note" in on_card(html, "i-b") and "a later note" in session(html)
+
+
+# --- a note with no selected text shows a muted reminder of what it is on (round 8 note on a whole card)
+
+REMINDER = 'class="afkv2-nr-dim afkv2-nr-reminder"'
+
+
+def noted_cell(table, row_id):
+    return cells(row(table, row_id))[2]
+
+
+def test_a_note_on_a_whole_card_shows_the_card_title_as_a_muted_reminder_in_both_tables():
+    doc = document(round_of(1, card("i-a", title="Vendor & date range")), notes=[note("N-1-i-a-1", 1, "i-a", "i-a")])
+    for table, prefix in both(build(doc), "i-a"):
+        noted = noted_cell(table, prefix + "N-1-i-a-1")
+        assert REMINDER in noted and ">on card: Vendor &amp; date range</span>" in noted
+
+
+def test_a_note_on_a_whole_untitled_card_names_the_card_id_as_a_card_link():
+    doc = document(round_of(1, card("i-a")), notes=[note("N-1-i-a-1", 1, "i-a", "i-a")])
+    noted = noted_cell(session(build(doc)), SESSION_ROW + "N-1-i-a-1")
+    assert REMINDER in noted and re.search(r'>on card: <a [^>]*href="#i-a"[^>]*>i-a</a></span>', noted)
+
+
+def test_a_note_on_an_element_of_a_card_shows_its_first_80_characters():
+    long_words = "word " * 30
+    doc = document(round_of(1, {**card("i-a"), "body": text(long_words, id="i-a-words")}),
+                   notes=[note("N-1-i-a-1", 1, "i-a-words", "i-a")])
+    noted = noted_cell(session(build(doc)), SESSION_ROW + "N-1-i-a-1")
+    shown = re.search(r">on: ([^<]*)</span>", noted).group(1)
+    assert REMINDER in noted and len(shown) == 80 and shown.endswith("…") and shown.startswith("word word")
+
+
+def test_a_note_with_a_quote_keeps_the_quote_and_no_reminder():
+    doc = document(round_of(1, card("i-a", title="A title")),
+                   notes=[note("N-1-i-a-1", 1, "i-a", "i-a", quote="row 1 (Login)")])
+    noted = noted_cell(session(build(doc)), SESSION_ROW + "N-1-i-a-1")
+    assert "row 1 (Login)" in noted and REMINDER not in noted
+
+
+def test_a_steer_on_a_round_banner_shows_no_reminder():
+    doc = document(round_of(1, card("i-a")), notes=[note("N-1-R-1-1", 1, "R-1", None, "a steer")])
+    assert noted_cell(session(build(doc)), CARD_ROW + "N-1-R-1-1") == ""

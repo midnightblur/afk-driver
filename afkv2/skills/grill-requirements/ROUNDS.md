@@ -27,7 +27,7 @@ A simple ticket folds several groups into one round. An item waits for a later r
 
 ## The session's content
 
-The page document holds the whole topic, with or without a page shown. Each round sends only the entries that changed, by "Sections and change lines" of `/afkv2:use-lavish`.
+The page document holds the whole topic, with or without a page shown. Each round sends only the entries that changed, by "Sections and change lines" of `/afkv2:use-lavish`. Write each section and card text by "Session sections" and the emphasis rules of `/afkv2:visualize`.
 
 | List | Holds |
 |------|-------|
@@ -89,7 +89,7 @@ A claim is any statement of how something works now: behaviour, a constraint, an
 | `decided` | you decided, and the human audits it |
 | `info` | context the human needs; it asks nothing |
 
-In doubt, use `debate`. Silence never accepts: an unmarked card stays open and returns next round. A card that depends on an open `debate` card says "holds if <id> = <option>" and is derived again when the answer differs.
+In doubt, use `debate`. Silence never accepts: an unmarked card stays open and returns next round. A returning card says why it returns in the part that the visualize guide's `card.md` names, and changes nothing else that did not change: the page marks only a changed card. A card that depends on an open `debate` card says "holds if <id> = <option>" and is derived again when the answer differs.
 
 ## The decide rule
 

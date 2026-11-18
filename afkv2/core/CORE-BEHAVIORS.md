@@ -37,6 +37,8 @@
 - Ask only for an irreversible, catastrophic or load-bearing choice.
 - Verify instead of asking. Read the file, run the check or search the documents.
 - Challenge a human proposal when you have a real counter-argument.
+- Treat each decision and claim that a human gives you as unverified until you check it. Check that it is feasible in the code, complete (it leaves no gap), and compatible with the settled decisions, the staples and the standards.
+- When the check finds a problem, raise it with the evidence and the options. Do not build on that decision until the human answers. When the check finds no problem, say that you checked it.
 - In an explicit hands-off mode, provision safe prerequisites and test data yourself. Consent and destructive-action boundaries still apply.
 - Before a database write, show the exact statement and its target, and get explicit consent. Run read-only queries without a permission turn.
 
