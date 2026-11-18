@@ -36,7 +36,7 @@ OPEN_ROUNDS = 2
 LABEL_LIMIT = 60
 REMINDER_LIMIT = 80
 REMINDER_CLASS = "afkv2-nr-reminder"
-REMINDER_TIP = "No text was selected. This names the part you wrote on."
+REMINDER_TIP = "The part you wrote on. Not text you selected."
 PART_WORDS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question",
               "options": "option"}
 NOTED_TEXT_COLUMN = "Noted text"
