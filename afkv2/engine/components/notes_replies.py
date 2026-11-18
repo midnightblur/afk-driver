@@ -10,6 +10,9 @@ as its copy of the session table. A row of no card has `ROW_PREFIX` + key there.
 that an annotation on a row stands for.
 On a version 2 page (`_plain`) no visible text and no hover text holds a raw element id or a round code: each
 element reads as its label, a round as "Round 3", a row number as `3.1` and its hover text as `note 1 of round 3`. Versions 0 and 1 show as before.
+A note with no selected text (no `quote`) shows a muted reminder in Noted text instead: the card title for a
+note on a whole card, the kind and title of a page part, else the first words of the element. The reminder is
+display only and never enters `quote`: ingest reads `quote` as part of the note.
 A page build renders the session table before the cards: it reads the rows anew, and each card of that build reads
 the same rows, so a build indexes the elements of the document once.
 """
@@ -31,6 +34,11 @@ CHANGED_CLASS = "afkv2-nr-changed"
 CARD_TABLE = " afkv2-nr-table--card"
 OPEN_ROUNDS = 2
 LABEL_LIMIT = 60
+REMINDER_LIMIT = 80
+REMINDER_CLASS = "afkv2-nr-reminder"
+REMINDER_TIP = "No text was selected. This names the part you wrote on."
+PART_WORDS = {"sections": "section", "stories": "story", "examples": "example", "questions": "question",
+              "options": "option"}
 NOTED_TEXT_COLUMN = "Noted text"
 CARD_COLUMNS = ("#", "Where you wrote it", NOTED_TEXT_COLUMN, "Your note", "My answer / what changed")
 SESSION_COLUMNS = (*CARD_COLUMNS, "Open")
@@ -51,9 +59,9 @@ class Row(NamedTuple):
     answers: tuple
 
 
-def _short(text: str) -> str:
+def _short(text: str, limit: int = LABEL_LIMIT) -> str:
     words = " ".join(text.split())
-    return words if len(words) <= LABEL_LIMIT else words[:LABEL_LIMIT - 1] + "…"
+    return words if len(words) <= limit else words[:limit - 1] + "…"
 
 
 def _label(part: dict) -> str | None:
@@ -64,16 +72,27 @@ def _label(part: dict) -> str | None:
     return None
 
 
+def _first_words(component: dict) -> str | None:
+    """The first words of a component: its text, title or label, else those of the first part in it."""
+    for _, part in walk(component):
+        props = part.get("props") or {}
+        for key in ("text", "title", "label"):
+            if isinstance(props.get(key), str) and props[key].strip():
+                return _short(props[key], REMINDER_LIMIT)
+    return None
+
+
 def _elements(doc: dict) -> dict:
     """Every element id: `{"item": the card that holds it or None, "label", "map": the map title of a node}`.
-    A round banner also has `"round"`: its round number."""
+    A round banner also has `"round"`: its round number. An element of a card also has `"words"`: its first
+    words (`_first_words`); a page part also has `"kind"`: its kind word (`PART_WORDS`)."""
     found = {round_target(r["n"]): {"item": None, "label": f"Round {r['n']}", "map": None, "round": r["n"]}
              for r in doc["rounds"]}
 
     def add_tree(component, item, root_is_map=False):
         for path, part in walk(component):
             if part.get("id"):
-                found[part["id"]] = {"item": item, "label": _label(part), "map": None}
+                found[part["id"]] = {"item": item, "label": _label(part), "map": None, "words": _first_words(part)}
             if part["type"] == "map" or (root_is_map and not path):
                 title = _label(part) or part.get("id") or "the map"
                 for node in (part.get("props") or {}).get("nodes") or []:
@@ -100,12 +119,13 @@ def _add_parts(doc: dict, found: dict) -> None:
     """Version 2: each card and each entry of the page parts (a section, a question for others...) reads as its
     `visible_label`; a part of a card with no label of its own reads as its card. An entry is a part of no
     card."""
-    parts = {entry["id"] for kind in parts_v2.ENTRY_LISTS for entry in doc.get(kind) or []}
-    parts |= {option["id"] for question in doc.get("questions") or []
-              for option in (question.get("choices") or {}).get("options") or []}
-    for element in parts:
+    parts = {entry["id"]: kind for kind in parts_v2.ENTRY_LISTS for entry in doc.get(kind) or []}
+    for question in doc.get("questions") or []:
+        for option in (question.get("choices") or {}).get("options") or []:
+            parts.setdefault(option["id"], "options")
+    for element, kind in parts.items():
         found.setdefault(element, {"item": None, "label": parts_v2.visible_label(doc, "element", element),
-                                   "map": None, "part": True})
+                                   "map": None, "part": True, "kind": PART_WORDS[kind]})
     for entry in found.values():
         if entry["item"] is not None and entry["label"] is None:
             entry["label"] = parts_v2.visible_label(doc, "element", entry["item"]["id"])
@@ -208,9 +228,30 @@ def _answer(replies: list[dict], elements: dict, name=_raw) -> str:
                    for reply in replies)
 
 
-def _noted(note: dict) -> str:
+def _reminder(doc: dict, item: dict | None, note: dict, elements: dict) -> str | None:
+    """What a note with no selected text is on: `on card: <title>` (on versions 0 and 1 an untitled card shows its
+    id, which the page links), `on <kind>: <title>` for a page part, `on: <first words>` for another element of a card.
+    None for a round banner, a map or a map node: Where you wrote it already names them in full."""
+    target = elements.get(note["target"]) or {}
+    if item is not None and note["target"] == item["id"]:
+        if _plain(doc):
+            return f"on card: {_short(parts_v2.visible_label(doc, 'element', item['id']), REMINDER_LIMIT)}"
+        title = item.get("title")
+        return f"on card: {_short(title, REMINDER_LIMIT) if title else item['id']}"
+    if target.get("kind"):
+        return f"on {target['kind']}: {_short(target['label'], REMINDER_LIMIT)}"
+    if target.get("words") and target.get("item") is not None and target.get("map") is None:
+        return f"on: {target['words']}"
+    return None
+
+
+def _noted(doc: dict, item: dict | None, note: dict, elements: dict) -> str:
     quote = note.get("quote")
-    return f'<span class="{TEXT_CLASS}">{escape(quote)}</span>' if quote else ""
+    if quote:
+        return f'<span class="{TEXT_CLASS}">{escape(quote)}</span>'
+    reminder = _reminder(doc, item, note, elements)
+    return (f'<span class="{DIM_CLASS} {REMINDER_CLASS}" title="{escape(REMINDER_TIP)}">{escape(reminder)}</span>'
+            if reminder else "")
 
 
 def _reply_home(reply: dict, elements: dict, notes: list[tuple[dict, dict]]) -> str | None:
@@ -250,7 +291,7 @@ def _rows(doc: dict) -> list[Row]:
     for item, note in notes:
         n, steer = note["round"], _is_steer(item, note, elements)
         answers = by_note.get(note["id"], [])
-        cells = [_where(item, note, elements, name), _noted(note),
+        cells = [_where(item, note, elements, name), _noted(doc, item, note, elements),
                  f'<q class="{TEXT_CLASS}">{escape(note["text"])}</q>',
                  _answer([reply for _, _, reply in answers], elements, name)]
         place = elements.get(note["target"]) or {}
