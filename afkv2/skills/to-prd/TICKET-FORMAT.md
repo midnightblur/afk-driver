@@ -1,8 +1,11 @@
 # TICKET.md format
 
-`TICKET.md` is the whole new description of a Jira ticket, written from `PRD.md` for a first-time reader who is not a developer. The standard is the section "Ticket descriptions" of the core behaviors; this file says how to write it for the publish.
+`TICKET.md` is the whole new description of a ticket (a Jira ticket or a GitHub issue), written from `PRD.md`, from a meeting summary, or from both, for a first-time reader who is not a developer. This file is the one home for how a description reads; every skill that writes one points here. The standard is the section "Ticket descriptions" of the core behaviors; this file says how to write it for the publish.
 
 ## Keep lines
+
+A GitHub issue has no keep lines: `outline` writes its live body to `live-body.md`; copy the text you keep from it, unchanged.
+
 
 - A line `{{keep N}}` or `{{keep N-M}}`, alone on its line, puts the live top-level nodes N to M of `outline.json` at that place, exactly: pictures, tables, cards and marks stay as they are.
 - Everything between keep lines is Markdown, converted to new text. A ` ```mermaid ` fence becomes a picture.
@@ -15,8 +18,14 @@
 - First, 1 or 2 lines at a glance: what the feature gives, to whom.
 - Write requirements as a product owner would, from the user's view (the clerk, the accountant). No code, no file paths, no module names.
 - Pick the sections the reader needs: Overview, Requirements, Acceptance criteria, Worked examples, Work breakdown (Part A, Part B, ...), Dependencies, Open questions. Keep the product owner's own sections and their numbers.
-- Take each fact from `PRD.md`. Leave out what only a developer acts on: implementation decisions, testing decisions, ids that only the plan reads.
+- Take each fact from `PRD.md` and from the ticket's meeting comments. Leave out what only a developer acts on: implementation decisions, testing decisions, ids that only the plan reads.
 - State the current scope. Apply each settled decision, update or meeting conclusion to the text it changes. Add a short source, such as "(Meeting A)", only where the reader needs it. Write no dated section, no update section, no meeting summary and no history: the preview refuses `dated-section`.
 - Write a ticket key bare, such as `ABC-12`: the publish makes each key of the ticket's projects a link. Never write wiki link text `[ABC-12|url]`: the preview refuses `wiki-link`.
 - Restate a fact only where the reader needs it there.
 - Keep the visible text under 30000 characters: `over_jira_limit` true means Jira may refuse it.
+
+## Meetings
+
+- The description never contradicts a meeting comment of the ticket. When 2 meetings disagree, the more recent meeting wins.
+- After a meeting summary, apply its decisions and new facts to the description of each ticket it concerns.
+- Before you change or rewrite a description, read the ticket's meeting comments (tracker verb `meeting-comments`), oldest first. Check each statement of the new text against them, and fix each contradiction in the text.

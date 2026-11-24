@@ -41,23 +41,24 @@ def reader(tmp_path, monkeypatch):
 
 def test_the_verb_set_is_exactly_the_contract():
     assert set(cli.VERBS) == {"issue-get", "issue-search", "md-to-adf", "adf-text", "attachment-list",
-                              "attachment-put", "attachment-delete", "description-put", "block-text", "comment-put"}
+                              "attachment-put", "attachment-delete", "description-put", "block-text", "comment-put",
+                              "meeting-comments", "meeting-comment-put"}
 
 
 @pytest.mark.parametrize("verb", ["create", "transition", "comment", "tracker_create", "tracker_transition",
                                   "tracker_comment", "issue-create", "issue-transition", "issue-comment"])
-def test_there_is_no_create_or_transition_verb_and_comment_put_is_the_one_comment_verb(capsys, verb):
+def test_there_is_no_create_or_transition_verb_and_the_comment_verbs_are_the_proof_and_meeting_ones(capsys, verb):
     code, answer = call(capsys, verb, "{}")
     assert code == 2 and answer["error"]["code"] == "unknown-verb"
-    assert [name for name in cli.VERBS if "comment" in name] == ["comment-put"]
+    assert [name for name in cli.VERBS if "comment" in name] == ["comment-put", "meeting-comments", "meeting-comment-put"]
 
 
-def test_no_write_function_for_create_or_transition_exists_and_comment_put_is_the_one_comment_write():
+def test_no_write_function_for_create_or_transition_exists_and_the_comment_writes_are_the_proof_and_meeting_ones():
     for name in ("add_comment", "issue_create", "issue_transition", "issue_comment", "_op_create", "_op_comment", "_op_transition"):
         for owner in (jira, jira.Jira, github_issues):
             assert not hasattr(owner, name)
     assert [name for name in dir(jira) if "comment" in name and callable(getattr(jira, name))
-            and not name.startswith("_")] == ["comment_put"]
+            and not name.startswith("_")] == ["comment_put", "meeting_comment_put", "meeting_comments"]
 
 
 @pytest.mark.parametrize("kind, module", [("jira", jira), ("github-issues", github_issues)])

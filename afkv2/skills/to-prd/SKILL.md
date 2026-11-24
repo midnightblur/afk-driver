@@ -60,7 +60,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/publish.py" outline --ticket "<ticket key>" --run-dir "<run_dir>"
    ```
 
-   Read `outline` (each top-level node with its `index`, `text`, `media` and `in_block`). Write `<spec_dir>/TICKET.md` by [TICKET-FORMAT.md](TICKET-FORMAT.md). Done when each settled point of the PRD that the reader needs stands in it, and each node of the product owner is kept or changed on purpose.
+   Read `outline` (each top-level node with its `index`, `text`, `media` and `in_block`) and `meetings` (the file of the ticket's meeting comments, oldest first). Write `<spec_dir>/TICKET.md` by [TICKET-FORMAT.md](TICKET-FORMAT.md). Done when each settled point of the PRD that the reader needs stands in it, and each node of the product owner is kept or changed on purpose.
 
 7. **Build the preview.** This step writes nothing to the ticket. Done when the answer is ok. A GitHub issue:
 

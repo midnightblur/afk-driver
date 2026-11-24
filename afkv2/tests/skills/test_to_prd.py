@@ -1031,7 +1031,11 @@ class GitHubIssue:
     def _gh(self, tool, args, *, stdin_text=None, timeout=None):
         assert tool == "gh", f"no fake for {tool}"
         if args[:2] == ["issue", "view"]:
-            return self.shell.Done(0, json.dumps({"number": 7, "body": self.body}), "")
+            return self.shell.Done(0, json.dumps({"number": 7, "body": self.body, "comments": []}), "")
+        if args[:3] == ["api", "--paginate", "--slurp"]:
+            return self.shell.Done(0, json.dumps([[]]), "")
+        if args[:2] == ["api", "user"]:
+            return self.shell.Done(0, json.dumps({"login": "me"}), "")
         if args[:2] == ["issue", "edit"]:
             self.body = stdin_text
             self.edits.append(list(args))
@@ -1200,6 +1204,10 @@ class _LocalJira(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path.endswith("/comment"):
+            return self._send(200, {"startAt": 0, "maxResults": 100, "total": 0, "comments": []})
+        if path.endswith("/myself"):
+            return self._send(200, {"accountId": "me"})
         if path.startswith("/rest/api/3/issue/"):
             fields = {"description": self.issue["description"],
                       "attachment": [{"id": key, "filename": name} for key, name in self.attachments.items()]}
@@ -1583,3 +1591,59 @@ def test_the_skill_takes_the_sign_on_the_publish_card_as_the_yes():
     text = SKILL_MD.read_text("utf-8")
     for words in ("round_input", "`i-publish`", "page_url"):
         expect(words in text, True, f"{words!r} in SKILL.md")
+
+
+# --- a ticket file with no PRD, and a GitHub issue body as a ticket file ---
+
+
+def test_a_ticket_file_preview_needs_no_prd_and_the_publish_skips_the_index(world):
+    _ticket_world(world)
+    _outline(world)
+    index = world.prd.parent / "INDEX.md"
+    before = index.read_text("utf-8") if index.exists() else None
+    command = [sys.executable, str(world.plugin / "skills" / "to-prd" / "scripts" / "publish.py"), "preview",
+               "--ticket", KEY, "--ticket-file", str(world.ticket_file), "--run-dir", str(world.run_dir)]
+    run = subprocess.run(command, cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                         env={**os.environ, **world.env})
+    expect(run.returncode, 0, f"preview with no --prd\n{run.stdout}\n{run.stderr}")
+    answer = json.loads(run.stdout)
+    expect(json.loads(Path(answer["preview"]).read_text("utf-8"))["index"], None, "index of the preview")
+    expect(world.publish(answer)["published"], True, "publish of a preview with no PRD")
+    expect(index.read_text("utf-8") if index.exists() else None, before, "INDEX.md after the publish")
+
+
+def test_the_outline_lists_the_meeting_comments_oldest_first(world):
+    _ticket_world(world)
+    state = json.loads(world.state_file.read_text("utf-8"))
+    state["issues"][KEY]["meetings"] = [{"title": "2026-11-01 — Kickoff", "text": "The total holds tax."},
+                                        {"title": "2026-11-15 — Review", "text": "The total holds no tax."}]
+    world.state_file.write_text(json.dumps(state), "utf-8")
+    answer = _outline(world)
+    expect(Path(answer["meetings"]).read_text("utf-8"),
+           "## 2026-11-01 — Kickoff\n\nThe total holds tax.\n\n## 2026-11-15 — Review\n\nThe total holds no tax.\n\n",
+           "meetings.md of the outline")
+
+
+def test_a_github_ticket_file_replaces_the_whole_body(world, github):
+    github.body = f"Text of the human.\n\n{GH_START}\nold PRD\n{GH_END}\n"
+    outlined = publish.outline("7", world.run_dir, tracker=github, kind=publish.GITHUB)
+    expect(Path(outlined["live_body"]).read_text("utf-8"), github.body, "live-body.md")
+    ticket = world.spec / "TICKET.md"
+    ticket.write_text("Text of the human.\n\n## Requirements\n\n- The basket shows the total.\n", "utf-8")
+    answer = publish.build_github_ticket_preview("7", None, ticket, world.run_dir, tracker=github)
+    expect((answer["action"], answer["replaces_block"], answer["already_published"]),
+           ("replaces the whole issue body", "afkv2", False), "GitHub ticket preview (action, block, published)")
+    done = gh_publish(world, github, answer)
+    expect((done["published"], done["replaced"]), (True, "afkv2"), "GitHub whole publish (published, replaced)")
+    expect(github.body, "Text of the human.\n\n## Requirements\n\n- The basket shows the total.", "the new issue body")
+    expect(gh_publish(world, github, answer)["already_published"], True, "a second publish of the same preview")
+
+
+def test_a_github_ticket_file_refuses_keep_lines_and_dated_headings(world, github):
+    publish.outline("7", world.run_dir, tracker=github, kind=publish.GITHUB)
+    ticket = world.spec / "TICKET.md"
+    for text, code in (("{{keep 0}}\n\nNew text.\n", "bad-ticket"), ("## Update 2026-11-20\n\nNew text.\n", "dated-section")):
+        ticket.write_text(text, "utf-8")
+        with pytest.raises(publish.Refusal) as refused:
+            publish.build_github_ticket_preview("7", None, ticket, world.run_dir, tracker=github)
+        expect(refused.value.code, code, f"GitHub ticket preview of {text!r}")
