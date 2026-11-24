@@ -218,6 +218,10 @@ class Port:
                     return {"id": str(payload["id"]), "filename": name, "deleted": True}
         return {"id": str(payload["id"]), "filename": None, "deleted": False}
 
+    def meeting_comments(self, payload):
+        """The meeting comments the state holds for the ticket: `meetings` [{title, text, ...}], oldest first."""
+        return {"comments": self.issue(payload["key"]).get("meetings") or []}
+
     def description_put(self, payload):
         key, nodes = payload["key"], payload["adf"]
         preview = read_preview(payload)

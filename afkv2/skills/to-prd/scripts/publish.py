@@ -1,11 +1,12 @@
 """The publish of a PRD into a Jira ticket or a GitHub issue, from the repository root. Every tracker call goes through the tracker port.
 
 `publish.py outline --ticket KEY --run-dir DIR`: writes the live top-level nodes with their indexes to `outline.json`.
-`publish.py preview --ticket KEY --prd FILE --run-dir DIR [--ticket-file FILE]`: reads the ticket, builds the text and
-the pictures, writes the preview and the receipt. Writes nothing to the ticket. With a ticket file (Jira only) the
-preview is the whole new description: each `{{keep N}}` or `{{keep N-M}}` line reuses those live nodes exactly, the
-Markdown between them is new text, bare keys of the ticket's projects become link marks, and no block lines are
-written. Without one, the PRD goes between the block lines.
+`publish.py preview --ticket KEY [--prd FILE] --run-dir DIR [--ticket-file FILE]`: reads the ticket, builds the text
+and the pictures, writes the preview and the receipt. Writes nothing to the ticket. With a ticket file the preview is
+the whole new description, and `--prd` is optional: it only names the INDEX.md row to update. Jira: each `{{keep N}}`
+or `{{keep N-M}}` line reuses those live nodes exactly, the Markdown between them is new text, bare keys of the
+ticket's projects become link marks, and no block lines are written. GitHub: the ticket file is the whole new issue
+body, with no keep lines. Without a ticket file, the PRD goes between the block lines.
 `publish.py publish --preview FILE --receipt RECEIPT`: runs after the developer's yes. Uploads the pictures, writes
 the block, reads it back, and removes the afkv2 and v1 pictures the new block does not use.
 A GitHub issue gets the PRD Markdown as is: no picture is rendered, uploaded or removed.
@@ -289,9 +290,9 @@ def _read_prd(prd):
         raise Refusal("unreadable", f"{prd}: {error}", EXIT_UNREADABLE) from error
 
 
-def _write_text_page(path, ticket, receipt, action, text):
+def _write_text_page(path, ticket, receipt, action, text, what="the block"):
     """The exact Markdown the issue body gets. GitHub draws the Markdown and each Mermaid fence itself."""
-    _write_both(path, ticket, receipt, action, "<p>The exact Markdown of the block. GitHub shows it formatted, with "
+    _write_both(path, ticket, receipt, action, f"<p>The exact Markdown of {what}. GitHub shows it formatted, with "
                                                f"each Mermaid diagram drawn.</p></header><pre>{html.escape(text)}</pre>")
 
 
@@ -458,7 +459,13 @@ def _record(log_path, ticket, receipt, now, only_if_new):
     return None
 
 
+def _index_of(prd):
+    return str(Path(prd).parent / "INDEX.md") if prd else None
+
+
 def _note_published(preview, now):
+    if not preview.get("index"):
+        return
     index = Path(preview["index"])
     if index.exists():
         name = TRACKER_NAMES[preview.get("kind", JIRA)]
@@ -511,6 +518,8 @@ def publish_after_yes(preview_path, receipt, log_path, tracker=call_tracker, now
     now = now or datetime.now(timezone.utc)
     preview, run_dir = _load_preview(preview_path, receipt)
     if preview.get("kind") == GITHUB:
+        if preview.get("whole"):
+            return _publish_github_whole(preview, preview_path, log_path, tracker, now)
         return _publish_github(preview, preview_path, run_dir, log_path, tracker, now)
     if preview.get("whole"):
         return _publish_whole(preview, preview_path, run_dir, log_path, tracker, now)
@@ -617,13 +626,89 @@ def _refuse_wiki_links(nodes):
                                    f"{', '.join(found)}", found=found)
 
 
+def _dated(heading):
+    return bool(LEDGER_HEADING.match(heading) or DATE.search(heading))
+
+
+def check_no_dated_headings(markdown):
+    """The Markdown form of `check_no_dated_sections`: the headings outside a code fence."""
+    found, fence = [], None
+    for line in markdown.split("\n"):
+        mark = FENCE.match(line)
+        if fence is not None:
+            if mark and not mark.group(2) and mark.group(1)[0] == fence[0] and len(mark.group(1)) >= len(fence):
+                fence = None
+            continue
+        if mark:
+            fence = mark.group(1)
+        elif re.match(r" {0,3}#{1,6}\s", line) and _dated(line.strip().lstrip("#").strip()):
+            found.append(line.strip().lstrip("#").strip())
+    if found:
+        raise Refusal("dated-section", f"apply each update to the text and put meetings in comments: {found}",
+                      found=found)
+
+
+GITHUB_WHOLE_ACTION = "replaces the whole issue body"
+
+
+def build_github_ticket_preview(ticket, prd, ticket_file, run_dir, tracker=call_tracker):
+    """The whole new issue body from the ticket file. Writes nothing to the issue."""
+    run_dir = Path(run_dir)
+    markdown = _read_prd(ticket_file)
+    issue = tracker("issue-get", {"key": ticket})
+    if not issue.get("description_hash"):
+        raise Refusal("bad-answer", "issue-get answered no `description_hash`")
+    _check_outline(run_dir, ticket, issue)
+    if any(segment[0] == "keep" for segment in split_ticket(markdown)):
+        raise Refusal("bad-ticket", "a GitHub issue body has no nodes to keep: copy the text from `live-body.md`")
+    check_no_dated_headings(markdown)
+    text = tracker("block-text", {"markdown": markdown})["block_text"]
+    receipt = compute_receipt(ticket, text, [])
+    write_text(run_dir / ".gitignore", "*\n")
+    write_text(run_dir / "block.md", markdown)
+    preview = {"ticket_key": ticket, "kind": GITHUB, "whole": True, "receipt": receipt,
+               "description_hash": issue["description_hash"], "picture_hashes": [], "block_text": text, "pictures": [],
+               "index": _index_of(prd)}
+    write_json(run_dir / "preview.json", preview)
+    page = run_dir / "preview.html"
+    _write_text_page(page, ticket, receipt, GITHUB_WHOLE_ACTION, text, "the whole issue body")
+    return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
+            "page": str(page), "page_url": page.resolve().as_uri(), "round_input": str(page.with_name(ROUND_FILE)),
+            "pictures": [], "action": GITHUB_WHOLE_ACTION, "replaces_block": (issue.get("block") or {}).get("family"),
+            "dropped": [], "text_length": len(text), "over_github_limit": len(text) > GITHUB_TEXT_LIMIT,
+            "already_published": (issue.get("whole") or {}).get("text") == text}
+
+
+def _publish_github_whole(preview, preview_path, log_path, tracker, now):
+    """Write the whole issue body, read it back."""
+    key, receipt = preview["ticket_key"], preview["receipt"]
+    issue = tracker("issue-get", {"key": key})
+    if (issue.get("whole") or {}).get("text") == preview["block_text"]:
+        problem = _record(log_path, key, receipt, now, only_if_new=True)
+        _note_published(preview, now)
+        return _publish_answer(preview, published=False, already_published=True, deleted=[], not_deleted=[],
+                               log_problem=problem)
+    if issue.get("description_hash") != preview["description_hash"]:
+        raise Refusal("stale", "the issue body changed after the preview: show a new preview and ask again")
+    markdown = (Path(preview_path).parent / "block.md").read_text("utf-8")
+    put = tracker("description-put", {"key": key, "markdown": markdown, "expect_hash": preview["description_hash"],
+                                      "receipt": receipt, "preview": str(preview_path), "whole": True})
+    back = tracker("issue-get", {"key": key})
+    if (back.get("whole") or {}).get("text") != preview["block_text"]:
+        raise Refusal("read-back-mismatch", "the issue body does not hold what was sent", differs=["text"])
+    problem = _record(log_path, key, receipt, now, only_if_new=False)
+    _note_published(preview, now)
+    return _publish_answer(preview, published=True, already_published=False, replaced=put.get("replaced"),
+                           uploaded=[], deleted=[], not_deleted=[], log_problem=problem)
+
+
 def check_no_dated_sections(nodes):
     """A description states the current scope: no dated, update, history or meeting-summary section."""
     found = []
     for node in nodes:
         if node.get("type") == "heading":
             text = _visible_text([node]).strip()
-            if LEDGER_HEADING.match(text) or DATE.search(text):
+            if _dated(text):
                 found.append(text)
     if found:
         raise Refusal("dated-section", f"apply each update to the text and put meetings in comments: {found}",
@@ -694,11 +779,21 @@ def _converter(tracker, figures, projects, site):
     return convert
 
 
-def outline(ticket, run_dir, tracker=call_tracker):
-    """The live top-level nodes with their indexes, for the `{{keep}}` lines of the ticket file. Writes nothing to
-    the ticket."""
+def outline(ticket, run_dir, tracker=call_tracker, kind=JIRA):
+    """The live top-level nodes with their indexes, for the `{{keep}}` lines of the ticket file. A GitHub issue has no
+    nodes: its live body goes to `live-body.md`, to copy from. Writes nothing to the ticket."""
     issue = tracker("issue-get", {"key": ticket})
     _refuse_bad_block(issue)
+    meetings = _write_meetings(ticket, Path(run_dir), tracker)
+    if kind == GITHUB:
+        run_dir = Path(run_dir)
+        body = (issue.get("body") or "").replace("\r\n", "\n")
+        write_text(run_dir / ".gitignore", "*\n")
+        write_text(run_dir / "live-body.md", body)
+        write_json(run_dir / OUTLINE, {"ticket_key": ticket, "description_hash": issue["description_hash"], "nodes": []})
+        return {"ok": True, "ticket": ticket, "outline": str(run_dir / OUTLINE), "nodes": 0,
+                "live_body": str(run_dir / "live-body.md"), "block": (issue.get("block") or {}).get("family"),
+                "text_length": len(body), "meetings": meetings}
     live, block = _content(issue), _block_range(issue)
     nodes = [{"index": index, "type": node.get("type"), "text": _visible_text([node]), "media": bool(_media_in(node)),
               "in_block": index in block} for index, node in enumerate(live)]
@@ -706,7 +801,20 @@ def outline(ticket, run_dir, tracker=call_tracker):
     write_text(run_dir / ".gitignore", "*\n")
     write_json(run_dir / OUTLINE, {"ticket_key": ticket, "description_hash": issue["description_hash"], "nodes": nodes})
     return {"ok": True, "ticket": ticket, "outline": str(run_dir / OUTLINE), "nodes": len(nodes),
-            "block": (issue.get("block") or {}).get("family"), "text_length": len(_visible_text(live))}
+            "block": (issue.get("block") or {}).get("family"), "text_length": len(_visible_text(live)),
+            "meetings": meetings}
+
+
+MEETINGS_FILE = "meetings.md"
+
+
+def _write_meetings(ticket, run_dir, tracker):
+    """The ticket's meeting comments, oldest first, in 1 file: the new text must not contradict them."""
+    found = tracker("meeting-comments", {"key": ticket}).get("comments") or []
+    text = "".join(f"## {item.get('title')}\n\n{item.get('text') or ''}\n\n" for item in found)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    write_text(run_dir / MEETINGS_FILE, text or "No meeting comment on this ticket.\n")
+    return str(run_dir / MEETINGS_FILE)
 
 
 def _content(issue):
@@ -766,7 +874,7 @@ def build_ticket_preview(ticket, prd, ticket_file, run_dir, projects, tracker=ca
                for index, node in enumerate(live) if index not in kept and index not in block]
     preview = {"ticket_key": ticket, "whole": True, "receipt": receipt, "description_hash": issue["description_hash"],
                "picture_hashes": hashes, "block_text": text, "pictures": names, "segments": segments,
-               "projects": projects, "media_plan": media_plan, "index": str(Path(prd).parent / "INDEX.md")}
+               "projects": projects, "media_plan": media_plan, "index": _index_of(prd)}
     write_json(run_dir / "preview.json", preview)
     page = run_dir / "preview.html"
     _write_page(page, ticket, receipt, WHOLE_ACTION, nodes, rendered, dropped)
@@ -843,17 +951,20 @@ def _publish_whole(preview, preview_path, run_dir, log_path, tracker, now):
 
 def _preview_verb(argv):
     parser = Parser(add_help=False)
-    for name in ("--ticket", "--prd", "--run-dir"):
+    for name in ("--ticket", "--run-dir"):
         parser.add_argument(name, required=True)
+    parser.add_argument("--prd")
     parser.add_argument("--ticket-file")
     args = parser.parse_args(argv)
+    if not (args.prd or args.ticket_file):
+        raise Refusal("usage", "give --prd, --ticket-file, or both", EXIT_UNREADABLE)
     tracker = read_config().get("tracker") or {}
     kind = tracker.get("kind")
     if kind not in TRACKER_NAMES:
         raise Refusal("no-publish", f"the tracker kind is {kind}: the PRD stays on disk, and nothing is published")
     if args.ticket_file:
-        if kind != JIRA:
-            raise Refusal("usage", "a ticket file is for a Jira ticket; a GitHub issue gets the PRD as is", EXIT_UNREADABLE)
+        if kind == GITHUB:
+            return build_github_ticket_preview(args.ticket, args.prd, args.ticket_file, args.run_dir)
         return build_ticket_preview(args.ticket, args.prd, args.ticket_file, args.run_dir, _projects(args.ticket, tracker))
     return build_preview(args.ticket, args.prd, args.run_dir, kind=kind)
 
@@ -871,7 +982,7 @@ def _outline_verb(argv):
     for name in ("--ticket", "--run-dir"):
         parser.add_argument(name, required=True)
     args = parser.parse_args(argv)
-    return outline(args.ticket, args.run_dir)
+    return outline(args.ticket, args.run_dir, kind=(read_config().get("tracker") or {}).get("kind"))
 
 
 def _publish_verb(argv):
