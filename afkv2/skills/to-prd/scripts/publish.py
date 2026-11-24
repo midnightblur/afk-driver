@@ -265,9 +265,7 @@ def _write_page(path, ticket, receipt, action, nodes, picture_files, dropped=())
     gone = "".join(f"<li>node {item['index']} ({html.escape(str(item['type']))}): {html.escape(item['text'])}</li>"
                    for item in dropped)
     gone = f"<p><strong>Removed from the description</strong></p><ul>{gone}</ul>" if gone else ""
-    write_text(path, f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{html.escape(ticket)} preview</title>'
-                     f"<style>{PAGE_STYLE}</style></head><body><header><p><strong>{html.escape(ticket)}</strong> · "
-                     f"{html.escape(action)} · receipt {receipt[:8]}</p>{gone}</header>{_html(nodes, data)}</body></html>\n")
+    _write_both(path, ticket, receipt, action, f"{gone}</header>{_html(nodes, data)}")
 
 
 def _action(block, where="the description"):
@@ -293,11 +291,31 @@ def _read_prd(prd):
 
 def _write_text_page(path, ticket, receipt, action, text):
     """The exact Markdown the issue body gets. GitHub draws the Markdown and each Mermaid fence itself."""
+    _write_both(path, ticket, receipt, action, "<p>The exact Markdown of the block. GitHub shows it formatted, with "
+                                               f"each Mermaid diagram drawn.</p></header><pre>{html.escape(text)}</pre>")
+
+
+ROUND_FILE = "preview-round.json"
+CARD_STYLE = ".ticket-preview table{border-collapse:collapse}.ticket-preview th,.ticket-preview td{border:1px solid #8888;"              "padding:.25rem .5rem;vertical-align:top}.ticket-preview pre{overflow:auto;padding:.5rem;border:1px solid "              "#8888}.ticket-preview img{max-width:100%;background:#fff}.ticket-preview header{border-bottom:2px solid "              "#8888;margin-bottom:1rem}"
+PUBLISH_CARD = "i-publish"
+
+
+def _write_both(path, ticket, receipt, action, rest):
+    """The preview as 1 file, and the same text as the round input of 1 page round: 1 card that shows it, and 1
+    sign-off card whose sign mark is the yes to publish it."""
+    head = f"<header><p><strong>{html.escape(ticket)}</strong> · {html.escape(action)} · receipt {receipt[:8]}</p>"
     write_text(path, f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{html.escape(ticket)} preview</title>'
-                     f"<style>{PAGE_STYLE}</style></head><body><header><p><strong>{html.escape(ticket)}</strong> · "
-                     f"{html.escape(action)} · receipt {receipt[:8]}</p><p>The exact Markdown of the block. GitHub "
-                     f"shows it formatted, with each Mermaid diagram drawn.</p></header><pre>{html.escape(text)}</pre>"
-                     "</body></html>\n")
+                     f"<style>{PAGE_STYLE}</style></head><body>{head}{rest}</body></html>\n")
+    shown = {"type": "freestyle", "id": "i-preview-text", "props": {"reason": "the exact ticket text with its pictures"},
+             "html": f'<style>{CARD_STYLE}</style><div class="ticket-preview">{head}{rest}</div>'}
+    sign = {"type": "text", "id": "i-publish-text", "props": {"markdown": True, "text": (
+        f"Sign to publish the text above into **{ticket}**: it {action}. Receipt `{receipt[:8]}`. Any other mark or a "
+        "note changes nothing on the ticket.")}}
+    write_json(Path(path).with_name(ROUND_FILE), {
+        "short_title": f"{ticket} ticket preview"[:40], "step": "Ticket preview",
+        "banner": {"settled": [], "unlocks": [f"the publish into {ticket}"], "parked": []},
+        "items": [{"id": "i-preview", "kind": "info", "title": f"The exact text {ticket} gets", "body": shown},
+                  {"id": PUBLISH_CARD, "kind": "signoff", "title": f"Publish this text into {ticket}", "body": sign}]})
 
 
 def _github_preview(ticket, prd, run_dir, tracker):
@@ -321,7 +339,7 @@ def _github_preview(ticket, prd, run_dir, tracker):
     length = (issue.get("length_without_block") or 0) + len(text) + GITHUB_FRAME
     block = issue.get("block") or {}
     return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
-            "page": str(page), "page_url": page.resolve().as_uri(), "pictures": [], "action": action, "ids": len(ids),
+            "page": str(page), "page_url": page.resolve().as_uri(), "round_input": str(page.with_name(ROUND_FILE)), "pictures": [], "action": action, "ids": len(ids),
             "over_github_limit": length > GITHUB_TEXT_LIMIT,
             "already_published": block.get("family") == "afkv2" and block.get("text") == text}
 
@@ -363,7 +381,7 @@ def build_preview(ticket, prd, run_dir, tracker=call_tracker, renderer=render_me
     _write_page(page, ticket, receipt, action, adf["content"], rendered)
     attachments = tracker("attachment-list", {"key": ticket}).get("attachments") or []
     return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
-            "page": str(page), "page_url": page.resolve().as_uri(), "pictures": [str(pictures / name) for name in names],
+            "page": str(page), "page_url": page.resolve().as_uri(), "round_input": str(page.with_name(ROUND_FILE)), "pictures": [str(pictures / name) for name in names],
             "action": action, "ids": len(ids), "over_jira_limit": over_jira_limit(_outside_block(issue) + adf["content"]),
             "already_published": _already_published(issue.get("block"), preview, attachments, _uploads(run_dir, receipt))}
 
@@ -754,7 +772,7 @@ def build_ticket_preview(ticket, prd, ticket_file, run_dir, projects, tracker=ca
     _write_page(page, ticket, receipt, WHOLE_ACTION, nodes, rendered, dropped)
     attachments = tracker("attachment-list", {"key": ticket}).get("attachments") or []
     return {"ok": True, "ticket": ticket, "receipt": receipt, "preview": str(run_dir / "preview.json"),
-            "page": str(page), "page_url": page.resolve().as_uri(), "pictures": [str(pictures / name) for name in names],
+            "page": str(page), "page_url": page.resolve().as_uri(), "round_input": str(page.with_name(ROUND_FILE)), "pictures": [str(pictures / name) for name in names],
             "action": WHOLE_ACTION, "replaces_block": (issue.get("block") or {}).get("family"), "dropped": dropped,
             "ids": len(ids), "text_length": len(_visible_text(nodes)), "over_jira_limit": over_jira_limit(nodes),
             "already_published": _whole_published(issue, preview, attachments, _uploads(run_dir, receipt))}

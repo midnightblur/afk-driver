@@ -1534,3 +1534,52 @@ def test_real_port_whole_publish_keeps_owner_nodes(real_port_world):
     expect([bool(re.fullmatch(r"http://127\.0\.0\.1:\d+/browse/PROJ-12", href)) for href in links], [True],
            f"PROJ-12 link targets {links}")
     expect(world.publish(answer)["already_published"], True, "a second publish of the same preview")
+
+
+# --- the preview on a page: 1 card with the exact text, 1 sign-off card for the yes ---
+
+
+def _built_round(world, answer):
+    """Build the preview's round input into a page document with the page writer, as the skill's step 8 does."""
+    doc = world.root / "pages" / "use-lavish-s-20260101-000000.json"
+    doc.parent.mkdir()
+    run = subprocess.run([sys.executable, str(SKILLS / "use-lavish" / "scripts" / "round_document.py"), "build",
+                          "--doc", str(doc), "--session", "s-20260101-000000", "--ticket", KEY,
+                          "--round-input", answer["round_input"], "--private"],
+                         cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                         env={**os.environ, **world.env})
+    assert run.returncode == 0, f"build: exit {run.returncode}\n{run.stdout}\n{run.stderr}"
+    return json.loads(doc.read_text("utf-8"))
+
+
+def _items(page):
+    return {item["id"]: item for rnd in page["rounds"] for item in rnd["items"]}
+
+
+def test_the_jira_preview_round_shows_the_exact_text_and_asks_for_a_sign(world):
+    _ticket_world(world)
+    _outline(world)
+    answer = _ticket_preview(world)
+    items = _items(_built_round(world, answer))
+    expect(sorted(items), ["i-preview", "i-publish"], "cards of the preview round")
+    expect(items["i-publish"]["kind"], "signoff", "kind of the publish card")
+    shown = items["i-preview"]["body"]["html"]
+    for words in ("The basket shows 5 for 1 item of 5.", "Buyers leave when they cannot see the total.",
+                  "replaces the whole description", answer["receipt"][:8], "data:image/png;base64,"):
+        expect(words in shown, True, f"{words!r} in the preview card")
+    page = Path(answer["page"]).read_text("utf-8")
+    expect(shown.split('<div class="ticket-preview">', 1)[1].removesuffix("</div>") in page, True,
+           "the card holds the same text as the preview file")
+
+
+def test_the_github_preview_round_shows_the_markdown(world, github):
+    answer = gh_preview(world, github)
+    items = _items(_built_round(world, answer))
+    expect("AC-001 The basket shows the total." in items["i-preview"]["body"]["html"], True, "the PRD text in the card")
+    expect(items["i-publish"]["kind"], "signoff", "kind of the publish card")
+
+
+def test_the_skill_takes_the_sign_on_the_publish_card_as_the_yes():
+    text = SKILL_MD.read_text("utf-8")
+    for words in ("round_input", "`i-publish`", "page_url"):
+        expect(words in text, True, f"{words!r} in SKILL.md")

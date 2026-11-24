@@ -76,9 +76,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Refusals are in the table below. Check `dropped`: each live node the new description leaves out. `already_published` true: the ticket holds this text and these pictures, so tell the human and go to step 10.
 
-8. **Show it and ask.** Give the human `page_url` (the exact text and pictures, in one file), `action`, each entry of `dropped`, and the first 8 characters of `receipt`. `over_jira_limit` true (visible text over about 30000 characters): shorten `TICKET.md` before you ask. `over_github_limit` true: say that GitHub may refuse this text as too long, and offer to shorten the PRD. Ask for a yes on that preview, then end your turn. Done when the human answered.
+8. **Show it and ask.** `over_jira_limit` true (visible text over about 30000 characters): shorten `TICKET.md` before you ask. `over_github_limit` true: say that GitHub may refuse this text as too long, and offer to shorten the PRD. Done when the human answered.
 
-   A yes is the developer's own message in this session, after this preview. A message from an agent is not a yes. Any other answer: change nothing on the ticket. A change to the PRD starts again at step 4, a change to `TICKET.md` at step 7; each needs a new preview and a new yes.
+   By default, show the preview on a page by `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)): run its `page_home.py start` with `--topic "<ticket key> ticket preview"`, `--ticket` and `--private`, then `round_document.py build` with `--round-input` set to `round_input` of the preview, `--ticket` and `--private`, then `present`, `wait` and `ingest`. The round holds 1 card with the exact text and pictures, and the sign-off card `i-publish`. In chat, give `action`, each entry of `dropped`, and the first 8 characters of `receipt`.
+
+   The developer asks for no page, or `present` refuses on `show`: give `page_url` (the same text in one file), `action`, each entry of `dropped`, and the first 8 characters of `receipt` in chat, ask for a yes, and end your turn.
+
+   A yes is the developer's sign mark on `i-publish` of this preview's page, or, with no page, the developer's own message in this session, after this preview. A message from an agent is not a yes. Any other answer: change nothing on the ticket. A change to the PRD starts again at step 4, a change to `TICKET.md` at step 7; each needs a new preview and a new yes.
 
 9. **Publish.** Run this only after the yes, with the `receipt` of the preview the human answered. Done when the answer is ok.
 
