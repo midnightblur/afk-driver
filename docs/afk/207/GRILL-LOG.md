@@ -61,3 +61,5 @@
 - Premise: design_files.py start and verification_files.py start answer fixed dicts where an optional prototype path can be added; VERIFICATION rows trace by criteria and story columns → verified (propose-solution/scripts/design_files.py:136-140; propose-verification/scripts/verification_files.py:180-207,47; VERIFICATION-FORMAT.md:27-28,53,67)
 - Premise: A new afkv2 skill registers by its folder; plugin_check bans v1 names and duplicate module names → verified (afkv2/.claude-plugin/plugin.json; afkv2/scripts/plugin_check.py:88-134; tests/test_module_names.py:22)
 - Premise: No afkv2 skill or script calls the chrome-devtools MCP tools by name; setup installs chrome-devtools-mcp 1.10.1 → verified (afkv2/skills/setup/scripts/tools.py:41-47; rg mcp__chrome-devtools afkv2/skills: none)
+- Settled: design gate passed 2026-11-24 · session s-20261124-211045
+- Last pass: R2 · session s-20261124-211045

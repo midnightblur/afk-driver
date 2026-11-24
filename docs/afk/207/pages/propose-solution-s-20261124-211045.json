@@ -26,68 +26,68 @@
           {
             "id": "aspect-entities",
             "label": "Entities",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-relations",
             "label": "Relations",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-keys",
             "label": "Keys",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-constraints",
             "label": "Constraints",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-cascade",
             "label": "Cascade",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-api",
             "label": "API contract and compatibility",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-migration",
             "label": "Data migration",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-authorization",
             "label": "Authorization",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-lifecycle",
             "label": "Entity life cycle and states",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-other-teams",
             "label": "Other teams' modules",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           },
           {
             "id": "aspect-large-data",
             "label": "Large data",
-            "state": "focus",
-            "round": 1
+            "state": "settled",
+            "round": 2
           }
         ],
         "edges": [
@@ -143,56 +143,56 @@
           {
             "id": "layer-l1",
             "label": "System Topology",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l2",
             "label": "Service Boundaries & Integration",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l3",
             "label": "Data Architecture",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l4",
             "label": "Cross-Cutting & Quality Attributes",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l5",
             "label": "Domain Model",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l6",
             "label": "Process & Coordination",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l7",
             "label": "Module Decomposition",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l8",
             "label": "Tactical Patterns",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "layer-l9",
             "label": "Implementation Seams & Change Impact",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           }
         ],
         "edges": [
@@ -240,26 +240,26 @@
           {
             "id": "locked-hl-1",
             "label": "Persistence and entity design",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "locked-hl-2",
             "label": "API surface",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "locked-hl-3",
             "label": "Authorization and data scoping",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "locked-hl-4",
             "label": "Life cycle and invariants",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           },
           {
             "id": "locked-hl-5",
@@ -270,8 +270,8 @@
           {
             "id": "locked-hl-6",
             "label": "Change to existing behaviour",
-            "state": "open",
-            "round": 1
+            "state": "focus",
+            "round": 2
           }
         ]
       }
@@ -281,7 +281,7 @@
   "rounds": [
     {
       "n": 1,
-      "state": "current",
+      "state": "settled",
       "banner": {
         "settled": [
           "PRD #207 published: 30 criteria, 4 examples, 3 requirement records"
@@ -1486,6 +1486,2307 @@
               "stamp": "1bd4266fd9e9cbdc"
             }
           ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "1 solution proposer drafted the design alone (Claude): a solution proposer failed before the drafts and critiques were done.",
+          "Each solution proposer ran with full auto-approval in a throwaway worktree. The worktree fences only the working folder; it is not a sandbox.",
+          "11 critical aspects, with the plain open of the launcher (card a-api, option A)"
+        ],
+        "unlocks": [
+          "SDD.md and the design records"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "l-1",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Both skills run in your agent session and use the lavish host, the live block and the browser driver afkv2 already has."
+            }
+          },
+          "title": "L1: inherited; nothing new runs",
+          "node": "layer-l1",
+          "section": "sec-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "`prototype_files.py` (start, check, settle), `mockup_show.py` (show, wait, reply, end), `catalog_files.py` (start, add-frontend, check). Changed: the launcher `open --plain`, the config answer, both reader start answers, the Codex Stop hook. The fold **Each surface** in the L2 section holds requests, answers and refusals."
+            }
+          },
+          "title": "L2: 3 new scripts, 4 changed surfaces",
+          "node": "layer-l2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "f-writer",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "f-writer-question",
+            "props": {
+              "text": "Who writes the frontends entries of the config?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "f-writer-options",
+                "props": {
+                  "columns": [
+                    "A — design-system writes them",
+                    "B — setup asks",
+                    "C — by hand"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "f-writer-opt-a",
+                        "props": {
+                          "text": "catalog_files add-frontend writes an entry after it asks you once for the source and catalog folders; prototype names that command when no entry exists. 1 writer, as live_build owns live. A repo with no catalog still needs 1 design-system command."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-writer-opt-b",
+                        "props": {
+                          "text": "setup asks for each frontend at install. Every repository gets the question, also a backend-only one; setup grows."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "f-writer-opt-c",
+                        "props": {
+                          "text": "You edit the config; the format is documented. No new code; a typo shows up only at the next read."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "f-writer-recommend",
+                "props": {
+                  "text": "It sets the owner of new persisted config, a human-locked aspect.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "node": "layer-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "l-3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "The `frontends` entry has 3 fields. `PROTOTYPE.md` has 6 sections; the catalog README has 3. Screenshots and the notes file live in the afkv2 data folder and go at the end of the run. Holds for any answer to the writer card."
+            }
+          },
+          "title": "L3: files only; 1 new config list, 2 format files",
+          "node": "layer-l3",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "No retry, no feature flag, no rate limit: everything is local and run by you."
+            }
+          },
+          "title": "L4: an instruction for who runs, scripts for secrets and network",
+          "node": "layer-l4",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The single-writer rule of PROTOTYPE.md stays in its format file, since only skill text could break it."
+            }
+          },
+          "title": "L5: 6 rules, 5 with a script guardian",
+          "node": "layer-l5",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "A fidelity check is the agent's reading of the mockup and the live screenshot side by side, as in v1. A pixel diff would fail on every made-up row, so it is not proposed."
+            }
+          },
+          "title": "L6: every failure falls back, except a refused check and a PRD gap",
+          "node": "layer-l6",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-7",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "prototype_files owns the no-network check; catalog_files loads it. MOCKUP.md holds the canvas rules: inline CSS and JS, made-up rows in 1 JSON script, an id on every region you may note, variants through ?variant=."
+            }
+          },
+          "title": "L7: 2 skill folders, 3 scripts; the network rule has 1 home",
+          "node": "layer-l7",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-8",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Guardian check, thin wrapper, owned config block. The Design patterns section names what each beat."
+            }
+          },
+          "title": "L8: 3 house patterns",
+          "node": "layer-l8",
+          "section": "sec-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "l-9",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Each extension is opt-in: a flag, an added field, or a branch no page reaches today. The sign-off card for change to existing behaviour lists them."
+            }
+          },
+          "title": "L9: 5 seams extend, 2 fit; no caller sees a change",
+          "node": "layer-l9",
+          "section": "sec-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "sign-hl-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-1-q",
+            "props": {
+              "markdown": true,
+              "text": "**Files only, no database.** The `frontends` list in the config, the mockup, `PROTOTYPE.md`, the catalog. Holds if the writer card = A. Sign, or note what to change.\n\n**Risks you accept:** a frontend renamed in the config breaks the link from an old PROTOTYPE.md, which names it as text."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-1-t",
+                "props": {
+                  "columns": [
+                    "Record",
+                    "Identity",
+                    "Fields",
+                    "Relations",
+                    "Retention",
+                    "Existing rows"
+                  ],
+                  "rows": [
+                    [
+                      "frontends entry",
+                      "name, unique",
+                      "name text not null; source and catalog relative paths not null, inside the repository; catalog unique",
+                      "1 to 1 catalog folder",
+                      "until you remove it",
+                      "configs without it read as []"
+                    ],
+                    [
+                      "mockup",
+                      "screen slug per ticket",
+                      "1 HTML file, inline CSS, JS and made-up rows",
+                      "1 to many screens per ticket",
+                      "forever",
+                      "none"
+                    ],
+                    [
+                      "PROTOTYPE.md",
+                      "1 per ticket",
+                      "6 sections (L3 fold)",
+                      "1 coverage row per PRD story",
+                      "forever",
+                      "a v1 file is read as text"
+                    ],
+                    [
+                      "catalog card",
+                      "file name per folder",
+                      "HTML card; state checked or unchecked in the README",
+                      "many per frontend",
+                      "forever; removed only after your yes",
+                      "v1 catalogs not imported"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Sign: persistence and entity design",
+          "node": "locked-hl-1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-2-q",
+            "props": {
+              "markdown": true,
+              "text": "**Every surface is a script verb in the afkv2 JSON envelope.** The full table is the fold **Each surface** of the L2 section: 12 new verbs and 4 changed surfaces, each an added flag or field. No paging. Each verb gives the same answer on the same files. Sign, or note what to change.\n\n**Risks you accept:** a refusal code fixed now is a contract the tests check."
+            }
+          },
+          "title": "Sign: API surface",
+          "node": "locked-hl-2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-3-q",
+            "props": {
+              "markdown": true,
+              "text": "**One role: you, at the keyboard.** A hands-off subagent opens no page, writes no file and parks, by instruction, as every lavish page does. Data scope: prototype the ticket spec folder; design-system the catalog folder of 1 frontend. Sign, or note what to change.\n\n**Risks you accept:** no script stops a hands-off run; only no plan subtask naming these skills keeps autopilot away."
+            }
+          },
+          "title": "Sign: authorization and data scoping",
+          "node": "locked-hl-3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-4-q",
+            "props": {
+              "markdown": true,
+              "text": "**Run states:** start, then `no_ui` (writes nothing), or drafting, the notes loop, then `prd_gap` (stops, names `/afkv2:grill-requirements`) or settled (INDEX row `chosen <date>`); a new run on a settled ticket goes back to the loop. **Card states:** checked or unchecked. The 6 rules and their guardians are the L5 section. Sign, or note what to change.\n\n**Risks you accept:** the single-writer rule of PROTOTYPE.md has no script guardian."
+            }
+          },
+          "title": "Sign: life cycle and invariants",
+          "node": "locked-hl-4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "sign-hl-6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "sign-hl-6-q",
+            "props": {
+              "markdown": true,
+              "text": "**5 seams extend existing code.** Sign, or note what to change.\n\n**Risks you accept:** the Codex hook change is proven only by the live check you run on Codex."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sign-hl-6-t",
+                "props": {
+                  "columns": [
+                    "Seam",
+                    "Callers see now",
+                    "Callers see after",
+                    "Rollback"
+                  ],
+                  "rows": [
+                    [
+                      "launcher open",
+                      "tooltip block written",
+                      "the same; --plain skips it",
+                      "revert"
+                    ],
+                    [
+                      "Codex Stop hook, no document",
+                      "note words",
+                      "each note with tag, selector, text; no current page has no document",
+                      "revert"
+                    ],
+                    [
+                      "config read answer",
+                      "no frontends",
+                      "frontends, [] when absent",
+                      "revert"
+                    ],
+                    [
+                      "propose-solution",
+                      "no prototype input",
+                      "reads PROTOTYPE.md when present, cites UI decisions; absent: as today",
+                      "revert"
+                    ],
+                    [
+                      "propose-verification",
+                      "no prototype input",
+                      "reads PROTOTYPE.md when present, ui-e2e and acceptance rows from its coverage; absent: as today",
+                      "revert"
+                    ]
+                  ]
+                }
+              }
+            ]
+          },
+          "title": "Sign: change to existing behaviour",
+          "node": "locked-hl-6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl5",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Both skills write only their own new files and the INDEX row. Starting the live app and opening a browser are local and stop at the end of the run. So outward side effects get no sign-off card; the SDD register says n/a with this reason. Note it if you disagree."
+            }
+          },
+          "title": "Outward side effects: not live"
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T21:33:13Z",
+          "raw": "[round R-2]\nf-writer a\nl-1 accept\nl-2 accept\nl-3 accept\nl-4 accept\nl-5 accept\nl-6 accept\nl-7 accept\nl-8 accept\nl-9 accept\nsign-hl-1 sign\nsign-hl-2 sign\nsign-hl-3 sign\nsign-hl-4 sign\nsign-hl-6 sign",
+          "signals": [
+            {
+              "target": "f-writer",
+              "item": "f-writer",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "53d7b1a53c0ee7f0"
+            },
+            {
+              "target": "l-1",
+              "item": "l-1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4025eb70756fdb42"
+            },
+            {
+              "target": "l-2",
+              "item": "l-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bd31e8a16b8a4e84"
+            },
+            {
+              "target": "l-3",
+              "item": "l-3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "32c45483e38fcae9"
+            },
+            {
+              "target": "l-4",
+              "item": "l-4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "671e2e859137b372"
+            },
+            {
+              "target": "l-5",
+              "item": "l-5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "133a05ff8f0d039b"
+            },
+            {
+              "target": "l-6",
+              "item": "l-6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4f0137a24f4277a5"
+            },
+            {
+              "target": "l-7",
+              "item": "l-7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "85ccd340877d55db"
+            },
+            {
+              "target": "l-8",
+              "item": "l-8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "199783d30e73a5ed"
+            },
+            {
+              "target": "l-9",
+              "item": "l-9",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "973f07ea92545a35"
+            },
+            {
+              "target": "sign-hl-1",
+              "item": "sign-hl-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "027db599da0d603e"
+            },
+            {
+              "target": "sign-hl-2",
+              "item": "sign-hl-2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "34ec041dc0694bba"
+            },
+            {
+              "target": "sign-hl-3",
+              "item": "sign-hl-3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d33eb12764dea9fe"
+            },
+            {
+              "target": "sign-hl-4",
+              "item": "sign-hl-4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "69066369ed36ca16"
+            },
+            {
+              "target": "sign-hl-6",
+              "item": "sign-hl-6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1cb67a3db907e272"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-system",
+      "title": "The whole system",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sys-g",
+        "props": {
+          "direction": "right",
+          "groups": [
+            {
+              "id": "sys-dev",
+              "label": "developer machine"
+            },
+            {
+              "id": "sys-repo",
+              "label": "repository"
+            }
+          ],
+          "nodes": [
+            {
+              "id": "sys-you",
+              "label": "you: drive the mockup, pin notes",
+              "you": true,
+              "group": "sys-dev"
+            },
+            {
+              "id": "sys-agent",
+              "label": "agent session: prototype or design-system",
+              "group": "sys-dev"
+            },
+            {
+              "id": "sys-lavish",
+              "label": "lavish 0.1.86 host",
+              "group": "sys-dev"
+            },
+            {
+              "id": "sys-app",
+              "label": "live app (live block)",
+              "group": "sys-dev"
+            },
+            {
+              "id": "sys-browser",
+              "label": "browser driver (chrome-devtools)",
+              "group": "sys-dev"
+            },
+            {
+              "id": "sys-cat",
+              "label": "catalog folder",
+              "group": "sys-repo"
+            },
+            {
+              "id": "sys-spec",
+              "label": "spec folder: mockup, PROTOTYPE.md, INDEX",
+              "group": "sys-repo"
+            }
+          ],
+          "edges": [
+            {
+              "from": "sys-agent",
+              "to": "sys-browser",
+              "label": "screenshots"
+            },
+            {
+              "from": "sys-browser",
+              "to": "sys-app",
+              "label": "drives"
+            },
+            {
+              "from": "sys-agent",
+              "to": "sys-cat",
+              "label": "reads, design-system writes"
+            },
+            {
+              "from": "sys-agent",
+              "to": "sys-spec",
+              "label": "writes the mockup"
+            },
+            {
+              "from": "sys-agent",
+              "to": "sys-lavish",
+              "label": "open --plain"
+            },
+            {
+              "from": "sys-you",
+              "to": "sys-lavish",
+              "label": "notes on elements"
+            },
+            {
+              "from": "sys-lavish",
+              "to": "sys-agent",
+              "label": "selector, tag, text"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sys-see",
+            "props": {
+              "label": "What to see",
+              "text": "Everything runs on your machine; the only lasting output is files in the repository."
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the settled aspects and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-plain-open",
+      "title": "Critical: the launcher opens a mockup with no tooltip block",
+      "state": "current",
+      "body": {
+        "type": "run-strip",
+        "id": "crit-open-rs",
+        "props": {
+          "current": [
+            {
+              "label": "check pin and LAVISH_AXI_HOST"
+            },
+            {
+              "label": "write tooltip block into the file"
+            },
+            {
+              "label": "lavish opens the file"
+            }
+          ],
+          "proposed": [
+            {
+              "label": "check pin and LAVISH_AXI_HOST",
+              "tone": "kept"
+            },
+            {
+              "label": "with --plain: skip the tooltip block",
+              "tone": "new"
+            },
+            {
+              "label": "lavish opens the file",
+              "tone": "kept"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "crit-open-see",
+            "props": {
+              "label": "What to see",
+              "text": "One flag on open; without it every page opens as today."
+            }
+          },
+          {
+            "type": "chip",
+            "id": "crit-open-chip",
+            "props": {
+              "text": "critical: change to shared launcher code",
+              "tone": "proposed"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "a-api",
+          "text": "You picked the plain open."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-codex-notes",
+      "title": "Critical: the Codex Stop hook keeps the element of each note",
+      "state": "current",
+      "body": {
+        "type": "run-strip",
+        "id": "crit-codex-rs",
+        "props": {
+          "current": [
+            {
+              "label": "waiting record, document null"
+            },
+            {
+              "label": "hand back the note words only"
+            }
+          ],
+          "proposed": [
+            {
+              "label": "waiting record, document null",
+              "tone": "kept"
+            },
+            {
+              "label": "hand back each note with its tag, selector and text",
+              "tone": "new"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "crit-codex-see",
+            "props": {
+              "label": "What to see",
+              "text": "Only the branch for a page with no page document changes; no afkv2 page reaches it today."
+            }
+          },
+          {
+            "type": "chip",
+            "id": "crit-codex-chip",
+            "props": {
+              "text": "critical: change to the Codex Stop hook",
+              "tone": "proposed"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "a-api-2",
+          "text": "You accepted the note path."
+        }
+      ]
+    },
+    {
+      "id": "sec-l1",
+      "title": "L1 System Topology",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "l1-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "l1-session",
+              "label": "agent session"
+            },
+            {
+              "id": "l1-host",
+              "label": "lavish host, 127.0.0.1"
+            },
+            {
+              "id": "l1-app",
+              "label": "live app"
+            }
+          ],
+          "edges": [
+            {
+              "from": "l1-session",
+              "to": "l1-host",
+              "label": "launcher"
+            },
+            {
+              "from": "l1-session",
+              "to": "l1-app",
+              "label": "live_build"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l1-see",
+            "props": {
+              "label": "What to see",
+              "text": "No new process or service; both skills use what afkv2 already runs."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l1-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Inherited from afkv2: skills and scripts in the agent session, lavish on localhost, the app through the live block."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l2"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-l2",
+      "title": "L2 Service Boundaries & Integration",
+      "state": "current",
+      "body": {
+        "type": "sequence",
+        "id": "l2-seq",
+        "props": {
+          "actors": [
+            {
+              "id": "l2-agent",
+              "label": "agent"
+            },
+            {
+              "id": "l2-pf",
+              "label": "prototype_files.py"
+            },
+            {
+              "id": "l2-ms",
+              "label": "mockup_show.py"
+            },
+            {
+              "id": "l2-launch",
+              "label": "launcher"
+            },
+            {
+              "id": "l2-you",
+              "label": "you in lavish"
+            }
+          ],
+          "messages": [
+            {
+              "from": "l2-agent",
+              "to": "l2-pf",
+              "text": "start: PRD, frontend, catalog, live",
+              "tone": "new"
+            },
+            {
+              "from": "l2-agent",
+              "to": "l2-pf",
+              "text": "check: no network, no runtime",
+              "tone": "new"
+            },
+            {
+              "from": "l2-agent",
+              "to": "l2-ms",
+              "text": "show",
+              "tone": "new"
+            },
+            {
+              "from": "l2-ms",
+              "to": "l2-launch",
+              "text": "open --plain",
+              "tone": "new"
+            },
+            {
+              "from": "l2-you",
+              "to": "l2-launch",
+              "text": "pin notes, send",
+              "tone": "kept"
+            },
+            {
+              "from": "l2-ms",
+              "to": "l2-agent",
+              "text": "wait: notes with selector, tag, text",
+              "tone": "new"
+            },
+            {
+              "from": "l2-agent",
+              "to": "l2-pf",
+              "text": "settle: PROTOTYPE.md, scan, INDEX row",
+              "tone": "new"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l2-see",
+            "props": {
+              "label": "What to see",
+              "text": "One prototype run, from start to settle, through 2 new scripts."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l2-sum",
+            "props": {
+              "label": "Summary",
+              "text": "3 new scripts with 12 verbs, all in the afkv2 JSON envelope; 5 existing surfaces add a field or a flag.\nNothing is renamed or removed."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l2-surfaces",
+            "fold": "Each surface",
+            "props": {
+              "columns": [
+                "Surface",
+                "Request",
+                "Success answer",
+                "Refusals"
+              ],
+              "rows": [
+                [
+                  "prototype_files.py start",
+                  "--ticket K [--frontend NAME]",
+                  "spec_dir, prd, index, prototype_md, mockup_dir, frontend {name, source, catalog}, catalog_exists, live, resume",
+                  "missing-input (PRD; writer to-prd), no-frontend (names the add-frontend command), pick-frontend (lists the names)"
+                ],
+                [
+                  "prototype_files.py check",
+                  "--mockup F",
+                  "file, ok",
+                  "network-call (each line), afkv2-runtime (the tooltip block), unreadable"
+                ],
+                [
+                  "prototype_files.py settle",
+                  "--ticket K",
+                  "files scanned, INDEX state",
+                  "bad-prototype (problems), network-call, afkv2-runtime, secrets (file, line, shape)"
+                ],
+                [
+                  "mockup_show.py show",
+                  "--mockup F",
+                  "url",
+                  "no-host (lavish missing, pin mismatch or LAVISH_AXI_HOST; reason)"
+                ],
+                [
+                  "mockup_show.py wait",
+                  "--mockup F --notes-file N",
+                  "count, ended; N holds [{uid, prompt, selector, tag, text}]",
+                  "no-session"
+                ],
+                [
+                  "mockup_show.py reply",
+                  "--mockup F --reply-file R",
+                  "ok",
+                  "no-session"
+                ],
+                [
+                  "mockup_show.py end",
+                  "--mockup F",
+                  "ok",
+                  "none"
+                ],
+                [
+                  "catalog_files.py start",
+                  "--frontend NAME",
+                  "frontend, catalog_dir, catalog_exists, cards, live",
+                  "no-frontend, pick-frontend"
+                ],
+                [
+                  "catalog_files.py add-frontend",
+                  "--name --source --catalog",
+                  "the entry written",
+                  "bad-value (duplicate name, path outside the repository, source folder missing)"
+                ],
+                [
+                  "catalog_files.py check",
+                  "--frontend NAME",
+                  "cards, checked, unchecked",
+                  "bad-catalog (problems), network-call, secrets"
+                ],
+                [
+                  "launcher open",
+                  "<page.html> [--plain]",
+                  "as today",
+                  "as today"
+                ],
+                [
+                  "config read answer",
+                  "as today",
+                  "adds frontends, [] when absent",
+                  "bad-value for a broken frontends list"
+                ],
+                [
+                  "propose-solution and propose-verification start",
+                  "as today",
+                  "adds prototype, prototype_exists",
+                  "as today"
+                ],
+                [
+                  "Codex Stop hook",
+                  "as today",
+                  "page with no document: 1 line per note with tag, selector and text",
+                  "as today"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l2-surfaces-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "12 new verbs and 4 changed surfaces, each concrete enough to test."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l3"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-l3",
+      "title": "L3 Data Architecture",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l3-fields",
+        "props": {
+          "columns": [
+            "frontends entry field",
+            "Type",
+            "Null?",
+            "Rule"
+          ],
+          "rows": [
+            [
+              "name",
+              "text",
+              "no",
+              "lower case letters, digits and dashes; unique in the list"
+            ],
+            [
+              "source",
+              "relative path",
+              "no",
+              "inside the repository; the folder exists at add-frontend"
+            ],
+            [
+              "catalog",
+              "relative path",
+              "no",
+              "inside the repository; unique in the list"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l3-see",
+            "props": {
+              "label": "What to see",
+              "text": "The only new config state: 3 fields per frontend."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l3-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Files only. The config gains frontends; PROTOTYPE.md and the catalog README get a format file each.\nScreenshots live in the afkv2 data folder and are deleted when the run ends."
+            }
+          },
+          {
+            "type": "table",
+            "id": "l3-state",
+            "fold": "Each piece of state",
+            "props": {
+              "columns": [
+                "State",
+                "Where",
+                "Kept until",
+                "Evolution"
+              ],
+              "rows": [
+                [
+                  "frontends",
+                  ".afkv2/config.json, committed",
+                  "the developer removes it",
+                  "new fields optional; unknown fields refused"
+                ],
+                [
+                  "mockup",
+                  "<spec>/prototype/<screen>.html",
+                  "forever, with the spec folder",
+                  "edited in place"
+                ],
+                [
+                  "PROTOTYPE.md",
+                  "<spec>/PROTOTYPE.md",
+                  "forever",
+                  "rewritten at each settle; coverage rows keep story numbers"
+                ],
+                [
+                  "catalog",
+                  "the catalog folder",
+                  "forever",
+                  "refreshed in place; a card for a gone shape removed after your yes"
+                ],
+                [
+                  "screenshots",
+                  "<data folder>/shots/<run>/",
+                  "the end of the run",
+                  "none"
+                ],
+                [
+                  "notes file",
+                  "<data folder>/notes/<run>.json",
+                  "the end of the run",
+                  "none"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-state-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Only the committed files last; run files go when the run ends."
+                }
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "id": "l3-proto",
+            "fold": "PROTOTYPE.md sections",
+            "props": {
+              "columns": [
+                "Section",
+                "Holds"
+              ],
+              "rows": [
+                [
+                  "header",
+                  "frontend name, fidelity mark (live-verified, catalog or source-only), date"
+                ],
+                [
+                  "Screens",
+                  "1 row per screen: name, mockup file, entry point, stories"
+                ],
+                [
+                  "Coverage",
+                  "1 row per PRD story: story number, path from the entry screen, reachable or gap"
+                ],
+                [
+                  "Fidelity",
+                  "the anchor used, what was compared, each difference left"
+                ],
+                [
+                  "Decisions",
+                  "1 line per screen or interaction decision, with why"
+                ],
+                [
+                  "PRD gaps",
+                  "each point the PRD could not answer, or none"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-proto-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The settle checks the Coverage rows against the stories of the PRD."
+                }
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "id": "l3-cat",
+            "fold": "Catalog README",
+            "props": {
+              "columns": [
+                "Section",
+                "Holds"
+              ],
+              "rows": [
+                [
+                  "Scope",
+                  "the frontend, its source path, the app address used"
+                ],
+                [
+                  "Cards",
+                  "1 row per card: file, shape kind (token, component, shell, page), state checked or unchecked, the screenshot it was checked against"
+                ],
+                [
+                  "Refresh",
+                  "how to run design-system again"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "l3-cat-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "catalog_files.py check reads the Cards table."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l4"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the entities aspect."
+        }
+      ]
+    },
+    {
+      "id": "sec-l4",
+      "title": "L4 Cross-Cutting & Quality Attributes",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l4-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Posture"
+          ],
+          "rows": [
+            [
+              "who may run",
+              "developer at the keyboard; a hands-off subagent parks (instruction, as every lavish page)"
+            ],
+            [
+              "secrets",
+              "engine secret scan on every written file at settle and at catalog check"
+            ],
+            [
+              "network",
+              "the mockup and the cards make no call; a script check"
+            ],
+            [
+              "retry",
+              "none: lavish wait has no time limit; a start of the live app waits its ready_seconds, 120 by default"
+            ],
+            [
+              "idempotency",
+              "settle and check give the same answer on the same files; add-frontend refuses a duplicate"
+            ],
+            [
+              "performance",
+              "see the Performance section"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l4-see",
+            "props": {
+              "label": "What to see",
+              "text": "Each concern has a posture; none needs a new mechanism."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l4-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Instruction for who runs, scripts for secrets and network.\nNo retry, no flag, no rate limit."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l5"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the constraints and authorization aspects."
+        }
+      ]
+    },
+    {
+      "id": "sec-l5",
+      "title": "L5 Domain Model",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l5-inv",
+        "props": {
+          "columns": [
+            "Invariant",
+            "Guardian",
+            "Answer to a break"
+          ],
+          "rows": [
+            [
+              "no network call in a mockup or card",
+              "prototype_files check, catalog_files check",
+              "network-call with the line"
+            ],
+            [
+              "no afkv2 runtime in a committed mockup",
+              "launcher --plain; prototype_files check",
+              "afkv2-runtime"
+            ],
+            [
+              "no secret in a written file",
+              "settle and catalog check",
+              "secrets; no done"
+            ],
+            [
+              "1 coverage row per PRD story",
+              "settle",
+              "bad-prototype names the missing story"
+            ],
+            [
+              "frontend name unique",
+              "config read",
+              "bad-value"
+            ],
+            [
+              "only prototype writes PROTOTYPE.md and its INDEX row",
+              "the format file rule",
+              "review"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l5-see",
+            "props": {
+              "label": "What to see",
+              "text": "5 of 6 rules have a script guardian."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l5-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Run states: start, then no_ui, or drafting, notes loop, then prd_gap or settled.\nA catalog card is checked or unchecked."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the life cycle aspect."
+        }
+      ]
+    },
+    {
+      "id": "sec-l6",
+      "title": "L6 Process & Coordination",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l6-fail",
+        "props": {
+          "columns": [
+            "Failure point",
+            "Signal",
+            "Automatic recovery",
+            "Manual recovery"
+          ],
+          "rows": [
+            [
+              "no lavish host, pin mismatch, LAVISH_AXI_HOST set",
+              "show refuses no-host",
+              "give the file:// path, notes in chat",
+              "fix the install with setup"
+            ],
+            [
+              "you close the browser",
+              "wait answers ended",
+              "none",
+              "show again"
+            ],
+            [
+              "live app does not start",
+              "start_live refuses",
+              "next anchor: catalog or source; fidelity marked",
+              "fix the live block"
+            ],
+            [
+              "browser driver missing",
+              "the tool call fails",
+              "source anchor, source-only",
+              "run setup"
+            ],
+            [
+              "a check refuses at settle",
+              "network-call, afkv2-runtime or secrets",
+              "none",
+              "the agent fixes the file, settle again"
+            ],
+            [
+              "a PRD gap",
+              "the agent finds a story it cannot draw",
+              "stop with prd_gap",
+              "/afkv2:grill-requirements"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l6-see",
+            "props": {
+              "label": "What to see",
+              "text": "Every failure falls back to chat or a lower anchor, except a refused check and a PRD gap."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l6-sum",
+            "props": {
+              "label": "Summary",
+              "text": "No transaction: each step writes its own file. The live app is stopped in a finally step, as in small-change.\nA fidelity check is the agent's side-by-side reading of the 2 screenshots."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l7"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-l7",
+      "title": "L7 Module Decomposition",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "l7-g",
+        "props": {
+          "direction": "down",
+          "groups": [
+            {
+              "id": "l7-new",
+              "label": "new"
+            },
+            {
+              "id": "l7-old",
+              "label": "existing, extended"
+            },
+            {
+              "id": "l7-kept",
+              "label": "existing, used as is"
+            }
+          ],
+          "nodes": [
+            {
+              "id": "l7-proto",
+              "label": "skills/prototype: SKILL.md, MOCKUP.md, PROTOTYPE-FORMAT.md, scripts",
+              "group": "l7-new"
+            },
+            {
+              "id": "l7-ds",
+              "label": "skills/design-system: SKILL.md, CATALOG-FORMAT.md, scripts",
+              "group": "l7-new"
+            },
+            {
+              "id": "l7-launch",
+              "label": "engine/launcher.py",
+              "group": "l7-old"
+            },
+            {
+              "id": "l7-hook",
+              "label": "hooks/codex_stop.py",
+              "group": "l7-old"
+            },
+            {
+              "id": "l7-cfg",
+              "label": "scripts/afkv2_config.py",
+              "group": "l7-old"
+            },
+            {
+              "id": "l7-readers",
+              "label": "propose-solution, propose-verification",
+              "group": "l7-old"
+            },
+            {
+              "id": "l7-notices",
+              "label": "engine/notices.py",
+              "group": "l7-kept"
+            },
+            {
+              "id": "l7-live",
+              "label": "scripts/live_build.py",
+              "group": "l7-kept"
+            },
+            {
+              "id": "l7-index",
+              "label": "to-prd prd_files.set_row",
+              "group": "l7-kept"
+            }
+          ],
+          "edges": [
+            {
+              "from": "l7-proto",
+              "to": "l7-launch"
+            },
+            {
+              "from": "l7-proto",
+              "to": "l7-cfg"
+            },
+            {
+              "from": "l7-proto",
+              "to": "l7-notices"
+            },
+            {
+              "from": "l7-proto",
+              "to": "l7-live"
+            },
+            {
+              "from": "l7-proto",
+              "to": "l7-index"
+            },
+            {
+              "from": "l7-ds",
+              "to": "l7-cfg"
+            },
+            {
+              "from": "l7-ds",
+              "to": "l7-notices"
+            },
+            {
+              "from": "l7-ds",
+              "to": "l7-live"
+            },
+            {
+              "from": "l7-hook",
+              "to": "l7-launch"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l7-see",
+            "props": {
+              "label": "What to see",
+              "text": "The new skills depend on existing modules; nothing existing depends on them, except the readers through the file PROTOTYPE.md."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l7-sum",
+            "props": {
+              "label": "Summary",
+              "text": "2 new skill folders, 3 new scripts. prototype_files owns the no-network and no-runtime check; catalog_files loads it, so the rule has 1 home."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-logic"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-logic",
+      "title": "Key logic",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "logic-anchor",
+        "props": {
+          "columns": [
+            "Catalog in the frontend's folder",
+            "live block",
+            "Anchor",
+            "Fidelity mark"
+          ],
+          "rows": [
+            [
+              "yes",
+              "yes, app starts",
+              "AN-1 catalog, live screenshots for the fidelity pass",
+              "live-verified"
+            ],
+            [
+              "yes",
+              "no, or app does not start",
+              "AN-1 catalog",
+              "catalog"
+            ],
+            [
+              "no",
+              "yes, app starts",
+              "AN-2 live screenshots",
+              "live-verified"
+            ],
+            [
+              "no",
+              "no, or app does not start",
+              "AN-3 frontend source",
+              "source-only"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "logic-see",
+            "props": {
+              "label": "What to see",
+              "text": "The anchor choice of AC-003 as a decision table; start answers the 2 inputs."
+            }
+          },
+          {
+            "type": "text",
+            "id": "logic-sum",
+            "props": {
+              "label": "Summary",
+              "text": "The network check flags src, href, action and CSS url values with a scheme, and fetch, XMLHttpRequest, WebSocket, EventSource and import() calls.\nAnchor links inside the file (#id) pass."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l8"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-l8",
+      "title": "L8 Tactical Patterns",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l8-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Pattern"
+          ],
+          "rows": [
+            [
+              "a skill's mechanical work",
+              "script verbs in the afkv2 JSON envelope"
+            ],
+            [
+              "the committed-file rules",
+              "a guardian check at settle"
+            ],
+            [
+              "lavish for a plain page",
+              "a thin wrapper over the launcher"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l8-see",
+            "props": {
+              "label": "What to see",
+              "text": "3 house patterns; the Design patterns section says what each beat."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l8-sum",
+            "props": {
+              "label": "Summary",
+              "text": "No new pattern; each follows an existing afkv2 script."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-l9",
+      "title": "L9 Implementation Seams & Change Impact",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "l9-t",
+        "props": {
+          "columns": [
+            "Seam",
+            "Now",
+            "Proposed",
+            "Verdict"
+          ],
+          "rows": [
+            [
+              "launcher plan and run (launcher.py:61-107, 296-300)",
+              "open always writes the tooltip block",
+              "--plain skips it",
+              {
+                "type": "chip",
+                "id": "l9-c1",
+                "props": {
+                  "text": "extends",
+                  "tone": "proposed"
+                }
+              }
+            ],
+            [
+              "Codex Stop hook _raw (codex_stop.py:39-47)",
+              "words only for a page with no document",
+              "tag, selector and text per note",
+              {
+                "type": "chip",
+                "id": "l9-c2",
+                "props": {
+                  "text": "extends",
+                  "tone": "proposed"
+                }
+              }
+            ],
+            [
+              "config read (afkv2_config.py:39-58, 97-137)",
+              "no frontends",
+              "frontends, [] when absent",
+              {
+                "type": "chip",
+                "id": "l9-c3",
+                "props": {
+                  "text": "extends",
+                  "tone": "proposed"
+                }
+              }
+            ],
+            [
+              "propose-solution start and SKILL.md (design_files.py:136-140; SKILL.md:10-17, 43, 72)",
+              "no prototype",
+              "optional prototype input, cited in the design",
+              {
+                "type": "chip",
+                "id": "l9-c4",
+                "props": {
+                  "text": "extends",
+                  "tone": "proposed"
+                }
+              }
+            ],
+            [
+              "propose-verification start and SKILL.md (verification_files.py:180-207; SKILL.md:12-18, 36, 48)",
+              "no prototype",
+              "optional input; ui-e2e and acceptance rows from its coverage",
+              {
+                "type": "chip",
+                "id": "l9-c5",
+                "props": {
+                  "text": "extends",
+                  "tone": "proposed"
+                }
+              }
+            ],
+            [
+              "INDEX-FORMAT.md writer table (:7-11)",
+              "Prototype row has no writer",
+              "prototype writes it",
+              {
+                "type": "chip",
+                "id": "l9-c6",
+                "props": {
+                  "text": "fits",
+                  "tone": "kept"
+                }
+              }
+            ],
+            [
+              "plugin_check and module names (plugin_check.py:88-134)",
+              "folder registers a skill",
+              "2 new folders, 3 unique module names",
+              {
+                "type": "chip",
+                "id": "l9-c7",
+                "props": {
+                  "text": "fits",
+                  "tone": "kept"
+                }
+              }
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "l9-see",
+            "props": {
+              "label": "What to see",
+              "text": "5 seams extend existing code by an optional flag or field; 2 fit as they are."
+            }
+          },
+          {
+            "type": "text",
+            "id": "l9-sum",
+            "props": {
+              "label": "Summary",
+              "text": "Existing callers see no change: each extension is opt-in.\nRollback is a revert of the change."
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-crit-plain-open",
+        "sec-crit-codex-notes"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-patterns",
+      "title": "Design patterns",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "pat-t",
+        "props": {
+          "columns": [
+            "Name",
+            "What it is",
+            "Where",
+            "Why here",
+            "Quality goal",
+            "Beat"
+          ],
+          "rows": [
+            [
+              "Guardian check",
+              "1 script verb that refuses a file breaking a rule, run before done",
+              "prototype_files check and settle, catalog_files check",
+              "the rules are mechanical",
+              "a committed file never breaks a rule",
+              "an instruction alone"
+            ],
+            [
+              "Thin wrapper",
+              "a small script that calls an existing module and reshapes its answer",
+              "mockup_show.py over the launcher",
+              "the engine wait drops selectors for a page with no document",
+              "1 home for the pin and host checks",
+              "calling engine.py poll"
+            ],
+            [
+              "Owned config block",
+              "the script that owns a block is its only writer",
+              "catalog_files add-frontend writes frontends",
+              "as live_build owns live",
+              "1 writer per block",
+              "editing the config by hand"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "pat-see",
+            "props": {
+              "label": "What to see",
+              "text": "3 patterns, each from existing afkv2 code."
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "sec-performance",
+      "title": "Performance",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "pf-wrap",
+        "props": {
+          "label": "Performance",
+          "text": "4 parts. All numbers are estimated targets, not measurements."
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "pf-1",
+            "props": {
+              "label": "PF-1 Anticipated problems",
+              "text": "Mockup size, catalog size, screenshots per run."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-1-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Where",
+                    "Cause",
+                    "Size"
+                  ],
+                  "rows": [
+                    [
+                      "large mockup",
+                      "spec folder",
+                      "inline made-up rows",
+                      "up to 50 rows per screen"
+                    ],
+                    [
+                      "many cards",
+                      "catalog folder",
+                      "shapes in the frontend",
+                      "20 to 60 files"
+                    ],
+                    [
+                      "screenshots",
+                      "data folder",
+                      "screens compared",
+                      "10 to 30 per run"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-1-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "3 places the size grows."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-2",
+            "props": {
+              "label": "PF-2 Large data",
+              "text": "A mockup about 100 KB, at worst 500 KB; a card about 10 KB; a screenshot about 150 KB, at worst 4.5 MB per run, deleted at its end."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-2-t",
+                "props": {
+                  "columns": [
+                    "Item",
+                    "Now",
+                    "1 year",
+                    "Worst"
+                  ],
+                  "rows": [
+                    [
+                      "mockups per repo",
+                      "0",
+                      "about 20",
+                      "100"
+                    ],
+                    [
+                      "catalog files per frontend",
+                      "0",
+                      "40",
+                      "60"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-2-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "All sizes stay far below any git or browser limit."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-3",
+            "props": {
+              "label": "PF-3 Solutions",
+              "text": "A cap of 50 made-up rows per screen in MOCKUP.md; screenshots outside the repository and deleted at the end of the run."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-3-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Fix"
+                  ],
+                  "rows": [
+                    [
+                      "large mockup",
+                      {
+                        "type": "chip",
+                        "id": "pf-3-c1",
+                        "props": {
+                          "text": "50-row cap",
+                          "tone": "new"
+                        }
+                      }
+                    ],
+                    [
+                      "screenshots",
+                      {
+                        "type": "chip",
+                        "id": "pf-3-c2",
+                        "props": {
+                          "text": "data folder, deleted at end",
+                          "tone": "new"
+                        }
+                      }
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-3-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "2 fixes, both rules of the skill."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "pf-4",
+            "props": {
+              "label": "PF-4 Budgets",
+              "text": "Per key step."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "pf-4-t",
+                "props": {
+                  "columns": [
+                    "Flow",
+                    "Budget",
+                    "Basis"
+                  ],
+                  "rows": [
+                    [
+                      "check of 1 mockup",
+                      "under 1 s",
+                      {
+                        "type": "chip",
+                        "id": "pf-4-c1",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "settle of 5 files",
+                      "under 5 s",
+                      {
+                        "type": "chip",
+                        "id": "pf-4-c2",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "show to page open",
+                      "under 3 s",
+                      {
+                        "type": "chip",
+                        "id": "pf-4-c3",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "pf-4-see",
+                    "props": {
+                      "label": "What to see",
+                      "text": "3 budgets the tests can time."
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted; numbers are estimates."
         }
       ]
     }
