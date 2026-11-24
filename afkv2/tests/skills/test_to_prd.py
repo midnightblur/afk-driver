@@ -1383,24 +1383,36 @@ def _linked(nodes):
 def test_whole_publish_keeps_owner_nodes_exact_and_drops_the_old_block(world):
     """The high-level proof: outline, preview, publish, read back, through the skill's own commands."""
     _ticket_world(world)
-    before = _owner_description()["content"]
     outline = json.loads(Path(_outline(world)["outline"]).read_text("utf-8"))
-    assert [node["in_block"] for node in outline["nodes"]] == [False] * 7 + [True] * 3
+    in_block = [node["in_block"] for node in outline["nodes"]]
+    assert in_block == [False, False, False, False, False, False, False, True, True, True], f"in_block: {in_block}"
     answer = _ticket_preview(world)
-    assert world.writes() == []
-    assert answer["action"] == "replaces the whole description" and answer["dropped"] == []
-    assert answer["over_jira_limit"] is False
+    assert world.writes() == [], f"the preview wrote: {world.writes()}"
+    assert answer["action"] == "replaces the whole description", f"action: {answer['action']}"
+    assert answer["dropped"] == [], f"dropped: {answer['dropped']}"
+    assert answer["over_jira_limit"] is False, f"text length: {answer['text_length']}"
+
     done = world.publish(answer)
-    assert done["published"] is True and done["replaced"] == "v1"
+    assert (done["published"], done["replaced"]) == (True, "v1"), f"publish answer: {done}"
     content = world.ticket()["description"]["content"]
-    assert content[:7] == before[:7]
+    kept = [node["type"] for node in content[:7]]
+    assert kept == ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"], kept
+    assert content[3]["content"][0]["attrs"]["id"] == "owner-media-1", f"screenshot node: {content[3]}"
+    assert content[4]["content"][0]["content"][0]["attrs"] == {"colwidth": [120]}, f"table node: {content[4]}"
+    assert content[5]["content"][0] == {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}, content[5]
+    assert content[6]["content"][0]["attrs"]["id"] == "owner-media-2", f"picture group node: {content[6]}"
     lines = [publish_text(node) for node in content]
-    assert "old PRD" not in lines and V1.BEGIN_LINE not in lines and BEGIN not in lines
-    assert ("PROJ-12", f"{SITE}/browse/PROJ-12") in _linked(content)
-    assert sorted(world.names()) == sorted(["screen.png", picture(answer)])
-    assert done["deleted"] == [V1.PICTURE]
+    for gone in ("old PRD", V1.BEGIN_LINE_NOTE, V1.BEGIN_LINE, V1.END_LINE, BEGIN, END):
+        assert gone not in lines, f"{gone!r} is still in the description: {lines}"
+    links = _linked(content)
+    assert ("PROJ-12", "https://jira.example/browse/PROJ-12") in links, f"links: {links}"
+    names = sorted(world.names())
+    assert names[1] == "screen.png" and re.fullmatch(r"afkv2-fig-[0-9a-f]{8}-1\.png", names[0]), f"attachments: {names}"
+    assert done["deleted"] == [V1.PICTURE], f"deleted: {done['deleted']}"
+
     world.clear_calls()
-    assert world.publish(answer)["already_published"] is True and world.writes() == []
+    again = world.publish(answer)
+    assert again["already_published"] is True and world.writes() == [], f"rerun: {again}, writes {world.writes()}"
 
 
 def test_a_bare_ticket_key_becomes_a_link_mark_and_other_text_stays():
@@ -1501,9 +1513,16 @@ def test_real_port_whole_publish_keeps_owner_nodes(real_port_world):
     _outline(world)
     answer = _ticket_preview(world)
     done = world.publish(answer)
-    assert done["published"] is True and done["replaced"] == "v1" and done["deleted"] == [V1.PICTURE]
+    assert (done["published"], done["replaced"], done["deleted"]) == (True, "v1", [V1.PICTURE]), f"publish: {done}"
     content = _LocalJira.issue["description"]["content"]
-    assert content[:7] == _owner_description()["content"][:7]
-    site = world.env["JIRA_BASE_URL"]
-    assert ("PROJ-12", f"{site}/browse/PROJ-12") in _linked(content)
-    assert world.publish(answer)["already_published"] is True
+    kept = [node["type"] for node in content[:7]]
+    assert kept == ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"], kept
+    assert content[3]["content"][0]["attrs"]["id"] == "owner-media-1", f"screenshot node: {content[3]}"
+    assert content[6]["content"][0]["attrs"]["id"] == "owner-media-2", f"picture group node: {content[6]}"
+    assert content[5]["content"][0] == {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}, content[5]
+    lines = [publish_text(node) for node in content]
+    assert "old PRD" not in lines and V1.END_LINE not in lines, f"old block left: {lines}"
+    links = [(text, href) for text, href in _linked(content) if text == "PROJ-12"]
+    assert len(links) == 1 and re.fullmatch(r"http://127\.0\.0\.1:\d+/browse/PROJ-12", links[0][1]), f"links: {links}"
+    again = world.publish(answer)
+    assert again["already_published"] is True, f"rerun: {again}"
