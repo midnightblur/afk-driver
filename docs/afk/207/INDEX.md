@@ -6,7 +6,7 @@ afkv2 has no step that settles a new or changed screen before the design, and no
 
 | Artifact | Where | State |
 |---|---|---|
-| PRD | PRD.md | draft |
+| PRD | PRD.md | published to GitHub 2026-11-24 |
 | Requirement ADRs | adr/requirements/ | 3 records |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | — |
