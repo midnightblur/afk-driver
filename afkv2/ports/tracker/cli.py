@@ -45,6 +45,16 @@ def _comment_put(payload):
     return KINDS[kind].comment_put(payload)
 
 
+def _meeting_comments(payload):
+    kind, payload = _kind_and_repo(payload)
+    return KINDS[kind].meeting_comments(payload)
+
+
+def _meeting_comment_put(payload):
+    kind, payload = _kind_and_repo(payload)
+    return KINDS[kind].meeting_comment_put(payload)
+
+
 VERBS = {
     "issue-get": _issue_get,
     "issue-search": _issue_search,
@@ -56,6 +66,8 @@ VERBS = {
     "description-put": _description_put,
     "block-text": github_issues.block_text_verb,
     "comment-put": _comment_put,
+    "meeting-comments": _meeting_comments,
+    "meeting-comment-put": _meeting_comment_put,
 }
 
 

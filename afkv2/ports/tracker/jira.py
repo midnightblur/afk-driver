@@ -1,5 +1,5 @@
-"""Jira Cloud REST v3: the client ported from v1, the reads, the publish verbs and the proof comment on it. No create
-or transition."""
+"""Jira Cloud REST v3: the client ported from v1, the reads, the publish verbs, the proof comment and the meeting
+comments on it. No create or transition."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import urllib.request
 from pathlib import Path
 from typing import NamedTuple
 
-from . import adf, proof, v1_facts
+from . import adf, meeting, proof, v1_facts
 from .envelope import Refusal, code_for_status, need, ok
 
 TIMEOUT_SECONDS = 60
@@ -171,6 +171,15 @@ class Jira:
         if not (isinstance(data, dict) and data.get("id")):
             raise ValueError("the comment answer names no comment id")
         return str(data["id"])
+
+    def edit_comment(self, key, comment_id, document):
+        body = json.dumps({"body": document}).encode()
+        self._req("PUT", f"/rest/api/3/issue/{_segment(key)}/comment/{_segment(comment_id)}", data=body,
+                  headers={"Content-Type": "application/json"})
+
+    def myself(self):
+        """The account of the credentials."""
+        return self.get_json("/rest/api/3/myself")
 
     def resolve_media_uuid(self, attachment_id):
         """Jira gives the media id only in the Location of the 303 on the attachment content."""
@@ -579,3 +588,75 @@ def comment_put(payload):
     names, media_ids = _attach_pictures(jira, key, paths, receipt)
     comment_id = jira.post_comment(key, _comment_document(body, media_ids))
     return ok(comment_id=comment_id, url=_comment_url(jira, key, comment_id), attached=names, posted=True)
+
+
+_INLINE = {"text", "hardBreak", "mention", "emoji", "inlineCard", "date", "status", "placeholder"}
+
+
+def _is_empty_paragraph(node):
+    return node.get("type") == "paragraph" and not node_text(node).strip()
+
+
+def _meeting_expand(comment):
+    """The one dated `expand` node a meeting comment holds at its top level; None for any other comment."""
+    nodes = [node for node in _content_of((comment or {}).get("body")) if isinstance(node, dict)]
+    nodes = [node for node in nodes if not _is_empty_paragraph(node)]
+    if len(nodes) != 1 or nodes[0].get("type") != "expand":
+        return None
+    return nodes[0] if meeting.is_dated((nodes[0].get("attrs") or {}).get("title")) else None
+
+
+def _plain_lines(node):
+    children = [child for child in node.get("content") or [] if isinstance(child, dict)]
+    if not children or all(child.get("type") in _INLINE for child in children):
+        return [node_text(node)]
+    return [line for child in children for line in _plain_lines(child)]
+
+
+def _meeting_list(jira, key):
+    me = (jira.myself() or {}).get("accountId")
+    listed = []
+    for item in jira.comments(key):
+        expand = _meeting_expand(item)
+        if expand is None:
+            continue
+        content = [node for node in expand.get("content") or [] if isinstance(node, dict)]
+        author = (item.get("author") or {}).get("accountId")
+        listed.append({"title": expand["attrs"]["title"], "comment_id": str(item.get("id")),
+                       "comment_hash": meeting.sha256(block_text(content)), "own": bool(me) and author == me,
+                       "url": _comment_url(jira, key, item.get("id")),
+                       "text": "\n".join(line for node in content for line in _plain_lines(node))})
+    return listed
+
+
+@_rest
+def meeting_comments(payload):
+    """The meeting comments of the work item, in the order Jira lists them."""
+    key = need(payload, "key")
+    return ok(comments=_meeting_list(client(), key))
+
+
+@_rest
+def meeting_comment_put(payload):
+    """Post the meeting comment of a title, or edit the one that exists, after the stale and ownership checks."""
+    key, title, receipt, expect_hash = meeting.request(payload)
+    nodes = _new_nodes(need(payload, "adf"))
+    text = block_text(nodes)
+    meeting.check_receipt(key, title, text, receipt)
+    document = {"type": "doc", "version": 1, "content": [{"type": "expand", "attrs": {"title": title}, "content": nodes}]}
+    size = len(json.dumps(document, ensure_ascii=False).encode("utf-8"))
+    if size > COMMENT_TEXT_LIMIT:
+        raise Refusal("too-large", f"the comment is {size} bytes of rich text; Jira takes at most {COMMENT_TEXT_LIMIT}")
+    new_hash = meeting.sha256(text)
+    jira = client()
+    action, found = meeting.choose(_meeting_list(jira, key), title, new_hash, expect_hash)
+    if action == "unchanged":
+        return ok(comment_id=found["comment_id"], url=found["url"], action=action, comment_hash=new_hash)
+    if action == "edit":
+        jira.edit_comment(key, found["comment_id"], document)
+        action = "edited"
+    else:
+        jira.post_comment(key, document)
+        action = "posted"
+    kept = meeting.read_back(_meeting_list(jira, key), title, new_hash)
+    return ok(comment_id=kept["comment_id"], url=kept["url"], action=action, comment_hash=new_hash)

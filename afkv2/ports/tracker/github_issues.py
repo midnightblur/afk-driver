@@ -1,12 +1,14 @@
-"""GitHub issues through gh: reads ported from v1, the managed PRD block of the issue body, and comment-put."""
+"""GitHub issues through gh: reads ported from v1, the managed PRD block of the issue body, comment-put and the
+meeting comments."""
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from urllib.parse import urlparse
 
-from . import proof, shell
+from . import meeting, proof, shell
 from .envelope import Refusal, need, ok
 from .jira import preview_for
 
@@ -18,6 +20,7 @@ END_LINE = "<!-- afkv2:prd:end -->"
 MARKER_WORD = re.compile(r"afkv2:prd:(?:start|end)")
 FENCE = re.compile(r"^ *(`{3,}|~{3,})")
 BODY_LIMIT = 65536
+WHOLE = "whole"
 
 GH_FLOOR = (2, 99, 0)
 ATTACH_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".mp4", ".mov", ".webm"}
@@ -27,6 +30,8 @@ ATTACH_COUNT = 50
 PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
 _VERSION = re.compile(r"gh version (\d+)\.(\d+)\.(\d+)")
 _COMMENT_ID = re.compile(r"#issuecomment-(\d+)")
+_SUMMARY = re.compile(r"<details><summary>(.*)</summary>")
+CLOSE_LINE = "</details>"
 
 
 def _repo_args(repo):
@@ -62,7 +67,8 @@ def issue_get(payload):
         fields += ",body"
     data = _view(repo, number, fields)
     answer = ok(key=number, **{name: value for name, value in data.items() if name not in ("ok", "key")})
-    return {**answer, **_block_facts(data.get("body") or "")}
+    body = data.get("body") or ""
+    return {**answer, **_block_facts(body), "whole": _summary(body, WHOLE)}
 
 
 def issue_search(payload):
@@ -124,9 +130,9 @@ def find_block(lines):
     return begins[0], ends[0]
 
 
-def _summary(text):
+def _summary(text, family="afkv2"):
     """What a read-back compares. A GitHub block has no pictures: GitHub draws each Mermaid fence itself."""
-    return {"family": "afkv2", "text": block_text(text), "media_ids": []}
+    return {"family": family, "text": block_text(text), "media_ids": []}
 
 
 def _block_facts(body):
@@ -148,7 +154,7 @@ def block_text_verb(payload):
 
 def description_put(payload):
     """Write the block into the issue body. Only the lines between the block lines change; a first publish
-    appends the block at the end."""
+    appends the block at the end. With `whole` true the text becomes the whole body, with no block lines."""
     key, markdown, expect_hash = need(payload, "key"), need(payload, "markdown"), need(payload, "expect_hash")
     repo, number = _repo_and_number(payload)
     preview = preview_for(payload, key)
@@ -165,17 +171,23 @@ def description_put(payload):
         raise Refusal("stale", "the issue body changed after the preview: show a new preview")
     lines = _lines(body)
     span = find_block(lines)
+    if payload.get("whole") is True:
+        _write_body(repo, number, text)
+        return ok(key=key, replaced="afkv2" if span else None, block=_summary(text, WHOLE))
     framed = [BEGIN_LINE, *text.split("\n"), END_LINE]
     if span:
         new_lines = [*lines[:span[0]], *framed, *lines[span[1] + 1:]]
     else:
         kept = "\n".join(lines).rstrip("\n")
         new_lines = [*([kept, ""] if kept else []), *framed]
-    new_body = "\n".join(new_lines)
+    _write_body(repo, number, "\n".join(new_lines))
+    return ok(key=key, replaced="afkv2" if span else None, block=_summary(text))
+
+
+def _write_body(repo, number, new_body):
     if len(new_body) > BODY_LIMIT:
         raise Refusal("too-large", f"the new issue body has {len(new_body)} characters; GitHub takes {BODY_LIMIT}")
     shell.checked("gh", ["issue", "edit", number, *_repo_args(repo), "--body-file", "-"], stdin_text=new_body)
-    return ok(key=key, replaced="afkv2" if span else None, block=_summary(text))
 
 
 def _check_files(paths):
@@ -243,3 +255,70 @@ def comment_put(payload):
     url = shell.checked("gh", args, stdin_text=body).strip().splitlines()
     url = url[-1].strip() if url else ""
     return ok(comment_id=_comment_id(url), url=url, attached=[path.name for path in paths], posted=True)
+
+
+def _meeting_parts(body):
+    """`(title, inner Markdown)` of a meeting comment; None for any other comment."""
+    text = str(body or "").replace("\r\n", "\n").rstrip()
+    first, newline, rest = text.partition("\n")
+    found = _SUMMARY.fullmatch(first)
+    if not (found and newline and rest.endswith(CLOSE_LINE) and meeting.is_dated(found.group(1))):
+        return None
+    inner = rest[:len(rest) - len(CLOSE_LINE)].split("\n")
+    while inner and not inner[0].strip():
+        inner.pop(0)
+    while inner and not inner[-1].strip():
+        inner.pop()
+    return found.group(1), "\n".join(inner)
+
+
+def _meeting_list(repo, number):
+    me = (shell.json_answer("gh", ["api", "user"]) or {}).get("login")
+    data = shell.json_answer("gh", ["issue", "view", number, *_repo_args(repo), "--json", "comments"])
+    comments = data.get("comments") if isinstance(data, dict) else None
+    if not isinstance(comments, list):
+        raise Refusal("bad-answer", "gh issue view answered no comment list")
+    listed = []
+    for item in comments:
+        parts = _meeting_parts(item.get("body")) if isinstance(item, dict) else None
+        if parts is None:
+            continue
+        author = (item.get("author") or {}).get("login")
+        listed.append({"title": parts[0], "comment_id": _comment_id(item.get("url"), item.get("id")),
+                       "comment_hash": meeting.sha256(block_text(parts[1])), "own": bool(me) and author == me,
+                       "url": item.get("url"), "text": parts[1]})
+    return listed
+
+
+def meeting_comments(payload):
+    """The meeting comments of the issue, oldest first."""
+    repo, number = _repo_and_number(payload)
+    return ok(comments=_meeting_list(repo, number))
+
+
+def meeting_comment_put(payload):
+    """Post the meeting comment of a title, or edit the one that exists, after the stale and ownership checks."""
+    key, title, receipt, expect_hash = meeting.request(payload)
+    markdown = need(payload, "markdown")
+    repo, number = _repo_and_number(payload)
+    text = block_text(str(markdown))
+    if not text:
+        raise Refusal("bad-payload", "`markdown` holds no text")
+    meeting.check_receipt(key, title, text, receipt)
+    body = f"<details><summary>{title}</summary>\n\n{text}\n\n{CLOSE_LINE}"
+    if len(body) > BODY_LIMIT:
+        raise Refusal("too-large", f"the comment has {len(body)} characters; GitHub takes {BODY_LIMIT}")
+    new_hash = meeting.sha256(text)
+    action, found = meeting.choose(_meeting_list(repo, number), title, new_hash, expect_hash)
+    if action == "unchanged":
+        return ok(comment_id=found["comment_id"], url=found["url"], action=action, comment_hash=new_hash)
+    if action == "edit":
+        owner = str(repo) if repo else "{owner}/{repo}"
+        shell.checked("gh", ["api", "-X", "PATCH", f"repos/{owner}/issues/comments/{found['comment_id']}",
+                             "--input", "-"], stdin_text=json.dumps({"body": body}))
+        action = "edited"
+    else:
+        shell.checked("gh", ["issue", "comment", number, *_repo_args(repo), "--body-file", "-"], stdin_text=body)
+        action = "posted"
+    kept = meeting.read_back(_meeting_list(repo, number), title, new_hash)
+    return ok(comment_id=kept["comment_id"], url=kept["url"], action=action, comment_hash=new_hash)
