@@ -9,13 +9,14 @@ Exit 0 is ok. Exit 1 is a refusal. Exit 2 is unreadable input (`bad-payload`, `u
 
 | Verb | Payload | Answer | Kind |
 |------|---------|--------|------|
-| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block`, and `block_problem` when the block is broken. GitHub: `key` (the bare number, also for `owner/name#7`), the `gh` fields, `description_hash` (of the body), `block`, `length_without_block`, and `block_problem` when the block is broken | both |
+| `issue-get` | `key` (Jira: the key; GitHub: `7`, `#7` or `owner/name#7`); optional `fields` (comma string or list), `tracker`, `repo` | Jira: `key, id, fields, description, description_hash, block, site, whole`, `block_range` (`[begin index, end index]` of the block lines) when there is a block, and `block_problem` when the block is broken. `site` is the base URL of the Jira site; `whole` is the `block` summary of the whole description. GitHub: `key` (the bare number, also for `owner/name#7`), the `gh` fields, `description_hash` (of the body), `block`, `length_without_block`, and `block_problem` when the block is broken | both |
 | `issue-search` | GitHub: optional `query`, `max_results`, `tracker`, `repo`. Jira: `query` (JQL); optional `fields` (comma string or list), `max_results` (default 1000), `tracker` | GitHub: `issues, count`. Jira: `issues, count, truncated`; the port reads every page up to `max_results`, and `truncated` is true when Jira holds more | both |
 | `md-to-adf` | `markdown`; optional `figures` `{index: [ADF nodes]}` | `content, figure_token, block_text` | Jira |
+| `adf-text` | `adf` (a list of ADF nodes, or a doc) | `block_text` of those nodes | Jira |
 | `attachment-list` | `key` | `attachments, count` | Jira |
 | `attachment-put` | `key, png, receipt, preview` | `key, attachment_id, media_id, filename, width, height` | Jira |
 | `attachment-delete` | `id` | `id, filename, deleted`; when Jira no longer has it, `deleted` is false and `filename` is null | Jira |
-| `description-put` | Jira: `key, adf, expect_hash, receipt, preview`. GitHub: `key, markdown, expect_hash, receipt, preview`; optional `tracker`, `repo` | `key, replaced, block`; `replaced` is `afkv2`, `v1` (Jira only), or null for a first publish | both |
+| `description-put` | Jira: `key, adf, expect_hash, receipt, preview`; optional `whole` (true: `adf` becomes the whole description, with no block lines). GitHub: `key, markdown, expect_hash, receipt, preview`; optional `tracker`, `repo` | `key, replaced, block`; `replaced` is `afkv2`, `v1` (Jira only), or null for a first publish | both |
 | `comment-put` | `key, body, pictures, receipt`; optional `tracker`, `repo` | `comment_id, url, attached, posted`; `posted` is false when a comment with the receipt already exists, and `attached` is then empty | both |
 | `block-text` | `markdown` | `block_text`: the GitHub canonical form | GitHub |
 
@@ -30,7 +31,7 @@ The port has no create or transition verb. `comment-put` is its one comment verb
 - `block_text` is the canonical JSON (sorted keys, no spaces, UTF-8 not escaped) of the block nodes: each node's `type`, `text`, every mark, the `level` and `language` attributes and its children. A link-only edit changes it. Figure nodes (`mediaSingle`, `mediaGroup`, `media`) stay out, because `picture_hashes` covers them, so `md-to-adf` without `figures` gives the same `block_text` as the later call with `figures`. Other attributes stay out, because Jira can add its own on read. The `text` of a `block` summary is the same form.
 - `expect_hash` is the `description_hash` that `issue-get` answered when the preview was built. It must equal the preview's `description_hash`.
 - The `png` file name is `afkv2-fig-<receipt 8 chars>-<n>.png`, and the hash of the file must be in `picture_hashes`.
-- `adf` is a list of ADF nodes or a doc. It holds only the text between the block lines; the port writes the lines.
+- `adf` is a list of ADF nodes or a doc. It holds only the text between the block lines; the port writes the lines. With `whole` true it is the whole new description: the port writes no block lines, `block` of the answer has the family `whole`, and the read-back compares it with `whole` of the next `issue-get`. A node of `adf` that holds a block line refuses `bad-block` in both modes.
 - `figure_token` holds `{}` for the figure index. A paragraph that holds only the token becomes the nodes of `figures[index]`. With `figures`, a token that has no entry refuses `bad-payload`. Without `figures`, the paragraph is left out: use this for the text of the preview.
 - `attachment-delete` checks only the file name: it refuses all but an afkv2 or a v1 picture name. It takes no ticket: the caller takes `id` from `attachment-list` of the ticket or from the `attachment-put` answer.
 

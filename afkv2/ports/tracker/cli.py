@@ -49,6 +49,7 @@ VERBS = {
     "issue-get": _issue_get,
     "issue-search": _issue_search,
     "md-to-adf": jira.md_to_adf,
+    "adf-text": jira.adf_text,
     "attachment-list": jira.attachment_list,
     "attachment-put": jira.attachment_put,
     "attachment-delete": jira.attachment_delete,

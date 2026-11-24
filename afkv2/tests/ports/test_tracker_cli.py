@@ -40,7 +40,7 @@ def reader(tmp_path, monkeypatch):
 
 
 def test_the_verb_set_is_exactly_the_contract():
-    assert set(cli.VERBS) == {"issue-get", "issue-search", "md-to-adf", "attachment-list",
+    assert set(cli.VERBS) == {"issue-get", "issue-search", "md-to-adf", "adf-text", "attachment-list",
                               "attachment-put", "attachment-delete", "description-put", "block-text", "comment-put"}
 
 

@@ -26,6 +26,7 @@ BEGINS = {BEGIN_LINE: "afkv2", fake_v1_facts.BEGIN_LINE: "v1", fake_v1_facts.BEG
 ENDS = {END_LINE: "afkv2", fake_v1_facts.END_LINE: "v1"}
 FIGURE_NODES = {"mediaSingle", "mediaGroup", "media"}
 READ_ATTRS = {"level", "language"}
+SITE = "https://jira.example"
 LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 
 
@@ -164,7 +165,8 @@ class Port:
         description = issue.get("description")
         content = (description or {}).get("content") or []
         answer = {"key": payload["key"], "description": description, "description_hash": description_hash(description),
-                  "block": None, "fields": {}}
+                  "block": None, "fields": {}, "site": SITE,
+                  "whole": {"family": "whole", "text": block_text(content), "media_ids": media_ids(content)}}
         try:
             block = find_block(content)
         except Refused as refused:
@@ -173,12 +175,16 @@ class Port:
             if block:
                 inner = content[block[0] + 1:block[1]]
                 answer["block"] = {"family": block[2], "text": block_text(inner), "media_ids": media_ids(inner)}
+                answer["block_range"] = [block[0], block[1]]
         return answer
 
     def md_to_adf(self, payload):
         figures = payload.get("figures")
         content = to_adf(payload["markdown"], figures)
         return {"content": content, "figure_token": FIG_TOKEN, "block_text": block_text(content)}
+
+    def adf_text(self, payload):
+        return {"block_text": block_text(payload["adf"])}
 
     def attachment_list(self, payload):
         items = self.issue(payload["key"])["attachments"]
@@ -229,6 +235,13 @@ class Port:
         description = issue.get("description") or {"type": "doc", "version": 1, "content": []}
         content = description["content"]
         block = find_block(content)
+        if payload.get("whole") is True:
+            if any(text_of(node) in BEGINS or text_of(node) in ENDS for node in nodes):
+                raise Refused("bad-block", "the new text holds a block line")
+            issue["description"] = {**description, "content": nodes}
+            self.save()
+            return {"key": key, "replaced": block[2] if block else None,
+                    "block": {"family": "whole", "text": block_text(nodes), "media_ids": media_ids(nodes)}}
         framed = [paragraph(BEGIN_LINE), *nodes, paragraph(END_LINE)]
         content = [*content[:block[0]], *framed, *content[block[1] + 1:]] if block else [*content, *framed]
         issue["description"] = {**description, "content": content}

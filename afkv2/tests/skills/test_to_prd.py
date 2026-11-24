@@ -1309,3 +1309,277 @@ def test_crlf_in_the_index_format_file_changes_nothing(tmp_path, monkeypatch):
     copy.write_bytes(prd_files.FORMAT_FILE.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     monkeypatch.setattr(prd_files, "FORMAT_FILE", copy)
     assert prd_files._template("PROJ-1") == template
+
+
+# --- the ticket description standard: the whole description, live nodes kept ---
+
+SITE = "https://jira.example"
+
+
+def _media_single(media):
+    return {"type": "mediaSingle", "attrs": {"layout": "center"},
+            "content": [{"type": "media", "attrs": {"type": "file", "id": media, "collection": "c"}}]}
+
+
+def _owner_description():
+    """A groomed description: owner text, a screenshot, a table, a card link, a picture group, an old v1 block."""
+    return {"type": "doc", "version": 1, "content": [
+        paragraph("At a glance: the basket shows the total."),
+        {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "1. Business case"}]},
+        paragraph("Buyers leave when they cannot see the total."),
+        _media_single("owner-media-1"),
+        {"type": "table", "attrs": {"layout": "default"}, "content": [{"type": "tableRow", "content": [
+            {"type": "tableCell", "attrs": {"colwidth": [120]}, "content": [paragraph("Item")]}]}]},
+        {"type": "paragraph", "content": [{"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}]},
+        {"type": "mediaGroup", "content": [{"type": "media", "attrs": {"type": "file", "id": "owner-media-2",
+                                                                       "collection": "c"}}]},
+        paragraph(V1.BEGIN_LINE), paragraph("old PRD"), paragraph(V1.END_LINE)]}
+
+
+TICKET = f"""{{{{keep 0-6}}}}
+
+## 4. Acceptance criteria
+
+The basket shows 5 for 1 item of 5. See PROJ-12 for the price list.
+
+## 5. Worked examples
+
+```mermaid
+{DIAGRAM}
+```
+
+## 9. Meetings
+
+Each meeting is a comment (Meeting A, 2026-11-16).
+"""
+
+
+def _ticket_world(world, text=TICKET):
+    world.set_ticket(_owner_description(), [{"id": "1", "filename": V1.PICTURE}, {"id": "2", "filename": "screen.png"}])
+    world.ticket_file = world.spec / "TICKET.md"
+    world.ticket_file.write_text(text, "utf-8")
+    return world
+
+
+def _outline(world, expect=0):
+    return world.run("outline", expect=expect, ticket_key=KEY, run_dir=world.run_dir)
+
+
+def _ticket_preview(world, expect=0):
+    return world.run("preview-ticket", expect=expect, ticket_key=KEY, prd=world.prd, ticket_file=world.ticket_file,
+                     run_dir=world.run_dir)
+
+
+def _linked(nodes):
+    found = []
+    for node in nodes:
+        for mark in node.get("marks") or []:
+            if mark.get("type") == "link":
+                found.append((node.get("text"), mark["attrs"]["href"]))
+        found.extend(_linked(node.get("content") or []))
+    return found
+
+
+def expect(actual, expected, about):
+    """One assertion whose failure names the input, the expected value and the actual value."""
+    assert actual == expected, f"{about}: expected {expected!r}, got {actual!r}"
+
+
+KEPT_TYPES = ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"]
+CARD = {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}
+
+
+def test_whole_publish_keeps_owner_nodes_exact_and_drops_the_old_block(world):
+    """The high-level proof: outline, preview, publish, read back, through the skill's own commands."""
+    _ticket_world(world)
+    outline = json.loads(Path(_outline(world)["outline"]).read_text("utf-8"))
+    expect([node["in_block"] for node in outline["nodes"]], [False] * 7 + [True] * 3, "outline in_block per node")
+    answer = _ticket_preview(world)
+    expect(world.writes(), [], "ticket writes of the preview")
+    expect(answer["action"], "replaces the whole description", "preview action")
+    expect(answer["dropped"], [], "preview dropped nodes for {{keep 0-6}}")
+    expect(answer["over_jira_limit"], False, f"over_jira_limit at {answer['text_length']} characters")
+
+    done = world.publish(answer)
+    expect((done["published"], done["replaced"]), (True, "v1"), "publish answer (published, replaced)")
+    content = world.ticket()["description"]["content"]
+    expect([node["type"] for node in content[:7]], KEPT_TYPES, "types of the 7 kept owner nodes")
+    expect(content[3]["content"][0]["attrs"]["id"], "owner-media-1", "media id of the kept screenshot")
+    expect(content[4]["content"][0]["content"][0]["attrs"], {"colwidth": [120]}, "attrs of the kept table cell")
+    expect(content[5]["content"][0], CARD, "the kept card link")
+    expect(content[6]["content"][0]["attrs"]["id"], "owner-media-2", "media id of the kept picture group")
+    lines = [publish_text(node) for node in content]
+    for gone in ("old PRD", V1.BEGIN_LINE_NOTE, V1.BEGIN_LINE, V1.END_LINE, BEGIN, END):
+        expect(gone in lines, False, f"line {gone!r} in the published description")
+    expect(("PROJ-12", "https://jira.example/browse/PROJ-12") in _linked(content), True,
+           f"PROJ-12 link mark among {_linked(content)}")
+    names = sorted(world.names())
+    expect(names[1], "screen.png", "the owner's attachment")
+    expect(bool(re.fullmatch(r"afkv2-fig-[0-9a-f]{8}-1\.png", names[0])), True, f"new picture name {names[0]!r}")
+    expect(done["deleted"], [V1.PICTURE], "pictures deleted after the read-back")
+
+    world.clear_calls()
+    again = world.publish(answer)
+    expect((again["already_published"], world.writes()), (True, []), "a second publish of the same preview")
+
+
+def test_a_bare_ticket_key_becomes_a_link_mark_and_other_text_stays():
+    nodes = [paragraph("Waits for PROJ-12 and AC-001."), {"type": "codeBlock", "content": [
+        {"type": "text", "text": "PROJ-13"}]}]
+    linked = publish.link_ticket_keys(nodes, ["PROJ"], SITE)
+    assert [child.get("text") for child in linked[0]["content"]] == ["Waits for ", "PROJ-12", " and AC-001."]
+    assert _linked(linked) == [("PROJ-12", f"{SITE}/browse/PROJ-12")]
+    assert linked[1] == nodes[1]
+
+
+def test_a_key_already_in_a_link_keeps_its_link():
+    nodes = [{"type": "paragraph", "content": [{"type": "text", "text": "PROJ-12", "marks": [
+        {"type": "link", "attrs": {"href": "https://other.example"}}]}]}]
+    assert publish.link_ticket_keys(nodes, ["PROJ"], SITE) == nodes
+
+
+def test_wiki_link_text_is_refused(world):
+    _ticket_world(world, TICKET.replace("See PROJ-12", f"See [PROJ-12|{SITE}/browse/PROJ-12]"))
+    _outline(world)
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "wiki-link"
+
+
+@pytest.mark.parametrize("heading", ["Update 2026-11-24", "Scope update", "Meeting summary", "3. Update",
+                                     "Notes of 2026-11-17", "History", "Changelog"])
+def test_a_dated_or_ledger_section_is_refused(world, heading):
+    _ticket_world(world, TICKET + f"\n## {heading}\n\nWe moved the date.\n")
+    _outline(world)
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "dated-section"
+
+
+def test_meetings_pointer_and_an_inline_source_pass():
+    nodes = [{"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "9. Meetings"}]},
+             paragraph("Match and post are the minimum (Meeting A, 2026-11-16)."),
+             {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "3.6 Results log"}]}]
+    publish.check_no_dated_sections(nodes)
+
+
+def test_the_size_limit_counts_visible_text_of_the_whole_description():
+    assert publish.over_jira_limit([paragraph("a" * publish.JIRA_TEXT_LIMIT)]) is False
+    assert publish.over_jira_limit([paragraph("a" * (publish.JIRA_TEXT_LIMIT + 1))]) is True
+    marked = {"type": "text", "text": "word ", "marks": [{"type": "strong"}, {"type": "link", "attrs": {
+        "href": "https://a.example/" + "x" * 200}}]}
+    heavy = [{"type": "paragraph", "content": [marked] * 40}] * 50
+    assert len(json.dumps(heavy)) > 3 * publish.JIRA_TEXT_LIMIT
+    assert publish.over_jira_limit(heavy) is False
+
+
+def test_the_preview_warns_when_the_whole_description_is_too_long(world):
+    _ticket_world(world, TICKET + "\n" + "A long paragraph of plain words.\n\n" * 1000)
+    _outline(world)
+    assert _ticket_preview(world)["over_jira_limit"] is True
+
+
+def test_a_dropped_media_node_is_refused(world):
+    _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 0-2}}\n\n{{keep 4-5}}"))
+    _outline(world)
+    refused = _ticket_preview(world, expect=1)["error"]
+    assert refused["code"] == "drops-media" and refused["nodes"] == [3, 6]
+
+
+def test_dropped_text_is_named_in_the_preview(world):
+    _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 1-6}}"))
+    _outline(world)
+    dropped = _ticket_preview(world)["dropped"]
+    assert [(item["index"], item["text"]) for item in dropped] == [(0, "At a glance: the basket shows the total.")]
+
+
+def test_a_node_of_the_old_block_cannot_be_kept(world):
+    _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 0-8}}"))
+    _outline(world)
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "keeps-block"
+
+
+def test_a_description_changed_after_the_outline_is_stale(world):
+    _ticket_world(world)
+    _outline(world)
+    world.edit_ticket("an owner edit")
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "stale"
+
+
+def test_a_preview_without_an_outline_is_refused(world):
+    _ticket_world(world)
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "no-outline"
+
+
+def test_a_keep_line_past_the_last_node_is_refused(world):
+    _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 0-6}}\n\n{{keep 40}}"))
+    _outline(world)
+    assert _ticket_preview(world, expect=1)["error"]["code"] == "bad-ticket"
+
+
+def test_real_port_whole_publish_keeps_owner_nodes(real_port_world):
+    world = _ticket_world(real_port_world)
+    _LocalJira.issue = {"description": _owner_description()}
+    _LocalJira.attachments = {"900": V1.PICTURE, "901": "screen.png"}
+    _LocalJira.counter[0] = 901
+    _outline(world)
+    answer = _ticket_preview(world)
+    done = world.publish(answer)
+    expect((done["published"], done["replaced"], done["deleted"]), (True, "v1", [V1.PICTURE]),
+           "real port publish (published, replaced, deleted)")
+    content = _LocalJira.issue["description"]["content"]
+    expect([node["type"] for node in content[:7]], KEPT_TYPES, "types of the 7 kept owner nodes")
+    expect(content[3]["content"][0]["attrs"]["id"], "owner-media-1", "media id of the kept screenshot")
+    expect(content[6]["content"][0]["attrs"]["id"], "owner-media-2", "media id of the kept picture group")
+    expect(content[5]["content"][0], CARD, "the kept card link")
+    lines = [publish_text(node) for node in content]
+    expect(("old PRD" in lines, V1.END_LINE in lines), (False, False), "old block lines in the description")
+    links = [href for text, href in _linked(content) if text == "PROJ-12"]
+    expect([bool(re.fullmatch(r"http://127\.0\.0\.1:\d+/browse/PROJ-12", href)) for href in links], [True],
+           f"PROJ-12 link targets {links}")
+    expect(world.publish(answer)["already_published"], True, "a second publish of the same preview")
+
+
+# --- the preview on a page: 1 card with the exact text, 1 sign-off card for the yes ---
+
+
+def _built_round(world, answer):
+    """Build the preview's round input into a page document with the page writer, as the skill's step 8 does."""
+    doc = world.root / "pages" / "use-lavish-s-20260101-000000.json"
+    doc.parent.mkdir()
+    run = subprocess.run([sys.executable, str(SKILLS / "use-lavish" / "scripts" / "round_document.py"), "build",
+                          "--doc", str(doc), "--session", "s-20260101-000000", "--ticket", KEY,
+                          "--round-input", answer["round_input"], "--private"],
+                         cwd=world.repo, capture_output=True, text=True, encoding="utf-8", timeout=120,
+                         env={**os.environ, **world.env})
+    assert run.returncode == 0, f"build: exit {run.returncode}\n{run.stdout}\n{run.stderr}"
+    return json.loads(doc.read_text("utf-8"))
+
+
+def _items(page):
+    return {item["id"]: item for rnd in page["rounds"] for item in rnd["items"]}
+
+
+def test_the_jira_preview_round_shows_the_exact_text_and_asks_for_a_sign(world):
+    _ticket_world(world)
+    _outline(world)
+    answer = _ticket_preview(world)
+    items = _items(_built_round(world, answer))
+    expect(sorted(items), ["i-preview", "i-publish"], "cards of the preview round")
+    expect(items["i-publish"]["kind"], "signoff", "kind of the publish card")
+    shown = items["i-preview"]["body"]["html"]
+    for words in ("The basket shows 5 for 1 item of 5.", "Buyers leave when they cannot see the total.",
+                  "replaces the whole description", answer["receipt"][:8], "data:image/png;base64,"):
+        expect(words in shown, True, f"{words!r} in the preview card")
+    page = Path(answer["page"]).read_text("utf-8")
+    expect(shown.split('<div class="ticket-preview">', 1)[1].removesuffix("</div>") in page, True,
+           "the card holds the same text as the preview file")
+
+
+def test_the_github_preview_round_shows_the_markdown(world, github):
+    answer = gh_preview(world, github)
+    items = _items(_built_round(world, answer))
+    expect("AC-001 The basket shows the total." in items["i-preview"]["body"]["html"], True, "the PRD text in the card")
+    expect(items["i-publish"]["kind"], "signoff", "kind of the publish card")
+
+
+def test_the_skill_takes_the_sign_on_the_publish_card_as_the_yes():
+    text = SKILL_MD.read_text("utf-8")
+    for words in ("round_input", "`i-publish`", "page_url"):
+        expect(words in text, True, f"{words!r} in SKILL.md")
