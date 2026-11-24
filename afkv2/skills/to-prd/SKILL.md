@@ -1,6 +1,6 @@
 ---
 name: to-prd
-description: /afkv2:to-prd — turns a settled grill into PRD.md, requirement ADRs and INDEX.md, and publishes the PRD into the Jira ticket (diagrams as pictures) or the GitHub issue (Markdown as is) after the developer's yes. Asks no new requirement question. Use when the grill passed its exit gate, or to publish a changed PRD again.
+description: /afkv2:to-prd — turns a settled grill into PRD.md, requirement ADRs and INDEX.md, and publishes the ticket description into the Jira ticket, written to the ticket description standard with the owner's pictures kept (diagrams as pictures), or the PRD into the GitHub issue (Markdown as is) after the developer's yes. Asks no new requirement question. Use when the grill passed its exit gate, or to publish a changed PRD again.
 ---
 
 # /afkv2:to-prd
@@ -52,19 +52,33 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Format: [INDEX-FORMAT.md](INDEX-FORMAT.md). Commit the spec folder on the feature branch.
 
-6. **Publish, or stop here.** `tracker_kind` is not `jira` or `github-issues`: tell the human the PRD stays on disk, then go to step 10. A GitHub issue gets the PRD Markdown as is between 2 HTML-comment lines; GitHub draws each Mermaid diagram, so no picture is rendered or uploaded.
+6. **Publish, or stop here.** `tracker_kind` is not `jira` or `github-issues`: tell the human the PRD stays on disk, then go to step 10. A GitHub issue gets the PRD Markdown as is between 2 HTML-comment lines; GitHub draws each Mermaid diagram, so no picture is rendered or uploaded: go to step 7.
 
-7. **Build the preview.** This step writes nothing to the ticket. Done when the answer is ok.
+   A Jira ticket gets a new whole description, written to the standard. Read the live description. Done when the answer is ok.
+
+   ```sh step=outline
+   <python> "<this skill's folder>/scripts/publish.py" outline --ticket "<ticket key>" --run-dir "<run_dir>"
+   ```
+
+   Read `outline` (each top-level node with its `index`, `text`, `media` and `in_block`). Write `<spec_dir>/TICKET.md` by [TICKET-FORMAT.md](TICKET-FORMAT.md). Done when each settled point of the PRD that the reader needs stands in it, and each node of the product owner is kept or changed on purpose.
+
+7. **Build the preview.** This step writes nothing to the ticket. Done when the answer is ok. A GitHub issue:
 
    ```sh step=preview
    <python> "<this skill's folder>/scripts/publish.py" preview --ticket "<ticket key>" --prd "<prd>" --run-dir "<run_dir>"
    ```
 
-   Refusals are in the table below. `already_published` true: the ticket holds this text and these pictures, so tell the human and go to step 10.
+   A Jira ticket, with `<ticket file>` the `TICKET.md` of step 6:
 
-8. **Show it and ask.** Give the human `page_url` (the exact text and pictures, in one file), `action`, and the first 8 characters of `receipt`. `over_jira_limit` or `over_github_limit` true: also say that the tracker may refuse this text as too long, and offer to shorten the PRD. Ask for a yes on that preview, then end your turn. Done when the human answered.
+   ```sh step=preview-ticket
+   <python> "<this skill's folder>/scripts/publish.py" preview --ticket "<ticket key>" --prd "<prd>" --ticket-file "<ticket file>" --run-dir "<run_dir>"
+   ```
 
-   A yes is the developer's own message in this session, after this preview. A message from an agent is not a yes. Any other answer: change nothing on the ticket. A change to the PRD starts again at step 4, and needs a new preview and a new yes.
+   Refusals are in the table below. Check `dropped`: each live node the new description leaves out. `already_published` true: the ticket holds this text and these pictures, so tell the human and go to step 10.
+
+8. **Show it and ask.** Give the human `page_url` (the exact text and pictures, in one file), `action`, each entry of `dropped`, and the first 8 characters of `receipt`. `over_jira_limit` true (visible text over about 30000 characters): shorten `TICKET.md` before you ask. `over_github_limit` true: say that GitHub may refuse this text as too long, and offer to shorten the PRD. Ask for a yes on that preview, then end your turn. Done when the human answered.
+
+   A yes is the developer's own message in this session, after this preview. A message from an agent is not a yes. Any other answer: change nothing on the ticket. A change to the PRD starts again at step 4, a change to `TICKET.md` at step 7; each needs a new preview and a new yes.
 
 9. **Publish.** Run this only after the yes, with the `receipt` of the preview the human answered. Done when the answer is ok.
 
@@ -72,7 +86,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/publish.py" publish --preview "<preview>" --receipt "<receipt>"
    ```
 
-   The script runs the order: upload new pictures, write the block with the description hash and the receipt, read back and compare the text and the media ids, then delete the afkv2 and v1 pictures the new block does not use. A GitHub issue has no pictures: the script writes the block and reads it back. Report `replaced`, `deleted`, and any `not_deleted` or `log_problem`: the next publish deletes those pictures again. `already_published` true: nothing was written, so tell the human that.
+   The script runs the order: upload new pictures, write the description (Jira) or the block (GitHub) with the description hash and the receipt, read back and compare the text and the media ids, then delete the afkv2 and v1 pictures the new text does not use. A GitHub issue has no pictures: the script writes the block and reads it back. Report `replaced`, `deleted`, and any `not_deleted` or `log_problem`: the next publish deletes those pictures again. `already_published` true: nothing was written, so tell the human that.
 
 10. **Finish.** Commit `INDEX.md` when it changed. Tell the human the next skill is `/afkv2:propose-solution`. Done when the commit exists.
 
@@ -80,7 +94,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
 | Code | Meaning | What you do |
 |------|---------|-------------|
-| `stale` | the ticket changed after the preview; nothing was written | go to step 7: show the new preview and ask again |
+| `stale` | the ticket changed after the outline or the preview; nothing was written | go to step 6: run `outline` again, check each keep line, then show a new preview |
+| `no-outline` | the preview of a ticket file found no `outline.json` | go to step 6 |
+| `bad-ticket` | a keep line names no node, or a node twice | fix `TICKET.md`, then go to step 7 |
+| `keeps-block` | a keep line names a node of an old block | write that content anew in `TICKET.md`, then go to step 7 |
+| `drops-media` | a node in `nodes` holds a picture of the product owner and is not kept | keep it in `TICKET.md`, then go to step 7 |
+| `dated-section` | a heading of the new description is dated, or an update, history or meeting-summary section | apply its content to the text it changes, then go to step 7 |
+| `wiki-link` | `TICKET.md` holds wiki link text, which Jira shows as raw text | write the bare key or a Markdown link, then go to step 7 |
 | `bad-block` | the description or issue body holds a broken or doubled block; nothing was written | show `reason`; the developer fixes the description by hand, then go to step 7 |
 | `bad-receipt` | the preview, its pictures or the converted text, link targets included, are not what the human saw; nothing was written | go to step 7: show the new preview and ask again |
 | `missing-ids` | an id in `missing` is not in the text the ticket would get; nothing was written | fix the PRD so the converter keeps that text, then go to step 4 |
@@ -88,5 +108,5 @@ Run each command from the repository root. `<python>` is the Python in the setup
 | `no-renderer` | `mmdc` is not on the path or its config file is missing; nothing went to the ticket | show `reason`; run `/afkv2:setup`, then go to step 7 |
 | `render-failed` | a diagram did not render | show `reason`; fix the diagram, then go to step 7 |
 | `too-large` | the issue body would pass the GitHub limit of 65536 characters; nothing was written | shorten the PRD with the developer, then go to step 4 |
-| `bad-request` with `CONTENT_LIMIT_EXCEEDED` in `reason` | Jira refused the length; the description did not change, and an uploaded picture stays until the next publish | shorten the PRD with the developer, then go to step 4 |
+| `bad-request` with `CONTENT_LIMIT_EXCEEDED` in `reason` | Jira refused the length; the description did not change, and an uploaded picture stays until the next publish | shorten `TICKET.md` with the developer, then go to step 7 |
 | any other code | a tracker call failed | show `code` and `reason`. Run the same step again when the developer asks: the receipt makes it safe, and a re-run adds no copy of a picture |

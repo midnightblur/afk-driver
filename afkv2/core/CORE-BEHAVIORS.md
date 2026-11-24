@@ -71,6 +71,7 @@
 - A description is a statement of the current scope, not a ledger. Put dated updates and meeting summaries in comments. Apply their conclusions to the description, with a short source reference only when the reader needs it.
 - When a product owner wrote the description, keep the changes minimal and exact. Keep their screenshots, charts and tables.
 - Restate a fact only when the reader needs it at that place.
+- Write each ticket key as a link mark to `<site>/browse/KEY`, never as wiki text `[KEY|url]`.
 
 ## Environment
 - Delegate bulk exploration to a subagent, and take back a cited digest.

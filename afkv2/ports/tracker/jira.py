@@ -25,6 +25,7 @@ CRED_KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
 CREDENTIAL_SERVER = "tracker"
 BEGIN_LINE = "afkv2:prd:start"
 END_LINE = "afkv2:prd:end"
+WHOLE = "whole"
 PICTURE_NAME = re.compile(r"afkv2-fig-[0-9a-f]{8}-\d+\.png")
 DEFAULT_FIELDS = ("summary,status,issuetype,assignee,reporter,priority,created,updated,labels,components,"
                   "description,comment,issuelinks")
@@ -375,12 +376,14 @@ def issue_get(payload):
     names = [name.strip() for name in asked.split(",")] if isinstance(asked, str) else list(asked)
     if "description" not in names:
         names.append("description")
-    data = client().get_issue(key, ",".join(names))
+    jira = client()
+    data = jira.get_issue(key, ",".join(names))
     fields = dict(data.get("fields") or {})
     description = fields.pop("description", None)
-    answer = ok(key=data.get("key") or key, id=data.get("id"), fields=fields, description=description,
-                description_hash=description_hash(description), block=None)
     content = _content_of(description)
+    answer = ok(key=data.get("key") or key, id=data.get("id"), fields=fields, description=description,
+                description_hash=description_hash(description), block=None, site=jira.base,
+                whole=_summary(WHOLE, content))
     try:
         block = find_managed_block(content)
     except Refusal as refusal:
@@ -388,6 +391,7 @@ def issue_get(payload):
     else:
         if block:
             answer["block"] = _summary(block.family, content[block.start + 1:block.end])
+            answer["block_range"] = [block.start, block.end]
     return answer
 
 
@@ -417,6 +421,11 @@ def issue_search(payload):
         if not more or not page.get("issues"):
             break
     return ok(issues=issues[:limit], count=len(issues[:limit]), truncated=more or len(issues) > limit)
+
+
+def adf_text(payload):
+    """The canonical text of any ADF node list, as the receipt of a whole description covers it."""
+    return ok(block_text=block_text(_new_nodes(need(payload, "adf"))))
 
 
 def md_to_adf(payload):
@@ -498,6 +507,10 @@ def description_put(payload):
     block = find_managed_block(content)
     if any(_holds_marker(node) for node in nodes):
         raise Refusal("bad-block", "the new text holds a block line: it would break the next publish")
+    if payload.get("whole") is True:
+        new_content = nodes
+        jira.update_description(key, {**(description or {"type": "doc", "version": 1}), "content": new_content})
+        return ok(key=key, replaced=block.family if block else None, block=_summary(WHOLE, nodes))
     framed = [_line_node(BEGIN_LINE), *nodes, _line_node(END_LINE)]
     if block:
         new_content = [*content[:block.start], *framed, *content[block.end + 1:]]
