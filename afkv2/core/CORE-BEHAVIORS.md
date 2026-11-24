@@ -64,6 +64,14 @@
 - Write agent documents for their reader. Keep only the facts that change the action or decision of the reader.
 - Use an instruction for a judgment-based quality bar. Use a gate for a deterministic contract.
 
+## Ticket descriptions
+- Write for a first-time reader who is not a developer: a product owner, sales, a consultant, a director. Put the high level first, then the detail.
+- Suggested sections: Overview (the why, the business case, the pain points), Requirements (what users get, in business terms), Acceptance Criteria, Worked Examples, Work breakdown (Part A, B, C), Dependencies. Add, drop or merge sections when that helps the reader.
+- An Enhancement is one whole feature, never split. Each part of its work is a SubTask whose title starts with `Part A: `, `Part B: ` and so on. The Enhancement holds the full scope and the acceptance criteria. A SubTask holds only its own scope.
+- A description is a statement of the current scope, not a ledger. Put dated updates and meeting summaries in comments. Apply their conclusions to the description, with a short source reference only when the reader needs it.
+- When a product owner wrote the description, keep the changes minimal and exact. Keep their screenshots, charts and tables.
+- Restate a fact only when the reader needs it at that place.
+
 ## Environment
 - Delegate bulk exploration to a subagent, and take back a cited digest.
 - Read each hook failure. Fix its cause, or report it when the cause is outside your work.
