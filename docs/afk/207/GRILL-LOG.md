@@ -67,3 +67,4 @@
 ## Verification plan
 
 - Settled: verification written 2026-11-24 · session s-20261124-214245
+- Settled: verification written 2026-11-24 · session s-20261124-220255

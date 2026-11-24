@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "count": 2,
+  "tools": [
+    "claude",
+    "codex"
+  ],
+  "reason": null,
+  "stage": "failed",
+  "proposers": [
+    {
+      "tool": "claude",
+      "agent": "verifier-b58b8490-claude",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    },
+    {
+      "tool": "codex",
+      "agent": "verifier-b58b8490-codex",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    }
+  ],
+  "cleaned": true,
+  "brief": "558b957b06937cde638363aa6be651f121f5555c060ef89470608318ae5cbe43",
+  "failed": {
+    "stage": "drafting",
+    "code": "herdr-failed"
+  }
+}
