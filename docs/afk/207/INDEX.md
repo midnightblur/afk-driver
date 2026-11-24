@@ -12,7 +12,7 @@ afkv2 has no step that settles a new or changed screen before the design, and no
 | SDD | SDD.md | draft |
 | Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
-| Verification plan | VERIFICATION.md | — |
+| Verification plan | VERIFICATION.md | draft |
 | Plan | plan/PLAN.md | — |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |

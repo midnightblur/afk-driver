@@ -63,3 +63,7 @@
 - Premise: No afkv2 skill or script calls the chrome-devtools MCP tools by name; setup installs chrome-devtools-mcp 1.10.1 → verified (afkv2/skills/setup/scripts/tools.py:41-47; rg mcp__chrome-devtools afkv2/skills: none)
 - Settled: design gate passed 2026-11-24 · session s-20261124-211045
 - Last pass: R2 · session s-20261124-211045
+
+## Verification plan
+
+- Settled: verification written 2026-11-24 · session s-20261124-214245
