@@ -176,7 +176,9 @@ def _walk(nodes):
 
 
 def _text(nodes):
-    return publish._visible_text(nodes)
+    """The words of the nodes, 1 text node per line."""
+    return "
+".join(node["text"] for node in _walk(nodes) if node.get("type") == "text")
 
 
 def test_one_meeting_reaches_each_ticket_once_and_a_rerun_edits_in_place(jira):
