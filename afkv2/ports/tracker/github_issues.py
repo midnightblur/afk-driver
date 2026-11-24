@@ -273,21 +273,23 @@ def _meeting_parts(body):
 
 
 def _meeting_list(repo, number):
+    """Every comment of the issue, page by page through the REST list, so that no duplicate stays unseen."""
     me = (shell.json_answer("gh", ["api", "user"]) or {}).get("login")
-    data = shell.json_answer("gh", ["issue", "view", number, *_repo_args(repo), "--json", "comments"])
-    comments = data.get("comments") if isinstance(data, dict) else None
-    if not isinstance(comments, list):
-        raise Refusal("bad-answer", "gh issue view answered no comment list")
+    owner = str(repo) if repo else "{owner}/{repo}"
+    pages = shell.json_answer("gh", ["api", "--paginate", "--slurp",
+                                     f"repos/{owner}/issues/{number}/comments?per_page=100"])
+    if not (isinstance(pages, list) and all(isinstance(page, list) for page in pages)):
+        raise Refusal("bad-answer", "gh api answered no list of comment pages")
     listed = []
-    for item in comments:
+    for item in (item for page in pages for item in page):
         parts = _meeting_parts(item.get("body")) if isinstance(item, dict) else None
         if parts is None:
             continue
-        author = (item.get("author") or {}).get("login")
-        listed.append({"title": parts[0], "comment_id": _comment_id(item.get("url"), item.get("id")),
+        author = (item.get("user") or {}).get("login")
+        listed.append({"title": parts[0], "comment_id": str(item.get("id")),
                        "comment_hash": meeting.sha256(block_text(parts[1])), "own": bool(me) and author == me,
-                       "url": item.get("url"), "text": parts[1]})
-    return listed
+                       "url": item.get("html_url"), "created": item.get("created_at"), "text": parts[1]})
+    return meeting.oldest_first(listed)
 
 
 def meeting_comments(payload):

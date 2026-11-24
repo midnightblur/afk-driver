@@ -31,7 +31,13 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Keep `title` (the title of each comment) and `run_dir` (a private folder outside the repository: the meeting is customer content).
 
-2. **Read.** Read the transcript. Give a transcript of more than about 2000 lines to 1 subagent, and take back a digest that cites transcript line numbers. Read each named ticket and its linked tickets. Done when you know each topic and the ticket it belongs to.
+2. **Read.** Read the transcript. Give a transcript of more than about 2000 lines to 1 subagent, and take back a digest that cites transcript line numbers. Read each named ticket, then each ticket it links to:
+
+   ```sh step=read
+   <python> "<this skill's folder>/scripts/meetings.py" read --ticket "<ticket key>"
+   ```
+
+   The answer holds `title`, `status`, `text` (the description), `links` (each linked ticket with `key`, `link`, `title` and `status`; a GitHub issue has none) and `meetings` (the titles of its meeting comments). Done when you know each topic and the ticket it belongs to.
 
 3. **Route.** For each ticket, list its topics with their transcript lines. A ticket gets a summary when the meeting decides, confirms or changes something of it, even when the meeting names it only once, and also when the talk on a linked ticket changes its scope. A ticket with no real content gets none. A topic settled under another ticket gets 1 line "See KEY for topic". Done when each topic has its tickets.
 

@@ -100,10 +100,10 @@ def test_jira_meeting_comments_lists_only_meeting_comments_with_own_text_and_has
     ticket([plain, undated, two, mine, theirs])
     answer = jira.meeting_comments({"key": "PROJ-1"})
     expected = [{"title": TITLE, "comment_id": "4", "comment_hash": sha(canonical(NODES)), "own": True,
-                 "url": "https://n.test/browse/PROJ-1?focusedCommentId=4",
+                 "url": "https://n.test/browse/PROJ-1?focusedCommentId=4", "created": None,
                  "text": "We chose the queue.\nOwner: the platform team"},
                 {"title": "2026-11-21 Demo", "comment_id": "5", "comment_hash": sha(canonical(NEW_NODES)), "own": False,
-                 "url": "https://n.test/browse/PROJ-1?focusedCommentId=5", "text": "We chose the stream."}]
+                 "url": "https://n.test/browse/PROJ-1?focusedCommentId=5", "created": None, "text": "We chose the stream."}]
     assert answer["comments"] == expected, f"comments 1-5 (plain, undated, 2 expands, mine, theirs): expected {expected}, got {answer}"
     adf_text = jira.adf_text({"adf": NODES})["block_text"]
     assert answer["comments"][0]["comment_hash"] == sha(adf_text), \
@@ -202,28 +202,32 @@ class GhIssue:
     def __init__(self, tools, comments=(), keep=True):
         self.comments, self.keep, self.next_id = [dict(item) for item in comments], keep, 900
         tools.on("gh", "api", "user", answer={"login": "me"})
-        tools.on("gh", "issue", "view", answer=lambda args, stdin: {"comments": self.comments})
+        tools.on("gh", "api", "--paginate", "--slurp", answer=lambda args, stdin: self._pages())
         tools.on("gh", "issue", "comment", answer=self._post)
         tools.on("gh", "api", "-X", "PATCH", answer=self._patch)
+
+    def _pages(self):
+        """2 comments per page, so that a list of 3 or more spans pages."""
+        return [self.comments[start:start + 2] for start in range(0, len(self.comments), 2)] or [[]]
 
     def _post(self, args, stdin):
         self.next_id += 1
         url = f"https://github.com/o/r/issues/7#issuecomment-{self.next_id}"
         if self.keep:
-            self.comments.append({"id": f"IC_{self.next_id}", "author": {"login": "me"}, "body": stdin, "url": url})
+            self.comments.append({"id": self.next_id, "user": {"login": "me"}, "body": stdin, "html_url": url})
         return url + "\n"
 
     def _patch(self, args, stdin):
         target = args[3].rsplit("/", 1)[1]
         for item in self.comments:
-            if item["url"].endswith(f"-{target}") and self.keep:
+            if str(item["id"]) == target and self.keep:
                 item["body"] = json.loads(stdin)["body"]
         return "{}"
 
 
 def gh_comment(number, title, markdown, login="me", crlf=False):
     body = f"<details><summary>{title}</summary>\n\n{markdown}\n\n</details>\n"
-    return {"id": f"IC_{number}", "author": {"login": login}, "url": f"https://github.com/o/r/issues/7#issuecomment-{number}",
+    return {"id": number, "user": {"login": login}, "html_url": f"https://github.com/o/r/issues/7#issuecomment-{number}",
             "body": body.replace("\n", "\r\n") if crlf else body}
 
 
@@ -234,16 +238,16 @@ def gh_put(markdown=MARKDOWN, title=TITLE, expect_hash=None, **extra):
 
 
 def test_github_meeting_comments_lists_only_meeting_comments_with_own_text_and_hash(tools):
-    plain = {"id": "IC_1", "author": {"login": "me"}, "body": "hello", "url": "https://github.com/o/r/issues/7#issuecomment-1"}
+    plain = {"id": 1, "user": {"login": "me"}, "body": "hello", "html_url": "https://github.com/o/r/issues/7#issuecomment-1"}
     undated = gh_comment(2, "Design review", MARKDOWN)
     trailing = {**gh_comment(3, TITLE, MARKDOWN), "body": gh_comment(3, TITLE, MARKDOWN)["body"] + "after"}
     GhIssue(tools, [plain, undated, trailing, gh_comment(4, TITLE, MARKDOWN, crlf=True),
                     gh_comment(5, "2026-11-21 Demo", NEW_MARKDOWN, login="other")])
     answer = github_issues.meeting_comments({"key": "7", "repo": "o/r"})
     expected = [{"title": TITLE, "comment_id": "4", "comment_hash": sha(MARKDOWN), "own": True,
-                 "url": "https://github.com/o/r/issues/7#issuecomment-4", "text": MARKDOWN},
+                 "url": "https://github.com/o/r/issues/7#issuecomment-4", "created": None, "text": MARKDOWN},
                 {"title": "2026-11-21 Demo", "comment_id": "5", "comment_hash": sha(NEW_MARKDOWN), "own": False,
-                 "url": "https://github.com/o/r/issues/7#issuecomment-5", "text": NEW_MARKDOWN}]
+                 "url": "https://github.com/o/r/issues/7#issuecomment-5", "created": None, "text": NEW_MARKDOWN}]
     assert answer["comments"] == expected, f"comments 1-5 (plain, undated, trailing, mine CRLF, theirs): expected {expected}, got {answer}"
 
 
@@ -422,3 +426,21 @@ def test_github_issue_get_answers_whole(tools):
     answer = github_issues.issue_get({"key": "7", "repo": "o/r"})
     expected = {"family": "whole", "text": "line\nnext", "media_ids": []}
     assert answer["whole"] == expected, f"body 'line  \\r\\nnext\\n\\n': expected whole {expected}, got {answer.get('whole')}"
+
+
+def test_meeting_comments_come_oldest_meeting_first(tools):
+    later = {**gh_comment(10, "2026-11-21 Demo", NEW_MARKDOWN), "created_at": "2026-11-21T10:00:00Z"}
+    earlier = {**gh_comment(11, TITLE, MARKDOWN), "created_at": "2026-11-22T09:00:00Z"}
+    GhIssue(tools, [later, earlier])
+    answer = cli.VERBS["meeting-comments"]({"key": "7", "repo": "o/r"})
+    titles = [item["title"] for item in answer["comments"]]
+    assert titles == [TITLE, "2026-11-21 Demo"], f"titles of 2 meetings posted out of date order: expected the earlier meeting first, got {titles}"
+
+
+def test_github_sees_a_duplicate_on_a_later_page(tools):
+    others = [{"id": number, "user": {"login": "me"}, "body": "hello",
+               "html_url": f"https://github.com/o/r/issues/7#issuecomment-{number}"} for number in range(20, 24)]
+    GhIssue(tools, [gh_comment(1, TITLE, MARKDOWN), *others, gh_comment(2, TITLE, MARKDOWN)])
+    with pytest.raises(envelope.Refusal) as refused:
+        cli.VERBS["meeting-comment-put"](gh_put(NEW_MARKDOWN, expect_hash=sha(MARKDOWN)))
+    assert refused.value.code == "duplicate-meeting", f"a duplicate on page 3 of 3: expected duplicate-meeting, got {refused.value.code}"

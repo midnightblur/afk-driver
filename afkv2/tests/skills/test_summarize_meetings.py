@@ -75,7 +75,8 @@ class LocalJira(BaseHTTPRequestHandler):
             found = issue["comments"]
             return self._send(200, {"startAt": 0, "maxResults": 100, "total": len(found), "comments": found})
         return self._send(200, {"key": key, "id": key.rsplit("-", 1)[1],
-                                "fields": {"summary": key, "description": issue["description"], "attachment": []}})
+                                "fields": {"summary": key, "description": issue["description"], "attachment": [],
+                                           "status": {"name": "Open"}, "issuelinks": issue.get("links") or []}})
 
     def do_POST(self):
         parts, body = self._parts(), self._body()
@@ -288,3 +289,15 @@ def test_the_meeting_key_is_the_date_and_the_title():
     expect(meetings.meeting_key("2026-11-20", "  Basket   review "), KEY_TITLE, "meeting key")
     with pytest.raises(publish.Refusal):
         meetings.meeting_key("20-11-2026", "Basket review")
+
+
+def test_read_names_the_linked_tickets_to_route_the_meeting(jira):
+    tracker, _ = jira
+    LocalJira.issues["PROJ-2"]["links"] = [{"type": {"inward": "is blocked by", "outward": "blocks"},
+                                            "outwardIssue": {"key": "PROJ-4", "fields": {"summary": "Receipt layout",
+                                                                                       "status": {"name": "Open"}}}}]
+    answer = meetings.read("PROJ-2", tracker, CONFIG)
+    expect((answer["title"], answer["status"], answer["text"], answer["meetings"]),
+           ("PROJ-2", "Open", "Text of the owner for PROJ-2.", []), "read of PROJ-2 (title, status, text, meetings)")
+    expect(answer["links"], [{"key": "PROJ-4", "link": "blocks", "title": "Receipt layout", "status": "Open"}],
+           "links of PROJ-2")

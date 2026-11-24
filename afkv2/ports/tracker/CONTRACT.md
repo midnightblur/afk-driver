@@ -19,7 +19,7 @@ Exit 0 is ok. Exit 1 is a refusal. Exit 2 is unreadable input (`bad-payload`, `u
 | `description-put` | Jira: `key, adf, expect_hash, receipt, preview`; optional `whole` (true: `adf` becomes the whole description, with no block lines). GitHub: `key, markdown, expect_hash, receipt, preview`; optional `whole` (true: `markdown` becomes the whole body, with no block lines), `tracker`, `repo` | `key, replaced, block`; `replaced` is `afkv2`, `v1` (Jira only), or null for a first publish or a `whole` write over a body with no block | both |
 | `comment-put` | `key, body, pictures, receipt`; optional `tracker`, `repo` | `comment_id, url, attached, posted`; `posted` is false when a comment with the receipt already exists, and `attached` is then empty | both |
 | `block-text` | `markdown` | `block_text`: the GitHub canonical form | GitHub |
-| `meeting-comments` | `key`; optional `tracker`, `repo` | `comments`: one `{title, comment_id, comment_hash, own, url, text}` per meeting comment, in the tracker's list order (oldest first) | both |
+| `meeting-comments` | `key`; optional `tracker`, `repo` | `comments`: one `{title, comment_id, comment_hash, own, url, created, text}` per meeting comment, oldest meeting first: by the date of the title, then by `created`. GitHub reads every page of the REST comment list | both |
 | `meeting-comment-put` | `key, title, receipt, expect_hash` (may be null) and Jira `adf` (the expand content) or GitHub `markdown`; optional `tracker`, `repo` | `comment_id, url, action, comment_hash`; `action` is `posted`, `edited` or `unchanged` | both |
 
 The port has no create or transition verb. Its comment verbs are `comment-put` (the proof comment) and `meeting-comment-put`.

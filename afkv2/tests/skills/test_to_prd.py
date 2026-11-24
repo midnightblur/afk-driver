@@ -1032,6 +1032,8 @@ class GitHubIssue:
         assert tool == "gh", f"no fake for {tool}"
         if args[:2] == ["issue", "view"]:
             return self.shell.Done(0, json.dumps({"number": 7, "body": self.body, "comments": []}), "")
+        if args[:3] == ["api", "--paginate", "--slurp"]:
+            return self.shell.Done(0, json.dumps([[]]), "")
         if args[:2] == ["api", "user"]:
             return self.shell.Done(0, json.dumps({"login": "me"}), "")
         if args[:2] == ["issue", "edit"]:

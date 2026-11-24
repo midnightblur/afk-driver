@@ -624,14 +624,14 @@ def _meeting_list(jira, key):
         author = (item.get("author") or {}).get("accountId")
         listed.append({"title": expand["attrs"]["title"], "comment_id": str(item.get("id")),
                        "comment_hash": meeting.sha256(block_text(content)), "own": bool(me) and author == me,
-                       "url": _comment_url(jira, key, item.get("id")),
+                       "url": _comment_url(jira, key, item.get("id")), "created": item.get("created"),
                        "text": "\n".join(line for node in content for line in _plain_lines(node))})
-    return listed
+    return meeting.oldest_first(listed)
 
 
 @_rest
 def meeting_comments(payload):
-    """The meeting comments of the work item, in the order Jira lists them."""
+    """The meeting comments of the work item, oldest meeting first."""
     key = need(payload, "key")
     return ok(comments=_meeting_list(client(), key))
 

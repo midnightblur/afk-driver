@@ -2,6 +2,8 @@
 
 `meetings.py start --date YYYY-MM-DD --title TITLE`: makes the private run folder of the meeting and names its key,
 `YYYY-MM-DD — TITLE`, which is the title of each comment.
+`meetings.py read --ticket KEY`: the ticket's title, status, description text, linked tickets and meeting titles,
+to route the meeting. Writes nothing.
 `meetings.py outline --run-dir DIR --ticket KEY`: the to-prd outline of the ticket's live description, and its
 meeting comments in `meetings.md`, in `DIR/<ticket key>/description`.
 `meetings.py preview --run-dir DIR`: for each folder `DIR/<ticket key>/` that holds `summary.md`, builds the comment
@@ -104,6 +106,36 @@ def _existing(ticket, title, tracker):
     if same and not same[0].get("own"):
         raise Refusal("not-own", f"the comment {title!r} on {ticket} has another author: it stays as it is")
     return (same[0].get("comment_hash"), "edits the comment") if same else (None, "posts a new comment")
+
+
+JIRA_FIELDS = "summary,status,description,issuelinks"
+
+
+def _links(fields):
+    """Each linked ticket: its key, how it links, its title and its status."""
+    out = []
+    for link in fields.get("issuelinks") or []:
+        for side, words in (("outwardIssue", "outward"), ("inwardIssue", "inward")):
+            other = link.get(side)
+            if isinstance(other, dict):
+                facts = other.get("fields") or {}
+                out.append({"key": other.get("key"), "link": (link.get("type") or {}).get(words),
+                            "title": facts.get("summary"), "status": (facts.get("status") or {}).get("name")})
+    return out
+
+
+def read(ticket, tracker=publish.call_tracker, config=None):
+    config = config if config is not None else (read_config().get("tracker") or {})
+    titles = [item.get("title") for item in tracker("meeting-comments", {"key": ticket}).get("comments") or []]
+    if config.get("kind") == publish.GITHUB:
+        issue = tracker("issue-get", {"key": ticket})
+        return {"ok": True, "ticket": ticket, "title": issue.get("title"), "status": issue.get("state"),
+                "text": issue.get("body") or "", "links": [], "meetings": titles}
+    issue = tracker("issue-get", {"key": ticket, "fields": JIRA_FIELDS})
+    fields = issue.get("fields") or {}
+    return {"ok": True, "ticket": ticket, "title": fields.get("summary"),
+            "status": (fields.get("status") or {}).get("name"),
+            "text": publish._visible_text(publish._content(issue)), "links": _links(fields), "meetings": titles}
 
 
 def _card(ticket, state, shown, description):
@@ -220,11 +252,11 @@ def post(run_dir, receipt, doc, log_path, tracker=publish.call_tracker, config=N
 
 def main(argv):
     parser = Parser(add_help=False)
-    parser.add_argument("verb", choices=("start", "outline", "preview", "post"))
+    parser.add_argument("verb", choices=("start", "read", "outline", "preview", "post"))
     for name in ("--date", "--title", "--run-dir", "--receipt", "--doc", "--ticket"):
         parser.add_argument(name)
     args = parser.parse_args(argv)
-    needed = {"start": ("date", "title"), "outline": ("run_dir", "ticket"), "preview": ("run_dir",),
+    needed = {"start": ("date", "title"), "read": ("ticket",), "outline": ("run_dir", "ticket"), "preview": ("run_dir",),
               "post": ("run_dir", "receipt", "doc")}[args.verb]
     missing = [f"--{name.replace('_', '-')}" for name in needed if not getattr(args, name)]
     if missing:
@@ -232,6 +264,8 @@ def main(argv):
     try:
         if args.verb == "start":
             return start(args.date, args.title, read_config()["data_folder"])
+        if args.verb == "read":
+            return read(args.ticket)
         if args.verb == "outline":
             kind = (read_config().get("tracker") or {}).get("kind")
             return publish.outline(args.ticket, Path(args.run_dir) / args.ticket / DESCRIPTION, kind=kind)

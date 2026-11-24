@@ -60,6 +60,11 @@ def choose(listed, title, new_hash, expect_hash):
     return "edit", found
 
 
+def oldest_first(listed):
+    """The oldest meeting first: by the date of the title, then by the time the comment was made."""
+    return sorted(listed, key=lambda item: (item["title"][:10], str(item.get("created") or "")))
+
+
 def read_back(listed, title, new_hash):
     """The one meeting comment with the title and the new hash, else `read-back-mismatch`."""
     same = [item for item in listed if item["title"] == title]
