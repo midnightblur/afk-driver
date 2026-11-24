@@ -1,0 +1,1493 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Solution design",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261124-211045",
+    "skill": "propose-solution",
+    "feature": "207",
+    "ticket": "207",
+    "started": "2026-11-24T21:19:14Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Prototype and design system"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "focus",
+            "round": 1
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "focus",
+            "round": 1
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "open",
+            "round": 1
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "open",
+            "round": 1
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "open",
+            "round": 1
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "PRD #207 published: 30 criteria, 4 examples, 3 requirement records"
+        ],
+        "unlocks": [
+          "the solution proposers",
+          "the top-down draft"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#207: "
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "(no description)",
+                  "markdown": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "a-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-entities-t",
+            "props": {
+              "columns": [
+                "Thing",
+                "Where",
+                "Today",
+                "Change"
+              ],
+              "rows": [
+                [
+                  "Repository config, `frontends` list",
+                  "`.afkv2/config.json`",
+                  "keys: spec_folder, tracker, forge, ownership, live",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c1",
+                    "props": {
+                      "text": "new key",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Mockup file, 1 per screen",
+                  "`<spec folder>/prototype/<screen>.html`",
+                  "none",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c2",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "`PROTOTYPE.md`",
+                  "`<spec folder>/PROTOTYPE.md`",
+                  "none",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c3",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "Design catalog: `README.md`, `tokens.css`, 1 card file per shape",
+                  "the catalog folder the config names",
+                  "none",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c4",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "INDEX.md Prototype row",
+                  "`<spec folder>/INDEX.md`",
+                  "in the template, no writer",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c5",
+                    "props": {
+                      "text": "gets a writer",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "Live screenshots for the fidelity checks",
+                  "afkv2 data folder, outside the repo",
+                  "none",
+                  {
+                    "type": "chip",
+                    "id": "a-ent-c6",
+                    "props": {
+                      "text": "new, not committed",
+                      "tone": "proposed"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-entities-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "No database. Everything is a file; 5 new kinds of file and 1 new config key."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-entities-q",
+                "props": {
+                  "markdown": true,
+                  "text": "**My reading:** each `frontends` entry holds `name`, `source` (the frontend source folder) and `catalog` (the catalog folder), all relative to the repository root. Screenshots stay outside the repository, so no real record lands in a commit. Is the list complete?"
+                }
+              }
+            ]
+          },
+          "title": "What the feature stores",
+          "node": "aspect-entities",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-relations-g",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "ar-repo",
+                  "label": "repository"
+                },
+                {
+                  "id": "ar-spec",
+                  "label": "ticket spec folder"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "ar-fe",
+                  "label": "config: frontend entry",
+                  "group": "ar-repo"
+                },
+                {
+                  "id": "ar-cat",
+                  "label": "catalog folder",
+                  "group": "ar-repo"
+                },
+                {
+                  "id": "ar-prd",
+                  "label": "PRD stories and criteria",
+                  "group": "ar-spec"
+                },
+                {
+                  "id": "ar-mock",
+                  "label": "mockup file(s)",
+                  "group": "ar-spec"
+                },
+                {
+                  "id": "ar-proto",
+                  "label": "PROTOTYPE.md",
+                  "group": "ar-spec"
+                },
+                {
+                  "id": "ar-ver",
+                  "label": "VERIFICATION.md rows",
+                  "group": "ar-spec"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "ar-fe",
+                  "to": "ar-cat",
+                  "label": "1 to 1"
+                },
+                {
+                  "from": "ar-cat",
+                  "to": "ar-mock",
+                  "label": "anchors"
+                },
+                {
+                  "from": "ar-prd",
+                  "to": "ar-proto",
+                  "label": "1 coverage row per story"
+                },
+                {
+                  "from": "ar-mock",
+                  "to": "ar-proto",
+                  "label": "1 to many screens"
+                },
+                {
+                  "from": "ar-proto",
+                  "to": "ar-ver",
+                  "label": "story column"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-relations-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "The config owns the frontend-to-catalog link; PROTOTYPE.md owns the links to stories and screens."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-relations-q",
+                "props": {
+                  "markdown": true,
+                  "text": "**My reading:** a ticket's mockups use **1 frontend**, named in `PROTOTYPE.md`. A `VERIFICATION.md` row traces to a screen through its existing `story` and `criteria` columns, with no new column. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "How the files link",
+          "node": "aspect-relations",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-keys-t",
+            "props": {
+              "columns": [
+                "Thing",
+                "Key",
+                "Unique in"
+              ],
+              "rows": [
+                [
+                  "frontend entry",
+                  "`name`, lower case and dashes",
+                  "the `frontends` list"
+                ],
+                [
+                  "mockup file",
+                  "screen slug, the file name",
+                  "the ticket's `prototype/` folder"
+                ],
+                [
+                  "coverage row",
+                  "story number of the PRD",
+                  "`PROTOTYPE.md`"
+                ],
+                [
+                  "catalog card",
+                  "card file name",
+                  "its catalog folder"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-keys-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "4 keys, each unique in its own container; no key crosses files except the story number."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-keys-q",
+                "props": {
+                  "text": "A duplicate frontend name makes the config read refuse. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "What names each thing",
+          "node": "aspect-keys",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-constraints-t",
+            "props": {
+              "columns": [
+                "Rule",
+                "Checked by",
+                "Answer to a break"
+              ],
+              "rows": [
+                [
+                  "The mockup makes no network call (AC-009)",
+                  {
+                    "type": "chip",
+                    "id": "a-con-c1",
+                    "props": {
+                      "text": "script: no http(s) source, fetch, XMLHttpRequest or WebSocket",
+                      "tone": "new"
+                    }
+                  },
+                  "names the line; the settle refuses"
+                ],
+                [
+                  "The committed mockup holds no afkv2 runtime (AC-010)",
+                  {
+                    "type": "chip",
+                    "id": "a-con-c2",
+                    "props": {
+                      "text": "script: no afkv2 tips block",
+                      "tone": "new"
+                    }
+                  },
+                  "names the file; the settle refuses"
+                ],
+                [
+                  "No secret in a written file (AC-020, AC-024)",
+                  {
+                    "type": "chip",
+                    "id": "a-con-c3",
+                    "props": {
+                      "text": "script: the engine secret scan",
+                      "tone": "kept"
+                    }
+                  },
+                  "names file and line; no done"
+                ],
+                [
+                  "Made-up data only (AC-008, AC-024)",
+                  {
+                    "type": "chip",
+                    "id": "a-con-c4",
+                    "props": {
+                      "text": "instruction only",
+                      "tone": "proposed"
+                    }
+                  },
+                  "a script cannot tell a real name from a made-up one"
+                ],
+                [
+                  "Only prototype writes PROTOTYPE.md and its INDEX row (AC-030)",
+                  {
+                    "type": "chip",
+                    "id": "a-con-c5",
+                    "props": {
+                      "text": "single-writer rule in the format file",
+                      "tone": "proposed"
+                    }
+                  },
+                  "review"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-constraints-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "3 rules get a script check; made-up data and the single writer stay instructions."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-constraints-q",
+                "props": {
+                  "text": "Is an instruction enough for made-up data, given the secret scan runs too?"
+                }
+              }
+            ]
+          },
+          "title": "Rules the files must never break, and who checks each",
+          "node": "aspect-constraints",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-cascade-t",
+            "props": {
+              "columns": [
+                "Event",
+                "What it removes",
+                "What stays"
+              ],
+              "rows": [
+                [
+                  "Settle with 2 or 3 variants",
+                  "the losing variants in the mockup file",
+                  "the chosen screen"
+                ],
+                [
+                  "Run prototype again on a settled ticket",
+                  "nothing; it edits the mockup in place and rewrites PROTOTYPE.md",
+                  "coverage rows keep their story numbers"
+                ],
+                [
+                  "Design-system refresh",
+                  "cards for shapes no longer in the app, after the developer's yes",
+                  "every other card, updated in place"
+                ],
+                [
+                  "A frontend removed from the config",
+                  "nothing",
+                  "its catalog folder; the developer deletes it"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-cascade-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Only the settle and a refresh delete, and a refresh deletes a card only after a yes."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-cascade-q",
+                "props": {
+                  "text": "Agree?"
+                }
+              }
+            ]
+          },
+          "title": "What a settle or a refresh removes",
+          "node": "aspect-cascade",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-api",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "sequence",
+            "id": "a-api-seq",
+            "props": {
+              "actors": [
+                {
+                  "id": "aa-skill",
+                  "label": "skill"
+                },
+                {
+                  "id": "aa-launch",
+                  "label": "launcher"
+                },
+                {
+                  "id": "aa-file",
+                  "label": "mockup file"
+                },
+                {
+                  "id": "aa-host",
+                  "label": "lavish 0.1.86"
+                }
+              ],
+              "messages": [
+                {
+                  "from": "aa-skill",
+                  "to": "aa-launch",
+                  "text": "open mockup.html"
+                },
+                {
+                  "from": "aa-launch",
+                  "to": "aa-launch",
+                  "text": "check pin, refuse LAVISH_AXI_HOST",
+                  "tone": "kept"
+                },
+                {
+                  "from": "aa-launch",
+                  "to": "aa-file",
+                  "text": "write tooltip block (today)",
+                  "tone": "removed"
+                },
+                {
+                  "from": "aa-launch",
+                  "to": "aa-host",
+                  "text": "open the file",
+                  "tone": "kept"
+                },
+                {
+                  "from": "aa-host",
+                  "to": "aa-skill",
+                  "text": "notes: selector, tag, text",
+                  "tone": "kept"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Today the launcher writes into the original file before lavish opens it (launcher.py:296-300)."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api-question",
+                "props": {
+                  "text": "The afkv2 launcher writes its tooltip block into every page it opens. How does the committed mockup stay clean (AC-010)?"
+                }
+              },
+              {
+                "type": "table",
+                "id": "a-api-options",
+                "props": {
+                  "columns": [
+                    "A — A plain open in the launcher",
+                    "B — Show a copy",
+                    "C — Strip at settle"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-a",
+                        "props": {
+                          "text": "The launcher gets a `--plain` flag on `open` that skips the tooltip block. The pin and host checks stay. 1 small change to shared code, with a test; the agent edits and shows the same file."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-b",
+                        "props": {
+                          "text": "The skill copies the mockup into the run folder and opens the copy. No launcher change. Every edit must copy again, and notes name elements of the copy."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "a-api-opt-c",
+                        "props": {
+                          "text": "Open the file as today; the settle removes the block. No launcher change. The file is dirty in the working tree for the whole loop, and a commit in between carries the block."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api-recommend",
+                "props": {
+                  "text": "A change to shared launcher code is a change to existing behaviour, which you sign.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "a-api-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-api2-t",
+            "props": {
+              "columns": [
+                "Surface",
+                "Change",
+                "Existing callers"
+              ],
+              "rows": [
+                [
+                  "config read answer",
+                  "adds `frontends`, an empty list when absent",
+                  "keep working: they read named fields"
+                ],
+                [
+                  "propose-solution start answer",
+                  "adds `prototype` and `prototype_exists`",
+                  "keep working"
+                ],
+                [
+                  "propose-verification start answer",
+                  "adds `prototype` and `prototype_exists`; not a required file",
+                  "keep working"
+                ],
+                [
+                  "Codex Stop hook, page with no page document",
+                  "hands back each note with its selector, tag and text",
+                  "today it hands back the words only; no afkv2 page has no document, so no caller sees a change"
+                ],
+                [
+                  "new: prototype scripts",
+                  "start, check the mockup, show, wait, settle",
+                  "none"
+                ],
+                [
+                  "new: design-system scripts",
+                  "start, add a frontend entry, check the catalog",
+                  "none"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-api2-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Every change to an existing surface adds a field; nothing is renamed or removed."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-api2-q",
+                "props": {
+                  "text": "The note path: the prototype's own wait reads the lavish notes with selector, tag and text, since the engine wait keeps only the words for a page with no document. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "The other surfaces that change",
+          "node": "aspect-api",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-migration-t",
+            "props": {
+              "columns": [
+                "What exists",
+                "After the change",
+                "Going back"
+              ],
+              "rows": [
+                [
+                  "a config with no `frontends`",
+                  "valid; `frontends` reads as empty",
+                  "remove the key"
+                ],
+                [
+                  "a spec folder with no PROTOTYPE.md",
+                  "both readers run as today (AC-029)",
+                  "nothing to undo"
+                ],
+                [
+                  "a v1 catalog in claude.ai/design",
+                  "not imported; design-system builds a new one in the repository",
+                  "nothing to undo"
+                ],
+                [
+                  "a v1 PROTOTYPE.md in a spec folder",
+                  "the readers take it as text input",
+                  "nothing to undo"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-migration-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "No file needs a migration, and every change goes back by revert."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-migration-q",
+                "props": {
+                  "text": "Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Existing configs and spec folders",
+          "node": "aspect-migration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-authorization",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-auth-t",
+            "props": {
+              "columns": [
+                "Surface",
+                "Permitted",
+                "Denied",
+                "Guard today"
+              ],
+              "rows": [
+                [
+                  "prototype",
+                  "developer at the keyboard",
+                  "hands-off subagent",
+                  {
+                    "type": "chip",
+                    "id": "a-auth-c1",
+                    "props": {
+                      "text": "instruction, as in use-lavish",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "design-system",
+                  "developer at the keyboard",
+                  "hands-off subagent",
+                  {
+                    "type": "chip",
+                    "id": "a-auth-c2",
+                    "props": {
+                      "text": "instruction, as in use-lavish",
+                      "tone": "proposed"
+                    }
+                  }
+                ],
+                [
+                  "any lavish page",
+                  "developer at the keyboard",
+                  "hands-off subagent",
+                  "instruction (use-lavish SKILL.md:14)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-auth-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "No script can tell a hands-off run today; every afkv2 page relies on the same instruction."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-auth-q",
+                "props": {
+                  "markdown": true,
+                  "text": "**My reading:** the same instruction guards both skills (AC-026), and no plan subtask names them, so autopilot never reaches them. A run marker would be new work for every page skill: a separate ticket if a real miss shows up. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "How a hands-off run is kept out",
+          "node": "aspect-authorization",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-life-g",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "al-start",
+                  "label": "start"
+                },
+                {
+                  "id": "al-noui",
+                  "label": "stop: no_ui"
+                },
+                {
+                  "id": "al-gap",
+                  "label": "stop: prd_gap"
+                },
+                {
+                  "id": "al-draft",
+                  "label": "drafting, 1 to 3 variants"
+                },
+                {
+                  "id": "al-loop",
+                  "label": "notes loop",
+                  "you": true
+                },
+                {
+                  "id": "al-settle",
+                  "label": "settled: INDEX row 'chosen <date>'"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "al-start",
+                  "to": "al-noui",
+                  "label": "no screen"
+                },
+                {
+                  "from": "al-start",
+                  "to": "al-draft",
+                  "label": "a screen"
+                },
+                {
+                  "from": "al-draft",
+                  "to": "al-loop"
+                },
+                {
+                  "from": "al-loop",
+                  "to": "al-gap",
+                  "label": "PRD cannot answer"
+                },
+                {
+                  "from": "al-loop",
+                  "to": "al-settle",
+                  "label": "you settle"
+                },
+                {
+                  "from": "al-settle",
+                  "to": "al-loop",
+                  "label": "run again"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-life-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "4 outcomes, as in v1: no_ui, prd_gap, settled, or stopped by you."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-life-q",
+                "props": {
+                  "markdown": true,
+                  "text": "**My reading:** a `prd_gap` stops the run and names `/afkv2:grill-requirements`, since the prototype changes no requirement. A catalog card has 2 states: `checked` against a live screenshot, or `unchecked` (AC-022). Agree?"
+                }
+              }
+            ]
+          },
+          "title": "The states of a prototype run",
+          "node": "aspect-lifecycle",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-other-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "a-ot-g",
+            "props": {
+              "direction": "right",
+              "groups": [
+                {
+                  "id": "ot-own",
+                  "label": "owned: afkv2/**, docs/afk/**"
+                },
+                {
+                  "id": "ot-v1",
+                  "label": "v1 tree, untouched"
+                }
+              ],
+              "nodes": [
+                {
+                  "id": "ot-skills",
+                  "label": "2 new skills",
+                  "group": "ot-own"
+                },
+                {
+                  "id": "ot-engine",
+                  "label": "launcher, Codex Stop hook",
+                  "group": "ot-own"
+                },
+                {
+                  "id": "ot-readers",
+                  "label": "propose-solution, propose-verification",
+                  "group": "ot-own"
+                },
+                {
+                  "id": "ot-config",
+                  "label": "config reader",
+                  "group": "ot-own"
+                },
+                {
+                  "id": "ot-v1skills",
+                  "label": "skills/afk/prototype, design-system",
+                  "group": "ot-v1"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "ot-skills",
+                  "to": "ot-engine"
+                },
+                {
+                  "from": "ot-skills",
+                  "to": "ot-config"
+                },
+                {
+                  "from": "ot-readers",
+                  "to": "ot-skills",
+                  "label": "read PROTOTYPE.md"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-ot-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Every touched module is in the owned set of the repository config; the v1 skills stay as they are."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-ot-q",
+                "props": {
+                  "text": "No other team's module is touched. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Modules outside the ownership config",
+          "node": "aspect-other-teams",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "a-large-data",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "a-ld-t",
+            "props": {
+              "columns": [
+                "List or file",
+                "Grows with",
+                "Where the size is handled"
+              ],
+              "rows": [
+                [
+                  "mockup file with inline made-up data",
+                  "rows of made-up data per screen",
+                  "the Performance section"
+                ],
+                [
+                  "catalog cards",
+                  "shapes in the frontend",
+                  "the Performance section"
+                ],
+                [
+                  "live screenshots",
+                  "screens checked per run",
+                  "the Performance section"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "a-ld-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "3 things grow; none is a table in a database."
+                }
+              },
+              {
+                "type": "text",
+                "id": "a-ld-q",
+                "props": {
+                  "text": "Is anything else large?"
+                }
+              }
+            ]
+          },
+          "title": "What can grow large",
+          "node": "aspect-large-data",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T21:27:08Z",
+          "raw": "[round R-1]\na-api a\na-entities accept\na-relations accept\na-keys accept\na-constraints accept\na-cascade accept\na-api-2 accept\na-migration accept\na-authorization accept\na-lifecycle accept\na-other-teams accept\na-large-data accept",
+          "signals": [
+            {
+              "target": "a-api",
+              "item": "a-api",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1cf38151449370ce"
+            },
+            {
+              "target": "a-entities",
+              "item": "a-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "07684650e9923e6e"
+            },
+            {
+              "target": "a-relations",
+              "item": "a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d45a449a32987cc8"
+            },
+            {
+              "target": "a-keys",
+              "item": "a-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c317a3278633c3cb"
+            },
+            {
+              "target": "a-constraints",
+              "item": "a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d6264b59b1ae00d0"
+            },
+            {
+              "target": "a-cascade",
+              "item": "a-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e8eb3ac039359c19"
+            },
+            {
+              "target": "a-api-2",
+              "item": "a-api-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9c59d4dfb56a63e5"
+            },
+            {
+              "target": "a-migration",
+              "item": "a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3cf2ccb9da9f6809"
+            },
+            {
+              "target": "a-authorization",
+              "item": "a-authorization",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "76d6ee7b43c86ee3"
+            },
+            {
+              "target": "a-lifecycle",
+              "item": "a-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0760c54c6818519a"
+            },
+            {
+              "target": "a-other-teams",
+              "item": "a-other-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9fd47e9de0082004"
+            },
+            {
+              "target": "a-large-data",
+              "item": "a-large-data",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1bd4266fd9e9cbdc"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

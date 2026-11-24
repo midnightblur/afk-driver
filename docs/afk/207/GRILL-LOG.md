@@ -46,3 +46,18 @@
 - Settled: **Verdict:** the new edge example (a backend-only feature) covers the last story without one: the prototype stops with `no_ui`, writes nothing and leaves the INDEX row untouched. · settled by mark accept R4 · card i-ex-noui
 - Settled: exit gate passed 2026-11-24 · session s-20261120-211919
 - Last pass: R4 · session s-20261120-211919
+
+## Solution design
+
+- Premise: launcher.run injects the afkv2 tips block into the original HTML file on every open → verified (afkv2/engine/launcher.py:296-300; afkv2/engine/shell/inject.py:206-216,257-267; tests/engine/test_page_tip_injection.py:77-110)
+- Premise: launcher opens any existing .html with no page document, checks pin 0.1.86 and refuses LAVISH_AXI_HOST → verified (afkv2/engine/launcher.py:34,61-107,136-154)
+- Premise: lavish-axi poll returns prompts with selector (5 parts, cut at nearest id), tag and text (240 chars) → verified (lavish-axi 0.1.86 dist/cli.mjs:5708-5734,9404-9419,13172-13193)
+- Premise: engine poll without a page document keeps only the note words in raw; selector, tag and text stay only in prompts → verified (afkv2/engine/engine.py:625-672; afkv2/engine/prompt_lines.py:130-227)
+- Premise: Codex Stop hook needs a waiting record, written only by engine show; with no document it returns note words without selectors → verified (afkv2/hooks/codex_stop.py:39-47,81,118-136; afkv2/engine/launcher.py:431-445; afkv2/engine/engine.py:548)
+- Premise: No script can tell a hands-off run from a developer at the keyboard; the rule is an instruction → verified (afkv2/skills/use-lavish/SKILL.md:14; afkv2/skills/autopilot/scripts/walk.py:144; tests/engine/fixtures/v0-page-with-notes.json:956)
+- Premise: read_config ignores unknown top-level keys and refuses unknown keys inside live; setup repo_config and live_build are the only config writers → verified (afkv2/scripts/afkv2_config.py:97-146; afkv2/skills/setup/scripts/repo_config.py:158-171; afkv2/scripts/live_build.py:407-416)
+- Premise: live_build exposes start_live/stop_live for a skill to hold the app up during a run → verified (afkv2/scripts/live_build.py:83-127; pattern afkv2/skills/small-change/scripts/small_lane.py:275-293)
+- Premise: engine/notices.py scan_files scans any file list for secrets with stdlib only → verified (afkv2/engine/notices.py:21-24,154-176; precedent afkv2/skills/create-change-request/scripts/ci_watch.py:473-477)
+- Premise: design_files.py start and verification_files.py start answer fixed dicts where an optional prototype path can be added; VERIFICATION rows trace by criteria and story columns → verified (propose-solution/scripts/design_files.py:136-140; propose-verification/scripts/verification_files.py:180-207,47; VERIFICATION-FORMAT.md:27-28,53,67)
+- Premise: A new afkv2 skill registers by its folder; plugin_check bans v1 names and duplicate module names → verified (afkv2/.claude-plugin/plugin.json; afkv2/scripts/plugin_check.py:88-134; tests/test_module_names.py:22)
+- Premise: No afkv2 skill or script calls the chrome-devtools MCP tools by name; setup installs chrome-devtools-mcp 1.10.1 → verified (afkv2/skills/setup/scripts/tools.py:41-47; rg mcp__chrome-devtools afkv2/skills: none)
