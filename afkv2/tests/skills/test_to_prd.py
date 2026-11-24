@@ -1380,39 +1380,47 @@ def _linked(nodes):
     return found
 
 
+def expect(actual, expected, about):
+    """One assertion whose failure names the input, the expected value and the actual value."""
+    assert actual == expected, f"{about}: expected {expected!r}, got {actual!r}"
+
+
+KEPT_TYPES = ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"]
+CARD = {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}
+
+
 def test_whole_publish_keeps_owner_nodes_exact_and_drops_the_old_block(world):
     """The high-level proof: outline, preview, publish, read back, through the skill's own commands."""
     _ticket_world(world)
     outline = json.loads(Path(_outline(world)["outline"]).read_text("utf-8"))
-    in_block = [node["in_block"] for node in outline["nodes"]]
-    assert in_block == [False, False, False, False, False, False, False, True, True, True], f"in_block: {in_block}"
+    expect([node["in_block"] for node in outline["nodes"]], [False] * 7 + [True] * 3, "outline in_block per node")
     answer = _ticket_preview(world)
-    assert world.writes() == [], f"the preview wrote: {world.writes()}"
-    assert answer["action"] == "replaces the whole description", f"action: {answer['action']}"
-    assert answer["dropped"] == [], f"dropped: {answer['dropped']}"
-    assert answer["over_jira_limit"] is False, f"text length: {answer['text_length']}"
+    expect(world.writes(), [], "ticket writes of the preview")
+    expect(answer["action"], "replaces the whole description", "preview action")
+    expect(answer["dropped"], [], "preview dropped nodes for {{keep 0-6}}")
+    expect(answer["over_jira_limit"], False, f"over_jira_limit at {answer['text_length']} characters")
 
     done = world.publish(answer)
-    assert (done["published"], done["replaced"]) == (True, "v1"), f"publish answer: {done}"
+    expect((done["published"], done["replaced"]), (True, "v1"), "publish answer (published, replaced)")
     content = world.ticket()["description"]["content"]
-    kept = [node["type"] for node in content[:7]]
-    assert kept == ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"], kept
-    assert content[3]["content"][0]["attrs"]["id"] == "owner-media-1", f"screenshot node: {content[3]}"
-    assert content[4]["content"][0]["content"][0]["attrs"] == {"colwidth": [120]}, f"table node: {content[4]}"
-    assert content[5]["content"][0] == {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}, content[5]
-    assert content[6]["content"][0]["attrs"]["id"] == "owner-media-2", f"picture group node: {content[6]}"
+    expect([node["type"] for node in content[:7]], KEPT_TYPES, "types of the 7 kept owner nodes")
+    expect(content[3]["content"][0]["attrs"]["id"], "owner-media-1", "media id of the kept screenshot")
+    expect(content[4]["content"][0]["content"][0]["attrs"], {"colwidth": [120]}, "attrs of the kept table cell")
+    expect(content[5]["content"][0], CARD, "the kept card link")
+    expect(content[6]["content"][0]["attrs"]["id"], "owner-media-2", "media id of the kept picture group")
     lines = [publish_text(node) for node in content]
     for gone in ("old PRD", V1.BEGIN_LINE_NOTE, V1.BEGIN_LINE, V1.END_LINE, BEGIN, END):
-        assert gone not in lines, f"{gone!r} is still in the description: {lines}"
-    links = _linked(content)
-    assert ("PROJ-12", "https://jira.example/browse/PROJ-12") in links, f"links: {links}"
+        expect(gone in lines, False, f"line {gone!r} in the published description")
+    expect(("PROJ-12", "https://jira.example/browse/PROJ-12") in _linked(content), True,
+           f"PROJ-12 link mark among {_linked(content)}")
     names = sorted(world.names())
-    assert names[1] == "screen.png" and re.fullmatch(r"afkv2-fig-[0-9a-f]{8}-1\.png", names[0]), f"attachments: {names}"
-    assert done["deleted"] == [V1.PICTURE], f"deleted: {done['deleted']}"
+    expect(names[1], "screen.png", "the owner's attachment")
+    expect(bool(re.fullmatch(r"afkv2-fig-[0-9a-f]{8}-1\.png", names[0])), True, f"new picture name {names[0]!r}")
+    expect(done["deleted"], [V1.PICTURE], "pictures deleted after the read-back")
 
     world.clear_calls()
     again = world.publish(answer)
-    assert again["already_published"] is True and world.writes() == [], f"rerun: {again}, writes {world.writes()}"
+    expect((again["already_published"], world.writes()), (True, []), "a second publish of the same preview")
 
 
 def test_a_bare_ticket_key_becomes_a_link_mark_and_other_text_stays():
@@ -1513,16 +1521,16 @@ def test_real_port_whole_publish_keeps_owner_nodes(real_port_world):
     _outline(world)
     answer = _ticket_preview(world)
     done = world.publish(answer)
-    assert (done["published"], done["replaced"], done["deleted"]) == (True, "v1", [V1.PICTURE]), f"publish: {done}"
+    expect((done["published"], done["replaced"], done["deleted"]), (True, "v1", [V1.PICTURE]),
+           "real port publish (published, replaced, deleted)")
     content = _LocalJira.issue["description"]["content"]
-    kept = [node["type"] for node in content[:7]]
-    assert kept == ["paragraph", "heading", "paragraph", "mediaSingle", "table", "paragraph", "mediaGroup"], kept
-    assert content[3]["content"][0]["attrs"]["id"] == "owner-media-1", f"screenshot node: {content[3]}"
-    assert content[6]["content"][0]["attrs"]["id"] == "owner-media-2", f"picture group node: {content[6]}"
-    assert content[5]["content"][0] == {"type": "inlineCard", "attrs": {"url": "https://x.example/card"}}, content[5]
+    expect([node["type"] for node in content[:7]], KEPT_TYPES, "types of the 7 kept owner nodes")
+    expect(content[3]["content"][0]["attrs"]["id"], "owner-media-1", "media id of the kept screenshot")
+    expect(content[6]["content"][0]["attrs"]["id"], "owner-media-2", "media id of the kept picture group")
+    expect(content[5]["content"][0], CARD, "the kept card link")
     lines = [publish_text(node) for node in content]
-    assert "old PRD" not in lines and V1.END_LINE not in lines, f"old block left: {lines}"
-    links = [(text, href) for text, href in _linked(content) if text == "PROJ-12"]
-    assert len(links) == 1 and re.fullmatch(r"http://127\.0\.0\.1:\d+/browse/PROJ-12", links[0][1]), f"links: {links}"
-    again = world.publish(answer)
-    assert again["already_published"] is True, f"rerun: {again}"
+    expect(("old PRD" in lines, V1.END_LINE in lines), (False, False), "old block lines in the description")
+    links = [href for text, href in _linked(content) if text == "PROJ-12"]
+    expect([bool(re.fullmatch(r"http://127\.0\.0\.1:\d+/browse/PROJ-12", href)) for href in links], [True],
+           f"PROJ-12 link targets {links}")
+    expect(world.publish(answer)["already_published"], True, "a second publish of the same preview")
