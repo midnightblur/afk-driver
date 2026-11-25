@@ -1,13 +1,12 @@
 """The 2 readers of PROTOTYPE.md: propose-solution and propose-verification (SDD §14; ADR-0004 design; ticket 207
 VR-023, VR-024, VR-025, VR-026).
 
-Each start test builds its own scratch git repository and runs the script by its path, through its command line, as
-SKILL.md states it. PROTOTYPE.md is an optional input: a spec folder without it runs as today, with no refusal. Each
-failure message names the input, the expected value and the actual value.
+Each start test builds its own scratch git repository with its own spec files, and runs the script by its path with
+`start --ticket PROJ-1`. PROTOTYPE.md is an optional input: a spec folder without it runs as today, with no refusal.
+Each failure names the input, the expected value and the actual value.
 """
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,7 +15,6 @@ PLUGIN = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN / "skills"
 DESIGN_FILES = SKILLS / "propose-solution" / "scripts" / "design_files.py"
 VERIFICATION_FILES = SKILLS / "propose-verification" / "scripts" / "verification_files.py"
-SPEC_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "propose_solution" / "spec"
 TICKET = "PROJ-1"
 PROTOTYPE = "# Prototype — sample\n\n> Frontend: web\n> Fidelity: source-only\n> Date: 2026-11-25\n"
 
@@ -27,17 +25,28 @@ def _git(root, *args):
                                   f"{done.stderr}")
 
 
-def _repo(tmp_path):
-    """A scratch git repository: config with spec_folder docs, and docs/PROJ-1 with PRD.md, SDD.md, a GRILL-LOG.md whose
-    exit gate passed and its page document. No PROTOTYPE.md."""
+PRD = "# PRD — sample\n\n## Acceptance Criteria\n\n- [ ] AC-001 The list page shows orders.\n"
+GRILL_LOG = "# Grill log — PROJ-1\n\n## Requirements grill\n\n- Settled: exit gate passed 2026-11-25 · session s-1\n"
+GRILL_PAGE = {"schema": "afkv2.page/0", "maps": [], "rounds": [],
+              "session": {"id": "s-1", "skill": "grill", "feature": "PROJ-1", "ticket": "PROJ-1",
+                          "started": "2026-11-25T09:00:00Z"}}
+
+
+def _repo(tmp_path, sdd=True):
+    """A scratch git repository: config with spec_folder docs, and docs/PROJ-1 with PRD.md, SDD.md (unless `sdd` is
+    false), a GRILL-LOG.md whose exit gate passed for session s-1 and its grill page document. No PROTOTYPE.md."""
     root = tmp_path / "repo"
-    root.mkdir()
+    spec = root / "docs" / TICKET
+    (spec / "pages").mkdir(parents=True)
     _git(root, "init", "-q", "-b", "main")
     (root / ".afkv2").mkdir()
     (root / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "docs", "tracker": {"kind": "jira"}}),
                                                  "utf-8")
-    shutil.copytree(SPEC_FIXTURE, root / "docs" / TICKET)
-    (root / "docs" / TICKET / "SDD.md").write_text("# SDD\n", "utf-8")
+    (spec / "PRD.md").write_text(PRD, "utf-8")
+    if sdd:
+        (spec / "SDD.md").write_text("# SDD\n", "utf-8")
+    (spec / "GRILL-LOG.md").write_text(GRILL_LOG, "utf-8")
+    (spec / "pages" / "grill-s-1.json").write_text(json.dumps(GRILL_PAGE), "utf-8")
     return root
 
 
@@ -94,15 +103,20 @@ def test_design_start_without_the_prototype_answers_false_and_no_refusal(tmp_pat
 def test_verification_start_with_the_prototype_answers_true_and_the_path(tmp_path):
     root = _repo(tmp_path)
     (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
-    given, answer = _check_start(VERIFICATION_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
-    _expect(given, "PROTOTYPE.md named in missing", "PROTOTYPE.md" in json.dumps(answer.get("missing", [])), False,
-            answer)
+    _check_start(VERIFICATION_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
 
 
 def test_verification_start_without_the_prototype_answers_false_and_no_refusal(tmp_path):
     root = _repo(tmp_path)
-    given, answer = _check_start(VERIFICATION_FILES, root, "no docs/PROJ-1/PROTOTYPE.md", False)
-    _expect(given, "PROTOTYPE.md named in missing", "PROTOTYPE.md" in json.dumps(answer.get("missing", [])), False,
+    _check_start(VERIFICATION_FILES, root, "no docs/PROJ-1/PROTOTYPE.md", False)
+
+
+def test_verification_start_never_names_a_missing_prototype_in_missing(tmp_path):
+    root = _repo(tmp_path, sdd=False)
+    given, code, answer = _start(VERIFICATION_FILES, root, "no docs/PROJ-1/SDD.md and no docs/PROJ-1/PROTOTYPE.md")
+    _expect(given, "exit code", code, 1, answer)
+    _expect(given, "error.code", answer.get("error", {}).get("code"), "missing-input", answer)
+    _expect(given, "error.missing", _relative(root, answer.get("error", {}).get("missing", "")), "docs/PROJ-1/SDD.md",
             answer)
 
 
@@ -127,27 +141,38 @@ def _row(text, label):
     return _flat(next(line for line in text.splitlines() if line.lstrip().startswith(f"| {label}")))
 
 
-def _optional_input(text):
+def _holds(skill, where, text, phrase, present=True):
+    expected = f"{'holds' if present else 'lacks'} {phrase!r}"
+    assert (phrase in text) is present, f"input: {skill}/SKILL.md {where}\nexpected: {expected}\nactual: {text!r}"
+
+
+def _optional_input(skill, text):
     row = _row(text, "`PROTOTYPE.md`")
-    assert "/afkv2:prototype" in row and "stop" not in row, row
+    _holds(skill, "input row `PROTOTYPE.md`", row, "/afkv2:prototype")
+    _holds(skill, "input row `PROTOTYPE.md`", row, "stop", present=False)
     start = _step(text, 1)
-    assert "`prototype`" in start and "`prototype_exists`" in start
-    assert "`prototype`" in _row(text, "R-1 Same inputs")
+    _holds(skill, "step 1", start, "`prototype`")
+    _holds(skill, "step 1", start, "`prototype_exists`")
+    _holds(skill, "row R-1 Same inputs", _row(text, "R-1 Same inputs"), "`prototype`")
 
 
 def test_propose_solution_guide_reads_the_prototype_and_cites_each_ui_decision():
-    text = _guide("propose-solution")
-    _optional_input(text)
+    skill = "propose-solution"
+    text = _guide(skill)
+    _optional_input(skill, text)
     read = _step(text, 2)
-    assert "`prototype_exists` true: read `prototype`" in read
-    assert "each UI decision of it that changes the design in the existing SDD section it changes" in read
-    assert "no new section" in read
+    _holds(skill, "step 2", read, "`prototype_exists` true: read `prototype`")
+    _holds(skill, "step 2", read,
+           "each UI decision of it that changes the design in the existing SDD section it changes")
+    _holds(skill, "step 2", read, "no new section")
 
 
 def test_propose_verification_guide_reads_the_prototype_and_derives_rows_from_its_coverage():
-    text = _guide("propose-verification")
-    _optional_input(text)
+    skill = "propose-verification"
+    text = _guide(skill)
+    _optional_input(skill, text)
     read = _step(text, 2)
-    assert "`prototype_exists` true: read `prototype`" in read
-    assert "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table" in read
-    assert "`story` and `criteria`" in read and "no new column" in read
+    _holds(skill, "step 2", read, "`prototype_exists` true: read `prototype`")
+    _holds(skill, "step 2", read, "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table")
+    _holds(skill, "step 2", read, "`story` and `criteria`")
+    _holds(skill, "step 2", read, "no new column")
